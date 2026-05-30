@@ -1,4 +1,3 @@
-import pytest
 from selenium.webdriver.common.keys import Keys
 
 
@@ -10,7 +9,7 @@ def filter_for_user(driver, username):
     driver.click_xpath(username_input_xpath)
     username_input.send_keys(username)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//button[text()='Submit']",
+        "//div[contains(@class, 'MuiDialog-root')]//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -97,15 +96,22 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.wait_for_xpath(
         f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
     )
-    driver.click_xpath(
-        f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']//*[contains(@class, 'MuiChip-deleteIcon')]"
+    # The chips live in a MUI X DataGrid cell. Selenium's scroll-to/move-to before
+    # clicking causes the virtualized grid to re-render the cell, leaving the
+    # delete-icon element stale so the click is silently dropped (the handler never
+    # fires and the success notification never appears). Dispatching a bubbling
+    # click MouseEvent on the delete icon (an SVG, which has no .click() method in
+    # Firefox) fires the Chip's onDelete directly, with no scroll/hover dance.
+    driver.execute_script(
+        "document.querySelector(arguments[0]).dispatchEvent("
+        "new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));",
+        f"[data-testid='deleteGroupUserButton_{user.id}_{public_group.id}'] .MuiChip-deleteIcon",
     )
     driver.wait_for_xpath(
         "//div[text()='User successfully removed from specified group.']"
     )
 
 
-@pytest.mark.flaky(reruns=2)
 def test_delete_stream_user(driver, super_admin_user, user, stream_with_users):
     stream = stream_with_users
     driver.get(f"/become_user/{super_admin_user.id}")
@@ -114,8 +120,16 @@ def test_delete_stream_user(driver, super_admin_user, user, stream_with_users):
     driver.wait_for_xpath(
         f"//*[@data-testid='deleteStreamUserButton_{user.id}_{stream.id}']"
     )
-    driver.click_xpath(
-        f"//*[@data-testid='deleteStreamUserButton_{user.id}_{stream.id}']//*[contains(@class, 'MuiChip-deleteIcon')]"
+    # The chips live in a MUI X DataGrid cell. Selenium's scroll-to/move-to before
+    # clicking causes the virtualized grid to re-render the cell, leaving the
+    # delete-icon element stale so the click is silently dropped (the handler never
+    # fires and the success notification never appears). Dispatching a bubbling
+    # click MouseEvent on the delete icon (an SVG, which has no .click() method in
+    # Firefox) fires the Chip's onDelete directly, with no scroll/hover dance.
+    driver.execute_script(
+        "document.querySelector(arguments[0]).dispatchEvent("
+        "new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));",
+        f"[data-testid='deleteStreamUserButton_{user.id}_{stream.id}'] .MuiChip-deleteIcon",
     )
     driver.wait_for_xpath("//div[text()='Stream access successfully revoked.']")
 

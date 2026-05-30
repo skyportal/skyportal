@@ -2,54 +2,17 @@ import React, { useState } from "react";
 import { JSONTree } from "react-json-tree";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import CircularProgress from "@mui/material/CircularProgress";
-
-import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 import * as defaultGcnTagsActions from "../../ducks/default_gcn_tags";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    components: {
-      MUIDataTablePagination: {
-        styleOverrides: {
-          toolbar: {
-            flexFlow: "row wrap",
-            justifyContent: "flex-end",
-            padding: "0.5rem 1rem 0",
-            [theme.breakpoints.up("sm")]: {
-              // Cancel out small screen styling and replace
-              padding: "0px",
-              paddingRight: "2px",
-              flexFlow: "row nowrap",
-            },
-          },
-          tableCellContainer: {
-            padding: "1rem",
-          },
-          selectRoot: {
-            marginRight: "0.5rem",
-            [theme.breakpoints.up("sm")]: {
-              marginLeft: "0",
-              marginRight: "2rem",
-            },
-          },
-        },
-      },
-    },
-  });
-
 const DefaultGcnTagTable = ({ default_gcn_tags }) => {
-  const theme = useTheme();
-
   const dispatch = useDispatch();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -74,95 +37,57 @@ const DefaultGcnTagTable = ({ default_gcn_tags }) => {
     });
   };
 
-  const renderDefaultGcnTagName = (dataIndex) => {
-    const default_gcn_tag = default_gcn_tags[dataIndex];
-
-    return <div>{default_gcn_tag ? default_gcn_tag.default_tag_name : ""}</div>;
-  };
-
-  const renderFilters = (dataIndex) => {
-    const default_gcn_tag = default_gcn_tags[dataIndex];
-
-    return (
-      <div>
-        {default_gcn_tag ? <JSONTree data={default_gcn_tag.filters} /> : ""}
-      </div>
-    );
-  };
-
-  const renderDelete = (dataIndex) => {
-    const default_gcn_tag = default_gcn_tags[dataIndex];
-    return (
-      <>
-        <Button
-          id="delete_button"
-          onClick={() => openDialog(default_gcn_tag.id)}
-        >
-          <DeleteIcon />
-        </Button>
-        <ConfirmDeletionDialog
-          deleteFunction={deleteDefaultGcnTag}
-          dialogOpen={dialogOpen}
-          closeDialog={closeDialog}
-          resourceName="defaultGcnTag"
-        />
-      </>
-    );
-  };
-
   const columns = [
     {
-      name: "default_tag_name",
-      label: "Default Tag Name",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderDefaultGcnTagName,
-      },
+      field: "default_tag_name",
+      headerName: "Default Tag Name",
+      flex: 1,
+      minWidth: 160,
     },
     {
-      name: "filters",
-      label: "Filters",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderFilters,
-      },
+      field: "filters",
+      headerName: "Filters",
+      flex: 1,
+      minWidth: 200,
+      sortable: false,
+      renderCell: (params) =>
+        params.row ? <JSONTree data={params.row.filters} /> : "",
     },
     {
-      name: "delete",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderDelete,
-      },
+      field: "delete",
+      headerName: " ",
+      width: 70,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <>
+          <Button id="delete_button" onClick={() => openDialog(params.row.id)}>
+            <DeleteIcon />
+          </Button>
+          <ConfirmDeletionDialog
+            deleteFunction={deleteDefaultGcnTag}
+            dialogOpen={dialogOpen}
+            closeDialog={closeDialog}
+            resourceName="defaultGcnTag"
+          />
+        </>
+      ),
     },
   ];
-
-  const options = {
-    search: false,
-    draggableColumns: { enabled: true },
-    selectableRows: "none",
-    elevation: 0,
-    jumpToPage: true,
-    serverSide: true,
-    pagination: false,
-    filter: true,
-    sort: true,
-  };
 
   if (!default_gcn_tags) return <CircularProgress />;
 
   return (
     <div style={{ width: "100%", minWidth: "40vw", overflow: "scroll" }}>
-      <ThemeProvider theme={getMuiTheme(theme)}>
-        <MUIDataTable
-          data={default_gcn_tags}
-          options={options}
-          columns={columns}
-        />
-      </ThemeProvider>
+      <StyledDataGrid
+        autoHeight
+        rows={default_gcn_tags}
+        columns={columns}
+        getRowId={(row) => row.id}
+        hideFooter
+        initialState={{ pagination: { paginationModel: { pageSize: 100 } } }}
+        showToolbar
+      />
     </div>
   );
 };

@@ -76,12 +76,10 @@ def test_add_sources_two_groups(
     driver.wait_for_xpath(f"//*[text()[contains(., '{'0.153'}')]]")
 
     # little triangle you push to expand the table
-    driver.click_xpath(
-        "//tr[@data-testid='MUIDataTableBodyRow-0']//*[@id='expandable-button']"
-    )
+    driver.click_xpath("//div[@data-rowindex='0']//*[@id='expandable-button']")
 
     # make sure the div containing the individual source appears
-    driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
+    driver.wait_for_xpath(f'//*[@data-testid="groupSourceExpand_{obj_id}"]')
 
     # post a taxonomy and classification
     status, data = api(
@@ -447,6 +445,6 @@ def test_hr_diagram(
     driver.click_xpath("//*[@id='expandable-button']")
 
     # make sure the div containing the individual source appears
-    driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{source_id}"]')
+    driver.wait_for_xpath(f'//*[@data-testid="groupSourceExpand_{source_id}"]')
 
     driver.wait_for_xpath(f'//div[@data-testid="hr_diagram_{source_id}"]')

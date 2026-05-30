@@ -1,0 +1,69 @@
+name: Delete superseded cancelled runs
+
+# When a CI run is cancelled because a newer commit superseded it (via the
+# `concurrency` settings on the test workflows), GitHub keeps the cancelled
+# run around and shows it as a red cross on the commit. This workflow deletes
+# such runs so the commit status is only red if one of the tests actually failed.
+#
+# It runs via `workflow_run`, which always executes in the base repo with the
+# base-repo GITHUB_TOKEN, so it has `actions: write` even for fork PRs (unlike
+# a step inside the PR workflow itself, which gets a read-only token on forks).
+
+on:
+  workflow_run:
+    workflows:
+      - "API & frontend"
+      - "Model Logic"
+      - "Test Skyportal Migrations"
+    types:
+      - completed
+
+permissions:
+  actions: write
+
+jobs:
+  delete-superseded:
+    if: github.event.workflow_run.conclusion == 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the run only if it was superseded by a newer run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+        run: |
+          set -euo pipefail
+
+          # Runs on `main` are never auto-cancelled by `concurrency`
+          # (cancel-in-progress is false on main), so a cancelled main run is
+          # always a manual cancel, never delete it.
+          if [ "$BRANCH" = "main" ]; then
+            echo "Run $RUN_ID is on 'main', never superseded by concurrency, keeping it."
+            exit 0
+          fi
+
+          # Most recent run for the same workflow + same head branch.
+          # The list endpoint returns runs sorted by created_at descending,
+          # so per_page=1 gives us the latest one. Pass the query params via
+          # `-f` so branch names with `/` or special chars are URL-encoded.
+          latest_run_number=$(gh api \
+            -f branch="$BRANCH" -f per_page=1 \
+            "/repos/$REPO/actions/workflows/$WORKFLOW_ID/runs" \
+            --jq '.workflow_runs[0].run_number // empty')
+
+          # If the lookup returned nothing usable (API hiccup, unexpected shape),
+          # keep the run rather than failing the whole cleanup workflow.
+          if ! [[ "$latest_run_number" =~ ^[0-9]+$ ]]; then
+            echo "Could not determine latest run number for '$BRANCH' (got '$latest_run_number'); keeping run $RUN_ID."
+            exit 0
+          fi
+
+          if [ "$latest_run_number" -gt "$RUN_NUMBER" ]; then
+            echo "Run $RUN_ID (#$RUN_NUMBER) on '$BRANCH' was superseded by run #$latest_run_number. Deleting it."
+            gh api -X DELETE "/repos/$REPO/actions/runs/$RUN_ID"
+          else
+            echo "Run $RUN_ID (#$RUN_NUMBER) is the latest for '$BRANCH' — likely cancelled manually. Keeping it."
+          fi

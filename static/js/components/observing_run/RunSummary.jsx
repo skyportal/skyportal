@@ -2,15 +2,15 @@ import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 
-import TableCell from "@mui/material/TableCell";
-import TableRow from "@mui/material/TableRow";
-
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import BuildIcon from "@mui/icons-material/Build";
 import CloudIcon from "@mui/icons-material/Cloud";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
 import Link from "@mui/material/Link";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
@@ -27,10 +27,14 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 import AssignmentForm from "../observing_run/AssignmentForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import { observingRunTitle } from "./AssignmentForm";
@@ -222,6 +226,7 @@ const RunSummary = ({ route }) => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
   const [dialog, setDialog] = useState(false);
+  const [openedRows, setOpenedRows] = useState([]);
 
   const closeDialog = () => {
     setDialog(false);
@@ -248,318 +253,299 @@ const RunSummary = ({ route }) => {
     );
   };
 
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderPullOutRow = (rowData, rowMeta) => {
-    if (observingRun === undefined) {
-      return (
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      );
-    }
-
-    const colSpan = rowData.length + 1;
-    const assignment = assignments[rowMeta.dataIndex];
-
-    return (
-      <TableRow>
-        <TableCell
-          style={{ paddingBottom: 0, paddingTop: 0 }}
-          colSpan={colSpan}
-        >
-          <Grid
-            container
-            direction="row"
-            spacing={3}
-            justifyContent="center"
-            alignItems="center"
-          >
-            <ThumbnailList
-              thumbnails={assignment.obj.thumbnails}
-              ra={assignment.obj.ra}
-              dec={assignment.obj.dec}
-              useGrid={false}
-            />
-            <Grid>
-              <Suspense fallback={<div>Loading plot...</div>}>
-                <AirmassPlot
-                  dataUrl={`/api/internal/plot/airmass/assignment/${assignment.id}`}
-                  ephemeris={observingRun.ephemeris}
-                />
-              </Suspense>
-            </Grid>
-            <Grid>
-              <Suspense fallback={<div>Loading plot...</div>}>
-                <VegaPhotometry sourceId={assignment.obj.id} />
-              </Suspense>
-            </Grid>
-          </Grid>
-        </TableCell>
-      </TableRow>
+  const toggleExpand = (id) => {
+    setOpenedRows((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderObjId = (dataIndex) => {
-    const objid = assignments[dataIndex].obj.id;
-    return (
-      <a href={`/source/${objid}`} key={`${objid}_objid`}>
-        {objid}
-      </a>
-    );
-  };
-
-  const renderStatus = (dataIndex) => {
-    const { id, status } = assignments[dataIndex];
-    const colors = getStatusColors(status);
-    return (
-      <Typography
-        variant="body2"
-        style={{
-          backgroundColor: colors[1],
-          color: colors[0],
-          padding: "0.25rem 0.75rem 0.25rem 0.75rem",
-          borderRadius: "1rem",
-          maxWidth: "fit-content",
-          // don't allow line breaks unless the status contains "error"
-          whiteSpace: status.includes("error") ? "normal" : "nowrap",
-        }}
-        name={`${id}_status`}
-      >
-        {status}
-      </Typography>
-    );
-  };
-
-  const renderDateRequested = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.id}_date_requested`}>{assignment.created_at}</div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderRA = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.id}_ra`}>
-        {assignment.obj.ra}
-        <br />
-        {ra_to_hours(assignment.obj.ra)}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderDec = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.id}_dec`}>
-        {assignment.obj.dec}
-        <br />
-        {dec_to_dms(assignment.obj.dec)}
-      </div>
-    );
-  };
-
-  const renderRise = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.id}_rise`}>
-        {assignment.rise_time_utc === ""
-          ? "Never up"
-          : new Date(assignment.rise_time_utc).toLocaleTimeString()}
-      </div>
-    );
-  };
-
-  const renderSet = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.id}_set`}>
-        {assignment.set_time_utc === ""
-          ? "Never up"
-          : new Date(assignment.set_time_utc).toLocaleTimeString()}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderFinderButton = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return (
-      <>
-        <IconButton size="small" key={`${assignment.id}_actions`}>
-          <Link href={`/api/sources/${assignment.obj.id}/finder`}>
-            <PictureAsPdfIcon />
-          </Link>
-        </IconButton>
-        <IconButton size="small" key={`${assignment.id}_actions_int`}>
-          <Link
-            href={`/source/${assignment.obj.id}/finder`}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <ImageAspectRatioIcon />
-          </Link>
-        </IconButton>
-      </>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const RenderGroups = (dataIndex) => {
-    const { classes } = useStyles();
-    const assignment = assignments[dataIndex];
-    return (
-      <div key={`${assignment.obj.id}_groups`}>
-        {assignment.accessible_group_names?.map((name) => (
-          <div key={name}>
-            <Chip
-              label={name.substring(0, 15)}
-              key={name}
-              size="small"
-              className={classes.chip}
-              data-testid={`chip-assignment_${assignment.id}-group_${name}`}
-            />
-            <br />
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // This is just passed to MUI datatables options -- not meant to be instantiated directly.
-  const renderActionsButton = (dataIndex) => {
-    const assignment = assignments[dataIndex];
-    return <SimpleMenu assignment={assignment} key={`${assignment.id}_menu`} />;
   };
 
   const columns = [
     {
-      name: "Target Name",
-      options: {
-        filter: true,
-        customBodyRenderLite: renderObjId,
+      field: "__expand",
+      headerName: "",
+      width: 56,
+      sortable: false,
+      filterable: false,
+      hideable: false,
+      disableColumnMenu: true,
+      colSpan: (value, row) => (row.__detail ? 100 : 1),
+      renderCell: (params) => {
+        if (params.row.__detail) {
+          const assignment = params.row.__source;
+          return (
+            <div style={{ width: "100%" }}>
+              <Grid
+                container
+                direction="row"
+                spacing={3}
+                justifyContent="center"
+                alignItems="center"
+              >
+                <ThumbnailList
+                  thumbnails={assignment.obj.thumbnails}
+                  ra={assignment.obj.ra}
+                  dec={assignment.obj.dec}
+                  useGrid={false}
+                />
+                <Grid>
+                  <Suspense fallback={<div>Loading plot...</div>}>
+                    <AirmassPlot
+                      dataUrl={`/api/internal/plot/airmass/assignment/${assignment.id}`}
+                      ephemeris={observingRun.ephemeris}
+                    />
+                  </Suspense>
+                </Grid>
+                <Grid>
+                  <Suspense fallback={<div>Loading plot...</div>}>
+                    <VegaPhotometry sourceId={assignment.obj.id} />
+                  </Suspense>
+                </Grid>
+              </Grid>
+            </div>
+          );
+        }
+        const expanded = openedRows.includes(params.row.id);
+        return (
+          <IconButton
+            id="expandable-button"
+            size="small"
+            aria-label="expand row"
+            onClick={() => toggleExpand(params.row.id)}
+          >
+            {expanded ? <KeyboardArrowDownIcon /> : <KeyboardArrowRightIcon />}
+          </IconButton>
+        );
       },
     },
     {
-      name: "Status",
-      options: {
-        filter: true,
-        customBodyRenderLite: renderStatus,
+      field: "target_name",
+      headerName: "Target Name",
+      flex: 1,
+      minWidth: 120,
+      renderCell: (params) => {
+        const objid = params.row.obj?.id;
+        return (
+          <a href={`/source/${objid}`} key={`${objid}_objid`}>
+            {objid}
+          </a>
+        );
       },
     },
     {
-      name: "Date Requested",
-      options: {
-        filter: true,
-        customBodyRenderLite: renderDateRequested,
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      minWidth: 120,
+      renderCell: (params) => {
+        const { id, status } = params.row;
+        if (!status) {
+          return null;
+        }
+        const colors = getStatusColors(status);
+        return (
+          <Typography
+            variant="body2"
+            style={{
+              backgroundColor: colors[1],
+              color: colors[0],
+              padding: "0.25rem 0.75rem 0.25rem 0.75rem",
+              borderRadius: "1rem",
+              maxWidth: "fit-content",
+              // don't allow line breaks unless the status contains "error"
+              whiteSpace: status.includes("error") ? "normal" : "nowrap",
+            }}
+            name={`${id}_status`}
+          >
+            {status}
+          </Typography>
+        );
       },
     },
     {
-      name: "RA",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderRA,
+      field: "created_at",
+      headerName: "Date Requested",
+      flex: 1,
+      minWidth: 150,
+      renderCell: (params) => (
+        <div key={`${params.row.id}_date_requested`}>
+          {params.row.created_at}
+        </div>
+      ),
+    },
+    {
+      field: "ra",
+      headerName: "RA",
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
+      valueGetter: (value, row) => row.obj?.ra,
+      renderCell: (params) => (
+        <div key={`${params.row.id}_ra`}>
+          {params.row.obj?.ra}
+          <br />
+          {params.row.obj?.ra != null && ra_to_hours(params.row.obj.ra)}
+        </div>
+      ),
+    },
+    {
+      field: "dec",
+      headerName: "Dec",
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
+      valueGetter: (value, row) => row.obj?.dec,
+      renderCell: (params) => (
+        <div key={`${params.row.id}_dec`}>
+          {params.row.obj?.dec}
+          <br />
+          {params.row.obj?.dec != null && dec_to_dms(params.row.obj.dec)}
+        </div>
+      ),
+    },
+    {
+      field: "redshift",
+      headerName: "Redshift",
+      flex: 1,
+      minWidth: 90,
+      valueGetter: (value, row) => row.obj?.redshift,
+    },
+    {
+      field: "requester",
+      headerName: "Requester",
+      flex: 1,
+      minWidth: 120,
+      valueGetter: (value, row) => row.requester?.username,
+    },
+    {
+      field: "comment",
+      headerName: "Request",
+      flex: 1,
+      minWidth: 120,
+    },
+    {
+      field: "priority",
+      headerName: "Priority",
+      flex: 1,
+      minWidth: 90,
+    },
+    {
+      field: "rise_time_utc",
+      headerName: "Rises at (>30deg alt, UT)",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      renderCell: (params) => (
+        <div key={`${params.row.id}_rise`}>
+          {params.row.rise_time_utc === ""
+            ? "Never up"
+            : new Date(params.row.rise_time_utc).toLocaleTimeString()}
+        </div>
+      ),
+    },
+    {
+      field: "set_time_utc",
+      headerName: "Sets at (<30deg alt, UT)",
+      flex: 1,
+      minWidth: 150,
+      sortable: false,
+      renderCell: (params) => (
+        <div key={`${params.row.id}_set`}>
+          {params.row.set_time_utc === ""
+            ? "Never up"
+            : new Date(params.row.set_time_utc).toLocaleTimeString()}
+        </div>
+      ),
+    },
+    {
+      field: "groups",
+      headerName: "Groups",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      renderCell: (params) => {
+        const assignment = params.row;
+        return (
+          <div key={`${assignment.obj?.id}_groups`}>
+            {assignment.accessible_group_names?.map((name) => (
+              <div key={name}>
+                <Chip
+                  label={name.substring(0, 15)}
+                  key={name}
+                  size="small"
+                  className={styles.chip}
+                  data-testid={`chip-assignment_${assignment.id}-group_${name}`}
+                />
+                <br />
+              </div>
+            ))}
+          </div>
+        );
       },
     },
     {
-      name: "Dec",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderDec,
+      field: "finder",
+      headerName: "Finder",
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => {
+        const assignment = params.row;
+        return (
+          <>
+            <IconButton size="small" key={`${assignment.id}_actions`}>
+              <Link href={`/api/sources/${assignment.obj.id}/finder`}>
+                <PictureAsPdfIcon />
+              </Link>
+            </IconButton>
+            <IconButton size="small" key={`${assignment.id}_actions_int`}>
+              <Link
+                href={`/source/${assignment.obj.id}/finder`}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <ImageAspectRatioIcon />
+              </Link>
+            </IconButton>
+          </>
+        );
       },
     },
     {
-      name: "Redshift",
-      options: {
-        filter: false,
-      },
-    },
-    {
-      name: "Requester",
-      options: {
-        filter: true,
-      },
-    },
-    {
-      name: "Request",
-      options: {
-        filter: true,
-      },
-    },
-    {
-      name: "Priority",
-      options: {
-        filter: true,
-      },
-    },
-    {
-      name: "Rises at (>30deg alt, UT)",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderRise,
-      },
-    },
-    {
-      name: "Sets at (<30deg alt, UT)",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderSet,
-      },
-    },
-    {
-      name: "Groups",
-      options: {
-        filter: false,
-        customBodyRenderLite: RenderGroups,
-      },
-    },
-    {
-      name: "Finder",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderFinderButton,
-      },
-    },
-    {
-      name: "Actions",
-      options: {
-        filter: false,
-        customBodyRenderLite: renderActionsButton,
-      },
+      field: "actions",
+      headerName: "Actions",
+      flex: 1,
+      minWidth: 90,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <SimpleMenu assignment={params.row} key={`${params.row.id}_menu`} />
+      ),
     },
   ];
 
-  const options = {
-    draggableColumns: { enabled: true },
-    expandableRows: true,
-    renderExpandableRow: renderPullOutRow,
-    selectableRows: "none",
-    customToolbar: () => (
-      <IconButton name="clouds" onClick={() => setDialog(true)}>
-        <CloudIcon />
-      </IconButton>
-    ),
-  };
+  const displayRows = [];
+  (assignments || []).forEach((assignment) => {
+    displayRows.push(assignment);
+    if (openedRows.includes(assignment.id)) {
+      displayRows.push({
+        id: `${assignment.id}__detail`,
+        __detail: true,
+        __source: assignment,
+      });
+    }
+  });
 
-  const data = assignments?.map((assignment) => [
-    assignment.obj.id,
-    assignment.status,
-    assignment.created_at,
-    assignment.obj.ra,
-    assignment.obj.dec,
-    assignment.obj.redshift,
-    assignment.requester.username,
-    assignment.comment,
-    assignment.priority,
-    assignment.rise_time_utc,
-    assignment.set_time_utc,
-    assignment.accessible_group_names,
-    null,
-    null,
-  ]);
+  function CustomToolbar() {
+    return (
+      <GridToolbarContainer>
+        <GridToolbarColumnsButton />
+        <IconButton name="clouds" onClick={() => setDialog(true)}>
+          <CloudIcon />
+        </IconButton>
+      </GridToolbarContainer>
+    );
+  }
 
   return (
     <div className={styles.center}>
@@ -574,12 +560,25 @@ const RunSummary = ({ route }) => {
           )}
         </b>
       </Typography>
-      <MUIDataTable
-        title="Targets"
-        columns={columns}
-        data={data}
-        options={options}
-      />
+      <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
+        Targets
+      </Typography>
+      <Box sx={{ width: "100%" }}>
+        <StyledDataGrid
+          autoHeight
+          rows={displayRows}
+          columns={columns}
+          getRowId={(row) => row.id}
+          getRowHeight={(params) => (params.model.__detail ? "auto" : null)}
+          columnBufferPx={3000}
+          pageSizeOptions={[10, 25, 50, 100]}
+          initialState={{
+            pagination: { paginationModel: { pageSize: 10, page: 0 } },
+          }}
+          slots={{ toolbar: CustomToolbar }}
+          showToolbar
+        />
+      </Box>
       <Grid container spacing={1} style={{ marginTop: "0.5rem" }}>
         <Grid
           size={{ xs: 12, sm: 12, md: 12, lg: 8, xl: 8 }}

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Paper from "@mui/material/Paper";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -15,10 +14,9 @@ import Typography from "@mui/material/Typography";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import MUIDataTable from "mui-datatables";
-
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 import {
   deleteGcnEventSummary,
@@ -64,37 +62,6 @@ const useStyles = makeStyles()(() => ({
     },
   },
 }));
-
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
 
 const EditSummary = ({ text, setRenderedText }) => {
   const { classes } = useStyles();
@@ -195,16 +162,9 @@ EditSummaryDialog.propTypes = {
   summaryID: PropTypes.number.isRequired,
 };
 
-const GcnSummaryTable = ({
-  dateobs,
-  summaries,
-  pageNumber = 1,
-  numPerPage = 10,
-  serverSide = false,
-}) => {
+const GcnSummaryTable = ({ dateobs, summaries }) => {
   const dispatch = useDispatch();
   const { classes } = useStyles();
-  const theme = useTheme();
 
   const [selectedGcnSummaryId, setSelectedGcnSummaryId] = useState(null);
   const [text, setText] = useState(null);
@@ -258,18 +218,18 @@ const GcnSummaryTable = ({
     return <p>No entries available...</p>;
   }
 
-  const renderSentBy = (dataIndex) => {
-    const summary = summaries[dataIndex];
+  const renderSentBy = (params) => {
+    const summary = params.row;
     return <div>{summary.sent_by.username}</div>;
   };
 
-  const renderGroup = (dataIndex) => {
-    const summary = summaries[dataIndex];
+  const renderGroup = (params) => {
+    const summary = params.row;
     return <div>{summary.group.name}</div>;
   };
 
-  const renderEditDeleteSummary = (dataIndex) => {
-    const summary = summaries[dataIndex];
+  const renderEditDeleteSummary = (params) => {
+    const summary = params.row;
     return (
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <Button
@@ -300,65 +260,56 @@ const GcnSummaryTable = ({
 
   const columns = [
     {
-      name: "title",
-      label: "Title",
+      field: "title",
+      headerName: "Title",
+      flex: 1,
+      minWidth: 140,
     },
     {
-      name: "created_at",
-      label: "Time Created",
+      field: "created_at",
+      headerName: "Time Created",
+      flex: 1,
+      minWidth: 160,
     },
     {
-      name: "User",
-      label: "User",
-      options: {
-        customBodyRenderLite: renderSentBy,
-        download: false,
-      },
+      field: "User",
+      headerName: "User",
+      flex: 1,
+      minWidth: 120,
+      renderCell: renderSentBy,
     },
     {
-      name: "Group",
-      label: "Group",
-      options: {
-        customBodyRenderLite: renderGroup,
-        download: false,
-      },
+      field: "Group",
+      headerName: "Group",
+      flex: 1,
+      minWidth: 120,
+      renderCell: renderGroup,
     },
     {
-      name: "manage_summary",
-      label: "Manage",
-      options: {
-        filter: false,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: renderEditDeleteSummary,
-        download: false,
-      },
+      field: "manage_summary",
+      headerName: "Manage",
+      flex: 1,
+      minWidth: 160,
+      filterable: false,
+      renderCell: renderEditDeleteSummary,
     },
   ];
-
-  const options = {
-    search: true,
-    selectableRows: "none",
-    elevation: 0,
-    page: pageNumber - 1,
-    rowsPerPage: numPerPage,
-    rowsPerPageOptions: [2, 10, 25, 50, 100],
-    jumpToPage: true,
-    serverSide,
-    pagination: true,
-  };
 
   return (
     <div>
       <Paper className={classes.container}>
-        <ThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            title="GCN Summaries"
-            data={summaries}
-            options={options}
-            columns={columns}
-          />
-        </ThemeProvider>
+        <Typography variant="h6">GCN Summaries</Typography>
+        <StyledDataGrid
+          autoHeight
+          rows={summaries}
+          columns={columns}
+          getRowId={(row) => row.id}
+          initialState={{
+            pagination: { paginationModel: { pageSize: 10 } },
+          }}
+          pageSizeOptions={[2, 10, 25, 50, 100]}
+          showToolbar
+        />
       </Paper>
       {selectedGcnSummaryId && text !== null && (
         <EditSummaryDialog
@@ -383,16 +334,10 @@ GcnSummaryTable.propTypes = {
       group: PropTypes.objectOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types,
     }),
   ),
-  pageNumber: PropTypes.number,
-  numPerPage: PropTypes.number,
-  serverSide: PropTypes.bool,
 };
 
 GcnSummaryTable.defaultProps = {
   summaries: null,
-  pageNumber: 1,
-  numPerPage: 10,
-  serverSide: false,
 };
 
 export default GcnSummaryTable;

@@ -4,13 +4,19 @@ import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CircularProgress from "@mui/material/CircularProgress";
-import MUIDataTable from "mui-datatables";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import DialogContent from "@mui/material/DialogContent";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+import StyledDataGrid from "./StyledDataGrid";
 
 import NewRecurringAPI from "./NewRecurringAPI";
 
@@ -72,8 +78,8 @@ const RecurringAPIPage = () => {
     });
   };
 
-  const renderDelete = (dataIndex) => {
-    const recurringAPI = recurringAPIList[dataIndex];
+  const renderDelete = (params) => {
+    const recurringAPI = params.row;
     return (
       <div>
         <IconButton
@@ -101,141 +107,79 @@ const RecurringAPIPage = () => {
   }
 
   const columns = [
+    { field: "id", headerName: "ID", width: 80 },
     {
-      name: "id",
-      label: "ID",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-      },
+      field: "owner_username",
+      headerName: "Owner",
+      flex: 1,
+      minWidth: 120,
+      valueGetter: (value, row) => row.owner?.username || "Unknown",
+    },
+    { field: "method", headerName: "Method", flex: 1, minWidth: 100 },
+    { field: "endpoint", headerName: "Endpoint", flex: 1, minWidth: 160 },
+    { field: "next_call", headerName: "Next Call", flex: 1, minWidth: 160 },
+    {
+      field: "payload",
+      headerName: "Payload",
+      flex: 1,
+      minWidth: 160,
+      valueGetter: (value, row) => JSON.stringify(row.payload) || "Unknown",
+    },
+    { field: "call_delay", headerName: "Delay (days)", flex: 1, minWidth: 110 },
+    { field: "created_at", headerName: "Created at", flex: 1, minWidth: 160 },
+    {
+      field: "number_of_retries",
+      headerName: "Number of retries",
+      flex: 1,
+      minWidth: 140,
     },
     {
-      name: "owner.username",
-      label: "Owner",
-      options: {
-        filter: true,
-        sort: true,
-        customBodyRenderLite: (dataIndex) => {
-          const api = recurringAPIList[dataIndex];
-          return api.owner.username || "Unknown";
-        },
-      },
-    },
-    {
-      name: "method",
-      label: "Method",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-      },
-    },
-    {
-      name: "endpoint",
-      label: "Endpoint",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-      },
-    },
-    {
-      name: "next_call",
-      label: "Next Call",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-      },
-    },
-    {
-      name: "payload",
-      label: "Payload",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRenderLite: (dataIndex) => {
-          const api = recurringAPIList[dataIndex];
-          return JSON.stringify(api.payload) || "Unknown";
-        },
-      },
-    },
-    {
-      name: "call_delay",
-      label: "Delay (days)",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-      },
-    },
-    {
-      name: "created_at",
-      label: "Created at",
-      options: {
-        filter: true,
-        sort: true,
-        display: false,
-        sortThirdClickReset: true,
-      },
-    },
-    {
-      name: "number_of_retries",
-      label: "Number of retries",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-      },
-    },
-    {
-      name: "active",
-      label: "Active",
-      options: {
-        filter: true,
-        sort: true,
-        sortThirdClickReset: true,
-        customBodyRender: (value) => (value ? "Yes" : "No"),
-      },
+      field: "active",
+      headerName: "Active",
+      width: 90,
+      valueGetter: (value, row) => (row.active ? "Yes" : "No"),
     },
   ];
 
   if (permission) {
     columns.push({
-      name: "delete",
-      label: " ",
-      options: {
-        customBodyRenderLite: renderDelete,
-      },
+      field: "delete",
+      headerName: " ",
+      width: 70,
+      sortable: false,
+      filterable: false,
+      renderCell: renderDelete,
     });
   }
 
-  const options = {
-    filterType: "dropdown",
-    responsive: "standard",
-    selectableRows: "none",
-    customToolbar: () => (
+  const CustomToolbar = () => (
+    <GridToolbarContainer>
+      <GridToolbarColumnsButton />
       <IconButton
         name="new_recurring_api_form"
-        onClick={() => {
-          setOpenNewForm(true);
-        }}
+        onClick={() => setOpenNewForm(true)}
       >
         <AddIcon />
       </IconButton>
-    ),
-  };
+    </GridToolbarContainer>
+  );
 
   return (
     <div className={classes.paperContent}>
-      <MUIDataTable
-        title="Recurring APIs"
-        data={recurringAPIList}
-        columns={columns}
-        options={options}
-      />
+      <Typography variant="h6">Recurring APIs</Typography>
+      <Box sx={{ width: "100%" }}>
+        <StyledDataGrid
+          autoHeight
+          rows={recurringAPIList}
+          columns={columns}
+          getRowId={(row) => row.id}
+          initialState={{
+            columns: { columnVisibilityModel: { created_at: false } },
+          }}
+          slots={{ toolbar: CustomToolbar }}
+          showToolbar
+        />
+      </Box>
       <Dialog
         open={openNewForm}
         onClose={() => setOpenNewForm(false)}

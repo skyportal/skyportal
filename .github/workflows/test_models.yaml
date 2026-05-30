@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  # Cancel superseded runs on PRs, but let main runs finish (per-commit status).
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   test-models:
     if: github.event.pull_request.draft == false

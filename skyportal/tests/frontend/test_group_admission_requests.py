@@ -2,14 +2,13 @@
 
 
 def filter_for_value(driver, value, last=False):
+    # The x-data-grid default-toolbar quick-filter renders a TextField whose
+    # `aria-label="Search"` lands on the wrapper (FormControl root div), not the
+    # inner <input>. So target the input as a descendant of that wrapper.
+    input_xpath = "//*[@aria-label='Search']//input"
     if last:
-        xpath = '(//*[@data-testid="Search-iconButton"])[last()]'
-    else:
-        xpath = '//*[@data-testid="Search-iconButton"]'
-    driver.click_xpath(xpath)
-    search_input_xpath = "//input[@aria-label='Search']"
-    search_input = driver.wait_for_xpath(search_input_xpath)
-    driver.click_xpath(search_input_xpath)
+        input_xpath = f"({input_xpath})[last()]"
+    search_input = driver.wait_for_xpath(input_xpath)
     search_input.send_keys(value)
 
 

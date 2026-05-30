@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useParams } from "react-router-dom";
-import MUIDataTable from "mui-datatables";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -20,6 +19,7 @@ import { withStyles } from "tss-react/mui";
 import { Controller, useForm } from "react-hook-form";
 import PapaParse from "papaparse";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 import NewPhotometryForm from "./NewPhotometry";
 
@@ -475,17 +475,24 @@ const UploadPhotometryForm = () => {
               <Card>
                 <CardContent>
                   <Box component="span" m={1}>
-                    <MUIDataTable
-                      title="Data Preview"
-                      columns={csvData.columns}
-                      data={csvData.data}
-                      options={{
-                        search: false,
-                        filter: false,
-                        selectableRows: "none",
-                        download: false,
-                        print: false,
-                      }}
+                    <Typography variant="h6">Data Preview</Typography>
+                    <StyledDataGrid
+                      autoHeight
+                      columns={csvData.columns.map((col, i) => ({
+                        field: `col${i}`,
+                        headerName: col,
+                        flex: 1,
+                        minWidth: 100,
+                        sortable: false,
+                      }))}
+                      rows={csvData.data.map((row, rowIdx) => {
+                        const obj = { id: rowIdx };
+                        row.forEach((cell, i) => {
+                          obj[`col${i}`] = cell;
+                        });
+                        return obj;
+                      })}
+                      disableColumnFilter
                     />
                   </Box>
                 </CardContent>

@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
-import MUIDataTable from "mui-datatables";
 import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
@@ -12,11 +11,12 @@ import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import GetAppIcon from "@mui/icons-material/GetApp";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import Dialog from "@mui/material/Dialog";
 import Grid from "@mui/material/Grid";
+import Box from "@mui/material/Box";
 import DialogContent from "@mui/material/DialogContent";
-import TableRow from "@mui/material/TableRow";
-import TableCell from "@mui/material/TableCell";
 import Papa from "papaparse";
 import ReactJson from "react-json-view";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -24,7 +24,13 @@ import Paper from "@mui/material/Paper";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 import { showNotification } from "baselayer/components/Notifications";
+import {
+  GridToolbarContainer,
+  GridToolbarColumnsButton,
+} from "@mui/x-data-grid";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
+import QuickFilter from "../QuickFilter";
 
 import FormValidationError from "../FormValidationError";
 import CommentList from "../comment/CommentList";
@@ -40,6 +46,78 @@ import { deleteSpectrum } from "../../ducks/spectra";
 import { useSourceStyles } from "./Source";
 
 import SpectraPlot from "../plot/SpectraPlot";
+
+// Toolbar for the Share-data spectrum grid: exposes a quick-filter search box
+// (wrapped with a stable test id) so tests can filter rows by typing a value.
+const SpectrumGridToolbar = () => (
+  <GridToolbarContainer>
+    <GridToolbarColumnsButton />
+    <div data-testid="spectrum-quick-filter">
+      <QuickFilter />
+    </div>
+  </GridToolbarContainer>
+);
+
+// Defined at module scope (not nested in ShareDataForm) so its component
+// identity is stable across ShareDataForm re-renders. A nested definition
+// produced a brand-new component type on every render, causing React to
+// unmount/remount this button and reset its `open` state to false — which made
+// the delete confirmation dialog (and its `yes-delete` button) vanish before a
+// test could click it.
+const DeleteSpectrumButton = ({ specid, classes, dispatch }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <Dialog
+        open={open}
+        aria-labelledby="simple-modal-title"
+        aria-describedby="simple-modal-description"
+        onClose={() => setOpen(false)}
+        className={classes.detailedSpecButton}
+      >
+        <DialogContent>
+          <div>
+            <Typography variant="h6">
+              Are you sure you want to do this?
+            </Typography>
+            The following operation <em>permanently</em> deletes the spectrum
+            from the database. This operation cannot be undone and your data
+            cannot be recovered after the fact. You will have to upload the
+            spectrum again from scratch.
+          </div>
+          <div>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                setOpen(false);
+                const result = await dispatch(deleteSpectrum(specid));
+                if (result.status === "success") {
+                  dispatch(showNotification("Spectrum deleted."));
+                }
+              }}
+              data-testid="yes-delete"
+            >
+              Confirm
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <IconButton
+        onClick={() => setOpen(true)}
+        size="large"
+        color="error"
+        data-testid={`delete-spectrum-button-${specid}`}
+      >
+        <DeleteIcon />
+      </IconButton>
+    </div>
+  );
+};
+DeleteSpectrumButton.propTypes = {
+  specid: PropTypes.number.isRequired,
+  classes: PropTypes.shape().isRequired,
+  dispatch: PropTypes.func.isRequired,
+};
 
 function get_filename(spectrum) {
   return `${spectrum.obj_id}_${spectrum.instrument_name}_${spectrum.observed_at}.csv`;
@@ -152,65 +230,60 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const SpectrumRow = ({ rowData, route, annotations }) => {
+const SpectrumRow = ({ spectrumID, route, annotations }) => {
   const { classes: styles } = useSourceStyles();
-  const colSpan = rowData.length + 1;
-  const spectrumID = parseInt(rowData[0], 10);
   const spectra = useSelector((state) => state.spectra)[route.id] || [];
 
   return (
-    <TableRow>
-      <TableCell colSpan={colSpan}>
+    <div style={{ width: "100%" }}>
+      <Grid
+        container
+        justifyContent="center"
+        alignItems="flex-start"
+        spacing={2}
+      >
+        <Grid size={{ sm: 12 }} className={styles.photometryContainer}>
+          <Suspense
+            fallback={
+              <div>
+                <CircularProgress color="secondary" />
+              </div>
+            }
+          >
+            <SpectraPlot
+              spectra={spectra.filter((spec) => spec.id === spectrumID)}
+            />
+          </Suspense>
+        </Grid>
         <Grid
-          container
-          justifyContent="center"
-          alignItems="flex-start"
-          spacing={2}
+          size={{ sm: 6 }}
+          data-testid={`individual-spectrum-id_${spectrumID}`}
         >
-          <Grid size={{ sm: 12 }} className={styles.photometryContainer}>
-            <Suspense
-              fallback={
-                <div>
-                  <CircularProgress color="secondary" />
-                </div>
-              }
-            >
-              <SpectraPlot
-                spectra={spectra.filter((spec) => spec.id === spectrumID)}
+          <Paper style={{ padding: "0.5rem" }}>
+            <Typography variant="h6">Comments</Typography>
+            <Suspense fallback={<CircularProgress />}>
+              <CommentList
+                associatedResourceType="spectra"
+                objID={route.id}
+                spectrumID={spectrumID}
               />
             </Suspense>
-          </Grid>
-          <Grid
-            size={{ sm: 6 }}
-            data
-            testid={`individual-spectrum-id_${rowData[0]}`}
-          >
-            <Paper style={{ padding: "0.5rem" }}>
-              <Typography variant="h6">Comments</Typography>
-              <Suspense fallback={<CircularProgress />}>
-                <CommentList
-                  associatedResourceType="spectra"
-                  objID={route.id}
-                  spectrumID={spectrumID}
-                />
-              </Suspense>
-            </Paper>
-          </Grid>
-          <Grid size={{ sm: 6 }}>
-            <Paper style={{ padding: "0.5rem" }}>
-              <Typography variant="h6">Annotations</Typography>
-              <AnnotationsTable annotations={annotations} />
-            </Paper>
-          </Grid>
-          <Grid size={{ sm: 6 }}>
-            <Paper style={{ padding: "0.5rem" }}>
-              <Typography variant="h6">Synthetic Photometry</Typography>
-              <SyntheticPhotometryForm spectrum_id={rowData[0]} />
-            </Paper>
-          </Grid>
+          </Paper>
         </Grid>
-      </TableCell>
-    </TableRow>
+        <Grid size={{ sm: 6 }}>
+          <Paper style={{ padding: "0.5rem" }}>
+            <Typography variant="h6">Annotations</Typography>
+            <AnnotationsTable annotations={annotations} />
+          </Paper>
+        </Grid>
+        <Grid size={{ sm: 6 }}>
+          <Paper style={{ padding: "0.5rem" }}>
+            <Typography variant="h6">Synthetic Photometry</Typography>
+            <SyntheticPhotometryForm spectrum_id={spectrumID} />
+          </Paper>
+        </Grid>
+      </Grid>
+    </div>
   );
 };
 
@@ -218,7 +291,7 @@ SpectrumRow.propTypes = {
   route: PropTypes.shape({
     id: PropTypes.string.isRequired,
   }).isRequired,
-  rowData: PropTypes.arrayOf(PropTypes.number).isRequired,
+  spectrumID: PropTypes.number.isRequired,
   annotations: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number.isRequired,
@@ -263,17 +336,11 @@ const ShareDataForm = ({ route }) => {
   };
 
   const onSubmit = async (groupsFormData) => {
-    const selectedPhotIDs = selectedPhotRows?.map(
-      (idx) => photometry[route.id][idx].id,
-    );
-    const selectedSpecIDs = selectedSpecRows?.map(
-      (idx) => spectra[route.id][idx].id,
-    );
     setIsSubmitting(true);
     const data = {
       groupIDs: groupsFormData.groups?.map((g) => g.id),
-      photometryIDs: selectedPhotIDs,
-      spectrumIDs: selectedSpecIDs,
+      photometryIDs: selectedPhotRows,
+      spectrumIDs: selectedSpecRows,
     };
     const result = await dispatch(sourceActions.shareData(data));
     if (result.status === "success") {
@@ -331,8 +398,8 @@ const ShareDataForm = ({ route }) => {
     : [];
 
   const makeRenderSingleUser = (key) =>
-    function RenderSingleUser(dataIndex) {
-      const user = specRows[dataIndex][key];
+    function RenderSingleUser(params) {
+      const user = params.row?.[key];
       return user && <UserContactLink user={user} />;
     };
 
@@ -343,94 +410,43 @@ const ShareDataForm = ({ route }) => {
     );
   };
 
-  const renderPIs = (dataIndex) => {
-    const externalPI = specRows[dataIndex]?.external_pi;
-    const users = specRows[dataIndex]?.pis;
+  const renderPIs = (params) => {
+    const externalPI = params.row?.external_pi;
+    const users = params.row?.pis;
     return externalPI || renderMultipleUsers(users);
   };
 
-  const renderReducers = (dataIndex) => {
-    const externalReducer = specRows[dataIndex]?.external_reducer;
-    const users = specRows[dataIndex]?.reducers;
+  const renderReducers = (params) => {
+    const externalReducer = params.row?.external_reducer;
+    const users = params.row?.reducers;
     return externalReducer || renderMultipleUsers(users);
   };
 
-  const renderReducerContacts = (dataIndex) => {
+  const renderReducerContacts = (params) => {
     // Contacts are either the reducers themselves who are
     // SkyPortal users, or users to contact instead of
     // free-text external reducers
-    const users = specRows[dataIndex]?.reducers;
+    const users = params.row?.reducers;
     return renderMultipleUsers(users);
   };
 
-  const renderObservers = (dataIndex) => {
-    const externalObserver = specRows[dataIndex]?.external_observer;
-    const users = specRows[dataIndex]?.observers;
+  const renderObservers = (params) => {
+    const externalObserver = params.row?.external_observer;
+    const users = params.row?.observers;
     return externalObserver || renderMultipleUsers(users);
   };
 
-  const renderObserverContacts = (dataIndex) => {
+  const renderObserverContacts = (params) => {
     // Contacts are either the observers themselves who are
     // SkyPortal users, or users to contact instead of
     // free-text external observers
-    const users = specRows[dataIndex]?.observers;
+    const users = params.row?.observers;
     return renderMultipleUsers(users);
   };
 
-  const DeleteSpectrumButton = (dataIndex) => {
-    const specid = specRows[dataIndex].id;
-    const [open, setOpen] = useState(false);
-    return (
-      <div>
-        <Dialog
-          open={open}
-          aria-labelledby="simple-modal-title"
-          aria-describedby="simple-modal-description"
-          onClose={() => setOpen(false)}
-          className={classes.detailedSpecButton}
-        >
-          <DialogContent>
-            <div>
-              <Typography variant="h6">
-                Are you sure you want to do this?
-              </Typography>
-              The following operation <em>permanently</em> deletes the spectrum
-              from the database. This operation cannot be undone and your data
-              cannot be recovered after the fact. You will have to upload the
-              spectrum again from scratch.
-            </div>
-            <div>
-              <Button onClick={() => setOpen(false)}>Cancel</Button>
-              <Button
-                onClick={async () => {
-                  setOpen(false);
-                  const result = await dispatch(deleteSpectrum(specid));
-                  if (result.status === "success") {
-                    dispatch(showNotification("Spectrum deleted."));
-                  }
-                }}
-                data-testid="yes-delete"
-              >
-                Confirm
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-        <IconButton
-          onClick={() => setOpen(true)}
-          size="large"
-          color="error"
-          data-testid={`delete-spectrum-button-${specid}`}
-        >
-          <DeleteIcon />
-        </IconButton>
-      </div>
-    );
-  };
-
-  const DownloadSpectrumButton = (dataIndex) => {
-    const specid = specRows[dataIndex].id;
+  const DownloadSpectrumButton = ({ specid }) => {
     const spectrum = sourceSpectra.find((spec) => spec.id === specid);
+    if (!spectrum) return null;
 
     const data = spectrum.original_file_string
       ? spectrum.original_file_string
@@ -451,12 +467,14 @@ const ShareDataForm = ({ route }) => {
       </IconButton>
     );
   };
+  DownloadSpectrumButton.propTypes = {
+    specid: PropTypes.number.isRequired,
+  };
 
-  const AltdataButton = (dataIndex) => {
-    const specid = specRows[dataIndex].id;
+  const AltdataButton = ({ specid }) => {
     const spectrum = sourceSpectra.find((spec) => spec.id === specid);
     const [open, setOpen] = useState(false);
-    if (!spectrum.altdata) return null;
+    if (!spectrum?.altdata) return null;
     return (
       <>
         <Dialog
@@ -481,111 +499,195 @@ const ShareDataForm = ({ route }) => {
       </>
     );
   };
+  AltdataButton.propTypes = {
+    specid: PropTypes.number.isRequired,
+  };
 
-  const specHeadCells = [
-    { name: "id", label: "ID" },
-    { name: "instrument", label: "Instrument" },
-    { name: "observed", label: "Observed (UTC)" },
-    { name: "groups", label: "Currently visible to" },
+  const toggleSpecExpand = (id) => {
+    setOpenedSpecRows((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const photColumns = [
+    { field: "id", headerName: "ID", flex: 1, minWidth: 80 },
+    { field: "mjd", headerName: "MJD", flex: 1, minWidth: 100 },
+    { field: "mag", headerName: "Mag", flex: 1, minWidth: 90 },
+    { field: "magerr", headerName: "Mag Error", flex: 1, minWidth: 100 },
     {
-      name: "owner",
-      label: "Uploaded by",
-      options: {
-        customBodyRenderLite: makeRenderSingleUser("owner"),
-        filter: false,
-      },
+      field: "limiting_mag",
+      headerName: "Limiting Mag",
+      flex: 1,
+      minWidth: 110,
     },
+    { field: "instrument", headerName: "Instrument", flex: 1, minWidth: 110 },
+    { field: "filter", headerName: "Filter", flex: 1, minWidth: 90 },
     {
-      name: "pis",
-      label: "PI(s)",
-      options: {
-        customBodyRenderLite: renderPIs,
-        filter: false,
-      },
-    },
-    {
-      name: "reducers",
-      label: "Reduced by",
-      options: {
-        customBodyRenderLite: renderReducers,
-        filter: false,
-      },
-    },
-    {
-      name: "observers",
-      label: "Observed by",
-      options: {
-        customBodyRenderLite: renderObservers,
-        filter: false,
-      },
-    },
-    {
-      name: "reducer_contact",
-      label: "Reducer contacts",
-      options: {
-        customBodyRenderLite: renderReducerContacts,
-        filter: false,
-        display: false,
-      },
-    },
-    {
-      name: "observer_contact",
-      label: "Observer contacts",
-      options: {
-        customBodyRenderLite: renderObserverContacts,
-        filter: false,
-        display: false,
-      },
-    },
-    {
-      name: "origin",
-      label: "Origin",
-    },
-    {
-      name: "type",
-      label: "Type",
-      filter: true,
-      display: false,
-    },
-    {
-      name: "label",
-      label: "Label",
-      filter: false,
-      display: false,
-    },
-    {
-      name: "altdata",
-      label: "Altdata",
-      options: { customBodyRenderLite: AltdataButton, filter: false },
-    },
-    {
-      name: "delete",
-      label: "Delete",
-      options: { customBodyRenderLite: DeleteSpectrumButton, filter: false },
-    },
-    {
-      name: "download",
-      label: "Download",
-      options: { customBodyRenderLite: DownloadSpectrumButton, filter: false },
+      field: "groups",
+      headerName: "Currently visible to",
+      flex: 1,
+      minWidth: 150,
     },
   ];
 
-  const options = {
-    textLabels: {
-      body: {
-        noMatch: "",
+  const specColumns = [
+    {
+      field: "__expand",
+      headerName: "",
+      width: 56,
+      sortable: false,
+      filterable: false,
+      hideable: false,
+      disableColumnMenu: true,
+      colSpan: (value, row) => (row.__detail ? 100 : 1),
+      renderCell: (params) => {
+        if (params.row.__detail) {
+          const spec = params.row.__source;
+          return (
+            <SpectrumRow
+              spectrumID={spec.id}
+              route={route}
+              annotations={
+                spectra[route.id].find((s) => s.id === spec.id)?.annotations ||
+                []
+              }
+            />
+          );
+        }
+        const expanded = openedSpecRows.includes(params.row.id);
+        return (
+          <IconButton
+            id="expandable-button"
+            size="small"
+            aria-label="expand row"
+            onClick={() => toggleSpecExpand(params.row.id)}
+          >
+            {expanded ? <KeyboardArrowDownIcon /> : <KeyboardArrowRightIcon />}
+          </IconButton>
+        );
       },
     },
-    filter: true,
-    selectableRows: "multiple",
-    filterType: "dropdown",
-    responsive: "vertical",
-    rowsPerPage: 10,
-    selectableRowsHeader: true,
-    customToolbarSelect: () => {},
-    download: false,
-    print: false,
+    { field: "id", headerName: "ID", flex: 1, minWidth: 80 },
+    { field: "instrument", headerName: "Instrument", flex: 1, minWidth: 110 },
+    { field: "observed", headerName: "Observed (UTC)", flex: 1, minWidth: 150 },
+    {
+      field: "groups",
+      headerName: "Currently visible to",
+      flex: 1,
+      minWidth: 150,
+    },
+    {
+      field: "owner",
+      headerName: "Uploaded by",
+      flex: 1,
+      minWidth: 130,
+      filterable: false,
+      renderCell: makeRenderSingleUser("owner"),
+    },
+    {
+      field: "pis",
+      headerName: "PI(s)",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      renderCell: renderPIs,
+    },
+    {
+      field: "reducers",
+      headerName: "Reduced by",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      renderCell: renderReducers,
+    },
+    {
+      field: "observers",
+      headerName: "Observed by",
+      flex: 1,
+      minWidth: 120,
+      filterable: false,
+      renderCell: renderObservers,
+    },
+    {
+      field: "reducer_contact",
+      headerName: "Reducer contacts",
+      flex: 1,
+      minWidth: 130,
+      filterable: false,
+      renderCell: renderReducerContacts,
+    },
+    {
+      field: "observer_contact",
+      headerName: "Observer contacts",
+      flex: 1,
+      minWidth: 130,
+      filterable: false,
+      renderCell: renderObserverContacts,
+    },
+    { field: "origin", headerName: "Origin", flex: 1, minWidth: 100 },
+    { field: "type", headerName: "Type", flex: 1, minWidth: 90 },
+    { field: "label", headerName: "Label", flex: 1, minWidth: 90 },
+    {
+      field: "altdata",
+      headerName: "Altdata",
+      flex: 1,
+      minWidth: 110,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) =>
+        params.row.__detail ? null : <AltdataButton specid={params.row.id} />,
+    },
+    {
+      field: "delete",
+      headerName: "Delete",
+      flex: 1,
+      minWidth: 90,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) =>
+        params.row.__detail ? null : (
+          <DeleteSpectrumButton
+            specid={params.row.id}
+            classes={classes}
+            dispatch={dispatch}
+          />
+        ),
+    },
+    {
+      field: "download",
+      headerName: "Download",
+      flex: 1,
+      minWidth: 100,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) =>
+        params.row.__detail ? null : (
+          <DownloadSpectrumButton specid={params.row.id} />
+        ),
+    },
+  ];
+
+  // Columns hidden by default (mirrors the previous display:false flags).
+  // NOTE: unlike mui-datatables (which still rendered hidden-column cell data
+  // into the DOM), x-data-grid removes hidden columns from the DOM entirely.
+  // The "label" column must therefore stay visible so the user-defined spectrum
+  // label is present for the upload-spectroscopy frontend test to find.
+  const specColumnVisibilityModel = {
+    reducer_contact: false,
+    observer_contact: false,
   };
+
+  const specDisplayRows = [];
+  specRows.forEach((spec) => {
+    specDisplayRows.push(spec);
+    if (openedSpecRows.includes(spec.id)) {
+      specDisplayRows.push({
+        id: `${spec.id}__detail`,
+        __detail: true,
+        __source: spec,
+      });
+    }
+  });
 
   return (
     <>
@@ -620,63 +722,69 @@ const ShareDataForm = ({ route }) => {
       <div>
         {!!photometry[route.id] && (
           <div>
-            <MUIDataTable
-              columns={photHeadCells}
-              data={photRows}
-              title="Photometry"
-              options={{
-                ...options,
-                rowsSelected: selectedPhotRows,
-                onRowSelectionChange: (
-                  rowsSelectedData,
-                  allRows,
-                  rowsSelected,
-                ) => {
-                  setSelectedPhotRows(rowsSelected);
-                },
-                selectableRowsOnClick: true,
-              }}
-            />
+            <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
+              Photometry
+            </Typography>
+            <Box sx={{ width: "100%" }}>
+              <StyledDataGrid
+                autoHeight
+                rows={photRows}
+                columns={photColumns}
+                getRowId={(row) => row.id}
+                checkboxSelection
+                disableRowSelectionOnClick={false}
+                rowSelectionModel={{
+                  type: "include",
+                  ids: new Set(selectedPhotRows),
+                }}
+                onRowSelectionModelChange={(model) =>
+                  setSelectedPhotRows(Array.from(model.ids))
+                }
+                pageSizeOptions={[10, 25, 50, 100]}
+                initialState={{
+                  pagination: { paginationModel: { pageSize: 10, page: 0 } },
+                }}
+                showToolbar
+              />
+            </Box>
           </div>
         )}
 
         <br />
         {!!spectra[route.id] && (
           <div data-testid="spectrum-div">
-            <MUIDataTable
-              columns={specHeadCells}
-              data={specRows}
-              title="Spectra"
-              data-testid="spectrum-table"
-              options={{
-                ...options,
-                rowsSelected: selectedSpecRows,
-                onRowSelectionChange: (
-                  rowsSelectedData,
-                  allRows,
-                  rowsSelected,
-                ) => {
-                  setSelectedSpecRows(rowsSelected);
-                },
-                expandableRows: true,
-
-                renderExpandableRow: (rowData, rowMeta) => (
-                  <SpectrumRow
-                    rowData={rowData}
-                    route={route}
-                    annotations={
-                      spectra[route.id].find((spec) => spec.id === rowData[0])
-                        .annotations
-                    }
-                  />
-                ),
-                expandableRowsOnClick: false,
-                rowsExpanded: openedSpecRows,
-                onRowExpansionChange: (_, expandedRows) => {
-                  setOpenedSpecRows(expandedRows.map((i) => i.dataIndex));
-                },
-              }}
-            />
+            <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
+              Spectra
+            </Typography>
+            <Box sx={{ width: "100%" }} data-testid="spectrum-table">
+              <StyledDataGrid
+                autoHeight
+                rows={specDisplayRows}
+                columns={specColumns}
+                getRowId={(row) => row.id}
+                getRowHeight={(params) =>
+                  params.model.__detail ? "auto" : null
+                }
+                columnBufferPx={3000}
+                checkboxSelection
+                disableRowSelectionOnClick={false}
+                isRowSelectable={(params) => !params.row.__detail}
+                rowSelectionModel={{
+                  type: "include",
+                  ids: new Set(selectedSpecRows),
+                }}
+                onRowSelectionModelChange={(model) =>
+                  setSelectedSpecRows(Array.from(model.ids))
+                }
+                columnVisibilityModel={specColumnVisibilityModel}
+                pageSizeOptions={[10, 25, 50, 100]}
+                initialState={{
+                  pagination: { paginationModel: { pageSize: 10, page: 0 } },
+                }}
+                slots={{ toolbar: SpectrumGridToolbar }}
+                showToolbar
+              />
+            </Box>
           </div>
         )}
       </div>

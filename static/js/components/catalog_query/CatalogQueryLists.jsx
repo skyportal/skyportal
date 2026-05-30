@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
-import { createTheme, ThemeProvider, useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
-import MUIDataTable from "mui-datatables";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Button from "../Button";
+import StyledDataGrid from "../StyledDataGrid";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -19,50 +18,6 @@ const useStyles = makeStyles()(() => ({
     },
   },
 }));
-
-// Tweak responsive styling
-const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTable: {
-        paper: {
-          width: "100%",
-        },
-      },
-      MUIDataTableBodyCell: {
-        stackedCommon: {
-          overflow: "hidden",
-          "&:last-child": {
-            paddingLeft: "0.25rem",
-          },
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
 
 const SourcesList = ({ sources }) => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -120,72 +75,58 @@ SourcesList.propTypes = {
 
 const CatalogQueryLists = ({ catalog_queries }) => {
   const { classes } = useStyles();
-  const theme = useTheme();
 
   if (!catalog_queries || catalog_queries.length === 0) {
     return <p>No catalog queries for this event.</p>;
   }
 
-  const getDataTableColumns = () => {
-    const columns = [];
-
-    const renderStatus = (dataIndex) => {
-      let text = <div>{catalog_queries[dataIndex]?.status}</div>;
-      if (catalog_queries[dataIndex]?.status?.includes("completed: Added ")) {
-        let transients =
-          catalog_queries[dataIndex]?.status?.split("completed: Added ")[1];
-        // split by commas
-        transients = transients.split(",");
-        text = <SourcesList sources={transients} />;
-      }
-      return text;
-    };
-
-    const renderPayload = (dataIndex) => {
-      const analysis = catalog_queries[dataIndex];
-      return <div>{JSON.stringify(analysis.payload)}</div>;
-    };
-
-    columns.push({
-      name: "status",
-      label: "Status",
-      options: {
-        customBodyRenderLite: renderStatus,
-      },
-    });
-
-    columns.push({
-      name: "ntransients",
-      label: "Payload",
-      options: {
-        customBodyRenderLite: renderPayload,
-      },
-    });
-
-    return columns;
+  const renderStatus = (params) => {
+    const query = params.row;
+    let text = <div>{query?.status}</div>;
+    if (query?.status?.includes("completed: Added ")) {
+      let transients = query?.status?.split("completed: Added ")[1];
+      // split by commas
+      transients = transients.split(",");
+      text = <SourcesList sources={transients} />;
+    }
+    return text;
   };
 
-  const options = {
-    filter: false,
-    sort: false,
-    print: true,
-    download: true,
-    search: true,
-    selectableRows: "none",
-    enableNestedDataAccess: ".",
-    elevation: 0,
-    rowsPerPageOptions: [1, 10, 15],
-  };
+  const renderPayload = (params) => (
+    <div>{JSON.stringify(params.row.payload)}</div>
+  );
+
+  const columns = [
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      minWidth: 160,
+      sortable: false,
+      renderCell: renderStatus,
+    },
+    {
+      field: "ntransients",
+      headerName: "Payload",
+      flex: 1,
+      minWidth: 200,
+      sortable: false,
+      renderCell: renderPayload,
+    },
+  ];
 
   return (
     <div className={classes.container}>
-      <ThemeProvider theme={getMuiTheme(theme)}>
-        <MUIDataTable
-          data={catalog_queries}
-          options={options}
-          columns={getDataTableColumns()}
-        />
-      </ThemeProvider>
+      <StyledDataGrid
+        autoHeight
+        rows={catalog_queries}
+        columns={columns}
+        getRowId={(row) => row.id}
+        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        pageSizeOptions={[1, 10, 15]}
+        showToolbar
+        sx={{ width: "100%" }}
+      />
     </div>
   );
 };

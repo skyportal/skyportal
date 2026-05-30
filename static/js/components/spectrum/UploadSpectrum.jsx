@@ -2,7 +2,7 @@ import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useSearchParams } from "react-router-dom";
-import MUIDataTable from "mui-datatables";
+import StyledDataGrid from "../StyledDataGrid";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -215,59 +215,28 @@ const UploadSpectrumForm = ({ route }) => {
   const instruments = instrumentList.filter((i) => i.type.includes("spec"));
 
   const header_columns = [
-    {
-      name: "key",
-      label: "Key",
-      options: {
-        filter: true,
-        sort: true,
-      },
-    },
-    {
-      name: "value",
-      label: "Value",
-      options: {
-        filter: true,
-        sort: true,
-      },
-    },
+    { field: "key", headerName: "Key", flex: 1, minWidth: 120 },
+    { field: "value", headerName: "Value", flex: 1, minWidth: 120 },
     ...(headerHasComments
-      ? [
-          {
-            name: "comment",
-            label: "Comment",
-            options: { filter: false, sort: true },
-          },
-        ]
+      ? [{ field: "comment", headerName: "Comment", flex: 1, minWidth: 120 }]
       : []),
   ];
 
   const data_columns = [
     {
-      name: "wavelength",
-      label: "Wavelength (Angstroms)",
-      options: {
-        filter: false,
-        sort: true,
-      },
+      field: "wavelength",
+      headerName: "Wavelength (Angstroms)",
+      flex: 1,
+      minWidth: 160,
     },
-    {
-      name: "flux",
-      label: "Flux",
-      options: {
-        filter: false,
-        sort: true,
-      },
-    },
+    { field: "flux", headerName: "Flux", flex: 1, minWidth: 120 },
     ...(parsed?.errors
       ? [
           {
-            name: "error",
-            label: "Flux Error",
-            options: {
-              filter: false,
-              sort: true,
-            },
+            field: "error",
+            headerName: "Flux Error",
+            flex: 1,
+            minWidth: 120,
           },
         ]
       : []),
@@ -767,10 +736,11 @@ const UploadSpectrumForm = ({ route }) => {
                 <Typography variant="h6">Metadata</Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <MUIDataTable
+                <StyledDataGrid
+                  autoHeight
                   columns={header_columns}
-                  data={header}
-                  options={{ selectableRows: "none", elevation: 0 }}
+                  rows={header.map((row, i) => ({ ...row, id: i }))}
+                  showToolbar
                 />
               </AccordionDetails>
             </Accordion>
@@ -779,10 +749,11 @@ const UploadSpectrumForm = ({ route }) => {
                 <Typography variant="h6">Spectrum Table</Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <MUIDataTable
+                <StyledDataGrid
+                  autoHeight
                   columns={data_columns}
-                  data={data}
-                  options={{ selectableRows: "none", elevation: 0 }}
+                  rows={data.map((row, i) => ({ ...row, id: i }))}
+                  showToolbar
                 />
               </AccordionDetails>
             </Accordion>
