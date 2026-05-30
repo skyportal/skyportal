@@ -105,7 +105,8 @@ jobs:
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
           which python; python --version
-          echo npm $(npm --version)
+          corepack enable
+          echo pnpm $(pnpm --version)
           echo node $(node --version)
           nginx -v
           firefox --version
@@ -188,7 +189,7 @@ jobs:
 
           make db_init
 
-          npm ls --depth 0
+          pnpm list --depth 0
 
           # Stamp Alembic HEAD
           PYTHONPATH=. alembic -x config=config.yaml stamp head
@@ -213,7 +214,7 @@ jobs:
       - name: Check for migration branching
         run: |
           # First make sure the dependencies are up-to-date
-          npm i --legacy-peer-deps
+          pnpm install
           make dependencies
           # Make sure to remove python packages from the reference commit that conflict
           # with the current branch (e.g pinecone-client that has later been renamed to pinecone).

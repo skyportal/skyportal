@@ -24,7 +24,10 @@ RUN apt-get update && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     apt-get update && \
     apt-get install -y cargo nodejs nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter && \
-    npm install -g npm@latest && \
+    # Enable Corepack so the pnpm version pinned in package.json (packageManager)
+    # is used; the JS dependency install runs through `make system_setup` ->
+    # baselayer's check_js_deps.sh, which auto-detects pnpm from package.json.
+    corepack enable && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 ARG SKYPORTAL_UID=1000
