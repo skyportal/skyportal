@@ -6,10 +6,12 @@ from selenium.webdriver.common.by import By
 
 from skyportal.tests import api
 
+from ...utils.naive_datetime import utcnow_naive
+
 
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
-    next_reminder = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=2)
+    next_reminder = utcnow_naive() + timedelta(seconds=2)
     next_reminder = next_reminder.replace(microsecond=0)
     reminder_delay = 1
     number_of_reminders = 1

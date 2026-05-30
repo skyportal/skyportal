@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from dateutil import parser
@@ -7,6 +7,8 @@ from tdtax import __version__, taxonomy
 
 from baselayer.app.config import load_config
 from skyportal.tests import api
+
+from ....utils.naive_datetime import utcnow_naive
 
 cfg = load_config()
 
@@ -22,7 +24,7 @@ def test_add_sources_two_groups(
     classification_token_two_groups,
 ):
     obj_id = str(uuid.uuid4())
-    t1 = datetime.utcnow()
+    t1 = utcnow_naive()
 
     # upload a new source, saved to the public group
     status, data = api(
@@ -129,7 +131,7 @@ def test_add_sources_two_groups(
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
 
     # add this source to another group
-    t2 = datetime.utcnow()
+    t2 = utcnow_naive()
     status, data = api(
         "POST",
         "sources",
@@ -318,7 +320,7 @@ def test_filter_by_spectrum_time(
         "spectrum",
         data={
             "obj_id": obj_id1,
-            "observed_at": str(datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")),
+            "observed_at": str(utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S")),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [234.2, 232.1, 235.3],
@@ -336,7 +338,7 @@ def test_filter_by_spectrum_time(
         data={
             "obj_id": obj_id2,
             "observed_at": str(
-                (datetime.utcnow() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+                (utcnow_naive() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
             ),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
@@ -351,7 +353,7 @@ def test_filter_by_spectrum_time(
     driver.get(f"/become_user/{user.id}")
     driver.get("/sources")
 
-    test_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+    test_time = utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S")
 
     # Filter for spectrum time after
     driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")

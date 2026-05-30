@@ -45,6 +45,7 @@ from ...models import (
     User,
     UserNotification,
 )
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler, format_doc
 from .photometry import serialize
 
@@ -381,7 +382,7 @@ def post_analysis(
                 df = pd.DataFrame(input_data)
             inputs[input_type] = df.to_csv(index=False)
 
-        invalid_after = datetime.datetime.utcnow() + datetime.timedelta(
+        invalid_after = utcnow_naive() + datetime.timedelta(
             seconds=analysis_service.timeout
         )
 
@@ -479,7 +480,7 @@ def post_analysis(
             log(f"Invalid analysis_resource_type: {analysis_resource_type}")
             return
 
-        analysis.last_activity = datetime.datetime.utcnow()
+        analysis.last_activity = utcnow_naive()
         try:
             result = future.result()
             analysis.status = "pending" if result.status_code == 200 else "failure"
@@ -1816,9 +1817,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                         ),
                         status=403,
                     )
-                invalid_after = datetime.datetime.utcnow() + datetime.timedelta(
-                    seconds=10
-                )
+                invalid_after = utcnow_naive() + datetime.timedelta(seconds=10)
                 analysis = ObjAnalysis(
                     obj=obj,
                     author=author,
@@ -1832,7 +1831,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                     status_message=status_message,
                     handled_by_url="/",
                     invalid_after=invalid_after,
-                    last_activity=datetime.datetime.utcnow(),
+                    last_activity=utcnow_naive(),
                 )
             else:
                 return self.error(
@@ -2061,9 +2060,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 stats = {
                     "daily_limit": daily_limit,
                     "daily_count": 0,
-                    "last_run": datetime.datetime.utcnow().strftime(
-                        "%Y-%m-%dT%H:%M:%S.%f"
-                    ),
+                    "last_run": utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S.%f"),
                 }
 
                 if not isinstance(source_filter, dict):

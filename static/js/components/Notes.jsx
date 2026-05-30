@@ -164,9 +164,7 @@ const Notes = () => {
                       <Button
                         data-testid={`deleteNoteButton${note.id}`}
                         size="small"
-                        onClick={() => {
-                          deleteNote(index, noteCount);
-                        }}
+                        onClick={() => deleteNote(index, noteCount)}
                       >
                         <CancelIcon className={classes.cancelButton} />
                       </Button>
@@ -181,12 +179,7 @@ const Notes = () => {
               <>
                 <Divider />
                 <div className={classes.centered}>
-                  <Button
-                    onClick={deleteAllNotes}
-                    data-testid="deleteAllNotesButton"
-                  >
-                    Delete all
-                  </Button>
+                  <Button onClick={deleteAllNotes}>Delete all</Button>
                 </div>
               </>
             )}

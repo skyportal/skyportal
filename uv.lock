@@ -2326,14 +2326,14 @@ wheels = [
 
 [[package]]
 name = "marshmallow-jsonschema"
-version = "0.13.0"
+version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "marshmallow" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2f/53/109d80013b70b6140d05e521ad31e3014680007b51c3dfac72ad20a2d6ee/marshmallow-jsonschema-0.13.0.tar.gz", hash = "sha256:f8ce19cfc0edd909e81f141d7420c33544b849bc5ebbfae8f6a3deea5a3b1f47", size = 12703, upload-time = "2021-10-21T18:02:40.923Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/66/a4/1b0fa2a1658b0b797a60ccbd53c7daa5a37d651016f4aa3e451e9c2955fa/marshmallow_jsonschema-0.16.0.tar.gz", hash = "sha256:d504ab6156a272d9be850469b2fc4ab3f6e858c3cb66791724afa890dfdee5c8", size = 45588, upload-time = "2026-04-26T22:56:13.5Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/cf/a620a7b0a5ba2aaa52e70f95795e0cf3a7f6332a7cb432a1223b61ac654e/marshmallow_jsonschema-0.13.0-py3-none-any.whl", hash = "sha256:2814f2afb94a6e01b3c0a5795b3dfb142b628763655f20378400af5c0a2307fb", size = 11812, upload-time = "2021-10-21T18:02:39.392Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/df/e75161abd2fd6624cf280bd2e684104c71b6d4efcc31c80d1286296534b3/marshmallow_jsonschema-0.16.0-py3-none-any.whl", hash = "sha256:393b3fd8d73d1d9287c3f65784876c8c14fd41c2553c59a1ea5817d606078105", size = 20440, upload-time = "2026-04-26T22:56:11.741Z" },
 ]
 
 [[package]]
@@ -4425,7 +4425,7 @@ requires-dist = [
     { name = "lxml", specifier = "==6.1.0" },
     { name = "marshmallow", specifier = "==3.26.2" },
     { name = "marshmallow-enum", specifier = "==1.5.1" },
-    { name = "marshmallow-jsonschema", specifier = "==0.13.0" },
+    { name = "marshmallow-jsonschema", specifier = "==0.16.0" },
     { name = "marshmallow-sqlalchemy", specifier = "==1.1.0" },
     { name = "matplotlib", specifier = "==3.10.8" },
     { name = "mocpy", specifier = "==0.18.0" },

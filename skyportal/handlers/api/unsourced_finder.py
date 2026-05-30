@@ -11,6 +11,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.offset import (
     GaiaQuery,
     facility_parameters,
@@ -148,7 +149,8 @@ class UnsourcedFinderHandler(BaseHandler):
             return self.error(f"Invalid argument for `location_type`: {location_type}")
 
         obstime = self.get_query_argument(
-            "obstime", datetime.datetime.utcnow().isoformat()
+            "obstime",
+            utcnow_naive().isoformat(),
         )
         if not isinstance(isoparse(obstime), datetime.datetime):
             return self.error("obstime is not valid isoformat")

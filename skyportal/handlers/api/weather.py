@@ -6,6 +6,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
 from ...models import Telescope, Weather
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.offset import get_url
 from ..base import BaseHandler
 
@@ -105,7 +106,7 @@ class WeatherHandler(BaseHandler):
             if refresh and weather.retrieved_at is not None:
                 if (
                     weather.retrieved_at + datetime.timedelta(seconds=weather_refresh)
-                    >= datetime.datetime.utcnow()
+                    >= utcnow_naive()
                 ):
                     # it is too soon to refresh
                     refresh = False
@@ -122,7 +123,7 @@ class WeatherHandler(BaseHandler):
                     if response.status_code == 200:
                         data = response.json()
                         weather.weather_info = data
-                        weather.retrieved_at = datetime.datetime.utcnow()
+                        weather.retrieved_at = utcnow_naive()
                         session.commit()
                     else:
                         message = response.text
@@ -135,7 +136,7 @@ class WeatherHandler(BaseHandler):
                     # Timestamp indicating when the weather data was successfully retrieved from the API
                     "weather_retrieved_at": weather.retrieved_at,
                     # Timestamp indicating when the API call was made, even if no data was returned
-                    "weather_fetch_at": datetime.datetime.utcnow(),
+                    "weather_fetch_at": utcnow_naive(),
                     "weather_link": telescope.weather_link,
                     "telescope_name": telescope.name,
                     "telescope_nickname": telescope.nickname,

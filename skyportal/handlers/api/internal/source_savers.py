@@ -6,6 +6,7 @@ from sqlalchemy import desc, func
 from baselayer.app.access import auth_or_token
 
 from ....models import Candidate, Source, User
+from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
 
 default_prefs = {"maxNumSavers": 100, "sinceDaysAgo": 7, "candidatesOnly": True}
@@ -20,10 +21,7 @@ class SourceSaverHandler(BaseHandler):
 
         max_num_savers = int(top_savers_prefs["maxNumSavers"])
         since_days_ago = float(top_savers_prefs["sinceDaysAgo"])
-        cutoff_day = datetime.datetime.utcnow() - datetime.timedelta(
-            days=since_days_ago
-        )
-
+        cutoff_day = utcnow_naive() - datetime.timedelta(days=since_days_ago)
         stmt = Source.select(
             session.user_or_token,
             columns=[

@@ -1,6 +1,6 @@
 import time
 from copy import deepcopy
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import arrow
 from astropy import units as u
@@ -13,6 +13,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -564,13 +565,13 @@ class IOOAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -717,13 +718,13 @@ class IOIAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -869,13 +870,13 @@ class SPRATAPI(LTAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
