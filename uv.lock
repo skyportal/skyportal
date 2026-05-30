@@ -2302,51 +2302,24 @@ wheels = [
 
 [[package]]
 name = "marshmallow"
-version = "3.26.2"
+version = "4.3.0"
 source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/55/79/de6c16cc902f4fc372236926b0ce2ab7845268dcc30fb2fbb7f71b418631/marshmallow-3.26.2.tar.gz", hash = "sha256:bbe2adb5a03e6e3571b573f42527c6fe926e17467833660bebd11593ab8dfd57", size = 222095, upload-time = "2025-12-22T06:53:53.309Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/25/7e/1dbd4096eb7c148cd2841841916f78820bb85a4d80a0c25c02d30815a7fb/marshmallow-4.3.0.tar.gz", hash = "sha256:fb43c53b3fe240b8f6af37223d6ef1636f927ad9bea8ab323afad95dff090880", size = 224485, upload-time = "2026-04-03T21:46:32.72Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/2f/5108cb3ee4ba6501748c4908b908e55f42a5b66245b4cfe0c99326e1ef6e/marshmallow-3.26.2-py3-none-any.whl", hash = "sha256:013fa8a3c4c276c24d26d84ce934dc964e2aa794345a0f8c7e5a7191482c8a73", size = 50964, upload-time = "2025-12-22T06:53:51.801Z" },
-]
-
-[[package]]
-name = "marshmallow-enum"
-version = "1.5.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "marshmallow" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/8e/8c/ceecdce57dfd37913143087fffd15f38562a94f0d22823e3c66eac0dca31/marshmallow-enum-1.5.1.tar.gz", hash = "sha256:38e697e11f45a8e64b4a1e664000897c659b60aa57bfa18d44e226a9920b6e58", size = 4013, upload-time = "2019-08-21T01:07:46.254Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c6/59/ef3a3dc499be447098d4a89399beb869f813fee1b5a57d5d79dee2c1bf51/marshmallow_enum-1.5.1-py2.py3-none-any.whl", hash = "sha256:57161ab3dbfde4f57adeb12090f39592e992b9c86d206d02f6bd03ebec60f072", size = 4186, upload-time = "2019-08-21T01:07:44.814Z" },
-]
-
-[[package]]
-name = "marshmallow-jsonschema"
-version = "0.16.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "marshmallow" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/66/a4/1b0fa2a1658b0b797a60ccbd53c7daa5a37d651016f4aa3e451e9c2955fa/marshmallow_jsonschema-0.16.0.tar.gz", hash = "sha256:d504ab6156a272d9be850469b2fc4ab3f6e858c3cb66791724afa890dfdee5c8", size = 45588, upload-time = "2026-04-26T22:56:13.5Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/df/e75161abd2fd6624cf280bd2e684104c71b6d4efcc31c80d1286296534b3/marshmallow_jsonschema-0.16.0-py3-none-any.whl", hash = "sha256:393b3fd8d73d1d9287c3f65784876c8c14fd41c2553c59a1ea5817d606078105", size = 20440, upload-time = "2026-04-26T22:56:11.741Z" },
+    { url = "https://files.pythonhosted.org/packages/f4/e0/ff24e25218bb59eb6290a530cea40651b14068b6e3659b20f9c175179632/marshmallow-4.3.0-py3-none-any.whl", hash = "sha256:46c4fe6984707e3cbd485dfebbf0a59874f58d695aad05c1668d15e8c6e13b46", size = 49148, upload-time = "2026-04-03T21:46:31.241Z" },
 ]
 
 [[package]]
 name = "marshmallow-sqlalchemy"
-version = "1.1.0"
+version = "1.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "marshmallow" },
     { name = "sqlalchemy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/82/f8/2e565045b17dd60b38aafc3242ac44f5403315df08963501d07463d089ac/marshmallow_sqlalchemy-1.1.0.tar.gz", hash = "sha256:2ab092da269dafa8a05d51a58409af71a8d2183958ba47143127dd239e0359d8", size = 49475, upload-time = "2024-08-14T17:16:41.225Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/fe/247c297809e64116f766716632adbc3f4cd06f376f56dc15bb92f170d247/marshmallow_sqlalchemy-1.5.0.tar.gz", hash = "sha256:e51192c204770645a2fab0d72f44f8789272eef75951f84b1608d6b4b0bfe0e6", size = 51349, upload-time = "2026-04-01T23:21:03.833Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0c/47/edc875e2f51923db12bf8c677595ca3c43bf7d9de8eaccd5d9bebc260c24/marshmallow_sqlalchemy-1.1.0-py3-none-any.whl", hash = "sha256:cce261148e4c6ec4ee275f3d29352933380a1afa2fd3933f5e9ecd02fdc16ade", size = 14419, upload-time = "2024-08-14T17:16:39.536Z" },
+    { url = "https://files.pythonhosted.org/packages/b9/b7/407c44dbd77a7670b7be6b7fedbe5329348fe00b4e62dae0f5c83a9aeafa/marshmallow_sqlalchemy-1.5.0-py3-none-any.whl", hash = "sha256:3865232672f3dd38c4d5e4e85fdedce76904200742c3594948a2d11d0af93258", size = 16582, upload-time = "2026-04-01T23:21:02.376Z" },
 ]
 
 [[package]]
@@ -4305,8 +4278,6 @@ dependencies = [
     { name = "ligo-skymap" },
     { name = "lxml" },
     { name = "marshmallow" },
-    { name = "marshmallow-enum" },
-    { name = "marshmallow-jsonschema" },
     { name = "marshmallow-sqlalchemy" },
     { name = "matplotlib" },
     { name = "mocpy" },
@@ -4423,10 +4394,8 @@ requires-dist = [
     { name = "langchain-openai", specifier = "==0.3.28" },
     { name = "ligo-skymap", specifier = "==2.5.3" },
     { name = "lxml", specifier = "==6.1.0" },
-    { name = "marshmallow", specifier = "==3.26.2" },
-    { name = "marshmallow-enum", specifier = "==1.5.1" },
-    { name = "marshmallow-jsonschema", specifier = "==0.16.0" },
-    { name = "marshmallow-sqlalchemy", specifier = "==1.1.0" },
+    { name = "marshmallow", specifier = "==4.3.0" },
+    { name = "marshmallow-sqlalchemy", specifier = "==1.5.0" },
     { name = "matplotlib", specifier = "==3.10.8" },
     { name = "mocpy", specifier = "==0.18.0" },
     { name = "noaodatalab", specifier = "==2.20.0" },
