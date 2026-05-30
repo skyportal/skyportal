@@ -20,8 +20,6 @@ const NewObservingRun = () => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
 
-  const defaultDate = dayjs().utc().format("YYYY-MM-DD");
-
   const handleSubmit = async ({ formData }) => {
     if (formData.group_id === -1) {
       delete formData.group_id;
@@ -43,7 +41,7 @@ const NewObservingRun = () => {
         type: "string",
         format: "date",
         title: "Calendar Date",
-        default: defaultDate,
+        default: dayjs().utc().format("YYYY-MM-DD"),
       },
       duration: {
         type: "number",

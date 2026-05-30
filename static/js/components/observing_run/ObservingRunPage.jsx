@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -45,9 +44,8 @@ export const observingRunInfo = (
   const telescope_id = instrument?.telescope_id;
   const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
 
-  if (!observingRun?.calendar_date || !instrument?.name || !telescope?.name) {
-    return <CircularProgress />;
-  }
+  if (!observingRun?.calendar_date || !instrument?.name || !telescope?.name)
+    return null;
 
   const nowDate = dayjs().utc();
   const runDate = dayjs(observingRun?.calendar_date);
@@ -122,7 +120,6 @@ const ObservingRunList = ({ observingRuns, managePermission }) => {
           onChange={(e, newValue) => {
             if (newValue !== null) setDisplayAll(newValue);
           }}
-          data-testid="observationRunButton"
         >
           <ToggleButton value={false}>Upcoming runs</ToggleButton>
           <ToggleButton value={true}>All runs</ToggleButton>
