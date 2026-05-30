@@ -20,7 +20,14 @@ const baseSx = {
   "& .MuiDataGrid-columnHeader": {
     padding: "0.25rem 0.5rem",
   },
-  // Let cell content wrap instead of being clipped, matching the old table.
+  // Many cells render text inside a <p> (and sometimes headings). Browser
+  // default margins on those block elements are taller than a compact row, so
+  // the content gets vertically clipped ("half cut off"). Zero the margins so
+  // the cell's own flex-centering positions the text correctly.
+  "& .MuiDataGrid-cell p, & .MuiDataGrid-cell h1, & .MuiDataGrid-cell h2, & .MuiDataGrid-cell h3, & .MuiDataGrid-cell h4, & .MuiDataGrid-cell h5, & .MuiDataGrid-cell h6":
+    {
+      margin: 0,
+    },
   "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
     outline: "none",
   },
