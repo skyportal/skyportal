@@ -2,7 +2,7 @@ import base64
 import json
 import os
 import urllib
-from datetime import datetime, timedelta
+from datetime import timedelta
 from urllib.parse import urlparse
 
 import astropy.units as u
@@ -16,6 +16,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -490,14 +491,14 @@ class TRTAPI(FollowUpAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.utcnow().date().isoformat(),
+                "default": utcnow_naive().date().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive().date() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",

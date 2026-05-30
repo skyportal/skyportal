@@ -1,6 +1,6 @@
 import re
 import urllib
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import requests
 from astropy.time import Time
@@ -10,6 +10,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -406,13 +407,13 @@ class NICERAPI(FollowUpAPI):
                             },
                             "TimeRangeStart": {
                                 "type": "string",
-                                "default": str(datetime.utcnow()),
+                                "default": str(utcnow_naive()),
                                 "title": "Time Range Start (UT)",
                             },
                             "TimeRangeEnd": {
                                 "type": "string",
                                 "title": "Time Range End (UT)",
-                                "default": str(datetime.utcnow() + timedelta(days=7)),
+                                "default": str(utcnow_naive() + timedelta(days=7)),
                             },
                         }
                     },
@@ -434,7 +435,7 @@ class NICERAPI(FollowUpAPI):
                             },
                             "PhaseDependentEpoch": {
                                 "type": "string",
-                                "default": str(datetime.utcnow()),
+                                "default": str(utcnow_naive()),
                                 "title": "Phase Dependent Epoch (UT)",
                             },
                             "PhaseDependentPeriod": {

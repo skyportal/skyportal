@@ -1,5 +1,3 @@
-import datetime
-
 import sqlalchemy as sa
 
 from baselayer.app.access import permissions
@@ -8,6 +6,7 @@ from baselayer.log import make_log
 from ...models import Obj, Source
 from ...utils.asynchronous import run_async
 from ...utils.data_access import auto_source_publishing
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 log = make_log("api/source_groups")
@@ -119,7 +118,7 @@ class SourceGroupsHandler(BaseHandler):
                     )
                 source.unsaved_by_id = self.associated_user_object.id
                 source.active = False
-                source.unsaved_at = datetime.datetime.utcnow()
+                source.unsaved_at = utcnow_naive()
 
             if len(unsave_group_ids) > 0:
                 from .public_pages.public_source_page import delete_auto_published_page

@@ -1,5 +1,4 @@
 import copy
-import datetime
 import json
 import traceback
 import uuid
@@ -35,7 +34,6 @@ from ...models import (
     GroupPhotometry,
     Instrument,
     Obj,
-    ObjToSuperObj,
     PhotometricSeries,
     Photometry,
     PhotStat,
@@ -52,6 +50,7 @@ from ...models.schema import (
     PhotometryRangeQuery,
 )
 from ...utils.extinction import calculate_extinction, deredden_flux
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import str_to_bool
 from ..base import BaseHandler, format_doc
 from .photometry_validation import USE_PHOTOMETRY_VALIDATION
@@ -1108,7 +1107,7 @@ def insert_new_photometry_data(
         if original_user_data == {}:
             original_user_data = None
 
-        utcnow = datetime.datetime.utcnow()
+        utcnow = utcnow_naive()
         # original_user_data and altdata are JSONB columns; with pg_insert.values()
         # SQLAlchemy serializes Python dicts via the column type, so we pass
         # the raw structures (None or dict). The old COPY path needed
@@ -1913,7 +1912,7 @@ class PhotometryHandler(BaseHandler):
                         duplicate.altdata = json.dumps(
                             df.loc[df_index]["altdata"], cls=NumpyEncoder
                         )
-                        duplicate.modified = datetime.datetime.utcnow()
+                        duplicate.modified = utcnow_naive()
                         updated_ids.append(duplicate.id)
                         updated_duplicate_values.append(duplicate_value)
 

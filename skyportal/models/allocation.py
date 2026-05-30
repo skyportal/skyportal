@@ -7,7 +7,10 @@ from sqlalchemy.dialects.postgresql import ARRAY as pg_array
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils.types import JSONType
-from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine, EncryptedType
+from sqlalchemy_utils.types.encrypted.encrypted_type import (
+    AesEngine,
+    StringEncryptedType,
+)
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
@@ -137,7 +140,7 @@ class Allocation(Base):
     )
 
     _altdata = sa.Column(
-        EncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
+        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
     )
 
     allocation_users = relationship(

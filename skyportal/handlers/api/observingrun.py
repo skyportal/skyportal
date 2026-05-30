@@ -1,5 +1,3 @@
-from datetime import UTC, datetime, timezone
-
 import numpy as np
 from astropy.utils.masked import MaskedNDArray
 from marshmallow.exceptions import ValidationError
@@ -19,6 +17,7 @@ from ...models import (
     User,
 )
 from ...models.schema import ObservingRunGetWithAssignments, ObservingRunPost
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 log = make_log("api/observing_run")
@@ -366,10 +365,7 @@ class ObservingRunHandler(BaseHandler):
                     )
 
             # don't allow deleting past runs, unless they have no assignments
-            if (
-                orun.run_end_utc < datetime.now(UTC).replace(tzinfo=None)
-                and len(assignments) > 0
-            ):
+            if orun.run_end_utc < utcnow_naive() and len(assignments) > 0:
                 return self.error(
                     "Cannot delete an observing run that has ended and had targets assigned to it."
                 )

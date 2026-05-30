@@ -78,6 +78,7 @@ from ...models import (
 from ...utils.asynchronous import run_async
 from ...utils.calculations import great_circle_distance
 from ...utils.data_access import auto_source_publishing
+from ...utils.naive_datetime import UTCTZnaiveDateTime, utcnow_naive
 from ...utils.offset import (
     ALL_NGPS_SNCOSMO_BANDS,
     _calculate_best_position_for_offset_stars,
@@ -89,7 +90,6 @@ from ...utils.offset import (
 )
 from ...utils.parse import get_list_typed, get_page_and_n_per_page
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
-from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 from ..base import BaseHandler
 from .candidate.candidate import (
     update_healpix_if_relevant,
@@ -2391,7 +2391,8 @@ class SourceOffsetsHandler(BaseHandler):
             use_ztfref = self.get_query_argument("use_ztfref", True)
 
             obstime = self.get_query_argument(
-                "obstime", datetime.datetime.utcnow().isoformat()
+                "obstime",
+                utcnow_naive().isoformat(),
             )
             if not isinstance(isoparse(obstime), datetime.datetime):
                 return self.error("obstime is not valid isoformat")
@@ -2783,7 +2784,8 @@ class SourceFinderHandler(BaseHandler):
         image_source = self.get_query_argument("image_source", "ps1")
         use_ztfref = self.get_query_argument("use_ztfref", True)
         obstime = self.get_query_argument(
-            "obstime", datetime.datetime.utcnow().isoformat()
+            "obstime",
+            utcnow_naive().isoformat(),
         )
         if not isinstance(isoparse(obstime), datetime.datetime):
             return self.error("obstime is not valid isoformat")
@@ -2824,7 +2826,7 @@ class SourceFinderHandler(BaseHandler):
                         data["public_url"] = rez["public_url"]
                         if finding_charts_cache._max_age:
                             data["public_url_expires_at"] = (
-                                datetime.datetime.utcnow()
+                                utcnow_naive()
                                 + datetime.timedelta(
                                     seconds=finding_charts_cache._max_age
                                 )

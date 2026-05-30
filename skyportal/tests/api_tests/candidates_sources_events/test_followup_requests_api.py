@@ -1,6 +1,6 @@
-from datetime import datetime
-
 from skyportal.tests import api
+
+from ....utils.naive_datetime import utcnow_naive
 
 
 def test_token_user_post_robotic_followup_request(
@@ -209,7 +209,7 @@ def test_filter_followup_request(
         },
     }
 
-    time_before_post = datetime.utcnow().isoformat()
+    time_before_post = utcnow_naive().isoformat()
     status, data = api(
         "POST", "followup_request", data=request_data, token=upload_data_token
     )
@@ -230,7 +230,7 @@ def test_filter_followup_request(
         s["obj_id"] == public_source.id for s in data["data"]["followup_requests"]
     )
 
-    time_after_post = datetime.utcnow().isoformat()
+    time_after_post = utcnow_naive().isoformat()
 
     params = {"startDate": time_after_post}
 

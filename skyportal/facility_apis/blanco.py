@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import requests
 
@@ -8,6 +8,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -325,13 +326,13 @@ class NEWFIRMAPI(BLANCOAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",

@@ -7,7 +7,7 @@ import tempfile
 import time
 import traceback
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import arrow
 import conesearch_alchemy as ca
@@ -62,6 +62,7 @@ from ...models import (
     cosmo,
 )
 from ...models.schema import AssignmentSchema, FollowupRequestPost
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.offset import get_formatted_standards_list
 from ...utils.parse import get_list_typed, get_page_and_n_per_page, str_to_bool
 from ..base import BaseHandler, format_doc
@@ -557,7 +558,7 @@ def post_followup_request(
                     )
                     continue
                 if tns_time is not None:
-                    delta_hours = (datetime.utcnow() - tns_time).total_seconds() / 3600
+                    delta_hours = (utcnow_naive() - tns_time).total_seconds() / 3600
                     if delta_hours > float(constraints["not_if_tns_reported"]):
                         raise ValueError(
                             f"A Source within {radius} arcsec ({existing_tns_source.id}) has already been reported to TNS {delta_hours} hours ago, not submitting request (as per constraint)."
@@ -760,8 +761,8 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
 
         session.user_or_token = user
         session.add(obj)
-        start_date = str(datetime.utcnow()).replace("T", "")
-        end_date = str(datetime.utcnow() + timedelta(days=1)).replace("T", "")
+        start_date = str(utcnow_naive()).replace("T", "")
+        end_date = str(utcnow_naive() + timedelta(days=1)).replace("T", "")
         for ii, default_followup_request in enumerate(default_followup_requests):
             try:
                 followup_request = default_followup_request.to_dict()
@@ -2477,12 +2478,12 @@ class DefaultFollowupRequestHandler(BaseHandler):
             if "start_date" in payload:
                 return self.error("Cannot have start_date in the payload")
             else:
-                payload["start_date"] = str(datetime.utcnow())
+                payload["start_date"] = str(utcnow_naive())
 
             if "end_date" in payload:
                 return self.error("Cannot have end_date in the payload")
             else:
-                payload["end_date"] = str(datetime.utcnow() + timedelta(days=1))
+                payload["end_date"] = str(utcnow_naive() + timedelta(days=1))
 
             # validate the payload
             try:
