@@ -3736,10 +3736,10 @@ class GcnSummaryHandler(BaseHandler):
             start_date = UTCTZnaiveDateTime(required=False, load_default=None)
             end_date = UTCTZnaiveDateTime(required=False, load_default=None)
             number_of_detections = Integer(
-                required=False, missing=2, validate=validate.Range(min=1)
+                required=False, load_default=2, validate=validate.Range(min=1)
             )
             number_of_observations = Integer(
-                required=False, missing=1, validate=validate.Range(min=1)
+                required=False, load_default=1, validate=validate.Range(min=1)
             )
 
         validator_instance = Validator()
