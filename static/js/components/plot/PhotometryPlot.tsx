@@ -1,0 +1,1954 @@
+import React, { useEffect, useMemo, useState } from "react";
+
+import Plotly from "plotly.js-basic-dist";
+import createPlotlyComponent from "react-plotly.js/factory";
+
+import { makeStyles } from "tss-react/mui";
+import Slider from "@mui/material/Slider";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import SaveAsIcon from "@mui/icons-material/SaveAs";
+import IconButton from "@mui/material/IconButton";
+import RemoveIcon from "@mui/icons-material/Remove";
+import Chip from "@mui/material/Chip";
+import AddIcon from "@mui/icons-material/Add";
+import Switch from "@mui/material/Switch";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import Checkbox from "@mui/material/Checkbox";
+import CircularProgress from "@mui/material/CircularProgress";
+
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
+
+import { showNotification } from "baselayer/components/Notifications";
+import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import Button from "../Button";
+
+import { addAnnotation } from "../../ducks/source";
+import * as photometryActions from "../../ducks/photometry";
+
+import {
+  BASE_LAYOUT,
+  PHOT_ZP,
+  smoothing_func,
+  mjdnow,
+  rgba,
+} from "../../utils";
+
+// convert any unit to days
+const periodUnitDividers: Record<string, number> = {
+  minutes: 60.0 * 24.0,
+  hours: 24.0,
+  days: 1.0,
+};
+
+const Plot = createPlotlyComponent(Plotly);
+
+const useStyles = makeStyles()((theme) => ({
+  gridContainer: {
+    display: "grid",
+    gridAutoFlow: "row",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    rowGap: 0,
+    columnGap: "2rem",
+    width: "100%",
+    padding: "0.5rem 1rem 0 1rem",
+  },
+  gridItem: {
+    display: "flex",
+    flexDirection: "column" as const,
+    justifyContent: "flex-start",
+    alignItems: "left",
+    gap: 0,
+    width: "100%",
+  },
+  sliderContainer: {
+    display: "flex",
+    flexDirection: "row" as const,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: "1rem",
+    width: "100%",
+    paddingLeft: "0.5rem",
+    "& > .MuiTextField-root": {
+      width: "7rem",
+      marginTop: 0,
+      marginBottom: 0,
+    },
+  },
+  periodContainer: {
+    display: "flex",
+    flexDirection: "row" as const,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: "1rem",
+    width: "100%",
+    paddingLeft: "0.5rem",
+    "& > .MuiTextField-root": {
+      width: "7rem",
+      marginTop: 0,
+      marginBottom: 0,
+    },
+    [theme.breakpoints.down("md")]: {
+      gridTemplateColumns: "1fr 1fr 1fr",
+      display: "grid",
+      "& > :first-child": {
+        gridColumn: "span 2",
+      },
+      "& > :last-child": {
+        gridColumn: "span 3",
+      },
+      paddingBottom: "0.5rem",
+    },
+  },
+  switchContainer: {
+    minHeight: "2rem",
+    display: "flex",
+    flexDirection: "row" as const,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
+  doubleSwitch: {
+    display: "flex",
+    flexDirection: "row" as const,
+    alignItems: "center",
+    gap: "0.5rem",
+  },
+}));
+
+interface PeriodAnnotationDialogProps {
+  obj_id: string;
+  period: number;
+  periodUnit: string;
+}
+
+const PeriodAnnotationDialog = ({
+  obj_id,
+  period,
+  periodUnit,
+}: PeriodAnnotationDialogProps) => {
+  const dispatch = useAppDispatch();
+  const groups = useAppSelector(
+    (state) => (state as any).groups.userAccessible,
+  );
+  const periodUnits = Object.keys(periodUnitDividers);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  // to save a period as an annotation, we'll need the user to provide an origin
+  // and also to pick groups to save the annotation to
+  const schema: any = {
+    type: "object",
+    properties: {
+      period: {
+        type: "number",
+        title: "Period",
+        default: parseFloat(period as unknown as string),
+      },
+      periodUnitValue: {
+        type: "string",
+        enum: periodUnits,
+      },
+      origin: { type: "string", title: "Origin" },
+      groupIDs: {
+        type: "array",
+        items: {
+          type: "string",
+          enum: groups?.map((group: any) => group.id.toString()),
+          enumNames: groups?.map((group: any) => group.name),
+        },
+        uniqueItems: true,
+      },
+    },
+    required: ["period", "origin", "groupIDs"],
+  };
+
+  const validate = (formData: any, errors: any) => {
+    if (formData.period <= 0) {
+      errors.period.addError("Period must be greater than 0");
+    }
+    if (formData.origin?.replaceAll(" ", "") === "") {
+      errors.origin.addError("Origin must not be empty");
+    }
+    if (formData.groupIDs?.length === 0) {
+      errors.groupIDs.addError("Must select at least one group");
+    }
+    return errors;
+  };
+
+  const submitPeriodAnnotation = async ({ formData }: { formData: any }) => {
+    const periodData = {
+      obj_id,
+      origin: formData.origin,
+      data: {
+        period: formData.period / periodUnitDividers[formData.periodUnitValue],
+      },
+      groups: formData.groupIDs,
+    };
+    dispatch(addAnnotation(obj_id, periodData)).then((result: any) => {
+      if (result.status === "success") {
+        setDialogOpen(false);
+        dispatch(showNotification("Period saved as annotation"));
+      } else {
+        dispatch(showNotification("Failed to save period as annotation"));
+      }
+    });
+  };
+
+  return (
+    <>
+      <Tooltip title="Save period as annotation">
+        <IconButton onClick={() => setDialogOpen(true)} size="small">
+          <SaveAsIcon />
+        </IconButton>
+      </Tooltip>
+
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="lg"
+      >
+        <DialogTitle>Save Period as Annotation</DialogTitle>
+        <DialogContent>
+          <Form
+            schema={schema}
+            validator={validator}
+            customValidate={validate}
+            onSubmit={submitPeriodAnnotation as any}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+interface PhotometryPlotProps {
+  obj_id: string;
+  dm?: number | null;
+  annotations?: any[];
+  spectra?: any[];
+  gcn_events?: any[];
+  duplicates?: any[];
+  associated_objs?: any[];
+  mode?: string;
+  plotStyle?: { height?: string };
+  magsys?: string;
+  t0?: number | null;
+  showExtinctionCorrection?: boolean;
+}
+
+const PhotometryPlot = ({
+  obj_id,
+  dm = null,
+  annotations = [],
+  spectra = [],
+  gcn_events = [],
+  duplicates = [],
+  associated_objs,
+  mode = "desktop",
+  plotStyle = { height: "65vh" },
+  magsys = "ab",
+  t0 = null,
+  showExtinctionCorrection = false,
+}: PhotometryPlotProps) => {
+  const { classes } = useStyles();
+  const dispatch = useAppDispatch();
+
+  const profile = useAppSelector((state) => state.profile);
+  const config = useAppSelector((state) => state.config);
+  const photometry = useAppSelector((state) => (state as any).photometry);
+
+  const duplicateOptions = useMemo(() => {
+    const allDuplicates = [...(duplicates || []), ...(associated_objs || [])];
+    const uniqueDuplicates: any[] = [];
+    const seenObjIds = new Set();
+    allDuplicates.forEach((dup) => {
+      if (!seenObjIds.has(dup.obj_id)) {
+        uniqueDuplicates.push(dup);
+        seenObjIds.add(dup.obj_id);
+      }
+    });
+    return uniqueDuplicates;
+  }, [duplicates, associated_objs]);
+  const [selectedDuplicates, setSelectedDuplicates] = useState<any[]>(
+    associated_objs?.map((a) => a.obj_id) || [],
+  );
+
+  const [data, setData] = useState<any>(null);
+  const [plotData, setPlotData] = useState<any>(null);
+
+  const [tabIndex, setTabIndex] = useState(0);
+  const [markerSize, setMarkerSize] = useState<any>(6);
+
+  const [period, setPeriod] = useState<any>(1);
+  const [periodUnit, setPeriodUnit] = useState("days");
+  const [phase, setPhase] = useState(2);
+  const [smoothing, setSmoothing] = useState<any>(0);
+
+  const [photStats, setPhotStats] = useState<any>(null);
+  const [layouts, setLayouts] = useState<any>({});
+
+  const [filter2color, setFilter2Color] = useState<any>(
+    config?.bandpassesColors,
+  );
+
+  const [layoutReset, setLayoutReset] = useState(false);
+
+  const [t0Max, setT0Max] = useState(mjdnow());
+  const [displayXAxisSinceT0, setDisplayXAxisSinceT0] = useState(false);
+  const [displayXAxisInlog, setDisplayXAxisInlog] = useState(false);
+  const [showNonDetections, setShowNonDetections] = useState(true);
+  const [showForcedPhotometry, setshowForcedPhotometry] = useState(true);
+  const [showOnlyValidated, setShowOnlyValidated] = useState(false);
+
+  const [initialized, setInitialized] = useState(false);
+
+  const [defaultVisibleFilters, setDefaultVisibleFilters] = useState<any>(null);
+  const [appliedDefaultVisibleFilters, setAppliedDefaultVisibleFilters] =
+    useState(false);
+
+  const daysToSec = (days: number) => days * 24 * 60 * 60;
+
+  const preparePhotometry = (
+    photometryData: any[],
+    distance_modulus: any,
+    showExtinctionCorrectionValue: any,
+  ): [any[], any] => {
+    const stats: any = {
+      mag: {
+        min: 100,
+        max: 0,
+        range: [100, 0],
+      },
+      flux: {
+        min: 100,
+        max: 0,
+        range: [0, 100],
+      },
+      mjd: {
+        min: 100000,
+        max: 0,
+        extra: [100000, 0],
+      },
+    };
+    stats[t0 && displayXAxisSinceT0 ? "sec_since_t0" : "days_ago"] = {
+      min: t0 && displayXAxisSinceT0 ? 0 : 100000,
+      max: 0,
+      extra: [t0 && displayXAxisSinceT0 ? 0 : 100000, 0],
+    };
+
+    const now = mjdnow();
+
+    const newPhotometryData = photometryData.map((point) => {
+      const newPoint = { ...point };
+      if (stats.days_ago) {
+        newPoint.days_ago = now - newPoint.mjd;
+      } else if (displayXAxisInlog) {
+        newPoint.sec_since_t0 = daysToSec(newPoint.mjd - t0);
+      } else {
+        newPoint.sec_since_t0 = newPoint.mjd - t0;
+      }
+      if (newPoint.mag !== null) {
+        newPoint.flux = 10 ** (-0.4 * (newPoint.mag - PHOT_ZP));
+        newPoint.fluxerr =
+          (newPoint.magerr / (2.5 / Math.log(10))) * newPoint.flux;
+        newPoint.snr = newPoint.flux / newPoint.fluxerr;
+        if (newPoint.snr < 0) {
+          newPoint.snr = null;
+        }
+      } else {
+        newPoint.flux = 10 ** (-0.4 * (newPoint.limiting_mag - PHOT_ZP));
+        newPoint.fluxerr = 0;
+        newPoint.snr = null;
+      }
+      newPoint.streams = (newPoint.streams || [])
+        .map((stream: any) => stream?.name || stream)
+        .filter(
+          (value: any, index: number, self: any[]) =>
+            self.indexOf(value) === index,
+        );
+      // also, we only want to keep the stream names that are not substrings of others
+      // for example, if we have a stream called 'ZTF Public', we don't want to keep
+      // 'ZTF Public+Partnership' because it's a substring of 'ZTF Public'.
+      newPoint.streams = newPoint.streams.filter((name: any) => {
+        const names = newPoint.streams.filter(
+          (c: any) => c !== name && c.includes(name),
+        );
+        return names.length === 0;
+      });
+      const utcDate = new Date((newPoint.mjd - 40587) * 86400000);
+      newPoint.text = `MJD: ${newPoint.mjd.toFixed(6)}<br>UTC: ${utcDate
+        .toISOString()
+        .slice(0, 19)
+        .replace("T", " ")}`;
+
+      if (newPoint.sec_since_t0) {
+        newPoint.text += `<br>T-T0: ${newPoint.sec_since_t0.toLocaleString(
+          "en-US",
+          { maximumFractionDigits: 0 },
+        )}`;
+      }
+
+      if (newPoint.mag) {
+        const magToShow =
+          showExtinctionCorrectionValue && newPoint.mag_corr !== undefined
+            ? newPoint.mag_corr
+            : newPoint.mag;
+        const magLabel =
+          showExtinctionCorrectionValue && newPoint.mag_corr !== undefined
+            ? "Mag (corrected)"
+            : "Mag";
+
+        newPoint.text += `
+        <br>${magLabel}: ${magToShow.toFixed(3)}
+        <br>Magerr: ${newPoint.magerr ? newPoint.magerr.toFixed(3) : "NaN"}
+        `;
+        if (
+          showExtinctionCorrectionValue &&
+          newPoint.extinction !== undefined
+        ) {
+          newPoint.text += `<br>Extinction: ${newPoint.extinction.toFixed(3)}`;
+        }
+        if (distance_modulus) {
+          newPoint.text += `<br>m - DM: ${(
+            magToShow - distance_modulus
+          ).toFixed(3)}`;
+        }
+      }
+
+      const fluxToShow =
+        showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
+          ? newPoint.flux_corr
+          : newPoint.flux;
+      const fluxLabel =
+        showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
+          ? "Flux (corrected)"
+          : "Flux";
+
+      newPoint.text += `
+        <br>Limiting Mag: ${
+          newPoint.limiting_mag ? newPoint.limiting_mag.toFixed(3) : "NaN"
+        }
+        <br>${fluxLabel}: ${fluxToShow ? fluxToShow.toFixed(3) : "NaN"}
+      `;
+      if (newPoint.mag) {
+        newPoint.text += `<br>Fluxerr: ${newPoint.fluxerr.toFixed(3) || "NaN"}`;
+      }
+      newPoint.text += `
+        <br>Filter: ${newPoint.filter}
+        <br>Instrument: ${newPoint.instrument_name}
+      `;
+      if ([null, undefined, "", "None"].includes(newPoint.origin) === false) {
+        newPoint.text += `<br>Origin: ${newPoint.origin}`;
+      }
+      if (
+        [null, undefined, "", "None", "undefined"].includes(
+          newPoint.altdata?.exposure,
+        ) === false
+      ) {
+        newPoint.text += `<br>Exposure: ${newPoint.altdata?.exposure || ""}`;
+      }
+      if (newPoint.snr) {
+        newPoint.text += `<br>SNR: ${newPoint.snr.toFixed(3)}`;
+      }
+      if (newPoint.streams.length > 0) {
+        newPoint.text += `<br>Streams: ${newPoint.streams.join(", ")}`;
+      }
+
+      // Store display values for plotting
+      newPoint.magDisplay =
+        showExtinctionCorrectionValue && newPoint.mag_corr !== undefined
+          ? newPoint.mag_corr
+          : newPoint.mag;
+      newPoint.fluxDisplay =
+        showExtinctionCorrectionValue && newPoint.flux_corr !== undefined
+          ? newPoint.flux_corr
+          : newPoint.flux;
+
+      stats.mag.min = Math.min(
+        stats.mag.min,
+        newPoint.magDisplay || newPoint.limiting_mag,
+      );
+      stats.mag.max = Math.max(
+        stats.mag.max,
+        newPoint.magDisplay || newPoint.limiting_mag,
+      );
+      stats.mjd.min = Math.min(stats.mjd.min, newPoint.mjd);
+      stats.mjd.max = Math.max(stats.mjd.max, newPoint.mjd);
+      if (newPoint.days_ago) {
+        stats.days_ago.min = Math.min(stats.days_ago.min, newPoint.days_ago);
+        stats.days_ago.max = Math.max(stats.days_ago.max, newPoint.days_ago);
+      } else {
+        stats.sec_since_t0.min = Math.min(
+          stats.sec_since_t0.min,
+          newPoint.sec_since_t0,
+        );
+        stats.sec_since_t0.max = Math.max(
+          stats.sec_since_t0.max,
+          newPoint.sec_since_t0,
+        );
+      }
+      stats.flux.min = Math.min(
+        stats.flux.min,
+        newPoint.fluxDisplay || newPoint.fluxerr,
+      );
+      stats.flux.max = Math.max(
+        stats.flux.max,
+        newPoint.fluxDisplay || newPoint.fluxerr,
+      );
+
+      return newPoint;
+    });
+
+    setT0Max(stats.mjd.max);
+    stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
+    stats.mjd.range = [
+      t0 && displayXAxisSinceT0 ? t0 - 1 : stats.mjd.min - 1,
+      stats.mjd.max + 1,
+    ];
+    if (stats.days_ago) {
+      stats.days_ago.range = [stats.days_ago.max + 1, stats.days_ago.min - 1];
+    } else if (displayXAxisInlog) {
+      stats.sec_since_t0.range = [
+        -daysToSec(1),
+        stats.sec_since_t0.max + daysToSec(1),
+      ];
+    } else {
+      stats.sec_since_t0.range = [-1, stats.sec_since_t0.max + 1];
+    }
+    stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
+
+    return [newPhotometryData, stats];
+  };
+
+  const groupPhotometry = (photometryData: any[], usingDuplicates = false) => {
+    // before grouping, we compute the max and min for mag, flux, and days or sec since T0
+    // we will use these values to set the range of the plot
+
+    const groupedPhotometry = photometryData.reduce((acc: any, point: any) => {
+      let key = `${point.instrument_name}/${point.filter}`;
+      // if we are using duplicates, put the obj_id at the beginning of the key
+      if (usingDuplicates) {
+        key = `${point.obj_id}/${key}`;
+      }
+      if (
+        point?.origin !== "None" &&
+        point.origin !== "" &&
+        point.origin !== null
+      ) {
+        // the origin is less relevant, so we crop it to not have more than 23 characters + 3 x ...
+        const remaining = (usingDuplicates ? 33 : 23) - key.length;
+        if (remaining < point.origin.length) {
+          key += `/${point.origin.substring(0, Math.max(remaining - 3, 3))}...`;
+        } else {
+          key += `/${point.origin}`;
+        }
+      }
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(point);
+      return acc;
+    }, {});
+
+    return groupedPhotometry;
+  };
+
+  const tabToPlotType = (tabValue: number) => {
+    if (tabValue === 0) {
+      return "mag";
+    }
+    if (tabValue === 1) {
+      return "flux";
+    }
+    if (tabValue === 2) {
+      return "period";
+    }
+    return null;
+  };
+
+  const createTraces = (
+    groupedPhotometry: any,
+    photometryStats: any,
+    plotType: any,
+    periodValue: any,
+    periodUnitValue: any,
+    smoothingValue: any,
+    phaseValue: any,
+    showNonDetectionsValue: any,
+    showForcedPhotometryValue: any,
+    showExtinctionCorrectionValue: any,
+    existingPlotData: any,
+    filter2colorMapper: any,
+  ): any => {
+    const existingTracesVisibilities: any = {};
+    if (existingPlotData && existingPlotData?.length > 0) {
+      existingPlotData.forEach((trace: any) => {
+        existingTracesVisibilities[trace.legendgroup] = trace.visible;
+      });
+    }
+    if (plotType === "mag" || plotType === "flux") {
+      const newPlotData = Object.keys(groupedPhotometry)
+        .sort()
+        .map((key) => {
+          const detections = groupedPhotometry[key].filter(
+            (point: any) => point.mag !== null,
+          );
+          const upperLimits = groupedPhotometry[key].filter(
+            (point: any) => point.mag === null,
+          );
+
+          // TEMPORARY: until we have a mapper for each sncosmo filter, we force the color to be black
+          const colorRGB = filter2colorMapper[
+            groupedPhotometry[key][0].filter
+          ] || [0, 0, 0];
+          const colorBorder = rgba(colorRGB, 1);
+          const colorInteriorNonDet = rgba(colorRGB, 0.1);
+          const colorInteriorDet = rgba(colorRGB, 0.3);
+          const colorError = rgba(colorRGB, 0.5);
+
+          const existingDetectionTraceVisibility = existingPlotData
+            ? existingTracesVisibilities[`${key}detections`]
+            : true;
+          const existingUpperLimitsTraceVisibility = existingPlotData
+            ? existingTracesVisibilities[`${key}upperLimits`]
+            : true;
+
+          const detectionisFP =
+            detections?.length > 0 &&
+            ["fp", "alert_fp"].includes(detections[0].origin);
+
+          const upperLimitisFP =
+            upperLimits?.length > 0 &&
+            ["fp", "alert_fp"].includes(upperLimits[0].origin);
+
+          const upperLimitsTrace: any = {
+            dataType: "upperLimits",
+            isForcedPhotometry: upperLimitisFP,
+            x: upperLimits.map((point: any) =>
+              t0 && displayXAxisInlog ? point.sec_since_t0 : point.mjd,
+            ),
+            y: upperLimits.map((point: any) =>
+              plotType === "mag" ? point.limiting_mag : point.fluxDisplay,
+            ),
+            text: upperLimits.map((point: any) => point.text),
+            mode: "markers",
+            type: "scatter",
+            name: `${key} (UL)`,
+            legendgroup: `${key}upperLimits`,
+            marker: {
+              line: {
+                width: 1,
+                color: colorBorder,
+              },
+              color: colorInteriorNonDet,
+              opacity: 1,
+              size: markerSize,
+              symbol: "triangle-down",
+            },
+            visible:
+              showNonDetectionsValue === false ||
+              showExtinctionCorrectionValue === true ||
+              (upperLimitisFP === true && showForcedPhotometryValue === false)
+                ? false
+                : existingUpperLimitsTraceVisibility,
+            hoverlabel: {
+              bgcolor: "white",
+              font: { size: 14 },
+              align: "left",
+            },
+            hovertemplate: "%{text}<extra></extra>",
+          };
+
+          const detectionsTrace: any = {
+            dataType: "detections",
+            isForcedPhotometry: detectionisFP,
+            x: detections.map((point: any) =>
+              t0 && displayXAxisInlog ? point.sec_since_t0 : point.mjd,
+            ),
+            y: detections.map((point: any) =>
+              plotType === "mag" ? point.magDisplay : point.fluxDisplay,
+            ),
+            error_y: {
+              type: "data",
+              array: detections.map((point: any) =>
+                plotType === "mag" ? point.magerr : point.fluxerr,
+              ),
+              visible: true,
+              color: colorError,
+              width: 1,
+              thickness: 2,
+            },
+            text: detections.map((point: any) => point.text),
+            mode: "markers",
+            type: "scatter",
+            name: key,
+            legendgroup: `${key}detections`,
+            marker: {
+              line: {
+                width: 1,
+                color: colorBorder,
+              },
+              color: colorInteriorDet,
+              size: markerSize,
+            },
+            visible:
+              detectionisFP === true && showForcedPhotometryValue === false
+                ? false
+                : existingDetectionTraceVisibility,
+            hoverlabel: {
+              bgcolor: "white",
+              font: { size: 14 },
+              align: "left",
+            },
+            hovertemplate: "%{text}<extra></extra>",
+          };
+
+          const secondaryAxisX: any =
+            t0 && displayXAxisInlog
+              ? null
+              : {
+                  x: photometryStats.days_ago
+                    ? [
+                        photometryStats.days_ago.max,
+                        photometryStats.days_ago.min,
+                      ]
+                    : [
+                        photometryStats.sec_since_t0.min,
+                        photometryStats.sec_since_t0.max,
+                      ],
+                  y: [photometryStats.mag.max, photometryStats.mag.min],
+                  mode: "markers",
+                  type: "scatter",
+                  name: "secondaryAxisX",
+                  legendgroup: "secondaryAxisX",
+                  marker: {
+                    line: {
+                      width: 1,
+                    },
+                    opacity: 0,
+                  },
+                  visible: true,
+                  showlegend: false,
+                  xaxis: "x2",
+                  hoverinfo: "skip",
+                };
+
+          const secondaryAxisY: any = {
+            x: [photometryStats.mjd.min, photometryStats.mjd.max],
+            mode: "markers",
+            type: "scatter",
+            name: "secondaryAxisY",
+            legendgroup: "secondaryAxisY",
+            marker: {
+              line: {
+                width: 1,
+              },
+              opacity: 0,
+            },
+            visible: true,
+            showlegend: false,
+            yaxis: "y2",
+            hoverinfo: "skip",
+          };
+          if (plotType === "mag" && dm && photometryStats) {
+            secondaryAxisY.y = [
+              photometryStats.mag.max - dm,
+              photometryStats.mag.min - dm,
+            ];
+          }
+
+          return [
+            detectionsTrace,
+            upperLimitsTrace,
+            ...(secondaryAxisX ? [secondaryAxisX] : []),
+            ...(photometryStats && plotType === "mag" && dm
+              ? [secondaryAxisY]
+              : []),
+          ];
+        })
+        .flat();
+
+      return newPlotData;
+    }
+    if (plotType === "period") {
+      const newPlotData = Object.keys(groupedPhotometry)
+        .sort()
+        .map((key) => {
+          // using the period state variable, calculate the phase of each point
+          // and then plot the phase vs mag
+          const colorRGB = filter2colorMapper[
+            groupedPhotometry[key][0].filter
+          ] || [0, 0, 0];
+          const colorBorder = rgba(colorRGB, 1);
+          const colorInteriorNonDet = rgba(colorRGB, 0.1);
+          const colorInteriorDet = rgba(colorRGB, 0.3);
+          const colorError = rgba(colorRGB, 0.5);
+
+          const scaledPeriodValue =
+            periodValue / periodUnitDividers[periodUnitValue];
+
+          const phases = groupedPhotometry[key].map(
+            (point: any) => (point.mjd % scaledPeriodValue) / scaledPeriodValue,
+          );
+
+          // split the y in det and non det
+          let y = groupedPhotometry[key].map(
+            (point: any) => point.magDisplay || point.limiting_mag,
+          );
+          let yerr = groupedPhotometry[key].map(
+            (point: any) => point.magerr || null,
+          );
+
+          // reorder the points in y by increasing phase
+          // to do so, we need to create an array of indices
+          let indices = [];
+          for (let i = 0; i < phases.length; i += 1) {
+            indices.push(i);
+          }
+          indices = indices.sort((a, b) => phases[a] - phases[b]);
+          y = indices.map((i) => y[i]);
+          yerr = indices.map((i) => yerr[i]);
+          const x = indices.map((i) => phases[i]);
+
+          if (smoothingValue > 0) {
+            y = smoothing_func(y, smoothingValue);
+          }
+
+          // split the points into detections and upper limits
+          // to do so, use the indices and the groupedPhotometry[key] array to know which index corresponds to a detection or an upper limit
+          let detectionsX = [];
+          let detectionsY = [];
+          let detectionsYerr = [];
+          let detectionsText = [];
+          let upperLimitsX = [];
+          let upperLimitsY = [];
+          let upperLimitsText = [];
+
+          for (let i = 0; i < indices.length; i += 1) {
+            if (groupedPhotometry[key][indices[i]].mag !== null) {
+              detectionsX.push(x[i]);
+              detectionsY.push(y[i]);
+              detectionsYerr.push(yerr[i]);
+              detectionsText.push(groupedPhotometry[key][indices[i]].text);
+            } else {
+              upperLimitsX.push(x[i]);
+              upperLimitsY.push(y[i]);
+              upperLimitsText.push(groupedPhotometry[key][indices[i]].text);
+            }
+          }
+
+          if (phaseValue === 2) {
+            detectionsX = detectionsX.concat(detectionsX.map((p) => p + 1));
+            detectionsY = detectionsY.concat(detectionsY);
+            detectionsYerr = detectionsYerr.concat(detectionsYerr);
+            detectionsText = detectionsText.concat(detectionsText);
+            upperLimitsX = upperLimitsX.concat(upperLimitsX.map((p) => p + 1));
+            upperLimitsY = upperLimitsY.concat(upperLimitsY);
+            upperLimitsText = upperLimitsText.concat(upperLimitsText);
+          }
+
+          const existingDetectionTraceVisibility = existingPlotData
+            ? existingTracesVisibilities[`${key}detections`]
+            : true;
+
+          const detectionsTrace: any = {
+            dataType: "detections",
+            x: detectionsX,
+            y: detectionsY,
+            error_y: {
+              type: "data",
+              array: detectionsYerr,
+              visible: true,
+              color: colorError,
+              width: 1,
+              thickness: 2,
+            },
+            text: detectionsText,
+            mode: "markers",
+            type: "scatter",
+            name: key,
+            legendgroup: `${key}detections`,
+            marker: {
+              line: {
+                width: 1,
+                color: colorBorder,
+              },
+              color: colorInteriorDet,
+              size: markerSize,
+            },
+            visible: existingDetectionTraceVisibility,
+            hoverlabel: {
+              bgcolor: "white",
+              font: { size: 14 },
+              align: "left",
+            },
+            hovertemplate: "%{text}<extra></extra>",
+          };
+
+          const existingUpperLimitsTraceVisibility = existingPlotData
+            ? existingTracesVisibilities[`${key}upperLimits`]
+            : true;
+
+          const upperLimitsTrace: any = {
+            dataType: "upperLimits",
+            x: upperLimitsX,
+            y: upperLimitsY,
+            text: upperLimitsText,
+            mode: "markers",
+            type: "scatter",
+            name: `${key} (UL)`,
+            legendgroup: `${key}upperLimits`,
+            marker: {
+              line: {
+                width: 1,
+                color: colorBorder,
+              },
+              color: colorInteriorNonDet,
+              size: markerSize,
+              symbol: "triangle-down",
+            },
+            visible:
+              showNonDetectionsValue === false ||
+              showExtinctionCorrectionValue === true
+                ? false
+                : existingUpperLimitsTraceVisibility,
+            hoverlabel: {
+              bgcolor: "white",
+              font: { size: 14 },
+              align: "left",
+            },
+            hovertemplate: "%{text}<extra></extra>",
+          };
+
+          let secondaryAxisY: any = {};
+          if (dm && photometryStats) {
+            secondaryAxisY = {
+              x: [0, 1],
+              y: [photometryStats.mag.max - dm, photometryStats.mag.min - dm],
+              mode: "markers",
+              type: "scatter",
+              name: "secondaryAxisY",
+              legendgroup: "secondaryAxisY",
+              marker: {
+                line: {
+                  width: 1,
+                },
+                opacity: 0,
+              },
+              visible: true,
+              showlegend: false,
+              yaxis: "y2",
+              hoverinfo: "skip",
+            };
+          }
+
+          if (dm) {
+            return [detectionsTrace, upperLimitsTrace, secondaryAxisY];
+          }
+
+          return [detectionsTrace, upperLimitsTrace];
+        })
+        .flat();
+
+      return newPlotData;
+    }
+    return null;
+  };
+
+  const createLayouts = (
+    plotType: any,
+    photStats_value: any,
+    dm_value: any,
+    showExtinctionCorrectionValue: any,
+  ): any => {
+    const newLayouts: any = {};
+    if (plotType === "mag" || plotType === "flux") {
+      if (t0 && displayXAxisInlog) {
+        newLayouts.xaxis = {
+          title: {
+            text: "T - T0 (s)",
+          },
+          side: "bottom",
+          range: photStats_value.sec_since_t0.range.map(Math.log10),
+          type: "log",
+          showexponent: "all",
+          exponentformat: "power",
+          zeroline: false,
+          ...BASE_LAYOUT,
+        };
+      } else {
+        newLayouts.xaxis = {
+          title: {
+            text: "MJD",
+          },
+          side: "top",
+          range: [...photStats_value.mjd.range],
+          tickformat: ".6~f",
+          zeroline: false,
+          ...BASE_LAYOUT,
+        };
+        newLayouts.xaxis2 = photStats_value.days_ago
+          ? {
+              title: {
+                text: "Days Ago",
+              },
+              range: [...photStats_value.days_ago.range],
+              overlaying: "x",
+              side: "bottom",
+              showgrid: false,
+              zeroline: false,
+              tickformat: ".6~f",
+              ...BASE_LAYOUT,
+            }
+          : {
+              title: {
+                text: "T - T0 (days)",
+              },
+              range: [...photStats_value.sec_since_t0.range],
+              overlaying: "x",
+              side: "bottom",
+              showgrid: false,
+              zeroline: false,
+              tickformat: ",.0f",
+              ...BASE_LAYOUT,
+            };
+      }
+    } else if (plotType === "period") {
+      newLayouts.xaxis = {
+        title: {
+          text: "Phase",
+        },
+        side: "bottom",
+        range: [0, phase],
+        tickformat: ".2f",
+        ...BASE_LAYOUT,
+      };
+    }
+
+    if (plotType === "mag" || plotType === "period") {
+      const magLabel = showExtinctionCorrectionValue
+        ? magsys.toUpperCase().concat(" Mag (Extinction-Corrected)")
+        : magsys.toUpperCase().concat(" Mag");
+      newLayouts.yaxis = {
+        title: {
+          text: magLabel,
+        },
+        range: [...photStats_value.mag.range],
+        zeroline: false,
+        ...BASE_LAYOUT,
+      };
+      if (dm && photStats_value) {
+        newLayouts.yaxis2 = {
+          title: {
+            text: "m - DM",
+          },
+          range: [
+            photStats_value.mag.range[0] - dm_value,
+            photStats_value.mag.range[1] - dm_value,
+          ],
+          overlaying: "y",
+          side: "right",
+          showgrid: false,
+          zeroline: false,
+          ...BASE_LAYOUT,
+        };
+      }
+    } else if (plotType === "flux") {
+      const fluxLabel = showExtinctionCorrectionValue
+        ? "Flux (Extinction-Corrected)"
+        : "Flux";
+      newLayouts.yaxis = {
+        title: {
+          text: fluxLabel,
+        },
+        range: [...photStats_value.flux.range],
+        ...BASE_LAYOUT,
+      };
+    }
+    return newLayouts;
+  };
+
+  useEffect(() => {
+    if (t0 && t0 >= t0Max) {
+      setDisplayXAxisSinceT0(false);
+      setDisplayXAxisInlog(false);
+    }
+  }, [t0, t0Max]);
+
+  useEffect(() => {
+    if (!filter2color && config?.bandpassesColors) {
+      setFilter2Color(config?.bandpassesColors);
+    }
+  }, [config]);
+
+  useEffect(() => {
+    // grab the photometry for the selected duplicates from the store
+    if (selectedDuplicates.length > 0) {
+      selectedDuplicates.forEach((dup) => {
+        if (!photometry[dup]) {
+          dispatch(photometryActions.fetchSourcePhotometry(dup, { magsys }));
+        }
+      });
+    }
+  }, [dispatch, selectedDuplicates, magsys, photometry]);
+
+  useEffect(() => {
+    if (profile?.id && defaultVisibleFilters === null) {
+      setDefaultVisibleFilters(
+        (profile as any)?.preferences?.automaticallyVisibleFilters || [],
+      );
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    if (
+      photometry &&
+      selectedDuplicates &&
+      filter2color &&
+      defaultVisibleFilters
+    ) {
+      const objPhotometry = photometry[obj_id];
+      if (!objPhotometry) {
+        return;
+      }
+      const duplicatesPhotometry = selectedDuplicates
+        .map((duplicate) => photometry[duplicate] || [])
+        .flat();
+
+      // Filter out SwiftXRT points as they are not relevant for in the vega system
+      const allPhotometry = [...objPhotometry, ...duplicatesPhotometry];
+      let photometryFiltered = allPhotometry.filter(
+        (point) => !(point.filter === "swiftxrt" && magsys === "vega"),
+      );
+
+      if (showOnlyValidated) {
+        photometryFiltered = photometryFiltered.filter(
+          (point) =>
+            point.validations &&
+            point.validations.length > 0 &&
+            point.validations[0]?.validated === true,
+        );
+      }
+
+      const [newPhotometry, newPhotStats] = preparePhotometry(
+        photometryFiltered,
+        dm,
+        showExtinctionCorrection,
+      );
+      const groupedPhotometry = groupPhotometry(
+        newPhotometry,
+        selectedDuplicates?.length > 0,
+      );
+      setPhotStats(newPhotStats);
+      setData(groupedPhotometry);
+
+      const traces = createTraces(
+        groupedPhotometry,
+        newPhotStats,
+        tabToPlotType(tabIndex),
+        period,
+        periodUnit,
+        smoothing,
+        phase,
+        showNonDetections,
+        showForcedPhotometry,
+        showExtinctionCorrection,
+        plotData || [],
+        filter2color,
+      );
+
+      if (defaultVisibleFilters?.length > 0 && !appliedDefaultVisibleFilters) {
+        const visibleTraces = traces.map((trace: any) => {
+          const newTrace = { ...trace };
+          if (
+            !(
+              newTrace.name &&
+              ["detections", "upperLimits"].includes(newTrace.dataType)
+            )
+          ) {
+            return newTrace;
+          }
+          if (
+            defaultVisibleFilters.some((filter: any) =>
+              newTrace.name.includes(filter),
+            )
+          ) {
+            newTrace.visible = true;
+          } else {
+            newTrace.visible = "legendonly";
+          }
+          return newTrace;
+        });
+        setPlotData(visibleTraces);
+        setAppliedDefaultVisibleFilters(true);
+      } else {
+        setPlotData(traces);
+      }
+
+      const newLayouts = createLayouts(
+        tabToPlotType(tabIndex),
+        newPhotStats,
+        dm,
+        showExtinctionCorrection,
+      );
+      setLayouts(newLayouts);
+      setInitialized(true);
+    }
+  }, [
+    photometry,
+    selectedDuplicates,
+    defaultVisibleFilters,
+    filter2color,
+    dm,
+    t0,
+    displayXAxisSinceT0,
+    displayXAxisInlog,
+    showOnlyValidated,
+  ]);
+
+  // Refetch photometry with extinction data when toggle changes
+  useEffect(() => {
+    if (obj_id && initialized) {
+      const params: any = { magsys };
+      if (showExtinctionCorrection) {
+        params.includeExtinction = true;
+      }
+      dispatch(photometryActions.fetchSourcePhotometry(obj_id, params));
+    }
+  }, [showExtinctionCorrection, obj_id, magsys, dispatch, initialized]);
+
+  useEffect(() => {
+    if (initialized && filter2color) {
+      const traces = createTraces(
+        data,
+        photStats,
+        tabToPlotType(tabIndex),
+        period,
+        periodUnit,
+        smoothing,
+        phase,
+        showNonDetections,
+        showForcedPhotometry,
+        showExtinctionCorrection,
+        plotData,
+        filter2color,
+      );
+      setPlotData(traces);
+      const newLayouts = createLayouts(
+        tabToPlotType(tabIndex),
+        photStats,
+        dm,
+        showExtinctionCorrection,
+      );
+      setLayouts(newLayouts);
+    }
+  }, [tabIndex, phase]);
+
+  useEffect(() => {
+    if (initialized && filter2color && layoutReset) {
+      const newLayouts = createLayouts(
+        tabToPlotType(tabIndex),
+        photStats,
+        dm,
+        showExtinctionCorrection,
+      );
+      setLayouts(newLayouts);
+      setLayoutReset(false);
+    }
+  }, [layoutReset]);
+
+  useEffect(() => {
+    if (initialized && filter2color && tabIndex === 2) {
+      const traces = createTraces(
+        data,
+        photStats,
+        tabToPlotType(tabIndex),
+        period,
+        periodUnit,
+        smoothing,
+        phase,
+        showNonDetections,
+        showForcedPhotometry,
+        showExtinctionCorrection,
+        plotData,
+        filter2color,
+      );
+      setPlotData(traces);
+    }
+  }, [period, periodUnit, smoothing]);
+
+  useEffect(() => {
+    if (initialized && annotations !== null) {
+      // each annotation has a data key, which is an object with key value pairs
+      // try to find keys named 'period'
+      // for each, get its value and the created_at value of the annotation
+      // then set the period state variable to the value of the most recent period annotation
+      const periodAnnotations = annotations.filter(
+        (annotation) => annotation.data.period !== undefined,
+      );
+      if (periodAnnotations.length > 0) {
+        let mostRecentPeriod = periodAnnotations[0].data.period;
+        let mostRecentPeriodCreatedAt = new Date(
+          periodAnnotations[0].created_at,
+        );
+        periodAnnotations.forEach((annotation) => {
+          if (
+            new Date(annotation.created_at) > mostRecentPeriodCreatedAt &&
+            !Number.isNaN(parseFloat(annotation.data.period))
+          ) {
+            mostRecentPeriod = annotation.data.period;
+            mostRecentPeriodCreatedAt = new Date(annotation.created_at);
+          }
+        });
+        setPeriod(parseFloat(mostRecentPeriod));
+      }
+    }
+  }, [initialized && annotations]);
+
+  useEffect(() => {
+    if (plotData) {
+      const newMarkerSize = parseInt(markerSize, 10);
+      if (Number.isNaN(newMarkerSize)) {
+        return;
+      }
+      const newPlotData = plotData.map((trace: any) => {
+        const newTrace = { ...trace };
+        newTrace.marker.size = parseInt(markerSize, 10);
+        return newTrace;
+      });
+      setPlotData(newPlotData);
+    }
+  }, [markerSize]);
+
+  useEffect(() => {
+    if (plotData) {
+      const newPlotData = plotData.map((trace: any) => {
+        const newTrace = { ...trace };
+
+        if (
+          newTrace.dataType === "upperLimits" &&
+          newTrace.isForcedPhotometry
+        ) {
+          newTrace.visible =
+            showForcedPhotometry &&
+            showNonDetections &&
+            !showExtinctionCorrection;
+          newTrace.showlegend =
+            showForcedPhotometry &&
+            showNonDetections &&
+            !showExtinctionCorrection;
+        } else if (newTrace.dataType === "upperLimits") {
+          newTrace.visible = showNonDetections && !showExtinctionCorrection;
+          newTrace.showlegend = showNonDetections && !showExtinctionCorrection;
+        }
+
+        return newTrace;
+      });
+      setPlotData(newPlotData);
+    }
+  }, [showNonDetections, showExtinctionCorrection]);
+
+  useEffect(() => {
+    if (plotData) {
+      const newPlotData = plotData.map((trace: any) => {
+        const newTrace = { ...trace };
+
+        if (
+          newTrace.dataType === "upperLimits" &&
+          newTrace.isForcedPhotometry
+        ) {
+          newTrace.visible = showForcedPhotometry && showNonDetections;
+          newTrace.showlegend = showForcedPhotometry && showNonDetections;
+        } else if (newTrace.isForcedPhotometry) {
+          newTrace.visible = showForcedPhotometry;
+          newTrace.showlegend = showForcedPhotometry;
+        }
+
+        return newTrace;
+      });
+
+      setPlotData(newPlotData);
+    }
+  }, [showForcedPhotometry]);
+
+  const handleChangeTab = (event: any, newValue: number) => {
+    setTabIndex(newValue);
+  };
+
+  const yMarkers: any[] = [];
+  if (photStats) {
+    yMarkers.push(
+      ["mag", "period"].includes(tabToPlotType(tabIndex) as string)
+        ? photStats.mag.range[1]
+        : photStats.flux.range[1],
+    );
+  }
+
+  const eventMarkers: any[] = photStats
+    ? spectra
+        .map((spectrum: any) => {
+          const hovertext = `<br>Observed at (UTC): ${spectrum.observed_at}
+    <br>Observed at (MJD): ${spectrum.observed_at_mjd.toFixed(6)})
+    <br>Instrument: ${spectrum.instrument_name}
+    <br>Telescope: ${spectrum.telescope_name}
+    <br>PI: ${spectrum.pi || ""}
+    <br>Origin: ${spectrum.origin || ""}
+    <extra></extra>
+    `;
+          return {
+            x: [spectrum.observed_at_mjd],
+            y: yMarkers,
+            mode: "text",
+            type: "scatter",
+            name: "Spectrum",
+            legendgroup: "Spectrum",
+            text: ["S"],
+            textposition: "bottom center",
+            textfont: { color: "black", size: 16 },
+            marker: {
+              line: {
+                width: 1,
+              },
+              opacity: 1,
+            },
+            visible: true,
+            showlegend: false,
+            hoverlabel: {
+              bgcolor: "white",
+              font: { size: 14 },
+              align: "left",
+            },
+            hovertemplate: hovertext,
+          };
+        })
+        .concat(
+          (gcn_events || []).map((event: any) => {
+            const hovertext = `<br>Dateobs: ${event.dateobs}
+    <br>Aliases: ${(event.aliases || []).join(", ")}
+    <extra></extra>
+    `;
+            return {
+              x: [event.dateobs_mjd],
+              y: yMarkers,
+              mode: "text",
+              type: "scatter",
+              name: "GCN Event",
+              legendgroup: "GCN Event",
+              text: ["G"],
+              textposition: "bottom center",
+              textfont: { color: "black", size: 16 },
+              marker: {
+                line: {
+                  width: 1,
+                },
+                opacity: 1,
+              },
+              visible: true,
+              showlegend: false,
+              hoverlabel: {
+                bgcolor: "white",
+                font: { size: 14 },
+                align: "left",
+              },
+              hovertemplate: hovertext,
+            };
+          }),
+        )
+    : [];
+
+  if (!(photometry && config && photStats)) {
+    return <CircularProgress color="secondary" />;
+  }
+
+  return (
+    <div style={{ width: "100%", height: "100%" }} id="photometry-plot">
+      <Tabs
+        value={tabIndex}
+        onChange={handleChangeTab}
+        aria-label="gcn_tabs"
+        variant="scrollable"
+        {...({ xs: 12 } as any)}
+        sx={{
+          display: {
+            maxWidth: "95vw",
+            width: "100%",
+            "& > button": { lineHeight: "1.5rem" },
+          },
+        }}
+      >
+        <Tab label="Mag" />
+        <Tab label="Flux" />
+        <Tab label="Period" />
+      </Tabs>
+
+      <div
+        style={{
+          width: "100%",
+          height: plotStyle?.height || "70vh",
+          overflowX: "scroll",
+        }}
+      >
+        <Plot
+          data={(plotData || []).concat(eventMarkers || [])}
+          layout={{
+            ...layouts,
+            legend: {
+              orientation: mode === "desktop" ? "v" : "h",
+              yanchor: "top",
+              // on mobile with a lot of legend entries, we need to move the legend down to avoid overlap
+              y: mode === "desktop" ? 1 : plotData?.length > 10 ? -0.4 : -0.3,
+              x: mode === "desktop" ? (dm ? 1.15 : 1) : 0,
+              font: { size: 14 },
+              tracegroupgap: 0,
+            },
+            showlegend: true,
+            autosize: true,
+            margin: {
+              l: 70,
+              r: 30,
+              b: 75,
+              t: 80,
+              pad: 0,
+            },
+            shapes: [
+              {
+                // we use a shape to draw a box around the plot to add borders to it
+                type: "rect",
+                xref: "paper",
+                yref: "paper",
+                x0: 0,
+                y0: 0,
+                x1: 1,
+                y1: 1,
+                line: {
+                  color: "black",
+                  width: 1,
+                },
+              },
+            ],
+          }}
+          config={{
+            // scrollZoom: true, // this is not working properly, creating issues when we are around the default zooming level. TOFIX
+            responsive: true,
+            displaylogo: false,
+            showAxisDragHandles: false,
+            // the native autoScale2d and resetScale2d buttons are not working
+            // as they are not resetting to the specified ranges
+            // so, we remove them and add our own
+            modeBarButtonsToRemove: [
+              "autoScale2d",
+              "resetScale2d",
+              "select2d",
+              "lasso2d",
+            ],
+            modeBarButtonsToAdd: [
+              {
+                name: "Reset",
+                icon: Plotly.Icons.home,
+                click: () => {
+                  setLayoutReset(true);
+                },
+              },
+            ],
+          }}
+          useResizeHandler
+          onDoubleClick={() => setLayoutReset(true)}
+          onLegendDoubleClick={(e: any) => {
+            // e contains a curveNumber (index of the trace clicked in the legend)
+            /// and a data object (plotting data)
+            // we customize the legend double click behavior
+            const visibleTraces = e.data.filter(
+              (trace: any) =>
+                ["detections", "upperLimits"].includes(trace.dataType) &&
+                (trace.visible === true || trace.visible === undefined),
+            ).length;
+            const visibleTraceIndex = e.data.findIndex(
+              (trace: any) =>
+                ["detections", "upperLimits"].includes(trace.dataType) &&
+                (trace.visible === true || trace.visible === undefined),
+            );
+            e.data.forEach((trace: any, index: number) => {
+              if (
+                [
+                  "secondaryAxisX",
+                  "secondaryAxisY",
+                  "Spectrum",
+                  "GCN Event",
+                ].includes(trace.name) ||
+                index === e.curveNumber
+              ) {
+                // if its a marker, secondary axis, or the trace that was double clicked, it's always visible
+                trace.visible = true;
+              } else if (!showForcedPhotometry && trace.isForcedPhotometry) {
+                trace.visible = false;
+              } else if (
+                !showNonDetections &&
+                trace.dataType === "upperLimits"
+              ) {
+                // if we don't want to show non detections, hide them
+                trace.visible = false;
+              } else if (
+                (visibleTraces === 1 && e.curveNumber === visibleTraceIndex) ||
+                visibleTraces === 0
+              ) {
+                // if we already isolated a single trace and we double click on it, or if there are no traces visible, show all
+                trace.visible = true;
+              } else {
+                // otherwise, hide all
+                trace.visible = "legendonly";
+              }
+            });
+            setPlotData(e.data);
+            return false;
+          }}
+          style={{ width: "100%", height: "100%" }}
+        />
+      </div>
+      <div className={classes.gridContainer}>
+        <div className={classes.gridItem} style={{ columnGap: 0 }}>
+          <div
+            style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+          >
+            <Typography id="photometry-show-hide" noWrap>
+              Non-Detections
+            </Typography>
+            <Tooltip
+              title={
+                showExtinctionCorrection
+                  ? "Non-detections are hidden when extinction correction is enabled"
+                  : ""
+              }
+            >
+              <div className={classes.switchContainer}>
+                <Switch
+                  checked={showNonDetections && !showExtinctionCorrection}
+                  onChange={() => setShowNonDetections(!showNonDetections)}
+                  disabled={showExtinctionCorrection}
+                  inputProps={{ "aria-label": "controlled" }}
+                  size="small"
+                />
+              </div>
+            </Tooltip>
+          </div>
+          <div
+            style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+          >
+            <Typography id="photometry-show-hide" noWrap>
+              Forced Photometry
+            </Typography>
+            <div className={classes.switchContainer}>
+              <Switch
+                checked={showForcedPhotometry}
+                onChange={() => setshowForcedPhotometry(!showForcedPhotometry)}
+                inputProps={{ "aria-label": "controlled" }}
+                size="small"
+              />
+            </div>
+          </div>
+        </div>
+        <div className={classes.gridItem}>
+          {t0 && (
+            <div
+              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+            >
+              <Typography id="T0-start-range" noWrap>
+                X axis since T0
+              </Typography>
+              <Tooltip title={t0 >= t0Max ? "T0 is out of range" : ""}>
+                <div className={classes.switchContainer}>
+                  <Switch
+                    disabled={t0 >= t0Max}
+                    checked={displayXAxisSinceT0}
+                    onChange={() => {
+                      setDisplayXAxisInlog(!displayXAxisSinceT0);
+                      setDisplayXAxisSinceT0(!displayXAxisSinceT0);
+                    }}
+                    inputProps={{ "aria-label": "controlled" }}
+                    size="small"
+                  />
+                </div>
+              </Tooltip>
+            </div>
+          )}
+          {t0 && displayXAxisSinceT0 && (
+            <div
+              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+            >
+              <Typography id="T0-start-range" noWrap>
+                T - T0 in log
+              </Typography>
+              <div className={classes.switchContainer}>
+                <Switch
+                  checked={displayXAxisInlog}
+                  onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
+                  inputProps={{ "aria-label": "controlled" }}
+                  size="small"
+                />
+              </div>
+            </div>
+          )}
+          {config?.usePhotometryValidation && (
+            <div
+              style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}
+            >
+              <Typography id="photometry-validation-filter" noWrap>
+                Validated Only
+              </Typography>
+              <Tooltip title="Show only photometry points that have been validated">
+                <div className={classes.switchContainer}>
+                  <Switch
+                    checked={showOnlyValidated}
+                    onChange={() => setShowOnlyValidated(!showOnlyValidated)}
+                    inputProps={{ "aria-label": "controlled" }}
+                    size="small"
+                  />
+                </div>
+              </Tooltip>
+            </div>
+          )}
+        </div>
+        <div
+          className={classes.gridItem}
+          style={{
+            alignItems: "end",
+          }}
+        >
+          <div
+            style={{
+              alignItems: "center",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+            }}
+          >
+            <Typography id="input-slider" noWrap>
+              Marker Size
+            </Typography>
+            <div style={{ display: "flex", gap: "0.2rem" }}>
+              <IconButton
+                onClick={() =>
+                  setMarkerSize(markerSize - 1 < 1 ? 1 : markerSize - 1)
+                }
+                style={{ padding: 0 }}
+              >
+                <RemoveIcon />
+              </IconButton>
+              <TextField
+                value={markerSize}
+                onChange={(e) => {
+                  const newValue = parseInt(e.target.value, 10);
+                  if (!Number.isNaN(newValue)) {
+                    setMarkerSize(Math.max(Math.min(20, newValue), 1));
+                  } else {
+                    setMarkerSize(e.target.value);
+                  }
+                }}
+                margin="dense"
+                type="text"
+                size="small"
+                inputProps={{
+                  style: { textAlign: "center", padding: "4.5px" },
+                }}
+                style={{ width: "3rem", margin: 0 }}
+              />
+              <IconButton
+                onClick={() =>
+                  setMarkerSize(markerSize + 1 > 20 ? 20 : markerSize + 1)
+                }
+                style={{ padding: 0 }}
+              >
+                <AddIcon />
+              </IconButton>
+            </div>
+          </div>
+        </div>
+        {duplicateOptions?.length > 0 && (
+          <div
+            className={classes.gridItem}
+            style={{ gridColumn: "span 3", marginTop: "0.5rem" }}
+          >
+            <Typography id="input-slider">Possible Duplicates</Typography>
+            <div className={classes.switchContainer}>
+              <Select
+                value={selectedDuplicates as any}
+                onChange={(e: any) => {
+                  if (e.target.value.includes("Select all")) {
+                    if (
+                      e.target.value?.length !==
+                      duplicateOptions.length + 1
+                    ) {
+                      setSelectedDuplicates(
+                        duplicateOptions.map((d) => d.obj_id),
+                      );
+                    } else {
+                      setSelectedDuplicates([]);
+                    }
+                  } else {
+                    setSelectedDuplicates(e.target.value);
+                  }
+                }}
+                style={{ minWidth: "100%" }}
+                size="small"
+                multiple
+                renderValue={(selected: any) => {
+                  // show chips for each
+                  const duplicatesValue = duplicateOptions.filter((d) =>
+                    selected.includes(d.obj_id),
+                  );
+                  return (
+                    <div className={(classes as any).chips}>
+                      {duplicatesValue.map((d) => (
+                        <Chip
+                          key={d.obj_id}
+                          label={`${d.obj_id} (${d.separation.toFixed(2)}")`}
+                          className={(classes as any).chip}
+                        />
+                      ))}
+                    </div>
+                  );
+                }}
+              >
+                {/* if there is more than one menu item, show a "select all" menuitem which on click selects all the sources */}
+                {duplicateOptions.length > 1 && (
+                  <MenuItem value="Select all" key="Select all">
+                    <Checkbox
+                      size="small"
+                      checked={
+                        selectedDuplicates.length === duplicateOptions.length
+                      }
+                    />
+                    Select all
+                  </MenuItem>
+                )}
+                {duplicateOptions.map((d) => (
+                  <MenuItem key={d.obj_id} value={d.obj_id}>
+                    <Checkbox
+                      checked={selectedDuplicates.includes(d.obj_id)}
+                      size="small"
+                    />
+                    {d.obj_id} ({d.separation.toFixed(2)} arcsec)
+                  </MenuItem>
+                ))}
+              </Select>
+            </div>
+          </div>
+        )}
+        {tabIndex === 2 && (
+          <div className={classes.gridItem} style={{ gridColumn: "span 3" }}>
+            <Typography id="input-slider">Period</Typography>
+            <div className={classes.periodContainer}>
+              <Slider
+                value={period}
+                onChange={(e, newValue) => setPeriod(newValue)}
+                aria-labelledby="input-slider"
+                valueLabelDisplay="auto"
+                step={0.1}
+                min={0.1}
+                max={365}
+                style={{ minWidth: "14rem", width: "100%" }}
+              />
+              <TextField
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                margin="dense"
+                type="number"
+                inputProps={{
+                  step: 0.1,
+                  min: 0.1,
+                  max: 365,
+                  "aria-labelledby": "input-slider",
+                }}
+                style={{ minWidth: "8rem", width: "100%" }}
+                size="small"
+              />
+              <Select
+                value={periodUnit}
+                onChange={(e) => setPeriodUnit(e.target.value)}
+                style={{ width: "8rem" }}
+                size="small"
+              >
+                <MenuItem value="minutes">minutes</MenuItem>
+                <MenuItem value="hours">hours</MenuItem>
+                <MenuItem value="days">days</MenuItem>
+              </Select>
+              <Button
+                onClick={() => setPeriod(period * 2)}
+                variant="contained"
+                color="primary"
+              >
+                x2
+              </Button>
+              <Button
+                onClick={() => setPeriod(period / 2)}
+                variant="contained"
+                color="primary"
+              >
+                /2
+              </Button>
+              <PeriodAnnotationDialog
+                obj_id={obj_id}
+                period={period}
+                periodUnit={periodUnit}
+              />
+            </div>
+          </div>
+        )}
+        {tabIndex === 2 && (
+          <div className={classes.gridItem} style={{ gridColumn: "span 2" }}>
+            <Typography id="input-slider">Smoothing</Typography>
+            <div className={classes.sliderContainer}>
+              <Slider
+                value={smoothing}
+                onChange={(e, newValue) => setSmoothing(newValue)}
+                aria-labelledby="input-slider"
+                valueLabelDisplay="auto"
+                step={1}
+                min={0}
+                max={100}
+              />
+              <TextField
+                value={smoothing}
+                onChange={(e) => setSmoothing(e.target.value)}
+                margin="dense"
+                type="number"
+                inputProps={{
+                  step: 1,
+                  min: 0,
+                  max: 100,
+                  type: "number",
+                  "aria-labelledby": "input-slider",
+                }}
+                size="small"
+              />
+            </div>
+          </div>
+        )}
+        {tabIndex === 2 && (
+          <div className={classes.gridItem} style={{ gridColumn: "span 1" }}>
+            <Typography id="input-slider">Phase</Typography>
+            <div className={classes.doubleSwitch}>
+              <Typography>1</Typography>
+              <Switch
+                checked={phase === 2}
+                onChange={() => setPhase(phase === 2 ? 1 : 2)}
+                inputProps={{ "aria-label": "controlled" }}
+              />
+              <Typography>2</Typography>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default PhotometryPlot;

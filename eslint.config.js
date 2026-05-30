@@ -7,13 +7,21 @@ const prettierPlugin = require("eslint-config-prettier");
 const importPlugin = require("eslint-plugin-import");
 const reactHookPlugin = require("eslint-plugin-react-hooks");
 const airbnbPlugin = require("eslint-config-airbnb");
+const tseslint = require("typescript-eslint");
 
 const { fixupPluginRules } = require("@eslint/compat");
 
 module.exports = [
   eslint.configs.recommended,
-  // run on all js and jsx files in the static directory and subdirectories
-  { files: ["static/**/*.js", "static/**/*.jsx"] },
+  // run on all js/jsx/ts/tsx files in the static directory and subdirectories
+  {
+    files: [
+      "static/**/*.js",
+      "static/**/*.jsx",
+      "static/**/*.ts",
+      "static/**/*.tsx",
+    ],
+  },
   { ignores: ["docs/*"] },
   {
     // CommonJS config files at repo root use Node globals
@@ -78,6 +86,33 @@ module.exports = [
       "no-param-reassign": 0,
       "react/jsx-no-bind": 0,
       "no-shadow": "error",
+    },
+  },
+  {
+    // TypeScript files: use the typescript-eslint parser (overrides the babel
+    // parser above for .ts/.tsx). Kept lenient to start -- `tsc --noEmit`
+    // (npm run typecheck) is the source of truth for type errors.
+    files: ["static/**/*.ts", "static/**/*.tsx"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+        sourceType: "module",
+      },
+      globals: {
+        ...globalsLib.browser,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+    },
+    rules: {
+      // TS itself handles undefined-symbol and unused checks; turn off the
+      // core rules that produce false positives on type-only syntax.
+      "no-undef": "off",
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "no-use-before-define": "off",
     },
   },
   {

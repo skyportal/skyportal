@@ -1,0 +1,94 @@
+import messageHandler from "baselayer/MessageHandler";
+
+import * as API from "../API";
+import store from "../store";
+
+const FETCH_ALLOCATIONS = "skyportal/FETCH_ALLOCATIONS";
+const FETCH_ALLOCATIONS_OK = "skyportal/FETCH_ALLOCATIONS_OK";
+
+const FETCH_ALLOCATIONS_API_OBSPLAN = "skyportal/FETCH_ALLOCATIONS_API_OBSPLAN";
+const FETCH_ALLOCATIONS_API_OBSPLAN_OK =
+  "skyportal/FETCH_ALLOCATIONS_API_OBSPLAN_OK";
+
+const FETCH_ALLOCATIONS_API_CLASSNAME =
+  "skyportal/FETCH_ALLOCATIONS_API_CLASSNAME";
+const FETCH_ALLOCATIONS_API_CLASSNAME_OK =
+  "skyportal/FETCH_ALLOCATIONS_API_CLASSNAME_OK";
+
+const REFRESH_ALLOCATIONS = "skyportal/REFRESH_ALLOCATIONS";
+
+export const fetchAllocations = () =>
+  API.GET("/api/allocation", FETCH_ALLOCATIONS);
+
+export function fetchAllocationsApiObsplan(params: Record<string, any> = {}) {
+  const apiQueryDefaults = { apiType: "api_classname_obsplan" };
+  return API.GET("/api/allocation", FETCH_ALLOCATIONS_API_OBSPLAN, {
+    ...apiQueryDefaults,
+    ...params,
+  });
+}
+
+export function fetchAllocationsApiClassname(params: Record<string, any> = {}) {
+  const apiQueryDefaults = { apiType: "api_classname" };
+  return API.GET("/api/allocation", FETCH_ALLOCATIONS_API_CLASSNAME, {
+    ...apiQueryDefaults,
+    ...params,
+  });
+}
+
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === REFRESH_ALLOCATIONS) {
+    dispatch(fetchAllocations());
+    dispatch(fetchAllocationsApiObsplan());
+    dispatch(fetchAllocationsApiClassname());
+  }
+});
+
+interface AllocationsState {
+  allocationList: any[];
+  allocationListApiObsplan: any[];
+  allocationListApiClassname: any[];
+}
+
+interface AllocationsAction {
+  type: string;
+  data?: any;
+  [key: string]: any;
+}
+
+const reducer = (
+  state: AllocationsState = {
+    allocationList: [],
+    allocationListApiObsplan: [],
+    allocationListApiClassname: [],
+  },
+  action: AllocationsAction,
+): AllocationsState => {
+  switch (action.type) {
+    case FETCH_ALLOCATIONS_OK: {
+      const allocationList = action.data;
+      return {
+        ...state,
+        allocationList,
+      };
+    }
+    case FETCH_ALLOCATIONS_API_OBSPLAN_OK: {
+      const allocationListApiObsplan = action.data;
+      return {
+        ...state,
+        allocationListApiObsplan,
+      };
+    }
+    case FETCH_ALLOCATIONS_API_CLASSNAME_OK: {
+      const allocationListApiClassname = action.data;
+      return {
+        ...state,
+        allocationListApiClassname,
+      };
+    }
+    default:
+      return state;
+  }
+};
+
+store.injectReducer("allocations", reducer);

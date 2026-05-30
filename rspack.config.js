@@ -10,7 +10,7 @@ const config = (env, argv) => {
       main: [
         "core-js/stable",
         "regenerator-runtime/runtime",
-        path.resolve(__dirname, "static/js/components/templates/Main.jsx"),
+        path.resolve(__dirname, "static/js/components/templates/Main.tsx"),
       ],
     },
     output: {
@@ -61,12 +61,19 @@ const config = (env, argv) => {
     module: {
       rules: [
         {
-          test: /\.(js|jsx)?$/,
+          test: /\.(js|jsx|ts|tsx)?$/,
           loader: "babel-loader",
           include: /static\/js/,
           exclude: /node_modules/,
           options: {
-            presets: ["@babel/preset-env", "@babel/preset-react"],
+            presets: [
+              "@babel/preset-env",
+              "@babel/preset-react",
+              // Strips TS types during bundling. Type *checking* is a separate
+              // `tsc --noEmit` step (npm run typecheck), so a type error fails
+              // CI without blocking local bundling.
+              "@babel/preset-typescript",
+            ],
             plugins: [
               "@babel/plugin-transform-async-to-generator",
               "@babel/plugin-transform-arrow-functions",
@@ -148,7 +155,7 @@ const config = (env, argv) => {
           "node_modules/react-resizable/css",
         ),
       },
-      extensions: [".js", ".jsx", ".json"],
+      extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
       // Needed for non-polyfilled node modules; we aim to remove this when possible
       fallback: {
         path: path.resolve(__dirname, "node_modules/path-browserify"),
