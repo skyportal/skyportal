@@ -44,18 +44,12 @@ export function observingRunTitle(
 ) {
   const { instrument_id } = observingRun;
   const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-
   const telescope_id = instrument?.telescope_id;
   const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-
   const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
 
-  if (!(observingRun?.calendar_date && instrument?.name && telescope?.name)) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+  if (!observingRun?.calendar_date || !instrument?.name || !telescope?.name) {
+    return <CircularProgress />;
   }
 
   let result = `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname}`;

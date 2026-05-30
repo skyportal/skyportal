@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import requests
 from astropy.time import Time
@@ -13,6 +13,7 @@ from skyportal.handlers.api.alert import (
     post_alert,
 )
 from skyportal.models import DBSession, Listing, Telescope, User
+from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
@@ -105,7 +106,7 @@ def check_watch_list(time_info):
                         params["last_processed_at"], format="isot", scale="utc"
                     ).datetime
                     + timedelta(minutes=params["cadence"])
-                    > datetime.utcnow()
+                    > utcnow_naive()
                 ):
                     continue
 
@@ -113,7 +114,7 @@ def check_watch_list(time_info):
                 # to avoid getting stuck in a loop
                 listing.params = {
                     **params,
-                    "last_processed_at": datetime.utcnow().isoformat(),
+                    "last_processed_at": utcnow_naive().isoformat(),
                 }
                 session.commit()
 

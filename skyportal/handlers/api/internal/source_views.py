@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 from baselayer.app.access import auth_or_token
 
 from ....models import Obj, ObjTag, SourceView, serialize_obj_tag
+from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
 
 default_prefs = {
@@ -25,9 +26,7 @@ class SourceViewsHandler(BaseHandler):
 
         max_num_sources = int(top_sources_prefs["maxNumSources"])
         since_days_ago = float(top_sources_prefs["sinceDaysAgo"])
-        cutoff_day = datetime.datetime.utcnow() - datetime.timedelta(
-            days=since_days_ago
-        )
+        cutoff_day = utcnow_naive() - datetime.timedelta(days=since_days_ago)
         results = session.execute(
             SourceView.select(
                 session.user_or_token,

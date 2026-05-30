@@ -97,9 +97,9 @@ from ...utils.gcn import (
     get_xml_notice_type,
     has_skymap,
 )
+from ...utils.naive_datetime import UTCTZnaiveDateTime, utcnow_naive
 from ...utils.notifications import post_notification
 from ...utils.parse import get_page_and_n_per_page
-from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 from ..base import BaseHandler, format_doc
 from .galaxy import MAX_GALAXIES, get_galaxies, get_galaxies_completeness
 from .gcn_gracedb import post_gracedb_data
@@ -2460,7 +2460,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
             }
             gcn_observation_plans.append(gcn_observation_plan)
 
-        start_date = str(datetime.datetime.utcnow()).replace("T", "")
+        start_date = str(utcnow_naive()).replace("T", "")
 
         for ii, gcn_observation_plan in enumerate(gcn_observation_plans):
             allocation_id = gcn_observation_plan["allocation_id"]
@@ -2472,9 +2472,9 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
             end_date = allocation.instrument.telescope.next_sunrise()
             if end_date is None:
-                end_date = str(
-                    datetime.datetime.utcnow() + datetime.timedelta(days=1)
-                ).replace("T", "")
+                end_date = str(utcnow_naive() + datetime.timedelta(days=1)).replace(
+                    "T", ""
+                )
             else:
                 end_date = Time(end_date, format="jd").iso
 

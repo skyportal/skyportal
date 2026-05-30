@@ -3,11 +3,13 @@ import { useDispatch, useSelector } from "react-redux";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
+import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import Paper from "../Paper";
 import { submitObservingRun } from "../../ducks/observingRun";
 
 dayjs.extend(utc);
@@ -17,8 +19,6 @@ const NewObservingRun = () => {
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
-
-  const defaultDate = dayjs().utc().format("YYYY-MM-DD");
 
   const handleSubmit = async ({ formData }) => {
     if (formData.group_id === -1) {
@@ -41,7 +41,7 @@ const NewObservingRun = () => {
         type: "string",
         format: "date",
         title: "Calendar Date",
-        default: defaultDate,
+        default: dayjs().utc().format("YYYY-MM-DD"),
       },
       duration: {
         type: "number",
@@ -78,11 +78,14 @@ const NewObservingRun = () => {
   };
 
   return (
-    <Form
-      schema={observingRunFormSchema}
-      validator={validator}
-      onSubmit={handleSubmit}
-    />
+    <Paper>
+      <Typography variant="h6">Add a New Observing Run</Typography>
+      <Form
+        schema={observingRunFormSchema}
+        validator={validator}
+        onSubmit={handleSubmit}
+      />
+    </Paper>
   );
 };
 

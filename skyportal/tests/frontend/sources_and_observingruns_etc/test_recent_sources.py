@@ -1,10 +1,11 @@
-import datetime
 import uuid
 
 import pytest
 from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
+
+from ....utils.naive_datetime import utcnow_naive
 
 
 @pytest.mark.flaky(reruns=2)
@@ -91,7 +92,7 @@ def test_recently_saved_candidate(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
