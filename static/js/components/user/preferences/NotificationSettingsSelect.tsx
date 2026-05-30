@@ -484,6 +484,7 @@ const NotificationSettingsSelect = ({
                       <Checkbox
                         checked={invertedSMS === true}
                         onChange={() => onChangeInverted("sms")}
+                        {...({ label: "Invert" } as any)}
                         name="time_slot_slider_sms"
                       />
                       <Tooltip
@@ -584,6 +585,7 @@ const NotificationSettingsSelect = ({
                       <Checkbox
                         checked={invertedPhone === true}
                         onChange={() => onChangeInverted("phone")}
+                        {...({ label: "Invert" } as any)}
                       />
                       <Tooltip
                         title="Select a start and end time on the slider. If you want to receive notifications outside and not inside the time slot, check the Invert option."
@@ -683,6 +685,7 @@ const NotificationSettingsSelect = ({
                       <Checkbox
                         checked={invertedWhatsapp === true}
                         onChange={() => onChangeInverted("whatsapp")}
+                        {...({ label: "Invert" } as any)}
                       />
                       <Tooltip
                         title="Select a start and end time on the slider. If you want to receive notifications outside and not inside the time slot, check the Invert option."

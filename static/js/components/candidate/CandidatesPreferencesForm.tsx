@@ -337,6 +337,9 @@ const CandidatesPreferencesForm = ({
           <Controller
             name="savedStatus"
             control={control}
+            {...({
+              input: <Input data-testid="profileSavedStatusSelect" />,
+            } as any)}
             defaultValue="all"
             render={({ field: { onChange, value } }) => (
               <Select
@@ -427,6 +430,9 @@ const CandidatesPreferencesForm = ({
           <Controller
             name="rejectedStatus"
             control={control}
+            {...({
+              input: <Input data-testid="profileRejectedStatusSelect" />,
+            } as any)}
             defaultValue="show"
             render={({ field: { onChange, value } }) => (
               <Select
@@ -491,6 +497,11 @@ const CandidatesPreferencesForm = ({
             <Controller
               name="sortingKey"
               control={control}
+              {...({
+                input: (
+                  <Input data-testid="profileAnnotationSortingKeySelect" />
+                ),
+              } as any)}
               defaultValue=""
               render={({ field: { onChange, value } }) => (
                 <Select
@@ -521,6 +532,11 @@ const CandidatesPreferencesForm = ({
             <Controller
               name="sortingOrder"
               control={control}
+              {...({
+                input: (
+                  <Input data-testid="profileAnnotationSortingOrderSelect" />
+                ),
+              } as any)}
               defaultValue=""
               render={({ field: { onChange, value } }) => (
                 <Select

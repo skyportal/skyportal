@@ -121,6 +121,7 @@ const ModifyAssignment = ({
             variant="outlined"
             multiline
             defaultValue=""
+            name="comment"
             data-testid="assignmentCommentInput"
             size="small"
           />

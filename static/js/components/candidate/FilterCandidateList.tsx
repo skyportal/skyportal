@@ -679,6 +679,9 @@ const FilterCandidateList = ({
                   <Controller
                     name="savedStatus"
                     control={control}
+                    {...({
+                      input: <Input data-testid="savedStatusSelect" />,
+                    } as any)}
                     render={({ field: { onChange } }) => (
                       <Select
                         key={
@@ -1142,6 +1145,7 @@ const FilterCandidateList = ({
                       render={({ field: { onChange, value } }) => (
                         <Autocomplete
                           id="annotationSortingOriginSelect"
+                          data-testid="annotationSortingOriginSelect"
                           options={Object.keys(availableAnnotationsInfo || [])}
                           style={{ minWidth: "100%" }}
                           value={value}
@@ -1186,6 +1190,7 @@ const FilterCandidateList = ({
                       render={({ field: { onChange, value } }) => (
                         <Autocomplete
                           id="annotationSortingKeySelect"
+                          data-testid="annotationSortingKeySelect"
                           options={annotationSortingKeyOptions}
                           style={{ minWidth: "100%" }}
                           value={value}
@@ -1228,6 +1233,7 @@ const FilterCandidateList = ({
                       render={({ field: { onChange, value } }) => (
                         <Autocomplete
                           id="annotationSortingOrderSelect"
+                          data-testid="annotationSortingOrderSelect"
                           options={["asc", "desc"]}
                           style={{ minWidth: "100%" }}
                           value={value}

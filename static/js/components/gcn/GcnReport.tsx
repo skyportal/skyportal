@@ -432,6 +432,7 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
                     <FormControlLabel
                       control={
                         <Checkbox
+                          {...({ label: "Show Sources" } as any)}
                           checked={showSources}
                           onChange={(e) => setShowSources(e.target.checked)}
                         />
@@ -441,6 +442,7 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
                     <FormControlLabel
                       control={
                         <Checkbox
+                          {...({ label: "Show Observations" } as any)}
                           checked={showObservations}
                           onChange={(e) =>
                             setShowObservations(e.target.checked)

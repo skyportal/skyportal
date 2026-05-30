@@ -489,6 +489,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
                     <FormControlLabel
                       control={
                         <Checkbox
+                          {...({ label: "Show Sources" } as any)}
                           checked={showSources}
                           onChange={(e) => setShowSources(e.target.checked)}
                         />
@@ -498,6 +499,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
                     <FormControlLabel
                       control={
                         <Checkbox
+                          {...({ label: "Show Galaxies" } as any)}
                           checked={showGalaxies}
                           onChange={(e) => setShowGalaxies(e.target.checked)}
                         />
@@ -507,6 +509,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
                     <FormControlLabel
                       control={
                         <Checkbox
+                          {...({ label: "Show Observations" } as any)}
                           checked={showObservations}
                           onChange={(e) =>
                             setShowObservations(e.target.checked)
