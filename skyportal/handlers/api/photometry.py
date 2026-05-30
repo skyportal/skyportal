@@ -1448,7 +1448,7 @@ def add_external_photometry(
                 # CONFLICT makes the attach idempotent.
                 group_ids_to_add = set(group_ids) - duplicate_group_ids
                 if group_ids_to_add:
-                    now = datetime.datetime.utcnow()
+                    now = utcnow_naive()
                     gp_rows = [
                         {
                             "group_id": gid,
@@ -1473,7 +1473,7 @@ def add_external_photometry(
                 if stream_ids:
                     stream_ids_to_add = set(stream_ids) - duplicate_stream_ids
                     if stream_ids_to_add:
-                        now = datetime.datetime.utcnow()
+                        now = utcnow_naive()
                         sp_rows = [
                             {
                                 "stream_id": sid,
@@ -1823,7 +1823,7 @@ class PhotometryHandler(BaseHandler):
                     # CONFLICT makes the attach idempotent.
                     group_ids_to_add = set(group_ids) - duplicate_group_ids
                     if group_ids_to_add:
-                        now = datetime.datetime.utcnow()
+                        now = utcnow_naive()
                         gp_rows = [
                             {
                                 "group_id": gid,
@@ -1848,7 +1848,7 @@ class PhotometryHandler(BaseHandler):
                     if stream_ids:
                         stream_ids_to_add = set(stream_ids) - duplicate_stream_ids
                         if stream_ids_to_add:
-                            now = datetime.datetime.utcnow()
+                            now = utcnow_naive()
                             sp_rows = [
                                 {
                                     "stream_id": sid,
