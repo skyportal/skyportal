@@ -754,6 +754,21 @@ ports:
   tns_retrieval_queue: 64810
   sharing_service_submission_queue: 64812
 
+hosts:
+  # Hostnames the application uses to reach its internal microservices. These
+  # default to the loopback address, which is correct for the standard
+  # single-host deployment where every service runs alongside the app. Override
+  # a service's host to run it on a separate host/container (e.g. to scale a
+  # microservice independently, or for a distributed/Kubernetes deployment).
+  app: 127.0.0.1
+  migration_manager: 127.0.0.1
+  facility_queue: 127.0.0.1
+  notification_queue: 127.0.0.1
+  observation_plan_queue: 127.0.0.1
+  tns_retrieval_queue: 127.0.0.1
+  sharing_service_submission_queue: 127.0.0.1
+  slack: 127.0.0.1
+
 gcn:
   server: gcn.nasa.gov
   # you can obtain a client_id and client_secret at https://gcn.nasa.gov/quickstart
