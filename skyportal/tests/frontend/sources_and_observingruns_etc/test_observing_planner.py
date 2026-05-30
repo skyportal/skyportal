@@ -23,7 +23,6 @@ def post_assignment(obj, run, priority, comment, token):
     )
 
 
-@pytest.mark.flaky(reruns=2)
 def test_source_is_added_to_observing_run_via_frontend(
     driver,
     super_admin_user,
@@ -62,7 +61,6 @@ def test_source_is_added_to_observing_run_via_frontend(
     driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
 
 
-@pytest.mark.flaky(reruns=2)
 def test_assignment_posts_to_observing_run(
     driver, super_admin_user, public_source, red_transients_run, super_admin_token
 ):
@@ -91,7 +89,6 @@ def test_assignment_posts_to_observing_run(
         func(f'//span[text()="{group.name[:15]}"]')
 
 
-@pytest.mark.flaky(reruns=3)
 def test_observing_run_skycam_component(
     driver, super_admin_user, public_source, red_transients_run, super_admin_token
 ):
@@ -146,7 +143,6 @@ def test_observing_run_skycam_component(
     )
 
 
-@pytest.mark.flaky(reruns=2)
 def test_observing_run_page(driver, view_only_user, red_transients_run):
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get("/runs")
@@ -166,7 +162,6 @@ def test_observing_run_page(driver, view_only_user, red_transients_run):
         driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]')
 
 
-@pytest.mark.flaky(reruns=2)
 def test_add_run_to_observing_run_page(
     driver, user, lris, public_group, red_transients_run
 ):
@@ -188,11 +183,11 @@ def test_add_run_to_observing_run_page(
     # long timeout as it can take a long time for the telescopelist,
     # observingrun list, and instrumentlist to fully load on
     # when these lists are long and the webserver is strained
-    driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]', timeout=30)
+    driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]', timeout=15)
 
     pi_element = driver.wait_for_xpath('//input[@id="root_pi"]')
 
-    calendar_keys = "02022021"
+    calendar_keys = "01022021"
     observer = uuid.uuid4().hex
     pi_name = uuid.uuid4().hex
 
@@ -224,6 +219,6 @@ def test_add_run_to_observing_run_page(
     # observingrun list, and instrumentlist to fully load on
     # when these lists are long and the webserver is strained
     driver.wait_for_xpath(
-        f"""//*[text()='2021-02-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']""",
-        timeout=30,
+        f"""//*[text()='2021-01-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']""",
+        timeout=15,
     )
