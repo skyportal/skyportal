@@ -47,10 +47,19 @@ jobs:
 
           # Most recent run for the same workflow + same head branch.
           # The list endpoint returns runs sorted by created_at descending,
-          # so per_page=1 gives us the latest one.
+          # so per_page=1 gives us the latest one. Pass the query params via
+          # `-f` so branch names with `/` or special chars are URL-encoded.
           latest_run_number=$(gh api \
-            "/repos/$REPO/actions/workflows/$WORKFLOW_ID/runs?branch=$BRANCH&per_page=1" \
-            --jq '.workflow_runs[0].run_number')
+            -f branch="$BRANCH" -f per_page=1 \
+            "/repos/$REPO/actions/workflows/$WORKFLOW_ID/runs" \
+            --jq '.workflow_runs[0].run_number // empty')
+
+          # If the lookup returned nothing usable (API hiccup, unexpected shape),
+          # keep the run rather than failing the whole cleanup workflow.
+          if ! [[ "$latest_run_number" =~ ^[0-9]+$ ]]; then
+            echo "Could not determine latest run number for '$BRANCH' (got '$latest_run_number'); keeping run $RUN_ID."
+            exit 0
+          fi
 
           if [ "$latest_run_number" -gt "$RUN_NUMBER" ]; then
             echo "Run $RUN_ID (#$RUN_NUMBER) on '$BRANCH' was superseded by run #$latest_run_number. Deleting it."
