@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -190,22 +190,34 @@ const AnnotationsTable = ({
     });
   }
 
-  const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
-      <GridToolbarExport />
-      <div data-testid="annotations-quick-filter">
-        <QuickFilter />
-      </div>
-      {canExpand && (
-        <IconButton
-          name="expand_annotations"
-          onClick={() => setOpenAnnotations(true)}
-        >
-          <OpenInFullIcon />
-        </IconButton>
-      )}
-    </GridToolbarContainer>
+  // Memoize the toolbar so it keeps a stable component identity across the
+  // re-renders triggered as the source page loads its annotations/spectra
+  // asynchronously. Without this, the inline function identity changes every
+  // render, forcing MUI to unmount/remount the toolbar (and its QuickFilter
+  // input) and invalidating any element reference a test is mid-interaction
+  // with (StaleElementReferenceException on .clear()).
+  const CustomToolbar = useMemo(
+    () =>
+      function AnnotationsTableToolbar() {
+        return (
+          <GridToolbarContainer>
+            <GridToolbarColumnsButton />
+            <GridToolbarExport />
+            <div data-testid="annotations-quick-filter">
+              <QuickFilter />
+            </div>
+            {canExpand && (
+              <IconButton
+                name="expand_annotations"
+                onClick={() => setOpenAnnotations(true)}
+              >
+                <OpenInFullIcon />
+              </IconButton>
+            )}
+          </GridToolbarContainer>
+        );
+      },
+    [canExpand],
   );
 
   return (

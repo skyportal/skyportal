@@ -114,14 +114,16 @@ def test_delete_stream_user(driver, super_admin_user, user, stream_with_users):
     driver.wait_for_xpath(
         f"//*[@data-testid='deleteStreamUserButton_{user.id}_{stream.id}']"
     )
-    # The Streams column is near the right edge of the data grid; its cell is
-    # rendered (columnBufferPx forces all columns into the DOM) but the chip's
-    # delete icon can sit outside the horizontal scroll viewport, so scroll it
-    # into view before clicking (otherwise element_to_be_clickable times out).
-    delete_icon = driver.wait_for_xpath(
+    # The Streams column lives in the data grid alongside the Roles/ACLs/Groups
+    # columns; click_xpath waits for the chip's delete icon to be clickable and
+    # resolves it fresh right before clicking, matching the other chip-delete
+    # tests above. (An earlier scroll_to_element_and_click(scroll_parent=True)
+    # variant called scrollIntoView() inside the virtualized grid scroller,
+    # which recycled the row and left the icon element stale, so the click was
+    # silently swallowed and the notification never appeared.)
+    driver.click_xpath(
         f"//*[@data-testid='deleteStreamUserButton_{user.id}_{stream.id}']//*[contains(@class, 'MuiChip-deleteIcon')]"
     )
-    driver.scroll_to_element_and_click(delete_icon, scroll_parent=True)
     driver.wait_for_xpath("//div[text()='Stream access successfully revoked.']")
 
 
