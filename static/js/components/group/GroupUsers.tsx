@@ -48,12 +48,9 @@ const GroupUsers = ({
 }: GroupUsersProps) => {
   const [anchorEl, setAnchorEl] = React.useState<any>(null);
   const [openedPopoverId, setOpenedPopoverId] = React.useState<any>(null);
-  const [panelMembersExpanded, setPanelMembersExpanded] = React.useState<any>(
-    "panel-members",
-  );
-  const { invitationsEnabled } = useAppSelector(
-    (state) => state.config,
-  ) as any;
+  const [panelMembersExpanded, setPanelMembersExpanded] =
+    React.useState<any>("panel-members");
+  const { invitationsEnabled } = useAppSelector((state) => state.config) as any;
 
   const handlePopoverOpen = (event: any, popoverId: any) => {
     setOpenedPopoverId(popoverId);
@@ -128,10 +125,10 @@ const GroupUsers = ({
                 <div className={classes.manageUserPopover}>
                   <ManageUserButtons
                     loadedId={group.id}
-                    user={user}
+                    user={user as any}
                     isAdmin={isAdmin}
-                    group={group}
-                    currentUser={currentUser}
+                    group={group as any}
+                    currentUser={currentUser as any}
                   />
                 </div>
               </Popover>
@@ -139,10 +136,10 @@ const GroupUsers = ({
           ) : (
             <ManageUserButtons
               loadedId={group.id}
-              user={user}
+              user={user as any}
               isAdmin={isAdmin}
-              group={group}
-              currentUser={currentUser}
+              group={group as any}
+              currentUser={currentUser as any}
             />
           ))}
       </div>

@@ -54,7 +54,7 @@ function API(
       let json: any = "";
       try {
         json = await response.json();
-      } catch (error) {
+      } catch (error: any) {
         throw new Error(`JSON decoding error: ${error}`);
       }
 
@@ -64,7 +64,7 @@ function API(
       }
 
       return dispatch({ type: `${actionType}_OK`, ...json, parameters });
-    } catch (error) {
+    } catch (error: any) {
       /* In case of an unintentional error, dispatch an action that contains
            every piece of information we have about the request.
 
@@ -204,7 +204,7 @@ function DOWNLOAD(
       const json = await response.json();
       dispatch(showNotification(`${json.message}`, "error"));
       return dispatch({ type: `${actionType}_ERROR`, ...json });
-    } catch (error) {
+    } catch (error: any) {
       dispatch(showNotification(`${error.message}`, "error"));
       return dispatch({
         type: `${actionType}_FAIL`,

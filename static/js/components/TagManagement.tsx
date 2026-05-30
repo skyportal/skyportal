@@ -81,9 +81,7 @@ const TagManagement = () => {
   const [tagToDelete, setTagToDelete] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const tagOptions = useAppSelector(
-    (state) => (state as any).objectTags || [],
-  );
+  const tagOptions = useAppSelector((state) => (state as any).objectTags || []);
 
   useEffect(() => {
     dispatch(objectTagsActions.fetchTagOptions());

@@ -402,26 +402,30 @@ const ScanningProfilesList = ({
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
         <DialogContent>
           <CandidatesPreferencesForm
-            userAccessibleGroups={userAccessibleGroups}
-            availableAnnotationsInfo={availableAnnotationsInfo}
-            classifications={classifications}
-            addOrEdit="Edit"
-            editingProfile={profileToEdit}
-            closeDialog={() => setEditDialogOpen(false)}
-            selectedScanningProfile={selectedScanningProfile}
-            setSelectedScanningProfile={setSelectedScanningProfile}
+            {...({
+              userAccessibleGroups,
+              availableAnnotationsInfo,
+              classifications,
+              addOrEdit: "Edit",
+              editingProfile: profileToEdit,
+              closeDialog: () => setEditDialogOpen(false),
+              selectedScanningProfile,
+              setSelectedScanningProfile,
+            } as any)}
           />
         </DialogContent>
       </Dialog>
       <Dialog open={newDialogOpen} onClose={() => setNewDialogOpen(false)}>
         <DialogContent>
           <CandidatesPreferencesForm
-            userAccessibleGroups={userAccessibleGroups}
-            availableAnnotationsInfo={availableAnnotationsInfo}
-            classifications={classifications}
-            addOrEdit="Add"
-            setSelectedScanningProfile={setSelectedScanningProfile}
-            closeDialog={() => setNewDialogOpen(false)}
+            {...({
+              userAccessibleGroups,
+              availableAnnotationsInfo,
+              classifications,
+              addOrEdit: "Add",
+              setSelectedScanningProfile,
+              closeDialog: () => setNewDialogOpen(false),
+            } as any)}
           />
         </DialogContent>
       </Dialog>

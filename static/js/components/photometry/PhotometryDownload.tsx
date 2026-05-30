@@ -354,8 +354,9 @@ const PhotometryDownload = ({
           schema={downloadSchema as any}
           uiSchema={downloadUiSchema}
           formData={downloadFormData}
-          onChange={({ formData }: { formData: any }) =>
-            setDownloadFormData(formData)
+          onChange={
+            (({ formData }: { formData: any }) =>
+              setDownloadFormData(formData)) as any
           }
           validator={validator}
           showErrorList={false}

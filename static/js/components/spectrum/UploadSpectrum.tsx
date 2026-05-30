@@ -692,16 +692,18 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
             schema={uploadFormSchema}
             uiSchema={uiSchema}
             validator={validator}
-            onSubmit={parseAscii}
+            onSubmit={parseAscii as any}
             formData={persistentFormData}
-            onChange={({ formData }: { formData: any }) => {
-              if (formData.file !== persistentFormData.file) {
-                setFormKey(Date.now());
-                dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
-                setUploadedFromURL(false);
-              }
-              setPersistentFormData(formData);
-            }}
+            onChange={
+              (({ formData }: { formData: any }) => {
+                if (formData.file !== persistentFormData.file) {
+                  setFormKey(Date.now());
+                  dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
+                  setUploadedFromURL(false);
+                }
+                setPersistentFormData(formData);
+              }) as any
+            }
             key={formKey}
           >
             <Button
@@ -743,7 +745,10 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
                 <StyledDataGrid
                   autoHeight
                   columns={header_columns}
-                  rows={header.map((row: any, i: number) => ({ ...row, id: i }))}
+                  rows={header.map((row: any, i: number) => ({
+                    ...row,
+                    id: i,
+                  }))}
                   showToolbar
                 />
               </AccordionDetails>

@@ -27,8 +27,8 @@ const QuickFilter = () => (
   <MuiQuickFilter expanded>
     <QuickFilterControl
       render={(
-        { ref, slotProps: controlSlotProps, ...controlProps },
-        state,
+        { ref, slotProps: controlSlotProps, ...controlProps }: any,
+        state: any,
       ) => (
         <TextField
           {...controlProps}

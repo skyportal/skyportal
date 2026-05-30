@@ -248,7 +248,7 @@ const UserManagement = () => {
           userID: clickedUser.id,
           admin: false,
           group_id: gid,
-        }),
+        } as any),
       ),
     );
     const results: any[] = await Promise.all(promises);
@@ -331,10 +331,7 @@ const UserManagement = () => {
     }
   };
 
-  const handleClickRemoveUserFromGroup = async (
-    userID: any,
-    group_id: any,
-  ) => {
+  const handleClickRemoveUserFromGroup = async (userID: any, group_id: any) => {
     const result: any = await dispatch(
       groupsActions.deleteGroupUser({ userID, group_id }),
     );
@@ -857,9 +854,11 @@ const UserManagement = () => {
         <Form
           schema={filterFormSchema as any}
           validator={validator}
-          onSubmit={({ formData }: { formData: any }) => {
-            handleFilterSubmit(formData);
-          }}
+          onSubmit={
+            (({ formData }: { formData: any }) => {
+              handleFilterSubmit(formData);
+            }) as any
+          }
         />
       </div>
     ) : (

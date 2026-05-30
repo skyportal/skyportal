@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 import { DataGrid } from "@mui/x-data-grid";
 
 // Shared, theme-aware wrapper around MUI X DataGrid.
@@ -27,22 +26,28 @@ const baseSx = {
   },
 };
 
-const StyledDataGrid = ({ sx, ...props }) => (
-  <DataGrid
+// Loose props: `sx` is optional and everything else is forwarded straight to
+// the underlying DataGrid (columns/rows/pagination/etc.). Kept as `any` to
+// match the non-strict migration — DataGrid's own prop types are large and
+// version-sensitive, and call sites already pass a validated shape.
+interface StyledDataGridProps {
+  sx?: any;
+  [key: string]: any;
+}
+
+// DataGrid requires `columns`/`rows`; those are supplied by callers via the
+// forwarded `...props`. Cast to a loose component so the spread satisfies the
+// required props without re-declaring DataGrid's (large, version-sensitive)
+// prop types here.
+const LooseDataGrid = DataGrid as any;
+
+const StyledDataGrid = ({ sx, ...props }: StyledDataGridProps) => (
+  <LooseDataGrid
     density="compact"
     disableRowSelectionOnClick
     sx={[baseSx, ...(Array.isArray(sx) ? sx : [sx])]}
     {...props}
   />
 );
-
-StyledDataGrid.propTypes = {
-  // MUI's sx prop accepts an object or an array of objects/functions.
-  sx: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
-};
-
-StyledDataGrid.defaultProps = {
-  sx: undefined,
-};
 
 export default StyledDataGrid;

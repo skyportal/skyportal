@@ -181,10 +181,7 @@ const SimpleMenu = ({ assignment }: SimpleMenuProps) => {
           </MenuItem>
         )}
         {assignment.status === "complete" && (
-          <MenuItem
-            key={`${assignment.id}_upload_phot`}
-            onClick={handleClose}
-          >
+          <MenuItem key={`${assignment.id}_upload_phot`} onClick={handleClose}>
             <Link
               href={`/upload_photometry/${assignment.obj_id}`}
               underline="none"
@@ -221,9 +218,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
   const { instrumentList } = useAppSelector(
     (state) => state.instruments,
   ) as any;
-  const { telescopeList } = useAppSelector(
-    (state) => state.telescopes,
-  ) as any;
+  const { telescopeList } = useAppSelector((state) => state.telescopes) as any;
   const groups = useAppSelector((state) => state.groups.all) as any;
   const [dialog, setDialog] = useState(false);
   const [openedRows, setOpenedRows] = useState<any[]>([]);
@@ -354,7 +349,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
               // don't allow line breaks unless the status contains "error"
               whiteSpace: status.includes("error") ? "normal" : "nowrap",
             }}
-            name={`${id}_status`}
+            {...({ name: `${id}_status` } as any)}
           >
             {status}
           </Typography>
@@ -590,7 +585,9 @@ const RunSummary = ({ route }: RunSummaryProps) => {
             <Typography gutterBottom align="center">
               Starlist and Offsets
             </Typography>
-            <ObservingRunStarList observingRunId={observingRun.id} />
+            <ObservingRunStarList
+              {...({ observingRunId: observingRun.id } as any)}
+            />
           </Paper>
         </Grid>
         <Grid

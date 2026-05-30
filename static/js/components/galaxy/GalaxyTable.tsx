@@ -112,7 +112,7 @@ const GalaxyTable = ({
       delete formData.position;
     }
 
-    const data = filterOutEmptyValues(formData);
+    const data = filterOutEmptyValues(formData) as any;
     // Expand cone search params
     if ("position" in data) {
       data.ra = data.position.ra;

@@ -113,24 +113,22 @@ const FollowupRequestLists = ({
     if (serverSide) {
       params.refreshRequests = true;
     }
-    dispatch(Actions.getPhotometryRequest(id, params)).then(
-      (response: any) => {
-        setIsGetting(null);
-        if (response.status === "success") {
-          if (response.data.request_status?.includes("rejected")) {
-            dispatch(showNotification("Request has been rejected.", "warning"));
-          } else {
-            dispatch(
-              showNotification(
-                "Request successfully submitted, please wait for it to be processed.",
-                "info",
-              ),
-            );
-          }
-          setHasRetrieved([...hasRetrieved, id]);
+    dispatch(Actions.getPhotometryRequest(id, params)).then((response: any) => {
+      setIsGetting(null);
+      if (response.status === "success") {
+        if (response.data.request_status?.includes("rejected")) {
+          dispatch(showNotification("Request has been rejected.", "warning"));
+        } else {
+          dispatch(
+            showNotification(
+              "Request successfully submitted, please wait for it to be processed.",
+              "info",
+            ),
+          );
         }
-      },
-    );
+        setHasRetrieved([...hasRetrieved, id]);
+      }
+    });
   };
 
   const handleSubmit = async (followupRequest: any) => {

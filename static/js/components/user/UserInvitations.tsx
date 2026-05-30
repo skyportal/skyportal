@@ -547,9 +547,11 @@ const UserInvitations = () => {
         <Form
           schema={filterFormSchema as any}
           validator={validator}
-          onSubmit={({ formData }: { formData: any }) => {
-            handleFilterSubmit(formData);
-          }}
+          onSubmit={
+            (({ formData }: { formData: any }) => {
+              handleFilterSubmit(formData);
+            }) as any
+          }
         />
       </div>
     ) : (

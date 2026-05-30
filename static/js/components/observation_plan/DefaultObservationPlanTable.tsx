@@ -126,7 +126,10 @@ const DefaultObservationPlanTable = ({
   const renderDelete = (params: any) => {
     if (!deletePermission) return null;
     return (
-      <Button id="delete_button" onClick={() => openDeleteDialog(params.row.id)}>
+      <Button
+        id="delete_button"
+        onClick={() => openDeleteDialog(params.row.id)}
+      >
         <DeleteIcon />
       </Button>
     );
@@ -232,7 +235,9 @@ const DefaultObservationPlanTable = ({
         >
           <DialogTitle>New Default Observation Plan</DialogTitle>
           <DialogContent dividers>
-            <NewDefaultObservationPlan onClose={() => setNewDialogOpen(false)} />
+            <NewDefaultObservationPlan
+              onClose={() => setNewDialogOpen(false)}
+            />
           </DialogContent>
         </Dialog>
       )}

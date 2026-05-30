@@ -489,7 +489,9 @@ const SourceDetailPanel = React.memo(
                     {annotations.map((annotation: any) => (
                       <div key={`annotation_${annotation.origin}`}>
                         <Divider />
-                        <ListItem onClick={() => handleClick(annotation.origin)}>
+                        <ListItem
+                          onClick={() => handleClick(annotation.origin)}
+                        >
                           <ListItemText
                             primary={`${annotation.origin}`}
                             slotProps={{ primary: { variant: "button" } }}
@@ -625,9 +627,7 @@ const SourceTable = ({
   const sourcesingcn = useAppSelector(
     (state) => (state as any).sourcesingcn.sourcesingcn,
   );
-  const tagOptions = useAppSelector(
-    (state) => (state as any).objectTags || [],
-  );
+  const tagOptions = useAppSelector((state) => (state as any).objectTags || []);
 
   // Columns hidden by default, keyed by DataGrid field. Mirrors the previous
   // defaultDisplayedColumns list (which only enumerated visible labels).
@@ -1395,8 +1395,7 @@ const SourceTable = ({
     if (includeGcnStatus) {
       // Insert GCN columns right after the classification column, matching the
       // previous splice positions.
-      const insertAt =
-        cols.findIndex((c) => c.field === "classification") + 1;
+      const insertAt = cols.findIndex((c) => c.field === "classification") + 1;
       cols.splice(
         insertAt,
         0,
@@ -1558,7 +1557,9 @@ const SourceTable = ({
 
   const handleDownload = () => {
     const renderDownloadClassification = (source: any) =>
-      (source?.classifications || []).map((x: any) => x.classification).join(";");
+      (source?.classifications || [])
+        .map((x: any) => x.classification)
+        .join(";");
     const renderDownloadProbability = (source: any) =>
       (source?.classifications || []).map((x: any) => x.probability).join(";");
     const renderDownloadAnnotationKey = (source: any) => {

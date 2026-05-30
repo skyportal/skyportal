@@ -148,10 +148,7 @@ const SimpleMenu = ({ request }: SimpleMenuProps) => {
           </MenuItem>
         )}
         {request.status === "complete" && (
-          <MenuItem
-            key={`${request.id}_upload_phot`}
-            onClick={handleClose}
-          >
+          <MenuItem key={`${request.id}_upload_phot`} onClick={handleClose}>
             <Link
               href={`/upload_photometry/${request.obj.id}`}
               underline="none"
@@ -240,7 +237,12 @@ const AllocationSummary = ({ route }: AllocationSummaryProps) => {
         <Typography variant="h4" gutterBottom color="textSecondary">
           Plan for:{" "}
           <b>
-            {allocationTitle(allocation, instrumentList, telescopeList, groups)}
+            {(allocationTitle as any)(
+              allocation,
+              instrumentList,
+              telescopeList,
+              groups,
+            )}
           </b>
         </Typography>
       </div>

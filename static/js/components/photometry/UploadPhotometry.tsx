@@ -483,17 +483,17 @@ const UploadPhotometryForm = () => {
                     <Typography variant="h6">Data Preview</Typography>
                     <StyledDataGrid
                       autoHeight
-                      columns={csvData.columns.map((col, i) => ({
+                      columns={csvData.columns.map((col: any, i: any) => ({
                         field: `col${i}`,
                         headerName: col,
                         flex: 1,
                         minWidth: 100,
                         sortable: false,
                       }))}
-                      rows={csvData.data.map((row, rowIdx) => {
+                      rows={csvData.data.map((row: any, rowIdx: any) => {
                         const obj = { id: rowIdx };
-                        row.forEach((cell, i) => {
-                          obj[`col${i}`] = cell;
+                        row.forEach((cell: any, i: any) => {
+                          (obj as any)[`col${i}`] = cell;
                         });
                         return obj;
                       })}

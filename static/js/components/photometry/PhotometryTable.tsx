@@ -56,10 +56,7 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const Transition = React.forwardRef(function Transition(
-  props: any,
-  ref: any,
-) {
+const Transition = React.forwardRef(function Transition(props: any, ref: any) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
 
@@ -109,10 +106,7 @@ const PhotometryTable = ({
   const [downloadOptionsOpen, setDownloadOptionsOpen] = useState(false);
   const [showExtinction, setShowExtinction] = useState(false);
 
-  const data = useMemo(
-    () => photometry[obj_id] || [],
-    [photometry, obj_id],
-  );
+  const data = useMemo(() => photometry[obj_id] || [], [photometry, obj_id]);
 
   // DataGrid persists column visibility itself; seed it with the columns that
   // were hidden by default in the old table.
@@ -309,9 +303,7 @@ const PhotometryTable = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (value: any, row: any) =>
-          row?.validations.length === 0
-            ? ""
-            : row?.validations[0]?.explanation,
+          row?.validations.length === 0 ? "" : row?.validations[0]?.explanation,
       });
 
       cols.push({

@@ -258,7 +258,9 @@ const DefaultFollowupRequestList = ({
       <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
         <DialogTitle>New Default Follow-up Request</DialogTitle>
         <DialogContent dividers>
-          <NewDefaultFollowupRequest onClose={closeNewDialog} />
+          <NewDefaultFollowupRequest
+            {...({ onClose: closeNewDialog } as any)}
+          />
         </DialogContent>
       </Dialog>
       <ConfirmDeletionDialog

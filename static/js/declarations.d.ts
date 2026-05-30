@@ -5,10 +5,7 @@
 //
 // Note: several of these DO have community types available (@types/papaparse,
 // @types/d3, @types/numeral, @types/react-grid-layout, @types/react-big-calendar,
-// @types/dygraphs) and could be tightened to real types later. `mui-datatables`
-// is being removed entirely by the x-data-grid migration, so its declaration is
-// temporary.
-declare module "mui-datatables";
+// @types/dygraphs) and could be tightened to real types later.
 declare module "react-plotly.js/factory";
 declare module "plotly.js-basic-dist";
 declare module "emoji-dictionary";

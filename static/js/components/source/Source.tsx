@@ -308,7 +308,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
   // and sorted by date in descending order
   const gcn_crossmatches = (associatedGCNs || [])
     .concat((source.gcn_crossmatch || []).map((gcn: any) => gcn.dateobs))
-    .filter((gcn: any, index: number, self: any[]) => self.indexOf(gcn) === index)
+    .filter(
+      (gcn: any, index: number, self: any[]) => self.indexOf(gcn) === index,
+    )
     .sort((a: any, b: any) => new Date(b).getTime() - new Date(a).getTime());
 
   useEffect(() => {
@@ -342,7 +344,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
     }
   };
 
-  const rightPanelContent = (downLarge: boolean, isRightPanelVisible: boolean) => (
+  const rightPanelContent = (
+    downLarge: boolean,
+    isRightPanelVisible: boolean,
+  ) => (
     <>
       <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 6, md: 4, lg: 3 }}>
         <Accordion
@@ -828,9 +833,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                           source={source}
                           duplicate={duplicate}
                           dialogOpen={copyPhotometryDialogOpen}
-                          closeDialog={() =>
-                            setCopyPhotometryDialogOpen(false)
-                          }
+                          closeDialog={() => setCopyPhotometryDialogOpen(false)}
                         />
                       </div>
                     ),
@@ -884,9 +887,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   aria-controls={openFindingChart ? "basic-menu" : undefined}
                   aria-haspopup="true"
                   aria-expanded={openFindingChart ? "true" : undefined}
-                  onClick={(e: any) =>
-                    setAnchorElFindingChart(e.currentTarget)
-                  }
+                  onClick={(e: any) => setAnchorElFindingChart(e.currentTarget)}
                   secondary
                   size="small"
                 >
