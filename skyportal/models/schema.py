@@ -51,12 +51,18 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 
 def validate_fluxerr(fluxerr):
+    # marshmallow 4 no longer treats a falsy return value from a validator as a
+    # failure — validators must raise ValidationError explicitly. (Under mm3,
+    # returning False auto-raised with the default "Invalid value." message.)
     try:
         if isinstance(fluxerr, float | int | str):
-            return float(fluxerr) >= 0
-        return all(float(el) >= 0 for el in fluxerr)
+            non_negative = float(fluxerr) >= 0
+        else:
+            non_negative = all(float(el) >= 0 for el in fluxerr)
     except ValueError:
         raise ValidationError("fluxerr must be a number or list of numbers")
+    if not non_negative:
+        raise ValidationError("Invalid value: fluxerr must be non-negative")
 
 
 class ApispecEnumField(fields.Enum):
