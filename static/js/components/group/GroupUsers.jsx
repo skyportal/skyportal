@@ -188,6 +188,10 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
             pagination: { paginationModel: { pageSize: 25 } },
           }}
           pageSizeOptions={[10, 25, 50, 100, 200]}
+          // Keep all columns mounted so the rightmost "actions" column (delete
+          // buttons) is rendered even when it would otherwise be virtualized
+          // out of the horizontal viewport.
+          columnBufferPx={3000}
           showToolbar
         />
         <Divider />

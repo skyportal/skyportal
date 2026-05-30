@@ -12,7 +12,7 @@ def test_add_token(driver, user):
     driver.wait_for_xpath('//*[@data-testid="acls[1]"]').click()
     driver.wait_for_xpath('//input[@name="name"]').send_keys(token_name)
     driver.wait_for_xpath('//button[contains(.,"Generate Token")]').click()
-    driver.wait_for_xpath(f'//td[contains(.,"{token_name}")]')
+    driver.wait_for_xpath(f'//div[@role="gridcell" and contains(.,"{token_name}")]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -47,7 +47,7 @@ def test_add_duplicate_token_error_message(driver, super_admin_user):
     driver.wait_for_xpath('//*[@data-testid="acls[1]"]').click()
     driver.wait_for_xpath('//input[@name="name"]').send_keys(token_name)
     driver.wait_for_xpath('//button[contains(.,"Generate Token")]').click()
-    driver.wait_for_xpath(f'//td[contains(.,"{token_name}")]')
+    driver.wait_for_xpath(f'//div[@role="gridcell" and contains(.,"{token_name}")]')
 
     driver.wait_for_xpath('//input[@name="name"]').send_keys(token_name)
     driver.wait_for_xpath('//button[contains(.,"Generate Token")]').click()
@@ -63,10 +63,10 @@ def test_sys_admin_can_create_multiple_tokens(driver, super_admin_user):
     driver.wait_for_xpath('//*[@data-testid="acls[1]"]').click()
     driver.wait_for_xpath('//input[@name="name"]').send_keys(token_name)
     driver.wait_for_xpath('//button[contains(.,"Generate Token")]').click()
-    driver.wait_for_xpath(f'//td[contains(.,"{token_name}")]')
+    driver.wait_for_xpath(f'//div[@role="gridcell" and contains(.,"{token_name}")]')
 
     token2_name = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@data-testid="acls[0]"]').click()
     driver.wait_for_xpath('//input[@name="name"]').send_keys(token2_name)
     driver.wait_for_xpath('//button[contains(.,"Generate Token")]').click()
-    driver.wait_for_xpath(f'//td[contains(.,"{token2_name}")]')
+    driver.wait_for_xpath(f'//div[@role="gridcell" and contains(.,"{token2_name}")]')

@@ -2,6 +2,7 @@ import os
 import uuid
 
 import pytest
+from selenium.webdriver.common.keys import Keys
 
 
 @pytest.mark.flaky(reruns=2)
@@ -30,9 +31,10 @@ def test_upload_galaxies(driver, super_admin_user, super_admin_token):
     submit_button_xpath = '//button[contains(.,"Submit")]'
     driver.click_xpath(submit_button_xpath, scroll_parent=True)
 
-    search_button_xpath = '//button[@data-testid="Search-iconButton"]'
-    driver.click_xpath(search_button_xpath, scroll_parent=True)
-    search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
+    # The galaxy name search is a server-side search box in the data grid
+    # toolbar; type into it and press Enter to trigger the query.
+    search_bar = driver.wait_for_xpath('//*[@data-testid="galaxy-search-input"]//input')
     search_bar.send_keys("6dFgs gJ0001313-055904")
+    search_bar.send_keys(Keys.ENTER)
     driver.wait_for_xpath('//*[text()="6dFgs gJ0001313-055904"]', timeout=10)
     search_bar.clear()

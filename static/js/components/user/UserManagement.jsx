@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Controller, useForm } from "react-hook-form";
 
@@ -151,6 +151,54 @@ const UserManagement = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataFetched, dispatch]);
+
+  // Memoize the toolbar so it keeps a stable component identity across the
+  // re-renders triggered by server-side data loading. Without this, the inline
+  // function identity changes every render, forcing MUI to unmount/remount the
+  // toolbar (and its filter button) and invalidating any element references a
+  // test is mid-interaction with (StaleElementReferenceException). Declared
+  // before the early return so the hook runs on every render (rules-of-hooks).
+  const CustomToolbar = useMemo(
+    () =>
+      function UserManagementToolbar() {
+        return (
+          <GridToolbarContainer>
+            <GridToolbarColumnsButton />
+            <Tooltip title="Filter Table">
+              <IconButton
+                size="small"
+                data-testid="Filter Table-iconButton"
+                onClick={() => setFilterOpen(true)}
+              >
+                <FilterListIcon />
+              </IconButton>
+            </Tooltip>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={fetchParams.includeExpired || false}
+                  onChange={handleToggleExpiredUsers}
+                  color="primary"
+                  data-testid="showExpiredUsersToggle"
+                />
+              }
+              label="Show Expired Users"
+              style={{ marginRight: "1rem" }}
+            />
+            {tableFilterList.map((chip) => (
+              <Chip
+                key={chip}
+                label={chip}
+                size="small"
+                onDelete={() => handleFilterChipDelete(chip)}
+              />
+            ))}
+          </GridToolbarContainer>
+        );
+      },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fetchParams.includeExpired, tableFilterList],
+  );
 
   if (
     !currentUser?.username?.length ||
@@ -901,43 +949,6 @@ const UserManagement = () => {
     },
   ];
 
-  const CustomToolbar = function UserManagementToolbar() {
-    return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
-        <Tooltip title="Filter Table">
-          <IconButton
-            size="small"
-            data-testid="Filter Table-iconButton"
-            onClick={() => setFilterOpen(true)}
-          >
-            <FilterListIcon />
-          </IconButton>
-        </Tooltip>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={fetchParams.includeExpired || false}
-              onChange={handleToggleExpiredUsers}
-              color="primary"
-              data-testid="showExpiredUsersToggle"
-            />
-          }
-          label="Show Expired Users"
-          style={{ marginRight: "1rem" }}
-        />
-        {tableFilterList.map((chip) => (
-          <Chip
-            key={chip}
-            label={chip}
-            size="small"
-            onDelete={() => handleFilterChipDelete(chip)}
-          />
-        ))}
-      </GridToolbarContainer>
-    );
-  };
-
   return (
     <>
       <Paper>
@@ -962,6 +973,10 @@ const UserManagement = () => {
             onSortModelChange={handleSortModelChange}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             disableColumnFilter
+            // Keep all columns mounted so the action buttons in the rightmost
+            // columns (streams, expiration date, etc.) render even when they
+            // would otherwise be virtualized out of the horizontal viewport.
+            columnBufferPx={3000}
             slots={{ toolbar: CustomToolbar }}
             showToolbar
           />

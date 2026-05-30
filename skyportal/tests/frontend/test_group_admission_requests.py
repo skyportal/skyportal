@@ -2,14 +2,13 @@
 
 
 def filter_for_value(driver, value, last=False):
+    # The x-data-grid quick-filter renders a search input (aria-label "Search")
+    # that is always present in the DOM, so we can type directly into it to
+    # filter the table rows.
+    input_xpath = "//input[@aria-label='Search']"
     if last:
-        xpath = '(//*[@data-testid="Search-iconButton"])[last()]'
-    else:
-        xpath = '//*[@data-testid="Search-iconButton"]'
-    driver.click_xpath(xpath)
-    search_input_xpath = "//input[@aria-label='Search']"
-    search_input = driver.wait_for_xpath(search_input_xpath)
-    driver.click_xpath(search_input_xpath)
+        input_xpath = f"({input_xpath})[last()]"
+    search_input = driver.wait_for_xpath(input_xpath)
     search_input.send_keys(value)
 
 

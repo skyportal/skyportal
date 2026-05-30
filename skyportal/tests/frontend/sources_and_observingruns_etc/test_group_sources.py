@@ -162,9 +162,11 @@ def test_request_source(
     # reload the group sources page
     driver.get(f"/group_sources/{public_group2.id}")
 
-    # there should not be any new sources (the source is in group1)
+    # there should not be any new sources (the source is in group1); the
+    # x-data-grid renders its "No rows" overlay when the table is empty
     driver.wait_for_xpath(
-        f"//div[@data-testid='source_table_{public_group2.name} sources']//*[text()[contains(., 'Sorry, no matching records found')]]"
+        f"//div[@data-testid='source_table_{public_group2.name} sources']"
+        "//div[contains(@class, 'MuiDataGrid-overlay')][contains(., 'No rows')]"
     )
 
     # request this source to be added to group2

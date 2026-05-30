@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -268,20 +268,31 @@ const AnalysisServiceList = ({ analysisServices, deletePermission }) => {
     });
   }
 
-  const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
-      {deletePermission && (
-        <IconButton
-          name="new_analysis_service"
-          onClick={() => {
-            openNewDialog();
-          }}
-        >
-          <AddIcon />
-        </IconButton>
-      )}
-    </GridToolbarContainer>
+  // Memoized so the toolbar (and its "new analysis service" button) keeps a
+  // stable identity across the re-render that happens when the analysis
+  // services list finishes loading; otherwise MUI remounts it and any element
+  // reference a test is interacting with goes stale.
+  const CustomToolbar = useMemo(
+    () =>
+      function AnalysisServiceToolbar() {
+        return (
+          <GridToolbarContainer>
+            <GridToolbarColumnsButton />
+            {deletePermission && (
+              <IconButton
+                name="new_analysis_service"
+                onClick={() => {
+                  openNewDialog();
+                }}
+              >
+                <AddIcon />
+              </IconButton>
+            )}
+          </GridToolbarContainer>
+        );
+      },
+
+    [deletePermission],
   );
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
@@ -363,15 +363,25 @@ const ScanningProfilesList = ({
     __rowid: index,
   }));
 
-  const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <IconButton
-        name="new_scanning_profile"
-        onClick={() => setNewDialogOpen(true)}
-      >
-        <AddIcon />
-      </IconButton>
-    </GridToolbarContainer>
+  // Memoized so the toolbar (and its "new scanning profile" button) keeps a
+  // stable identity across the re-render that happens when the profiles list
+  // loads; otherwise MUI remounts it and the button reference a test just
+  // clicked goes stale before the dialog opens.
+  const CustomToolbar = useMemo(
+    () =>
+      function ScanningProfilesToolbar() {
+        return (
+          <GridToolbarContainer>
+            <IconButton
+              name="new_scanning_profile"
+              onClick={() => setNewDialogOpen(true)}
+            >
+              <AddIcon />
+            </IconButton>
+          </GridToolbarContainer>
+        );
+      },
+    [],
   );
 
   return (

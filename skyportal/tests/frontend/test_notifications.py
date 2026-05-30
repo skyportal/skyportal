@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 from selenium.webdriver.common.action_chains import ActionChains
@@ -15,14 +15,13 @@ from skyportal.tests.frontend.sources_and_observingruns_etc.test_sources import 
 
 
 def filter_for_value(driver, value, last=False):
+    # The x-data-grid quick-filter renders a search input (aria-label "Search")
+    # that is always present in the DOM, so we can type directly into it to
+    # filter the table rows.
+    input_xpath = "//input[@aria-label='Search']"
     if last:
-        xpath = '(//*[@data-testid="Search-iconButton"])[last()]'
-    else:
-        xpath = '//*[@data-testid="Search-iconButton"]'
-    driver.click_xpath(xpath)
-    search_input_xpath = "//input[@aria-label='Search']"
-    search_input = driver.wait_for_xpath(search_input_xpath)
-    driver.click_xpath(search_input_xpath)
+        input_xpath = f"({input_xpath})[last()]"
+    search_input = driver.wait_for_xpath(input_xpath)
     search_input.send_keys(value)
 
 
@@ -278,7 +277,7 @@ def test_spectra_on_favorite_source_triggers_notification(
         "spectrum",
         data={
             "obj_id": public_source.id,
-            "observed_at": str(datetime.now(timezone.utc)),
+            "observed_at": str(datetime.now(UTC)),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [234.2, 232.1, 235.3],
@@ -404,7 +403,7 @@ def test_new_spectra_on_source_triggers_notification(
         "spectrum",
         data={
             "obj_id": public_source.id,
-            "observed_at": str(datetime.now(timezone.utc)),
+            "observed_at": str(datetime.now(UTC)),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [234.2, 232.1, 235.3],

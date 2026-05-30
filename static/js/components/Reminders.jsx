@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { withStyles } from "tss-react/mui";
@@ -14,7 +14,7 @@ import Close from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import { grey } from "@mui/material/colors";
-import { GridToolbarContainer } from "@mui/x-data-grid";
+import { GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -173,6 +173,32 @@ const Reminders = ({ resourceId, resourceType }) => {
     }
   }, [resourceType, resourceId]);
 
+  // Memoized so the toolbar (the "new reminder" button and quick-filter search
+  // box) keeps a stable identity across the re-render that happens when the
+  // reminders list loads; otherwise MUI remounts it and any element reference a
+  // test is interacting with goes stale. Must be declared before the early
+  // returns below so the hook runs on every render (rules-of-hooks).
+  const CustomToolbar = useMemo(
+    () =>
+      function RemindersToolbar() {
+        return (
+          <GridToolbarContainer>
+            <IconButton
+              name={`new_reminder_${resourceId}`}
+              onClick={() => setOpen(true)}
+            >
+              <AddIcon />
+            </IconButton>
+            <div data-testid="reminders-quick-filter">
+              <GridToolbarQuickFilter />
+            </div>
+          </GridToolbarContainer>
+        );
+      },
+
+    [resourceId],
+  );
+
   if (!resourceType || !resourceId) return <CircularProgress />;
   if (
     !reminders ||
@@ -227,17 +253,6 @@ const Reminders = ({ resourceId, resourceType }) => {
       ),
     },
   ];
-
-  const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <IconButton
-        name={`new_reminder_${resourceId}`}
-        onClick={() => setOpen(true)}
-      >
-        <AddIcon />
-      </IconButton>
-    </GridToolbarContainer>
-  );
 
   return (
     <div data-testid="reminders-table">

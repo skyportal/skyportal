@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -39,6 +39,46 @@ const GalaxyTable = ({
   const [searchText, setSearchText] = useState("");
   const [sortModel, setSortModel] = useState([]);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+
+  // Memoized so the toolbar (filter button + search field) keeps a stable
+  // identity across the re-render that happens when the galaxy list loads;
+  // otherwise MUI remounts it and any element reference a test is interacting
+  // with goes stale. Declared before the early return so the hook runs every
+  // render (rules-of-hooks).
+  const CustomToolbar = useMemo(
+    () =>
+      function GalaxyTableToolbar() {
+        return (
+          <GridToolbarContainer>
+            <GridToolbarColumnsButton />
+            <Tooltip title="Filter Table">
+              <IconButton
+                size="small"
+                data-testid="Filter Table-iconButton"
+                onClick={() => setFilterOpen(true)}
+              >
+                <FilterListIcon />
+              </IconButton>
+            </Tooltip>
+            <TextField
+              size="small"
+              variant="standard"
+              placeholder="Search Galaxy Name…"
+              data-testid="galaxy-search-input"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSearchChange(searchText);
+                }
+              }}
+            />
+          </GridToolbarContainer>
+        );
+      },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [searchText],
+  );
 
   if (!galaxies) {
     return <p>No galaxies available...</p>;
@@ -242,33 +282,6 @@ const GalaxyTable = ({
       renderCell: renderMagNUV,
     },
   ];
-
-  const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
-      <Tooltip title="Filter Table">
-        <IconButton
-          size="small"
-          data-testid="Filter Table-iconButton"
-          onClick={() => setFilterOpen(true)}
-        >
-          <FilterListIcon />
-        </IconButton>
-      </Tooltip>
-      <TextField
-        size="small"
-        variant="standard"
-        placeholder="Search Galaxy Name…"
-        value={searchText}
-        onChange={(e) => setSearchText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            handleSearchChange(searchText);
-          }
-        }}
-      />
-    </GridToolbarContainer>
-  );
 
   return (
     <div>

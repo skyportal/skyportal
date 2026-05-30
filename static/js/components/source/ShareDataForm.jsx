@@ -719,9 +719,12 @@ const ShareDataForm = ({ route }) => {
                 getRowId={(row) => row.id}
                 checkboxSelection
                 disableRowSelectionOnClick={false}
-                rowSelectionModel={selectedPhotRows}
+                rowSelectionModel={{
+                  type: "include",
+                  ids: new Set(selectedPhotRows),
+                }}
                 onRowSelectionModelChange={(model) =>
-                  setSelectedPhotRows(model)
+                  setSelectedPhotRows(Array.from(model.ids))
                 }
                 pageSizeOptions={[10, 25, 50, 100]}
                 initialState={{
@@ -752,9 +755,12 @@ const ShareDataForm = ({ route }) => {
                 checkboxSelection
                 disableRowSelectionOnClick={false}
                 isRowSelectable={(params) => !params.row.__detail}
-                rowSelectionModel={selectedSpecRows}
+                rowSelectionModel={{
+                  type: "include",
+                  ids: new Set(selectedSpecRows),
+                }}
                 onRowSelectionModelChange={(model) =>
-                  setSelectedSpecRows(model)
+                  setSelectedSpecRows(Array.from(model.ids))
                 }
                 columnVisibilityModel={specColumnVisibilityModel}
                 pageSizeOptions={[10, 25, 50, 100]}

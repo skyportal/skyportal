@@ -80,12 +80,11 @@ def post_and_verify_reminder(endpoint, token):
 
 
 def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
-    search_button_xpath = driver.wait_for_xpath(
-        '//*[@data-testid="reminders-table"]//button[@aria-label="Search"]'
+    # The reminders data grid exposes a quick-filter search input (always
+    # present in the DOM) that filters rows as you type.
+    search_bar = driver.wait_for_xpath(
+        '//*[@data-testid="reminders-quick-filter"]//input'
     )
-    driver.scroll_to_element_and_click(search_button_xpath)
-    search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
-
     search_bar.send_keys(f"{reminder_text}")
     driver.wait_for_xpath(f'//*[text()="{reminder_text}"]', timeout=10)
     search_bar.clear()
@@ -110,7 +109,9 @@ def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
         driver.wait_for_xpath('//form[@id="reminder-form"]/*/*[@type="submit"]')
     )
     driver.wait_for_xpath_to_disappear('//*[contains(.,"New Reminder on ")]')
-    search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
+    search_bar = driver.wait_for_xpath(
+        '//*[@data-testid="reminders-quick-filter"]//input'
+    )
     search_bar.send_keys(f"{reminder_text_2}")
     driver.wait_for_xpath(f'//*[text()="{reminder_text_2}"]', timeout=10)
     search_bar.clear()
