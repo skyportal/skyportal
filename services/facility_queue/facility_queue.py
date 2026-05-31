@@ -1,3 +1,4 @@
+import asyncio
 import time
 from io import StringIO
 
@@ -143,14 +144,15 @@ def service():
                                 )
                                 try:
                                     if json_response["result_url"] is not None:
-                                        commit_photometry(
-                                            json_response,
-                                            altdata,
-                                            followup_request.id,
-                                            instrument.id,
-                                            followup_request.requester.id,
-                                            parent_session=session,
-                                            duplicates="update",
+                                        asyncio.run(
+                                            commit_photometry(
+                                                json_response,
+                                                altdata,
+                                                followup_request.id,
+                                                instrument.id,
+                                                followup_request.requester.id,
+                                                duplicates="update",
+                                            )
                                         )
                                     req.status = "complete"
                                     session.add(req)
@@ -286,14 +288,15 @@ def service():
                             else:
                                 dataurl = f"{ZTF_FORCED_URL}/{lightcurve}"
                                 try:
-                                    commit_photometry(
-                                        dataurl,
-                                        altdata,
-                                        followup_request.id,
-                                        instrument.id,
-                                        followup_request.requester.id,
-                                        parent_session=session,
-                                        duplicates="update",
+                                    asyncio.run(
+                                        commit_photometry(
+                                            dataurl,
+                                            altdata,
+                                            followup_request.id,
+                                            instrument.id,
+                                            followup_request.requester.id,
+                                            duplicates="update",
+                                        )
                                     )
                                     req.status = "complete"
                                     session.add(req)

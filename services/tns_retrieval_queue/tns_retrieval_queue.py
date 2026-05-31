@@ -18,7 +18,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
 from baselayer.log import make_log
-from skyportal.handlers.api.photometry import add_external_photometry
+from skyportal.handlers.api.photometry import commit_external_photometry
 from skyportal.handlers.api.source import post_source
 from skyportal.handlers.api.spectrum import post_spectrum
 from skyportal.models import DBSession, Group, Obj, Source, User
@@ -44,6 +44,7 @@ Session = scoped_session(sessionmaker())
 
 USER_ID = 1  # super admin user ID
 DEFAULT_RADIUS = 2.0 / 3600  # 2 arcsec in degrees
+
 
 bot_id = cfg.get("app.tns.bot_id", None)
 bot_name = cfg.get("app.tns.bot_name", None)
@@ -185,7 +186,7 @@ def add_tns_photometry(tns_name, tns_source, tns_source_data, public_group_id, s
             continue
         if read_photometry:
             try:
-                add_external_photometry(data_out, user, parent_session=session)
+                asyncio.run(commit_external_photometry(data_out, user.id))
             except Exception as e:
                 failed_photometry.append(phot)
                 failed_photometry_errors.append(str(e))

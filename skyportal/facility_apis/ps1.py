@@ -1,9 +1,12 @@
+import asyncio
+
 import astropy
 import numpy as np
 import requests
-from sqlalchemy.orm import scoped_session, sessionmaker
-from tornado.ioloop import IOLoop
+import sqlalchemy as sa
+from sqlalchemy.orm import selectinload
 
+from baselayer.app import models as baselayer_models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
@@ -19,115 +22,123 @@ PS1_URL = cfg["app.ps1_endpoint"]
 log = make_log("facility_apis/ps1")
 
 
-def commit_photometry(text_response, request_id, instrument_id, user_id):
+async def commit_photometry(text_response, request_id, instrument_id, user_id):
     """
-    Commits PS1 DR2 photometry to the database
+    Commits PS1 DR2 photometry to the database.
+
+    Async because it ultimately calls ``add_external_photometry``, which is
+    async. Scheduled from the get/submit code paths via
+    ``asyncio.ensure_future(commit_photometry(...))`` so it runs on the
+    tornado event loop without blocking the calling handler.
 
     Parameters
     ----------
-    text_response : dict
+    text_response : str
         response.text from call to PS1 DR2 photometry service.
     request_id : int
-        FollowupRequest SkyPortal ID
+        FollowupRequest SkyPortal ID.
     instrument_id : int
-        Instrument SkyPortal ID
+        Instrument SkyPortal ID.
     user_id : int
-        User SkyPortal ID
+        User SkyPortal ID.
     """
 
-    from ..models import DBSession, FollowupRequest, Instrument
+    from ..models import FollowupRequest, Instrument, Obj
 
-    Session = scoped_session(sessionmaker())
-    if Session.registry.has():
-        session = Session()
-    else:
-        session = Session(bind=DBSession.session_factory.kw["bind"])
-
-    try:
-        request = session.query(FollowupRequest).get(request_id)
-        instrument = session.query(Instrument).get(instrument_id)
-        allocation = request.allocation
-        if not allocation:
-            raise ValueError("Missing request's allocation information.")
-
-        tab = astropy.io.ascii.read(text_response)
-        # good data only
-        tab = tab[tab["psfQfPerfect"] > 0.9]
-        id2filter = np.array(["ps1::g", "ps1::r", "ps1::i", "ps1::z", "ps1::y"])
-        tab["filter"] = id2filter[(tab["filterID"] - 1).data.astype(int)]
-        df = tab.to_pandas()
-
-        df.rename(
-            columns={
-                "obsTime": "mjd",
-                "psfFlux": "flux",
-                "psfFluxerr": "fluxerr",
-            },
-            inplace=True,
-        )
-        df = df.replace({np.nan: None})
-
-        df.drop(
-            columns=[
-                "detectID",
-                "filterID",
-                "psfQfPerfect",
-            ],
-            inplace=True,
-        )
-        df["magsys"] = "ab"
-        df["zp"] = 8.90
-
-        # data is visible to the group attached to the allocation
-        # as well as to any of the allocation's default share groups
-        data_out = {
-            "obj_id": request.obj_id,
-            "instrument_id": instrument.id,
-            "group_ids": list(
-                set(
-                    [allocation.group_id]
-                    + (
-                        allocation.default_share_group_ids
-                        if allocation.default_share_group_ids
-                        else []
-                    )
+    async with baselayer_models.async_plain_session_factory() as session:
+        try:
+            request = await session.scalar(
+                sa.select(FollowupRequest)
+                .where(FollowupRequest.id == request_id)
+                .options(
+                    selectinload(FollowupRequest.requester),
+                    selectinload(FollowupRequest.allocation),
+                    selectinload(FollowupRequest.obj),
                 )
-            ),
-            **df.to_dict(orient="list"),
-        }
-
-        from skyportal.handlers.api.photometry import add_external_photometry
-
-        if len(df.index) > 0:
-            ids, _ = add_external_photometry(
-                data_out,
-                request.requester,
-                parent_session=session,
-                duplicates="update",
-                refresh=True,
             )
-            if ids is None:
-                raise ValueError("Failed to commit photometry")
-            request.status = "Photometry committed to database"
-        else:
-            request.status = "No photometry to commit to database"
+            instrument = await session.get(Instrument, instrument_id)
+            allocation = request.allocation
+            if not allocation:
+                raise ValueError("Missing request's allocation information.")
 
-        session.add(request)
-        session.commit()
+            tab = astropy.io.ascii.read(text_response)
+            # good data only
+            tab = tab[tab["psfQfPerfect"] > 0.9]
+            id2filter = np.array(["ps1::g", "ps1::r", "ps1::i", "ps1::z", "ps1::y"])
+            tab["filter"] = id2filter[(tab["filterID"] - 1).data.astype(int)]
+            df = tab.to_pandas()
 
-        flow = Flow()
-        flow.push(
-            "*",
-            "skyportal/REFRESH_SOURCE",
-            payload={"obj_key": request.obj.internal_key},
-        )
+            df.rename(
+                columns={
+                    "obsTime": "mjd",
+                    "psfFlux": "flux",
+                    "psfFluxerr": "fluxerr",
+                },
+                inplace=True,
+            )
+            df = df.replace({np.nan: None})
 
-    except Exception as e:
-        session.rollback()
-        log(f"Unable to commit photometry for {request_id}: {e}")
-    finally:
-        session.close()
-        Session.remove()
+            df.drop(
+                columns=[
+                    "detectID",
+                    "filterID",
+                    "psfQfPerfect",
+                ],
+                inplace=True,
+            )
+            df["magsys"] = "ab"
+            df["zp"] = 8.90
+
+            # data is visible to the group attached to the allocation
+            # as well as to any of the allocation's default share groups
+            data_out = {
+                "obj_id": request.obj_id,
+                "instrument_id": instrument.id,
+                "group_ids": list(
+                    set(
+                        [allocation.group_id]
+                        + (
+                            allocation.default_share_group_ids
+                            if allocation.default_share_group_ids
+                            else []
+                        )
+                    )
+                ),
+                **df.to_dict(orient="list"),
+            }
+
+            from skyportal.handlers.api.photometry import add_external_photometry
+
+            if len(df.index) > 0:
+                ids, _ = await add_external_photometry(
+                    data_out,
+                    request.requester,
+                    session,
+                    duplicates="update",
+                    refresh=True,
+                )
+                if ids is None:
+                    raise ValueError("Failed to commit photometry")
+                request.status = "Photometry committed to database"
+            else:
+                request.status = "No photometry to commit to database"
+
+            session.add(request)
+            await session.commit()
+
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == request.obj_id)
+            )
+            flow = Flow()
+            flow.push(
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": internal_key},
+            )
+
+        except Exception as e:
+            await session.rollback()
+            log(f"Unable to commit photometry for {request_id}: {e}")
 
 
 class PS1API(FollowUpAPI):
@@ -202,11 +213,10 @@ class PS1API(FollowUpAPI):
             except Exception:
                 raise ValueError("No text data returned in request")
 
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: commit_photometry(
+            asyncio.ensure_future(
+                commit_photometry(
                     text_response, request.id, instrument.id, request.requester.id
-                ),
+                )
             )
             request.status = "Committing photometry to database"
         else:

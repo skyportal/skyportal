@@ -303,171 +303,171 @@ class ZTFRequest:
         return json_data
 
 
-def commit_photometry(
+async def commit_photometry(
     url,
     altdata,
     request_id,
     instrument_id,
     user_id,
-    parent_session=None,
     duplicates="error",
 ):
     """
-    Commits ZTF forced photometry to the database
+    Commits ZTF forced photometry to the database.
+
+    Async because it ultimately calls ``add_external_photometry``, which is
+    async. Drive from sync contexts (e.g. facility_queue) with
+    ``asyncio.run(commit_photometry(...))``; from async handlers, ``await``
+    directly.
 
     Parameters
     ----------
     url : str
         ZTF forced photometry service data file location.
-    altdata: dict
-        Contains ZTF photometry api_token for the user
+    altdata : dict
+        Contains ZTF photometry api_token for the user.
     request_id : int
-        FollowupRequest SkyPortal ID
+        FollowupRequest SkyPortal ID.
     instrument_id : int
-        Instrument SkyPortal ID
+        Instrument SkyPortal ID.
     user_id : int
-        User SkyPortal ID
-    parent_session : sqlalchemy.orm.session.Session
-        SQLAlchemy session object. If None, a new session is created.
+        User SkyPortal ID.
+    duplicates : str
+        Duplicate-handling mode passed through to ``add_external_photometry``
+        ("error", "ignore", or "update"). Defaults to "error".
     """
+    import sqlalchemy as sa
+    from sqlalchemy.orm import selectinload
 
-    from ..models import DBSession, FollowupRequest, Instrument
+    from baselayer.app import models as baselayer_models
 
-    if parent_session is None:
-        Session = scoped_session(sessionmaker())
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
+    from ..models import FollowupRequest, Instrument, Obj
 
-    try:
-        request = session.query(FollowupRequest).get(request_id)
-        instrument = session.query(Instrument).get(instrument_id)
-        allocation = request.allocation
-        if not allocation:
-            raise ValueError("Missing request's allocation information.")
-
-        r = requests.get(
-            url,
-            auth=HTTPBasicAuth(
-                altdata["ipac_http_user"], altdata["ipac_http_password"]
-            ),
-        )
-        df = ascii.read(
-            r.content.decode(), header_start=0, data_start=1, comment="#"
-        ).to_pandas()
-
-        df.columns = df.columns.str.replace(",", "")
-        desired_columns = {
-            "jd",
-            "forcediffimflux",
-            "forcediffimfluxunc",
-            "diffmaglim",
-            "zpdiff",
-            "filter",
-            "procstatus",
-        }
-        if not desired_columns.issubset(set(df.columns)):
-            raise ValueError("Missing expected column")
-
-        # filter on the procstatus, only keeping data where procstatus = 0
-        valid_index = [
-            i for i, x in enumerate(df["procstatus"]) if str(x).strip() == "0"
-        ]
-        df = df.iloc[valid_index]
-        df.drop(columns=["procstatus"], inplace=True)
-
-        df.rename(
-            columns={"diffmaglim": "limiting_mag"},
-            inplace=True,
-        )
-        df = df.replace({"null": np.nan})
-        df["mjd"] = astropy.time.Time(df["jd"], format="jd").mjd
-        df["filter"] = df["filter"].str.replace("_", "")
-        df["filter"] = df["filter"].str.lower()
-        df = df.astype({"forcediffimflux": "float64", "forcediffimfluxunc": "float64"})
-
-        df["mag"] = df["zpdiff"] - 2.5 * np.log10(df["forcediffimflux"])
-        df["magerr"] = 1.0857 * df["forcediffimfluxunc"] / df["forcediffimflux"]
-
-        snr = df["forcediffimflux"] / df["forcediffimfluxunc"] < 3
-        df.loc[snr, "mag"] = None
-        df.loc[snr, "magerr"] = None
-
-        iszero = df["forcediffimfluxunc"] == 0.0
-        df.loc[iszero, "mag"] = None
-        df.loc[iszero, "magerr"] = None
-
-        isnan = np.isnan(df["forcediffimflux"])
-        df.loc[isnan, "mag"] = None
-        df.loc[isnan, "magerr"] = None
-
-        df = df.replace({np.nan: None})
-
-        drop_columns = list(
-            set(df.columns.values)
-            - {"mjd", "ra", "dec", "mag", "magerr", "limiting_mag", "filter"}
-        )
-
-        df.drop(
-            columns=drop_columns,
-            inplace=True,
-        )
-        df["magsys"] = "ab"
-        df["origin"] = "fp"
-
-        # data is visible to the group attached to the allocation
-        # as well as to any of the allocation's default share groups
-        data_out = {
-            "obj_id": request.obj_id,
-            "instrument_id": instrument.id,
-            "group_ids": list(
-                set(
-                    [allocation.group_id]
-                    + (
-                        allocation.default_share_group_ids
-                        if allocation.default_share_group_ids
-                        else []
-                    )
+    async with baselayer_models.async_plain_session_factory() as session:
+        try:
+            request = await session.scalar(
+                sa.select(FollowupRequest)
+                .where(FollowupRequest.id == request_id)
+                .options(
+                    selectinload(FollowupRequest.requester),
+                    selectinload(FollowupRequest.allocation),
                 )
-            ),
-            **df.to_dict(orient="list"),
-        }
-
-        from skyportal.handlers.api.photometry import add_external_photometry
-
-        if len(df.index) > 0:
-            ids, _ = add_external_photometry(
-                data_out,
-                request.requester,
-                parent_session=session,
-                duplicates=duplicates,
-                refresh=True,
             )
-            if ids is None:
-                raise ValueError("Failed to commit photometry")
-            request.status = "Photometry committed to database"
-        else:
-            request.status = "No photometry to commit to database"
+            instrument = await session.get(Instrument, instrument_id)
+            allocation = request.allocation
+            if not allocation:
+                raise ValueError("Missing request's allocation information.")
 
-        session.add(request)
-        session.commit()
+            r = requests.get(
+                url,
+                auth=HTTPBasicAuth(
+                    altdata["ipac_http_user"], altdata["ipac_http_password"]
+                ),
+            )
+            df = ascii.read(
+                r.content.decode(), header_start=0, data_start=1, comment="#"
+            ).to_pandas()
 
-        flow = Flow()
-        flow.push(
-            "*",
-            "skyportal/REFRESH_SOURCE",
-            payload={"obj_key": request.obj.internal_key},
-        )
-    except Exception as e:
-        session.rollback()
-        raise Exception(f"Unable to commit photometry for {request_id}: {e}")
-    finally:
-        if parent_session is None:
-            session.close()
-            Session.remove()
+            df.columns = df.columns.str.replace(",", "")
+            desired_columns = {
+                "jd",
+                "forcediffimflux",
+                "forcediffimfluxunc",
+                "diffmaglim",
+                "zpdiff",
+                "filter",
+                "procstatus",
+            }
+            if not desired_columns.issubset(set(df.columns)):
+                raise ValueError("Missing expected column")
+
+            valid_index = [
+                i for i, x in enumerate(df["procstatus"]) if str(x).strip() == "0"
+            ]
+            df = df.iloc[valid_index]
+            df.drop(columns=["procstatus"], inplace=True)
+
+            df.rename(columns={"diffmaglim": "limiting_mag"}, inplace=True)
+            df = df.replace({"null": np.nan})
+            df["mjd"] = astropy.time.Time(df["jd"], format="jd").mjd
+            df["filter"] = df["filter"].str.replace("_", "")
+            df["filter"] = df["filter"].str.lower()
+            df = df.astype(
+                {"forcediffimflux": "float64", "forcediffimfluxunc": "float64"}
+            )
+
+            df["mag"] = df["zpdiff"] - 2.5 * np.log10(df["forcediffimflux"])
+            df["magerr"] = 1.0857 * df["forcediffimfluxunc"] / df["forcediffimflux"]
+
+            snr = df["forcediffimflux"] / df["forcediffimfluxunc"] < 3
+            df.loc[snr, "mag"] = None
+            df.loc[snr, "magerr"] = None
+
+            iszero = df["forcediffimfluxunc"] == 0.0
+            df.loc[iszero, "mag"] = None
+            df.loc[iszero, "magerr"] = None
+
+            isnan = np.isnan(df["forcediffimflux"])
+            df.loc[isnan, "mag"] = None
+            df.loc[isnan, "magerr"] = None
+
+            df = df.replace({np.nan: None})
+
+            drop_columns = list(
+                set(df.columns.values)
+                - {"mjd", "ra", "dec", "mag", "magerr", "limiting_mag", "filter"}
+            )
+
+            df.drop(columns=drop_columns, inplace=True)
+            df["magsys"] = "ab"
+            df["origin"] = "fp"
+
+            data_out = {
+                "obj_id": request.obj_id,
+                "instrument_id": instrument.id,
+                "group_ids": list(
+                    set(
+                        [allocation.group_id]
+                        + (
+                            allocation.default_share_group_ids
+                            if allocation.default_share_group_ids
+                            else []
+                        )
+                    )
+                ),
+                **df.to_dict(orient="list"),
+            }
+
+            from skyportal.handlers.api.photometry import add_external_photometry
+
+            if len(df.index) > 0:
+                ids, _ = await add_external_photometry(
+                    data_out,
+                    request.requester,
+                    session,
+                    duplicates=duplicates,
+                    refresh=True,
+                )
+                if ids is None:
+                    raise ValueError("Failed to commit photometry")
+                request.status = "Photometry committed to database"
+            else:
+                request.status = "No photometry to commit to database"
+
+            session.add(request)
+            await session.commit()
+
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == request.obj_id)
+            )
+            flow = Flow()
+            flow.push(
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": internal_key},
+            )
+        except Exception as e:
+            await session.rollback()
+            raise Exception(f"Unable to commit photometry for {request_id}: {e}")
 
 
 class ZTFAPI(FollowUpAPI):

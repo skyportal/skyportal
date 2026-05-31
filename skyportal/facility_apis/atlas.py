@@ -4,10 +4,12 @@ from io import StringIO
 import numpy as np
 import pandas as pd
 import requests
+import sqlalchemy as sa
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import selectinload
 
+from baselayer.app import models as baselayer_models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
@@ -68,194 +70,193 @@ class ATLASRequest:
         return target
 
 
-def commit_photometry(
+async def commit_photometry(
     json_response,
     altdata,
     request_id,
     instrument_id,
     user_id,
-    parent_session=None,
     duplicates="error",
 ):
     """
-    Commits ATLAS photometry to the database
+    Commits ATLAS photometry to the database.
+
+    Async because it ultimately calls ``add_external_photometry``, which is
+    async. Drive from sync contexts (e.g. facility_queue) with
+    ``asyncio.run(commit_photometry(...))``; from async handlers, ``await``
+    directly.
 
     Parameters
     ----------
     json_response : dict
         response.json() from call to ATLAS photometry service.
-    altdata: dict
-        Contains ATLAS photometry api_token for the user
+    altdata : dict
+        Contains ATLAS photometry api_token for the user.
     request_id : int
-        FollowupRequest SkyPortal ID
+        FollowupRequest SkyPortal ID.
     instrument_id : int
-        Instrument SkyPortal ID
+        Instrument SkyPortal ID.
     user_id : int
-        User SkyPortal ID
-    parent_session : sqlalchemy.orm.session.Session
-        Session to use for database transactions. If None, a new session will be created.
+        User SkyPortal ID.
+    duplicates : str
+        Duplicate-handling mode passed through to ``add_external_photometry``
+        ("error", "ignore", or "update"). Defaults to "error".
     """
 
-    from ..models import DBSession, FollowupRequest, Instrument
+    from ..models import FollowupRequest, Instrument, Obj
 
-    if parent_session is None:
-        Session = scoped_session(sessionmaker())
-        if Session.registry.has():
-            session = Session()
-        else:
-            session = Session(bind=DBSession.session_factory.kw["bind"])
-    else:
-        session = parent_session
-
-    try:
-        request = session.query(FollowupRequest).get(request_id)
-        instrument = session.query(Instrument).get(instrument_id)
-        allocation = request.allocation
-        if not allocation:
-            raise ValueError("Missing request's allocation information.")
-
-        result_url = json_response["result_url"]
-        request.status = f"Task is complete with results available at {result_url}"
-
-        s = requests.get(
-            result_url,
-            headers={
-                "Authorization": f"Token {altdata['api_token']}",
-                "Accept": "application/json",
-            },
-        )
-        s.raise_for_status()
-
-        # ATLAS response looks like
-        """
-     ###MJD          m      dm   uJy   duJy F err chi/N     RA       Dec        x        y     maj  min   phi  apfit mag5sig Sky   Obs
-     59226.235875  16.177  0.012  1228   15 c  0  54.64 342.45960  51.26340  7768.79  7767.00 2.53 2.39 -63.4 -0.375 19.58 21.54 01a59226o0051c
-     59228.242600  16.258  0.017  1140   20 c  0   7.87 342.45960  51.26340  2179.59  9252.78 3.41 3.09 -51.0 -0.396 19.28 21.28 02a59228o0102c
-     59228.246262  16.582  0.021   846   18 c  0  28.37 342.45960  51.26340  2162.23  9213.32 3.53 3.25 -52.3 -0.366 19.14 21.26 02a59228o0110c
-     59228.252679  16.451  0.019   954   18 c  0  13.76 342.45960  51.26340  2218.02  9291.76 3.34 3.03 -49.8 -0.389 19.17 21.24 02a59228o0124c
-     59228.265532  17.223  0.049   469   23 c  0   3.90 342.45960  51.26340  2237.25  9167.94 4.31 3.88 -43.7 -0.473 18.95 21.20 02a59228o0152c
-         """
-
+    async with baselayer_models.async_plain_session_factory() as session:
         try:
-            df = pd.read_csv(StringIO(s.text.replace("###MJD", "mjd")), sep="\s+")
-        except Exception as e:
-            raise ValueError(f"Format of response not understood: {e.message}")
-
-        desired_columns = {
-            "mjd",
-            "RA",
-            "Dec",
-            "m",
-            "dm",
-            "mag5sig",
-            "F",
-            "chi/N",
-            "uJy",
-            "duJy",
-        }
-        if not desired_columns.issubset(set(df.columns)):
-            raise ValueError("Missing expected column")
-
-        df = df[list(desired_columns)]
-
-        df.rename(
-            columns={
-                "RA": "ra",
-                "Dec": "dec",
-                "m": "mag",
-                "dm": "magerr",
-                "mag5sig": "limiting_mag",
-                "F": "filter",
-            },
-            inplace=True,
-        )
-        cyan = df["filter"] == "c"
-        orange = df["filter"] == "o"
-
-        # not detection if SNR < 3 or chi/N > 10, or mag > limiting_mag
-        reject = df["uJy"] / df["duJy"] < 3
-        reject |= df["chi/N"] > 10
-        reject |= df["mag"] > df["limiting_mag"]
-
-        df.loc[cyan, "filter"] = "atlasc"
-        df.loc[orange, "filter"] = "atlaso"
-        df.loc[reject, "mag"] = None
-        df.loc[reject, "magerr"] = None
-
-        iszero = df["duJy"] == 0.0
-        df.loc[iszero, "mag"] = None
-        df.loc[iszero, "magerr"] = None
-
-        isnan = np.isnan(df["uJy"])
-        df.loc[isnan, "mag"] = None
-        df.loc[isnan, "magerr"] = None
-
-        df = df.replace({np.nan: None})
-
-        drop_columns = list(
-            set(df.columns.values)
-            - {"mjd", "ra", "dec", "mag", "magerr", "limiting_mag", "filter"}
-        )
-
-        df.drop(
-            columns=drop_columns,
-            inplace=True,
-        )
-        df["magsys"] = "ab"
-        df["origin"] = "fp"
-
-        # data is visible to the group attached to the allocation
-        # as well as to any of the allocation's default share groups
-        data_out = {
-            "obj_id": request.obj_id,
-            "instrument_id": instrument.id,
-            "group_ids": list(
-                set(
-                    [allocation.group_id]
-                    + (
-                        allocation.default_share_group_ids
-                        if allocation.default_share_group_ids
-                        else []
-                    )
+            request = await session.scalar(
+                sa.select(FollowupRequest)
+                .where(FollowupRequest.id == request_id)
+                .options(
+                    selectinload(FollowupRequest.requester),
+                    selectinload(FollowupRequest.allocation),
                 )
-            ),
-            **df.to_dict(orient="list"),
-        }
-
-        from skyportal.handlers.api.photometry import add_external_photometry
-
-        if len(df.index) > 0:
-            ids, _ = add_external_photometry(
-                data_out,
-                request.requester,
-                parent_session=session,
-                duplicates=duplicates,
-                refresh=True,
             )
-            if ids is None:
-                raise ValueError("Failed to commit photometry")
-            request.status = "Photometry committed to database"
-        else:
-            request.status = "No photometry to commit to database"
+            instrument = await session.get(Instrument, instrument_id)
+            allocation = request.allocation
+            if not allocation:
+                raise ValueError("Missing request's allocation information.")
 
-        session.add(request)
-        session.commit()
+            result_url = json_response["result_url"]
+            request.status = f"Task is complete with results available at {result_url}"
 
-        flow = Flow()
-        flow.push(
-            "*",
-            "skyportal/REFRESH_SOURCE",
-            payload={"obj_key": request.obj.internal_key},
-        )
+            s = requests.get(
+                result_url,
+                headers={
+                    "Authorization": f"Token {altdata['api_token']}",
+                    "Accept": "application/json",
+                },
+            )
+            s.raise_for_status()
 
-    except Exception as e:
-        session.rollback()
-        log(f"Unable to commit photometry for {request_id}: {e}")
-        raise Exception(f"Unable to commit photometry for {request_id}: {e}")
-    finally:
-        if parent_session is None:
-            session.close()
-            Session.remove()
+            # ATLAS response looks like
+            """
+         ###MJD          m      dm   uJy   duJy F err chi/N     RA       Dec        x        y     maj  min   phi  apfit mag5sig Sky   Obs
+         59226.235875  16.177  0.012  1228   15 c  0  54.64 342.45960  51.26340  7768.79  7767.00 2.53 2.39 -63.4 -0.375 19.58 21.54 01a59226o0051c
+             """
+
+            try:
+                df = pd.read_csv(StringIO(s.text.replace("###MJD", "mjd")), sep="\s+")
+            except Exception as e:
+                raise ValueError(f"Format of response not understood: {e.message}")
+
+            desired_columns = {
+                "mjd",
+                "RA",
+                "Dec",
+                "m",
+                "dm",
+                "mag5sig",
+                "F",
+                "chi/N",
+                "uJy",
+                "duJy",
+            }
+            if not desired_columns.issubset(set(df.columns)):
+                raise ValueError("Missing expected column")
+
+            df = df[list(desired_columns)]
+
+            df.rename(
+                columns={
+                    "RA": "ra",
+                    "Dec": "dec",
+                    "m": "mag",
+                    "dm": "magerr",
+                    "mag5sig": "limiting_mag",
+                    "F": "filter",
+                },
+                inplace=True,
+            )
+            cyan = df["filter"] == "c"
+            orange = df["filter"] == "o"
+
+            # not detection if SNR < 3 or chi/N > 10, or mag > limiting_mag
+            reject = df["uJy"] / df["duJy"] < 3
+            reject |= df["chi/N"] > 10
+            reject |= df["mag"] > df["limiting_mag"]
+
+            df.loc[cyan, "filter"] = "atlasc"
+            df.loc[orange, "filter"] = "atlaso"
+            df.loc[reject, "mag"] = None
+            df.loc[reject, "magerr"] = None
+
+            iszero = df["duJy"] == 0.0
+            df.loc[iszero, "mag"] = None
+            df.loc[iszero, "magerr"] = None
+
+            isnan = np.isnan(df["uJy"])
+            df.loc[isnan, "mag"] = None
+            df.loc[isnan, "magerr"] = None
+
+            df = df.replace({np.nan: None})
+
+            drop_columns = list(
+                set(df.columns.values)
+                - {"mjd", "ra", "dec", "mag", "magerr", "limiting_mag", "filter"}
+            )
+
+            df.drop(
+                columns=drop_columns,
+                inplace=True,
+            )
+            df["magsys"] = "ab"
+            df["origin"] = "fp"
+
+            # data is visible to the group attached to the allocation
+            # as well as to any of the allocation's default share groups
+            data_out = {
+                "obj_id": request.obj_id,
+                "instrument_id": instrument.id,
+                "group_ids": list(
+                    set(
+                        [allocation.group_id]
+                        + (
+                            allocation.default_share_group_ids
+                            if allocation.default_share_group_ids
+                            else []
+                        )
+                    )
+                ),
+                **df.to_dict(orient="list"),
+            }
+
+            from skyportal.handlers.api.photometry import add_external_photometry
+
+            if len(df.index) > 0:
+                ids, _ = await add_external_photometry(
+                    data_out,
+                    request.requester,
+                    session,
+                    duplicates=duplicates,
+                    refresh=True,
+                )
+                if ids is None:
+                    raise ValueError("Failed to commit photometry")
+                request.status = "Photometry committed to database"
+            else:
+                request.status = "No photometry to commit to database"
+
+            session.add(request)
+            await session.commit()
+
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == request.obj_id)
+            )
+            flow = Flow()
+            flow.push(
+                "*",
+                "skyportal/REFRESH_SOURCE",
+                payload={"obj_key": internal_key},
+            )
+
+        except Exception as e:
+            await session.rollback()
+            log(f"Unable to commit photometry for {request_id}: {e}")
+            raise Exception(f"Unable to commit photometry for {request_id}: {e}")
 
 
 class ATLASAPI(FollowUpAPI):
