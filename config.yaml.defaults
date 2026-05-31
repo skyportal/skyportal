@@ -513,8 +513,8 @@ database:
   user: skyportal
   password:
 
-# Valkey connection. We mirror BOOM's `redis:` block (Valkey speaks the redis
-# protocol, so the redis client talks to it directly).
+# Valkey connection. Valkey speaks the redis protocol, so a standard redis
+# client talks to it directly; these keys are the redis client's host/port/db.
 redis:
   host: localhost
   port: 6379

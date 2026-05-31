@@ -7,10 +7,9 @@ network-shared cache entries (expensive-query memoization, broker-canonical
 read-through caches, rate-limit counters, ...). Feature code builds its own
 namespaced keys and TTLs on top of it.
 
-Connection conventions deliberately mirror BOOM, which talks to the same Valkey
-server: a ``redis:`` config block (``host``/``port``), a ``redis://{host}:{port}/``
-URI, and a single pooled async connection. (Valkey speaks the redis protocol, so
-the Python ``redis.asyncio`` client — like BOOM's redis crate — is the client.)
+Valkey speaks the redis protocol, so the Python ``redis.asyncio`` client talks to
+it directly. Connection settings come from a ``redis:`` config block
+(``host``/``port``/``db``); the client opens a single pooled async connection.
 
 Design notes:
 - The ``redis`` client is imported lazily and ``cfg`` is read lazily, so this
@@ -18,7 +17,7 @@ Design notes:
   loaded config.
 - Every operation is best-effort: a connection error is logged and swallowed
   (returning a miss / no-op), so the cache can never take down a code path that
-  uses it. BOOM takes the same "log and carry on" stance on Valkey errors.
+  uses it.
 - When ``cache.enabled`` is false (the default), :func:`get_cache` returns a
   no-op cache so callers need no conditional logic.
 """
@@ -38,14 +37,13 @@ class ValkeyCache:
     """
 
     def __init__(self, host="localhost", port=6379, db=0, default_ttl=300):
-        # Mirror BOOM's `redis://{host}:{port}/` connection string.
         self._url = f"redis://{host}:{port}/{db}"
         self._default_ttl = default_ttl
         self._client = None
 
     def _connect(self):
-        # redis-py's async client maintains its own connection pool (the
-        # analogue of BOOM's MultiplexedConnection); create it once and reuse.
+        # redis-py's async client maintains its own connection pool; create it
+        # once and reuse it process-wide.
         if self._client is None:
             import redis.asyncio as redis  # lazy: optional dependency
 
@@ -149,8 +147,8 @@ def get_cache():
     """Return the process-wide :class:`ValkeyCache`, or a no-op cache when
     disabled.
 
-    Reads the ``redis:`` config block (``host``/``port``/``db``, emulating BOOM)
-    plus ``cache.enabled`` and ``cache.ttl.default``. With ``cache.enabled``
+    Reads the ``redis:`` config block (``host``/``port``/``db``) plus
+    ``cache.enabled`` and ``cache.ttl.default``. With ``cache.enabled``
     false (the default) this returns a no-op cache, so call sites need no
     conditional logic and behavior is unchanged until caching is turned on.
     """

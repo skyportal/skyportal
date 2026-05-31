@@ -1,6 +1,6 @@
 """Unit tests for the generic async Valkey cache (skyportal.utils.valkey_cache).
 
-These run without a Valkey server: the no-op / disabled paths and the BOOM-style
+These run without a Valkey server: the no-op / disabled paths and the
 URL construction need nothing, the wrapper logic (JSON round-trip, prefix
 deletion) is exercised against a tiny in-memory fake client, and graceful
 degradation is verified against an unreachable port.
@@ -67,7 +67,7 @@ def test_get_cache_disabled_returns_noop():
 
 
 def test_url_construction_and_lazy_connect():
-    """ValkeyCache builds BOOM's redis://host:port/db URI and does not open a
+    """ValkeyCache builds the redis://host:port/db URI and does not open a
     connection until first use."""
     cache = ValkeyCache(host="example", port=1234, db=2, default_ttl=42)
     assert cache._url == "redis://example:1234/2"
