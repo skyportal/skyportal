@@ -42,8 +42,8 @@ services:
       timeout: 5s
       retries: 10
 
-  # Valkey, configured to match BOOM's (same image + dev settings) since both
-  # talk to the redis protocol. Backs skyportal.utils.valkey_cache.
+  # Valkey (redis-protocol) server backing skyportal.utils.valkey_cache.
+  # ALLOW_EMPTY_PASSWORD is for local development only.
   valkey:
     image: valkey/valkey:7.2.6
     container_name: valkey
