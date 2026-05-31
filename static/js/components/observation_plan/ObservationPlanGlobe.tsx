@@ -36,11 +36,15 @@ interface ObservationPlanRequest {
 interface ObservationPlanGlobeProps {
   observationplanRequest: ObservationPlanRequest;
   retrieveLocalization?: boolean;
+  // Square size (px) of the embedded skymap. Defaults to 600; the requests
+  // table passes a smaller value to keep its rows compact.
+  size?: number;
 }
 
 const ObservationPlanGlobe = ({
   observationplanRequest,
   retrieveLocalization = false,
+  size = 600,
 }: ObservationPlanGlobeProps) => {
   const dispatch = useAppDispatch();
   const displayOptions = [
@@ -116,8 +120,8 @@ const ObservationPlanGlobe = ({
         localization={localization}
         observations={obsList}
         options={displayOptionsDefault}
-        height={600}
-        width={600}
+        height={size}
+        width={size}
         type="obsplan"
         projection="mollweide"
         selectedObservations={selectedObservations}
