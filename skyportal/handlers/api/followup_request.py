@@ -47,6 +47,7 @@ from ...models import (
     Allocation,
     ClassicalAssignment,
     Classification,
+    Comment,
     DBSession,
     DefaultFollowupRequest,
     FollowupRequest,
@@ -373,6 +374,138 @@ class AssignmentHandler(BaseHandler):
                 payload={"run_id": assignment.run_id},
             )
             return self.success()
+
+
+# Trigger-constraint keys accepted by both the manual follow-up request API and
+# Default Follow-up Requests. Kept in one place so the two paths stay in sync.
+FOLLOWUP_CONSTRAINT_KEYS = (
+    "not_if_duplicates",
+    "source_group_ids",
+    "ignore_source_group_ids",
+    "not_if_classified",
+    "not_if_spectra_exist",
+    "not_if_tns_classified",
+    "not_if_tns_reported",
+    "ignore_allocation_ids",
+    "not_if_assignment_exists",
+)
+
+
+def build_constraints_dict(data):
+    """Pop trigger-constraint keys out of ``data`` and return them as a dict.
+
+    Mirrors the constraints the manual follow-up request API accepts so that
+    Default Follow-up Requests can store and apply the identical logic. Returns
+    ``None`` when no constraint keys are present. Raises ``ValueError`` if a
+    radius is provided but cannot be parsed as a float.
+    """
+    constraints = {}
+    for key in FOLLOWUP_CONSTRAINT_KEYS:
+        if key in data:
+            constraints[key] = data.pop(key)
+    if not constraints:
+        return None
+    try:
+        constraints["radius"] = float(data.pop("radius", 0.5))
+    except (TypeError, ValueError):
+        raise ValueError("Invalid specified radius for spatial constraints.")
+    return constraints
+
+
+# Different instruments store the request priority under different payload keys.
+# Mirrors the alias handling in Kowalski's auto-followup logic.
+FOLLOWUP_PRIORITY_ALIASES = ("priority", "urgency", "Urgency")
+
+
+def get_payload_priority(payload):
+    """Return (key, float value) of the priority in a follow-up payload, or
+    (None, None) if no recognized priority key holds a numeric value."""
+    if not isinstance(payload, dict):
+        return None, None
+    for alias in FOLLOWUP_PRIORITY_ALIASES:
+        if alias in payload and isinstance(payload[alias], int | float | str):
+            try:
+                return alias, float(payload[alias])
+            except (TypeError, ValueError):
+                return None, None
+    return None, None
+
+
+def priority_should_update(existing_priority, new_priority, priority_order="asc"):
+    """Whether ``new_priority`` outranks ``existing_priority``.
+
+    With ``priority_order == "desc"`` a lower number means higher observing
+    priority, so the comparison is inverted. Mirrors Kowalski's helper of the
+    same name so auto-trigger priority bumps behave identically.
+    """
+    if priority_order == "desc":
+        return float(new_priority) < float(existing_priority)
+    return float(new_priority) > float(existing_priority)
+
+
+def detect_priority_alias(payload):
+    """Return the priority key present in ``payload`` (one of
+    FOLLOWUP_PRIORITY_ALIASES), defaulting to "priority". Unlike
+    get_payload_priority this does not require the value to be numeric, so it
+    can be used to detect urgency-based instruments."""
+    if isinstance(payload, dict):
+        for alias in FOLLOWUP_PRIORITY_ALIASES:
+            if alias in payload:
+                return alias
+    return "priority"
+
+
+# Payload keys ignored when deciding whether two follow-up requests are "the
+# same" for auto-trigger dedup (priority and scheduling differ but the request
+# is otherwise identical). Mirrors Kowalski's auto-followup matching.
+FOLLOWUP_DEDUP_IGNORE_KEYS = (
+    "priority",
+    "urgency",
+    "Urgency",
+    "start_date",
+    "end_date",
+    "advanced",
+    "observation_choices",
+)
+
+
+def compare_dicts(a, b, ignore_keys=()):
+    """Whether payload ``a`` equals, or is a subset of, payload ``b`` ignoring
+    ``ignore_keys``. Ported from Kowalski's auto-followup matching so that the
+    auto-trigger dedup behaves identically. Includes the SEDM-specific
+    observation_type handling (3-shot/4-shot/IFU/Mix 'n Match)."""
+    if not isinstance(a, dict) or not isinstance(b, dict):
+        return a == b
+    for k, v in a.items():
+        if k in ignore_keys:
+            continue
+        if k not in b:
+            return False
+        if isinstance(v, dict):
+            if not compare_dicts(v, b[k]):
+                return False
+        elif isinstance(v, list):
+            if not all(i in b[k] for i in v):
+                return False
+        elif k == "observation_type":
+            # observation_type comparison expands shot/IFU choices; designed
+            # with SEDM in mind (matches Kowalski).
+            obs_list = {"a": [], "b": []}
+            for name, content in [("a", a), ("b", b)]:
+                if content[k] == "Mix 'n Match":
+                    obs_list[name] = content.get("observation_choices", [])
+                else:
+                    if "IFU" in content[k]:
+                        obs_list[name].append("IFU")
+                    if "3-shot" in content[k]:
+                        obs_list[name].extend(["g", "r", "i"])
+                    elif "4-shot" in content[k]:
+                        obs_list[name].extend(["u", "g", "r", "i"])
+            if not set(obs_list["a"]).issubset(set(obs_list["b"])):
+                return False
+        elif b[k] != v:
+            return False
+    return True
 
 
 def post_followup_request(
@@ -761,45 +894,182 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
 
         session.user_or_token = user
         session.add(obj)
-        start_date = str(utcnow_naive()).replace("T", "")
-        end_date = str(utcnow_naive() + timedelta(days=1)).replace("T", "")
         for ii, default_followup_request in enumerate(default_followup_requests):
             try:
                 followup_request = default_followup_request.to_dict()
                 allocation_id = followup_request["allocation_id"]
+                constraints = followup_request.get("constraints") or {}
+                priority_order = followup_request.get("priority_order") or "asc"
+                validity_days = followup_request.get("validity_days") or 7
+                # implements_update: operator override (null -> True)
+                implements_update = (
+                    followup_request.get("implements_update") is not False
+                )
+                comment_text = followup_request.get("comment")
 
-                # if there is already a follow-up request for the same allocation_id and obj_id, cancel
-                existing_request = session.scalars(
-                    sa.select(FollowupRequest.id).where(
+                # Results are shared with the filter's group plus any configured
+                # target groups (mirrors Kowalski). Re-bind the default request to
+                # this session so its target_groups relationship can be read.
+                source_filter = followup_request.get("source_filter") or {}
+                dfr = session.get(DefaultFollowupRequest, followup_request["id"])
+                target_group_ids = list(
+                    {
+                        *(
+                            [source_filter["group_id"]]
+                            if source_filter.get("group_id") is not None
+                            else []
+                        ),
+                        *(g.id for g in (dfr.target_groups if dfr else [])),
+                    }
+                )
+
+                # Build the request payload. Urgency-based instruments do not
+                # use start/end dates; everyone else gets a [now, now +
+                # validity_days] window (mirrors Kowalski's auto-followup).
+                payload = {**followup_request["payload"]}
+                priority_alias = detect_priority_alias(payload)
+                if str(priority_alias).lower() == "urgency":
+                    payload.pop("start_date", None)
+                    payload.pop("end_date", None)
+                else:
+                    now = utcnow_naive()
+                    payload["start_date"] = str(now).replace("T", "")
+                    payload["end_date"] = str(
+                        now + timedelta(days=validity_days)
+                    ).replace("T", "")
+
+                # Find existing, non-deleted requests for this obj+allocation
+                # that are effectively the SAME request (payload equal/subset
+                # ignoring priority & scheduling keys, and target groups
+                # overlapping or both empty) — mirrors Kowalski's dedup matching.
+                existing_requests = session.scalars(
+                    sa.select(FollowupRequest).where(
                         FollowupRequest.obj_id == obj_id,
                         FollowupRequest.allocation_id == allocation_id,
                         FollowupRequest.status != "deleted",
                     )
-                ).first()
-                if existing_request is not None:
-                    log(
-                        f"Skipping default followup request for {obj_id} with allocation ID {allocation_id} because one already exists."
+                ).all()
+
+                def _same_request(
+                    r, target_group_ids=target_group_ids, payload=payload
+                ):
+                    r_group_ids = {g.id for g in r.target_groups}
+                    groups_overlap = bool(set(target_group_ids) & r_group_ids) or (
+                        len(target_group_ids) == 0 and len(r_group_ids) == 0
                     )
+                    return groups_overlap and compare_dicts(
+                        payload, r.payload or {}, ignore_keys=FOLLOWUP_DEDUP_IGNORE_KEYS
+                    )
+
+                matching = [r for r in existing_requests if _same_request(r)]
+                # lowest-priority match first (so we bump the weakest existing
+                # request), respecting priority_order
+                matching.sort(
+                    key=lambda r: get_payload_priority(r.payload)[1] or 0,
+                    reverse=(priority_order == "desc"),
+                )
+
+                if matching:
+                    # An equivalent request already exists; bump its priority in
+                    # place if it's still submitted, this default is allowed to
+                    # update, and the new priority outranks the existing one.
+                    # Otherwise leave it untouched. Whether the instrument can
+                    # actually be updated is governed solely by the
+                    # implements_update flag (mirrors Kowalski): if the flag is
+                    # set but the instrument has no update API, the attempt below
+                    # raises and is rolled back + logged.
+                    candidate = matching[0]
+                    priority_key = detect_priority_alias(candidate.payload)
+                    _, new_priority = get_payload_priority(payload)
+                    _, existing_priority = get_payload_priority(candidate.payload)
+                    if (
+                        "submitted" in str(candidate.status).lower()
+                        and implements_update
+                        and new_priority is not None
+                        and existing_priority is not None
+                        and priority_should_update(
+                            existing_priority, new_priority, priority_order
+                        )
+                    ):
+                        try:
+                            candidate.payload = {
+                                **candidate.payload,
+                                priority_key: new_priority,
+                            }
+                            candidate.last_modified_by_id = user_id
+                            candidate.instrument.api_class.update(candidate, session)
+                            session.commit()
+                            log(
+                                f"Bumped priority of existing followup request "
+                                f"{candidate.id} for {obj_id} (allocation "
+                                f"{allocation_id}) from {existing_priority} to {new_priority}."
+                            )
+                        except Exception as e:
+                            session.rollback()
+                            log(
+                                f"Failed to bump priority of followup request "
+                                f"{candidate.id} for {obj_id} (allocation "
+                                f"{allocation_id}): {e}"
+                            )
+                    else:
+                        log(
+                            f"Skipping default followup request for {obj_id} with "
+                            f"allocation ID {allocation_id} because an equivalent one "
+                            f"already exists."
+                        )
                     continue
-                payload = {
-                    **followup_request["payload"],
-                    "start_date": start_date,
-                    "end_date": end_date,
-                }
+
                 data = {
                     "payload": payload,
                     "allocation_id": allocation_id,
                     "obj_id": obj_id,
                     "requester_id": user_id,
                     "last_modified_by_id": user_id,
+                    "target_group_ids": target_group_ids,
                 }
-                post_followup_request(data, {}, session, refresh_source=False)
+
+                post_followup_request(data, constraints, session, refresh_source=False)
                 log(
                     f"Posted default followup request for {obj_id} with allocation ID {allocation_id}."
                 )
+
+                # Post a comment to the source (mirrors Kowalski), annotated with
+                # the request priority, shared with the same target groups.
+                if comment_text is not None and str(comment_text).strip():
+                    _, prio = get_payload_priority(payload)
+                    annotated = str(comment_text).strip()
+                    if prio is not None:
+                        annotated += f" ({priority_alias}: {prio})"
+                    comment_groups = (
+                        session.scalars(
+                            Group.select(session.user_or_token).where(
+                                Group.id.in_(target_group_ids)
+                            )
+                        ).all()
+                        if target_group_ids
+                        else []
+                    )
+                    session.add(
+                        Comment(
+                            text=annotated,
+                            obj_id=obj_id,
+                            author=user,
+                            groups=comment_groups,
+                            bot=True,
+                        )
+                    )
+                    session.commit()
             except Exception as e:
-                traceback.print_exc()
-                log(f"Error posting default followup request: {e}")
+                # A failed trigger constraint raises ValueError("...not
+                # submitting request"); that is an expected skip, not an error.
+                if "not submitting request" in str(e):
+                    log(
+                        f"Not submitting default followup request for {obj_id} with "
+                        f"allocation ID {allocation_id} (constraint not met): {e}"
+                    )
+                else:
+                    traceback.print_exc()
+                    log(f"Error posting default followup request: {e}")
 
 
 class FollowupRequestHandler(BaseHandler):
@@ -1199,34 +1469,10 @@ class FollowupRequestHandler(BaseHandler):
                 f"Invalid / missing parameters: {e.normalized_messages()}"
             )
 
-        constraints = {}
-        if "not_if_duplicates" in data:
-            constraints["not_if_duplicates"] = data.pop("not_if_duplicates")
-        if "source_group_ids" in data:
-            constraints["source_group_ids"] = data.pop("source_group_ids")
-        if "ignore_source_group_ids" in data:
-            constraints["ignore_source_group_ids"] = data.pop("ignore_source_group_ids")
-        if "not_if_classified" in data:
-            constraints["not_if_classified"] = data.pop("not_if_classified")
-        if "not_if_spectra_exist" in data:
-            constraints["not_if_spectra_exist"] = data.pop("not_if_spectra_exist")
-        if "not_if_tns_classified" in data:
-            constraints["not_if_tns_classified"] = data.pop("not_if_tns_classified")
-        if "not_if_tns_reported" in data:
-            constraints["not_if_tns_reported"] = data.pop("not_if_tns_reported")
-        if "ignore_allocation_ids" in data:
-            constraints["ignore_allocation_ids"] = data.pop("ignore_allocation_ids")
-        if "not_if_assignment_exists" in data:
-            constraints["not_if_assignment_exists"] = data.pop(
-                "not_if_assignment_exists"
-            )
-        if len(list(constraints.keys())) == 0:
-            constraints = None
-        if constraints is not None:
-            try:
-                constraints["radius"] = float(data.pop("radius", 0.5))
-            except ValueError:
-                return self.error("Invalid specified radius for spatial constraints.")
+        try:
+            constraints = build_constraints_dict(data)
+        except ValueError as e:
+            return self.error(str(e))
 
         with self.Session() as session:
             try:
@@ -1249,10 +1495,7 @@ class FollowupRequestHandler(BaseHandler):
                     }
                 )
             except Exception as e:
-                if (
-                    "not submitting request" in str(e)
-                    and len(list(constraints.keys())) > 0
-                ):
+                if "not submitting request" in str(e) and constraints:
                     log(
                         f"Not submitting request with allocation_id {data['allocation_id']}: {e}"
                     )
@@ -2477,12 +2720,13 @@ class DefaultFollowupRequestHandler(BaseHandler):
             payload = data["payload"]
             if "start_date" in payload:
                 return self.error("Cannot have start_date in the payload")
-            else:
-                payload["start_date"] = str(utcnow_naive())
-
             if "end_date" in payload:
                 return self.error("Cannot have end_date in the payload")
-            else:
+            # Urgency-based instruments do not use start/end dates; only add
+            # placeholder dates for the others (the real window is recomputed
+            # when the request actually fires on source save).
+            if str(detect_priority_alias(payload)).lower() != "urgency":
+                payload["start_date"] = str(utcnow_naive())
                 payload["end_date"] = str(utcnow_naive() + timedelta(days=1))
 
             # validate the payload
@@ -2504,12 +2748,33 @@ class DefaultFollowupRequestHandler(BaseHandler):
             else:
                 return self.error("source_filter is required")
 
+            try:
+                constraints = build_constraints_dict(data)
+            except ValueError as e:
+                return self.error(str(e))
+
+            priority_order = data.get("priority_order", "asc")
+            if priority_order not in ("asc", "desc"):
+                return self.error("priority_order must be one of: asc, desc.")
+
+            validity_days = data.get("validity_days", None)
+            if validity_days is not None:
+                try:
+                    validity_days = int(validity_days)
+                except (TypeError, ValueError):
+                    return self.error("validity_days must be an integer.")
+
             default_followup_request = DefaultFollowupRequest(
                 requester=self.associated_user_object,
                 allocation=allocation,
                 payload=payload,
                 default_followup_name=data["default_followup_name"],
                 source_filter=data["source_filter"],
+                constraints=constraints,
+                priority_order=priority_order,
+                validity_days=validity_days,
+                comment=data.get("comment", None),
+                implements_update=data.get("implements_update", True),
             )
             default_followup_request.target_groups = target_groups
 
