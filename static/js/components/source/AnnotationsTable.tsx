@@ -233,6 +233,28 @@ const AnnotationsTable = ({
     });
   }
 
+  // Meta-object provenance: when the annotations span more than one underlying
+  // Obj (i.e. aggregated across a SuperObj), surface which source each came from.
+  const aggregatedAcrossObjs =
+    new Set(tableData.map((row: any) => row.obj_id)).size > 1;
+  if (aggregatedAcrossObjs) {
+    columns.splice(1, 0, {
+      field: "obj_id",
+      headerName: "Source",
+      flex: 1,
+      minWidth: 120,
+      renderCell: (params: any) => (
+        <a
+          href={`/source/${params.value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {params.value}
+        </a>
+      ),
+    });
+  }
+
   return (
     <div style={{ height: "100%", width: "100%" }}>
       <div className={classes.container}>
