@@ -23,7 +23,7 @@ dependencies = [
     "avro-python3==1.10.2",
     "fastavro>=1.9.4,<2.0.0",
     "tqdm>=4.27,<4.68",
-    "matplotlib==3.10.8",
+    "matplotlib==3.10.9",
     "astroquery==0.4.11",
     "apispec>=6.3.0, <7.0.0",
     "marshmallow==3.26.2",
