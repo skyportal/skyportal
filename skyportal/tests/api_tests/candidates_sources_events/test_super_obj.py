@@ -147,6 +147,57 @@ def _seed_obj(token, obj_id, group_id, taxonomy_id, label):
     assert status == 200, data
 
 
+def test_super_obj_flag_on_without_super_obj_is_noop(
+    super_admin_token,
+    public_source,
+    public_group,
+    ztf_camera,
+):
+    """The production default: ``fetchSource`` always sends the aggregation flag,
+    so a normal source with no SuperObj is the most-traveled path. With the flag
+    ON it must return exactly the source's own entries for every data type — i.e.
+    the non-aggregated behavior is unchanged."""
+    obj1 = public_source.id
+
+    taxonomy_id = _post_taxonomy(super_admin_token, [public_group.id])
+    _seed_obj(super_admin_token, obj1, public_group.id, taxonomy_id, "solo")
+    _post_photometry(super_admin_token, obj1, ztf_camera.id, [public_group.id], 58000.0)
+
+    # Embedded source response: flag on, but no SuperObj -> own entries only.
+    status, data = api(
+        "GET",
+        f"sources/{obj1}?includeSuperObjs=true&includeComments=true",
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    src = data["data"]
+    for key in ["classifications", "annotations", "comments", "tags"]:
+        assert _obj_ids(src[key]) == {obj1}, f"{key} changed for a non-meta source"
+
+    # Per-type endpoints: flag on is likewise a no-op.
+    status, data = api(
+        "GET",
+        f"sources/{obj1}/classifications?includeSuperObjs=true",
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert _obj_ids(data["data"]) == {obj1}
+
+    status, data = api(
+        "GET", f"objtag?obj_id={obj1}&includeSuperObjs=true", token=super_admin_token
+    )
+    assert status == 200, data
+    assert _obj_ids(data["data"]) == {obj1}
+
+    status, data = api(
+        "GET",
+        f"sources/{obj1}/photometry?includeSuperObjsPhotometry=true",
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert {p["obj_id"] for p in data["data"]} == {obj1}
+
+
 def test_super_obj_photometry_aggregation_and_rls(
     super_admin_token,
     upload_data_token,
