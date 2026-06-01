@@ -73,7 +73,7 @@ dependencies = [
     "xarray>=21.1",
     "simsurvey==0.7.5",  # requires matplotlib monkey-patch, see models/__init__.py
     "noaodatalab==2.20.0",
-    "black==26.3.1",
+    "black==26.5.1",
     "click==8.1.7",
     "arviz==0.19.0",
     "corner==2.2.3",
