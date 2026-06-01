@@ -436,6 +436,10 @@ export function fetchSource(
     includeGCNCrossmatches: true,
     includeGCNNotes: true,
     includeCandidates: true,
+    // Aggregate classifications across meta-object (SuperObj) members, with
+    // per-source provenance. No-ops for non-meta sources (mirrors the
+    // includeSuperObjsPhotometry flag on the photometry endpoint).
+    includeSuperObjs: true,
   };
   const queryString = new URLSearchParams(
     urlParams as unknown as Record<string, string>,
