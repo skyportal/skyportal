@@ -185,7 +185,12 @@ def get_ephemeris(
             "mag_ap",
         ]
     )
-    data = data.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+    # Strip whitespace from string columns. Use is_string_dtype (not
+    # `== "object"`) so this also catches pandas >= 3.0's default `str` dtype,
+    # otherwise leading spaces survive and break the to_datetime parse below.
+    data = data.apply(
+        lambda x: x.str.strip() if pd.api.types.is_string_dtype(x.dtype) else x
+    )
     data = data.replace("n.a.", np.nan)
 
     data["time"] = pd.to_datetime(data["time"], format="%Y-%b-%d %H:%M")
