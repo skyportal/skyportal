@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { withTheme } from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
@@ -1127,7 +1127,7 @@ const SharingServicesPage = () => {
       headerName: "Instruments",
       flex: 1,
       minWidth: 140,
-      valueGetter: (value: any, row: any) => {
+      valueGetter: (_value: any, row: any) => {
         const { instruments } = row;
         if (!instruments?.length) return "";
         return instruments.map((i: any) => i.name).join(", ");
@@ -1138,7 +1138,7 @@ const SharingServicesPage = () => {
       headerName: "Streams (optional)",
       flex: 1,
       minWidth: 160,
-      valueGetter: (value: any, row: any) => {
+      valueGetter: (_value: any, row: any) => {
         if (!row?.streams?.length) return "";
         return row.streams.map((stream: any) => stream.name).join(", ");
       },

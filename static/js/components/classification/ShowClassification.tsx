@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -380,7 +380,7 @@ function ShowClassification({
 
   const keys = Object.keys(classificationsGrouped);
   keys.forEach((key) => {
-    classificationsGrouped[key].forEach((item: any, index: number) => {
+    classificationsGrouped[key].forEach((_item: any, index: number) => {
       let taxname: any = taxonomyList.filter(
         (i) => i.id === classificationsGrouped[key][index].taxonomy_id,
       );

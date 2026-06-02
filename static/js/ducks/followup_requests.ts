@@ -71,7 +71,7 @@ export const downloadAllocationReport = (instrumentId: number | string) =>
 
 // Websocket message handler
 messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
+  (actionType: string, _payload: any, dispatch: AppDispatch) => {
     if (actionType === REFRESH_FOLLOWUP_REQUESTS) {
       const params = store.getState().followup_requests.fetchingParams;
       dispatch(fetchFollowupRequests(params));

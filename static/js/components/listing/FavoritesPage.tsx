@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import Checkbox from "@mui/material/Checkbox";
 import TextField from "@mui/material/TextField";
@@ -128,7 +128,7 @@ const CommentEntry = ({
   const onSubmit = (data: any) => {
     const groupIDs = groups?.map((g) => g.id);
     const selectedGroupIDs = groupIDs?.filter(
-      (ID: any, idx: number) => data.group_ids[idx],
+      (_ID: any, idx: number) => data.group_ids[idx],
     );
     data.group_ids = selectedGroupIDs;
     if (addComment) {

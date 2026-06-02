@@ -1,5 +1,3 @@
-import React from "react";
-
 import * as profileActions from "../../../ducks/profile";
 import { useAppDispatch, useAppSelector } from "../../../types/hooks";
 import UserPreferencesHeader from "./UserPreferencesHeader";

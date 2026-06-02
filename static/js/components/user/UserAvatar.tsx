@@ -1,4 +1,3 @@
-import React from "react";
 import { makeStyles } from "tss-react/mui";
 import Avatar from "@mui/material/Avatar";
 import Tooltip from "@mui/material/Tooltip";

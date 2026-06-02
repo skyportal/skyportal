@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";

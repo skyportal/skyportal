@@ -165,7 +165,7 @@ const ObservationPage = () => {
     return <p>No queued observations available...</p>;
   }
 
-  const handleChangeTab = (event: any, newValue: number) => {
+  const handleChangeTab = (_event: any, newValue: number) => {
     setTabIndex(newValue);
   };
 
@@ -191,7 +191,7 @@ const ObservationPage = () => {
   const handleQueuedPageChange = async (
     page: number,
     numPerPage: number,
-    sortData?: any,
+    _sortData?: any,
   ) => {
     const params = {
       ...fetchQueuedParams,

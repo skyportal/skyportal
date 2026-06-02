@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import Select from "@mui/material/Select";
@@ -166,10 +166,8 @@ const CandidatesPreferencesForm = ({
     // the defaultStartDate is updated, so ignore ESLint here
   }, [dispatch]);
 
-  let formState: any = getValues();
-
   const validateName = () => {
-    formState = getValues();
+    const formState = getValues();
     const otherProfiles = preferences.scanningProfiles
       ?.filter((profile: any) => profile.name !== editingProfile?.name)
       ?.map((profile: any) => profile.name);
@@ -179,14 +177,14 @@ const CandidatesPreferencesForm = ({
   };
 
   const validateGroups = () => {
-    formState = getValues();
+    const formState = getValues();
     return (
       formState.groupIDs?.filter((value: any) => Boolean(value)).length >= 1
     );
   };
 
   const validateSorting = () => {
-    formState = getValues();
+    const formState = getValues();
     return (
       // All left empty
       (formState.sortingOrigin === "" &&
@@ -202,7 +200,7 @@ const CandidatesPreferencesForm = ({
   const onSubmit = async (formData: any) => {
     const groupIDs = userAccessibleGroups?.map((g) => g.id);
     const selectedGroupIDs = groupIDs?.filter(
-      (ID, idx) => formData.groupIDs[idx],
+      (_ID, idx) => formData.groupIDs[idx],
     );
     const data: any = {
       groupIDs: selectedGroupIDs,
@@ -240,21 +238,24 @@ const CandidatesPreferencesForm = ({
       data.sortingOrder = formData.sortingOrder;
     }
 
-    const currentProfiles = preferences.scanningProfiles || [];
+    const existingProfiles = preferences.scanningProfiles || [];
+    let currentProfiles: any[];
     if (addOrEdit === "Add") {
       // Add new profile as the default in the preferences
-      currentProfiles.forEach((profile: any) => {
-        profile.default = false;
-      });
-      currentProfiles.push(data);
+      currentProfiles = [
+        ...existingProfiles.map((profile: any) => ({
+          ...profile,
+          default: false,
+        })),
+        data,
+      ];
     } else if (addOrEdit === "Edit") {
       // Update profile
-      const profileIndex = currentProfiles.findIndex(
-        (profile: any) => profile.name === editingProfile?.name,
+      currentProfiles = existingProfiles.map((profile: any) =>
+        profile.name === editingProfile?.name ? data : profile,
       );
-      if (profileIndex !== -1) {
-        currentProfiles[profileIndex] = data;
-      }
+    } else {
+      currentProfiles = existingProfiles;
     }
 
     const prefs = {

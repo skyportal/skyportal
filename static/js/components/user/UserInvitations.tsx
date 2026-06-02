@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import Paper from "@mui/material/Paper";
@@ -567,7 +567,7 @@ const UserInvitations = () => {
       minWidth: 180,
       sortable: false,
       filterable: false,
-      valueGetter: (value: any, row: any) => row.user_email,
+      valueGetter: (_value: any, row: any) => row.user_email,
     },
     {
       field: "role",
@@ -603,7 +603,7 @@ const UserInvitations = () => {
       minWidth: 120,
       sortable: false,
       filterable: false,
-      valueGetter: (value: any, row: any) => row.invited_by?.username,
+      valueGetter: (_value: any, row: any) => row.invited_by?.username,
     },
     {
       field: "user_expiration_date",
@@ -731,7 +731,7 @@ const UserInvitations = () => {
                 <Autocomplete
                   multiple
                   value={value}
-                  onChange={(e, data) => onChange(data)}
+                  onChange={(_e, data) => onChange(data)}
                   options={allGroups?.filter(
                     (group) =>
                       !clickedInvitation?.groups
@@ -788,7 +788,7 @@ const UserInvitations = () => {
                 <Autocomplete
                   multiple
                   value={value}
-                  onChange={(e, data) => onChange(data)}
+                  onChange={(_e, data) => onChange(data)}
                   options={streams?.filter(
                     (stream: any) =>
                       !clickedInvitation?.streams

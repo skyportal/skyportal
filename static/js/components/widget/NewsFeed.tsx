@@ -1,4 +1,3 @@
-import React from "react";
 import ReactMarkdown from "react-markdown";
 import { Link } from "react-router-dom";
 import { useAppSelector } from "../../types/hooks";
@@ -164,7 +163,7 @@ const NewsFeedItem = ({ item }: NewsFeedItemProps) => {
         >
           {item.message.replace(
             /(?<!\w)([@#])([\w-@]+)/g,
-            (match: string, symbol: string, username: string) => {
+            (_match: string, symbol: string, username: string) => {
               return `***${symbol}${username}***`;
             },
           )}

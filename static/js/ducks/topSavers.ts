@@ -12,7 +12,7 @@ export const fetchTopSavers = () =>
 
 // Websocket message handler
 messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
+  (actionType: string, _payload: any, dispatch: AppDispatch) => {
     if (actionType === FETCH_TOP_SAVERS) {
       dispatch(fetchTopSavers());
     }

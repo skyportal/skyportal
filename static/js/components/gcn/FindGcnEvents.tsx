@@ -116,7 +116,7 @@ const FindGcnEvents = ({
               );
             }
           }}
-          onChange={(event, newValue: any) => {
+          onChange={(_event, newValue: any) => {
             if (newValue !== null) {
               setSelectedGcnEventId(newValue.id);
               setSelectedEvent(newValue);

@@ -1,4 +1,3 @@
-import React from "react";
 import {
   ComposableMap,
   Geographies,
@@ -7,10 +6,8 @@ import {
   useZoomPan,
 } from "react-simple-maps";
 
-import { useAppDispatch } from "../../types/hooks";
 import world_map from "../../../images/maps/world-110m.json";
 
-let dispatch: any;
 const width = 700;
 const height = 475;
 
@@ -111,8 +108,6 @@ const MMADetectorMap = ({ mmadetectors }: MMADetectorMapProps) => {
     }
   }
 
-  // eslint-disable-next-line react-hooks/globals
-  dispatch = useAppDispatch();
   return (
     <ComposableMap width={width} height={height}>
       <CustomZoomableGroup center={[0, 0]}>

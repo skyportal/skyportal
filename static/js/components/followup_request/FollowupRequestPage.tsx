@@ -110,7 +110,7 @@ const FollowupRequestPage = () => {
     });
   }, [dispatch, fetchParams]);
 
-  const handleChangeTab = (event: any, newValue: number) => {
+  const handleChangeTab = (_event: any, newValue: number) => {
     setTabIndex(newValue);
   };
 

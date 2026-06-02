@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
@@ -152,7 +152,7 @@ const GroupAdmissionRequestsManagement = ({
       headerName: "Requesting User",
       flex: 1,
       minWidth: 180,
-      valueGetter: (value: any, row: any) => renderUserInfo(row.user),
+      valueGetter: (_value: any, row: any) => renderUserInfo(row.user),
     },
     { field: "status", headerName: "Status", flex: 1, minWidth: 120 },
     {

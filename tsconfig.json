@@ -18,7 +18,12 @@
     "baseUrl": ".",
     "paths": {
       "baselayer/*": ["baselayer/static/js/*"]
-    }
+    },
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "include": ["static/js"],
   "exclude": ["node_modules", "static/build"]

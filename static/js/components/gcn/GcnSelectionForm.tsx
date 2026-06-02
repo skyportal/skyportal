@@ -406,7 +406,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
-  const handleChangeTab = (event: any, newValue: number) => {
+  const handleChangeTab = (_event: any, newValue: number) => {
     setTabIndex(newValue);
   };
 

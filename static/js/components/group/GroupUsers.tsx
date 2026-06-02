@@ -63,7 +63,7 @@ const GroupUsers = ({
   };
 
   const handlePanelMembersChange =
-    (panel: string) => (event: any, isExpanded: boolean) => {
+    (panel: string) => (_event: any, isExpanded: boolean) => {
       setPanelMembersExpanded(isExpanded ? panel : false);
     };
 

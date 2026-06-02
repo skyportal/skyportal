@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { Link, useParams } from "react-router-dom";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
@@ -68,7 +68,7 @@ const UploadPhotometryForm = () => {
 
     formState: { errors },
   } = useForm();
-  let formState = getValues();
+  const formState = getValues();
 
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
@@ -105,12 +105,12 @@ const UploadPhotometryForm = () => {
     setShowPreview(false);
     setCsvData({});
     setSuccessMessage(null);
-    formState = getValues();
-    if (!formState.csvData) {
+    const currentFormState = getValues();
+    if (!currentFormState.csvData) {
       return "Missing CSV data";
     }
     const [header, ...dataRows] = PapaParse.parse(
-      formState.csvData.trim(),
+      currentFormState.csvData.trim(),
       parseOptions,
     ).data as any[];
     const headerLength = header.length;
@@ -141,13 +141,13 @@ const UploadPhotometryForm = () => {
       return "Invalid input: missing required column: limiting_mag";
     }
     if (
-      formState.instrumentID === "multiple" &&
+      currentFormState.instrumentID === "multiple" &&
       !header.includes("instrument_id")
     ) {
       return "Invalid input: missing required column: instrument_id";
     }
     if (
-      formState.instrumentID !== "multiple" &&
+      currentFormState.instrumentID !== "multiple" &&
       header.includes("instrument_id")
     ) {
       return "Invalid input: instrument_id already specified in select input";
@@ -183,13 +183,13 @@ const UploadPhotometryForm = () => {
   };
 
   const handleClickSubmit = async () => {
-    formState = getValues();
+    const currentFormState = getValues();
     const data: any = {
       obj_id: id,
       altdata: {},
     };
-    if (formState.instrumentID !== "multiple") {
-      data.instrument_id = formState.instrumentID;
+    if (currentFormState.instrumentID !== "multiple") {
+      data.instrument_id = currentFormState.instrumentID;
     }
     csvData.columns.forEach((col: string, idx: number) => {
       if (col.startsWith("altdata.")) {

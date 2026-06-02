@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -110,7 +110,9 @@ const SaveCandidateButton = ({
     setIsSubmitting(true);
     data.id = candidate.id;
     const groupIDs = userGroups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs?.filter((ID, idx) => data.group_ids[idx]);
+    const selectedGroupIDs = groupIDs?.filter(
+      (_ID, idx) => data.group_ids[idx],
+    );
     data.group_ids = selectedGroupIDs;
     const selectedGroupNames: string[] = [];
     data.group_ids?.forEach((id: number) => {

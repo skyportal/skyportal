@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";

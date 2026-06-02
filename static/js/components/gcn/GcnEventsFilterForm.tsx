@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
 import Divider from "@mui/material/Divider";
@@ -48,7 +48,7 @@ const GcnEventsFilterForm = ({
   const [selectedLocalizationProperties, setSelectedLocalizationProperties] =
     useState<any[]>([]);
 
-  const { handleSubmit, register, control, reset } = useForm();
+  const { handleSubmit, register: _register, control, reset } = useForm();
 
   const handleClickReset = () => {
     reset({ startDate: "", endDate: "" });

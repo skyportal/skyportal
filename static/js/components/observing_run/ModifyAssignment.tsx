@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";

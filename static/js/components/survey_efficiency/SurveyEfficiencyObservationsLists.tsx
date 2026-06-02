@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -98,7 +98,7 @@ const SurveyEfficiencyObservationsLists = ({
       maxWidth: 640,
       sortable: false,
       // valueGetter keeps the payload searchable via the toolbar quick filter.
-      valueGetter: (value: any, row: any) => JSON.stringify(row.payload || {}),
+      valueGetter: (_value: any, row: any) => JSON.stringify(row.payload || {}),
       renderCell: (params: any) => (
         <p
           style={{

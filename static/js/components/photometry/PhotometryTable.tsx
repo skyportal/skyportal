@@ -223,7 +223,7 @@ const PhotometryTable = ({
       headerName: "UTC",
       flex: 1,
       minWidth: 160,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         mjd_to_utc(row.mjd).replace("T", " "),
     };
     const mjdIndex = cols.findIndex((col) => col.field === "mjd");
@@ -236,7 +236,7 @@ const PhotometryTable = ({
         headerName: "t-t0",
         flex: 1,
         minWidth: 90,
-        valueGetter: (value: any, row: any) => row.mjd - t0,
+        valueGetter: (_value: any, row: any) => row.mjd - t0,
         valueFormatter: (value: any) =>
           isFloat(value) ? value.toFixed(6) : value,
       };
@@ -249,7 +249,7 @@ const PhotometryTable = ({
       headerName: "owner",
       flex: 1,
       minWidth: 100,
-      valueGetter: (value: any, row: any) => row.owner?.username || "",
+      valueGetter: (_value: any, row: any) => row.owner?.username || "",
     });
 
     cols.push({
@@ -257,7 +257,7 @@ const PhotometryTable = ({
       headerName: "streams",
       flex: 1,
       minWidth: 120,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         (row.streams || []).map((stream: any) => stream.name).join(", "),
     });
 
@@ -302,7 +302,7 @@ const PhotometryTable = ({
         headerName: "Explanation",
         flex: 1,
         minWidth: 120,
-        valueGetter: (value: any, row: any) =>
+        valueGetter: (_value: any, row: any) =>
           row?.validations.length === 0 ? "" : row?.validations[0]?.explanation,
       });
 
@@ -311,7 +311,7 @@ const PhotometryTable = ({
         headerName: "Notes",
         flex: 1,
         minWidth: 120,
-        valueGetter: (value: any, row: any) =>
+        valueGetter: (_value: any, row: any) =>
           row?.validations.length === 0 ? "" : row?.validations[0]?.notes,
       });
     }

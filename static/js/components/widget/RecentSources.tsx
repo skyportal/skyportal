@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import dayjs from "dayjs";
@@ -11,13 +11,8 @@ import { makeStyles } from "tss-react/mui";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
-import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
-import SearchIcon from "@mui/icons-material/Search";
-import InputAdornment from "@mui/material/InputAdornment";
 import DynamicTagDisplay from "./DynamicTagDisplay";
 
-import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import * as profileActions from "../../ducks/profile";
@@ -196,102 +191,6 @@ const defaultPrefs: any = {
   groupIds: [],
   includeSitewideSources: false,
   displayTNS: true,
-};
-
-function containsSpecialCharacters(str: string) {
-  const regex = /[ !@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g;
-  return regex.test(str);
-}
-
-const RecentSourcesSearchbar = ({ styles }: { styles: any }) => {
-  const [inputValue, setInputValue] = useState<any>("");
-  const [options] = useState<any[]>([]);
-  const [value] = useState<any>(null);
-  const [loading] = useState(false);
-  const [open, setOpen] = useState(false);
-
-  const classes = styles;
-
-  const dispatch = useAppDispatch();
-  const sourcesState = useAppSelector((state) => state.sources.latest);
-
-  let results: any[] = [];
-  const handleChange = (e: any) => {
-    e.preventDefault();
-    const spec_char = containsSpecialCharacters(e.target.value);
-    if (!spec_char) {
-      setInputValue(e.target.value);
-    } else {
-      dispatch(showNotification("No special characters allowed", "error"));
-      setInputValue([]);
-    }
-  };
-  if (inputValue.length > 0) {
-    results = sourcesState?.sources?.filter((source: any) =>
-      source.id.toLowerCase().match(inputValue.toLowerCase()),
-    );
-  }
-
-  function formatSource(source: any) {
-    if (source.id) {
-      source.obj_id = source.id;
-    }
-  }
-
-  const formattedResults: any[] = [];
-  Object.assign(formattedResults, results);
-
-  formattedResults.map(formatSource);
-
-  return (
-    <div>
-      <Autocomplete
-        color="primary"
-        id="recent-sources-search-bar"
-        style={{ padding: "0.3rem" }}
-        classes={{ root: classes.root, paper: classes.paper }}
-        isOptionEqualToValue={(option: any, val: any) =>
-          option.name === val.name
-        }
-        getOptionLabel={(option: any) => option}
-        onInputChange={handleChange}
-        onClose={() => setOpen(false)}
-        size="small"
-        noOptionsText="No matching sources."
-        options={options}
-        open={open}
-        limitTags={15}
-        value={value}
-        popupIcon={null}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            variant="outlined"
-            placeholder="Source"
-            InputProps={{
-              ...params.InputProps,
-              className: classes.textField,
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" className={classes.icon} />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <div className={classes.progress}>
-                  {loading ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : null}
-                </div>
-              ),
-            }}
-          />
-        )}
-      />
-      {results?.length !== 0 && (
-        <RecentSourcesList sources={formattedResults} styles={styles} search />
-      )}
-    </div>
-  );
 };
 
 interface RecentSourcesListProps {

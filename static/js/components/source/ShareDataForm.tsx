@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
 import { useTheme } from "@mui/material/styles";
@@ -211,17 +211,6 @@ const createSpecRow = (
   external_observer,
   external_pi,
 });
-
-const photHeadCells = [
-  { name: "id", label: "ID" },
-  { name: "mjd", label: "MJD" },
-  { name: "mag", label: "Mag" },
-  { name: "magerr", label: "Mag Error" },
-  { name: "limiting_mag", label: "Limiting Mag" },
-  { name: "instrument", label: "Instrument" },
-  { name: "filter", label: "Filter" },
-  { name: "groups", label: "Currently visible to" },
-];
 
 const useStyles = makeStyles()(() => ({
   groupSelect: {
@@ -528,7 +517,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
       filterable: false,
       hideable: false,
       disableColumnMenu: true,
-      colSpan: (value: any, row: any) => (row.__detail ? 100 : 1),
+      colSpan: (_value: any, row: any) => (row.__detail ? 100 : 1),
       renderCell: (params: any) => {
         if (params.row.__detail) {
           const spec = params.row.__source;
@@ -791,7 +780,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
                 id="dataSharingFormGroupsSelect"
                 options={groups}
                 value={value}
-                onChange={(e, data) => onChange(data)}
+                onChange={(_e, data) => onChange(data)}
                 getOptionLabel={(group: any) => group.name}
                 filterSelectedOptions
                 renderInput={(params) => (

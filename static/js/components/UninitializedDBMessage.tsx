@@ -1,5 +1,3 @@
-import React from "react";
-
 const UninitializedDBMessage = () => (
   <div>
     Welcome to SkyPortal. The Sources table is currently empty.

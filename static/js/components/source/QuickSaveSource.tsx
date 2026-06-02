@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 import SaveIcon from "@mui/icons-material/Save";
 import { showNotification } from "baselayer/components/Notifications";

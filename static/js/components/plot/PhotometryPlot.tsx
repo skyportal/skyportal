@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
@@ -134,7 +134,6 @@ interface PeriodAnnotationDialogProps {
 const PeriodAnnotationDialog = ({
   obj_id,
   period,
-  periodUnit,
 }: PeriodAnnotationDialogProps) => {
   const dispatch = useAppDispatch();
   const groups = useAppSelector(
@@ -1380,7 +1379,7 @@ const PhotometryPlot = ({
     }
   }, [showForcedPhotometry]);
 
-  const handleChangeTab = (event: any, newValue: number) => {
+  const handleChangeTab = (_event: any, newValue: number) => {
     setTabIndex(newValue);
   };
 
@@ -1848,7 +1847,7 @@ const PhotometryPlot = ({
             <div className={classes.periodContainer}>
               <Slider
                 value={period}
-                onChange={(e, newValue) => setPeriod(newValue)}
+                onChange={(_e, newValue) => setPeriod(newValue)}
                 aria-labelledby="input-slider"
                 valueLabelDisplay="auto"
                 step={0.1}
@@ -1908,7 +1907,7 @@ const PhotometryPlot = ({
             <div className={classes.sliderContainer}>
               <Slider
                 value={smoothing}
-                onChange={(e, newValue) => setSmoothing(newValue)}
+                onChange={(_e, newValue) => setSmoothing(newValue)}
                 aria-labelledby="input-slider"
                 valueLabelDisplay="auto"
                 step={1}

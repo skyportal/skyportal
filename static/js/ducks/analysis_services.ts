@@ -33,7 +33,7 @@ export const modifyAnalysisService = (id: number | string, params: any) =>
 export const deleteAnalysisService = (id: number | string) =>
   API.DELETE(`/api/analysis_service/${id}`, DELETE_ANALYSIS_SERVICE);
 
-messageHandler.add((actionType: string, payload: any, dispatch: any) => {
+messageHandler.add((actionType: string, _payload: any, dispatch: any) => {
   if (actionType === REFRESH_ANALYSIS_SERVICES) {
     dispatch(fetchAnalysisServices());
   }
