@@ -60,27 +60,63 @@ const config = (env, argv) => {
     },
     module: {
       rules: [
+        // Transform JS/TS with rspack's built-in Rust/SWC loader instead of
+        // babel-loader. SWC needs an explicit parser per syntax, so this is
+        // split into two rules (TS/TSX and JS/JSX). Type *checking* remains a
+        // separate `tsc --noEmit` step (npm run typecheck); SWC, like the old
+        // @babel/preset-typescript, only strips types during bundling.
         {
-          test: /\.(js|jsx|ts|tsx)?$/,
-          loader: "babel-loader",
+          // TypeScript / TSX
+          test: /\.tsx?$/,
+          loader: "builtin:swc-loader",
           include: /static\/js/,
           exclude: /node_modules/,
           options: {
-            presets: [
-              "@babel/preset-env",
-              "@babel/preset-react",
-              // Strips TS types during bundling. Type *checking* is a separate
-              // `tsc --noEmit` step (npm run typecheck), so a type error fails
-              // CI without blocking local bundling.
-              "@babel/preset-typescript",
-            ],
-            plugins: [
-              "@babel/plugin-transform-async-to-generator",
-              "@babel/plugin-transform-arrow-functions",
-              "@babel/plugin-transform-class-properties",
-              "@babel/plugin-transform-object-rest-spread",
-            ],
-            compact: false,
+            jsc: {
+              parser: { syntax: "typescript", tsx: true },
+              transform: {
+                react: {
+                  // matches @babel/preset-react default (React must be in scope)
+                  runtime: "classic",
+                  development: false,
+                  refresh: false,
+                },
+              },
+              // class-properties, object-rest-spread, arrow fns, async→generator
+              // are all handled by lowering to the env targets below; no
+              // per-feature plugins needed. (`jsc.target` is intentionally
+              // omitted: SWC forbids it alongside `env`, which drives lowering.)
+              externalHelpers: false,
+              loose: false,
+            },
+            // Browser polyfill + lowering behavior (replaces @babel/preset-env's
+            // job). The entry still imports core-js/stable + regenerator-runtime,
+            // so use mode "entry" for byte-for-runtime-behavior parity.
+            env: {
+              mode: "entry",
+              coreJs: "3",
+              targets: "defaults",
+            },
+          },
+        },
+        {
+          // Plain JS / JSX
+          test: /\.jsx?$/,
+          loader: "builtin:swc-loader",
+          include: /static\/js/,
+          exclude: /node_modules/,
+          options: {
+            jsc: {
+              parser: { syntax: "ecmascript", jsx: true },
+              transform: {
+                react: {
+                  runtime: "classic",
+                  development: false,
+                  refresh: false,
+                },
+              },
+            },
+            env: { mode: "entry", coreJs: "3", targets: "defaults" },
           },
         },
         // Enable CSS Modules for Skyportal
