@@ -1,5 +1,5 @@
 import { makeStyles } from "tss-react/mui";
-import { useEffect, useRef, useState } from "react";
+import { type Ref, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import PrintIcon from "@mui/icons-material/Print";
@@ -69,7 +69,7 @@ interface FinderImageProps {
   id: string;
   image: string;
   classes: { media: string };
-  componentRef: React.Ref<HTMLImageElement>;
+  componentRef: Ref<HTMLImageElement>;
 }
 
 const FinderImage = ({
