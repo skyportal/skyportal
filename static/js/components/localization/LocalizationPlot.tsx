@@ -4,7 +4,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { makeStyles } from "tss-react/mui";
 import { geoMollweide } from "d3-geo-projection";
 import * as d3 from "d3";
-import d3GeoZoom from "d3-geo-zoom";
+import d3GeoZoom from "../../d3GeoZoom";
 
 import { useAppSelector } from "../../types/hooks";
 import { moonGeoJSON, sunGeoJSON } from "../../utils";
