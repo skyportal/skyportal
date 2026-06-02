@@ -65,6 +65,17 @@ const config = (env, argv) => {
         // split into two rules (TS/TSX and JS/JSX). Type *checking* remains a
         // separate `tsc --noEmit` step (npm run typecheck); SWC, like the old
         // @babel/preset-typescript, only strips types during bundling.
+        //
+        // `jsc.target: "es5"` reproduces what @babel/preset-env emitted here:
+        // with no `targets`/browserslist configured, preset-env lowers all
+        // ES2015+ down to ES5. Matching that target is deliberate — it keeps
+        // runtime behavior identical (e.g. `const`/`let` lower to hoisted `var`,
+        // so code that reads a not-yet-initialized binding gets `undefined`
+        // instead of a TDZ ReferenceError). A more modern target would change
+        // that behavior and surface latent bugs. No `env` block is used: like
+        // preset-env's default `useBuiltIns: false`, polyfills come solely from
+        // the `core-js/stable` + `regenerator-runtime/runtime` entry imports,
+        // not per-file/usage injection.
         {
           // TypeScript / TSX
           test: /\.tsx?$/,
@@ -83,19 +94,11 @@ const config = (env, argv) => {
                 },
               },
               // class-properties, object-rest-spread, arrow fns, async→generator
-              // are all handled by lowering to the env targets below; no
-              // per-feature plugins needed. (`jsc.target` is intentionally
-              // omitted: SWC forbids it alongside `env`, which drives lowering.)
+              // are all handled by lowering to this target; no per-feature
+              // plugins needed.
+              target: "es5",
               externalHelpers: false,
               loose: false,
-            },
-            // Browser polyfill + lowering behavior (replaces @babel/preset-env's
-            // job). The entry still imports core-js/stable + regenerator-runtime,
-            // so use mode "entry" for byte-for-runtime-behavior parity.
-            env: {
-              mode: "entry",
-              coreJs: "3",
-              targets: "defaults",
             },
           },
         },
@@ -115,8 +118,10 @@ const config = (env, argv) => {
                   refresh: false,
                 },
               },
+              target: "es5",
+              externalHelpers: false,
+              loose: false,
             },
-            env: { mode: "entry", coreJs: "3", targets: "defaults" },
           },
         },
         // Enable CSS Modules for Skyportal
