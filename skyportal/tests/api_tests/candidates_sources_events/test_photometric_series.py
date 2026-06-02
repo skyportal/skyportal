@@ -880,7 +880,10 @@ def test_patch_series_data(
         df = pd.DataFrame(input_data)
 
         new_df = df.copy()
-        new_df["mjd"][3] += 1
+        # Use .loc (not chained `new_df["mjd"][3]`) so the edit lands on new_df:
+        # chained assignment writes to a temporary copy and raises under
+        # pandas >= 3.0's Copy-on-Write, leaving the data unchanged.
+        new_df.loc[3, "mjd"] += 1
 
         status, data = api(
             "PATCH",
