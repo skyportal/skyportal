@@ -167,6 +167,56 @@ jobs:
               sedm_endpoint:
           EOF
 
+      - name: Patch photometry.py to tolerate broken sncosmo bandpasses
+        # The MIGRATION_REFERENCE checkout predates the defensive bandpass
+        # handling in get_bandpasses_to_colors / BANDPASSES_WAVELENGTHS.
+        # On runners where sncosmo returns an empty Bandpass for atlasc /
+        # galex::fuv / etc., the module-level dict comprehensions raise at
+        # import time, the SkyPortal app server fails to start, and the
+        # demo loader's POSTs return 503. Patch both spots so a single bad
+        # bandpass is just skipped.
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          p = pathlib.Path("skyportal/handlers/api/photometry.py")
+          src = p.read_text()
+          old_colors = 'def get_bandpasses_to_colors(bandpasses, colors_type="rgb"):\n    return {bandpass: get_color(bandpass, colors_type) for bandpass in bandpasses}'
+          new_colors = (
+              'def get_bandpasses_to_colors(bandpasses, colors_type="rgb"):\n'
+              '    out = {}\n'
+              '    for bandpass in bandpasses:\n'
+              '        try:\n'
+              '            out[bandpass] = get_color(bandpass, colors_type)\n'
+              '        except Exception:\n'
+              '            pass\n'
+              '    return out'
+          )
+          old_waves = 'BANDPASSES_WAVELENGTHS = {\n    bandpass: get_effective_wavelength(bandpass) for bandpass in ALLOWED_BANDPASSES\n}'
+          new_waves = (
+              'def _safe_eff_wave(b):\n'
+              '    try:\n'
+              '        return get_effective_wavelength(b)\n'
+              '    except Exception:\n'
+              '        return None\n'
+              'BANDPASSES_WAVELENGTHS = {\n'
+              '    b: w for b, w in ((bp, _safe_eff_wave(bp)) for bp in ALLOWED_BANDPASSES) if w is not None\n'
+              '}'
+          )
+          changed = False
+          if old_colors in src:
+              src = src.replace(old_colors, new_colors)
+              changed = True
+              print("Patched get_bandpasses_to_colors")
+          if old_waves in src:
+              src = src.replace(old_waves, new_waves)
+              changed = True
+              print("Patched BANDPASSES_WAVELENGTHS")
+          if changed:
+              p.write_text(src)
+          else:
+              print("No patch needed (already defensive)")
+          PY
+
       - name: Initialize SkyPortal
         run: |
           # Usually, we create databases on the local machine, so
