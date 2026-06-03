@@ -180,8 +180,6 @@ op_options = [
 
 Session = scoped_session(sessionmaker())
 
-observation_plans_microservice_url = f"http://{cfg['hosts.observation_plan_queue']}:{cfg['ports.observation_plan_queue']}"
-
 MAX_OBSERVATION_PLAN_REQUESTS = 1000
 
 

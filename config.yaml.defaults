@@ -748,11 +748,10 @@ user:
 
 ports:
   app: 5000 # This is the internal port
-  facility_queue: 64510
+  # migration_manager port is already defined in baselayer config.yaml.defaults, but can be overridden here
+  # migration_manager:
   notification_queue: 64610
-  observation_plan_queue: 64710
   tns_retrieval_queue: 64810
-  sharing_service_submission_queue: 64812
 
 hosts:
   # Hostnames the application uses to reach its internal microservices. These
@@ -762,11 +761,8 @@ hosts:
   # microservice independently, or for a distributed/Kubernetes deployment).
   app: 127.0.0.1
   migration_manager: 127.0.0.1
-  facility_queue: 127.0.0.1
   notification_queue: 127.0.0.1
-  observation_plan_queue: 127.0.0.1
   tns_retrieval_queue: 127.0.0.1
-  sharing_service_submission_queue: 127.0.0.1
   slack: 127.0.0.1
 
 gcn:
