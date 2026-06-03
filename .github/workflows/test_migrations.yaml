@@ -197,9 +197,6 @@ jobs:
           PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
 
       - name: Pre-warm sncosmo bandpass cache
-        # See test_api_and_frontend.yaml for the rationale. Run before
-        # `make run` so the bandpass files are on disk by the time the
-        # tornado workers start importing skyportal.handlers.api.photometry.
         run: |
           source .venv/bin/activate && PYTHONPATH=. python tools/warm_sncosmo_cache.py || true
 

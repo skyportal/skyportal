@@ -154,17 +154,11 @@ jobs:
           sed -i 's/duration = 3000/duration = 15000/g' baselayer/static/js/components/Notifications.jsx
 
       - name: Pre-warm sncosmo bandpass cache
-        # cache-dependencies restores ~/.astropy/cache/sncosmo from a prior
-        # run, but on a cold key (first run after a uv.lock bump, or after
-        # cache eviction) the app would otherwise discover missing
-        # bandpasses lazily at test time — each one blocks ~10s on
-        # astropy's urlopen and the cumulative wait pushes startup past
-        # test_frontend.py's window. Run the warm-up here so missing
-        # bandpasses are pulled in once, up front. Cached ones return
-        # instantly, so a warm cache hit is near free; failures are
-        # tolerated (script retries internally and `|| true` here).
         run: |
           source .venv/bin/activate && PYTHONPATH=. python tools/warm_sncosmo_cache.py || true
+
+      - name: Save dependency caches
+        uses: ./.github/actions/cache-dependencies-save
 
       - name: Run front-end tests part 1
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
