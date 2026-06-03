@@ -5,6 +5,7 @@ import uuid
 from io import StringIO
 
 import arrow
+import astropy.utils.data
 import numpy as np
 import pandas as pd
 import sncosmo
@@ -257,11 +258,18 @@ def _safe_effective_wavelength(bandpass):
         return None
 
 
-BANDPASSES_COLORS = get_bandpasses_to_colors(ALLOWED_BANDPASSES, "rgb")
-
-BANDPASSES_WAVELENGTHS = {
-    bandpass: _safe_effective_wavelength(bandpass) for bandpass in ALLOWED_BANDPASSES
-}
+# Build the import-time bandpass→color and bandpass→wavelength maps under a
+# short astropy `remote_timeout`. Without this, an uncached bandpass whose CDN
+# (typically SVO) is unreachable blocks for the default 10s; with ~20 such
+# bandpasses across ALLOWED_BANDPASSES the cumulative wait pushes app startup
+# past test_frontend's 180s health-check window. 2s is enough for fast hosts
+# but stops dead hosts from holding up module import.
+with astropy.utils.data.conf.set_temp("remote_timeout", 2):
+    BANDPASSES_COLORS = get_bandpasses_to_colors(ALLOWED_BANDPASSES, "rgb")
+    BANDPASSES_WAVELENGTHS = {
+        bandpass: _safe_effective_wavelength(bandpass)
+        for bandpass in ALLOWED_BANDPASSES
+    }
 BANDPASSES_WAVELENGTHS = {
     bp: w for bp, w in BANDPASSES_WAVELENGTHS.items() if w is not None
 }
