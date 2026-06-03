@@ -753,11 +753,21 @@ user:
 
 ports:
   app: 5000 # This is the internal port
-  facility_queue: 64510
+  # migration_manager port is already defined in baselayer config.yaml.defaults, but can be overridden here
+  # migration_manager:
   notification_queue: 64610
-  observation_plan_queue: 64710
   tns_retrieval_queue: 64810
-  sharing_service_submission_queue: 64812
+
+hosts:
+  # Hostnames the application uses to reach its internal microservices. These
+  # default to the loopback address, which is correct for the standard
+  # single-host deployment where every service runs alongside the app. Override
+  # a service's host to run it on a separate host/container (e.g. to scale a
+  # microservice independently, or for a distributed/Kubernetes deployment).
+  migration_manager: 127.0.0.1
+  notification_queue: 127.0.0.1
+  tns_retrieval_queue: 127.0.0.1
+  slack: 127.0.0.1
 
 gcn:
   server: gcn.nasa.gov
