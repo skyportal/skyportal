@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -195,15 +195,15 @@ const CommentList = ({
   };
 
   const dispatch = useAppDispatch();
-  const source = useAppSelector((state) => state.source);
-  const candidate = useAppSelector((state) => state.candidate);
+  const source = useAppSelector((state) => state["source"]);
+  const candidate = useAppSelector((state) => state["candidate"]);
   const obj = isCandidate ? candidate : source;
-  const spectra = useAppSelector((state) => state.spectra);
-  const gcnEvent = useAppSelector((state) => state.gcnEvent);
-  const earthquake = useAppSelector((state) => state.earthquake);
+  const spectra = useAppSelector((state) => state["spectra"]);
+  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
+  const earthquake = useAppSelector((state) => state["earthquake"]);
   const userProfile = useAppSelector((state) => state.profile);
   const permissions = useAppSelector((state) => state.profile.permissions);
-  const { currentShift } = useAppSelector((state) => state.shifts);
+  const { currentShift } = useAppSelector((state) => state["shifts"]);
   const { showBotComments } = useAppSelector(
     (state) => state.profile.preferences as any,
   );

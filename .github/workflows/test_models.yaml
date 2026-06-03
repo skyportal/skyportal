@@ -85,6 +85,13 @@ jobs:
             server:
               auth:
                 debug_login: True
+
+            # Same SEDM short-circuit as the repo's test_config.yaml — we
+            # overwrite that file with this heredoc, so the override has to
+            # be repeated here or the demo loader's followup_request POSTs
+            # will fall through to the live STScI endpoint and time out.
+            app:
+              sedm_endpoint:
           EOF
 
       - name: Install system dependencies
@@ -143,10 +150,19 @@ jobs:
         run: |
           uvx pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
+      - name: Pre-warm sncosmo bandpass cache
+        # See test_api_and_frontend.yaml for the rationale: a cold cache
+        # leaves ~20 bandpasses to be fetched lazily at app startup, each
+        # blocking ~10s on astropy's urlopen. Running the warm-up once up
+        # front (with internal retries) keeps `make run`'s startup inside
+        # the 180s sleep budget below.
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python tools/warm_sncosmo_cache.py || true
+
       - name: Test loading demo data
         run: |
-          make run &
-          sleep 180 && make load_demo_data
+          FLAGS="--config=test_config.yaml" make run &
+          sleep 180 && FLAGS="--config=test_config.yaml" make load_demo_data
           make stop
           kill %1 2>/dev/null || true
           sleep 5

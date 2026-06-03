@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
@@ -268,7 +268,7 @@ const AllocationTable = ({
       headerName: "ID",
       flex: 1,
       minWidth: 80,
-      valueGetter: (value: any, row: any) => row.id ?? "",
+      valueGetter: (_value: any, row: any) => row.id ?? "",
     },
     {
       field: "instrument_name",
@@ -276,7 +276,7 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 150,
       filterable: false,
-      valueGetter: (value: any, row: any) => getInstrument(row)?.name || "",
+      valueGetter: (_value: any, row: any) => getInstrument(row)?.name || "",
       renderCell: renderInstrumentName,
     },
     telescopeInfo && {
@@ -285,7 +285,7 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 150,
       filterable: false,
-      valueGetter: (value: any, row: any) => {
+      valueGetter: (_value: any, row: any) => {
         const instrument = getInstrument(row);
         const telescope = telescopes?.filter(
           (t) => t.id === instrument?.telescope_id,
@@ -300,7 +300,7 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 120,
       filterable: false,
-      valueGetter: (value: any, row: any) => row.pi || "",
+      valueGetter: (_value: any, row: any) => row.pi || "",
     },
     {
       field: "Group",
@@ -308,7 +308,7 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 120,
       filterable: false,
-      valueGetter: (value: any, row: any) => getGroupName(row),
+      valueGetter: (_value: any, row: any) => getGroupName(row),
     },
     {
       field: "default_share_group",
@@ -316,7 +316,7 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 160,
       filterable: false,
-      valueGetter: (value: any, row: any) => getShareGroups(row),
+      valueGetter: (_value: any, row: any) => getShareGroups(row),
     },
     {
       field: "admins",
@@ -324,7 +324,7 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 120,
       filterable: false,
-      valueGetter: (value: any, row: any) => getAllocationUsers(row),
+      valueGetter: (_value: any, row: any) => getAllocationUsers(row),
     },
     {
       field: "types",
@@ -332,7 +332,7 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 120,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.types ? row.types.join(", ") : "",
     },
     {

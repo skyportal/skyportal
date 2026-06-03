@@ -34,7 +34,7 @@ export function deleteCatalog(catalog: string) {
 }
 
 export function fetchCatalogs(filterParams: Record<string, any> = {}) {
-  filterParams.catalogNamesOnly = true;
+  filterParams["catalogNamesOnly"] = true;
   return API.GET("/api/galaxy_catalog", FETCH_GALAXIES, filterParams);
 }
 
@@ -42,8 +42,8 @@ export function fetchGcnEventGalaxies(
   dateobs: string,
   filterParams: Record<string, any> = {},
 ) {
-  filterParams.localizationDateobs = dateobs;
-  filterParams.includeGeoJSON = true;
+  filterParams["localizationDateobs"] = dateobs;
+  filterParams["includeGeoJSON"] = true;
 
   return API.GET("/api/galaxy_catalog", FETCH_GCNEVENT_GALAXIES, filterParams);
 }

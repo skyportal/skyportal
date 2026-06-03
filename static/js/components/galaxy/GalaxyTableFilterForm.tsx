@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Paper from "@mui/material/Paper";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
@@ -104,7 +104,7 @@ const GalaxyTableFilterForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const gcnEvents = useAppSelector((state) => state.gcnEvents);
+  const gcnEvents = useAppSelector((state) => state["gcnEvents"]);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState<any>(null);
 
   useEffect(() => {

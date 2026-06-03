@@ -1,4 +1,3 @@
-import React from "react";
 import { makeStyles } from "tss-react/mui";
 import { useForm } from "react-hook-form";
 import TextField from "@mui/material/TextField";
@@ -40,7 +39,7 @@ const useStyles = makeStyles()(() => ({
 const SpectroscopyButtonsForm = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const colorPalette = useAppSelector((state) => state.config.colorPalette);
+  const colorPalette = useAppSelector((state) => state["config"].colorPalette);
   const { spectroscopyButtons } = useAppSelector(
     (state) => state.profile.preferences,
   ) as any;
@@ -110,7 +109,7 @@ const SpectroscopyButtonsForm = () => {
                 fullWidth
                 id="spectroscopyColorSelectInput"
                 {...register("spectroscopyColorSelect", { required: true })}
-                error={!!errors.spectroscopyColorSelect}
+                error={!!errors["spectroscopyColorSelect"]}
               >
                 {(colorPalette || []).map((color: any) => (
                   <MenuItem key={color} value={color}>
@@ -136,8 +135,8 @@ const SpectroscopyButtonsForm = () => {
               })}
               name="spectroscopyButtonName"
               id="spectroscopyButtonNameInput"
-              error={!!errors.spectroscopyButtonName}
-              helperText={errors.spectroscopyButtonName?.message as any}
+              error={!!errors["spectroscopyButtonName"]}
+              helperText={errors["spectroscopyButtonName"]?.message as any}
             />
             <TextField
               label="Wavelengths"
@@ -146,8 +145,10 @@ const SpectroscopyButtonsForm = () => {
               })}
               name="spectroscopyButtonWavelengths"
               id="spectroscopyButtonWavelengthInput"
-              error={!!errors.spectroscopyButtonWavelengths}
-              helperText={errors.spectroscopyButtonWavelengths?.message as any}
+              error={!!errors["spectroscopyButtonWavelengths"]}
+              helperText={
+                errors["spectroscopyButtonWavelengths"]?.message as any
+              }
             />
           </div>
           <Button

@@ -185,7 +185,7 @@ const reducer = (
       return {
         ...state,
         submissions: {
-          ...state.submissions,
+          ...state["submissions"],
           [sharing_service_id]: {
             totalMatches,
             submissions,

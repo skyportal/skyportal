@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Paper from "@mui/material/Paper";
 import { makeStyles } from "tss-react/mui";
@@ -89,7 +89,7 @@ const ExecutedObservationsTable = ({
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
 
   const [open, setOpen] = useState(false);
   const [newDialogFromFileOpen, setNewDialogFromFileOpen] = useState(false);
@@ -224,7 +224,7 @@ const ExecutedObservationsTable = ({
       minWidth: 120,
       sortable: false,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.telescope?.name || "",
       renderCell: (params: any) => {
         const instrument = instrumentsLookup[params.row.instrument_id] || null;
@@ -240,7 +240,7 @@ const ExecutedObservationsTable = ({
       flex: 1,
       minWidth: 120,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.name || "",
       renderCell: (params: any) => {
         const instrument = instrumentsLookup[params.row.instrument_id] || null;
@@ -263,7 +263,7 @@ const ExecutedObservationsTable = ({
       minWidth: 100,
       sortable: false,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.field ? row.field?.field_id?.toFixed(0) : "",
     },
     {
@@ -273,7 +273,7 @@ const ExecutedObservationsTable = ({
       minWidth: 130,
       sortable: false,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.field ? row.field?.ra?.toFixed(5) : "",
     },
     {
@@ -283,7 +283,7 @@ const ExecutedObservationsTable = ({
       minWidth: 120,
       sortable: false,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.field ? row.field?.dec?.toFixed(5) : "",
     },
     {
@@ -324,7 +324,7 @@ const ExecutedObservationsTable = ({
       flex: 1,
       minWidth: 130,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.seeing ? row.seeing.toFixed(1) : "",
     },
     {
@@ -333,7 +333,7 @@ const ExecutedObservationsTable = ({
       flex: 1,
       minWidth: 150,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.limmag ? row.limmag.toFixed(2) : "",
     },
     {

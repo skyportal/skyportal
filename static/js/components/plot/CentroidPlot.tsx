@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { makeStyles } from "tss-react/mui";
 import * as d3 from "d3";
 import Typography from "@mui/material/Typography";
@@ -325,9 +325,9 @@ const CentroidPlot = ({
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
-  const { id, ra, dec } = useAppSelector((state) => state.source);
-  const photometry = useAppSelector((state) => state.photometry[sourceId]);
-  const config = useAppSelector((state) => state.config);
+  const { id, ra, dec } = useAppSelector((state) => state["source"]);
+  const photometry = useAppSelector((state) => state["photometry"][sourceId]);
+  const config = useAppSelector((state) => state["config"]);
 
   // no crossMatches in the default SkyPortal, but can be added by SkyPortal-based
   // apps on top of the basic SkyPortal
@@ -366,9 +366,10 @@ const CentroidPlot = ({
       const groupedPoints = groupBy(points || [], "filter");
       Object.keys(groupedPoints).forEach((filter) => {
         const colorRGB = filter2color[filter] || [0, 0, 0];
+        const pts = groupedPoints[filter] ?? [];
         photometryTraces.push({
-          x: groupedPoints[filter].map((p: any) => p.deltaRA),
-          y: groupedPoints[filter].map((p: any) => p.deltaDec),
+          x: pts.map((p: any) => p.deltaRA),
+          y: pts.map((p: any) => p.deltaDec),
           mode: "markers",
           type: "scatter",
           marker: {
@@ -382,7 +383,7 @@ const CentroidPlot = ({
             font: { size: 14 },
             align: "left",
           },
-          text: groupedPoints[filter].map((p: any) => p.text),
+          text: pts.map((p: any) => p.text),
           hovertemplate: "%{text}<extra></extra>",
         });
       });

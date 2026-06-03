@@ -116,9 +116,9 @@ const QueuedObservationList = ({
 };
 
 const ObservationPage = () => {
-  const observations = useAppSelector((state) => state.observations);
+  const observations = useAppSelector((state) => state["observations"]);
   const queued_observations = useAppSelector(
-    (state) => state.queued_observations,
+    (state) => state["queued_observations"],
   );
   const currentUser = useAppSelector((state) => state.profile);
   const dispatch = useAppDispatch();
@@ -165,7 +165,7 @@ const ObservationPage = () => {
     return <p>No queued observations available...</p>;
   }
 
-  const handleChangeTab = (event: any, newValue: number) => {
+  const handleChangeTab = (_event: any, newValue: number) => {
     setTabIndex(newValue);
   };
 
@@ -191,7 +191,7 @@ const ObservationPage = () => {
   const handleQueuedPageChange = async (
     page: number,
     numPerPage: number,
-    sortData?: any,
+    _sortData?: any,
   ) => {
     const params = {
       ...fetchQueuedParams,

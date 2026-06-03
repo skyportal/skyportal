@@ -26,7 +26,7 @@ const getStyles = (userID: number, userIDs: number[] = [], theme: any) => ({
 
 const NewGroupForm = () => {
   const dispatch = useAppDispatch();
-  const { users: allUsers } = useAppSelector((state) => state.users);
+  const { users: allUsers } = useAppSelector((state) => state["users"]);
 
   const [formState, setState] = useState<{
     name: string;

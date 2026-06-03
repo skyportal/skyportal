@@ -531,7 +531,9 @@ def get_tns(
         "user_id": user_id,
     }
 
-    tns_microservice_url = f"http://127.0.0.1:{cfg['ports.tns_retrieval_queue']}"
+    tns_microservice_url = (
+        f"http://{cfg['hosts.tns_retrieval_queue']}:{cfg['ports.tns_retrieval_queue']}"
+    )
 
     resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
     if resp.status_code != 200:

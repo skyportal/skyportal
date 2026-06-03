@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import ButtonGroup from "@mui/material/ButtonGroup";
@@ -105,7 +105,7 @@ const EarthquakesFilterForm = ({
 
   let earthquakeStatuses: any[] = [];
   earthquakeStatuses = earthquakeStatuses.concat(
-    useAppSelector((state) => state.earthquakeStatuses) as any,
+    useAppSelector((state) => state["earthquakeStatuses"]) as any,
   );
   earthquakeStatuses.sort();
 

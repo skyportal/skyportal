@@ -1,4 +1,3 @@
-import React from "react";
 import Typography from "@mui/material/Typography";
 import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -43,7 +42,7 @@ const AddUsersFromGroupForm = ({ groupID }: AddUsersFromGroupFormProps) => {
 
   const validateGroups = () => {
     const formState = getValues();
-    return formState.groups.length >= 1;
+    return formState["groups"].length >= 1;
   };
 
   const onSubmit = async (formData: any) => {
@@ -65,7 +64,7 @@ const AddUsersFromGroupForm = ({ groupID }: AddUsersFromGroupFormProps) => {
         Add all users from other group(s)
       </Typography>
       <form onSubmit={handleSubmit(onSubmit)}>
-        {!!errors.groups && (
+        {!!errors["groups"] && (
           <FormValidationError message="Please select at least one group/user" />
         )}
         <Controller
@@ -74,7 +73,7 @@ const AddUsersFromGroupForm = ({ groupID }: AddUsersFromGroupFormProps) => {
             <Autocomplete
               multiple
               id="addUsersFromGroupsSelect"
-              onChange={(e, data) => onChange(data)}
+              onChange={(_e, data) => onChange(data)}
               value={value}
               options={groups}
               getOptionLabel={(group: Group) => group.name}
@@ -83,7 +82,7 @@ const AddUsersFromGroupForm = ({ groupID }: AddUsersFromGroupFormProps) => {
               renderInput={(field) => (
                 <TextField
                   {...field}
-                  error={!!errors.groups}
+                  error={!!errors["groups"]}
                   variant="outlined"
                   label="Select Groups/Users"
                   size="small"

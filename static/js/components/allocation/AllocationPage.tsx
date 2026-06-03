@@ -41,9 +41,9 @@ interface AllocationListProps {
 
 const AllocationList = ({ managePermission = false }: AllocationListProps) => {
   const dispatch = useAppDispatch();
-  const allocationsState = useAppSelector((state) => state.allocations);
-  const instrumentsState = useAppSelector((state) => state.instruments);
-  const telescopesState = useAppSelector((state) => state.telescopes);
+  const allocationsState = useAppSelector((state) => state["allocations"]);
+  const instrumentsState = useAppSelector((state) => state["instruments"]);
+  const telescopesState = useAppSelector((state) => state["telescopes"]);
   const groups = useAppSelector((state) => state.groups.all);
   const [rowsPerPage, setRowsPerPage] = useState(100);
 
@@ -103,13 +103,13 @@ const AllocationList = ({ managePermission = false }: AllocationListProps) => {
 const AllocationPage = () => {
   const dispatch = useAppDispatch();
   const { defaultObservationPlanList } = useAppSelector(
-    (state) => state.default_observation_plans,
+    (state) => state["default_observation_plans"],
   );
   const { defaultSurveyEfficiencyList } = useAppSelector(
-    (state) => state.default_survey_efficiencies,
+    (state) => state["default_survey_efficiencies"],
   );
-  const { instrumentList } = useAppSelector((state) => state.instruments);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const currentUser = useAppSelector((state) => state.profile);
 
   const [rowsPerPage, setRowsPerPage] = useState(100);

@@ -1,5 +1,3 @@
-import React from "react";
-
 import { makeStyles } from "tss-react/mui";
 import Avatar from "@mui/material/Avatar";
 import Grid from "@mui/material/Grid";
@@ -47,8 +45,8 @@ const useStyles = makeStyles()(() => ({
 
 const About = () => {
   const { classes } = useStyles();
-  const cosmology = useAppSelector((state) => state.sysInfo.cosmology);
-  const cosmoref = useAppSelector((state) => state.sysInfo.cosmoref);
+  const cosmology = useAppSelector((state) => state["sysInfo"].cosmology);
+  const cosmoref = useAppSelector((state) => state["sysInfo"].cosmoref);
 
   const developers = [
     {

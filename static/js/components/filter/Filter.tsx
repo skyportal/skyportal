@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
@@ -75,7 +75,7 @@ const Filter = () => {
   const [streamLoadError, setStreamLoadError] = useState("");
 
   const { fid } = useParams();
-  const loadedId = useAppSelector((state) => state.filter.id);
+  const loadedId = useAppSelector((state) => state["filter"].id);
 
   useEffect(() => {
     const fetchFilter = async () => {
@@ -92,8 +92,8 @@ const Filter = () => {
     }
   }, [fid, loadedId, dispatch]);
 
-  const group_id = useAppSelector((state) => state.filter.group_id);
-  const stream_id = useAppSelector((state) => state.filter.stream_id);
+  const group_id = useAppSelector((state) => state["filter"].group_id);
+  const stream_id = useAppSelector((state) => state["filter"].stream_id);
 
   useEffect(() => {
     const fetchGroup = async () => {
@@ -123,9 +123,9 @@ const Filter = () => {
     if (stream_id) fetchStream();
   }, [stream_id, dispatch, streamLoadError]);
 
-  const filter = useAppSelector((state) => state.filter);
-  const group = useAppSelector((state) => state.group) as any;
-  const stream = useAppSelector((state) => state.stream) as any;
+  const filter = useAppSelector((state) => state["filter"]);
+  const group = useAppSelector((state) => state["group"]) as any;
+  const stream = useAppSelector((state) => state["stream"]) as any;
 
   if (filterLoadError) {
     return <div>{filterLoadError}</div>;

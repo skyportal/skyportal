@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import HistoryIcon from "@mui/icons-material/History";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -49,7 +49,7 @@ const ShowSummaryHistory = ({
   button = false,
 }: ShowSummaryHistoryProps) => {
   const { classes } = useStyles();
-  const { users: allUsers } = useAppSelector((state) => state.users);
+  const { users: allUsers } = useAppSelector((state) => state["users"]);
   const userIdToUsername: Record<number, string> = {};
 
   const [dialogOpen, setDialogOpen] = useState(false);
