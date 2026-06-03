@@ -154,6 +154,11 @@ jobs:
               port: 5432
               user: skyportal
               password: anything
+            # Short-circuit the SEDM facility-api HTTP call so the demo
+            # loader's followup_request POSTs don't depend on STScI's
+            # \`minar.caltech.edu/add_fritz\` being reachable from CI.
+            app:
+              sedm_endpoint:
           EOF
 
       - name: Initialize SkyPortal
@@ -187,8 +192,8 @@ jobs:
       - name: Test loading demo data
         run: |
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-          FLAGS="--config=test_config.yaml" make run &
-          sleep 180 && FLAGS="--config=test_config.yaml" make load_demo_data
+          make run &
+          sleep 180 && make load_demo_data
           # `kill %1` alone is racy — `make run` often backgrounds supervisord
           # and returns, leaving `%1` already gone. `make stop` shuts the
           # supervisor down so it can't race with the alembic upgrade in the
@@ -277,6 +282,9 @@ jobs:
               port: 5432
               user: skyportal
               password: anything
+            # Same SEDM short-circuit as the first config.yaml above.
+            app:
+              sedm_endpoint:
           EOF
 
           createdb -h localhost -U skyportal skyportal2
@@ -287,8 +295,8 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
-          FLAGS="--config=test_config.yaml" make run &
-          sleep 60 && FLAGS="--config=test_config.yaml" make load_demo_data
+          make run &
+          sleep 60 && make load_demo_data
           make stop
           kill %1 2>/dev/null || true
           sleep 5
