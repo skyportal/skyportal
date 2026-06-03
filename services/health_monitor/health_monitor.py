@@ -46,7 +46,7 @@ def backends_down():
         port = cfg["ports.app_internal"] + i
         try:
             r = requests.get(
-                f"http://{cfg['hosts.app']}:{port}/api/sysinfo",
+                f"http://localhost:{port}/api/sysinfo",
                 timeout=REQUEST_TIMEOUT_SECONDS,
             )
         except:  # noqa: E722

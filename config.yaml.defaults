@@ -759,7 +759,6 @@ hosts:
   # single-host deployment where every service runs alongside the app. Override
   # a service's host to run it on a separate host/container (e.g. to scale a
   # microservice independently, or for a distributed/Kubernetes deployment).
-  app: 127.0.0.1
   migration_manager: 127.0.0.1
   notification_queue: 127.0.0.1
   tns_retrieval_queue: 127.0.0.1
