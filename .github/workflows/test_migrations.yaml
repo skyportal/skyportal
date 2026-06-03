@@ -189,7 +189,15 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           FLAGS="--config=test_config.yaml" make run &
           sleep 180 && FLAGS="--config=test_config.yaml" make load_demo_data
-          kill %1
+          # `kill %1` alone is racy — `make run` often backgrounds supervisord
+          # and returns, leaving `%1` already gone. `make stop` shuts the
+          # supervisor down so it can't race with the alembic upgrade in the
+          # next step (the race surfaces as `relation "objs" does not exist`
+          # when a respawned app worker's create_tables() collides with the
+          # migration's CREATE TABLE).
+          make stop
+          kill %1 2>/dev/null || true
+          sleep 5
 
       - name: Checkout branch being tested
         uses: actions/checkout@v4
@@ -281,7 +289,9 @@ jobs:
 
           FLAGS="--config=test_config.yaml" make run &
           sleep 60 && FLAGS="--config=test_config.yaml" make load_demo_data
-          kill %1
+          make stop
+          kill %1 2>/dev/null || true
+          sleep 5
           PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
 
       - name: Compare databases with migra
