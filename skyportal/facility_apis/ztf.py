@@ -1226,10 +1226,12 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                     skiprows=[1],
                     delimiter="|",
                 )
-                # remove spaces around the column names and str values if any
+                # remove spaces around the column names and str values if any.
+                # is_string_dtype (not `== "object"`) so this also matches
+                # pandas >= 3.0's default `str` dtype for parsed text columns.
                 obstable.columns = [col.strip() for col in obstable.columns]
                 for col in obstable.columns:
-                    if obstable[col].dtype == "object":
+                    if pd.api.types.is_string_dtype(obstable[col].dtype):
                         obstable[col] = obstable[col].str.strip()
 
                 if obstable.empty:
