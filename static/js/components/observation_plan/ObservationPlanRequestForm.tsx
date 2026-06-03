@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";

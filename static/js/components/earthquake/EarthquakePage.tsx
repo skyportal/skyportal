@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 import Accordion from "@mui/material/Accordion";

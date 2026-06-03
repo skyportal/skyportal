@@ -1,4 +1,3 @@
-import React from "react";
 import ReactMarkdown from "react-markdown";
 import { isMobile } from "react-device-detect";
 
@@ -59,7 +58,7 @@ const Comment = ({
     // Format the text to highlight mentions
     const formattedText = (text ?? "").replace(
       /(?<!\w)([@#])([\w-@]+)/g,
-      (match, symbol, username) => {
+      (_match, symbol, username) => {
         return `***${symbol}${username}***`;
       },
     );

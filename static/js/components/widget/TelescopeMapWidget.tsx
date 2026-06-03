@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -10,7 +10,7 @@ import { useAppSelector } from "../../types/hooks";
 
 const TelescopeMap = lazy(() => import("../telescope/TelescopeMap"));
 
-const useStyles = makeStyles()((theme) => ({
+const useStyles = makeStyles()((_theme) => ({
   mapContainer: {
     position: "relative",
     width: "100%",

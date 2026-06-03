@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import Dialog from "@mui/material/Dialog";
@@ -101,12 +101,12 @@ const EditSourceGroups = ({
     data.objId = source.id;
     const unsavedGroupIds = unsavedGroups?.map((g) => g.id);
     const inviteGroupIds = unsavedGroupIds?.filter(
-      (ID, idx) => data.inviteGroupIds[idx],
+      (_ID, idx) => data.inviteGroupIds[idx],
     );
     data.inviteGroupIds = inviteGroupIds;
     const savedGroupIds = savedGroups?.map((g) => g.id);
     const unsaveGroupIds = savedGroupIds?.filter(
-      (ID, idx) => data.unsaveGroupIds[idx],
+      (_ID, idx) => data.unsaveGroupIds[idx],
     );
     data.unsaveGroupIds = unsaveGroupIds;
     const result: any = await dispatch(sourceActions.updateSourceGroups(data));

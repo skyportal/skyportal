@@ -24,7 +24,7 @@ export function patchUser(id: number | string, data: Record<string, any>) {
 }
 
 // Websocket message handler
-messageHandler.add((actionType: any, payload: any, dispatch: any) => {
+messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
   if (actionType === FETCH_USERS) {
     dispatch(fetchUsers());
   }

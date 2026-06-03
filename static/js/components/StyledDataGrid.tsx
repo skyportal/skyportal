@@ -1,4 +1,3 @@
-import React from "react";
 import { DataGrid } from "@mui/x-data-grid";
 
 // Shared, theme-aware wrapper around MUI X DataGrid.

@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
@@ -99,7 +99,7 @@ const ObservabilityPage = ({ route }: ObservabilityPageProps) => {
             <Pagination
               count={Math.ceil(selectedTelescopes?.length / 16)}
               page={page}
-              onChange={(event, value) => setPage(value)}
+              onChange={(_event, value) => setPage(value)}
             />
           </div>
         </Paper>

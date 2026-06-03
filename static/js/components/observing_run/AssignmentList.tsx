@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -136,7 +136,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       flex: 1,
       minWidth: 120,
       sortable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         allUsers.find((user: any) => user.id === row.requester_id)?.username ||
         "Loading...",
     },
@@ -146,7 +146,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       flex: 1,
       minWidth: 120,
       sortable: false,
-      valueGetter: (value: any, row: any) => {
+      valueGetter: (_value: any, row: any) => {
         const run = runForRow(row);
         const instrument = instrumentList?.filter(
           (i: any) => i.id === run?.instrument_id,
@@ -160,7 +160,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       flex: 1,
       minWidth: 120,
       sortable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         runForRow(row)?.calendar_date || "Loading...",
     },
     {
@@ -169,7 +169,8 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       flex: 1,
       minWidth: 120,
       sortable: false,
-      valueGetter: (value: any, row: any) => runForRow(row)?.pi || "Loading...",
+      valueGetter: (_value: any, row: any) =>
+        runForRow(row)?.pi || "Loading...",
     },
     {
       field: "priority",

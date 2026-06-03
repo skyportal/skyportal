@@ -1,5 +1,3 @@
-import React from "react";
-
 import SelectWithChips from "../SelectWithChips";
 import { useAppSelector } from "../../types/hooks";
 

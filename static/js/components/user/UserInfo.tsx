@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";

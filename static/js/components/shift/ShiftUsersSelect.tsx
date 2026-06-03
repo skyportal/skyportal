@@ -1,5 +1,5 @@
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   addShiftUser,
   deleteShiftUser,

@@ -1,5 +1,5 @@
 import { makeStyles } from "tss-react/mui";
-import React, { useEffect, useRef, useState } from "react";
+import { type Ref, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import PrintIcon from "@mui/icons-material/Print";
@@ -64,6 +64,27 @@ const useStyles = makeStyles()(() => ({
     margin: 0,
   },
 }));
+
+interface FinderImageProps {
+  id: string;
+  image: string;
+  classes: { media: string };
+  componentRef: Ref<HTMLImageElement>;
+}
+
+const FinderImage = ({
+  id,
+  image,
+  classes,
+  componentRef,
+}: FinderImageProps) => {
+  const { src } = useImage({
+    srcList: image,
+  });
+  return (
+    <img alt={`${id}`} src={src} className={classes.media} ref={componentRef} />
+  );
+};
 
 const PlaceHolder = () => {
   const { classes } = useStyles();
@@ -131,20 +152,6 @@ const FindingChart = () => {
     fetchImage();
   }, [params]);
 
-  function FinderImage() {
-    const { src } = useImage({
-      srcList: image,
-    });
-    return (
-      <img
-        alt={`${id}`}
-        src={src}
-        className={classes.media}
-        ref={componentRef}
-      />
-    );
-  }
-
   const onSubmit = () => {
     setImage(null);
     const formData = {
@@ -183,7 +190,18 @@ const FindingChart = () => {
           <Grid size={{ xs: 12, md: 10 }}>
             <Card>
               <CardContent style={{ textAlign: "center" }}>
-                <div>{image ? <FinderImage /> : <PlaceHolder />}</div>
+                <div>
+                  {image ? (
+                    <FinderImage
+                      id={id as string}
+                      image={image}
+                      classes={classes}
+                      componentRef={componentRef}
+                    />
+                  ) : (
+                    <PlaceHolder />
+                  )}
+                </div>
               </CardContent>
             </Card>
           </Grid>

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 import SelectWithChips from "../SelectWithChips";

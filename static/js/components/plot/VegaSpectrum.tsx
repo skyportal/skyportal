@@ -176,7 +176,6 @@ const VegaSpectrum = (props: VegaSpectrumProps) => {
     legendOrient = "right",
     normalization = "median",
   } = props;
-  const theme: any = useTheme();
   const dispatch = useAppDispatch();
   const spectra = useAppSelector((state) => state.spectra[sourceId]);
   const [loading, setLoading] = useState(false);

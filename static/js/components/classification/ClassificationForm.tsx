@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
@@ -187,7 +187,7 @@ const CustomClassificationWidget = ({
       id="classification"
       filterOptions={filteringOptions}
       options={options.enumOptions?.map((option: any) => option.value) ?? []}
-      onChange={(event, newValue) => {
+      onChange={(_event, newValue) => {
         onChange(newValue);
       }}
       value={value || ""}

@@ -9,7 +9,6 @@ const FETCH_RECURRING_APIS_LIST_OK = "skyportal/FETCH_RECURRING_APIS_LIST_OK";
 
 const REFRESH_RECURRING_APIS = "skyportal/REFRESH_RECURRING_APIS";
 
-const FETCH_RECURRING_API = "skyportal/FETCH_RECURRING_API";
 const FETCH_RECURRING_API_OK = "skyportal/FETCH_RECURRING_API_OK";
 
 const SUBMIT_RECURRING_API = "skyportal/SUBMIT_RECURRING_API";
@@ -26,7 +25,7 @@ export const deleteRecurringAPI = (id: number | string) =>
   API.DELETE(`/api/recurring_api/${id}`, DELETE_RECURRING_API);
 
 messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
+  (actionType: string, _payload: any, dispatch: AppDispatch) => {
     if (actionType === REFRESH_RECURRING_APIS) {
       dispatch(fetchRecurringAPIs());
     }

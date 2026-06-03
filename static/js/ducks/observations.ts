@@ -75,7 +75,7 @@ export function requestAPIQueuedObservations(id: number | string, data = {}) {
 
 // Websocket message handler
 messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
+  (actionType: string, _payload: any, dispatch: AppDispatch) => {
     if (actionType === REFRESH_OBSERVATIONS) {
       dispatch(fetchObservations());
     }

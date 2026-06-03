@@ -1,4 +1,3 @@
-import React from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 import IconButton from "@mui/material/IconButton";

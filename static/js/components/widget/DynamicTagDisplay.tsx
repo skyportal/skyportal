@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useState,
-  useRef,
-  useMemo,
-} from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { Chip, Tooltip } from "@mui/material";
 import { getContrastColor } from "../ObjectTags";
 import * as groupsActions from "../../ducks/groups";

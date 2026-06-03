@@ -2,7 +2,6 @@ import Checkbox from "@mui/material/Checkbox";
 import Tooltip from "@mui/material/Tooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import { Theme as MuiTheme } from "@rjsf/mui";
-import React from "react";
 
 interface CustomCheckboxWidgetProps {
   id: string;

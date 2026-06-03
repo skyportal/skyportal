@@ -1,5 +1,3 @@
-import React from "react";
-
 import dayjs from "dayjs";
 import calendar from "dayjs/plugin/calendar";
 

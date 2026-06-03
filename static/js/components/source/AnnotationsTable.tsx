@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { makeStyles } from "tss-react/mui";
@@ -201,7 +201,7 @@ const AnnotationsTable = ({
       headerName: "Author",
       flex: 1,
       minWidth: 120,
-      valueGetter: (value: any, row: any) => row.author?.username,
+      valueGetter: (_value: any, row: any) => row.author?.username,
     },
     {
       field: "created_at",

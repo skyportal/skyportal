@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -131,7 +131,7 @@ const ObservingRunList = ({
         <ToggleButtonGroup
           value={displayAll}
           exclusive
-          onChange={(e, newValue) => {
+          onChange={(_e, newValue) => {
             if (newValue !== null) setDisplayAll(newValue);
           }}
         >

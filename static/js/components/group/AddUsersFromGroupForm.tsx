@@ -1,4 +1,3 @@
-import React from "react";
 import Typography from "@mui/material/Typography";
 import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -74,7 +73,7 @@ const AddUsersFromGroupForm = ({ groupID }: AddUsersFromGroupFormProps) => {
             <Autocomplete
               multiple
               id="addUsersFromGroupsSelect"
-              onChange={(e, data) => onChange(data)}
+              onChange={(_e, data) => onChange(data)}
               value={value}
               options={groups}
               getOptionLabel={(group: Group) => group.name}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
@@ -199,7 +199,7 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
     setAnchorEl(null);
   };
 
-  const handleMenuItemClick = (event: any, telescopeID: any) => {
+  const handleMenuItemClick = (_event: any, telescopeID: any) => {
     const prefs = {
       weather: { telescopeID },
     };

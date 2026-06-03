@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 import TextField from "@mui/material/TextField";
@@ -298,8 +298,8 @@ const QuickSearchBar = () => {
         // isOptionEqualToValue={(option, val) => option.name === val.name}
         getOptionLabel={(option) => option.name || ""}
         filterOptions={filterOptions}
-        onInputChange={(e, val) => setInputValue(val)}
-        onChange={(event, newValue: any, reason) => {
+        onInputChange={(_e, val) => setInputValue(val)}
+        onChange={(_event, newValue: any, reason) => {
           if (reason === "selectOption") {
             setInputValue("");
             setValue("");

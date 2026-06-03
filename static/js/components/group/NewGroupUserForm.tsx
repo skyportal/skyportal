@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import TextField from "@mui/material/TextField";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import Typography from "@mui/material/Typography";
@@ -82,7 +82,7 @@ const NewGroupUserForm = ({ group_id }: NewGroupUserFormProps) => {
       </Typography>
       <Autocomplete
         data-testid="newGroupUser"
-        onChange={(event: any, newValue: any) =>
+        onChange={(_event: any, newValue: any) =>
           setFormState({ userID: newValue?.id } as any)
         }
         filterOptions={(options, params) => {

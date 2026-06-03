@@ -1,4 +1,3 @@
-import React from "react";
 import Box from "@mui/material/Box";
 import { useAppSelector } from "../../types/hooks";
 import { allowedClasses } from "./ClassificationForm";

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -115,7 +115,7 @@ const RecurringAPIPage = () => {
       headerName: "Owner",
       flex: 1,
       minWidth: 120,
-      valueGetter: (value: any, row: any) => row.owner?.username || "Unknown",
+      valueGetter: (_value: any, row: any) => row.owner?.username || "Unknown",
     },
     { field: "method", headerName: "Method", flex: 1, minWidth: 100 },
     { field: "endpoint", headerName: "Endpoint", flex: 1, minWidth: 160 },
@@ -125,7 +125,7 @@ const RecurringAPIPage = () => {
       headerName: "Payload",
       flex: 1,
       minWidth: 160,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         JSON.stringify(row.payload) || "Unknown",
     },
     { field: "call_delay", headerName: "Delay (days)", flex: 1, minWidth: 110 },
@@ -140,7 +140,7 @@ const RecurringAPIPage = () => {
       field: "active",
       headerName: "Active",
       width: 90,
-      valueGetter: (value: any, row: any) => (row.active ? "Yes" : "No"),
+      valueGetter: (_value: any, row: any) => (row.active ? "Yes" : "No"),
     },
   ];
 

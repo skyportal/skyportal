@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import TextField from "@mui/material/TextField";
@@ -211,7 +211,7 @@ const UpdateProfileForm = () => {
                     render={({ field: { onChange, value } }) => (
                       <Autocomplete
                         multiple
-                        onChange={(e, data) => onChange(data)}
+                        onChange={(_e, data) => onChange(data)}
                         value={value}
                         options={profile?.affiliations?.map((aff: any) => aff)}
                         filterOptions={(options, params) => {

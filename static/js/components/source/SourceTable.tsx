@@ -1175,7 +1175,7 @@ const SourceTable = ({
         filterable: false,
         hideable: false,
         disableColumnMenu: true,
-        colSpan: (value: any, row: any) => (row.__detail ? 100 : 1),
+        colSpan: (_value: any, row: any) => (row.__detail ? 100 : 1),
         renderCell: (params: any) => {
           if (params.row.__detail) {
             return (
@@ -1279,7 +1279,7 @@ const SourceTable = ({
         headerName: "Redshift",
         flex: 1,
         minWidth: 90,
-        valueGetter: (value: any, row: any) => row.redshift,
+        valueGetter: (_value: any, row: any) => row.redshift,
       },
       {
         field: "tags",

@@ -13,7 +13,7 @@ export function fetchNewsFeed() {
 
 // Websocket message handler
 messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
+  (actionType: string, _payload: any, dispatch: AppDispatch) => {
     if (actionType === FETCH_NEWSFEED) {
       dispatch(fetchNewsFeed());
     }

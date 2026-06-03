@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import Paper from "@mui/material/Paper";
 import { makeStyles, withStyles } from "tss-react/mui";
 import { Controller, useForm } from "react-hook-form";
@@ -362,7 +362,7 @@ const ConfirmSourceInGCN = ({
                             return filtered;
                           }}
                           // eslint-disable-next-line no-shadow
-                          onChange={(e, value) => onChange(value)}
+                          onChange={(_e, value) => onChange(value)}
                           options={defaultExplanations}
                           value={value}
                           renderOption={(props, option) => (

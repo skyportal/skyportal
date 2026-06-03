@@ -1,4 +1,3 @@
-import React from "react";
 import MuiPaper from "@mui/material/Paper";
 
 interface PaperProps {

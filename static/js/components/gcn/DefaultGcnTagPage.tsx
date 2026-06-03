@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { makeStyles } from "tss-react/mui";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import NewDefaultGcnTag from "./NewDefaultGcnTag";

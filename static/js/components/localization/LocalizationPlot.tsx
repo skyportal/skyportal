@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { makeStyles } from "tss-react/mui";

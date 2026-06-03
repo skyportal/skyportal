@@ -64,6 +64,10 @@ module.exports = [
       ...reactHookPlugin.configs.recommended.rules,
       ...reactPlugin.configs.recommended.rules,
       ...prettierPlugin.rules,
+      // React 17+ automatic JSX runtime (tsconfig "jsx": "react-jsx") does
+      // not require React to be in scope.
+      "react/react-in-jsx-scope": "off",
+      "react/jsx-uses-react": "off",
       camelcase: "off",
       "no-unused-vars": "off",
       "no-unsafe-optional-chaining": "off",
