@@ -46,12 +46,13 @@ jobs:
       # uv.lock. Pre-uv references install via pip with unpinned transitive
       # deps that drift over time and intermittently break the demo-data load.
       #
-      # It must also be on or after #6176 ("More typescript flags"), since the
-      # workflow writes `app.sedm_endpoint:` empty in the reference's config.yaml
-      # and only the SEDMAPI in #6176+ short-circuits a missing endpoint into a
-      # stub "accepted" response. Earlier references would `requests.post(None)`
-      # and crash the demo loader with "Invalid URL 'None'".
-      MIGRATION_REFERENCE: a4a3c4ee60600c0e959362a17a3170d20f4d75af
+      # It must also be on or after #6177 ("more Typescript options"), since
+      # the workflow writes `app.sedm_endpoint:` empty in the reference's
+      # config.yaml — and only the SEDMAPI from #6176+ short-circuits a missing
+      # endpoint into a stub "accepted" response, and only the photometry.py
+      # bandpass loop from #6177 tolerates the occasional empty sncosmo
+      # Bandpass without aborting app-import.
+      MIGRATION_REFERENCE: 3f99e2dcc22e5ce4d13c5ca75459cd3954bd6222
 
     services:
       postgres:
@@ -166,56 +167,6 @@ jobs:
             app:
               sedm_endpoint:
           EOF
-
-      - name: Patch photometry.py to tolerate broken sncosmo bandpasses
-        # The MIGRATION_REFERENCE checkout predates the defensive bandpass
-        # handling in get_bandpasses_to_colors / BANDPASSES_WAVELENGTHS.
-        # On runners where sncosmo returns an empty Bandpass for atlasc /
-        # galex::fuv / etc., the module-level dict comprehensions raise at
-        # import time, the SkyPortal app server fails to start, and the
-        # demo loader's POSTs return 503. Patch both spots so a single bad
-        # bandpass is just skipped.
-        run: |
-          python3 - <<'PY'
-          import pathlib
-          p = pathlib.Path("skyportal/handlers/api/photometry.py")
-          src = p.read_text()
-          old_colors = 'def get_bandpasses_to_colors(bandpasses, colors_type="rgb"):\n    return {bandpass: get_color(bandpass, colors_type) for bandpass in bandpasses}'
-          new_colors = (
-              'def get_bandpasses_to_colors(bandpasses, colors_type="rgb"):\n'
-              '    out = {}\n'
-              '    for bandpass in bandpasses:\n'
-              '        try:\n'
-              '            out[bandpass] = get_color(bandpass, colors_type)\n'
-              '        except Exception:\n'
-              '            pass\n'
-              '    return out'
-          )
-          old_waves = 'BANDPASSES_WAVELENGTHS = {\n    bandpass: get_effective_wavelength(bandpass) for bandpass in ALLOWED_BANDPASSES\n}'
-          new_waves = (
-              'def _safe_eff_wave(b):\n'
-              '    try:\n'
-              '        return get_effective_wavelength(b)\n'
-              '    except Exception:\n'
-              '        return None\n'
-              'BANDPASSES_WAVELENGTHS = {\n'
-              '    b: w for b, w in ((bp, _safe_eff_wave(bp)) for bp in ALLOWED_BANDPASSES) if w is not None\n'
-              '}'
-          )
-          changed = False
-          if old_colors in src:
-              src = src.replace(old_colors, new_colors)
-              changed = True
-              print("Patched get_bandpasses_to_colors")
-          if old_waves in src:
-              src = src.replace(old_waves, new_waves)
-              changed = True
-              print("Patched BANDPASSES_WAVELENGTHS")
-          if changed:
-              p.write_text(src)
-          else:
-              print("No patch needed (already defensive)")
-          PY
 
       - name: Initialize SkyPortal
         run: |
