@@ -92,7 +92,7 @@ interface RecentGcnEventsProps {
 const RecentGcnEvents = ({ classes }: RecentGcnEventsProps) => {
   const { classes: styles } = useStyles();
 
-  const gcnEvents = useAppSelector((state) => state.recentGcnEvents);
+  const gcnEvents = useAppSelector((state) => state["recentGcnEvents"]);
   const recentEventsPrefs: any =
     useAppSelector(
       (state) => (state.profile.preferences as any)?.recentGcnEvents,

@@ -15,7 +15,8 @@ const ALLOWED_TYPES = [
   "Source comments",
   "GCN Events",
   "GCN comments",
-];
+] as const;
+type AllowedType = (typeof ALLOWED_TYPES)[number];
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -97,7 +98,7 @@ const QuickSearchBar = () => {
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState(ALLOWED_TYPES[0]);
+  const [type, setType] = useState<AllowedType>(ALLOWED_TYPES[0]);
 
   const debouncedInputValue = useDebouncer(inputValue, 500);
   const cache = useRef<Record<string, any>>({});

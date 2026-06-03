@@ -27,14 +27,14 @@ const useStyles = makeStyles()(() => ({
 const FollowupRequestPrioritizationForm = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const gcnEvents = useAppSelector((state) => state.gcnEvents) as any;
+  const gcnEvents = useAppSelector((state) => state["gcnEvents"]) as any;
 
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   ) as any;
   const { followupRequestList } = useAppSelector(
-    (state) => state.followup_requests,
+    (state) => state["followup_requests"],
   ) as any;
 
   const [isSubmittingPrioritization, setIsSubmittingPrioritization] =
@@ -131,9 +131,11 @@ const FollowupRequestPrioritizationForm = () => {
     formData.gcnEventId = selectedGcnEventId;
     formData.localizationId = selectedLocalizationId;
     formData.requestIds = [];
-    requestsGroupedByInstId[formData.instrumentId].forEach((request: any) => {
-      formData.requestIds.push(request.id);
-    });
+    (requestsGroupedByInstId[formData.instrumentId] || []).forEach(
+      (request: any) => {
+        formData.requestIds.push(request.id);
+      },
+    );
     await dispatch(followupRequestActions.prioritizeFollowupRequests(formData));
     setIsSubmittingPrioritization(false);
   };

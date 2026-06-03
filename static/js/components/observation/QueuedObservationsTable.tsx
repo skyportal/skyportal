@@ -69,7 +69,7 @@ const QueuedObservationsTable = ({
 }: QueuedObservationsTableProps) => {
   const { classes } = useStyles();
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);

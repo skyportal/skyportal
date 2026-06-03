@@ -75,8 +75,8 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const groups = useAppSelector((state) => state.groups.all);
 
   const { handleSubmit, getValues, reset, register, control } = useForm();

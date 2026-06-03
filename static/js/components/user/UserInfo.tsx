@@ -14,7 +14,7 @@ interface UserInfoProps {
 
 const UserInfo = ({ route }: UserInfoProps) => {
   const dispatch = useAppDispatch();
-  const user = useAppSelector((state) => state.users.user);
+  const user = useAppSelector((state) => state["users"].user);
   useEffect(() => {
     dispatch(Action.fetchUser(route.id));
   }, [route.id, dispatch]);

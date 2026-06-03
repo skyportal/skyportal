@@ -47,7 +47,7 @@ const SourcePublishRelease = ({
   const { classes: styles } = useStyles();
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(true);
-  const releases = useAppSelector((state) => state.publicReleases) as any[];
+  const releases = useAppSelector((state) => state["publicReleases"]) as any[];
   const manageSourcesAccess = useAppSelector(
     (state) => state.profile,
   ).permissions?.includes("Manage sources");

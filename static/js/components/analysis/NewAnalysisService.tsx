@@ -22,7 +22,7 @@ interface NewAnalysisServiceProps {
 }
 
 const NewAnalysisService = ({ onClose = null }: NewAnalysisServiceProps) => {
-  const { enum_types } = useAppSelector((state) => state.enum_types);
+  const { enum_types } = useAppSelector((state) => state["enum_types"]);
 
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);

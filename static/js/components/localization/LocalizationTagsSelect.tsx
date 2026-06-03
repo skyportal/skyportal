@@ -18,7 +18,7 @@ const LocalizationTagsSelect = ({
 }: LocalizationTagsSelectProps) => {
   const dispatch = useAppDispatch();
   const localizationTags = [
-    ...(useAppSelector((state) => state.localizationTags) || []),
+    ...(useAppSelector((state) => state["localizationTags"]) || []),
   ].sort();
 
   useEffect(() => {

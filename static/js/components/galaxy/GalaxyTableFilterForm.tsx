@@ -104,7 +104,7 @@ const GalaxyTableFilterForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const gcnEvents = useAppSelector((state) => state.gcnEvents);
+  const gcnEvents = useAppSelector((state) => state["gcnEvents"]);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState<any>(null);
 
   useEffect(() => {

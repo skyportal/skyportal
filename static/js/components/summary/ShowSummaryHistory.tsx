@@ -49,7 +49,7 @@ const ShowSummaryHistory = ({
   button = false,
 }: ShowSummaryHistoryProps) => {
   const { classes } = useStyles();
-  const { users: allUsers } = useAppSelector((state) => state.users);
+  const { users: allUsers } = useAppSelector((state) => state["users"]);
   const userIdToUsername: Record<number, string> = {};
 
   const [dialogOpen, setDialogOpen] = useState(false);

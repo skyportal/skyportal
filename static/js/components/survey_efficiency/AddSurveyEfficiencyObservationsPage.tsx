@@ -18,7 +18,7 @@ const AddSurveyEfficiencyObservationsPage = () => {
   const [fetchingSurveyEfficiency, setFetchingSurveyEfficiency] =
     useState(false);
 
-  const gcnEvent = useAppSelector((state) => state.gcnEvent) as any;
+  const gcnEvent = useAppSelector((state) => state["gcnEvent"]) as any;
 
   const openDialog = () => {
     setDialogOpen(true);

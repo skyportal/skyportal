@@ -37,7 +37,7 @@ const GroupAdmissionRequestsManagement = ({
   }, [groupID, dispatch]);
 
   const groupAdmissionRequests = useAppSelector(
-    (state) => state.groupAdmissionRequests,
+    (state) => state["groupAdmissionRequests"],
   );
   if (
     !groupAdmissionRequests ||

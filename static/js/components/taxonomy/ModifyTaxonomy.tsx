@@ -40,7 +40,7 @@ const ModifyTaxonomy = ({
 }: ModifyTaxonomyProps) => {
   const { classes } = useStyles();
 
-  const { taxonomyList } = useAppSelector((state) => state.taxonomies);
+  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
   const dispatch = useAppDispatch();
 
   const groups = useAppSelector((state) => state.groups.userAccessible);

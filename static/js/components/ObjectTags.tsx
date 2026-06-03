@@ -178,7 +178,7 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
 
   const handleAddTag = () => {
     const formValues = getValues();
-    const tagToAdd = formValues.tag;
+    const tagToAdd = formValues["tag"];
 
     setIsAddingTag(true);
 

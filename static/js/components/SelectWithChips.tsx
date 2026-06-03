@@ -44,7 +44,7 @@ const SelectWithChips = (props: SelectWithChipsProps) => {
   const cumSum: number[] = [];
 
   initValue?.forEach((item, index) => {
-    cumSum.push(item?.length + (index > 0 ? cumSum[index - 1] : 0));
+    cumSum.push(item?.length + (index > 0 ? (cumSum[index - 1] ?? 0) : 0));
   });
 
   const max_chips_nb =
@@ -118,7 +118,7 @@ const SelectLabelWithChips = (props: SelectLabelWithChipsProps) => {
   const labels = initValue?.map((item) => item.label);
 
   labels?.forEach((item, index) => {
-    cumSum.push(item?.length + (index > 0 ? cumSum[index - 1] : 0));
+    cumSum.push(item?.length + (index > 0 ? (cumSum[index - 1] ?? 0) : 0));
   });
 
   const max_chips_nb =

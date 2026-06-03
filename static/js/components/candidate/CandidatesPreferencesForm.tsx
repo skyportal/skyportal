@@ -172,14 +172,15 @@ const CandidatesPreferencesForm = ({
       ?.filter((profile: any) => profile.name !== editingProfile?.name)
       ?.map((profile: any) => profile.name);
     return (
-      formState.name.length > 0 && !otherProfiles?.includes(formState.name)
+      formState["name"].length > 0 &&
+      !otherProfiles?.includes(formState["name"])
     );
   };
 
   const validateGroups = () => {
     const formState = getValues();
     return (
-      formState.groupIDs?.filter((value: any) => Boolean(value)).length >= 1
+      formState["groupIDs"]?.filter((value: any) => Boolean(value)).length >= 1
     );
   };
 
@@ -187,13 +188,13 @@ const CandidatesPreferencesForm = ({
     const formState = getValues();
     return (
       // All left empty
-      (formState.sortingOrigin === "" &&
-        formState.sortingKey === "" &&
-        formState.sortingOrder === "") ||
+      (formState["sortingOrigin"] === "" &&
+        formState["sortingKey"] === "" &&
+        formState["sortingOrder"] === "") ||
       // Or all filled out
-      (formState.sortingOrigin !== "" &&
-        formState.sortingKey !== "" &&
-        formState.sortingOrder !== "")
+      (formState["sortingOrigin"] !== "" &&
+        formState["sortingKey"] !== "" &&
+        formState["sortingOrder"] !== "")
     );
   };
 
@@ -286,7 +287,7 @@ const CandidatesPreferencesForm = ({
       </Typography>
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className={classes.formRow}>
-          {errors.name && (
+          {errors["name"] && (
             <FormValidationError message="Profile name must be unique and at least 1 character" />
           )}
           <Controller
@@ -454,7 +455,7 @@ const CandidatesPreferencesForm = ({
           className={`${classes.formRow} ${classes.annotationSorting}`}
           data-testid="annotation-sorting-accordion"
         >
-          {errors.sortingOrigin && (
+          {errors["sortingOrigin"] && (
             <FormValidationError message="All sorting fields must be left empty or all filled out" />
           )}
           <Responsive element={FoldBox} title="Annotation Sorting" folded>
@@ -565,7 +566,7 @@ const CandidatesPreferencesForm = ({
             title="Program Selection"
             mobileProps={{ folded: true }}
           >
-            {errors.groupIDs && (
+            {errors["groupIDs"] && (
               <FormValidationError message="Select at least one group." />
             )}
             {userAccessibleGroups?.map((group, idx) => (

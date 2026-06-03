@@ -62,7 +62,7 @@ const Item = styled("div")({
 const ReportsList = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const scanReports = useAppSelector((state) => state.scanReports);
+  const scanReports = useAppSelector((state) => state["scanReports"]);
   const [loading, setLoading] = useState(false);
   const [idReportOpen, setIdReportOpen] = useState<any>(null);
   const [generateReportDialogOpen, setGenerateReportDialogOpen] =

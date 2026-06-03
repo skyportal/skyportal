@@ -140,7 +140,7 @@ const NotificationGcnEvent = () => {
       notifications?.gcn_events?.localization_tags ||
       notifications?.gcn_events?.localization_properties
     ) {
-      default_properties.original = {
+      default_properties["original"] = {
         gcn_notice_types: notifications?.gcn_events?.gcn_notice_types,
         gcn_tags: notifications?.gcn_events?.gcn_tags,
         gcn_properties: notifications?.gcn_events?.gcn_properties,
@@ -403,9 +403,9 @@ const NotificationGcnEvent = () => {
                     })}
                     name="GcnNotificationName"
                     id="GcnNotificationNameInput"
-                    error={!!errors.GcnNotificationName}
+                    error={!!errors["GcnNotificationName"]}
                     helperText={
-                      errors.GcnNotificationName
+                      errors["GcnNotificationName"]
                         ? "Required/Button with that name already exists"
                         : ""
                     }

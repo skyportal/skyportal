@@ -35,7 +35,10 @@ interface UpdateSourceCoordinatesProps {
 const UpdateSourceCoordinates = ({ source }: UpdateSourceCoordinatesProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const [state, setState] = useState<{ ra?: number; dec?: number }>({
+  const [state, setState] = useState<{
+    ra?: number | undefined;
+    dec?: number | undefined;
+  }>({
     ra: source.ra,
     dec: source.dec,
   });
@@ -66,7 +69,10 @@ const UpdateSourceCoordinates = ({ source }: UpdateSourceCoordinatesProps) => {
     });
   };
 
-  const handleSubmit = async (subState: { ra?: number; dec?: number }) => {
+  const handleSubmit = async (subState: {
+    ra?: number | undefined;
+    dec?: number | undefined;
+  }) => {
     setIsSubmitting(true);
     const newState: any = {};
     if (!Number.isNaN(subState.ra)) {

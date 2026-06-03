@@ -13,8 +13,8 @@ interface NewObservationProps {
 }
 
 const NewObservation = ({ onClose = null }: NewObservationProps) => {
-  const { instrumentList } = useAppSelector((state) => state.instruments);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const dispatch = useAppDispatch();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {

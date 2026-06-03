@@ -212,8 +212,8 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
   };
 
   return (
-    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
-      <div className={classes.widgetPaperDiv}>
+    <Paper elevation={1} className={classes["widgetPaperFillSpace"]}>
+      <div className={classes["widgetPaperDiv"]}>
         <div>
           <Typography
             variant="h6"
@@ -222,9 +222,9 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
           >
             {weather?.telescope_name}
           </Typography>
-          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+          <DragHandleIcon className={`${classes["widgetIcon"]} dragHandle`} />
           {telescopeList && (
-            <div className={`${classes.widgetIcon} ${styles.selector}`}>
+            <div className={`${classes["widgetIcon"]} ${styles.selector}`}>
               <IconButton
                 aria-controls="tel-list"
                 data-testid="tel-list-button"

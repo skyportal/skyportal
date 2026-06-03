@@ -21,7 +21,9 @@ const ModifyObservingRun = ({
   run_id,
   onClose = null,
 }: ModifyObservingRunProps) => {
-  const { observingRunList } = useAppSelector((state) => state.observingRuns);
+  const { observingRunList } = useAppSelector(
+    (state) => state["observingRuns"],
+  );
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const dispatch = useAppDispatch();
 

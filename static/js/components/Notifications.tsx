@@ -35,7 +35,7 @@ const useStyles = makeStyles()((theme) => ({
 const Notifications = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const notifications = useAppSelector((state) => state.userNotifications);
+  const notifications = useAppSelector((state) => state["userNotifications"]);
 
   const [unreadCount, setUnreadCount] = useState(
     notifications ? notifications.filter((n: any) => !n.viewed).length : 0,

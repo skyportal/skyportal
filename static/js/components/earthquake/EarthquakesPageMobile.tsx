@@ -89,7 +89,7 @@ const EarthquakeList = ({ earthquakes }: EarthquakeListProps) => {
 
 const EarthquakePage = () => {
   const { earthquakeList } = useAppSelector(
-    (state) => state.earthquakes,
+    (state) => state["earthquakes"],
   ) as any;
   const currentUser = useAppSelector((state) => state.profile);
 

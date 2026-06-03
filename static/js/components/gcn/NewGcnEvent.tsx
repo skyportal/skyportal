@@ -16,7 +16,7 @@ interface NewGcnEventProps {
 const NewGcnEvent = ({ handleClose = null }: NewGcnEventProps) => {
   const dispatch = useAppDispatch();
   const gcnTags = [
-    ...((useAppSelector((state) => state.gcnTags) as any) || []),
+    ...((useAppSelector((state) => state["gcnTags"]) as any) || []),
   ].sort();
 
   useEffect(() => {

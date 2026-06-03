@@ -17,7 +17,9 @@ const GcnTagsSelect = ({
   setSelectedGcnTags,
 }: GcnTagsSelectProps) => {
   const dispatch = useAppDispatch();
-  const gcnTags = [...(useAppSelector((state) => state.gcnTags) || [])].sort();
+  const gcnTags = [
+    ...(useAppSelector((state) => state["gcnTags"]) || []),
+  ].sort();
 
   useEffect(() => {
     dispatch(gcnTagsActions.fetchGcnTags());

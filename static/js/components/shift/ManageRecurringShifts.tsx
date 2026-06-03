@@ -44,7 +44,7 @@ const ManageRecurringShifts = ({ shiftList }: ManageRecurringShiftsProps) => {
 
   const getBaseName = (shift: Shift) => {
     const match = shift.name.match(/^(.*)\s+(\d+)\/(\d+)$/);
-    return match ? match[1].trim() : null;
+    return match?.[1] ? match[1].trim() : null;
   };
 
   const getRecurringShifts = (oneRecurringShift: Shift) => {

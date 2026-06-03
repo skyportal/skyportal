@@ -70,7 +70,7 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { analysisServiceList } = useAppSelector(
-    (state) => state.analysis_services,
+    (state) => state["analysis_services"],
   );
 
   const uniqueNames = [
@@ -81,7 +81,7 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   );
   const allGroups = useAppSelector((state) => state.groups.all);
   const prefs: any = useAppSelector((state) => state.profile.preferences);
-  const config = useAppSelector((state) => state.config);
+  const config = useAppSelector((state) => state["config"]);
 
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
     useState<any>(null);

@@ -104,7 +104,7 @@ function MyCalendar({
 }: MyCalendarProps) {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
-  const currentShift = useAppSelector((state) => state.shifts.currentShift);
+  const currentShift = useAppSelector((state) => state["shifts"].currentShift);
   const currentUser = useAppSelector((state) => state.profile);
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();

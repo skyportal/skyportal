@@ -45,7 +45,13 @@ jobs:
       # "move to uv"), so its dependencies install reproducibly from its own
       # uv.lock. Pre-uv references install via pip with unpinned transitive
       # deps that drift over time and intermittently break the demo-data load.
-      MIGRATION_REFERENCE: 5f7c59dbde481c3921f148224f2ac9f9eb14f018
+      #
+      # It must also be on or after #6176 ("More typescript flags"), since the
+      # workflow writes `app.sedm_endpoint:` empty in the reference's config.yaml
+      # and only the SEDMAPI in #6176+ short-circuits a missing endpoint into a
+      # stub "accepted" response. Earlier references would `requests.post(None)`
+      # and crash the demo loader with "Invalid URL 'None'".
+      MIGRATION_REFERENCE: a4a3c4ee60600c0e959362a17a3170d20f4d75af
 
     services:
       postgres:
@@ -154,7 +160,62 @@ jobs:
               port: 5432
               user: skyportal
               password: anything
+            # Short-circuit the SEDM facility-api HTTP call so the demo
+            # loader's followup_request POSTs don't depend on STScI's
+            # \`minar.caltech.edu/add_fritz\` being reachable from CI.
+            app:
+              sedm_endpoint:
           EOF
+
+      - name: Patch photometry.py to tolerate broken sncosmo bandpasses
+        # The MIGRATION_REFERENCE checkout predates the defensive bandpass
+        # handling in get_bandpasses_to_colors / BANDPASSES_WAVELENGTHS.
+        # On runners where sncosmo returns an empty Bandpass for atlasc /
+        # galex::fuv / etc., the module-level dict comprehensions raise at
+        # import time, the SkyPortal app server fails to start, and the
+        # demo loader's POSTs return 503. Patch both spots so a single bad
+        # bandpass is just skipped.
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          p = pathlib.Path("skyportal/handlers/api/photometry.py")
+          src = p.read_text()
+          old_colors = 'def get_bandpasses_to_colors(bandpasses, colors_type="rgb"):\n    return {bandpass: get_color(bandpass, colors_type) for bandpass in bandpasses}'
+          new_colors = (
+              'def get_bandpasses_to_colors(bandpasses, colors_type="rgb"):\n'
+              '    out = {}\n'
+              '    for bandpass in bandpasses:\n'
+              '        try:\n'
+              '            out[bandpass] = get_color(bandpass, colors_type)\n'
+              '        except Exception:\n'
+              '            pass\n'
+              '    return out'
+          )
+          old_waves = 'BANDPASSES_WAVELENGTHS = {\n    bandpass: get_effective_wavelength(bandpass) for bandpass in ALLOWED_BANDPASSES\n}'
+          new_waves = (
+              'def _safe_eff_wave(b):\n'
+              '    try:\n'
+              '        return get_effective_wavelength(b)\n'
+              '    except Exception:\n'
+              '        return None\n'
+              'BANDPASSES_WAVELENGTHS = {\n'
+              '    b: w for b, w in ((bp, _safe_eff_wave(bp)) for bp in ALLOWED_BANDPASSES) if w is not None\n'
+              '}'
+          )
+          changed = False
+          if old_colors in src:
+              src = src.replace(old_colors, new_colors)
+              changed = True
+              print("Patched get_bandpasses_to_colors")
+          if old_waves in src:
+              src = src.replace(old_waves, new_waves)
+              changed = True
+              print("Patched BANDPASSES_WAVELENGTHS")
+          if changed:
+              p.write_text(src)
+          else:
+              print("No patch needed (already defensive)")
+          PY
 
       - name: Initialize SkyPortal
         run: |
@@ -189,7 +250,15 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make run &
           sleep 180 && make load_demo_data
-          kill %1
+          # `kill %1` alone is racy — `make run` often backgrounds supervisord
+          # and returns, leaving `%1` already gone. `make stop` shuts the
+          # supervisor down so it can't race with the alembic upgrade in the
+          # next step (the race surfaces as `relation "objs" does not exist`
+          # when a respawned app worker's create_tables() collides with the
+          # migration's CREATE TABLE).
+          make stop
+          kill %1 2>/dev/null || true
+          sleep 5
 
       - name: Checkout branch being tested
         uses: actions/checkout@v4
@@ -269,6 +338,9 @@ jobs:
               port: 5432
               user: skyportal
               password: anything
+            # Same SEDM short-circuit as the first config.yaml above.
+            app:
+              sedm_endpoint:
           EOF
 
           createdb -h localhost -U skyportal skyportal2
@@ -281,7 +353,9 @@ jobs:
 
           make run &
           sleep 60 && make load_demo_data
-          kill %1
+          make stop
+          kill %1 2>/dev/null || true
+          sleep 5
           PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
 
       - name: Compare databases with migra

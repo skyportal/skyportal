@@ -114,9 +114,9 @@ const PhotometryButtonsForm = () => {
               })}
               name="photometryButtonName"
               id="photometryButtonNameInput"
-              error={!!errors.photometryButtonName}
+              error={!!errors["photometryButtonName"]}
               helperText={
-                errors.photometryButtonName
+                errors["photometryButtonName"]
                   ? "Required/Button with that name already exists"
                   : ""
               }

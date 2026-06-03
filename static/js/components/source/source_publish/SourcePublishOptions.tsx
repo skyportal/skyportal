@@ -112,7 +112,7 @@ const SourcePublishOptions = ({
   isElements,
 }: SourcePublishOptionsProps) => {
   const { classes: styles } = useStyles();
-  const streams = useAppSelector((state) => state.streams);
+  const streams = useAppSelector((state) => state["streams"]);
   const groups = useAppSelector((state) => state.groups.userAccessible);
 
   return (

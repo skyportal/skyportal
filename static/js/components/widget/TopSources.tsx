@@ -144,7 +144,7 @@ const TopSourcesList = ({
 
   return (
     <div className={topSourceSpecificStyles.sourceListContainer}>
-      <ul className={styles.sourceList}>
+      <ul className={styles["sourceList"]}>
         {sources?.map((source) => {
           const topsourceName = `${source.obj_id}`;
           let classification = null;
@@ -168,10 +168,10 @@ const TopSourcesList = ({
             }
           }
 
-          const imgClasses = source.thumbnails[thumbnailIdxs[source.obj_id]]
-            ?.is_grayscale
-            ? `${styles.stamp} ${styles.inverted}`
-            : `${styles.stamp}`;
+          const thumbIdx = thumbnailIdxs[source.obj_id] ?? 0;
+          const imgClasses = source.thumbnails[thumbIdx]?.is_grayscale
+            ? `${styles["stamp"]} ${styles["inverted"]}`
+            : `${styles["stamp"]}`;
 
           return (
             <li key={`topSources_${source.obj_id}`}>
@@ -179,53 +179,49 @@ const TopSourcesList = ({
                 variant="outlined"
                 square={false}
                 data-testid={`topSourceItem_${source.obj_id}_${source.created_at}`}
-                className={styles.sourceItemWithButton}
+                className={styles["sourceItemWithButton"]}
               >
-                <div className={styles.sourceItem}>
+                <div className={styles["sourceItem"]}>
                   <Link
                     to={`/source/${source.obj_id}`}
-                    className={styles.stampContainer}
+                    className={styles["stampContainer"]}
                   >
                     <img
                       className={imgClasses}
                       src={
-                        source.thumbnails[thumbnailIdxs[source.obj_id]]
-                          ?.public_url ||
+                        source.thumbnails[thumbIdx]?.public_url ||
                         "/static/images/currently_unavailable.png"
                       }
                       alt={source.obj_id}
                       onError={(e: any) => {
                         // avoid infinite loop
-                        if (
-                          thumbnailIdxs[source.obj_id] ===
-                          source.thumbnails.length - 1
-                        ) {
+                        if (thumbIdx === source.thumbnails.length - 1) {
                           e.target.onerror = null;
                         }
                         setThumbnailIdxs((prevState) => ({
                           ...prevState,
-                          [source.obj_id]: prevState[source.obj_id] + 1,
+                          [source.obj_id]: (prevState[source.obj_id] ?? 0) + 1,
                         }));
                       }}
                     />
                   </Link>
-                  <div className={styles.sourceContainer}>
-                    <div className={styles.sourceHeaderContainer}>
-                      <div className={styles.sourceInfoContainer}>
+                  <div className={styles["sourceContainer"]}>
+                    <div className={styles["sourceHeaderContainer"]}>
+                      <div className={styles["sourceInfoContainer"]}>
                         <Link
                           to={`/source/${source.obj_id}`}
-                          className={styles.sourceName}
+                          className={styles["sourceName"]}
                         >
-                          <span className={styles.sourceNameLink}>
+                          <span className={styles["sourceNameLink"]}>
                             {topsourceName}
                           </span>
                         </Link>
                         {classification && (
-                          <span className={styles.classification}>
+                          <span className={styles["classification"]}>
                             {classification}
                           </span>
                         )}
-                        <div className={styles.sourceCoordinates}>
+                        <div className={styles["sourceCoordinates"]}>
                           <span
                             style={{ fontSize: "0.95rem", whiteSpace: "pre" }}
                           >
@@ -250,7 +246,7 @@ const TopSourcesList = ({
                         {`${source.views} view${source.views !== 1 ? "s" : ""}`}
                       </span>
                     </div>
-                    <div className={styles.sourceChipContainer}>
+                    <div className={styles["sourceChipContainer"]}>
                       {displayTNS && source?.tns_name?.length > 0 && (
                         <div
                           style={{
@@ -307,7 +303,7 @@ const TopSources = ({ classes }: TopSourcesProps) => {
     invertThumbnails,
   });
 
-  const { sourceViews } = useAppSelector((state) => state.topSources);
+  const { sourceViews } = useAppSelector((state) => state["topSources"]);
   const prefs =
     useAppSelector((state) => (state.profile.preferences as any)?.topSources) ||
     defaultPrefs;
@@ -339,8 +335,8 @@ const TopSources = ({ classes }: TopSourcesProps) => {
   };
 
   return (
-    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
-      <div className={classes.widgetPaperDiv}>
+    <Paper elevation={1} className={classes["widgetPaperFillSpace"]}>
+      <div className={classes["widgetPaperDiv"]}>
         <div className={styles.header}>
           <Typography
             variant="h6"
@@ -389,8 +385,8 @@ const TopSources = ({ classes }: TopSourcesProps) => {
               </Menu>
             </div>
           )}
-          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-          <div className={classes.widgetIcon}>
+          <DragHandleIcon className={`${classes["widgetIcon"]} dragHandle`} />
+          <div className={classes["widgetIcon"]}>
             <WidgetPrefsDialog
               // Only expose num sources
               initialValues={{

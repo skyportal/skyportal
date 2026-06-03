@@ -56,7 +56,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
   const dispatch = useAppDispatch();
 
   const { instrumentList } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   ) as any;
 
   const [state, setState] = useState<any>({

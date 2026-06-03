@@ -185,7 +185,7 @@ const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
   const renderUser = (index: number) => {
     const { author } = options[index];
     return (
-      <div className={styles.saverInfo}>
+      <div className={styles["saverInfo"]}>
         <UserAvatar
           size={32}
           firstName={author.first_name}
@@ -204,12 +204,12 @@ const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
   );
 
   return (
-    <div className={styles.saverListContainer}>
+    <div className={styles["saverListContainer"]}>
       <TopSaversSearch savers={savers} setOptions={setOptions} />
       <List>
         {options.map((saver: any, index: number) => (
           <React.Fragment key={saver.author.username}>
-            <ListItem className={styles.saverListItem}>
+            <ListItem className={styles["saverListItem"]}>
               {renderRank(index)}
               {renderUser(index)}
               {renderSaves(index)}
@@ -225,7 +225,7 @@ const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
 const TopSavers = ({ classes }: TopSaversProps) => {
   const dispatch = useAppDispatch();
   const { classes: styles } = useStyles();
-  const { savers } = useAppSelector((state) => state.topSavers);
+  const { savers } = useAppSelector((state) => state["topSavers"]);
 
   const storedPrefs = useAppSelector(
     (state) => (state.profile.preferences as any)?.topSavers,
@@ -257,8 +257,8 @@ const TopSavers = ({ classes }: TopSaversProps) => {
   };
 
   return (
-    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
-      <div className={classes.widgetPaperDiv}>
+    <Paper elevation={1} className={classes["widgetPaperFillSpace"]}>
+      <div className={classes["widgetPaperDiv"]}>
         <div className={styles.header}>
           <Typography
             variant="h6"
@@ -307,8 +307,8 @@ const TopSavers = ({ classes }: TopSaversProps) => {
               </Menu>
             </div>
           )}
-          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-          <div className={classes.widgetIcon}>
+          <DragHandleIcon className={`${classes["widgetIcon"]} dragHandle`} />
+          <div className={classes["widgetIcon"]}>
             <WidgetPrefsDialog
               initialValues={{
                 maxNumSavers: topSaversPrefs.maxNumSavers,

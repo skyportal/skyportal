@@ -104,7 +104,7 @@ const DialogTitle = withStyles(
 
 interface PhotometryValidationProps {
   phot: any;
-  magsys?: string;
+  magsys?: string | undefined;
 }
 
 const PhotometryValidation = ({
@@ -157,8 +157,8 @@ const PhotometryValidation = ({
       dispatch(
         PhotometryValidationAction.submitValidation(phot.id, {
           validated: true,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
           magsys: magsys,
         }),
       ).then((response: any) => {
@@ -170,8 +170,8 @@ const PhotometryValidation = ({
       dispatch(
         PhotometryValidationAction.patchValidation(phot.id, {
           validated: true,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
           magsys: magsys,
         }),
       ).then((response: any) => {
@@ -188,8 +188,8 @@ const PhotometryValidation = ({
       dispatch(
         PhotometryValidationAction.submitValidation(phot.id, {
           validated: false,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
           magsys: magsys,
         }),
       ).then((response: any) => {
@@ -201,8 +201,8 @@ const PhotometryValidation = ({
       dispatch(
         PhotometryValidationAction.patchValidation(phot.id, {
           validated: false,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
           magsys: magsys,
         }),
       ).then((response: any) => {
@@ -219,8 +219,8 @@ const PhotometryValidation = ({
       dispatch(
         PhotometryValidationAction.submitValidation(phot.id, {
           validated: null,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
           magsys: magsys,
         }),
       ).then((response: any) => {
@@ -232,8 +232,8 @@ const PhotometryValidation = ({
       dispatch(
         PhotometryValidationAction.patchValidation(phot.id, {
           validated: null,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
           magsys: magsys,
         }),
       ).then((response: any) => {

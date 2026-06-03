@@ -28,13 +28,13 @@ interface ThumbnailListProps {
   ra: number;
   dec: number;
   thumbnails: any[];
-  useGrid?: boolean;
-  size?: string;
-  minSize?: string | null;
-  maxSize?: string | null;
-  noMargin?: boolean;
-  titleSize?: string;
-  displayTypes?: string[];
+  useGrid?: boolean | undefined;
+  size?: string | undefined;
+  minSize?: string | null | undefined;
+  maxSize?: string | null | undefined;
+  noMargin?: boolean | undefined;
+  titleSize?: string | undefined;
+  displayTypes?: string[] | undefined;
 }
 
 const ThumbnailList = ({

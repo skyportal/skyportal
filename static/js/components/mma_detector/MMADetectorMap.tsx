@@ -72,35 +72,33 @@ interface MMADetectorMapProps {
 const MMADetectorMap = ({ mmadetectors }: MMADetectorMapProps) => {
   const nestedMMADetectors: any[] = [];
   for (let i = 0; i < mmadetectors.length; i += 1) {
+    const det = mmadetectors[i]!;
     if (i === 0) {
       nestedMMADetectors.push({
-        lat: mmadetectors[i].lat,
-        lon: mmadetectors[i].lon,
-        mmadetectors: [mmadetectors[i]],
+        lat: det.lat,
+        lon: det.lon,
+        mmadetectors: [det],
       });
     } else {
       for (let j = 0; j < nestedMMADetectors.length; j += 1) {
         if (
           Math.abs(
-            normalizeLatitudeDiff(
-              mmadetectors[i].lat as number,
-              nestedMMADetectors[j].lat,
-            ),
+            normalizeLatitudeDiff(det.lat as number, nestedMMADetectors[j].lat),
           ) < 1 &&
           Math.abs(
             normalizeLongitudeDiff(
-              mmadetectors[i].lon as number,
+              det.lon as number,
               nestedMMADetectors[j].lon,
             ),
           ) < 2
         ) {
-          nestedMMADetectors[j].mmadetectors.push(mmadetectors[i]);
+          nestedMMADetectors[j].mmadetectors.push(det);
           break;
         } else if (j === nestedMMADetectors.length - 1) {
           nestedMMADetectors.push({
-            lat: mmadetectors[i].lat,
-            lon: mmadetectors[i].lon,
-            mmadetectors: [mmadetectors[i]],
+            lat: det.lat,
+            lon: det.lon,
+            mmadetectors: [det],
           });
           break;
         }

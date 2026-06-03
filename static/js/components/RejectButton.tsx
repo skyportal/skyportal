@@ -59,7 +59,7 @@ interface RejectButtonProps {
 
 const RejectButton = ({ objID }: RejectButtonProps) => {
   const { rejected_candidates } = useAppSelector(
-    (state) => state.rejected_candidates,
+    (state) => state["rejected_candidates"],
   );
 
   if (!objID) {

@@ -95,7 +95,7 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
   const ra_hrs = ra_to_hours(ra, ":");
   const dec_hrs = dec_to_dms(dec, ":");
   // TODO: const thumbnail_timestamp = "TODO";
-  const photometry = useAppSelector((state) => state.photometry);
+  const photometry = useAppSelector((state) => state["photometry"]);
   const objPhotometry = (photometry as any)?.[id];
 
   let isDetected = false;

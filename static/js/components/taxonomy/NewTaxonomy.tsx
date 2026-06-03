@@ -15,7 +15,7 @@ interface NewTaxonomyProps {
 }
 
 const NewTaxonomy = ({ onClose = null }: NewTaxonomyProps) => {
-  const { taxonomyList } = useAppSelector((state) => state.taxonomies);
+  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
   const dispatch = useAppDispatch();
 
   const groups = useAppSelector((state) => state.groups.userAccessible);

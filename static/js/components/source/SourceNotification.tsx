@@ -86,7 +86,7 @@ const SourceNotification = ({ sourceId }: SourceNotificationProps) => {
   return (
     <div>
       <form onSubmit={handleSubmit(formSubmit)}>
-        {errors.groupIds && (
+        {errors["groupIds"] && (
           <FormValidationError message="No target group(s) selected for notification" />
         )}
         <div className={classes.formContainer}>
@@ -134,8 +134,8 @@ const SourceNotification = ({ sourceId }: SourceNotificationProps) => {
                 defaultValue=""
                 name="additionalNotes"
                 size="small"
-                error={!!errors.additionalNotes}
-                helperText={errors.additionalNotes ? "Required" : ""}
+                error={!!errors["additionalNotes"]}
+                helperText={errors["additionalNotes"] ? "Required" : ""}
                 onChange={onChange}
                 value={value}
               />

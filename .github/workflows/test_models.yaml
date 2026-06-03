@@ -85,6 +85,13 @@ jobs:
             server:
               auth:
                 debug_login: True
+
+            # Same SEDM short-circuit as the repo's test_config.yaml — we
+            # overwrite that file with this heredoc, so the override has to
+            # be repeated here or the demo loader's followup_request POSTs
+            # will fall through to the live STScI endpoint and time out.
+            app:
+              sedm_endpoint:
           EOF
 
       - name: Install system dependencies
@@ -145,8 +152,8 @@ jobs:
 
       - name: Test loading demo data
         run: |
-          make run &
-          sleep 180 && make load_demo_data
+          FLAGS="--config=test_config.yaml" make run &
+          sleep 180 && FLAGS="--config=test_config.yaml" make load_demo_data
           make stop
           kill %1 2>/dev/null || true
           sleep 5

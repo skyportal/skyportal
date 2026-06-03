@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { fetchMMADetectors, submitMMADetector } from "../../ducks/mmadetector";
 
 const NewMMADetector = () => {
-  const { mmadetectorList } = useAppSelector((state) => state.mmadetectors);
+  const { mmadetectorList } = useAppSelector((state) => state["mmadetectors"]);
   const dispatch = useAppDispatch();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {

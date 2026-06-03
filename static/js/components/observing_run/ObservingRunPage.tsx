@@ -71,8 +71,8 @@ const ObservingRunList = ({
   managePermission,
 }: ObservingRunListProps) => {
   const dispatch = useAppDispatch();
-  const { instrumentList } = useAppSelector((state) => state.instruments);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const groups = useAppSelector((state) => state.groups.all);
   const [observingRunToEdit, setObservingRunToEdit] = useState<number | null>(
     null,
@@ -204,7 +204,9 @@ const ObservingRunList = ({
 };
 
 const ObservingRunPage = () => {
-  const { observingRunList } = useAppSelector((state) => state.observingRuns);
+  const { observingRunList } = useAppSelector(
+    (state) => state["observingRuns"],
+  );
   const currentUser = useAppSelector((state) => state.profile);
 
   const managePermission =

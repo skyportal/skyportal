@@ -13,8 +13,8 @@ import { submitObservingRun } from "../../ducks/observingRun";
 dayjs.extend(utc);
 
 const NewObservingRun = () => {
-  const { instrumentList } = useAppSelector((state) => state.instruments);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const dispatch = useAppDispatch();
 

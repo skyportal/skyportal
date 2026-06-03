@@ -261,8 +261,8 @@ const SpatialCatalogList = ({
 };
 
 const SpatialCatalogPage = () => {
-  const spatialCatalogs = useAppSelector((state) => state.spatialCatalogs);
-  const spatialCatalog = useAppSelector((state) => state.spatialCatalog);
+  const spatialCatalogs = useAppSelector((state) => state["spatialCatalogs"]);
+  const spatialCatalog = useAppSelector((state) => state["spatialCatalog"]);
   const [selectedSpatialCatalogId, setSelectedSpatialCatalogId] =
     useState<any>(null);
   const [selectedSpatialCatalogEntryId, setSelectedSpatialCatalogEntryId] =

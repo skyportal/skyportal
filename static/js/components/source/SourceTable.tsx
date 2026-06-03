@@ -195,7 +195,7 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
     window.localStorage.getItem("CURRENT_GROUP_ADMIN") as any,
   );
 
-  const { taxonomyList } = useAppSelector((state) => state.taxonomies);
+  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [classificationSourceToDelete, setClassificationSourceToDelete] =
@@ -404,11 +404,11 @@ const SourceDetailPanel = React.memo(
     taxonomyList = [],
   }: {
     source: any;
-    groupID?: number;
-    taxonomyList?: any[];
+    groupID?: number | undefined;
+    taxonomyList?: any[] | undefined;
   }) => {
     const { classes } = useStyles();
-    const photometry = useAppSelector((state) => state.photometry);
+    const photometry = useAppSelector((state) => state["photometry"]);
     const [openedOrigins, setOpenedOrigins] = useState<Record<string, any>>({});
 
     const annotations = source.annotations || [];
@@ -604,7 +604,7 @@ const SourceTable = ({
   // If groupID is not given, show all data available to user's accessible groups
 
   const dispatch = useAppDispatch();
-  const { taxonomyList } = useAppSelector((state) => state.taxonomies);
+  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
 
   const { classes } = useStyles() as { classes: any };
 

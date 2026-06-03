@@ -117,9 +117,9 @@ const TelescopePage = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector((state) => state.profile);
-  const loading = useAppSelector((state) => state.telescopes.loading);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
-  const { currentTelescopes } = useAppSelector((state) => state.telescopes);
+  const loading = useAppSelector((state) => state["telescopes"].loading);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { currentTelescopes } = useAppSelector((state) => state["telescopes"]);
   const [displayedTelescopes, setDisplayedTelescopes] = useState(telescopeList);
   const [telescopeToDelete, setTelescopeToDelete] = useState<number | null>(
     null,

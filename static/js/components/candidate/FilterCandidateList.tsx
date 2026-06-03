@@ -629,7 +629,7 @@ const FilterCandidateList = ({
                 </Typography>
               </div>
               <div>
-                {(errors.startDate || errors.endDate) && (
+                {(errors["startDate"] || errors["endDate"]) && (
                   <FormValidationError message="Invalid date range." />
                 )}
                 <div className={classes.timeRange}>
@@ -1129,7 +1129,7 @@ const FilterCandidateList = ({
                 <Typography variant="h6" className={classes.title}>
                   Annotation Sorting
                 </Typography>
-                {errors.sortingOrigin && (
+                {errors["sortingOrigin"] && (
                   <FormValidationError message="All sorting fields must be left empty or all filled out" />
                 )}
                 <div className={classes.annotationSorting}>

@@ -52,7 +52,7 @@ export const HtmlTooltip = withStyles(Tooltip, (theme) => ({
 
 const UploadPhotometryForm = () => {
   const dispatch = useAppDispatch();
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const userGroups = useAppSelector((state) => state.groups.user);
   const [showPreview, setShowPreview] = useState(false);
@@ -106,11 +106,11 @@ const UploadPhotometryForm = () => {
     setCsvData({});
     setSuccessMessage(null);
     const currentFormState = getValues();
-    if (!currentFormState.csvData) {
+    if (!currentFormState["csvData"]) {
       return "Missing CSV data";
     }
     const [header, ...dataRows] = PapaParse.parse(
-      currentFormState.csvData.trim(),
+      currentFormState["csvData"].trim(),
       parseOptions,
     ).data as any[];
     const headerLength = header.length;
@@ -141,13 +141,13 @@ const UploadPhotometryForm = () => {
       return "Invalid input: missing required column: limiting_mag";
     }
     if (
-      currentFormState.instrumentID === "multiple" &&
+      currentFormState["instrumentID"] === "multiple" &&
       !header.includes("instrument_id")
     ) {
       return "Invalid input: missing required column: instrument_id";
     }
     if (
-      currentFormState.instrumentID !== "multiple" &&
+      currentFormState["instrumentID"] !== "multiple" &&
       header.includes("instrument_id")
     ) {
       return "Invalid input: instrument_id already specified in select input";
@@ -188,14 +188,13 @@ const UploadPhotometryForm = () => {
       obj_id: id,
       altdata: {},
     };
-    if (currentFormState.instrumentID !== "multiple") {
-      data.instrument_id = currentFormState.instrumentID;
+    if (currentFormState["instrumentID"] !== "multiple") {
+      data.instrument_id = currentFormState["instrumentID"];
     }
     csvData.columns.forEach((col: string, idx: number) => {
       if (col.startsWith("altdata.")) {
-        data.altdata[col.split("altdata.")[1]] = csvData.data.map(
-          (row: any) => row[idx],
-        );
+        const altKey = col.split("altdata.")[1] ?? "";
+        data.altdata[altKey] = csvData.data.map((row: any) => row[idx]);
       } else {
         data[col] = csvData.data.map((row: any) => row[idx]);
       }
@@ -322,9 +321,9 @@ const UploadPhotometryForm = () => {
                   </Box>
                 </Box>
                 <Box component="span" m={1}>
-                  {errors.csvData && (
+                  {errors["csvData"] && (
                     <FormValidationError
-                      message={errors.csvData.message as any}
+                      message={errors["csvData"].message as any}
                     />
                   )}
                   <FormControl>
@@ -354,7 +353,7 @@ const UploadPhotometryForm = () => {
                         below.
                         <br />
                       </Font>
-                      {errors.instrumentID && (
+                      {errors["instrumentID"] && (
                         <FormValidationError message="Select an instrument" />
                       )}
                       <FormControl className={classes.formControl}>
@@ -510,7 +509,7 @@ const UploadPhotometryForm = () => {
               </Box>
             </div>
           )}
-          {successMessage && !formState.dirty && (
+          {successMessage && !formState["dirty"] && (
             <div style={{ whiteSpace: "pre-line" }}>
               <br />
               <Font color="blue">{successMessage}</Font>

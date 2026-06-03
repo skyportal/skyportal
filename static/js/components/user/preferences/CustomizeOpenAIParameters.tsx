@@ -25,7 +25,7 @@ const CustomizeOpenAIParameters = () => {
   const { classes } = useStyles();
 
   const site_openai_summary_parameters = useAppSelector(
-    (state) => state.config.openai_summary_parameters,
+    (state) => state["config"].openai_summary_parameters,
   );
   const user_openai_summary_parameters = useAppSelector(
     (state) => (state.profile.preferences as any).summary.OpenAI,

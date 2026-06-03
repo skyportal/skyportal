@@ -230,7 +230,18 @@ def get_color(bandpass, format="hex"):
 
 
 def get_bandpasses_to_colors(bandpasses, colors_type="rgb"):
-    return {bandpass: get_color(bandpass, colors_type) for bandpass in bandpasses}
+    # Build per-bandpass instead of with a dict comprehension so a single
+    # broken sncosmo bandpass (occasionally produces an empty Bandpass on some
+    # runners, which makes get_effective_wavelength's downstream `np.max([])`
+    # raise) doesn't take out the whole mapping — and, by extension, app-import
+    # at module load. Skip the bad bandpass with a log line and continue.
+    out = {}
+    for bandpass in bandpasses:
+        try:
+            out[bandpass] = get_color(bandpass, colors_type)
+        except Exception as e:
+            log(f"Skipping bandpass {bandpass} in color mapping due to error: {e}")
+    return out
 
 
 def get_filters_mapper(photometry):
@@ -238,10 +249,21 @@ def get_filters_mapper(photometry):
     return get_bandpasses_to_colors(filters)
 
 
+def _safe_effective_wavelength(bandpass):
+    try:
+        return get_effective_wavelength(bandpass)
+    except Exception as e:
+        log(f"Skipping bandpass {bandpass} in wavelength mapping due to error: {e}")
+        return None
+
+
 BANDPASSES_COLORS = get_bandpasses_to_colors(ALLOWED_BANDPASSES, "rgb")
 
 BANDPASSES_WAVELENGTHS = {
-    bandpass: get_effective_wavelength(bandpass) for bandpass in ALLOWED_BANDPASSES
+    bandpass: _safe_effective_wavelength(bandpass) for bandpass in ALLOWED_BANDPASSES
+}
+BANDPASSES_WAVELENGTHS = {
+    bp: w for bp, w in BANDPASSES_WAVELENGTHS.items() if w is not None
 }
 
 

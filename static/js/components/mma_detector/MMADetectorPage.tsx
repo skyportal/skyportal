@@ -40,7 +40,7 @@ const MMADetectorPage = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
   const currentUser = useAppSelector((state) => state.profile);
   const canManage = currentUser.permissions?.includes("Manage allocations");
-  const { mmadetectorList } = useAppSelector((state) => state.mmadetectors);
+  const { mmadetectorList } = useAppSelector((state) => state["mmadetectors"]);
   const [newMMADetector, setNewMMADetector] = useState(false);
 
   return (

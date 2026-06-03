@@ -59,7 +59,7 @@ const PlaceHolder = () => {
 const MovingObjectObsPlanPage = () => {
   const { classes } = useStyles();
   const instruments = useAppSelector(
-    (state) => state.instruments.instrumentList,
+    (state) => state["instruments"].instrumentList,
   );
   const dispatch = useAppDispatch();
 

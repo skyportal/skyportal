@@ -95,9 +95,9 @@ const PhotometryTable = ({
   t0 = null,
 }: PhotometryTableProps) => {
   const { usePhotometryValidation } = useAppSelector(
-    (state) => state.config,
+    (state) => state["config"],
   ) as any;
-  const photometry = useAppSelector((state) => state.photometry) as any;
+  const photometry = useAppSelector((state) => state["photometry"]) as any;
 
   const { classes } = useStyles();
   const dispatch = useAppDispatch();

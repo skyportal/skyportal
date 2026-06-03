@@ -63,17 +63,17 @@ interface TitleProps {
 }
 
 const Title = ({ classes }: TitleProps) => (
-  <div className={classes.tooltipContent}>
-    <div className={classes.legend}>
-      <div style={{ background: "#f9d71c" }} className={classes.circle} />
+  <div className={classes["tooltipContent"]}>
+    <div className={classes["legend"]}>
+      <div style={{ background: "#f9d71c" }} className={classes["circle"]} />
       <p> Daytime</p>
     </div>
-    <div className={classes.legend}>
-      <div style={{ background: "#0c1445" }} className={classes.circle} />
+    <div className={classes["legend"]}>
+      <div style={{ background: "#0c1445" }} className={classes["circle"]} />
       <p> Nighttime</p>
     </div>
-    <div className={classes.legend}>
-      <div style={{ background: "#5ca9d6" }} className={classes.rect} />
+    <div className={classes["legend"]}>
+      <div style={{ background: "#5ca9d6" }} className={classes["rect"]} />
       <p> Networks and Space-based Instruments</p>
     </div>
   </div>
@@ -87,7 +87,7 @@ const TelescopeToolTip = ({ classes }: TelescopeToolTipProps) => (
   <Tooltip
     title={<Title classes={classes} />}
     placement="bottom-end"
-    classes={{ tooltip: classes.tooltip }}
+    classes={{ tooltip: classes["tooltip"] ?? "" }}
   >
     <HelpOutlineOutlinedIcon color="action" />
   </Tooltip>
@@ -101,13 +101,13 @@ const TelescopeMapWidget = ({
   classes: parentClasses,
 }: TelescopeMapWidgetProps) => {
   const { classes } = useStyles();
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const [mapKey, setMapKey] = useState(0);
 
   return (
     <Suspense fallback={<CircularProgress color="secondary" />}>
-      <Paper elevation={1} className={parentClasses.widgetPaperFillSpace}>
-        <div className={parentClasses.widgetPaperDiv}>
+      <Paper elevation={1} className={parentClasses["widgetPaperFillSpace"]}>
+        <div className={parentClasses["widgetPaperDiv"]}>
           <div className={classes.mapContainer}>
             <TelescopeMap key={mapKey} telescopes={telescopeList} />
             <div className={classes.overlayButtons}>

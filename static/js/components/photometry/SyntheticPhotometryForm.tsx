@@ -31,7 +31,7 @@ const SyntheticPhotometryForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const groups = useAppSelector((state) => state.groups.userAccessible);
-  const { enum_types } = useAppSelector((state) => state.enum_types);
+  const { enum_types } = useAppSelector((state) => state["enum_types"]);
 
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);

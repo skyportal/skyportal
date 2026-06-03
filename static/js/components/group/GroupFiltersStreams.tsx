@@ -57,7 +57,7 @@ const GroupFiltersStreams = ({
   const [panelStreamsExpanded, setPanelStreamsExpanded] =
     useState<any>("panel-streams");
   const dispatch = useAppDispatch();
-  const streams = useAppSelector((state) => state.streams);
+  const streams = useAppSelector((state) => state["streams"]);
 
   const {
     register,
@@ -329,9 +329,9 @@ const GroupFiltersStreams = ({
             />
             <FormControl required className={classes.selectEmpty}>
               <InputLabel>Alert stream</InputLabel>
-              {errors.filter_stream_id && (
+              {errors["filter_stream_id"] && (
                 <FormValidationError
-                  message={errors.filter_stream_id.message as any}
+                  message={errors["filter_stream_id"].message as any}
                 />
               )}
               <Controller

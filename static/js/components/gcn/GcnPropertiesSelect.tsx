@@ -28,7 +28,7 @@ const GcnPropertiesSelect = ({
 }: GcnPropertiesSelectProps) => {
   const dispatch = useAppDispatch();
   const gcnProperties = [
-    ...(useAppSelector((state) => state.gcnProperties) || []),
+    ...(useAppSelector((state) => state["gcnProperties"]) || []),
   ].sort();
   const { handleSubmit, control, reset, getValues } = useForm();
 

@@ -89,7 +89,7 @@ const ExecutedObservationsTable = ({
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
 
   const [open, setOpen] = useState(false);
   const [newDialogFromFileOpen, setNewDialogFromFileOpen] = useState(false);

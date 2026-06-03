@@ -89,7 +89,7 @@ const SimpleMenu = ({ assignment }: SimpleMenuProps) => {
   const dispatch = useAppDispatch();
 
   const { observingRunList } = useAppSelector(
-    (state) => state.observingRuns,
+    (state) => state["observingRuns"],
   ) as any;
 
   const handleClick = (event: any) => {
@@ -214,11 +214,13 @@ interface RunSummaryProps {
 const RunSummary = ({ route }: RunSummaryProps) => {
   const dispatch = useAppDispatch();
   const { classes: styles } = useStyles();
-  const observingRun = useAppSelector((state) => state.observingRun) as any;
+  const observingRun = useAppSelector((state) => state["observingRun"]) as any;
   const { instrumentList } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   ) as any;
-  const { telescopeList } = useAppSelector((state) => state.telescopes) as any;
+  const { telescopeList } = useAppSelector(
+    (state) => state["telescopes"],
+  ) as any;
   const groups = useAppSelector((state) => state.groups.all) as any;
   const [dialog, setDialog] = useState(false);
   const [openedRows, setOpenedRows] = useState<any[]>([]);

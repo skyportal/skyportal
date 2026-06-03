@@ -23,7 +23,7 @@ const QuickSaveButton = ({
   const userAccessibleGroups = useAppSelector(
     (state) => state.groups.userAccessible,
   );
-  const { hydratedList } = useAppSelector((state) => state.hydration);
+  const { hydratedList } = useAppSelector((state) => state["hydration"]);
 
   const [isSaving, setIsSaving] = useState(false);
 

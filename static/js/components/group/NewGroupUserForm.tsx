@@ -38,7 +38,7 @@ interface NewGroupUserFormProps {
 
 const NewGroupUserForm = ({ group_id }: NewGroupUserFormProps) => {
   const dispatch = useAppDispatch();
-  const { users: allUsers } = useAppSelector((state) => state.users);
+  const { users: allUsers } = useAppSelector((state) => state["users"]);
   const [formState, setFormState] = useState<FormState>(defaultState);
   const { classes } = useStyles();
 

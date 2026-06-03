@@ -165,7 +165,7 @@ const SourceQuickView = ({ sourceId, className }: SourceQuickViewProps) => {
     setOpen(false);
   };
 
-  const source = useAppSelector((state) => state.source);
+  const source = useAppSelector((state) => state["source"]);
   const cachedSourceId = source ? source.id : null;
   const isCached = sourceId === cachedSourceId;
 
@@ -179,7 +179,7 @@ const SourceQuickView = ({ sourceId, className }: SourceQuickViewProps) => {
     }
   }, [dispatch, isCached, sourceId, open]);
 
-  const { taxonomyList } = useAppSelector((state) => state.taxonomies);
+  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
 
   // Only load more detailed source info once dialog is opened
   if (open) {

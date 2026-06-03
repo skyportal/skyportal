@@ -43,7 +43,7 @@ const SurveyEfficiencyObservationsLists = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const [isDeleting, setIsDeleting] = useState<any>(null);
 
   if (!survey_efficiency_analyses || survey_efficiency_analyses.length === 0) {

@@ -53,9 +53,9 @@ const SharingServiceSubmissionsPage = () => {
 
   const { id } = useParams<{ id: string }>();
 
-  const { users: allUsers } = useAppSelector((state) => state.users);
+  const { users: allUsers } = useAppSelector((state) => state["users"]);
   const submissions = useAppSelector(
-    (state) => state.sharingServices.submissions,
+    (state) => state["sharingServices"].submissions,
   );
 
   const sharingServiceSubmissions =

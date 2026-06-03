@@ -19,10 +19,10 @@ const InstrumentForm = ({
   onClose,
   instrumentId = null,
 }: InstrumentFormProps) => {
-  const { instrumentList } = useAppSelector((state) => state.instruments);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
-  const { followupApis } = useAppSelector((state) => state.followupApis);
-  const { enum_types } = useAppSelector((state) => state.enum_types);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { followupApis } = useAppSelector((state) => state["followupApis"]);
+  const { enum_types } = useAppSelector((state) => state["enum_types"]);
   const [formData, setFormData] = useState<any>({});
   const dispatch = useAppDispatch();
 

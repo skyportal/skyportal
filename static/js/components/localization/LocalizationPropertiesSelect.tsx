@@ -26,7 +26,7 @@ const LocalizationPropertiesSelect = ({
 }: LocalizationPropertiesSelectProps) => {
   const dispatch = useAppDispatch();
   const localizationProperties = [
-    ...(useAppSelector((state) => state.localizationProperties) || []),
+    ...(useAppSelector((state) => state["localizationProperties"]) || []),
   ].sort();
   const { handleSubmit, control, reset, getValues } = useForm();
 

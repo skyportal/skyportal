@@ -48,8 +48,8 @@ const CopyPhotometryDialog = ({
   const validateGroups = () => {
     const formState = getValues();
     return (
-      formState.groupIds?.length &&
-      formState.groupIds.filter((value: any) => Boolean(value)).length >= 1
+      formState["groupIds"]?.length &&
+      formState["groupIds"].filter((value: any) => Boolean(value)).length >= 1
     );
   };
 
@@ -76,7 +76,7 @@ const CopyPhotometryDialog = ({
         <DialogTitle>Copy photometry to selected groups:</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmit)}>
-            {(errors.inviteGroupIds || errors.unsaveGroupIds) && (
+            {(errors["inviteGroupIds"] || errors["unsaveGroupIds"]) && (
               <FormValidationError message="Select at least one group." />
             )}
             {savedGroups.map((savedGroup: any, idx: number) => (

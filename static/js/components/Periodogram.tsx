@@ -226,7 +226,9 @@ const Periodogram = () => {
   const { handleSubmit, control, register } = useForm();
   const { id } = useParams();
   const dispatch = useAppDispatch();
-  const photometry = useAppSelector((state) => state.photometry[id as string]);
+  const photometry = useAppSelector(
+    (state) => state["photometry"][id as string],
+  );
   const [bestp, setBestp] = useState<any>(null);
   const [run, setRun] = useState(false);
   const [plotted, setPlotted] = useState(false);

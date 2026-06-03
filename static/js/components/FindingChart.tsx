@@ -311,7 +311,7 @@ const FindingChart = () => {
                         defaultValue={params.findersize}
                         rules={rules}
                       />
-                      {errors.findersize && (
+                      {errors["findersize"] && (
                         <p>Enter a number between 2 and 15</p>
                       )}
                     </FormControl>
@@ -339,7 +339,7 @@ const FindingChart = () => {
                         control={control}
                         defaultValue={params.numoffset}
                       />
-                      {errors.numoffset && (
+                      {errors["numoffset"] && (
                         <p>Enter an integer between 0 and 5</p>
                       )}
                     </FormControl>

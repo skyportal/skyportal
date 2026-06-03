@@ -12,8 +12,8 @@ const InstrumentTable = InstrumentTableComponent as any;
 const InstrumentList = () => {
   const dispatch = useAppDispatch();
 
-  const instrumentsState = useAppSelector((state) => state.instruments);
-  const telescopesState = useAppSelector((state) => state.telescopes);
+  const instrumentsState = useAppSelector((state) => state["instruments"]);
+  const telescopesState = useAppSelector((state) => state["telescopes"]);
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
 

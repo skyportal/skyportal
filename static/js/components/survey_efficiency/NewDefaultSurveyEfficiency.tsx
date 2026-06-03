@@ -46,7 +46,7 @@ const NewDefaultSurveyEfficiency = ({
   const [selectedObservationPlanId, setSelectedObservationPlanId] =
     useState<any>(null);
   const { defaultObservationPlanList } = useAppSelector(
-    (state) => state.default_observation_plans,
+    (state) => state["default_observation_plans"],
   );
 
   const observationPlanLookUp: Record<number, any> = {};
@@ -63,15 +63,15 @@ const NewDefaultSurveyEfficiency = ({
   const handleSubmit = async ({ formData }: { formData: any }) => {
     const optionalInjectionParameters: Record<string, any> = {};
     if (Object.keys(formData).includes("log10_E0")) {
-      optionalInjectionParameters.log10_E0 = formData.log10_E0;
+      optionalInjectionParameters["log10_E0"] = formData.log10_E0;
       delete formData.log10_E0;
     }
     if (Object.keys(formData).includes("mag")) {
-      optionalInjectionParameters.mag = formData.mag;
+      optionalInjectionParameters["mag"] = formData.mag;
       delete formData.mag;
     }
     if (Object.keys(formData).includes("dmag")) {
-      optionalInjectionParameters.dmag = formData.dmag;
+      optionalInjectionParameters["dmag"] = formData.dmag;
       delete formData.dmag;
     }
 
