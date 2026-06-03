@@ -72,6 +72,11 @@ app:
 
   ps1_endpoint: https://catalogs.mast.stsci.edu/
 
+  # PS1 cutout service used to scrape the public thumbnail link for an Obj.
+  # Set to an empty string to skip the HTTP call and use the
+  # "currently_unavailable.png" placeholder (useful in tests).
+  ps1_cutout_url: http://ps1images.stsci.edu/cgi-bin/ps1cutouts
+
   tess_endpoint: https://tess.mit.edu/public/tesstransients/
 
   atlas:
