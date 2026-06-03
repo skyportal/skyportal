@@ -45,7 +45,13 @@ jobs:
       # "move to uv"), so its dependencies install reproducibly from its own
       # uv.lock. Pre-uv references install via pip with unpinned transitive
       # deps that drift over time and intermittently break the demo-data load.
-      MIGRATION_REFERENCE: 5f7c59dbde481c3921f148224f2ac9f9eb14f018
+      #
+      # It must also be on or after #6176 ("More typescript flags"), since the
+      # workflow writes `app.sedm_endpoint:` empty in the reference's config.yaml
+      # and only the SEDMAPI in #6176+ short-circuits a missing endpoint into a
+      # stub "accepted" response. Earlier references would `requests.post(None)`
+      # and crash the demo loader with "Invalid URL 'None'".
+      MIGRATION_REFERENCE: a4a3c4ee60600c0e959362a17a3170d20f4d75af
 
     services:
       postgres:
