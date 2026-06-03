@@ -44,7 +44,7 @@ const ObservationPlanRequestLists = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const gcnEvent = useAppSelector((state) => state.gcnEvent) as any;
+  const gcnEvent = useAppSelector((state) => state["gcnEvent"]) as any;
   const [anchorEl, setAnchorEl] = useState<any>(null);
 
   const observationPlanRequestList = gcnEvent?.observation_plans || [];
@@ -68,7 +68,7 @@ const ObservationPlanRequestLists = ({
   const [isRemoving, setIsRemoving] = useState<any>(null);
 
   const { instrumentList, instrumentObsplanFormParams } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   ) as any;
 
   useEffect(() => {

@@ -20,7 +20,7 @@ const ReleaseForm = ({
   setOpenReleaseForm,
 }: ReleaseFormProps) => {
   const dispatch = useAppDispatch();
-  const streams = useAppSelector((state) => state.streams);
+  const streams = useAppSelector((state) => state["streams"]);
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const sourceOptionsSchema = sourcePublishOptionsSchema(
     streams as any,

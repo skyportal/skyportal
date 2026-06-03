@@ -118,7 +118,7 @@ const GcnEventSourcesPage = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const sourcesState = useAppSelector(
-    (state) => state.sources.gcnEventSources,
+    (state) => state["sources"].gcnEventSources,
   ) as any;
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
   const [filtering, setFiltering] = useState<Record<string, any>>({
@@ -159,8 +159,8 @@ const GcnEventSourcesPage = ({
       numPerPage,
     };
     if (sortData && Object.keys(sortData).length > 0) {
-      data.sortBy = sortData.name;
-      data.sortOrder = sortData.direction;
+      data["sortBy"] = sortData.name;
+      data["sortOrder"] = sortData.direction;
     }
     dispatch(sourcesActions.fetchGcnEventSources(dateobs, data));
     setFiltering(data);
@@ -251,18 +251,18 @@ const GcnEventSourcesPage = ({
 
   return (
     <div className={(classes as any).sourceList}>
-      {sources?.sources?.length === 0 && (
+      {sources?.["sources"]?.length === 0 && (
         <Typography variant="h5" align="center">
           No sources found within localization with these filters.
         </Typography>
       )}
       <SourceTable
         title=""
-        sources={sources?.sources}
+        sources={sources?.["sources"]}
         paginateCallback={handleSourcesTablePagination}
-        pageNumber={sources?.pageNumber}
-        totalMatches={sources?.totalMatches}
-        numPerPage={sources?.numPerPage}
+        pageNumber={sources?.["pageNumber"]}
+        totalMatches={sources?.["totalMatches"]}
+        numPerPage={sources?.["numPerPage"]}
         sortingCallback={handleSourcesTableSorting}
         downloadCallback={handleSourcesDownload}
         includeGcnStatus
@@ -364,11 +364,13 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     displayOptions.map((x) => [x, x === "localization"]),
   );
 
-  const gcnEvent = useAppSelector((state) => state.gcnEvent) as any;
+  const gcnEvent = useAppSelector((state) => state["gcnEvent"]) as any;
   const groups = useAppSelector(
     (state) => state.groups.userAccessible,
   ) as any[];
-  const { analysisLoc } = useAppSelector((state) => state.localization) as any;
+  const { analysisLoc } = useAppSelector(
+    (state) => state["localization"],
+  ) as any;
   const galaxyCatalogs = useAppSelector(
     (state) => (state as any).galaxies?.catalogs,
   ) as any[];
@@ -422,9 +424,11 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     endDate: defaultEndDate,
   });
 
-  const { telescopeList } = useAppSelector((state) => state.telescopes) as any;
+  const { telescopeList } = useAppSelector(
+    (state) => state["telescopes"],
+  ) as any;
   const { instrumentList } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   ) as any;
   const sortedInstrumentList = [...instrumentList];
   sortedInstrumentList.sort((i1: any, i2: any) =>
@@ -432,7 +436,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   );
 
   const gcnEventSources = useAppSelector(
-    (state) => state?.sources?.gcnEventSources,
+    (state) => state?.["sources"]?.gcnEventSources,
   ) as any;
   const gcnEventGalaxies = useAppSelector(
     (state) => (state as any)?.galaxies?.gcnEventGalaxies,
@@ -495,8 +499,10 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     const checkedDisplayStateCopy = JSON.parse(
       JSON.stringify(checkedDisplayState),
     );
-    checkedDisplayStateCopy[displayOptions[position]] =
-      !checkedDisplayStateCopy[displayOptions[position]];
+    const optionKey = displayOptions[position];
+    if (optionKey !== undefined) {
+      checkedDisplayStateCopy[optionKey] = !checkedDisplayStateCopy[optionKey];
+    }
     setCheckedDisplayState(checkedDisplayStateCopy);
   };
 
@@ -541,7 +547,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
             instrumentName: instLookUp[selectedInstrumentId]?.name,
             telescopeName:
               telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
-            numberObservations: formDataState?.numberDetections || 1,
+            numberObservations: formDataState?.["numberDetections"] || 1,
             numPerPage: 100,
             pageNumber: i,
             includeGeoJSON: true,
@@ -900,7 +906,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                   control={
                     <Checkbox
                       onChange={() => handleOnChange(index)}
-                      checked={checkedDisplayState[displayOptions[index]]}
+                      checked={
+                        !!checkedDisplayState[displayOptions[index] ?? ""]
+                      }
                     />
                   }
                   label={option}
@@ -1000,7 +1008,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                         control={
                           <Checkbox
                             onChange={() => handleOnChange(index)}
-                            checked={checkedDisplayState[displayOptions[index]]}
+                            checked={
+                              !!checkedDisplayState[displayOptions[index] ?? ""]
+                            }
                           />
                         }
                         label={option}
@@ -1195,7 +1205,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                       observations={gcnEventObservations.observations}
                       totalMatches={gcnEventObservations.totalMatches}
                       numPerPage={
-                        formDataState.numPerPage ||
+                        formDataState["numPerPage"] ||
                         gcnEventObservations.numPerPage ||
                         100
                       }

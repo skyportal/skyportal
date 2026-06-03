@@ -74,8 +74,8 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
                 label="Token name"
                 {...register("name", { required: true })}
                 name="name"
-                error={!!errors.name}
-                helperText={errors.name ? "Required" : ""}
+                error={!!errors["name"]}
+                helperText={errors["name"] ? "Required" : ""}
               />
             </Box>
             <Box>

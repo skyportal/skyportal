@@ -87,11 +87,11 @@ const EditSourceGroups = ({
   const validateGroups = () => {
     const formState = getValues();
     return (
-      (formState.inviteGroupIds?.length &&
-        formState.inviteGroupIds.filter((value: any) => Boolean(value))
+      (formState["inviteGroupIds"]?.length &&
+        formState["inviteGroupIds"].filter((value: any) => Boolean(value))
           .length >= 1) ||
-      (formState.unsaveGroupIds?.length &&
-        formState.unsaveGroupIds.filter((value: any) => Boolean(value))
+      (formState["unsaveGroupIds"]?.length &&
+        formState["unsaveGroupIds"].filter((value: any) => Boolean(value))
           .length >= 1)
     );
   };
@@ -170,7 +170,7 @@ const EditSourceGroups = ({
             data-testid="searchGroupsInput"
           />
           <form onSubmit={handleSubmit(onSubmit)}>
-            {(errors.inviteGroupIds || errors.unsaveGroupIds) && (
+            {(errors["inviteGroupIds"] || errors["unsaveGroupIds"]) && (
               <FormValidationError message="Select at least one group." />
             )}
             {!!unsavedGroups.length && (

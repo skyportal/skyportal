@@ -66,7 +66,7 @@ const EarthquakePredictionForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const { mmadetectorList } = useAppSelector((state) => state.mmadetectors);
+  const { mmadetectorList } = useAppSelector((state) => state["mmadetectors"]);
   const allGroups = useAppSelector((state) => state.groups.all);
   const [selectedMMADetectorId, setSelectedMMADetectorId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);

@@ -138,7 +138,7 @@ const ConfirmSourceInGCN = ({
   const { control, getValues, register, reset } = useForm();
 
   const sourcesingcn = useAppSelector(
-    (state) => state.sourcesingcn.sourcesingcn,
+    (state) => state["sourcesingcn"].sourcesingcn,
   );
 
   const handleClose = () => {
@@ -216,8 +216,8 @@ const ConfirmSourceInGCN = ({
           localization_name,
           localization_cumprob,
           confirmed: true,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
         }),
       ).then((response: any) => {
         if (response.status === "success") {
@@ -229,8 +229,8 @@ const ConfirmSourceInGCN = ({
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: true,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
         }),
       ).then((response: any) => {
         if (response.status === "success") {
@@ -252,8 +252,8 @@ const ConfirmSourceInGCN = ({
           localization_name,
           localization_cumprob,
           confirmed: false,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
         }),
       ).then((response: any) => {
         if (response.status === "success") {
@@ -265,8 +265,8 @@ const ConfirmSourceInGCN = ({
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: false,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
         }),
       ).then((response: any) => {
         if (response.status === "success") {
@@ -288,8 +288,8 @@ const ConfirmSourceInGCN = ({
           localization_name,
           localization_cumprob,
           confirmed: null,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
         }),
       ).then((response: any) => {
         if (response.status === "success") {
@@ -301,8 +301,8 @@ const ConfirmSourceInGCN = ({
       dispatch(
         SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
           confirmed: null,
-          explanation: data.explanation,
-          notes: data.notes,
+          explanation: data["explanation"],
+          notes: data["notes"],
         }),
       ).then((response: any) => {
         if (response.status === "success") {

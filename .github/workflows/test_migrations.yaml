@@ -187,8 +187,8 @@ jobs:
       - name: Test loading demo data
         run: |
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-          make run &
-          sleep 180 && make load_demo_data
+          FLAGS="--config=test_config.yaml" make run &
+          sleep 180 && FLAGS="--config=test_config.yaml" make load_demo_data
           kill %1
 
       - name: Checkout branch being tested
@@ -279,8 +279,8 @@ jobs:
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
-          make run &
-          sleep 60 && make load_demo_data
+          FLAGS="--config=test_config.yaml" make run &
+          sleep 60 && FLAGS="--config=test_config.yaml" make load_demo_data
           kill %1
           PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
 

@@ -23,7 +23,7 @@ const useStyles = makeStyles()((theme) => ({
 const DefaultGcnTags = () => {
   const dispatch = useAppDispatch();
 
-  const default_gcn_tags = useAppSelector((state) => state.default_gcn_tags);
+  const default_gcn_tags = useAppSelector((state) => state["default_gcn_tags"]);
   const currentUser = useAppSelector((state) => state.profile);
 
   const permission =

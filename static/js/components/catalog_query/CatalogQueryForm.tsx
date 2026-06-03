@@ -67,9 +67,9 @@ const CatalogQueryForm = ({ gcnevent }: CatalogQueryFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const { allocationList } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   ) as any;
 
   const groups = useAppSelector((state) => state.groups.userAccessible);
@@ -78,9 +78,9 @@ const CatalogQueryForm = ({ gcnevent }: CatalogQueryFormProps) => {
     useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const { allocationListApiClassname } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   ) as any;
 
   const defaultStartDate = dayjs(gcnevent?.dateobs).format(

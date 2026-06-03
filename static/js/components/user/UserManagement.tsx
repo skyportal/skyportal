@@ -86,21 +86,21 @@ const UserManagement = () => {
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
-  const { invitationsEnabled } = useAppSelector((state) => state.config);
+  const { invitationsEnabled } = useAppSelector((state) => state["config"]);
   const currentUser = useAppSelector((state) => state.profile);
   const { users, totalMatches } = useAppSelector(
-    (state) => state.users_management,
+    (state) => state["users_management"],
   );
   // read the fetchParams from the redux store to
   // preserve state upon websocket-based updates
   const fetchParams = useAppSelector(
-    (state) => state.users_management.fetchParams,
+    (state) => state["users_management"].fetchParams,
   );
   const [tableFilterList, setTableFilterList] = useState<string[]>([]);
-  const streams = useAppSelector((state) => state.streams);
+  const streams = useAppSelector((state) => state["streams"]);
   let { all: allGroups } = useAppSelector((state) => state.groups);
-  const acls = useAppSelector((state) => state.acls);
-  const roles = useAppSelector((state) => state.roles);
+  const acls = useAppSelector((state) => state["acls"]);
+  const roles = useAppSelector((state) => state["roles"]);
   const [addUserGroupsDialogOpen, setAddUserGroupsDialogOpen] = useState(false);
   const [addUserRolesDialogOpen, setAddUserRolesDialogOpen] = useState(false);
   const [addUserACLsDialogOpen, setAddUserACLsDialogOpen] = useState(false);
@@ -182,7 +182,9 @@ const UserManagement = () => {
     const data: any = {};
     remaining.forEach((filterChip) => {
       const [key, value] = filterChip.split(": ");
-      data[key] = value;
+      if (key) {
+        data[key] = value;
+      }
     });
     handleFilterSubmit(data);
   };
@@ -270,22 +272,22 @@ const UserManagement = () => {
 
   const validateGroups = () => {
     const formState = getValues();
-    return formState.groups.length >= 1;
+    return formState["groups"].length >= 1;
   };
 
   const validateStreams = () => {
     const formState = getValues();
-    return formState.streams.length >= 1;
+    return formState["streams"].length >= 1;
   };
 
   const validateACLs = () => {
     const formState = getValues();
-    return formState.acls.length >= 1;
+    return formState["acls"].length >= 1;
   };
 
   const validateRoles = () => {
     const formState = getValues();
-    return formState.roles.length >= 1;
+    return formState["roles"].length >= 1;
   };
 
   const handleAddUserToGroups = async (formData: any) => {
@@ -1014,7 +1016,7 @@ const UserManagement = () => {
         <DialogTitle>{`Add user ${clickedUser?.username} to selected groups:`}</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(handleAddUserToGroups)}>
-            {!!errors.groups && (
+            {!!errors["groups"] && (
               <FormValidationError message="Please select at least one group" />
             )}
             <Controller
@@ -1036,7 +1038,7 @@ const UserManagement = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      error={!!errors.groups}
+                      error={!!errors["groups"]}
                       variant="outlined"
                       label="Select Groups"
                       data-testid="addUserToGroupsTextField"
@@ -1071,7 +1073,7 @@ const UserManagement = () => {
         </DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(handleAddUserToStreams)}>
-            {!!errors.streams && (
+            {!!errors["streams"] && (
               <FormValidationError message="Please select at least one stream" />
             )}
             <Controller
@@ -1093,7 +1095,7 @@ const UserManagement = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      error={!!errors.streams}
+                      error={!!errors["streams"]}
                       variant="outlined"
                       label="Select Streams"
                       data-testid="addUserToStreamsTextField"
@@ -1128,7 +1130,7 @@ const UserManagement = () => {
         </DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(handleAddUserACLs)}>
-            {!!errors.acls && (
+            {!!errors["acls"] && (
               <FormValidationError message="Please select at least one ACL" />
             )}
             <Controller
@@ -1147,7 +1149,7 @@ const UserManagement = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      error={!!errors.acls}
+                      error={!!errors["acls"]}
                       variant="outlined"
                       label="Select ACLs"
                       data-testid="addUserACLsTextField"
@@ -1254,7 +1256,7 @@ const UserManagement = () => {
         </DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(handleAddUserRoles)}>
-            {!!errors.roles && (
+            {!!errors["roles"] && (
               <FormValidationError message="Please select at least one role" />
             )}
             <Controller
@@ -1274,7 +1276,7 @@ const UserManagement = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      error={!!errors.roles}
+                      error={!!errors["roles"]}
                       variant="outlined"
                       label="Select Roles"
                     />

@@ -61,15 +61,15 @@ const FollowupRequestLists = FollowupRequestListsBase as any;
 const defaultNumPerPage = 10;
 
 const FollowupRequestPage = () => {
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   ) as any;
   const { followupRequestList, totalMatches } = useAppSelector(
-    (state) => state.followup_requests,
+    (state) => state["followup_requests"],
   ) as any;
   const { defaultFollowupRequestList } = useAppSelector(
-    (state) => state.default_followup_requests,
+    (state) => state["default_followup_requests"],
   ) as any;
   const currentUser = useAppSelector((state) => state.profile);
   const { classes } = useStyles() as any;

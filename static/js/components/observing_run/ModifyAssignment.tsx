@@ -66,14 +66,14 @@ const ModifyAssignment = ({
     const formData: any = {};
     // if the priority is different and not null, update it
     if (
-      newValues.priority !== assignment.priority &&
-      newValues.priority !== null
+      newValues["priority"] !== assignment.priority &&
+      newValues["priority"] !== null
     ) {
-      formData.priority = newValues.priority;
+      formData.priority = newValues["priority"];
     }
     // if the comment is different, update it
-    if (newValues.comment !== assignment.comment) {
-      formData.comment = newValues.comment;
+    if (newValues["comment"] !== assignment.comment) {
+      formData.comment = newValues["comment"];
     }
     (dispatch(Actions.editAssignment(formData, assignment.id)) as any).then(
       (response: any) => {

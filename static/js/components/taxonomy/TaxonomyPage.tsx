@@ -90,7 +90,7 @@ const TaxonomyList = () => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
-  const taxonomiesState = useAppSelector((state) => state.taxonomies);
+  const taxonomiesState = useAppSelector((state) => state["taxonomies"]);
 
   const currentUser = useAppSelector((state) => state.profile);
   const permission = currentUser.permissions?.includes("System admin");

@@ -68,10 +68,10 @@ const UpdateShift = ({ shift }: UpdateShiftProps) => {
       setIsSubmitting(false);
       return;
     }
-    newState.name = subState.name;
-    newState.description = subState.description || "";
+    newState["name"] = subState.name;
+    newState["description"] = subState.description || "";
     if (subState.required_users_number === "") {
-      newState.required_users_number = null;
+      newState["required_users_number"] = null;
     } // next we verify that its a number
     else if (
       Number.isNaN(subState.required_users_number) ||
@@ -99,7 +99,7 @@ const UpdateShift = ({ shift }: UpdateShiftProps) => {
       setIsSubmitting(false);
       return;
     } else {
-      newState.required_users_number = subState.required_users_number;
+      newState["required_users_number"] = subState.required_users_number;
     }
     if (shift.id == null) {
       setIsSubmitting(false);
@@ -137,7 +137,7 @@ const UpdateShift = ({ shift }: UpdateShiftProps) => {
               data-testid="updateShiftNameTextfield"
               size="small"
               label="name"
-              value={state.name || ""}
+              value={state["name"] || ""}
               name="name"
               onChange={handleChange}
               variant="outlined"
@@ -147,7 +147,7 @@ const UpdateShift = ({ shift }: UpdateShiftProps) => {
               data-testid="updateShiftDescriptionTextfield"
               size="small"
               label="description"
-              value={state.description || ""}
+              value={state["description"] || ""}
               name="description"
               onChange={handleChange}
               variant="outlined"
@@ -156,7 +156,7 @@ const UpdateShift = ({ shift }: UpdateShiftProps) => {
               data-testid="updateShiftRequiredTextfield"
               size="small"
               label="required_users_number"
-              value={state.required_users_number || ""}
+              value={state["required_users_number"] || ""}
               name="required_users_number"
               onChange={handleChange}
               type="number"

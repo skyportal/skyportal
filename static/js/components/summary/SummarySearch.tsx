@@ -73,7 +73,7 @@ const useStyles = makeStyles()((theme) => ({
 const SummarySearch = () => {
   const { classes } = useStyles();
   const summary_sources_classes = useAppSelector(
-    (state) => state.config.summary_sourcesClasses,
+    (state) => state["config"].summary_sourcesClasses,
   ) as any;
   const dispatch = useAppDispatch();
   const [queryResult, setQueryResult] = useState<any>(null);
@@ -81,7 +81,9 @@ const SummarySearch = () => {
   const [formData, setFormData] = useState<any>({});
 
   // Get unique classification names, in alphabetical order
-  const { taxonomyList } = useAppSelector((state) => state.taxonomies) as any;
+  const { taxonomyList } = useAppSelector(
+    (state) => state["taxonomies"],
+  ) as any;
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   let classifications: any[] = [];
   latestTaxonomyList?.forEach((taxonomy: any) => {

@@ -102,7 +102,7 @@ const SaveCandidateButton = ({
   const validateGroups = () => {
     const formState = getValues();
     return (
-      formState.group_ids?.filter((value: any) => Boolean(value)).length >= 1
+      formState["group_ids"]?.filter((value: any) => Boolean(value)).length >= 1
     );
   };
 
@@ -116,7 +116,8 @@ const SaveCandidateButton = ({
     data.group_ids = selectedGroupIDs;
     const selectedGroupNames: string[] = [];
     data.group_ids?.forEach((id: number) => {
-      selectedGroupNames.push(groupLookUp[id].name);
+      const groupName = groupLookUp[id]?.name;
+      if (groupName) selectedGroupNames.push(groupName);
     });
     data.refresh_source = false;
     const result: any = await dispatch(sourceActions.saveSource(data));
@@ -154,12 +155,13 @@ const SaveCandidateButton = ({
         group_ids:
           index === 0
             ? filterGroups.map((g) => g.id)
-            : [filterGroups[index - 2].id],
+            : [filterGroups[index - 2]!.id],
         refresh_source: false,
       };
       const selectedGroupNames: string[] = [];
       data.group_ids?.forEach((id: number) => {
-        selectedGroupNames.push(groupLookUp[id].name);
+        const groupName = groupLookUp[id]?.name;
+        if (groupName) selectedGroupNames.push(groupName);
       });
       const result: any = await dispatch(sourceActions.saveSource(data));
       if (result.status === "success") {
@@ -258,7 +260,7 @@ const SaveCandidateButton = ({
         <DialogTitle>Select one or more groups:</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmitGroupSelectSave)}>
-            {errors.group_ids && (
+            {errors["group_ids"] && (
               <FormValidationError message="Select at least one group." />
             )}
             {userGroups.map((userGroup, idx) => (

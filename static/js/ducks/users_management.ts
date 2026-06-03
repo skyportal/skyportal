@@ -22,7 +22,7 @@ export function fetchUsersManagement() {
   const filterParams = {
     pageNumber: 1,
     numPerPage: 25,
-    ...state.users_management.fetchParams,
+    ...state["users_management"].fetchParams,
   };
   return API.GET("/api/user", FETCH_USERS_MANAGEMENT, filterParams);
 }

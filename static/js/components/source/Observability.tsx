@@ -44,9 +44,9 @@ interface ObservabilityPageProps {
 }
 
 const ObservabilityPage = ({ route }: ObservabilityPageProps) => {
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const preferences = useAppSelector(
-    (state) => state.profile.preferences?.observabilityTelescopes,
+    (state) => state.profile.preferences?.["observabilityTelescopes"],
   ) as any;
   const [ephemerides, setEphemerides] = useState<Record<string, any>>({});
   const { classes } = useStyles();

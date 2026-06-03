@@ -59,7 +59,7 @@ const InstrumentLogForm = ({ instrument }: InstrumentLogFormProps) => {
 
   const allGroups = useAppSelector((state) => state.groups.all);
   const { allocationListApiClassname } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   );
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -10,7 +10,7 @@ interface MMADetectorListProps {
 
 const MMADetectorList = ({ isMobile = false }: MMADetectorListProps) => {
   const { mmadetectorList } = useAppSelector(
-    (state) => state.mmadetectors as any,
+    (state) => state["mmadetectors"] as any,
   );
   return (
     <List>

@@ -127,7 +127,7 @@ const defaultNumPerPage = 10;
 const GcnEvents = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const gcnEvents = useAppSelector((state) => state.gcnEvents);
+  const gcnEvents = useAppSelector((state) => state["gcnEvents"]);
 
   const gcn_tags_classes = useAppSelector(
     (state) => (state as any).config.gcnTagsClasses,
@@ -222,7 +222,8 @@ const GcnEvents = () => {
   const handleFilterSubmit = async (formData: any) => {
     const data = filterOutEmptyValues(formData, false);
     if ("property" in data) {
-      data.propertiesFilter = `${data.property}: ${data.propertyComparatorValue}: ${data.propertyComparator}`;
+      data["propertiesFilter"] =
+        `${data["property"]}: ${data["propertyComparatorValue"]}: ${data["propertyComparator"]}`;
     }
     handleTableFilter(1, defaultNumPerPage, data);
     dispatch(showNotification("Filters submitted to server"));

@@ -72,7 +72,7 @@ const NotificationPreferences = () => {
   const profile = useAppSelector((state) => state.profile.preferences) as any;
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const { allocationListApiClassname } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   );
   const dispatch = useAppDispatch();
   const { handleSubmit } = useForm();

@@ -63,9 +63,9 @@ const NewDefaultObservationPlan = ({
   const [selectedPlanProperties, setSelectedPlanProperties] = useState<any[]>(
     [],
   );
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const { allocationListApiObsplan } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   );
   const allGroups = useAppSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
@@ -76,7 +76,7 @@ const NewDefaultObservationPlan = ({
   ] = useState(false);
 
   const { instrumentList, instrumentObsplanFormParams } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   );
 
   useEffect(() => {

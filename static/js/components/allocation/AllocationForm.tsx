@@ -225,15 +225,15 @@ const AllocationForm = ({
   allocationId = null,
 }: AllocationFormProps) => {
   const dispatch = useAppDispatch();
-  const { allocationList } = useAppSelector((state) => state.allocations);
+  const { allocationList } = useAppSelector((state) => state["allocations"]);
   const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   );
   const allowedAllocationTypes = useAppSelector(
-    (state) => state.config.allowedAllocationTypes,
+    (state) => state["config"].allowedAllocationTypes,
   );
   const groups = useAppSelector((state) => state.groups.userAccessible);
-  const { users } = useAppSelector((state) => state.users);
+  const { users } = useAppSelector((state) => state["users"]);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [instrumentOptions, setInstrumentOptions] = useState<any[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);

@@ -67,7 +67,7 @@ const GcnTags = ({
   const userProfile = useAppSelector((state) => state.profile);
 
   const gcn_tags_classes = useAppSelector(
-    (state) => state.config.gcnTagsClasses,
+    (state) => state["config"].gcnTagsClasses,
   );
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -102,16 +102,16 @@ const GcnTags = ({
   // we want to look through the gcnEvent.aliases.
   // If one starts by LVC#, we grab what is after the #
   // and use it later as a link for the LVC tag
-  let graceid =
+  let graceid: string | null =
     gcnEvent?.aliases?.find((alias) => alias.startsWith("LVC#")) || null;
   if (graceid) {
-    [, graceid] = graceid.split("#");
+    graceid = graceid.split("#")[1] ?? null;
   }
   // same for Fermi
-  let fermiid =
+  let fermiid: string | null =
     gcnEvent?.aliases?.find((alias) => alias.startsWith("FERMI#")) || null;
   if (fermiid) {
-    [, fermiid] = fermiid.split("#");
+    fermiid = fermiid.split("#")[1] ?? null;
   }
   const gcnTagsUnique = [...new Set(gcnTags)];
 

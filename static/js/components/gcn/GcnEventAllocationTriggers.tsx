@@ -92,11 +92,11 @@ const GcnEventAllocationTriggers = ({
 
   const currentUser = useAppSelector((state) => state.profile);
   const { allocationListApiObsplan } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   );
-  const { allocationList } = useAppSelector((state) => state.allocations);
+  const { allocationList } = useAppSelector((state) => state["allocations"]);
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
 
   const [selectedInstrument, setSelectedInstrument] = useState<any>(null);
 

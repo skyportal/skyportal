@@ -49,7 +49,7 @@ interface ReportItemProps {
 
 const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
   const dispatch = useAppDispatch();
-  const reportItems = useAppSelector((state) => state.scanReportItems);
+  const reportItems = useAppSelector((state) => state["scanReportItems"]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<any>(null);

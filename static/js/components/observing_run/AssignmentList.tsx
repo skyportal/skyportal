@@ -39,12 +39,12 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
   const [assignmentToEditDelete, setAssignmentToEditDelete] =
     useState<any>(null);
 
-  const { users: allUsers } = useAppSelector((state) => state.users) as any;
+  const { users: allUsers } = useAppSelector((state) => state["users"]) as any;
   const { observingRunList } = useAppSelector(
-    (state) => state.observingRuns,
+    (state) => state["observingRuns"],
   ) as any;
   const { instrumentList } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   ) as any;
 
   // use useEffect to only send 1 fetchUser per User

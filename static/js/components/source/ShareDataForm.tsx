@@ -86,7 +86,7 @@ const DeleteSpectrumButton = ({
         aria-labelledby="simple-modal-title"
         aria-describedby="simple-modal-description"
         onClose={() => setOpen(false)}
-        className={classes.detailedSpecButton}
+        className={classes["detailedSpecButton"]}
       >
         <DialogContent>
           <div>
@@ -226,7 +226,7 @@ interface SpectrumRowProps {
 
 const SpectrumRow = ({ spectrumID, route, annotations }: SpectrumRowProps) => {
   const { classes: styles } = useSourceStyles() as { classes: any };
-  const spectra = useAppSelector((state) => state.spectra)[route.id] || [];
+  const spectra = useAppSelector((state) => state["spectra"])[route.id] || [];
 
   return (
     <div style={{ width: "100%" }}>
@@ -297,8 +297,8 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { all: groups } = useAppSelector((state) => state.groups);
-  const photometry = useAppSelector((state) => state.photometry);
-  const spectra = useAppSelector((state) => state.spectra);
+  const photometry = useAppSelector((state) => state["photometry"]);
+  const spectra = useAppSelector((state) => state["spectra"]);
 
   const {
     handleSubmit,
@@ -316,7 +316,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
 
   const validateGroups = () => {
     const formState = getValues();
-    return formState.groups.length >= 1;
+    return formState["groups"].length >= 1;
   };
 
   const onSubmit = async (groupsFormData: any) => {
@@ -769,7 +769,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
       <br />
       <div>
         <form onSubmit={handleSubmit(onSubmit)}>
-          {!!errors.groups && (
+          {!!errors["groups"] && (
             <FormValidationError message="Please select at least one group/user" />
           )}
           <Controller
@@ -786,7 +786,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    error={!!errors.groups}
+                    error={!!errors["groups"]}
                     variant="outlined"
                     label="Select Groups/Users"
                     className={classes.groupSelect}

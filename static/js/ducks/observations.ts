@@ -35,7 +35,7 @@ export const submitObservations = (params: any) =>
 
 export function fetchObservations(filterParams: Record<string, any> = {}) {
   if (!Object.keys(filterParams).includes("startDate")) {
-    filterParams.startDate = dayjs()
+    filterParams["startDate"] = dayjs()
       .utc()
       .subtract(3650, "day")
       .utc()
@@ -43,11 +43,11 @@ export function fetchObservations(filterParams: Record<string, any> = {}) {
   }
 
   if (!Object.keys(filterParams).includes("endDate")) {
-    filterParams.endDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+    filterParams["endDate"] = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   }
 
   if (!Object.keys(filterParams).includes("numPerPage")) {
-    filterParams.numPerPage = 10;
+    filterParams["numPerPage"] = 10;
   }
 
   return API.GET("/api/observation", FETCH_OBSERVATIONS, filterParams);
@@ -86,18 +86,18 @@ export function fetchGcnEventObservations(
   dateobs: string,
   filterParams: Record<string, any> = {},
 ) {
-  filterParams.localizationDateobs = dateobs;
-  filterParams.numPerPage = 1000;
+  filterParams["localizationDateobs"] = dateobs;
+  filterParams["numPerPage"] = 1000;
 
   if (!Object.keys(filterParams).includes("startDate")) {
     if (dateobs) {
-      filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+      filterParams["startDate"] = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
     }
   }
 
   if (!Object.keys(filterParams).includes("endDate")) {
     if (dateobs) {
-      filterParams.endDate = dayjs(dateobs)
+      filterParams["endDate"] = dayjs(dateobs)
         .add(7, "day")
         .format("YYYY-MM-DD HH:mm:ss");
     }

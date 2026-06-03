@@ -50,7 +50,9 @@ const GroupUsers = ({
   const [openedPopoverId, setOpenedPopoverId] = React.useState<any>(null);
   const [panelMembersExpanded, setPanelMembersExpanded] =
     React.useState<any>("panel-members");
-  const { invitationsEnabled } = useAppSelector((state) => state.config) as any;
+  const { invitationsEnabled } = useAppSelector(
+    (state) => state["config"],
+  ) as any;
 
   const handlePopoverOpen = (event: any, popoverId: any) => {
     setOpenedPopoverId(popoverId);
@@ -75,7 +77,7 @@ const GroupUsers = ({
   const renderUsername = (params: any) => {
     const user = params.row;
     return (
-      <Link to={`/user/${user.id}`} className={classes.filterLink}>
+      <Link to={`/user/${user.id}`} className={classes["filterLink"]}>
         {user.username}
       </Link>
     );
@@ -122,7 +124,7 @@ const GroupUsers = ({
                   horizontal: "center",
                 }}
               >
-                <div className={classes.manageUserPopover}>
+                <div className={classes["manageUserPopover"]}>
                   <ManageUserButtons
                     loadedId={group.id!}
                     user={user as any}
@@ -198,11 +200,11 @@ const GroupUsers = ({
         expandIcon={<ExpandMoreIcon />}
         aria-controls="panel-members-content"
         id="panel-members-header"
-        className={classes.accordion_summary}
+        className={classes["accordion_summary"]}
       >
-        <Typography className={classes.heading}>Members</Typography>
+        <Typography className={classes["heading"]}>Members</Typography>
       </AccordionSummary>
-      <AccordionDetails className={classes.accordion_details}>
+      <AccordionDetails className={classes["accordion_details"]}>
         <StyledDataGrid
           autoHeight
           columns={columns}
@@ -226,7 +228,7 @@ const GroupUsers = ({
           showToolbar
         />
         <Divider />
-        <div className={classes.paper}>
+        <div className={classes["paper"]}>
           {isAdmin(currentUser) && (
             <>
               <br />

@@ -24,9 +24,9 @@ export function fetchGcnEventInstruments(
   dateobs: string,
   filterParams: Record<string, any> = {},
 ) {
-  filterParams.localizationDateobs = dateobs;
-  filterParams.includeGeoJSONSummary = true;
-  filterParams.includeGeoJSON = false;
+  filterParams["localizationDateobs"] = dateobs;
+  filterParams["includeGeoJSONSummary"] = true;
+  filterParams["includeGeoJSON"] = false;
   return API.GET("/api/instrument", FETCH_GCNEVENT_INSTRUMENTS, filterParams);
 }
 

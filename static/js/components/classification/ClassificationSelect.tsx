@@ -17,7 +17,7 @@ const ClassificationSelect = ({
   showShortcuts = false,
   inDialog = false,
 }: ClassificationSelectProps) => {
-  const { taxonomyList } = useAppSelector((state) => state.taxonomies);
+  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   let classifications: string[] = [];
   latestTaxonomyList?.forEach((taxonomy: any) => {

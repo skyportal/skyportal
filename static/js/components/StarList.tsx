@@ -159,7 +159,7 @@ const StarList = ({ sourceId }: StarListProps) => {
 export const ObservingRunStarList = () => {
   const dispatch = useAppDispatch();
   const [starList, setStarList] = useState<StarListItem[] | null>(null);
-  const { assignments } = useAppSelector((state) => state.observingRun);
+  const { assignments } = useAppSelector((state) => state["observingRun"]);
   const [facility, setFacility] = useState("Keck");
 
   useEffect(() => {

@@ -30,17 +30,17 @@ export function fetchQueuedObservations(
   filterParams: Record<string, any> = {},
 ) {
   if (!Object.keys(filterParams).includes("startDate")) {
-    filterParams.startDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+    filterParams["startDate"] = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   }
 
   if (!Object.keys(filterParams).includes("endDate")) {
-    filterParams.endDate = dayjs()
+    filterParams["endDate"] = dayjs()
       .utc()
       .add(7, "day")
       .utc()
       .format("YYYY-MM-DDTHH:mm:ssZ");
   }
-  filterParams.observationStatus = "queued";
+  filterParams["observationStatus"] = "queued";
 
   return API.GET("/api/observation", FETCH_QUEUED_OBSERVATIONS, filterParams);
 }
@@ -85,27 +85,27 @@ export function fetchGcnEventQueuedObservations(
   dateobs: string,
   filterParams: Record<string, any> = {},
 ) {
-  filterParams.localizationDateobs = dateobs;
+  filterParams["localizationDateobs"] = dateobs;
 
   if (!Object.keys(filterParams).includes("startDate")) {
     if (dateobs) {
-      filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+      filterParams["startDate"] = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
     }
   }
 
   if (!Object.keys(filterParams).includes("endDate")) {
     if (dateobs) {
-      filterParams.endDate = dayjs(dateobs)
+      filterParams["endDate"] = dayjs(dateobs)
         .add(7, "day")
         .format("YYYY-MM-DD HH:mm:ss");
     }
   }
 
   if (!Object.keys(filterParams).includes("numPerPage")) {
-    filterParams.numPerPage = 10;
+    filterParams["numPerPage"] = 10;
   }
 
-  filterParams.observationStatus = "queued";
+  filterParams["observationStatus"] = "queued";
 
   return API.GET(
     "/api/observation",

@@ -145,8 +145,8 @@ jobs:
 
       - name: Test loading demo data
         run: |
-          make run &
-          sleep 180 && make load_demo_data
+          FLAGS="--config=test_config.yaml" make run &
+          sleep 180 && FLAGS="--config=test_config.yaml" make load_demo_data
           make stop
           kill %1 2>/dev/null || true
           sleep 5

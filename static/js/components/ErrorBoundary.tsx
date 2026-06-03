@@ -165,7 +165,7 @@ class ErrorBoundary extends React.Component<
 }
 
 const mapStateToProps = (state: RootState) => ({
-  version: state.sysInfo?.version,
+  version: state["sysInfo"]?.version,
 });
 
 export default connect(mapStateToProps)(ErrorBoundary);

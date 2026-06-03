@@ -200,9 +200,9 @@ interface NewsFeedProps {
 
 const NewsFeed = ({ classes }: NewsFeedProps) => {
   const { classes: styles } = useStyles();
-  const { items } = useAppSelector((state) => state.newsFeed);
+  const { items } = useAppSelector((state) => state["newsFeed"]);
   const rawNewsFeedPrefs: any =
-    useAppSelector((state) => state.profile.preferences?.newsFeed) ||
+    useAppSelector((state) => state.profile.preferences?.["newsFeed"]) ||
     defaultPrefs;
   const newsFeedPrefs = {
     ...rawNewsFeedPrefs,

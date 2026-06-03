@@ -21,7 +21,7 @@ const SimilarSources = ({
 }: SimilarSourcesProps) => {
   const dispatch = useAppDispatch();
   const usePinecone = useAppSelector(
-    (state) => (state.config as any).usePinecone,
+    (state) => (state["config"] as any).usePinecone,
   );
   const [simSourceList, setSimSourceList] = useState<any[]>([]);
 

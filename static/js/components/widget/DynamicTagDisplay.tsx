@@ -82,7 +82,7 @@ const DynamicTagDisplay = ({ source, styles }: DynamicTagDisplayProps) => {
     let visibleCount = 0;
 
     for (let i = 0; i < accessibleTags.length; i++) {
-      const tagWidth = measureTextWidth(accessibleTags[i].name);
+      const tagWidth = measureTextWidth(accessibleTags[i]!.name);
 
       const remainingTags = accessibleTags.length - i;
       const needsPlusChip = remainingTags > 1;
@@ -162,7 +162,7 @@ const DynamicTagDisplay = ({ source, styles }: DynamicTagDisplayProps) => {
   });
 
   return (
-    <div className={styles.tagsContainer} ref={containerRef}>
+    <div className={styles["tagsContainer"]} ref={containerRef}>
       <span
         ref={measureRef}
         style={{ visibility: "hidden", position: "absolute" }}
@@ -173,7 +173,7 @@ const DynamicTagDisplay = ({ source, styles }: DynamicTagDisplayProps) => {
           key={tag.id}
           label={tag.name}
           size="small"
-          className={styles.tagChip}
+          className={styles["tagChip"]}
           variant="filled"
           style={{
             backgroundColor: tag.color,
@@ -209,7 +209,7 @@ const DynamicTagDisplay = ({ source, styles }: DynamicTagDisplayProps) => {
             key="more-tags"
             label={`+${hiddenTags.length}`}
             size="small"
-            className={styles.tagChip}
+            className={styles["tagChip"]}
             color="default"
             variant="filled"
             style={{

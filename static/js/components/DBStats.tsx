@@ -18,7 +18,7 @@ import * as dbStatsActions from "../ducks/dbStats";
 
 const DBStats = () => {
   const dispatch = useAppDispatch();
-  const dbStats = useAppSelector((state) => state.dbStats) as any;
+  const dbStats = useAppSelector((state) => state["dbStats"]) as any;
   const [clickedCronjobOutput, setClickedCronjobOutput] = useState<any>(null);
 
   const handleDialogClose = () => {

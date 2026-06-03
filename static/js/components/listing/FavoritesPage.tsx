@@ -33,7 +33,7 @@ const FavoritesPage = () => {
   }, [dispatch]);
 
   const sourcesState = useAppSelector(
-    (state) => state.sources.favorites,
+    (state) => state["sources"].favorites,
   ) as any;
 
   const handleSourcesTableSorting = (sortData: any, filterData: any) => {

@@ -79,10 +79,10 @@ const ClassificationsShortcutForm = () => {
               })}
               label="Shortcut Name"
               id="shortcutNameInput"
-              error={!!errors.shortcutName}
+              error={!!errors["shortcutName"]}
               helperText={
-                errors.shortcutName
-                  ? (errors.shortcutName.message as string) || "Required"
+                errors["shortcutName"]
+                  ? (errors["shortcutName"].message as string) || "Required"
                   : ""
               }
             />

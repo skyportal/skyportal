@@ -82,11 +82,11 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
   const handleSubmit = async (subState: any) => {
     setIsSubmitting(true);
     const newState: Record<string, any> = {};
-    newState.redshift = subState.redshift ? subState.redshift : null;
-    newState.redshift_error = subState.redshift_error
+    newState["redshift"] = subState.redshift ? subState.redshift : null;
+    newState["redshift_error"] = subState.redshift_error
       ? subState.redshift_error
       : null;
-    newState.redshift_origin = subState.redshift_origin
+    newState["redshift_origin"] = subState.redshift_origin
       ? subState.redshift_origin
       : null;
     const result: any = await dispatch(
@@ -122,7 +122,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
               data-testid="updateRedshiftTextfield"
               size="small"
               label="z"
-              value={state.redshift}
+              value={state["redshift"]}
               name="redshift"
               onChange={handleChange}
               variant="outlined"
@@ -134,7 +134,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
               data-testid="updateRedshiftErrorTextfield"
               size="small"
               label="z_err"
-              value={state.redshift_error}
+              value={state["redshift_error"]}
               name="redshift_error"
               onChange={handleChange}
               variant="outlined"
@@ -146,7 +146,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
               data-testid="updateRedshiftOriginTextfield"
               size="small"
               label="z_origin (optional)"
-              value={state.redshift_origin}
+              value={state["redshift_origin"]}
               name="redshift_origin"
               onChange={handleChange}
               variant="outlined"

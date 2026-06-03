@@ -42,9 +42,9 @@ const CommentEntry = ({
   closeDialog = null,
 }: CommentEntryProps) => {
   const { classes: styles } = useStyles();
-  const users = useAppSelector((state) => state.users);
+  const users = useAppSelector((state) => state["users"]);
   const { userAccessible: groups } = useAppSelector((state) => state.groups);
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const [textValue, setTextValue] = useState("");
   const [textInputCursorIndex, setTextInputCursorIndex] = useState(0);
   const [autosuggestVisible, setAutosuggestVisible] = useState(false);
@@ -243,8 +243,8 @@ const CommentEntry = ({
                     }}
                     label="Comment text"
                     name="text"
-                    error={!!errors.text}
-                    helperText={errors.text ? "Required" : ""}
+                    error={!!errors["text"]}
+                    helperText={errors["text"] ? "Required" : ""}
                     fullWidth
                     multiline
                     inputRef={textAreaRef}
@@ -383,7 +383,7 @@ const CommentEntry = ({
         </label>
       </div>
       <div className={styles.inputDiv}>
-        {editComment && attachmentName && !getValues()?.attachment && (
+        {editComment && attachmentName && !getValues()?.["attachment"] && (
           // show a msg that says that the comment being edited has an attachment already
           // and that it will be replaced if a new attachment is uploaded
           // should me in parenthesis and italic, and the attachment name should be bold

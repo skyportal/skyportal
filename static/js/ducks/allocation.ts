@@ -85,7 +85,7 @@ const reducer = (
     case REFRESH_ALLOCATION_REQUEST_COMMENT: {
       const { followup_request_id, followup_request_comment } = action.payload;
       if (followup_request_id) {
-        const requestToUpdate = (state?.allocation?.requests || []).find(
+        const requestToUpdate = (state?.["allocation"]?.requests || []).find(
           (request: any) => request?.id === followup_request_id,
         );
         if (requestToUpdate) {

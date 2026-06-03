@@ -54,9 +54,9 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const photometry = useAppSelector((state) => state.photometry[obj_id]);
+  const photometry = useAppSelector((state) => state["photometry"][obj_id]);
   const { analysisServiceList } = useAppSelector(
-    (state) => state.analysis_services,
+    (state) => state["analysis_services"],
   );
   const uniqueNames = [
     ...new Set(analysisServiceList.map((item: any) => item.name)),
@@ -124,15 +124,15 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
         analysisServiceLookUp[selectedAnalysisServiceId]?.input_data_types || []
       ).includes("photometry")
     ) {
-      input_filters.photometry = {};
+      input_filters["photometry"] = {};
       if (analysis_parameters.input_filters_photometry_filters) {
         delete analysis_parameters.input_filters_photometry_filters;
-        input_filters.photometry.filters =
+        input_filters["photometry"].filters =
           formData.input_filters_photometry_filters;
       }
       if (analysis_parameters.input_filters_photometry_instruments) {
         delete analysis_parameters.input_filters_photometry_instruments;
-        input_filters.photometry.instruments =
+        input_filters["photometry"].instruments =
           formData.input_filters_photometry_instruments;
       }
     }
@@ -146,14 +146,14 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
     };
 
     if (formData.filters) {
-      params.photometry_filters = formData.filters;
+      params["photometry_filters"] = formData.filters;
     }
     if (formData.instruments) {
-      params.photometry_instruments = formData.instruments;
+      params["photometry_instruments"] = formData.instruments;
     }
 
     if (selectedGroupIds.length >= 0) {
-      params.group_ids = selectedGroupIds;
+      params["group_ids"] = selectedGroupIds;
     }
     await dispatch(
       sourceActions.startAnalysis(obj_id, selectedAnalysisServiceId, params),
@@ -261,7 +261,7 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
         }),
       );
 
-      OptionalParameters.input_filters_photometry_filters = {
+      OptionalParameters["input_filters_photometry_filters"] = {
         type: "array",
         title: "Filters to include (optional)",
         items: {
@@ -274,7 +274,7 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
         uniqueItems: true,
       };
 
-      OptionalParameters.input_filters_photometry_instruments = {
+      OptionalParameters["input_filters_photometry_instruments"] = {
         type: "array",
         title: "Instruments to include (optional)",
         items: {

@@ -102,12 +102,14 @@ const EarthquakeMap = ({ earthquakes }: EarthquakeMapProps) => {
   const nestedEarthquakes: any[] = [];
   let cnt = 0;
   for (let i = 0; i < earthquakes.length; i += 1) {
-    if (earthquakes[i].notices) {
+    const eq = earthquakes[i]!;
+    const firstNotice = eq.notices?.[0];
+    if (firstNotice) {
       if (cnt === 0) {
         nestedEarthquakes.push({
-          lat: earthquakes[i].notices![0].lat,
-          lon: earthquakes[i].notices![0].lon,
-          earthquakes: [earthquakes[i]],
+          lat: firstNotice.lat,
+          lon: firstNotice.lon,
+          earthquakes: [eq],
         });
         cnt = 1;
       } else {
@@ -115,24 +117,24 @@ const EarthquakeMap = ({ earthquakes }: EarthquakeMapProps) => {
           if (
             Math.abs(
               normalizeLatitudeDiff(
-                earthquakes[i].notices![0].lat as number,
+                firstNotice.lat as number,
                 nestedEarthquakes[j].lat,
               ),
             ) < 1 &&
             Math.abs(
               normalizeLongitudeDiff(
-                earthquakes[i].notices![0].lon as number,
+                firstNotice.lon as number,
                 nestedEarthquakes[j].lon,
               ),
             ) < 2
           ) {
-            nestedEarthquakes[j].earthquakes.push(earthquakes[i]);
+            nestedEarthquakes[j].earthquakes.push(eq);
             break;
           } else if (j === nestedEarthquakes.length - 1) {
             nestedEarthquakes.push({
-              lat: earthquakes[i].notices![0].lat,
-              lon: earthquakes[i].notices![0].lon,
-              earthquakes: [earthquakes[i]],
+              lat: firstNotice.lat,
+              lon: firstNotice.lon,
+              earthquakes: [eq],
             });
             break;
           }

@@ -116,9 +116,9 @@ const QueuedObservationList = ({
 };
 
 const ObservationPage = () => {
-  const observations = useAppSelector((state) => state.observations);
+  const observations = useAppSelector((state) => state["observations"]);
   const queued_observations = useAppSelector(
-    (state) => state.queued_observations,
+    (state) => state["queued_observations"],
   );
   const currentUser = useAppSelector((state) => state.profile);
   const dispatch = useAppDispatch();

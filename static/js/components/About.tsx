@@ -45,8 +45,8 @@ const useStyles = makeStyles()(() => ({
 
 const About = () => {
   const { classes } = useStyles();
-  const cosmology = useAppSelector((state) => state.sysInfo.cosmology);
-  const cosmoref = useAppSelector((state) => state.sysInfo.cosmoref);
+  const cosmology = useAppSelector((state) => state["sysInfo"].cosmology);
+  const cosmoref = useAppSelector((state) => state["sysInfo"].cosmoref);
 
   const developers = [
     {

@@ -145,6 +145,7 @@ const VegaSpectrumMemo = React.memo(
     const keys = Object.keys(nextProps);
     for (let i = 0; i < keys.length; i += 1) {
       const key = keys[i];
+      if (key === undefined) continue;
       if (key === "values") {
         // we simply compare the length of the values array
         if (prevProps.values.length !== nextProps.values.length) {
@@ -177,7 +178,7 @@ const VegaSpectrum = (props: VegaSpectrumProps) => {
     normalization = "median",
   } = props;
   const dispatch = useAppDispatch();
-  const spectra = useAppSelector((state) => state.spectra[sourceId]);
+  const spectra = useAppSelector((state) => state["spectra"][sourceId]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

@@ -27,7 +27,9 @@ const AddClassificationsScanningPage = ({
   >([]);
   const dispatch = useAppDispatch();
 
-  const { taxonomyList } = useAppSelector((state) => state.taxonomies) as any;
+  const { taxonomyList } = useAppSelector(
+    (state) => state["taxonomies"],
+  ) as any;
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   const classificationsAndTaxonomyIds: Record<string, number> = {};
   latestTaxonomyList?.forEach((taxonomy: any) => {

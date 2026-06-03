@@ -98,7 +98,7 @@ const ObservationFilterForm = ({
 }: ObservationFilterFormProps) => {
   const { classes } = useStyles();
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const sortedInstrumentList = [...instrumentList];
   sortedInstrumentList.sort((i1: any, i2: any) => {
     if (i1.name > i2.name) {

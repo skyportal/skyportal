@@ -32,7 +32,7 @@ const SourceGCNCrossmatchList = ({
       <>
         <div className={classes.row}>
           <Link
-            to={`/gcn_events/${gcn_crossmatches[0].replace(" ", "T")}`}
+            to={`/gcn_events/${gcn_crossmatches[0]!.replace(" ", "T")}`}
             role="link"
             key={gcn_crossmatches[0]}
           >
@@ -77,7 +77,7 @@ const SourceGCNCrossmatchList = ({
   if (gcn_crossmatches?.length === 1) {
     return (
       <Link
-        to={`/gcn_events/${gcn_crossmatches[0].replace(" ", "T")}`}
+        to={`/gcn_events/${gcn_crossmatches[0]!.replace(" ", "T")}`}
         role="link"
         key={gcn_crossmatches[0]}
       >
