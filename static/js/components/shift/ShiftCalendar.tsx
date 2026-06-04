@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import moment from "moment";
@@ -104,7 +104,7 @@ function MyCalendar({
 }: MyCalendarProps) {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
-  const currentShift = useAppSelector((state) => state.shifts.currentShift);
+  const currentShift = useAppSelector((state) => state["shifts"].currentShift);
   const currentUser = useAppSelector((state) => state.profile);
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();

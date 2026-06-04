@@ -10,7 +10,7 @@ export const fetchTopSources = () =>
   API.GET("/api/internal/source_views", FETCH_TOP_SOURCES);
 
 // Websocket message handler
-messageHandler.add((actionType: any, payload: any, dispatch: any) => {
+messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
   if (actionType === FETCH_TOP_SOURCES) {
     dispatch(fetchTopSources());
   }

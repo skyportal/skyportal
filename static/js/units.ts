@@ -9,12 +9,12 @@ dayjs.extend(relativeTime);
 
 const hours_to_ra = (hours: string): number => {
   const hoursSplit = hours.split(/[^\d\w]+/);
-  const hh = parseInt(hoursSplit[0], 10);
-  const mm = parseInt(hoursSplit[1], 10) / 60;
+  const hh = parseInt(hoursSplit[0] ?? "", 10);
+  const mm = parseInt(hoursSplit[1] ?? "", 10) / 60;
 
   let ss;
   if (hoursSplit.length === 3) {
-    ss = parseInt(hoursSplit[2], 10) / (60 * 60);
+    ss = parseInt(hoursSplit[2] ?? "", 10) / (60 * 60);
   } else {
     ss = parseFloat(`${hoursSplit[2]}.${hoursSplit[3]}`) / (60 * 60);
   }
@@ -29,12 +29,12 @@ const dms_to_dec = (dms: string): number => {
     mult = -1;
   }
 
-  const dd = parseInt(dmsSplit[0], 10);
-  const mm = parseInt(dmsSplit[1], 10) / 60;
+  const dd = parseInt(dmsSplit[0] ?? "", 10);
+  const mm = parseInt(dmsSplit[1] ?? "", 10) / 60;
 
   let ss;
   if (dmsSplit.length === 3) {
-    ss = parseInt(dmsSplit[2], 10) / (60 * 60);
+    ss = parseInt(dmsSplit[2] ?? "", 10) / (60 * 60);
   } else {
     ss = parseFloat(`${dmsSplit[2]}.${dmsSplit[3]}`) / (60 * 60);
   }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
@@ -72,7 +72,7 @@ const NotificationPreferences = () => {
   const profile = useAppSelector((state) => state.profile.preferences) as any;
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const { allocationListApiClassname } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   );
   const dispatch = useAppDispatch();
   const { handleSubmit } = useForm();

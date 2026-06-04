@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -159,7 +159,7 @@ const StarList = ({ sourceId }: StarListProps) => {
 export const ObservingRunStarList = () => {
   const dispatch = useAppDispatch();
   const [starList, setStarList] = useState<StarListItem[] | null>(null);
-  const { assignments } = useAppSelector((state) => state.observingRun);
+  const { assignments } = useAppSelector((state) => state["observingRun"]);
   const [facility, setFacility] = useState("Keck");
 
   useEffect(() => {

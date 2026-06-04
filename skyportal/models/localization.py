@@ -70,6 +70,7 @@ class Localization(Base):
     # HEALPix resolution used for flat (non-multiresolution) operations.
 
     dateobs = sa.Column(
+        sa.DateTime,
         sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,

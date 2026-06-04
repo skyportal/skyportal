@@ -27,7 +27,7 @@ export const submitTaxonomy = (params: Record<string, any> = {}) =>
   API.POST(`/api/taxonomy`, SUBMIT_TAXONOMY, params);
 
 // Websocket message handler
-messageHandler.add((actionType: string, payload: any, dispatch: any) => {
+messageHandler.add((actionType: string, _payload: any, dispatch: any) => {
   if (actionType === REFRESH_TAXONOMIES) {
     dispatch(fetchTaxonomies());
   }

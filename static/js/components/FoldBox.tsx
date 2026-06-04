@@ -28,7 +28,7 @@ class FoldBox extends Component<FoldBoxProps, FoldBoxState> {
     this.setState({ folded: !folded });
   }
 
-  render() {
+  override render() {
     const { folded } = this.state;
     const { children, title } = this.props;
     const folded_children = folded ? null : children;

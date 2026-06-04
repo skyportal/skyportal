@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 import { useTheme } from "@mui/material/styles";
@@ -127,7 +127,7 @@ export const shortenFilename = (filename: string) => {
     return filename;
   }
   if (filename.includes(".")) {
-    const extensionLength = filename.split(".", 2)[1].length;
+    const extensionLength = (filename.split(".", 2)[1] ?? "").length;
     // Where the ellipsis should start - either at character 12, or the extension
     // plus an additional 5 characters into the basename (whichever is earlier)
     const firstEnd = Math.min(12, filename.length - extensionLength - 6);

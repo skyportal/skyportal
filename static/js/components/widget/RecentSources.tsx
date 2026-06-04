@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import dayjs from "dayjs";
@@ -11,13 +11,8 @@ import { makeStyles } from "tss-react/mui";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
-import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
-import SearchIcon from "@mui/icons-material/Search";
-import InputAdornment from "@mui/material/InputAdornment";
 import DynamicTagDisplay from "./DynamicTagDisplay";
 
-import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import * as profileActions from "../../ducks/profile";
@@ -27,271 +22,175 @@ import WidgetPrefsDialog from "./WidgetPrefsDialog";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-export const useSourceListStyles = makeStyles<{ invertThumbnails?: boolean }>()(
-  (theme, { invertThumbnails }) => ({
-    stampContainer: {
-      display: "contents",
+export const useSourceListStyles = makeStyles<{
+  invertThumbnails?: boolean | undefined;
+}>()((theme, { invertThumbnails }) => ({
+  stampContainer: {
+    display: "contents",
+  },
+  stamp: {
+    transition: "transform 0.1s",
+    width: "6.6em",
+    height: "6.6em",
+    display: "block",
+    "&:hover": {
+      color: "rgba(255, 255, 255, 1)",
+      boxShadow: "0 5px 15px rgba(51, 52, 92, 0.6)",
     },
-    stamp: {
-      transition: "transform 0.1s",
-      width: "6.6em",
-      height: "6.6em",
-      display: "block",
-      "&:hover": {
-        color: "rgba(255, 255, 255, 1)",
-        boxShadow: "0 5px 15px rgba(51, 52, 92, 0.6)",
+    borderRadius: "4px",
+  },
+  inverted: {
+    filter: invertThumbnails ? "invert(1)" : "unset",
+    WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
+  },
+  sourceListContainer: {
+    height: "calc(100% - 2.5rem)",
+    overflowY: "auto",
+  },
+  sourceList: {
+    display: "block",
+    alignItems: "center",
+    listStyleType: "none",
+    paddingLeft: 0,
+    marginTop: 0,
+  },
+  sourceItem: {
+    display: "flex",
+    padding: "0.4rem",
+    height: "100%",
+  },
+  sourceInfoContainer: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
+  },
+  sourceName: {
+    fontSize: "1rem",
+    paddingBottom: 0,
+    marginBottom: 0,
+  },
+  sourceNameLink: {
+    color:
+      theme.palette.mode === "dark"
+        ? theme.palette.secondary.main
+        : theme.palette.primary.main,
+  },
+  sourceContainer: {
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
+    marginLeft: "8px",
+    minHeight: "100%",
+    alignItems: "flex-start",
+  },
+  sourceHeaderContainer: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    width: "100%",
+  },
+  sourceChipContainer: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    marginTop: "auto",
+    width: "100%",
+  },
+  sourceSavedSince: {
+    display: "flex",
+    justifyContent: "flex-end",
+    flexDirection: "column",
+    marginRight: "0.5rem",
+  },
+  classification: {
+    fontSize: "0.90rem",
+    color:
+      theme.palette.mode === "dark"
+        ? theme.palette.secondary.main
+        : theme.palette.primary.main,
+    fontWeight: "bold",
+    fontStyle: "italic",
+    marginLeft: "-0.09rem",
+    marginTop: "-0.3rem",
+  },
+  sourceCoordinates: {
+    marginTop: "0.1rem",
+    display: "flex",
+    flexDirection: "column",
+    "& > span": {
+      marginTop: "-0.2rem",
+    },
+  },
+  sourceItemWithButton: {
+    display: "flex",
+    flexFlow: "column nowrap",
+    justifyContent: "center",
+    transition: "all 0.3s ease",
+    "&:hover": {
+      backgroundColor:
+        theme.palette.mode === "light"
+          ? theme.palette.secondary.light
+          : (null as any),
+    },
+    marginBottom: "0.4rem",
+    borderRadius: "8px",
+  },
+  root: {
+    "& .MuiOutlinedInput-root": {
+      "& fieldset": {
+        borderColor: "#333333",
       },
-      borderRadius: "4px",
+      "&:hover fieldset": {
+        borderColor: "#333333",
+      },
+      "&.Mui-focused fieldset": {
+        borderColor: "#333333",
+      },
     },
-    inverted: {
-      filter: invertThumbnails ? "invert(1)" : "unset",
-      WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
+  },
+  textField: {
+    color: "#333333",
+  },
+  icon: {
+    color: "#333333",
+  },
+  paper: {
+    backgroundColor: "#F0F8FF",
+  },
+  // These rules help keep the progress wheel centered. Taken from the first example: https://material-ui.com/components/progress/
+  progress: {
+    display: "flex",
+    // The below color rule is not for the progress container, but for CircularProgress. This component only accepts 'primary', 'secondary', or 'inherit'.
+    color: theme.palette.info.main,
+    "& > * + *": {
+      marginLeft: theme.spacing(2),
     },
-    sourceListContainer: {
-      height: "calc(100% - 2.5rem)",
-      overflowY: "auto",
-    },
-    sourceList: {
-      display: "block",
-      alignItems: "center",
-      listStyleType: "none",
-      paddingLeft: 0,
+  },
+  tagsContainer: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.25rem",
+    justifyContent: "flex-start",
+    width: "100%",
+  },
+  tagChip: {
+    padding: "0",
+    margin: "0",
+    "& > div": {
       marginTop: 0,
-    },
-    sourceItem: {
-      display: "flex",
-      padding: "0.4rem",
-      height: "100%",
-    },
-    sourceInfoContainer: {
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "flex-start",
-      alignItems: "flex-start",
-    },
-    sourceName: {
-      fontSize: "1rem",
-      paddingBottom: 0,
       marginBottom: 0,
+      marginLeft: "0.05rem",
+      marginRight: "0.05rem",
     },
-    sourceNameLink: {
-      color:
-        theme.palette.mode === "dark"
-          ? theme.palette.secondary.main
-          : theme.palette.primary.main,
-    },
-    sourceContainer: {
-      display: "flex",
-      flexDirection: "column",
-      width: "100%",
-      marginLeft: "8px",
-      minHeight: "100%",
-      alignItems: "flex-start",
-    },
-    sourceHeaderContainer: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      width: "100%",
-    },
-    sourceChipContainer: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "flex-end",
-      marginTop: "auto",
-      width: "100%",
-    },
-    sourceSavedSince: {
-      display: "flex",
-      justifyContent: "flex-end",
-      flexDirection: "column",
-      marginRight: "0.5rem",
-    },
-    classification: {
-      fontSize: "0.90rem",
-      color:
-        theme.palette.mode === "dark"
-          ? theme.palette.secondary.main
-          : theme.palette.primary.main,
-      fontWeight: "bold",
-      fontStyle: "italic",
-      marginLeft: "-0.09rem",
-      marginTop: "-0.3rem",
-    },
-    sourceCoordinates: {
-      marginTop: "0.1rem",
-      display: "flex",
-      flexDirection: "column",
-      "& > span": {
-        marginTop: "-0.2rem",
-      },
-    },
-    sourceItemWithButton: {
-      display: "flex",
-      flexFlow: "column nowrap",
-      justifyContent: "center",
-      transition: "all 0.3s ease",
-      "&:hover": {
-        backgroundColor:
-          theme.palette.mode === "light"
-            ? theme.palette.secondary.light
-            : (null as any),
-      },
-      marginBottom: "0.4rem",
-      borderRadius: "8px",
-    },
-    root: {
-      "& .MuiOutlinedInput-root": {
-        "& fieldset": {
-          borderColor: "#333333",
-        },
-        "&:hover fieldset": {
-          borderColor: "#333333",
-        },
-        "&.Mui-focused fieldset": {
-          borderColor: "#333333",
-        },
-      },
-    },
-    textField: {
-      color: "#333333",
-    },
-    icon: {
-      color: "#333333",
-    },
-    paper: {
-      backgroundColor: "#F0F8FF",
-    },
-    // These rules help keep the progress wheel centered. Taken from the first example: https://material-ui.com/components/progress/
-    progress: {
-      display: "flex",
-      // The below color rule is not for the progress container, but for CircularProgress. This component only accepts 'primary', 'secondary', or 'inherit'.
-      color: theme.palette.info.main,
-      "& > * + *": {
-        marginLeft: theme.spacing(2),
-      },
-    },
-    tagsContainer: {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "0.25rem",
-      justifyContent: "flex-start",
-      width: "100%",
-    },
-    tagChip: {
-      padding: "0",
-      margin: "0",
-      "& > div": {
-        marginTop: 0,
-        marginBottom: 0,
-        marginLeft: "0.05rem",
-        marginRight: "0.05rem",
-      },
-    },
-  }),
-);
+  },
+}));
 
 const defaultPrefs: any = {
   maxNumSources: "25",
   groupIds: [],
   includeSitewideSources: false,
   displayTNS: true,
-};
-
-function containsSpecialCharacters(str: string) {
-  const regex = /[ !@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g;
-  return regex.test(str);
-}
-
-const RecentSourcesSearchbar = ({ styles }: { styles: any }) => {
-  const [inputValue, setInputValue] = useState<any>("");
-  const [options] = useState<any[]>([]);
-  const [value] = useState<any>(null);
-  const [loading] = useState(false);
-  const [open, setOpen] = useState(false);
-
-  const classes = styles;
-
-  const dispatch = useAppDispatch();
-  const sourcesState = useAppSelector((state) => state.sources.latest);
-
-  let results: any[] = [];
-  const handleChange = (e: any) => {
-    e.preventDefault();
-    const spec_char = containsSpecialCharacters(e.target.value);
-    if (!spec_char) {
-      setInputValue(e.target.value);
-    } else {
-      dispatch(showNotification("No special characters allowed", "error"));
-      setInputValue([]);
-    }
-  };
-  if (inputValue.length > 0) {
-    results = sourcesState?.sources?.filter((source: any) =>
-      source.id.toLowerCase().match(inputValue.toLowerCase()),
-    );
-  }
-
-  function formatSource(source: any) {
-    if (source.id) {
-      source.obj_id = source.id;
-    }
-  }
-
-  const formattedResults: any[] = [];
-  Object.assign(formattedResults, results);
-
-  formattedResults.map(formatSource);
-
-  return (
-    <div>
-      <Autocomplete
-        color="primary"
-        id="recent-sources-search-bar"
-        style={{ padding: "0.3rem" }}
-        classes={{ root: classes.root, paper: classes.paper }}
-        isOptionEqualToValue={(option: any, val: any) =>
-          option.name === val.name
-        }
-        getOptionLabel={(option: any) => option}
-        onInputChange={handleChange}
-        onClose={() => setOpen(false)}
-        size="small"
-        noOptionsText="No matching sources."
-        options={options}
-        open={open}
-        limitTags={15}
-        value={value}
-        popupIcon={null}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            variant="outlined"
-            placeholder="Source"
-            InputProps={{
-              ...params.InputProps,
-              className: classes.textField,
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" className={classes.icon} />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <div className={classes.progress}>
-                  {loading ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : null}
-                </div>
-              ),
-            }}
-          />
-        )}
-      />
-      {results?.length !== 0 && (
-        <RecentSourcesList sources={formattedResults} styles={styles} search />
-      )}
-    </div>
-  );
 };
 
 interface RecentSourcesListProps {
@@ -513,16 +412,16 @@ interface RecentSourcesProps {
 const RecentSources = ({ classes }: RecentSourcesProps) => {
   const dispatch = useAppDispatch();
   const invertThumbnails = useAppSelector(
-    (state) => state.profile.preferences?.invertThumbnails,
+    (state) => state.profile.preferences?.["invertThumbnails"],
   ) as boolean | undefined;
   const { classes: styles } = useSourceListStyles({ invertThumbnails });
 
   const { recentSources } = useAppSelector(
-    (state) => state.recentSources,
+    (state) => state["recentSources"],
   ) as any;
   const prefs =
     (useAppSelector(
-      (state) => state.profile.preferences?.recentSources,
+      (state) => state.profile.preferences?.["recentSources"],
     ) as any) || defaultPrefs;
   useEffect(() => {
     dispatch(objectTagsActions.fetchTagOptions());

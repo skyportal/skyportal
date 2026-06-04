@@ -1,5 +1,5 @@
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   addShiftUser,
   deleteShiftUser,
@@ -35,8 +35,8 @@ const getShiftGroupUsersFiltered = (shift: any) => {
 };
 
 interface ShiftUsersSelectProps {
-  shiftsToManage?: any[];
-  usersType?: string;
+  shiftsToManage?: any[] | undefined;
+  usersType?: string | undefined;
 }
 
 // This component allows to add or remove users from one shift or multiple recurring shifts.

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -56,7 +56,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
   const dispatch = useAppDispatch();
 
   const { instrumentList } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   ) as any;
 
   const [state, setState] = useState<any>({

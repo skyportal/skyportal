@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { withTheme } from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
@@ -39,7 +39,7 @@ import * as streamsActions from "../../ducks/streams";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
 
-const Form = withTheme(CustomCheckboxWidgetMuiTheme);
+const Form = withTheme(CustomCheckboxWidgetMuiTheme as any);
 
 // StyledDataGrid is a .jsx component whose propTypes make `sx` look required to
 // tsc; cast to any so call sites don't need to pass it.
@@ -641,15 +641,15 @@ const SharingServicesPage = () => {
 
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const allGroups = useAppSelector((state) => state.groups.all);
-  const { users: allUsers } = useAppSelector((state) => state.users);
+  const { users: allUsers } = useAppSelector((state) => state["users"]);
   const { sharingServicesList } = useAppSelector(
-    (state) => state.sharingServices,
+    (state) => state["sharingServices"],
   );
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const allowedInstrumentsForSharing = useAppSelector(
     (state) => (state as any).config.allowedInstrumentsForSharing,
   );
-  const streams = useAppSelector((state) => state.streams);
+  const streams = useAppSelector((state) => state["streams"]);
 
   const allowedInstruments = instrumentList.filter((instrument: any) =>
     (allowedInstrumentsForSharing || []).includes(
@@ -1127,7 +1127,7 @@ const SharingServicesPage = () => {
       headerName: "Instruments",
       flex: 1,
       minWidth: 140,
-      valueGetter: (value: any, row: any) => {
+      valueGetter: (_value: any, row: any) => {
         const { instruments } = row;
         if (!instruments?.length) return "";
         return instruments.map((i: any) => i.name).join(", ");
@@ -1138,7 +1138,7 @@ const SharingServicesPage = () => {
       headerName: "Streams (optional)",
       flex: 1,
       minWidth: 160,
-      valueGetter: (value: any, row: any) => {
+      valueGetter: (_value: any, row: any) => {
         if (!row?.streams?.length) return "";
         return row.streams.map((stream: any) => stream.name).join(", ");
       },

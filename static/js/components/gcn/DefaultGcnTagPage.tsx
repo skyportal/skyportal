@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { makeStyles } from "tss-react/mui";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import NewDefaultGcnTag from "./NewDefaultGcnTag";
@@ -23,7 +23,7 @@ const useStyles = makeStyles()((theme) => ({
 const DefaultGcnTags = () => {
   const dispatch = useAppDispatch();
 
-  const default_gcn_tags = useAppSelector((state) => state.default_gcn_tags);
+  const default_gcn_tags = useAppSelector((state) => state["default_gcn_tags"]);
   const currentUser = useAppSelector((state) => state.profile);
 
   const permission =

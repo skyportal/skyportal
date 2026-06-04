@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import { makeStyles } from "tss-react/mui";
@@ -59,7 +59,7 @@ const PlaceHolder = () => {
 const MovingObjectObsPlanPage = () => {
   const { classes } = useStyles();
   const instruments = useAppSelector(
-    (state) => state.instruments.instrumentList,
+    (state) => state["instruments"].instrumentList,
   );
   const dispatch = useAppDispatch();
 

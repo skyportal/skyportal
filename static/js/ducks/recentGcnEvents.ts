@@ -12,7 +12,7 @@ export const fetchRecentGcnEvents = () =>
   API.GET("/api/internal/recent_gcn_events", FETCH_RECENT_GCNEVENTS);
 
 // Websocket message handler
-messageHandler.add((actionType: string, payload: any, dispatch: any) => {
+messageHandler.add((actionType: string, _payload: any, dispatch: any) => {
   if (actionType === REFRESH_RECENT_GCNEVENTS) {
     dispatch(fetchRecentGcnEvents());
   }

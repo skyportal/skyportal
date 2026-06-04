@@ -45,7 +45,7 @@ export function deleteSurveyEfficiencyObservations(id: number | string) {
 
 // Websocket message handler
 messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
+  (actionType: string, _payload: any, dispatch: AppDispatch) => {
     if (actionType === REFRESH_SURVEY_EFFICIENCY_OBSERVATIONS) {
       dispatch(fetchSurveyEfficiencyObservations());
     }

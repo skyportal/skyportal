@@ -1,10 +1,10 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { makeStyles } from "tss-react/mui";
 import { geoMollweide } from "d3-geo-projection";
 import * as d3 from "d3";
-import d3GeoZoom from "d3-geo-zoom";
+import d3GeoZoom from "../../d3GeoZoom";
 
 import { useAppSelector } from "../../types/hooks";
 import { moonGeoJSON, sunGeoJSON } from "../../utils";
@@ -22,18 +22,18 @@ interface LocalizationPlotProps {
   galaxies?: any;
   instrument?: any;
   observations?: any;
-  airmass_threshold?: number;
+  airmass_threshold?: number | undefined;
   options?: any;
-  height?: number;
-  width?: number;
+  height?: number | undefined;
+  width?: number | undefined;
   rotation?: any;
-  setRotation?: (...a: any[]) => void;
-  selectedFields?: number[];
-  setSelectedFields?: (...a: any[]) => void;
-  selectedObservations?: number[];
-  setSelectedObservations?: (...a: any[]) => void;
+  setRotation?: ((...a: any[]) => void) | undefined;
+  selectedFields?: number[] | undefined;
+  setSelectedFields?: ((...a: any[]) => void) | undefined;
+  selectedObservations?: number[] | undefined;
+  setSelectedObservations?: ((...a: any[]) => void) | undefined;
   type?: any;
-  projection?: string;
+  projection?: string | undefined;
 }
 
 const LocalizationPlot = ({
@@ -61,8 +61,8 @@ const LocalizationPlot = ({
   type = null,
   projection = "orthographic",
 }: LocalizationPlotProps) => {
-  const { analysisLoc } = useAppSelector((state) => state.localization);
-  const { obsplanLoc } = useAppSelector((state) => state.localization);
+  const { analysisLoc } = useAppSelector((state) => state["localization"]);
+  const { obsplanLoc } = useAppSelector((state) => state["localization"]);
 
   if (!localization) {
     if (type === "obsplan") {
@@ -207,7 +207,7 @@ const GeoJSONGlobePlot = ({
       );
 
       // In front of globe?
-      return gdistance < projectionTypeVisibilities[projectionType];
+      return gdistance < (projectionTypeVisibilities[projectionType] ?? 0);
     };
 
     const filtersToColor = (filters: any) => {

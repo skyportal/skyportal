@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Paper from "@mui/material/Paper";
@@ -39,9 +39,9 @@ interface TelescopeSummaryProps {
 const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
-  const instrumentsState = useAppSelector((state) => state.instruments);
+  const instrumentsState = useAppSelector((state) => state["instruments"]);
   const groups = useAppSelector((state) => state.groups.all);
-  const weather = useAppSelector((state) => state.weather);
+  const weather = useAppSelector((state) => state["weather"]);
   const [telescope, setTelescope] = useState<any>(null);
 
   // Load the instrument if needed

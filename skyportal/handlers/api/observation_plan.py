@@ -154,15 +154,21 @@ TREASUREMAP_FILTERS = {
     "HESS": "HESS",
     "WISEL": "WISEL",
 }
-# to it, we add mappers for sncosmo bandpasses
-for bandpass_name in ALLOWED_BANDPASSES:
-    try:
-        bandpass = get_bandpass(bandpass_name)
-        central_wavelength = (bandpass.minwave() + bandpass.maxwave()) / 2
-        bandwidth = bandpass.maxwave() - bandpass.minwave()
-        TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
-    except Exception as e:
-        log(f"Error adding bandpass {bandpass_name} to treasuremap filters: {e}")
+# to it, we add mappers for sncosmo bandpasses. Wrap the loop in a short
+# astropy `remote_timeout` so that an uncached bandpass whose CDN (typically
+# the flaky SVO host) is unreachable fails in ~2s instead of the default 10s.
+# With ~20 such bandpasses (atlas, gaia::*, galex::*, goto*, skymapper*,
+# tess), the difference is ~40s vs. ~200s of import-time blocking, and the
+# latter pushes app startup past test_frontend's 180s health-check window.
+with astropy.utils.data.conf.set_temp("remote_timeout", 2):
+    for bandpass_name in ALLOWED_BANDPASSES:
+        try:
+            bandpass = get_bandpass(bandpass_name)
+            central_wavelength = (bandpass.minwave() + bandpass.maxwave()) / 2
+            bandwidth = bandpass.maxwave() - bandpass.minwave()
+            TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
+        except Exception as e:
+            log(f"Error adding bandpass {bandpass_name} to treasuremap filters: {e}")
 
 # overwrite the filters for ZTF, as i-band is will otherwise be matched to TESS by treasuremap
 TREASUREMAP_FILTERS["ztfg"] = "g"
@@ -179,10 +185,6 @@ op_options = [
 ]
 
 Session = scoped_session(sessionmaker())
-
-observation_plans_microservice_url = (
-    f"http://127.0.0.1:{cfg['ports.observation_plan_queue']}"
-)
 
 MAX_OBSERVATION_PLAN_REQUESTS = 1000
 

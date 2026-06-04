@@ -13,7 +13,8 @@ from sqlalchemy import func
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 
-from ...models import Group, GroupObjTag, Obj, ObjTag, ObjTagOption
+from ...models import Group, GroupObjTag, Obj, ObjTag, ObjTagOption, SuperObj
+from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 
 env, cfg = load_env()
@@ -298,6 +299,15 @@ class ObjTagHandler(BaseHandler):
             schema:
               type: integer
             description: Filter associations by tag option ID
+          - in: query
+            name: includeSuperObjs
+            required: false
+            schema:
+              type: boolean
+            description: |
+              If true and obj_id is given, also return tags on the Objs linked
+              to it through a SuperObj (meta-object), as one provenance-tagged
+              union (each entry keeps its obj_id). Defaults to false.
         responses:
           200:
             content:
@@ -314,12 +324,33 @@ class ObjTagHandler(BaseHandler):
         """
         obj_id = self.get_query_argument("obj_id", None)
         objtagoption_id = self.get_query_argument("objtagoption_id", None, type=int)
+        include_super_objs = str_to_bool(
+            self.get_query_argument("includeSuperObjs", "false"), default=False
+        )
 
         with self.Session() as session:
             query = ObjTag.select(session.user_or_token)
 
             if obj_id:
-                query = query.where(ObjTag.obj_id == obj_id)
+                # Meta-object aggregation: expand to every Obj linked to this one
+                # through a SuperObj, returning their tags as one provenance-tagged
+                # union (each ObjTag keeps its obj_id). RLS is preserved by the
+                # per-row ObjTag.select(user). Mirrors the photometry SuperObjs
+                # aggregation; defaults off, so the single-obj path is unchanged.
+                obj_ids = {obj_id}
+                if include_super_objs:
+                    super_objs = (
+                        session.scalars(
+                            sa.select(SuperObj).where(
+                                SuperObj.objs.any(Obj.id == obj_id)
+                            )
+                        )
+                        .unique()
+                        .all()
+                    )
+                    for super_obj in super_objs:
+                        obj_ids.update({linked_obj.id for linked_obj in super_obj.objs})
+                query = query.where(ObjTag.obj_id.in_(obj_ids))
             if objtagoption_id:
                 query = query.where(ObjTag.objtagoption_id == objtagoption_id)
 

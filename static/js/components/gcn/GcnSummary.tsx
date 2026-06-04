@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { makeStyles, withStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -146,13 +146,13 @@ interface GcnSummaryProps {
 const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
   const { classes } = useStyles();
   const groups = useAppSelector((state) => state.groups.userAccessible);
-  const users = useAppSelector((state) => state.group?.users);
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const users = useAppSelector((state) => state["group"]?.users);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
-  const gcnEvent = useAppSelector((state) => state.gcnEvent);
+  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
   const [nb, setNb] = useState("");
   const [title, setTitle] = useState("Gcn Summary");
   const [subject, setSubject] = useState(`Follow-up on GCN Event ...`);
@@ -172,7 +172,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
     useState<any>(null);
 
   const gcnSummaryAcknowledgements = useAppSelector(
-    (state) => state.config.gcnSummaryAcknowledgements,
+    (state) => state["config"].gcnSummaryAcknowledgements,
   );
 
   const acknowledgmentOptions = selectedAcknowledgement

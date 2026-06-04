@@ -20,7 +20,7 @@ export function submitCatalogQuery(data: any) {
 
 // Websocket message handler
 messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
+  (actionType: string, _payload: any, dispatch: AppDispatch) => {
     if (actionType === REFRESH_CATALOG_QUERIES) {
       dispatch(fetchCatalogQueries());
     }

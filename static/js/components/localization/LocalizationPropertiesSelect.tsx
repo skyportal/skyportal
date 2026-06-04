@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
 import InputLabel from "@mui/material/InputLabel";
@@ -26,7 +26,7 @@ const LocalizationPropertiesSelect = ({
 }: LocalizationPropertiesSelectProps) => {
   const dispatch = useAppDispatch();
   const localizationProperties = [
-    ...(useAppSelector((state) => state.localizationProperties) || []),
+    ...(useAppSelector((state) => state["localizationProperties"]) || []),
   ].sort();
   const { handleSubmit, control, reset, getValues } = useForm();
 

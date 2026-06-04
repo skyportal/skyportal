@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import Checkbox from "@mui/material/Checkbox";
 import Paper from "@mui/material/Paper";

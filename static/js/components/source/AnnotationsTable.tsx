@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { makeStyles } from "tss-react/mui";
@@ -201,7 +201,7 @@ const AnnotationsTable = ({
       headerName: "Author",
       flex: 1,
       minWidth: 120,
-      valueGetter: (value: any, row: any) => row.author?.username,
+      valueGetter: (_value: any, row: any) => row.author?.username,
     },
     {
       field: "created_at",
@@ -230,6 +230,28 @@ const AnnotationsTable = ({
       // valueGetter (not valueFormatter) so the displayed "YYYY-MM-DD.f" string
       // is also the value the toolbar quick filter matches against.
       valueGetter: (value: any) => renderSpectrumDate(value),
+    });
+  }
+
+  // Meta-object provenance: when the annotations span more than one underlying
+  // Obj (i.e. aggregated across a SuperObj), surface which source each came from.
+  const aggregatedAcrossObjs =
+    new Set(tableData.map((row: any) => row.obj_id)).size > 1;
+  if (aggregatedAcrossObjs) {
+    columns.splice(1, 0, {
+      field: "obj_id",
+      headerName: "Source",
+      flex: 1,
+      minWidth: 120,
+      renderCell: (params: any) => (
+        <a
+          href={`/source/${params.value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {params.value}
+        </a>
+      ),
     });
   }
 

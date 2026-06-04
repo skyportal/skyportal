@@ -28,9 +28,9 @@ export const removeFromWatchList = (id: number | string, params = {}) =>
 
 export function fetchFollowupRequests(params: Record<string, any> = {}) {
   if (!Object.keys(params).includes("numPerPage")) {
-    params.numPerPage = 10;
+    params["numPerPage"] = 10;
   }
-  if (params?.noRedux === true) {
+  if (params?.["noRedux"] === true) {
     return API.GET(
       "/api/followup_request",
       "skyportal/FETCH_FOLLOWUP_REQUESTS_NO_REDUX",
@@ -71,9 +71,9 @@ export const downloadAllocationReport = (instrumentId: number | string) =>
 
 // Websocket message handler
 messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
+  (actionType: string, _payload: any, dispatch: AppDispatch) => {
     if (actionType === REFRESH_FOLLOWUP_REQUESTS) {
-      const params = store.getState().followup_requests.fetchingParams;
+      const params = store.getState()["followup_requests"].fetchingParams;
       dispatch(fetchFollowupRequests(params));
     }
   },

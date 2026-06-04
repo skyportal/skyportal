@@ -179,8 +179,8 @@ function DOWNLOAD(
         ),
       );
     }
-    const filename = payload?.filename || "download";
-    delete payload.filename;
+    const filename = payload?.["filename"] || "download";
+    delete payload["filename"];
 
     dispatch({
       type: actionType ?? API_CALL,

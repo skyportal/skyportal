@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -55,7 +55,7 @@ const useStyles = makeStyles()(() => ({
 const ReleasesList = () => {
   const { classes: styles } = useStyles();
   const dispatch = useAppDispatch();
-  const releases = useAppSelector((state) => state.publicReleases);
+  const releases = useAppSelector((state) => state["publicReleases"]);
   const manageSourcesAccess = useAppSelector(
     (state) => state.profile,
   ).permissions?.includes("Manage sources");

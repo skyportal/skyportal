@@ -46,7 +46,7 @@ export const deleteNotification = (notificationID: number | string) =>
   );
 
 // Websocket message handler
-messageHandler.add((actionType: string, payload: any, dispatch: any) => {
+messageHandler.add((actionType: string, _payload: any, dispatch: any) => {
   if (actionType === FETCH_NOTIFICATIONS) {
     dispatch(fetchNotifications());
   }

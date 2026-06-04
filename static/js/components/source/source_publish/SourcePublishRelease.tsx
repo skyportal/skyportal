@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { makeStyles } from "tss-react/mui";
@@ -47,7 +47,7 @@ const SourcePublishRelease = ({
   const { classes: styles } = useStyles();
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(true);
-  const releases = useAppSelector((state) => state.publicReleases) as any[];
+  const releases = useAppSelector((state) => state["publicReleases"]) as any[];
   const manageSourcesAccess = useAppSelector(
     (state) => state.profile,
   ).permissions?.includes("Manage sources");

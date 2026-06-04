@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -18,10 +18,10 @@ interface NewAPIObservationProps {
 }
 
 const NewAPIObservation = ({ onClose = null }: NewAPIObservationProps) => {
-  const { instrumentList } = useAppSelector((state) => state.instruments);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const { allocationListApiObsplan } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   ) as any;
   const allGroups = useAppSelector((state) => state.groups.all);
 

@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 import Accordion from "@mui/material/Accordion";
@@ -97,7 +97,7 @@ interface EarthquakePageProps {
 const EarthquakePage = ({ route }: EarthquakePageProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
-  const earthquake = useAppSelector((state) => state.earthquake) as any;
+  const earthquake = useAppSelector((state) => state["earthquake"]) as any;
   const dispatch = useAppDispatch();
   const { classes: styles } = useStyles() as any;
 

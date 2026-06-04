@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import Dialog from "@mui/material/Dialog";
@@ -87,11 +87,11 @@ const EditSourceGroups = ({
   const validateGroups = () => {
     const formState = getValues();
     return (
-      (formState.inviteGroupIds?.length &&
-        formState.inviteGroupIds.filter((value: any) => Boolean(value))
+      (formState["inviteGroupIds"]?.length &&
+        formState["inviteGroupIds"].filter((value: any) => Boolean(value))
           .length >= 1) ||
-      (formState.unsaveGroupIds?.length &&
-        formState.unsaveGroupIds.filter((value: any) => Boolean(value))
+      (formState["unsaveGroupIds"]?.length &&
+        formState["unsaveGroupIds"].filter((value: any) => Boolean(value))
           .length >= 1)
     );
   };
@@ -101,12 +101,12 @@ const EditSourceGroups = ({
     data.objId = source.id;
     const unsavedGroupIds = unsavedGroups?.map((g) => g.id);
     const inviteGroupIds = unsavedGroupIds?.filter(
-      (ID, idx) => data.inviteGroupIds[idx],
+      (_ID, idx) => data.inviteGroupIds[idx],
     );
     data.inviteGroupIds = inviteGroupIds;
     const savedGroupIds = savedGroups?.map((g) => g.id);
     const unsaveGroupIds = savedGroupIds?.filter(
-      (ID, idx) => data.unsaveGroupIds[idx],
+      (_ID, idx) => data.unsaveGroupIds[idx],
     );
     data.unsaveGroupIds = unsaveGroupIds;
     const result: any = await dispatch(sourceActions.updateSourceGroups(data));
@@ -170,7 +170,7 @@ const EditSourceGroups = ({
             data-testid="searchGroupsInput"
           />
           <form onSubmit={handleSubmit(onSubmit)}>
-            {(errors.inviteGroupIds || errors.unsaveGroupIds) && (
+            {(errors["inviteGroupIds"] || errors["unsaveGroupIds"]) && (
               <FormValidationError message="Select at least one group." />
             )}
             {!!unsavedGroups.length && (

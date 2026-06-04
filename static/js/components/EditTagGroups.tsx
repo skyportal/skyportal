@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -50,9 +50,10 @@ const EditTagGroups = ({
   );
 
   // Get the tag's current group IDs that the user has access to
+  const tagGroups = tag?.groups;
   const tagGroupIds = useMemo(
-    () => new Set(tag?.groups?.map((g) => g.id) || []),
-    [tag?.groups],
+    () => new Set(tagGroups?.map((g) => g.id) || []),
+    [tagGroups],
   );
 
   // Filter available groups to only those where the source is saved

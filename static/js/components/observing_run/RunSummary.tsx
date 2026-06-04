@@ -89,7 +89,7 @@ const SimpleMenu = ({ assignment }: SimpleMenuProps) => {
   const dispatch = useAppDispatch();
 
   const { observingRunList } = useAppSelector(
-    (state) => state.observingRuns,
+    (state) => state["observingRuns"],
   ) as any;
 
   const handleClick = (event: any) => {
@@ -214,11 +214,13 @@ interface RunSummaryProps {
 const RunSummary = ({ route }: RunSummaryProps) => {
   const dispatch = useAppDispatch();
   const { classes: styles } = useStyles();
-  const observingRun = useAppSelector((state) => state.observingRun) as any;
+  const observingRun = useAppSelector((state) => state["observingRun"]) as any;
   const { instrumentList } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   ) as any;
-  const { telescopeList } = useAppSelector((state) => state.telescopes) as any;
+  const { telescopeList } = useAppSelector(
+    (state) => state["telescopes"],
+  ) as any;
   const groups = useAppSelector((state) => state.groups.all) as any;
   const [dialog, setDialog] = useState(false);
   const [openedRows, setOpenedRows] = useState<any[]>([]);
@@ -263,7 +265,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       filterable: false,
       hideable: false,
       disableColumnMenu: true,
-      colSpan: (value: any, row: any) => (row.__detail ? 100 : 1),
+      colSpan: (_value: any, row: any) => (row.__detail ? 100 : 1),
       renderCell: (params: any) => {
         if (params.row.__detail) {
           const assignment = params.row.__source;
@@ -373,7 +375,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       flex: 1,
       minWidth: 100,
       sortable: false,
-      valueGetter: (value: any, row: any) => row.obj?.ra,
+      valueGetter: (_value: any, row: any) => row.obj?.ra,
       renderCell: (params: any) => (
         <div key={`${params.row.id}_ra`}>
           {params.row.obj?.ra}
@@ -388,7 +390,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       flex: 1,
       minWidth: 100,
       sortable: false,
-      valueGetter: (value: any, row: any) => row.obj?.dec,
+      valueGetter: (_value: any, row: any) => row.obj?.dec,
       renderCell: (params: any) => (
         <div key={`${params.row.id}_dec`}>
           {params.row.obj?.dec}
@@ -402,14 +404,14 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       headerName: "Redshift",
       flex: 1,
       minWidth: 90,
-      valueGetter: (value: any, row: any) => row.obj?.redshift,
+      valueGetter: (_value: any, row: any) => row.obj?.redshift,
     },
     {
       field: "requester",
       headerName: "Requester",
       flex: 1,
       minWidth: 120,
-      valueGetter: (value: any, row: any) => row.requester?.username,
+      valueGetter: (_value: any, row: any) => row.requester?.username,
     },
     {
       field: "comment",

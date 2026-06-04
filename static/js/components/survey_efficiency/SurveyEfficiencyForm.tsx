@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -68,8 +68,8 @@ const SurveyEfficiencyForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
-  const { allocationList } = useAppSelector((state) => state.allocations);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { allocationList } = useAppSelector((state) => state["allocations"]);
 
   const allGroups = useAppSelector((state) => state.groups.all);
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
@@ -78,7 +78,7 @@ const SurveyEfficiencyForm = ({
     useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
 
   const instrumentsWithSensitivities = (instrumentList || []).filter(
     (i: any) => i.sensitivity_data,
@@ -134,13 +134,13 @@ const SurveyEfficiencyForm = ({
         (i: any) => i.sensitivity_data,
       );
       setSelectedInstrumentId(newInstrumentsWithSensitivities[0]?.id);
-      setSelectedLocalizationId(gcnevent.localizations?.[0]?.id);
+      setSelectedLocalizationId(gcnevent.localizations?.[0]?.["id"]);
     };
     if (!instrumentList || instrumentList.length === 0) {
       getInstruments();
     } else {
       setSelectedInstrumentId(instrumentsWithSensitivities[0]?.id);
-      setSelectedLocalizationId(gcnevent?.localizations?.[0]?.id);
+      setSelectedLocalizationId(gcnevent?.localizations?.[0]?.["id"]);
     }
 
     // Don't want to reset everytime the component rerenders and
@@ -191,15 +191,15 @@ const SurveyEfficiencyForm = ({
       Object.keys(formData).includes("log10_E0") &&
       formData.log10_E0 !== undefined
     ) {
-      optionalInjectionParameters.log10_E0 = formData.log10_E0;
+      optionalInjectionParameters["log10_E0"] = formData.log10_E0;
       delete formData.log10_E0;
     }
     if (Object.keys(formData).includes("mag") && formData.mag !== undefined) {
-      optionalInjectionParameters.mag = formData.mag;
+      optionalInjectionParameters["mag"] = formData.mag;
       delete formData.mag;
     }
     if (Object.keys(formData).includes("dmag") && formData.dmag !== undefined) {
-      optionalInjectionParameters.dmag = formData.dmag;
+      optionalInjectionParameters["dmag"] = formData.dmag;
       delete formData.dmag;
     }
 

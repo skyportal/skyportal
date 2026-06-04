@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
+import Chip from "@mui/material/Chip";
 import GroupIcon from "@mui/icons-material/Group";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -168,7 +169,11 @@ const ClassificationList = () => {
       ml,
       taxonomy_id,
       groups,
+      obj_id,
     }: any) => {
+      // Meta-object provenance: when this classification was aggregated from a
+      // different underlying source (SuperObj member), show which one.
+      const fromLinkedObj = obj_id && obj.id && obj_id !== obj.id;
       let taxname: any = taxonomyList.filter((i: any) => i.id === taxonomy_id);
       if (taxname.length > 0) {
         taxname = taxname[0].name;
@@ -200,6 +205,21 @@ const ClassificationList = () => {
                   style={{ paddingTop: "6px", paddingBottom: "0px" }}
                 />
               </Tooltip>
+              {fromLinkedObj && (
+                <Tooltip title={`From linked source ${obj_id}`}>
+                  <Chip
+                    label={obj_id}
+                    size="small"
+                    variant="outlined"
+                    component="a"
+                    href={`/source/${obj_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    clickable
+                    style={{ marginLeft: "0.4em", height: "18px" }}
+                  />
+                </Tooltip>
+              )}
             </div>
             <div
               className={styles.wrap}

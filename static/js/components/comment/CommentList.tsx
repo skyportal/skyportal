@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
+import Chip from "@mui/material/Chip";
+import Tooltip from "@mui/material/Tooltip";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -195,15 +197,15 @@ const CommentList = ({
   };
 
   const dispatch = useAppDispatch();
-  const source = useAppSelector((state) => state.source);
-  const candidate = useAppSelector((state) => state.candidate);
+  const source = useAppSelector((state) => state["source"]);
+  const candidate = useAppSelector((state) => state["candidate"]);
   const obj = isCandidate ? candidate : source;
-  const spectra = useAppSelector((state) => state.spectra);
-  const gcnEvent = useAppSelector((state) => state.gcnEvent);
-  const earthquake = useAppSelector((state) => state.earthquake);
+  const spectra = useAppSelector((state) => state["spectra"]);
+  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
+  const earthquake = useAppSelector((state) => state["earthquake"]);
   const userProfile = useAppSelector((state) => state.profile);
   const permissions = useAppSelector((state) => state.profile.permissions);
-  const { currentShift } = useAppSelector((state) => state.shifts);
+  const { currentShift } = useAppSelector((state) => state["shifts"]);
   const { showBotComments } = useAppSelector(
     (state) => state.profile.preferences as any,
   );
@@ -345,6 +347,7 @@ const CommentList = ({
             groups,
             spectrum_id,
             resourceType,
+            obj_id,
           }: any) => (
             <span
               id="comment"
@@ -357,6 +360,22 @@ const CommentList = ({
               onFocus={() => handleMouseHover(id, userProfile, author.username)}
               onBlur={() => handleMouseLeave()}
             >
+              {/* Meta-object provenance: comment aggregated from a linked source */}
+              {obj_id && objID && obj_id !== objID && (
+                <Tooltip title={`From linked source ${obj_id}`}>
+                  <Chip
+                    label={obj_id}
+                    size="small"
+                    variant="outlined"
+                    component="a"
+                    href={`/source/${obj_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    clickable
+                    style={{ height: "18px", marginBottom: "0.2em" }}
+                  />
+                </Tooltip>
+              )}
               <Comment
                 associatedResourceType={resourceType}
                 styles={styles}
