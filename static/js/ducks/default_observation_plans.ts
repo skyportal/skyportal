@@ -35,7 +35,7 @@ export const submitDefaultObservationPlan = (default_plan: any) =>
   );
 
 // Websocket message handler
-messageHandler.add((actionType: string, payload: any, dispatch: any) => {
+messageHandler.add((actionType: string, _payload: any, dispatch: any) => {
   if (actionType === REFRESH_DEFAULT_OBSERVATION_PLANS) {
     dispatch(fetchDefaultObservationPlans());
   }

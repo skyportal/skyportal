@@ -1,5 +1,3 @@
-import React from "react";
-
 import CircularProgress from "@mui/material/CircularProgress";
 
 interface ObservationPlanSummaryStatisticsProps {
@@ -54,48 +52,31 @@ const ObservationPlanSummaryStatistics = ({
     );
   }
 
-  return (
-    <div>
-      {!summaryStatistics || summaryStatistics?.length === 0 ? (
+  if (!summaryStatistics || summaryStatistics?.length === 0) {
+    return (
+      <div>
         <div>
           <CircularProgress />
         </div>
-      ) : (
-        <div>
-          <ul>
-            <li>
-              {" "}
-              Number of Observations:{" "}
-              {summaryStatistics[0].statistics.num_observations}{" "}
-            </li>
-            <li> Delay from Trigger: {summaryStatistics[0].statistics.dt} </li>
-            <li>
-              {" "}
-              Start of Observations:{" "}
-              {summaryStatistics[0].statistics.start_observation}{" "}
-            </li>
-            <li>
-              {" "}
-              Unique filters:{" "}
-              {summaryStatistics[0].statistics.unique_filters?.join(", ")}{" "}
-            </li>
-            <li>
-              {" "}
-              Total time [s]: {summaryStatistics[0].statistics.total_time}{" "}
-            </li>
-            <li>
-              {" "}
-              Probability:{" "}
-              {summaryStatistics[0].statistics.probability?.toFixed(3)}{" "}
-            </li>
-            <li>
-              {" "}
-              Area [sq. deg.]:{" "}
-              {summaryStatistics[0].statistics.area?.toFixed(1)}{" "}
-            </li>
-          </ul>
-        </div>
-      )}
+      </div>
+    );
+  }
+
+  const stats = summaryStatistics[0]!.statistics;
+
+  return (
+    <div>
+      <div>
+        <ul>
+          <li> Number of Observations: {stats.num_observations} </li>
+          <li> Delay from Trigger: {stats.dt} </li>
+          <li> Start of Observations: {stats.start_observation} </li>
+          <li> Unique filters: {stats.unique_filters?.join(", ")} </li>
+          <li> Total time [s]: {stats.total_time} </li>
+          <li> Probability: {stats.probability?.toFixed(3)} </li>
+          <li> Area [sq. deg.]: {stats.area?.toFixed(1)} </li>
+        </ul>
+      </div>
     </div>
   );
 };

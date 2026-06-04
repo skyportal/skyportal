@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { makeStyles } from "tss-react/mui";
@@ -17,16 +17,16 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const FollowupRequestPreferences = () => {
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const { allocationListApiClassname } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   );
   const allGroups = useAppSelector((state) => state.groups.all);
   const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   );
   const defaultAllocationId = useAppSelector(
-    (state) => state.profile.preferences?.followupDefault,
+    (state) => state.profile.preferences?.["followupDefault"],
   );
   // set the default allocation to be -1 if nothing is in the user preferences
   const [selectedAllocationId, setSelectedAllocationId] = useState(

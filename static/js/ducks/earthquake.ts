@@ -183,8 +183,8 @@ const reducer_earthquake = (
     }
     case CURRENT_EARTHQUAKES_AND_MENU: {
       const earthquake: Record<string, any> = {};
-      earthquake.currentEarthquakes = action.data.currentEarthquakes;
-      earthquake.currentEarthquakeMenu = action.data.currentEarthquakeMenu;
+      earthquake["currentEarthquakes"] = action.data.currentEarthquakes;
+      earthquake["currentEarthquakeMenu"] = action.data.currentEarthquakeMenu;
       return {
         ...state,
         ...earthquake,

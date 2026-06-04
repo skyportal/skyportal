@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { useForm } from "react-hook-form";
 import TextField from "@mui/material/TextField";
@@ -114,9 +114,9 @@ const PhotometryButtonsForm = () => {
               })}
               name="photometryButtonName"
               id="photometryButtonNameInput"
-              error={!!errors.photometryButtonName}
+              error={!!errors["photometryButtonName"]}
               helperText={
-                errors.photometryButtonName
+                errors["photometryButtonName"]
                   ? "Required/Button with that name already exists"
                   : ""
               }

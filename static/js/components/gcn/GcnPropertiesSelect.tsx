@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
 import InputLabel from "@mui/material/InputLabel";
@@ -28,7 +28,7 @@ const GcnPropertiesSelect = ({
 }: GcnPropertiesSelectProps) => {
   const dispatch = useAppDispatch();
   const gcnProperties = [
-    ...(useAppSelector((state) => state.gcnProperties) || []),
+    ...(useAppSelector((state) => state["gcnProperties"]) || []),
   ].sort();
   const { handleSubmit, control, reset, getValues } = useForm();
 

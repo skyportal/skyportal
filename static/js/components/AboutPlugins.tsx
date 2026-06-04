@@ -78,8 +78,8 @@ const BibLink = ({ bibtex, children }: BibLinkProps) => {
 
 const AboutPlugins = () => {
   const { classes } = useStyles();
-  const version = useAppSelector((state) => state.sysInfo.version);
-  const gitlog = useAppSelector((state) => state.sysInfo.gitlog);
+  const version = useAppSelector((state) => state["sysInfo"].version);
+  const gitlog = useAppSelector((state) => state["sysInfo"].gitlog);
 
   return (
     <div>

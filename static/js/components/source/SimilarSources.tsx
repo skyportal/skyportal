@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Tooltip from "@mui/material/Tooltip";
 import { Link } from "react-router-dom";
 
@@ -21,7 +21,7 @@ const SimilarSources = ({
 }: SimilarSourcesProps) => {
   const dispatch = useAppDispatch();
   const usePinecone = useAppSelector(
-    (state) => (state.config as any).usePinecone,
+    (state) => (state["config"] as any).usePinecone,
   );
   const [simSourceList, setSimSourceList] = useState<any[]>([]);
 

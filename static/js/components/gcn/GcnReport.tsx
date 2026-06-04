@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { makeStyles, withStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -145,11 +145,11 @@ interface GcnReportProps {
 const GcnReport = ({ dateobs }: GcnReportProps) => {
   const { classes } = useStyles();
   const groups = useAppSelector((state) => state.groups.userAccessible);
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
-  const gcnEvent = useAppSelector((state) => state.gcnEvent);
+  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
   const [reportName, setReportName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");

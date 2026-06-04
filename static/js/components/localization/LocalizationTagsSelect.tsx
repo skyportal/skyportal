@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 
 import SelectWithChips from "../SelectWithChips";
 
@@ -18,7 +18,7 @@ const LocalizationTagsSelect = ({
 }: LocalizationTagsSelectProps) => {
   const dispatch = useAppDispatch();
   const localizationTags = [
-    ...(useAppSelector((state) => state.localizationTags) || []),
+    ...(useAppSelector((state) => state["localizationTags"]) || []),
   ].sort();
 
   useEffect(() => {

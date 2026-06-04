@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -44,7 +44,7 @@ const ObservationPlanRequestLists = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const gcnEvent = useAppSelector((state) => state.gcnEvent) as any;
+  const gcnEvent = useAppSelector((state) => state["gcnEvent"]) as any;
   const [anchorEl, setAnchorEl] = useState<any>(null);
 
   const observationPlanRequestList = gcnEvent?.observation_plans || [];
@@ -68,7 +68,7 @@ const ObservationPlanRequestLists = ({
   const [isRemoving, setIsRemoving] = useState<any>(null);
 
   const { instrumentList, instrumentObsplanFormParams } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   ) as any;
 
   useEffect(() => {
@@ -417,7 +417,7 @@ const ObservationPlanRequestLists = ({
         flex: 1,
         minWidth: 120,
         sortable: false,
-        valueGetter: (value: any, row: any) => row.requester?.username,
+        valueGetter: (_value: any, row: any) => row.requester?.username,
       },
       {
         field: "allocation_group",
@@ -425,7 +425,7 @@ const ObservationPlanRequestLists = ({
         flex: 1,
         minWidth: 120,
         sortable: false,
-        valueGetter: (value: any, row: any) => row.allocation?.group?.name,
+        valueGetter: (_value: any, row: any) => row.allocation?.group?.name,
       },
       {
         field: "payload",

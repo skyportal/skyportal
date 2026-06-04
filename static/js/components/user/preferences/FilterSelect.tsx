@@ -1,4 +1,3 @@
-import React from "react";
 import { useAppSelector } from "../../../types/hooks";
 import SelectWithChips from "../../SelectWithChips";
 
@@ -15,7 +14,9 @@ const FilterSelect = ({
 }: FilterSelectProps) => {
   let filtersEnums: string[] = [];
   filtersEnums = filtersEnums.concat(
-    useAppSelector((state) => state.enum_types.enum_types.ALLOWED_BANDPASSES),
+    useAppSelector(
+      (state) => state["enum_types"].enum_types.ALLOWED_BANDPASSES,
+    ),
   );
   filtersEnums.sort();
   filtersEnums.unshift("Clear selections");

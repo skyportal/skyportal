@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from "react";
+import { lazy, Suspense } from "react";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
@@ -37,9 +37,9 @@ const EarthquakePage = () => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
   const currentUser = useAppSelector((state) => state.profile);
-  const earthquakes = useAppSelector((state) => state.earthquakes);
+  const earthquakes = useAppSelector((state) => state["earthquakes"]);
   const currentEarthquakeMenu = useAppSelector(
-    (state) => (state.earthquake as any).currentEarthquakeMenu,
+    (state) => (state["earthquake"] as any).currentEarthquakeMenu,
   );
 
   if (!earthquakes) return <Spinner />;

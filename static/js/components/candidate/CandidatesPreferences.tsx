@@ -48,7 +48,7 @@ const CandidatesPreferences = ({
   setSelectedScanningProfile,
 }: CandidatesPreferencesProps) => {
   const availableAnnotationsInfo = useAppSelector(
-    (state) => state.candidates.annotationsInfo,
+    (state) => state["candidates"].annotationsInfo,
   );
   const { classes } = useStyles();
 
@@ -57,7 +57,7 @@ const CandidatesPreferences = ({
   );
 
   // Get unique classification names, in alphabetical order
-  const { taxonomyList } = useAppSelector((state) => state.taxonomies);
+  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   let classifications: any[] = [];
   latestTaxonomyList.forEach((taxonomy: any) => {

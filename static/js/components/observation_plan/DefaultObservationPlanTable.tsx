@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
@@ -155,7 +155,7 @@ const DefaultObservationPlanTable = ({
       flex: 1,
       minWidth: 220,
       filterable: false,
-      valueGetter: (value: any, row: any) => getObservationPlanTitle(row),
+      valueGetter: (_value: any, row: any) => getObservationPlanTitle(row),
       renderCell: renderObservationPlanTitle,
     },
     {
@@ -182,7 +182,7 @@ const DefaultObservationPlanTable = ({
       flex: 1,
       minWidth: 200,
       filterable: false,
-      valueGetter: (value: any, row: any) => (row.auto_send ? "Yes" : "No"),
+      valueGetter: (_value: any, row: any) => (row.auto_send ? "Yes" : "No"),
       renderCell: renderAutoSend,
     },
     {

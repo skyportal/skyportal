@@ -22,14 +22,14 @@ export function fetchUsersManagement() {
   const filterParams = {
     pageNumber: 1,
     numPerPage: 25,
-    ...state.users_management.fetchParams,
+    ...state["users_management"].fetchParams,
   };
   return API.GET("/api/user", FETCH_USERS_MANAGEMENT, filterParams);
 }
 
 // Websocket message handler
 messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
+  (actionType: string, _payload: any, dispatch: AppDispatch) => {
     if (actionType === FETCH_USERS_MANAGEMENT) {
       dispatch(fetchUsersManagement());
     }

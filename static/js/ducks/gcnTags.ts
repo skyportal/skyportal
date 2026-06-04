@@ -23,7 +23,7 @@ export function deleteGcnTag(gcnEventID: number | string, tag: string) {
 }
 
 // Websocket message handler
-messageHandler.add((actionType: any, payload: any, dispatch: any) => {
+messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
   if (actionType === FETCH_GCN_TAGS) {
     dispatch(fetchGcnTags());
   }

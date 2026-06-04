@@ -57,7 +57,7 @@ class ErrorBoundary extends React.Component<
     return { hasError: true, error, errorTime: dayjs.utc().format() };
   }
 
-  componentDidCatch(error: any, errorInfo: any) {
+  override componentDidCatch(error: any, errorInfo: any) {
     // You can also log the error to an error reporting service
     const { dispatch } = this.props;
     this.setState({
@@ -83,7 +83,7 @@ class ErrorBoundary extends React.Component<
       .join("\n\n");
   }
 
-  render() {
+  override render() {
     const { hasError, stack, displayStack } = this.state;
     const { children } = this.props;
     if (hasError) {
@@ -165,7 +165,7 @@ class ErrorBoundary extends React.Component<
 }
 
 const mapStateToProps = (state: RootState) => ({
-  version: state.sysInfo?.version,
+  version: state["sysInfo"]?.version,
 });
 
 export default connect(mapStateToProps)(ErrorBoundary);

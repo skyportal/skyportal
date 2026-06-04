@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
 import TextField from "@mui/material/TextField";
@@ -79,10 +79,10 @@ const ClassificationsShortcutForm = () => {
               })}
               label="Shortcut Name"
               id="shortcutNameInput"
-              error={!!errors.shortcutName}
+              error={!!errors["shortcutName"]}
               helperText={
-                errors.shortcutName
-                  ? (errors.shortcutName.message as string) || "Required"
+                errors["shortcutName"]
+                  ? (errors["shortcutName"].message as string) || "Required"
                   : ""
               }
             />

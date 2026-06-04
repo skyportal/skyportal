@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import EditIcon from "@mui/icons-material/Edit";
 import Checkbox from "@mui/material/Checkbox";
 import Dialog from "@mui/material/Dialog";
@@ -47,7 +47,7 @@ const UpdateTokenACLs = ({
 
   const handleSubmit = async () => {
     const { acls } = getValues();
-    const selectedACLs = availableACLs?.filter((include, idx) => acls[idx]);
+    const selectedACLs = availableACLs?.filter((_include, idx) => acls[idx]);
     const data: any = {};
     data.acls = selectedACLs;
 

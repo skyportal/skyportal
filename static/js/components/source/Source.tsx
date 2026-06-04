@@ -222,16 +222,18 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const groups = (useAppSelector((state) => state.groups.all) || []).filter(
     (g: any) => !g.single_user_group,
   );
-  const spectra = useAppSelector((state) => state.spectra)[source.id];
+  const spectra = useAppSelector((state) => state["spectra"])[source.id];
   const associatedGCNs = useAppSelector(
     (state) => (state as any).source.associatedGCNs,
   );
 
   const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   );
-  const { observingRunList } = useAppSelector((state) => state.observingRuns);
-  const { taxonomyList } = useAppSelector((state) => state.taxonomies);
+  const { observingRunList } = useAppSelector(
+    (state) => state["observingRuns"],
+  );
+  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
 
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
@@ -877,7 +879,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </div>
             )}
             {source.summary_history?.length > 0 &&
-            currentUser?.preferences?.showSimilarSources === true ? (
+            currentUser?.preferences?.["showSimilarSources"] === true ? (
               <SimilarSources source={source} min_score={0.9} k={3} />
             ) : null}
             <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
@@ -992,7 +994,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   setDialogOpen={setSendToDialogOpen}
                 />
               </div>
-              {currentUser?.preferences?.hideSourceSummary === true && (
+              {currentUser?.preferences?.["hideSourceSummary"] === true && (
                 <ShowSummaryHistory
                   summaries={source.summary_history || []}
                   obj_id={source.id}
@@ -1012,7 +1014,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
-              currentUser?.preferences?.hideSourceSummary !== true && (
+              currentUser?.preferences?.["hideSourceSummary"] !== true && (
                 <Paper
                   className={classes.flexColumn}
                   style={{
@@ -1027,7 +1029,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <ShowSummaries
                     summaries={source.summary_history || []}
                     showAISummaries={
-                      (currentUser?.preferences?.showAISourceSummary ||
+                      (currentUser?.preferences?.["showAISourceSummary"] ||
                         false) as any
                     }
                   />
@@ -1063,7 +1065,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       <UpdateSourceSummary
                         source={source}
                         showAISummaries={
-                          (currentUser?.preferences?.showAISourceSummary ||
+                          (currentUser?.preferences?.["showAISourceSummary"] ||
                             false) as any
                         }
                       />
@@ -1503,7 +1505,7 @@ interface SourceProps {
 
 const Source = ({ route }: SourceProps) => {
   const dispatch = useAppDispatch();
-  const source = useAppSelector((state) => state.source);
+  const source = useAppSelector((state) => state["source"]);
   const cachedSourceId = source ? source.id : null;
   const isCached = route.id === cachedSourceId;
 

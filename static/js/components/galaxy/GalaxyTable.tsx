@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -53,6 +53,40 @@ const GalaxyTable = ({
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
+  const handleFilterSubmit = async (formData: any) => {
+    // Remove empty position
+    if (
+      formData?.position &&
+      !formData?.position?.ra &&
+      !formData?.position?.dec &&
+      !formData?.position?.radius
+    ) {
+      delete formData.position;
+    }
+
+    const data = filterOutEmptyValues(formData) as any;
+    // Expand cone search params
+    if ("position" in data) {
+      data.ra = data.position.ra;
+      data.dec = data.position.dec;
+      data.radius = data.position.radius;
+      delete data.position;
+    }
+
+    await dispatch(galaxiesActions.fetchGalaxies(data));
+    setFilterFormSubmitted(true);
+  };
+
+  const handleSearchChange = (value: string) => {
+    const params: any = {
+      pageNumber: 1,
+    };
+    if (value?.length > 0) {
+      params.galaxyName = value;
+    }
+    handleFilterSubmit(params);
+  };
+
   // Memoized so the toolbar (filter button + search field) keeps a stable
   // identity across the re-render that happens when the galaxy list loads;
   // otherwise MUI remounts it and any element reference a test is interacting
@@ -100,40 +134,6 @@ const GalaxyTable = ({
   if (!galaxies) {
     return <p>No galaxies available...</p>;
   }
-
-  const handleFilterSubmit = async (formData: any) => {
-    // Remove empty position
-    if (
-      formData?.position &&
-      !formData?.position?.ra &&
-      !formData?.position?.dec &&
-      !formData?.position?.radius
-    ) {
-      delete formData.position;
-    }
-
-    const data = filterOutEmptyValues(formData) as any;
-    // Expand cone search params
-    if ("position" in data) {
-      data.ra = data.position.ra;
-      data.dec = data.position.dec;
-      data.radius = data.position.radius;
-      delete data.position;
-    }
-
-    await dispatch(galaxiesActions.fetchGalaxies(data));
-    setFilterFormSubmitted(true);
-  };
-
-  const handleSearchChange = (value: string) => {
-    const params: any = {
-      pageNumber: 1,
-    };
-    if (value?.length > 0) {
-      params.galaxyName = value;
-    }
-    handleFilterSubmit(params);
-  };
 
   // Synthesize the mui-datatables onTableChange(action, tableState) contract
   // from the DataGrid handlers so callers (GalaxyPage) stay unchanged.

@@ -309,14 +309,14 @@ const AllocationObservationPlansTable = ({
       headerName: "GCN Event",
       flex: 1,
       minWidth: 130,
-      valueGetter: (value: any, row: any) => row.localization?.dateobs,
+      valueGetter: (_value: any, row: any) => row.localization?.dateobs,
     },
     {
       field: "localization_name",
       headerName: "Localization",
       flex: 1,
       minWidth: 130,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.localization?.localization_name,
     },
     { field: "created_at", headerName: "Created at", flex: 1, minWidth: 150 },
@@ -471,7 +471,7 @@ const AllocationSummaryTable = ({
       filterable: false,
       hideable: false,
       disableColumnMenu: true,
-      colSpan: (value: any, row: any) => (row.__detail ? 100 : 1),
+      colSpan: (_value: any, row: any) => (row.__detail ? 100 : 1),
       renderCell: (params: any) => {
         if (params.row.__detail) {
           const request = params.row.__source;
@@ -545,14 +545,14 @@ const AllocationSummaryTable = ({
       headerName: "Start Date",
       flex: 1,
       minWidth: 150,
-      valueGetter: (value: any, row: any) => row.payload?.start_date,
+      valueGetter: (_value: any, row: any) => row.payload?.start_date,
     },
     {
       field: "end_date",
       headerName: "End Date",
       flex: 1,
       minWidth: 150,
-      valueGetter: (value: any, row: any) => row.payload?.end_date,
+      valueGetter: (_value: any, row: any) => row.payload?.end_date,
     },
     {
       field: "status",
@@ -566,7 +566,7 @@ const AllocationSummaryTable = ({
       flex: 1,
       minWidth: 100,
       sortable: false,
-      valueGetter: (value: any, row: any) => row.obj?.ra,
+      valueGetter: (_value: any, row: any) => row.obj?.ra,
       renderCell: (params: any) => (
         <div key={`${params.row.id}_ra`}>
           {params.row.obj?.ra}
@@ -581,7 +581,7 @@ const AllocationSummaryTable = ({
       flex: 1,
       minWidth: 100,
       sortable: false,
-      valueGetter: (value: any, row: any) => row.obj?.dec,
+      valueGetter: (_value: any, row: any) => row.obj?.dec,
       renderCell: (params: any) => (
         <div key={`${params.row.id}_dec`}>
           {params.row.obj?.dec}
@@ -595,21 +595,21 @@ const AllocationSummaryTable = ({
       headerName: "Redshift",
       flex: 1,
       minWidth: 90,
-      valueGetter: (value: any, row: any) => row.obj?.redshift,
+      valueGetter: (_value: any, row: any) => row.obj?.redshift,
     },
     {
       field: "requester",
       headerName: "Requester",
       flex: 1,
       minWidth: 120,
-      valueGetter: (value: any, row: any) => row.requester?.username,
+      valueGetter: (_value: any, row: any) => row.requester?.username,
     },
     {
       field: "priority",
       headerName: "Priority",
       flex: 1,
       minWidth: 90,
-      valueGetter: (value: any, row: any) => row.payload?.priority,
+      valueGetter: (_value: any, row: any) => row.payload?.priority,
     },
     {
       field: "rise_time_utc",

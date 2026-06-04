@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import Paper from "@mui/material/Paper";
@@ -77,7 +77,7 @@ const defaultNumPerPage = 25;
 const UserInvitations = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const streams = useAppSelector((state) => state.streams);
+  const streams = useAppSelector((state) => state["streams"]);
   let { all: allGroups } = useAppSelector((state) => state.groups);
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
@@ -89,7 +89,7 @@ const UserInvitations = () => {
   const [tableFilterList, setTableFilterList] = useState<string[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const { invitations, totalMatches } = useAppSelector(
-    (state) => state.invitations,
+    (state) => state["invitations"],
   );
   const [csvData, setCsvData] = useState("");
   const [addInvitationGroupsDialogOpen, setAddInvitationGroupsDialogOpen] =
@@ -149,12 +149,12 @@ const UserInvitations = () => {
 
   const validateInvitationGroups = () => {
     const formState = getValues();
-    return formState.invitationGroups.length >= 1;
+    return formState["invitationGroups"].length >= 1;
   };
 
   const validateInvitationStreams = () => {
     const formState = getValues();
-    return formState.invitationStreams.length >= 1;
+    return formState["invitationStreams"].length >= 1;
   };
 
   const handleClickDeleteInvitationGroup = async (
@@ -497,7 +497,9 @@ const UserInvitations = () => {
     const data: any = {};
     remaining.forEach((filterChip) => {
       const [key, value] = filterChip.split(": ");
-      data[key] = value;
+      if (key) {
+        data[key] = value;
+      }
     });
     handleFilterSubmit(data);
   };
@@ -567,7 +569,7 @@ const UserInvitations = () => {
       minWidth: 180,
       sortable: false,
       filterable: false,
-      valueGetter: (value: any, row: any) => row.user_email,
+      valueGetter: (_value: any, row: any) => row.user_email,
     },
     {
       field: "role",
@@ -603,7 +605,7 @@ const UserInvitations = () => {
       minWidth: 120,
       sortable: false,
       filterable: false,
-      valueGetter: (value: any, row: any) => row.invited_by?.username,
+      valueGetter: (_value: any, row: any) => row.invited_by?.username,
     },
     {
       field: "user_expiration_date",
@@ -722,7 +724,7 @@ const UserInvitations = () => {
         </DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(handleAddInvitationGroups)}>
-            {!!errors.invitationGroups && (
+            {!!errors["invitationGroups"] && (
               <FormValidationError message="Please select at least one group" />
             )}
             <Controller
@@ -731,7 +733,7 @@ const UserInvitations = () => {
                 <Autocomplete
                   multiple
                   value={value}
-                  onChange={(e, data) => onChange(data)}
+                  onChange={(_e, data) => onChange(data)}
                   options={allGroups?.filter(
                     (group) =>
                       !clickedInvitation?.groups
@@ -744,7 +746,7 @@ const UserInvitations = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      error={!!errors.invitationGroups}
+                      error={!!errors["invitationGroups"]}
                       variant="outlined"
                       label="Select Groups"
                       data-testid="addInvitationGroupsTextField"
@@ -779,7 +781,7 @@ const UserInvitations = () => {
         </DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(handleAddInvitationStreams)}>
-            {!!errors.invitationStreams && (
+            {!!errors["invitationStreams"] && (
               <FormValidationError message="Please select at least one stream" />
             )}
             <Controller
@@ -788,7 +790,7 @@ const UserInvitations = () => {
                 <Autocomplete
                   multiple
                   value={value}
-                  onChange={(e, data) => onChange(data)}
+                  onChange={(_e, data) => onChange(data)}
                   options={streams?.filter(
                     (stream: any) =>
                       !clickedInvitation?.streams
@@ -801,7 +803,7 @@ const UserInvitations = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      error={!!errors.invitationStreams}
+                      error={!!errors["invitationStreams"]}
                       variant="outlined"
                       label="Select Streams"
                       data-testid="addInvitationStreamsTextField"
@@ -836,7 +838,7 @@ const UserInvitations = () => {
         </DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(handleUpdateInvitationRole)}>
-            {!!errors.invitationRole && (
+            {!!errors["invitationRole"] && (
               <FormValidationError message="Please select one role" />
             )}
             <Controller

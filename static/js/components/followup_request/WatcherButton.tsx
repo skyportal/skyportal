@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 import IconButton from "@mui/material/IconButton";
 import StarIcon from "@mui/icons-material/Star";

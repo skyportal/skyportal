@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -213,7 +213,7 @@ const WidgetPrefsDialog = ({
                           value={(groups || []).filter((group: any) =>
                             value.includes(group.id),
                           )}
-                          onChange={(e, data) =>
+                          onChange={(_e, data) =>
                             onChange(data.map((group: any) => group.id))
                           }
                           filterSelectedOptions

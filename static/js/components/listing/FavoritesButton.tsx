@@ -1,4 +1,3 @@
-import React from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 import IconButton from "@mui/material/IconButton";
@@ -14,7 +13,7 @@ interface FavoritesButtonProps {
 
 const FavoritesButton = ({ sourceID }: FavoritesButtonProps) => {
   const dispatch = useAppDispatch();
-  const { favorites } = useAppSelector((state) => state.favorites);
+  const { favorites } = useAppSelector((state) => state["favorites"]);
 
   if (!sourceID) return null;
 

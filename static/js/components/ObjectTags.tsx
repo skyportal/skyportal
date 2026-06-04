@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import Chip from "@mui/material/Chip";
@@ -178,7 +178,7 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
 
   const handleAddTag = () => {
     const formValues = getValues();
-    const tagToAdd = formValues.tag;
+    const tagToAdd = formValues["tag"];
 
     setIsAddingTag(true);
 
@@ -223,21 +223,36 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
   return (
     <div className={styles.root}>
       <div className={styles.chips}>
-        {sourceTagsWithColors.map((tag: any) => (
-          <Chip
-            key={tag.id}
-            className={styles.chip}
-            label={tag.name}
-            size="small"
-            deleteIcon={<EditIcon />}
-            onDelete={() => handleOpenEditDialog(tag)}
-            data-testid={`tag-chip-${tag.id}`}
-            style={{
-              backgroundColor: tag.color,
-              color: getContrastColor(tag.color),
-            }}
-          />
-        ))}
+        {sourceTagsWithColors.map((tag: any) => {
+          // Meta-object provenance: a tag aggregated from a linked source keeps
+          // its own obj_id. Surface where it came from, and don't offer to edit
+          // it from this page (writes stay per-source).
+          const fromLinkedObj = tag.obj_id && tag.obj_id !== source.id;
+          const chip = (
+            <Chip
+              key={tag.id}
+              className={styles.chip}
+              label={fromLinkedObj ? `${tag.name} (${tag.obj_id})` : tag.name}
+              size="small"
+              deleteIcon={fromLinkedObj ? undefined : <EditIcon />}
+              onDelete={
+                fromLinkedObj ? undefined : () => handleOpenEditDialog(tag)
+              }
+              data-testid={`tag-chip-${tag.id}`}
+              style={{
+                backgroundColor: tag.color,
+                color: getContrastColor(tag.color),
+              }}
+            />
+          );
+          return fromLinkedObj ? (
+            <Tooltip key={tag.id} title={`From linked source ${tag.obj_id}`}>
+              {chip}
+            </Tooltip>
+          ) : (
+            chip
+          );
+        })}
       </div>
 
       <Tooltip title="Add Tag">

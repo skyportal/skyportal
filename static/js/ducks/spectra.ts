@@ -79,7 +79,7 @@ messageHandler.add(
     getState: () => RootState,
   ) => {
     if (actionType === REFRESH_SOURCE_SPECTRA) {
-      const state = getState().spectra;
+      const state = getState()["spectra"];
 
       Object.entries(state).forEach(([objID, spectra]: [string, any]) => {
         if (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import InputLabel from "@mui/material/InputLabel";
@@ -62,9 +62,9 @@ const FollowupRequestForm = ({
 }: FollowupRequestFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const { allocationListApiClassname } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   );
   const allGroups = useAppSelector((state) => state.groups.all);
   const defaultAllocationId = useAppSelector(

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
@@ -117,9 +117,9 @@ const TelescopePage = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector((state) => state.profile);
-  const loading = useAppSelector((state) => state.telescopes.loading);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
-  const { currentTelescopes } = useAppSelector((state) => state.telescopes);
+  const loading = useAppSelector((state) => state["telescopes"].loading);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { currentTelescopes } = useAppSelector((state) => state["telescopes"]);
   const [displayedTelescopes, setDisplayedTelescopes] = useState(telescopeList);
   const [telescopeToDelete, setTelescopeToDelete] = useState<number | null>(
     null,
@@ -191,74 +191,6 @@ const TelescopePage = () => {
     }
   };
 
-  const SearchBar = () => (
-    <Autocomplete
-      color="primary"
-      id="telescopes-search-bar"
-      classes={{ root: (classes as any).root, paper: (classes as any).paper }}
-      onChange={(event, option) => {
-        handleChange(option);
-      }}
-      value={selectedTelescope}
-      options={telescopeList}
-      getOptionLabel={(option: any) => option.name || ""}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          variant="outlined"
-          placeholder="Telescope"
-          InputProps={{
-            ...params.InputProps,
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-        />
-      )}
-    />
-  );
-
-  const DisplayMode = () => (
-    <Box
-      position="absolute"
-      top={43}
-      left="50%"
-      sx={{ transform: "translateX(-50%)", zIndex: 10 }}
-    >
-      <Paper
-        elevation={3}
-        sx={{
-          borderRadius: "999px",
-          px: 0,
-          backgroundColor: "rgba(240,242,245,0.7)",
-        }}
-      >
-        <ToggleButtonGroup
-          value={displayTelescopeTable}
-          exclusive
-          onChange={(e, newView) => {
-            if (newView === null) return;
-            setDisplayTelescopeTable(newView);
-          }}
-          sx={{
-            height: 34,
-            "& .MuiToggleButton-root": {
-              border: "none",
-              borderRadius: "999px",
-              textTransform: "none",
-              px: 3,
-            },
-          }}
-        >
-          <ToggleButton value={false}>Map</ToggleButton>
-          <ToggleButton value={true}>Table</ToggleButton>
-        </ToggleButtonGroup>
-      </Paper>
-    </Box>
-  );
-
   return (
     <Suspense
       fallback={
@@ -268,7 +200,44 @@ const TelescopePage = () => {
       }
     >
       <Grid container spacing={5} style={{ position: "relative" }}>
-        {!isMobile && <DisplayMode />}
+        {!isMobile && (
+          <Box
+            position="absolute"
+            top={43}
+            left="50%"
+            sx={{ transform: "translateX(-50%)", zIndex: 10 }}
+          >
+            <Paper
+              elevation={3}
+              sx={{
+                borderRadius: "999px",
+                px: 0,
+                backgroundColor: "rgba(240,242,245,0.7)",
+              }}
+            >
+              <ToggleButtonGroup
+                value={displayTelescopeTable}
+                exclusive
+                onChange={(_e, newView) => {
+                  if (newView === null) return;
+                  setDisplayTelescopeTable(newView);
+                }}
+                sx={{
+                  height: 34,
+                  "& .MuiToggleButton-root": {
+                    border: "none",
+                    borderRadius: "999px",
+                    textTransform: "none",
+                    px: 3,
+                  },
+                }}
+              >
+                <ToggleButton value={false}>Map</ToggleButton>
+                <ToggleButton value={true}>Table</ToggleButton>
+              </ToggleButtonGroup>
+            </Paper>
+          </Box>
+        )}
         <Grid
           {...({ item: true, lg: 8 } as any)}
           sx={{
@@ -319,7 +288,35 @@ const TelescopePage = () => {
               className={classes.paperContent}
               style={{ maxHeight: "calc(-85px + 100vh)", overflow: "scroll" }}
             >
-              <SearchBar />
+              <Autocomplete
+                color="primary"
+                id="telescopes-search-bar"
+                classes={{
+                  root: (classes as any).root,
+                  paper: (classes as any).paper,
+                }}
+                onChange={(_event, option) => {
+                  handleChange(option);
+                }}
+                value={selectedTelescope}
+                options={telescopeList}
+                getOptionLabel={(option: any) => option.name || ""}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    variant="outlined"
+                    placeholder="Telescope"
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
               <List>
                 {displayedTelescopes &&
                   displayedTelescopes.map((telescope: any) => (

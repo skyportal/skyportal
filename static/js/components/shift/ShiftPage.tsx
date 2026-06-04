@@ -48,8 +48,8 @@ interface ShiftPageProps {
 const ShiftPage = ({ route = null }: ShiftPageProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const shiftList = useAppSelector((state) => state.shifts.shiftList);
-  const currentShift = useAppSelector((state) => state.shifts.currentShift);
+  const shiftList = useAppSelector((state) => state["shifts"].shiftList);
+  const currentShift = useAppSelector((state) => state["shifts"].currentShift);
   const [preSelectedRange, setPreSelectedRange] = useState<any>(null);
   // show "new shift", "manage shift" or "manage recurring shifts"
   const [show, setShow] = useState("new shift");

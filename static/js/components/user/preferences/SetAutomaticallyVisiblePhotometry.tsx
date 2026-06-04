@@ -1,4 +1,3 @@
-import React from "react";
 import { makeStyles } from "tss-react/mui";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";

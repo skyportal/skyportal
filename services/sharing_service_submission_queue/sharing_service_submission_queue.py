@@ -34,7 +34,9 @@ init_db(**cfg["database"])
 
 log = make_log("sharing_service_queue")
 
-tns_retrieval_microservice_url = f"http://127.0.0.1:{cfg['ports.tns_retrieval_queue']}"
+tns_retrieval_microservice_url = (
+    f"http://{cfg['hosts.tns_retrieval_queue']}:{cfg['ports.tns_retrieval_queue']}"
+)
 
 
 class SharingServicesWarning(Warning):

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -261,8 +261,8 @@ const SpatialCatalogList = ({
 };
 
 const SpatialCatalogPage = () => {
-  const spatialCatalogs = useAppSelector((state) => state.spatialCatalogs);
-  const spatialCatalog = useAppSelector((state) => state.spatialCatalog);
+  const spatialCatalogs = useAppSelector((state) => state["spatialCatalogs"]);
+  const spatialCatalog = useAppSelector((state) => state["spatialCatalog"]);
   const [selectedSpatialCatalogId, setSelectedSpatialCatalogId] =
     useState<any>(null);
   const [selectedSpatialCatalogEntryId, setSelectedSpatialCatalogEntryId] =

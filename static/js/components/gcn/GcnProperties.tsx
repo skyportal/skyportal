@@ -1,4 +1,3 @@
-import React from "react";
 import { makeStyles } from "tss-react/mui";
 
 import StyledDataGrid from "../StyledDataGrid";
@@ -82,7 +81,7 @@ const GcnProperties = ({ properties }: GcnPropertiesProps) => {
       sortable: false,
       // Property names may contain dots; force flat access rather than letting
       // DataGrid interpret the field as a nested path.
-      valueGetter: (value: any, row: any) => row[name],
+      valueGetter: (_value: any, row: any) => row[name],
     })),
   ];
 

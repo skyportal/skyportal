@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -25,7 +25,7 @@ const CustomizeOpenAIParameters = () => {
   const { classes } = useStyles();
 
   const site_openai_summary_parameters = useAppSelector(
-    (state) => state.config.openai_summary_parameters,
+    (state) => state["config"].openai_summary_parameters,
   );
   const user_openai_summary_parameters = useAppSelector(
     (state) => (state.profile.preferences as any).summary.OpenAI,

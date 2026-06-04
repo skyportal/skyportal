@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
@@ -62,7 +62,7 @@ const Item = styled("div")({
 const ReportsList = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const scanReports = useAppSelector((state) => state.scanReports);
+  const scanReports = useAppSelector((state) => state["scanReports"]);
   const [loading, setLoading] = useState(false);
   const [idReportOpen, setIdReportOpen] = useState<any>(null);
   const [generateReportDialogOpen, setGenerateReportDialogOpen] =
