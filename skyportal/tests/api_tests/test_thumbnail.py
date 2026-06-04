@@ -83,6 +83,42 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     assert thumbnails_loaded
 
 
+def test_thumbnail_queue_fetch_obj_finds_unprocessed_source(
+    upload_data_token, public_group
+):
+    """Direct test for services/thumbnail_queue/fetch_obj — the only
+    queue-specific logic not exercised by the synchronous bypass above.
+    """
+    from services.thumbnail_queue.thumbnail_queue import fetch_obj
+
+    obj_id = str(uuid.uuid4())
+    status, _ = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    # The new obj has no (sdss, ls, ps1) thumbnails, so fetch_obj's
+    # most-recent-missing query must surface it.
+    session = DBSession()
+    obj, err = fetch_obj(session)
+    assert err is None
+    assert obj is not None and obj.id == obj_id
+
+    # After backfill the same query must no longer return it.
+    obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
+    obj, err = fetch_obj(session)
+    assert err is None
+    assert obj is None or obj.id != obj_id
+
+
 def test_cannot_post_thumbnail_invalid_ttype(
     upload_data_token, public_group, ztf_camera
 ):
