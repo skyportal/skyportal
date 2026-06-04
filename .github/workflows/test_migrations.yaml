@@ -192,7 +192,10 @@ jobs:
 
           make db_init
 
-          pnpm list --depth 0
+          # Still on MIGRATION_REFERENCE here — predates pnpm, so npm is what
+          # its package.json declares. The pnpm-side listing happens after the
+          # branch checkout below.
+          npm ls --depth 0
 
           # Stamp Alembic HEAD
           PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
