@@ -18,7 +18,6 @@ def resolve_cast(annotation):
     """Resolve a parameter annotation to a cast callable.
 
     Handles ``Optional[T]`` / ``T | None`` by unwrapping to the inner type and
-
     setting ``allow_none=True``. Returns ``(cast_fn, allow_none)``.
 
     If the annotation is a Union with more than one non-None member, returns
