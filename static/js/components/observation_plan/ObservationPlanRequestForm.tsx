@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
@@ -31,7 +31,8 @@ import * as instrumentsActions from "../../ducks/instruments";
 import { planWithSameNameExists } from "../../ducks/observationPlans";
 import * as localizationActions from "../../ducks/localization";
 import GroupShareSelect from "../group/GroupShareSelect";
-import LocalizationPlot from "../localization/LocalizationPlot";
+// Lazy-loaded: aladin-lite is heavy and would otherwise sit in the main bundle.
+const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -180,15 +181,17 @@ const ObservationPlanGlobe = ({
     gcnEvent?.localizations?.find((l: any) => l.id === loc.id) === undefined ? (
     <CircularProgress />
   ) : (
-    <LocalizationPlot
-      localization={loc}
-      instrument={skymapInstrument}
-      options={displayOptionsDefault}
-      selectedFields={selectedFields}
-      setSelectedFields={setSelectedFields}
-      projection={selectedProjection}
-      airmass_threshold={airmassValue}
-    />
+    <Suspense fallback={<CircularProgress />}>
+      <LocalizationPlot
+        localization={loc}
+        instrument={skymapInstrument}
+        options={displayOptionsDefault}
+        selectedFields={selectedFields}
+        setSelectedFields={setSelectedFields}
+        projection={selectedProjection}
+        airmass_threshold={airmassValue}
+      />
+    </Suspense>
   );
 };
 
