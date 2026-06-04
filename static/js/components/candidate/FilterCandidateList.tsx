@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -425,10 +425,8 @@ const FilterCandidateList = ({
     }
   }, [filterGroupsInput, userAccessibleGroups]);
 
-  let formState = getValues();
-
   const validateDates = () => {
-    formState = getValues();
+    const formState = getValues();
     if (!!formState.startDate && !!formState.endDate) {
       return formState.startDate <= formState.endDate;
     }
@@ -436,7 +434,7 @@ const FilterCandidateList = ({
   };
 
   const validateSorting = () => {
-    formState = getValues();
+    const formState = getValues();
     return (
       // All left empty
       formState.sortingOrigin === null ||
@@ -631,7 +629,7 @@ const FilterCandidateList = ({
                 </Typography>
               </div>
               <div>
-                {(errors.startDate || errors.endDate) && (
+                {(errors["startDate"] || errors["endDate"]) && (
                   <FormValidationError message="Invalid date range." />
                 )}
                 <div className={classes.timeRange}>
@@ -970,7 +968,7 @@ const FilterCandidateList = ({
                             );
                           }
                         }}
-                        onChange={(event, newValue: any) => {
+                        onChange={(_event, newValue: any) => {
                           if (newValue !== null) {
                             reset({
                               ...getValues(),
@@ -1131,7 +1129,7 @@ const FilterCandidateList = ({
                 <Typography variant="h6" className={classes.title}>
                   Annotation Sorting
                 </Typography>
-                {errors.sortingOrigin && (
+                {errors["sortingOrigin"] && (
                   <FormValidationError message="All sorting fields must be left empty or all filled out" />
                 )}
                 <div className={classes.annotationSorting}>
@@ -1149,7 +1147,7 @@ const FilterCandidateList = ({
                           options={Object.keys(availableAnnotationsInfo || [])}
                           style={{ minWidth: "100%" }}
                           value={value}
-                          onChange={(event, newValue) => {
+                          onChange={(_event, newValue) => {
                             if (newValue === null) {
                               reset({
                                 ...getValues(),
@@ -1194,7 +1192,7 @@ const FilterCandidateList = ({
                           options={annotationSortingKeyOptions}
                           style={{ minWidth: "100%" }}
                           value={value}
-                          onChange={(event, newValue) => {
+                          onChange={(_event, newValue) => {
                             if (newValue === null) {
                               reset({
                                 ...getValues(),
@@ -1246,7 +1244,7 @@ const FilterCandidateList = ({
                             }
                             return "None";
                           }}
-                          onChange={(event, newValue) => {
+                          onChange={(_event, newValue) => {
                             onChange(newValue);
                           }}
                           renderInput={(params) => (

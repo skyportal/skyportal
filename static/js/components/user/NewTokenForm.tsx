@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 
 import TextField from "@mui/material/TextField";
 import Checkbox from "@mui/material/Checkbox";
@@ -43,7 +43,7 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
 
   const onSubmit = async (data: any) => {
     const selectedACLs = availableAcls?.filter(
-      (include, idx) => data.acls[idx],
+      (_include, idx) => data.acls[idx],
     );
     data.acls = selectedACLs;
 
@@ -74,8 +74,8 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
                 label="Token name"
                 {...register("name", { required: true })}
                 name="name"
-                error={!!errors.name}
-                helperText={errors.name ? "Required" : ""}
+                error={!!errors["name"]}
+                helperText={errors["name"] ? "Required" : ""}
               />
             </Box>
             <Box>

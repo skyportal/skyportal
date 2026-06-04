@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -49,7 +49,7 @@ interface ReportItemProps {
 
 const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
   const dispatch = useAppDispatch();
-  const reportItems = useAppSelector((state) => state.scanReportItems);
+  const reportItems = useAppSelector((state) => state["scanReportItems"]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<any>(null);

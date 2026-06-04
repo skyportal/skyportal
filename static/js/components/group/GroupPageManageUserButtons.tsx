@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -62,9 +62,9 @@ const ManageUserButtons = ({
 
   const canSave = (usr: any) => {
     const matchingGroupUser = group?.users?.filter(
-      (groupUser) => groupUser.id === usr.id,
+      (groupUser) => groupUser["id"] === usr.id,
     )[0];
-    return Boolean(matchingGroupUser?.can_save);
+    return Boolean(matchingGroupUser?.["can_save"]);
   };
 
   const toggleUserAdmin = async (usr: any) => {

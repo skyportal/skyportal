@@ -270,15 +270,15 @@ export function addComment(formData: Record<string, any>) {
         resolve({ body: filereader.result, name: file.name });
     });
   }
-  if (formData.attachment) {
+  if (formData["attachment"]) {
     return (dispatch: AppDispatch) => {
-      fileReaderPromise(formData.attachment).then((fileData) => {
-        formData.attachment = fileData;
+      fileReaderPromise(formData["attachment"]).then((fileData) => {
+        formData["attachment"] = fileData;
 
-        if (formData.spectrum_id) {
+        if (formData["spectrum_id"]) {
           dispatch(
             API.POST(
-              `/api/spectra/${formData.spectrum_id}/comments`,
+              `/api/spectra/${formData["spectrum_id"]}/comments`,
               ADD_COMMENT,
               formData,
             ),
@@ -286,7 +286,7 @@ export function addComment(formData: Record<string, any>) {
         } else {
           dispatch(
             API.POST(
-              `/api/sources/${formData.obj_id}/comments`,
+              `/api/sources/${formData["obj_id"]}/comments`,
               ADD_COMMENT,
               formData,
             ),
@@ -295,15 +295,15 @@ export function addComment(formData: Record<string, any>) {
       });
     };
   }
-  if (formData.spectrum_id) {
+  if (formData["spectrum_id"]) {
     return API.POST(
-      `/api/spectra/${formData.spectrum_id}/comments`,
+      `/api/spectra/${formData["spectrum_id"]}/comments`,
       ADD_COMMENT,
       formData,
     );
   }
   return API.POST(
-    `/api/sources/${formData.obj_id}/comments`,
+    `/api/sources/${formData["obj_id"]}/comments`,
     ADD_COMMENT,
     formData,
   );
@@ -362,15 +362,15 @@ export function editComment(
         resolve({ body: filereader.result, name: file.name });
     });
   }
-  if (formData.attachment) {
+  if (formData["attachment"]) {
     return (dispatch: AppDispatch) => {
-      fileReaderPromise(formData.attachment).then((fileData) => {
-        formData.attachment = fileData;
+      fileReaderPromise(formData["attachment"]).then((fileData) => {
+        formData["attachment"] = fileData;
 
-        if (formData.spectrum_id) {
+        if (formData["spectrum_id"]) {
           dispatch(
             API.PUT(
-              `/api/spectra/${formData.spectrum_id}/comments/${commentID}`,
+              `/api/spectra/${formData["spectrum_id"]}/comments/${commentID}`,
               EDIT_COMMENT,
               formData,
             ),
@@ -378,7 +378,7 @@ export function editComment(
         } else {
           dispatch(
             API.PUT(
-              `/api/sources/${formData.obj_id}/comments/${commentID}`,
+              `/api/sources/${formData["obj_id"]}/comments/${commentID}`,
               EDIT_COMMENT,
               formData,
             ),
@@ -387,15 +387,15 @@ export function editComment(
       });
     };
   }
-  if (formData.spectrum_id) {
+  if (formData["spectrum_id"]) {
     return API.PUT(
-      `/api/spectra/${formData.spectrum_id}/comments/${commentID}`,
+      `/api/spectra/${formData["spectrum_id"]}/comments/${commentID}`,
       EDIT_COMMENT,
       formData,
     );
   }
   return API.PUT(
-    `/api/sources/${formData.obj_id}/comments/${commentID}`,
+    `/api/sources/${formData["obj_id"]}/comments/${commentID}`,
     EDIT_COMMENT,
     formData,
   );
@@ -436,6 +436,10 @@ export function fetchSource(
     includeGCNCrossmatches: true,
     includeGCNNotes: true,
     includeCandidates: true,
+    // Aggregate classifications across meta-object (SuperObj) members, with
+    // per-source provenance. No-ops for non-meta sources (mirrors the
+    // includeSuperObjsPhotometry flag on the photometry endpoint).
+    includeSuperObjs: true,
   };
   const queryString = new URLSearchParams(
     urlParams as unknown as Record<string, string>,
@@ -448,9 +452,9 @@ export function checkSource(
   params: Record<string, any>,
   actionType = CHECK_SOURCE,
 ) {
-  const queryParams = params.nameOnly
+  const queryParams = params["nameOnly"]
     ? ""
-    : `?ra=${params.ra}&dec=${params.dec}&radius=0.0003`;
+    : `?ra=${params["ra"]}&dec=${params["dec"]}&radius=0.0003`;
   return API.GET(`/api/source_exists/${id}${queryParams}`, actionType);
 }
 

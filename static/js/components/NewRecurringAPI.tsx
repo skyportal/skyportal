@@ -1,5 +1,3 @@
-import React from "react";
-
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -23,7 +21,7 @@ const NewRecurringAPI = () => {
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
   const allowedRecurringAPIMethods = useAppSelector(
-    (state) => state.config.allowedRecurringAPIMethods,
+    (state) => state["config"].allowedRecurringAPIMethods,
   );
 
   const handleSubmit = async ({ formData }: { formData: any }) => {

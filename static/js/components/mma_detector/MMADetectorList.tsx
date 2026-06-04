@@ -1,4 +1,3 @@
-import React from "react";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Typography from "@mui/material/Typography";
@@ -11,7 +10,7 @@ interface MMADetectorListProps {
 
 const MMADetectorList = ({ isMobile = false }: MMADetectorListProps) => {
   const { mmadetectorList } = useAppSelector(
-    (state) => state.mmadetectors as any,
+    (state) => state["mmadetectors"] as any,
   );
   return (
     <List>

@@ -47,7 +47,7 @@ export function deleteToken(tokenID: number | string) {
 }
 
 // Websocket message handler
-messageHandler.add((actionType: any, payload: any, dispatch: any) => {
+messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
   if (actionType === FETCH_USER_PROFILE) {
     dispatch(fetchUserProfile());
   }

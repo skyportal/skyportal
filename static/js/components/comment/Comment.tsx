@@ -1,4 +1,3 @@
-import React from "react";
 import ReactMarkdown from "react-markdown";
 import { isMobile } from "react-device-detect";
 
@@ -53,13 +52,13 @@ const Comment = ({
   hoverID = null,
   shiftID = null,
 }: CommentProps) => {
-  const spectra = useAppSelector((state) => state.spectra);
+  const spectra = useAppSelector((state) => state["spectra"]);
 
   const renderCommentText = () => {
     // Format the text to highlight mentions
     const formattedText = (text ?? "").replace(
       /(?<!\w)([@#])([\w-@]+)/g,
-      (match, symbol, username) => {
+      (_match, symbol, username) => {
         return `***${symbol}${username}***`;
       },
     );
@@ -91,31 +90,33 @@ const Comment = ({
 
   const commentMessageStyle =
     associatedResourceType === "shift"
-      ? styles.commentMessageShift
-      : styles.commentMessage;
+      ? styles["commentMessageShift"]
+      : styles["commentMessage"];
 
   return (
     <>
-      <div className={styles.commentUserAvatar}>
+      <div className={styles["commentUserAvatar"]}>
         <UserAvatar
           size={24}
-          firstName={author.first_name}
-          lastName={author.last_name}
-          username={author.username}
-          gravatarUrl={author.gravatar_url}
-          isBot={author?.is_bot || false}
+          firstName={author["first_name"]}
+          lastName={author["last_name"]}
+          username={author["username"]}
+          gravatarUrl={author["gravatar_url"]}
+          isBot={author?.["is_bot"] || false}
         />
       </div>
-      <div className={styles.commentContent}>
-        <div className={styles.commentHeader}>
-          <div className={styles.commentHeaderContent}>
-            <span className={styles.commentUser}>
-              <span className={styles.commentUserName}>{author.username}</span>
+      <div className={styles["commentContent"]}>
+        <div className={styles["commentHeader"]}>
+          <div className={styles["commentHeaderContent"]}>
+            <span className={styles["commentUser"]}>
+              <span className={styles["commentUserName"]}>
+                {author["username"]}
+              </span>
             </span>
-            <span className={styles.commentTime}>
+            <span className={styles["commentTime"]}>
               {dayjs().to(dayjs.utc(`${created_at}Z`))}
             </span>
-            <span className={styles.commentUserGroup}>
+            <span className={styles["commentUserGroup"]}>
               <Tooltip title={groups?.map((group) => group.name)?.join(", ")}>
                 <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
               </Tooltip>
@@ -160,7 +161,7 @@ const Comment = ({
           </div>
         </div>
         <div
-          className={styles.wrap}
+          className={styles["wrap"]}
           {...({
             name: `commentDiv${(spectrum_id ? "Spectrum" : "Source") + id}`,
           } as any)}

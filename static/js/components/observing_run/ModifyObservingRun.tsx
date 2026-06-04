@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -21,7 +21,9 @@ const ModifyObservingRun = ({
   run_id,
   onClose = null,
 }: ModifyObservingRunProps) => {
-  const { observingRunList } = useAppSelector((state) => state.observingRuns);
+  const { observingRunList } = useAppSelector(
+    (state) => state["observingRuns"],
+  );
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const dispatch = useAppDispatch();
 

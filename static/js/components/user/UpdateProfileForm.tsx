@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import TextField from "@mui/material/TextField";
@@ -136,8 +136,8 @@ const UpdateProfileForm = () => {
                   {...register("username", { required: true })}
                   name="username"
                   id="usernameInput"
-                  error={!!errors.username}
-                  helperText={errors.username ? "Required" : ""}
+                  error={!!errors["username"]}
+                  helperText={errors["username"] ? "Required" : ""}
                   style={{ width: "100%" }}
                 />
               </Grid>
@@ -156,8 +156,8 @@ const UpdateProfileForm = () => {
                   {...register("firstName", { required: true })}
                   name="firstName"
                   id="firstName_id"
-                  error={!!errors.firstName}
-                  helperText={errors.firstName ? "Required" : ""}
+                  error={!!errors["firstName"]}
+                  helperText={errors["firstName"] ? "Required" : ""}
                   style={{ width: "100%" }}
                 />
               </Grid>
@@ -211,7 +211,7 @@ const UpdateProfileForm = () => {
                     render={({ field: { onChange, value } }) => (
                       <Autocomplete
                         multiple
-                        onChange={(e, data) => onChange(data)}
+                        onChange={(_e, data) => onChange(data)}
                         value={value}
                         options={profile?.affiliations?.map((aff: any) => aff)}
                         filterOptions={(options, params) => {
@@ -251,7 +251,7 @@ const UpdateProfileForm = () => {
                       />
                     )}
                     control={control}
-                    {...({ error: !!errors.affiliations } as any)}
+                    {...({ error: !!errors["affiliations"] } as any)}
                     defaultValue={profile?.affiliations}
                   />
                 </Grid>

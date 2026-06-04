@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Paper from "@mui/material/Paper";
 import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";

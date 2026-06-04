@@ -705,9 +705,7 @@ def test_load_scanning_profile(
     driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
     driver.wait_for_xpath('//div[contains(text(), "1.0")]')
 
-    # unload
-    driver.click_xpath('//span[@data-testid="loaded_0"]')
-    # load
+    # The latest (second) one is the default. Click to load the first instead.
     driver.click_xpath('//span[@data-testid="loaded_0"]')
 
     # Navigate back to scanning page and check that form is populated properly

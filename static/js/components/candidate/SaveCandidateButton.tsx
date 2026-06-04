@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -102,7 +102,7 @@ const SaveCandidateButton = ({
   const validateGroups = () => {
     const formState = getValues();
     return (
-      formState.group_ids?.filter((value: any) => Boolean(value)).length >= 1
+      formState["group_ids"]?.filter((value: any) => Boolean(value)).length >= 1
     );
   };
 
@@ -110,11 +110,14 @@ const SaveCandidateButton = ({
     setIsSubmitting(true);
     data.id = candidate.id;
     const groupIDs = userGroups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs?.filter((ID, idx) => data.group_ids[idx]);
+    const selectedGroupIDs = groupIDs?.filter(
+      (_ID, idx) => data.group_ids[idx],
+    );
     data.group_ids = selectedGroupIDs;
     const selectedGroupNames: string[] = [];
     data.group_ids?.forEach((id: number) => {
-      selectedGroupNames.push(groupLookUp[id].name);
+      const groupName = groupLookUp[id]?.name;
+      if (groupName) selectedGroupNames.push(groupName);
     });
     data.refresh_source = false;
     const result: any = await dispatch(sourceActions.saveSource(data));
@@ -152,12 +155,13 @@ const SaveCandidateButton = ({
         group_ids:
           index === 0
             ? filterGroups.map((g) => g.id)
-            : [filterGroups[index - 2].id],
+            : [filterGroups[index - 2]!.id],
         refresh_source: false,
       };
       const selectedGroupNames: string[] = [];
       data.group_ids?.forEach((id: number) => {
-        selectedGroupNames.push(groupLookUp[id].name);
+        const groupName = groupLookUp[id]?.name;
+        if (groupName) selectedGroupNames.push(groupName);
       });
       const result: any = await dispatch(sourceActions.saveSource(data));
       if (result.status === "success") {
@@ -256,7 +260,7 @@ const SaveCandidateButton = ({
         <DialogTitle>Select one or more groups:</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(onSubmitGroupSelectSave)}>
-            {errors.group_ids && (
+            {errors["group_ids"] && (
               <FormValidationError message="Select at least one group." />
             )}
             {userGroups.map((userGroup, idx) => (

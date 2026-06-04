@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
 import Select from "@mui/material/Select";
@@ -39,10 +39,10 @@ const QueueAPIDisplay = () => {
   const [queueList, setQueueList] = useState<string[]>(["None"]);
   const [selectedQueueName, setSelectedQueueName] = useState("None");
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const { allocationListApiObsplan } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   );
   const allGroups = useAppSelector((state) => state.groups.all);
 

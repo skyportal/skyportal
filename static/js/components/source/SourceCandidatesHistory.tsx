@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import HistoryIcon from "@mui/icons-material/History";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -49,7 +49,7 @@ const SourceCandidatesHistory = ({
   candidates = [],
 }: SourceCandidatesHistoryProps) => {
   const { classes } = useStyles();
-  const streams = useAppSelector((state) => state.streams);
+  const streams = useAppSelector((state) => state["streams"]);
   const { userAccessible } = useAppSelector((state) => state.groups);
 
   const [search, setSearch] = useState("");

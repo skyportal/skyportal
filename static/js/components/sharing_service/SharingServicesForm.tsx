@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import validator from "@rjsf/validator-ajv8";
 import { withTheme } from "@rjsf/core";
 
@@ -26,7 +26,7 @@ import * as streamsActions from "../../ducks/streams";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
 
-const Form = withTheme(CustomCheckboxWidgetMuiTheme);
+const Form = withTheme(CustomCheckboxWidgetMuiTheme as any);
 
 interface SharingServicesDialogProps {
   obj_id: string;
@@ -40,16 +40,16 @@ const SharingServicesDialog = ({
   setDialogOpen,
 }: SharingServicesDialogProps) => {
   const dispatch = useAppDispatch();
-  const { users: allUsers } = useAppSelector((state) => state.users);
+  const { users: allUsers } = useAppSelector((state) => state["users"]);
   const currentUser = useAppSelector((state) => state.profile);
-  const streams = useAppSelector((state) => state.streams);
+  const streams = useAppSelector((state) => state["streams"]);
   const allowedInstrumentsForSharing = useAppSelector(
-    (state) => state.config.allowedInstrumentsForSharing,
+    (state) => state["config"].allowedInstrumentsForSharing,
   );
   const isNoAffiliation = !currentUser?.affiliations?.length;
 
   const { sharingServicesList, loading } = useAppSelector(
-    (state) => state.sharingServices,
+    (state) => state["sharingServices"],
   );
   const [selectedSharingServiceId, setselectedSharingServiceId] =
     useState<any>(null);
@@ -64,8 +64,8 @@ const SharingServicesDialog = ({
   const [SharingRequestInProcess, setSharingRequestInProcess] = useState(false);
   const [dataFetched, setDataFetched] = useState(false);
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
 
   const selectedSharingService = sharingServicesList?.find(
     (b: any) => b.id === selectedSharingServiceId,
@@ -367,7 +367,7 @@ const SharingServicesDialog = ({
       <Form
         schema={formSchema}
         uiSchema={uiSchema}
-        validator={validator}
+        validator={validator as any}
         onSubmit={handleSubmit as any}
         disabled={SharingRequestInProcess}
         customValidate={validate}

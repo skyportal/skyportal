@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 import { makeStyles } from "tss-react/mui";
@@ -183,7 +183,7 @@ const CustomSortToolbar = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const { selectedAnnotationSortOptions } = useAppSelector(
-    (state) => state.candidates,
+    (state) => state["candidates"],
   );
 
   const handleSort = async () => {
@@ -522,15 +522,15 @@ const CandidateInfo = ({
               <b>Last detected: </b>
               <span>
                 {
-                  String(candidateObj.last_detected_at)
-                    .split(".")[0]
-                    .split("T")[1]
+                  (
+                    String(candidateObj.last_detected_at).split(".")[0] ?? ""
+                  ).split("T")[1]
                 }
                 &nbsp;&nbsp;
                 {
-                  String(candidateObj.last_detected_at)
-                    .split(".")[0]
-                    .split("T")[0]
+                  (
+                    String(candidateObj.last_detected_at).split(".")[0] ?? ""
+                  ).split("T")[0]
                 }
               </span>
             </div>
@@ -747,7 +747,7 @@ const CandidateList = () => {
     totalMatches,
     queryID,
     selectedAnnotationSortOptions,
-  } = useAppSelector((state) => state.candidates);
+  } = useAppSelector((state) => state["candidates"]);
 
   const [sortOrder, setSortOrder] = useState(
     selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null,
@@ -766,11 +766,11 @@ const CandidateList = () => {
   );
 
   const availableAnnotationsInfo = useAppSelector(
-    (state) => state.candidates.annotationsInfo,
+    (state) => state["candidates"].annotationsInfo,
   );
 
   const filterFormData = useAppSelector(
-    (state) => state.candidates.filterFormData,
+    (state) => state["candidates"].filterFormData,
   );
 
   const dispatch = useAppDispatch();

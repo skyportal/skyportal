@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -238,7 +238,7 @@ const TagManagement = () => {
       headerName: "Created",
       flex: 1,
       minWidth: 120,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.created_at ? new Date(row.created_at).toLocaleDateString() : "N/A",
     },
     {

@@ -1,5 +1,3 @@
-import React from "react";
-
 import * as profileActions from "../../../ducks/profile";
 import { useAppDispatch, useAppSelector } from "../../../types/hooks";
 import UserPreferencesHeader from "./UserPreferencesHeader";
@@ -7,7 +5,9 @@ import SelectWithChips from "../../SelectWithChips";
 
 const ObservabilityPreferences = () => {
   const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const { telescopeList } = useAppSelector((state) => state.telescopes) as any;
+  const { telescopeList } = useAppSelector(
+    (state) => state["telescopes"],
+  ) as any;
 
   const dispatch = useAppDispatch();
 

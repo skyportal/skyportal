@@ -1,4 +1,3 @@
-import React from "react";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -90,7 +89,7 @@ const EarthquakeList = ({ earthquakes }: EarthquakeListProps) => {
 
 const EarthquakePage = () => {
   const { earthquakeList } = useAppSelector(
-    (state) => state.earthquakes,
+    (state) => state["earthquakes"],
   ) as any;
   const currentUser = useAppSelector((state) => state.profile);
 

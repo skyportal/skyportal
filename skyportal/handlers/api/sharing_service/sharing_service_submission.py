@@ -356,6 +356,12 @@ class SharingServiceSubmissionHandler(BaseHandler):
 
                 stmt = stmt.order_by(SharingServiceSubmission.created_at.desc())
 
+                # Eager-load each submission's obj (we only read tns_name
+                # below) to avoid an N+1 query per submission.
+                stmt = stmt.options(
+                    joinedload(SharingServiceSubmission.obj).load_only(Obj.tns_name)
+                )
+
                 if include_payload:
                     stmt = stmt.options(
                         sa.orm.undefer(SharingServiceSubmission.tns_payload)

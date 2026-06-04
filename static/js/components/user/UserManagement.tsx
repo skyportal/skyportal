@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import Paper from "@mui/material/Paper";
@@ -86,21 +86,21 @@ const UserManagement = () => {
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
-  const { invitationsEnabled } = useAppSelector((state) => state.config);
+  const { invitationsEnabled } = useAppSelector((state) => state["config"]);
   const currentUser = useAppSelector((state) => state.profile);
   const { users, totalMatches } = useAppSelector(
-    (state) => state.users_management,
+    (state) => state["users_management"],
   );
   // read the fetchParams from the redux store to
   // preserve state upon websocket-based updates
   const fetchParams = useAppSelector(
-    (state) => state.users_management.fetchParams,
+    (state) => state["users_management"].fetchParams,
   );
   const [tableFilterList, setTableFilterList] = useState<string[]>([]);
-  const streams = useAppSelector((state) => state.streams);
+  const streams = useAppSelector((state) => state["streams"]);
   let { all: allGroups } = useAppSelector((state) => state.groups);
-  const acls = useAppSelector((state) => state.acls);
-  const roles = useAppSelector((state) => state.roles);
+  const acls = useAppSelector((state) => state["acls"]);
+  const roles = useAppSelector((state) => state["roles"]);
   const [addUserGroupsDialogOpen, setAddUserGroupsDialogOpen] = useState(false);
   const [addUserRolesDialogOpen, setAddUserRolesDialogOpen] = useState(false);
   const [addUserACLsDialogOpen, setAddUserACLsDialogOpen] = useState(false);
@@ -151,6 +151,56 @@ const UserManagement = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataFetched, dispatch]);
+
+  const handleFilterSubmit = async (formData: any) => {
+    setQueryInProgress(true);
+    Object.keys(formData).forEach(
+      (key) => !formData[key] && delete formData[key],
+    );
+    setTableFilterList(
+      Object.entries(formData).map(([key, value]) => `${key}: ${value}`),
+    );
+    const params = {
+      ...formData,
+      pageNumber: 1,
+      numPerPage: rowsPerPage,
+      includeExpired: fetchParams.includeExpired || false,
+    };
+    dispatch(setUsersManagementFetchParams(params));
+    await dispatch(fetchUsersManagement());
+    setQueryInProgress(false);
+    // Close the filter dialog after applying the filter. Otherwise the dialog
+    // (and its own "Submit" button) stays mounted, which both blocks the table
+    // underneath and causes the unscoped `//*[text()="Submit"]` selectors used
+    // by the action dialogs to match the leftover filter Submit instead.
+    setFilterOpen(false);
+  };
+
+  const handleFilterChipDelete = (chip: string) => {
+    const remaining = tableFilterList.filter((c) => c !== chip);
+    // Convert remaining chip filter list to filter form data
+    const data: any = {};
+    remaining.forEach((filterChip) => {
+      const [key, value] = filterChip.split(": ");
+      if (key) {
+        data[key] = value;
+      }
+    });
+    handleFilterSubmit(data);
+  };
+
+  const handleToggleExpiredUsers = async (event: any) => {
+    const newValue = event.target.checked;
+    dispatch(
+      setUsersManagementFetchParams({
+        ...fetchParams,
+        includeExpired: newValue,
+      }),
+    );
+    setQueryInProgress(true);
+    await dispatch(fetchUsersManagement());
+    setQueryInProgress(false);
+  };
 
   // Memoize the toolbar so it keeps a stable component identity across the
   // re-renders triggered by server-side data loading. Without this, the inline
@@ -222,22 +272,22 @@ const UserManagement = () => {
 
   const validateGroups = () => {
     const formState = getValues();
-    return formState.groups.length >= 1;
+    return formState["groups"].length >= 1;
   };
 
   const validateStreams = () => {
     const formState = getValues();
-    return formState.streams.length >= 1;
+    return formState["streams"].length >= 1;
   };
 
   const validateACLs = () => {
     const formState = getValues();
-    return formState.acls.length >= 1;
+    return formState["acls"].length >= 1;
   };
 
   const validateRoles = () => {
     const formState = getValues();
-    return formState.roles.length >= 1;
+    return formState["roles"].length >= 1;
   };
 
   const handleAddUserToGroups = async (formData: any) => {
@@ -711,41 +761,6 @@ const UserManagement = () => {
     </div>
   );
 
-  const handleFilterSubmit = async (formData: any) => {
-    setQueryInProgress(true);
-    Object.keys(formData).forEach(
-      (key) => !formData[key] && delete formData[key],
-    );
-    setTableFilterList(
-      Object.entries(formData).map(([key, value]) => `${key}: ${value}`),
-    );
-    const params = {
-      ...formData,
-      pageNumber: 1,
-      numPerPage: rowsPerPage,
-      includeExpired: fetchParams.includeExpired || false,
-    };
-    dispatch(setUsersManagementFetchParams(params));
-    await dispatch(fetchUsersManagement());
-    setQueryInProgress(false);
-    // Close the filter dialog after applying the filter. Otherwise the dialog
-    // (and its own "Submit" button) stays mounted, which both blocks the table
-    // underneath and causes the unscoped `//*[text()="Submit"]` selectors used
-    // by the action dialogs to match the leftover filter Submit instead.
-    setFilterOpen(false);
-  };
-
-  const handleFilterChipDelete = (chip: string) => {
-    const remaining = tableFilterList.filter((c) => c !== chip);
-    // Convert remaining chip filter list to filter form data
-    const data: any = {};
-    remaining.forEach((filterChip) => {
-      const [key, value] = filterChip.split(": ");
-      data[key] = value;
-    });
-    handleFilterSubmit(data);
-  };
-
   const handlePageChange = async (page: number, numPerPage: number) => {
     setQueryInProgress(true);
     const params = { ...fetchParams, numPerPage, pageNumber: page + 1 };
@@ -786,19 +801,6 @@ const UserManagement = () => {
       name: SERVER_SORT_FIELD[field] || field,
       direction: sort,
     });
-  };
-
-  const handleToggleExpiredUsers = async (event: any) => {
-    const newValue = event.target.checked;
-    dispatch(
-      setUsersManagementFetchParams({
-        ...fetchParams,
-        includeExpired: newValue,
-      }),
-    );
-    setQueryInProgress(true);
-    await dispatch(fetchUsersManagement());
-    setQueryInProgress(false);
   };
 
   const customFilterDisplay = () => {
@@ -1014,7 +1016,7 @@ const UserManagement = () => {
         <DialogTitle>{`Add user ${clickedUser?.username} to selected groups:`}</DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(handleAddUserToGroups)}>
-            {!!errors.groups && (
+            {!!errors["groups"] && (
               <FormValidationError message="Please select at least one group" />
             )}
             <Controller
@@ -1022,7 +1024,7 @@ const UserManagement = () => {
               render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
-                  onChange={(e, data) => onChange(data)}
+                  onChange={(_e, data) => onChange(data)}
                   value={value}
                   options={allGroups?.filter(
                     (g) =>
@@ -1036,7 +1038,7 @@ const UserManagement = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      error={!!errors.groups}
+                      error={!!errors["groups"]}
                       variant="outlined"
                       label="Select Groups"
                       data-testid="addUserToGroupsTextField"
@@ -1071,7 +1073,7 @@ const UserManagement = () => {
         </DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(handleAddUserToStreams)}>
-            {!!errors.streams && (
+            {!!errors["streams"] && (
               <FormValidationError message="Please select at least one stream" />
             )}
             <Controller
@@ -1079,7 +1081,7 @@ const UserManagement = () => {
               render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
-                  onChange={(e, data) => onChange(data)}
+                  onChange={(_e, data) => onChange(data)}
                   value={value}
                   options={streams?.filter(
                     (s: any) =>
@@ -1093,7 +1095,7 @@ const UserManagement = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      error={!!errors.streams}
+                      error={!!errors["streams"]}
                       variant="outlined"
                       label="Select Streams"
                       data-testid="addUserToStreamsTextField"
@@ -1128,7 +1130,7 @@ const UserManagement = () => {
         </DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(handleAddUserACLs)}>
-            {!!errors.acls && (
+            {!!errors["acls"] && (
               <FormValidationError message="Please select at least one ACL" />
             )}
             <Controller
@@ -1136,7 +1138,7 @@ const UserManagement = () => {
               render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
-                  onChange={(e, data) => onChange(data)}
+                  onChange={(_e, data) => onChange(data)}
                   value={value}
                   options={acls?.filter(
                     (acl: any) => !clickedUser?.permissions?.includes(acl),
@@ -1147,7 +1149,7 @@ const UserManagement = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      error={!!errors.acls}
+                      error={!!errors["acls"]}
                       variant="outlined"
                       label="Select ACLs"
                       data-testid="addUserACLsTextField"
@@ -1187,7 +1189,7 @@ const UserManagement = () => {
               render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
-                  onChange={(e, data) => onChange(data)}
+                  onChange={(_e, data) => onChange(data)}
                   value={value}
                   options={clickedUser?.affiliations?.map((aff: any) => aff)}
                   filterOptions={(options, params) => {
@@ -1254,7 +1256,7 @@ const UserManagement = () => {
         </DialogTitle>
         <DialogContent>
           <form onSubmit={handleSubmit(handleAddUserRoles)}>
-            {!!errors.roles && (
+            {!!errors["roles"] && (
               <FormValidationError message="Please select at least one role" />
             )}
             <Controller
@@ -1262,7 +1264,7 @@ const UserManagement = () => {
               render={({ field: { onChange, value } }) => (
                 <Autocomplete
                   multiple
-                  onChange={(e, data) => onChange(data)}
+                  onChange={(_e, data) => onChange(data)}
                   value={value}
                   options={roles?.filter(
                     (role: any) => !clickedUser?.roles?.includes(role.id),
@@ -1274,7 +1276,7 @@ const UserManagement = () => {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      error={!!errors.roles}
+                      error={!!errors["roles"]}
                       variant="outlined"
                       label="Select Roles"
                     />

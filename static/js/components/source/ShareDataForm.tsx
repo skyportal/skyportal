@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
 import { useTheme } from "@mui/material/styles";
@@ -86,7 +86,7 @@ const DeleteSpectrumButton = ({
         aria-labelledby="simple-modal-title"
         aria-describedby="simple-modal-description"
         onClose={() => setOpen(false)}
-        className={classes.detailedSpecButton}
+        className={classes["detailedSpecButton"]}
       >
         <DialogContent>
           <div>
@@ -212,17 +212,6 @@ const createSpecRow = (
   external_pi,
 });
 
-const photHeadCells = [
-  { name: "id", label: "ID" },
-  { name: "mjd", label: "MJD" },
-  { name: "mag", label: "Mag" },
-  { name: "magerr", label: "Mag Error" },
-  { name: "limiting_mag", label: "Limiting Mag" },
-  { name: "instrument", label: "Instrument" },
-  { name: "filter", label: "Filter" },
-  { name: "groups", label: "Currently visible to" },
-];
-
 const useStyles = makeStyles()(() => ({
   groupSelect: {
     width: "20rem",
@@ -237,7 +226,7 @@ interface SpectrumRowProps {
 
 const SpectrumRow = ({ spectrumID, route, annotations }: SpectrumRowProps) => {
   const { classes: styles } = useSourceStyles() as { classes: any };
-  const spectra = useAppSelector((state) => state.spectra)[route.id] || [];
+  const spectra = useAppSelector((state) => state["spectra"])[route.id] || [];
 
   return (
     <div style={{ width: "100%" }}>
@@ -308,8 +297,8 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { all: groups } = useAppSelector((state) => state.groups);
-  const photometry = useAppSelector((state) => state.photometry);
-  const spectra = useAppSelector((state) => state.spectra);
+  const photometry = useAppSelector((state) => state["photometry"]);
+  const spectra = useAppSelector((state) => state["spectra"]);
 
   const {
     handleSubmit,
@@ -327,7 +316,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
 
   const validateGroups = () => {
     const formState = getValues();
-    return formState.groups.length >= 1;
+    return formState["groups"].length >= 1;
   };
 
   const onSubmit = async (groupsFormData: any) => {
@@ -528,7 +517,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
       filterable: false,
       hideable: false,
       disableColumnMenu: true,
-      colSpan: (value: any, row: any) => (row.__detail ? 100 : 1),
+      colSpan: (_value: any, row: any) => (row.__detail ? 100 : 1),
       renderCell: (params: any) => {
         if (params.row.__detail) {
           const spec = params.row.__source;
@@ -780,7 +769,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
       <br />
       <div>
         <form onSubmit={handleSubmit(onSubmit)}>
-          {!!errors.groups && (
+          {!!errors["groups"] && (
             <FormValidationError message="Please select at least one group/user" />
           )}
           <Controller
@@ -791,13 +780,13 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
                 id="dataSharingFormGroupsSelect"
                 options={groups}
                 value={value}
-                onChange={(e, data) => onChange(data)}
+                onChange={(_e, data) => onChange(data)}
                 getOptionLabel={(group: any) => group.name}
                 filterSelectedOptions
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    error={!!errors.groups}
+                    error={!!errors["groups"]}
                     variant="outlined"
                     label="Select Groups/Users"
                     className={classes.groupSelect}

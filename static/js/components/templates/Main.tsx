@@ -159,7 +159,7 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
       store.dispatch(hydrationActions.verifyHydration());
     }, 1400);
     setTimeout(() => {
-      const { hydratedList, hydrated } = store.getState().hydration;
+      const { hydratedList, hydrated } = store.getState()["hydration"];
       if (hydrated === true) {
         // fully hydrated, do nothing except dashboard refresh
         store.dispatch(hydrate(true) as any);

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import Popover from "@mui/material/Popover";

@@ -13,9 +13,11 @@ from ...models import (
     Group,
     Obj,
     SourceLabel,
+    SuperObj,
     Taxonomy,
     User,
 )
+from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -621,6 +623,15 @@ class ObjClassificationHandler(BaseHandler):
             required: true
             schema:
               type: string
+          - in: query
+            name: includeSuperObjs
+            required: false
+            schema:
+              type: boolean
+            description: |
+              If true and the obj is linked to other objs via a SuperObj
+              (meta-object), return the union of classifications across all
+              linked objs. Each entry carries its obj_id for provenance.
         responses:
           200:
             content:
@@ -631,17 +642,41 @@ class ObjClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        include_super_objs = str_to_bool(
+            self.get_query_argument("includeSuperObjs", "false"), default=False
+        )
 
         with self.Session() as session:
+            # Meta-object aggregation: expand to every obj linked through a
+            # SuperObj (mirrors the photometry SuperObjs aggregation). RLS is
+            # preserved because Classification.select(user) filters per-row, so
+            # entries on a linked obj the user cannot read are excluded.
+            obj_ids = {obj_id}
+            if include_super_objs:
+                super_objs = (
+                    session.scalars(
+                        sa.select(SuperObj).where(SuperObj.objs.any(Obj.id == obj_id))
+                    )
+                    .unique()
+                    .all()
+                )
+                for super_obj in super_objs:
+                    obj_ids.update({linked_obj.id for linked_obj in super_obj.objs})
+
             classifications = (
                 session.scalars(
                     Classification.select(session.user_or_token).where(
-                        Classification.obj_id == obj_id
+                        Classification.obj_id.in_(obj_ids)
                     )
                 )
                 .unique()
                 .all()
             )
+            if include_super_objs:
+                # Most-recent-first across the union; obj_id preserves provenance.
+                classifications = sorted(
+                    classifications, key=lambda c: c.created_at, reverse=True
+                )
 
             classifications_json = []
             for classification in classifications:

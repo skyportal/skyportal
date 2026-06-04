@@ -38,13 +38,13 @@ const FETCH_SPATIAL_CATALOG_SOURCES_OK =
 
 const addFilterParamDefaults = (filterParams: Record<string, any>) => {
   if (!Object.keys(filterParams).includes("numPerPage")) {
-    filterParams.numPerPage = 10;
+    filterParams["numPerPage"] = 10;
   }
-  filterParams.includeColorMagnitude = true;
-  filterParams.includeThumbnails = true;
-  filterParams.includeDetectionStats = true;
-  filterParams.includeLabellers = true;
-  filterParams.includeHosts = true;
+  filterParams["includeColorMagnitude"] = true;
+  filterParams["includeThumbnails"] = true;
+  filterParams["includeDetectionStats"] = true;
+  filterParams["includeLabellers"] = true;
+  filterParams["includeHosts"] = true;
 };
 
 export function fetchSources(filterParams: Record<string, any> = {}) {
@@ -61,13 +61,13 @@ export function fetchPendingGroupSources(
   filterParams: Record<string, any> = {},
 ) {
   addFilterParamDefaults(filterParams);
-  filterParams.pendingOnly = true;
+  filterParams["pendingOnly"] = true;
   return API.GET("/api/sources", FETCH_PENDING_GROUP_SOURCES, filterParams);
 }
 
 export function fetchFavoriteSources(filterParams: Record<string, any> = {}) {
   addFilterParamDefaults(filterParams);
-  filterParams.listName = "favorites";
+  filterParams["listName"] = "favorites";
   return API.GET("/api/sources", FETCH_FAVORITE_SOURCES, filterParams);
 }
 
@@ -76,17 +76,17 @@ export function fetchGcnEventSources(
   filterParams: Record<string, any> = {},
 ) {
   addFilterParamDefaults(filterParams);
-  filterParams.localizationDateobs = dateobs;
+  filterParams["localizationDateobs"] = dateobs;
   if (dateobs) {
     // operator ??= is a nullish coalescing operator, which assigns a value to a variable if it is null or undefined
-    filterParams.startDate ??= dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
-    filterParams.endDate ??= dayjs(dateobs)
+    filterParams["startDate"] ??= dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+    filterParams["endDate"] ??= dayjs(dateobs)
       .add(7, "day")
       .format("YYYY-MM-DD HH:mm:ss");
-    filterParams.includeLocalizationStatus ??= true;
+    filterParams["includeLocalizationStatus"] ??= true;
   }
-  filterParams.includeSourcesInGcn = true;
-  filterParams.includeGeoJSON = true;
+  filterParams["includeSourcesInGcn"] = true;
+  filterParams["includeGeoJSON"] = true;
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams, false);
 }
 
@@ -96,8 +96,8 @@ export function fetchSpatialCatalogSources(
   filterParams: Record<string, any> = {},
 ) {
   addFilterParamDefaults(filterParams);
-  filterParams.spatialCatalogName = catalogName;
-  filterParams.spatialCatalogEntryName = entryName;
+  filterParams["spatialCatalogName"] = catalogName;
+  filterParams["spatialCatalogEntryName"] = entryName;
   return API.GET("/api/sources", FETCH_SPATIAL_CATALOG_SOURCES, filterParams);
 }
 
@@ -174,7 +174,7 @@ const reducer = (
       return {
         ...state,
         latest: {
-          ...state.latest,
+          ...state["latest"],
           queryInProgress: action.parameters.body.pageNumber === undefined,
         },
       };
@@ -188,7 +188,7 @@ const reducer = (
     case FETCH_SOURCES_FAIL: {
       return {
         ...state,
-        latest: { ...state.latest, queryInProgress: false },
+        latest: { ...state["latest"], queryInProgress: false },
       };
     }
     case FETCH_SAVED_GROUP_SOURCES_OK: {

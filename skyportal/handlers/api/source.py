@@ -88,7 +88,7 @@ from ...utils.offset import (
     get_nearby_offset_stars,
     source_image_parameters,
 )
-from ...utils.parse import get_list_typed, get_page_and_n_per_page
+from ...utils.parse import get_list_typed, get_page_and_n_per_page, str_to_bool
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
 from .candidate.candidate import (
@@ -201,6 +201,7 @@ async def get_source(
     include_candidates=False,
     include_associated_objs=False,
     include_tags=False,
+    include_super_objs=False,
 ):
     """Query source from database.
     obj_id: int
@@ -386,6 +387,18 @@ async def get_source(
         source_info = recursive_to_dict(source_info)
         session.commit()
 
+    # Meta-object aggregation: when include_super_objs is set, expand to every
+    # Obj linked to this one through a SuperObj, so the per-source data products
+    # (comments, annotations, classifications, tags) are each returned as one
+    # provenance-tagged union (every entry keeps its obj_id). Mirrors the
+    # photometry SuperObjs aggregation. Defaults to just this obj, so the
+    # non-aggregated path is byte-for-byte unchanged. RLS is preserved because
+    # each query still goes through Model.select(user) (per-row access predicates).
+    aggregated_obj_ids = {obj_id}
+    if include_super_objs:
+        for super_obj in s.super_objs:
+            aggregated_obj_ids.update({linked_obj.id for linked_obj in super_obj.objs})
+
     if include_comments:
         comments = (
             session.scalars(
@@ -394,7 +407,7 @@ async def get_source(
                     options=[
                         joinedload(Comment.author),
                     ],
-                ).where(Comment.obj_id == obj_id)
+                ).where(Comment.obj_id.in_(aggregated_obj_ids))
             )
             .unique()
             .all()
@@ -458,7 +471,7 @@ async def get_source(
         session.scalars(
             Annotation.select(user)
             .options(joinedload(Annotation.author))
-            .where(Annotation.obj_id == obj_id)
+            .where(Annotation.obj_id.in_(aggregated_obj_ids))
         )
         .unique()
         .all(),
@@ -467,13 +480,16 @@ async def get_source(
     source_info["annotations"] = [
         {**annotation.to_dict(), "type": "source"} for annotation in annotations
     ]
-    readable_classifications = (
-        session.scalars(
-            Classification.select(user).where(Classification.obj_id == obj_id)
-        )
-        .unique()
-        .all()
+    classification_query = Classification.select(user).where(
+        Classification.obj_id.in_(aggregated_obj_ids)
     )
+    readable_classifications = session.scalars(classification_query).unique().all()
+    if include_super_objs:
+        # Most-recent-first across the union; obj_id on each entry preserves the
+        # per-survey provenance the frontend renders.
+        readable_classifications = sorted(
+            readable_classifications, key=lambda c: c.created_at, reverse=True
+        )
 
     readable_classifications_json = []
     for classification in readable_classifications:
@@ -600,7 +616,7 @@ async def get_source(
             )
     if include_tags:
         tags = session.scalars(
-            ObjTag.select(user).where(ObjTag.obj_id == obj_id).distinct()
+            ObjTag.select(user).where(ObjTag.obj_id.in_(aggregated_obj_ids)).distinct()
         ).all()
 
         user_group_ids = (
@@ -1798,6 +1814,12 @@ class SourceHandler(BaseHandler):
         include_candidates = self.get_query_argument("includeCandidates", False)
         include_tags = self.get_query_argument("includeTags", True)
         include_associated_objs = self.get_query_argument("includeAssociatedObjs", True)
+        # Meta-object aggregation of per-source data products (classifications,
+        # and — as they are migrated — annotations/comments/tags). Default off so
+        # the per-source view is unchanged; str_to_bool so "false" is honored.
+        include_super_objs = str_to_bool(
+            self.get_query_argument("includeSuperObjs", "false"), default=False
+        )
 
         # optional, use caching
         use_cache = self.get_query_argument("useCache", False)
@@ -1937,6 +1959,7 @@ class SourceHandler(BaseHandler):
                         include_candidates=include_candidates,
                         include_tags=include_tags,
                         include_associated_objs=include_associated_objs,
+                        include_super_objs=include_super_objs,
                     )
                 except Exception as e:
                     traceback.print_exc()

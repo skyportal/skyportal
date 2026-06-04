@@ -1,5 +1,3 @@
-import React from "react";
-
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
@@ -15,8 +13,8 @@ interface NewObservationProps {
 }
 
 const NewObservation = ({ onClose = null }: NewObservationProps) => {
-  const { instrumentList } = useAppSelector((state) => state.instruments);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const dispatch = useAppDispatch();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
