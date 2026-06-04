@@ -51,15 +51,12 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 
 def validate_fluxerr(fluxerr):
-    # marshmallow 4 no longer treats a falsy return value from a validator as a
-    # failure — validators must raise ValidationError explicitly. (Under mm3,
-    # returning False auto-raised with the default "Invalid value." message.)
     try:
         if isinstance(fluxerr, float | int | str):
             non_negative = float(fluxerr) >= 0
         else:
             non_negative = all(float(el) >= 0 for el in fluxerr)
-    except ValueError:
+    except (TypeError, ValueError):
         raise ValidationError("fluxerr must be a number or list of numbers")
     if not non_negative:
         raise ValidationError("Invalid value: fluxerr must be non-negative")
@@ -1502,6 +1499,156 @@ class DefaultFollowupRequestPost(_Schema):
         metadata={
             "description": (
                 "IDs of groups to share the results of the default follow-up request with."
+            )
+        },
+    )
+
+    default_followup_name = fields.String(
+        required=True,
+        metadata={"description": "Unique name of the default follow-up request."},
+    )
+
+    source_filter = fields.Raw(
+        required=True,
+        metadata={
+            "description": (
+                "Source filter used to decide which saved sources this default "
+                "follow-up request applies to (keys: name, group_id, origin, "
+                "classification)."
+            )
+        },
+    )
+
+    # Trigger constraints, mirroring FollowupRequestPost. When set, they are
+    # evaluated on source save and only matching requests are auto-submitted.
+    not_if_duplicates = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "If true, the request will not be submitted if the object already has a pending or completed request of the same allocation."
+            )
+        },
+    )
+
+    source_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            "description": (
+                "IDs of groups to which there must be a source for the object for the request to be submitted."
+            )
+        },
+    )
+
+    ignore_source_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            "description": (
+                "If there are any sources within radius saved to any of these groups, the request will not be submitted."
+            )
+        },
+    )
+
+    not_if_classified = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "If true, the request will not be submitted if there are any sources within radius with (human-only) classifications."
+            )
+        },
+    )
+
+    not_if_spectra_exist = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "If true, the request will not be submitted if there are any sources within radius that have spectra."
+            )
+        },
+    )
+
+    not_if_tns_classified = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "If true, the request will not be submitted if any object within radius is already classified as SN in TNS."
+            )
+        },
+    )
+
+    not_if_tns_reported = fields.Float(
+        required=False,
+        metadata={
+            "description": (
+                "If there are any sources within radius with TNS reports discovered more than this many hours ago, the request will not be submitted."
+            )
+        },
+    )
+
+    not_if_assignment_exists = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "If there are any sources within radius that are assigned to an observing run, the request will not be submitted."
+            )
+        },
+    )
+
+    ignore_allocation_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            "description": (
+                "If there are any existing pending or completed requests from these allocations within radius, the request will not be submitted."
+            )
+        },
+    )
+
+    radius = fields.Float(
+        required=False,
+        metadata={"description": "Radius (arcsec) to use when checking constraints."},
+    )
+
+    priority_order = fields.String(
+        required=False,
+        metadata={
+            "description": (
+                "Whether higher priority values mean higher ('asc', default) or "
+                "lower ('desc') observing priority. Controls whether an incoming "
+                "auto-trigger bumps an existing request's priority."
+            )
+        },
+    )
+
+    validity_days = fields.Integer(
+        required=False,
+        metadata={
+            "description": (
+                "Number of days an auto-submitted request stays valid (end_date = "
+                "start_date + validity_days). Defaults to 7. Ignored for "
+                "urgency-based instruments."
+            )
+        },
+    )
+
+    comment = fields.String(
+        required=False,
+        metadata={
+            "description": (
+                "Optional comment posted to the source when a follow-up request is "
+                "auto-submitted from this default request."
+            )
+        },
+    )
+
+    implements_update = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "Operator override: if false, never priority-bump an existing "
+                "matching request even if the instrument supports updates. "
+                "Defaults to true."
             )
         },
     )

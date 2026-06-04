@@ -31,7 +31,7 @@ from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 from matplotlib import dates
 from sqlalchemy import func, or_
-from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
+from sqlalchemy.orm import joinedload, scoped_session, selectinload, sessionmaker
 from sqlalchemy.sql import bindparam, text
 from tornado.ioloop import IOLoop
 from twilio.base.exceptions import TwilioException
@@ -400,12 +400,14 @@ async def get_source(
             aggregated_obj_ids.update({linked_obj.id for linked_obj in super_obj.objs})
 
     if include_comments:
+        # selectinload(Comment.groups) avoids an n+1 on the c.groups access below.
         comments = (
             session.scalars(
                 Comment.select(
                     user,
                     options=[
                         joinedload(Comment.author),
+                        selectinload(Comment.groups),
                     ],
                 ).where(Comment.obj_id.in_(aggregated_obj_ids))
             )
@@ -480,8 +482,14 @@ async def get_source(
     source_info["annotations"] = [
         {**annotation.to_dict(), "type": "source"} for annotation in annotations
     ]
-    classification_query = Classification.select(user).where(
-        Classification.obj_id.in_(aggregated_obj_ids)
+    # selectinload .groups / .votes to avoid an n+1 per classification below.
+    classification_query = (
+        Classification.select(user)
+        .options(
+            selectinload(Classification.groups),
+            selectinload(Classification.votes),
+        )
+        .where(Classification.obj_id.in_(aggregated_obj_ids))
     )
     readable_classifications = session.scalars(classification_query).unique().all()
     if include_super_objs:

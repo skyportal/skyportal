@@ -129,6 +129,59 @@ class DefaultFollowupRequest(Base):
         doc="Source filter for default follow-up request.",
     )
 
+    constraints = sa.Column(
+        psql.JSONB,
+        nullable=True,
+        doc=(
+            "Trigger constraints applied before auto-submitting this default "
+            "follow-up request, mirroring the constraints accepted by the manual "
+            "follow-up request API (e.g. not_if_duplicates, not_if_classified, "
+            "not_if_spectra_exist, source_group_ids, radius, ...). Null means no "
+            "constraints (always submit)."
+        ),
+    )
+
+    priority_order = sa.Column(
+        sa.String,
+        nullable=True,
+        doc=(
+            "Whether higher priority values mean higher ('asc') or lower ('desc') "
+            "observing priority. Used to decide whether an incoming auto-trigger "
+            "should bump an existing request's priority. Defaults to 'asc' when null."
+        ),
+    )
+
+    validity_days = sa.Column(
+        sa.Integer,
+        nullable=True,
+        doc=(
+            "Number of days the auto-submitted request should remain valid; sets "
+            "the request's end_date to start_date + validity_days. Defaults to 7 "
+            "when null. Ignored for urgency-based instruments (which do not use "
+            "start/end dates)."
+        ),
+    )
+
+    comment = sa.Column(
+        sa.String,
+        nullable=True,
+        doc=(
+            "Optional comment posted to the source when a follow-up request is "
+            "auto-submitted from this default request. The request priority is "
+            "appended to it."
+        ),
+    )
+
+    implements_update = sa.Column(
+        sa.Boolean,
+        nullable=True,
+        doc=(
+            "Operator override: if false, an existing matching request is never "
+            "updated (priority-bumped) by this default request even if the "
+            "instrument API supports updates. Defaults to true when null."
+        ),
+    )
+
 
 DefaultFollowupRequestTargetGroup = join_model(
     "default_followup_groups",

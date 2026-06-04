@@ -151,13 +151,11 @@ jobs:
           uvx pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Pre-warm sncosmo bandpass cache
-        # See test_api_and_frontend.yaml for the rationale: a cold cache
-        # leaves ~20 bandpasses to be fetched lazily at app startup, each
-        # blocking ~10s on astropy's urlopen. Running the warm-up once up
-        # front (with internal retries) keeps `make run`'s startup inside
-        # the 180s sleep budget below.
         run: |
           source .venv/bin/activate && PYTHONPATH=. python tools/warm_sncosmo_cache.py || true
+
+      - name: Save dependency caches
+        uses: ./.github/actions/cache-dependencies-save
 
       - name: Test loading demo data
         run: |

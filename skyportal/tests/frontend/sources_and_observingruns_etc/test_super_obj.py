@@ -113,9 +113,7 @@ def test_super_obj_classification_provenance_on_source_page(
         driver.get(f"/source/{obj1}")
         driver.wait_for_xpath(f'//h6[text()="{obj1}"]')
 
-        # Expand the Classifications accordion.
-        driver.click_xpath("//*[@id='classifications-header']")
-
+        # The Classifications accordion is defaultExpanded — no click needed.
         # The aggregated classification from the linked source is shown ...
         driver.wait_for_xpath("//*[contains(text(), 'Cepheid')]", timeout=20)
         # ... tagged with a provenance chip linking back to that source.
