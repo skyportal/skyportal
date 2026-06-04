@@ -35,7 +35,7 @@ from marshmallow.exceptions import ValidationError
 from scipy.stats import norm
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.sql.expression import cast
 from tornado.ioloop import IOLoop
 
@@ -942,8 +942,12 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
                 # that are effectively the SAME request (payload equal/subset
                 # ignoring priority & scheduling keys, and target groups
                 # overlapping or both empty) — mirrors Kowalski's dedup matching.
+                # selectinload target_groups so _same_request's r.target_groups
+                # access below doesn't fire one SELECT per existing request.
                 existing_requests = session.scalars(
-                    sa.select(FollowupRequest).where(
+                    sa.select(FollowupRequest)
+                    .options(selectinload(FollowupRequest.target_groups))
+                    .where(
                         FollowupRequest.obj_id == obj_id,
                         FollowupRequest.allocation_id == allocation_id,
                         FollowupRequest.status != "deleted",
