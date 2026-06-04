@@ -1277,8 +1277,21 @@ def insert_new_photometry_data(
         for packet in params:
             phot_stat.add_photometry_point(packet)
     else:
+        # Only fetch what full_update() reads — skips heavy JSONB (altdata),
+        # ra/dec/refs/etc. to cut row payload on large lightcurves.
         all_phot = session.scalars(
-            sa.select(Photometry).where(Photometry.obj_id == obj_id)
+            sa.select(Photometry)
+            .where(Photometry.obj_id == obj_id)
+            .options(
+                load_only(
+                    Photometry.filter,
+                    Photometry.mjd,
+                    Photometry.flux,
+                    Photometry.fluxerr,
+                    Photometry.origin,
+                    Photometry.original_user_data,
+                )
+            )
         ).all()
         phot_stat.full_update(all_phot)
         for p in all_phot:

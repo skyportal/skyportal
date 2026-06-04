@@ -66,8 +66,18 @@ class SourceGroupsHandler(BaseHandler):
             )
             if not obj:
                 return self.error(f"Obj {obj_id} not found", status=404)
-            save_or_invite_group_ids = data.get("inviteGroupIds", [])
-            unsave_group_ids = data.get("unsaveGroupIds", [])
+            # Coerce to int up front — clients (and old code paths) sometimes
+            # send these as strings, which then crashes the Source.group_id
+            # comparison against an integer column with a ProgrammingError.
+            try:
+                save_or_invite_group_ids = [
+                    int(g) for g in data.get("inviteGroupIds", [])
+                ]
+                unsave_group_ids = [int(g) for g in data.get("unsaveGroupIds", [])]
+            except (TypeError, ValueError):
+                return self.error(
+                    "inviteGroupIds and unsaveGroupIds must be lists of integers"
+                )
             if not save_or_invite_group_ids and not unsave_group_ids:
                 return self.error(
                     "Missing required parameter: one of either unsaveGroupIds or inviteGroupIds must be provided"
@@ -75,7 +85,7 @@ class SourceGroupsHandler(BaseHandler):
 
             saved_to_group_ids = []
             for save_or_invite_group_id in save_or_invite_group_ids:
-                if int(save_or_invite_group_id) in [
+                if save_or_invite_group_id in [
                     g.id for g in self.current_user.accessible_groups
                 ]:
                     active = True
@@ -193,6 +203,10 @@ class SourceGroupsHandler(BaseHandler):
         group_id = data.get("groupID")
         if group_id is None:
             return self.error("Missing required parameter: groupID")
+        try:
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error("groupID must be an integer")
         active = data.get("active")
         requested = data.get("requested")
 
