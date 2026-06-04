@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import Badge from "@mui/material/Badge";
 import InfoIcon from "@mui/icons-material/InfoOutlined";
@@ -148,7 +148,7 @@ const Notes = () => {
             {notes?.map((note, index) => {
               if (
                 index + 1 === notes.length ||
-                notes[index + 1].note !== note.note
+                notes[index + 1]?.note !== note.note
               ) {
                 const noteCount = sameNoteCount;
                 sameNoteCount = 0;

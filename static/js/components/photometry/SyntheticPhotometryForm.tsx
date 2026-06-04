@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -31,7 +31,7 @@ const SyntheticPhotometryForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const groups = useAppSelector((state) => state.groups.userAccessible);
-  const { enum_types } = useAppSelector((state) => state.enum_types);
+  const { enum_types } = useAppSelector((state) => state["enum_types"]);
 
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -30,7 +30,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
   const currentUser = useAppSelector((state) => state.profile);
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const now = dayjs();
-  const { users } = useAppSelector((state) => state.users);
+  const { users } = useAppSelector((state) => state["users"]);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({
     shift_admins: [currentUser.id],
@@ -44,7 +44,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
     if (preSelectedRange) {
       setFormData((prevData) => ({
         ...prevData,
-        ...(prevData.localTime === "local"
+        ...(prevData["localTime"] === "local"
           ? {
               start_date: format(dayjs(preSelectedRange.start_date)),
               end_date: format(dayjs(preSelectedRange.end_date)),
@@ -62,7 +62,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
       users.filter(
         (user: any) =>
           user.id === currentUser.id ||
-          (user.groups?.some((g: any) => g.id === formData.group_id) &&
+          (user.groups?.some((g: any) => g.id === formData["group_id"]) &&
             !user.is_bot),
       ),
     );
@@ -70,7 +70,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
       ...prevFormData,
       shift_admins: [currentUser.id],
     }));
-  }, [users, formData.group_id, currentUser.id]);
+  }, [users, formData["group_id"], currentUser.id]);
 
   if (!groups || groups?.length === 0) {
     return <CircularProgress />;
@@ -78,32 +78,32 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
 
   const handleSubmit = async () => {
     const dataToSubmit: Record<string, any> = {
-      group_id: formData.group_id,
-      shift_admins: formData.shift_admins,
-      name: formData.name,
-      required_users_number: formData.required_users_number,
-      description: formData.description,
-      start_date: formData.start_date,
-      end_date: formData.end_date,
+      group_id: formData["group_id"],
+      shift_admins: formData["shift_admins"],
+      name: formData["name"],
+      required_users_number: formData["required_users_number"],
+      description: formData["description"],
+      start_date: formData["start_date"],
+      end_date: formData["end_date"],
     };
 
     // Convert dates to UTC format
-    if (formData.localTime === "local") {
-      dataToSubmit.start_date = fromLocalToUtc(dataToSubmit.start_date);
-      dataToSubmit.end_date = fromLocalToUtc(dataToSubmit.end_date);
+    if (formData["localTime"] === "local") {
+      dataToSubmit["start_date"] = fromLocalToUtc(dataToSubmit["start_date"]);
+      dataToSubmit["end_date"] = fromLocalToUtc(dataToSubmit["end_date"]);
     }
 
-    const startDate = dayjs(dataToSubmit.start_date);
-    const endDate = dayjs(dataToSubmit.end_date);
+    const startDate = dayjs(dataToSubmit["start_date"]);
+    const endDate = dayjs(dataToSubmit["end_date"]);
     const shifts: Record<string, any>[] = [];
 
-    switch (formData.divide) {
+    switch (formData["divide"]) {
       case "Divide per Day": {
         const days = endDate.diff(startDate, "day");
         for (let i = 0; i <= days; i++) {
           shifts.push({
             ...dataToSubmit,
-            name: `${dataToSubmit.name} ${i + 1}/${days + 1}`,
+            name: `${dataToSubmit["name"]} ${i + 1}/${days + 1}`,
             start_date: format(startDate.add(i, "day")),
             end_date: format(startDate.add(i + 1, "day")),
           });
@@ -120,7 +120,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
             i === weeks - 1 ? endDate : startDate.add((i + 1) * 7, "day");
           shifts.push({
             ...dataToSubmit,
-            name: `${dataToSubmit.name} ${i + 1}/${weeks}`,
+            name: `${dataToSubmit["name"]} ${i + 1}/${weeks}`,
             start_date: format(start),
             end_date: format(end),
           });
@@ -129,7 +129,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
       }
 
       case "Divide per Hour": {
-        const hourCount = Number(formData.divider);
+        const hourCount = Number(formData["divider"]);
         if (!hourCount || hourCount <= 0) {
           dispatch(
             showNotification(
@@ -148,7 +148,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
               : startDate.add((i + 1) * hourCount, "hour");
           shifts.push({
             ...dataToSubmit,
-            name: `${dataToSubmit.name} ${i + 1}/${segments}`,
+            name: `${dataToSubmit["name"]} ${i + 1}/${segments}`,
             start_date: format(start),
             end_date: format(end),
           });
@@ -172,29 +172,29 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
   };
 
   function validate(_: any, errors: any) {
-    if (/\d+\/\d+$/.test(formData.name)) {
+    if (/\d+\/\d+$/.test(formData["name"])) {
       errors.name.addError(
         'Shift name cannot contain "number/number" at the end of the name, please fix.',
       );
     }
-    if (formData.localTime === "local") {
-      if (format(now) > formData.end_date) {
+    if (formData["localTime"] === "local") {
+      if (format(now) > formData["end_date"]) {
         errors.end_date.addError(
           "End date must be after current date, please fix.",
         );
       }
-      if (formData.start_date > formData.end_date) {
+      if (formData["start_date"] > formData["end_date"]) {
         errors.start_date.addError(
           "Start date must be before end date, please fix.",
         );
       }
-    } else if (formData.localTime === "UTC") {
-      if (format(now.utc()) > formData.end_date) {
+    } else if (formData["localTime"] === "UTC") {
+      if (format(now.utc()) > formData["end_date"]) {
         errors.end_date.addError(
           "End date must be after current date, please fix.",
         );
       }
-      if (formData.start_date > formData.end_date) {
+      if (formData["start_date"] > formData["end_date"]) {
         errors.start_date.addError(
           "Start date must be before end date, please fix.",
         );
@@ -327,10 +327,10 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
   const handleChange = (e: any) => {
     // Manage time conversion
     const { start_date, end_date, localTime } = e.formData;
-    if (formData.localTime === "local" && localTime === "UTC") {
+    if (formData["localTime"] === "local" && localTime === "UTC") {
       e.formData.start_date = fromLocalToUtc(start_date);
       e.formData.end_date = fromLocalToUtc(end_date);
-    } else if (formData.localTime === "UTC" && localTime === "local") {
+    } else if (formData["localTime"] === "UTC" && localTime === "local") {
       e.formData.start_date = fromUtcToLocal(start_date);
       e.formData.end_date = fromUtcToLocal(end_date);
     }

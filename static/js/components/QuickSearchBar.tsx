@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 import TextField from "@mui/material/TextField";
@@ -15,7 +15,8 @@ const ALLOWED_TYPES = [
   "Source comments",
   "GCN Events",
   "GCN comments",
-];
+] as const;
+type AllowedType = (typeof ALLOWED_TYPES)[number];
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -97,7 +98,7 @@ const QuickSearchBar = () => {
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState(ALLOWED_TYPES[0]);
+  const [type, setType] = useState<AllowedType>(ALLOWED_TYPES[0]);
 
   const debouncedInputValue = useDebouncer(inputValue, 500);
   const cache = useRef<Record<string, any>>({});
@@ -298,8 +299,8 @@ const QuickSearchBar = () => {
         // isOptionEqualToValue={(option, val) => option.name === val.name}
         getOptionLabel={(option) => option.name || ""}
         filterOptions={filterOptions}
-        onInputChange={(e, val) => setInputValue(val)}
-        onChange={(event, newValue: any, reason) => {
+        onInputChange={(_e, val) => setInputValue(val)}
+        onChange={(_event, newValue: any, reason) => {
           if (reason === "selectOption") {
             setInputValue("");
             setValue("");

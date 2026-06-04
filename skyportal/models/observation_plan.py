@@ -287,6 +287,7 @@ class EventObservationPlan(Base):
     )
 
     dateobs = sa.Column(
+        sa.DateTime,
         sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -399,6 +400,7 @@ class PlannedObservation(Base):
     instrument = relationship("Instrument")
 
     dateobs = sa.Column(
+        sa.DateTime,
         sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,

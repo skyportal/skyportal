@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import Chip from "@mui/material/Chip";
 import { makeStyles } from "tss-react/mui";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -258,7 +258,7 @@ const GcnLocalizationsTable = ({
       flex: 1,
       minWidth: 100,
       sortable: false,
-      valueGetter: (value: any, row: any) => row[name],
+      valueGetter: (_value: any, row: any) => row[name],
     })),
     {
       field: "delete",

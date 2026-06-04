@@ -154,6 +154,13 @@ jobs:
         run: |
           sed -i 's/duration = 3000/duration = 15000/g' baselayer/static/js/components/Notifications.jsx
 
+      - name: Pre-warm sncosmo bandpass cache
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python tools/warm_sncosmo_cache.py || true
+
+      - name: Save dependency caches
+        uses: ./.github/actions/cache-dependencies-save
+
       - name: Run front-end tests part 1
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
         run: |

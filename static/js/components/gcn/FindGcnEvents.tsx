@@ -58,7 +58,7 @@ const FindGcnEvents = ({
 }: FindGcnEventsProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const gcnEvents = useAppSelector((state) => state.gcnEvents) as any;
+  const gcnEvents = useAppSelector((state) => state["gcnEvents"]) as any;
 
   const [selectedEvent, setSelectedEvent] = React.useState<any>(null);
 
@@ -116,7 +116,7 @@ const FindGcnEvents = ({
               );
             }
           }}
-          onChange={(event, newValue: any) => {
+          onChange={(_event, newValue: any) => {
             if (newValue !== null) {
               setSelectedGcnEventId(newValue.id);
               setSelectedEvent(newValue);

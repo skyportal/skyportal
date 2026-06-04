@@ -5,6 +5,7 @@ import uuid
 from io import StringIO
 
 import arrow
+import astropy.utils.data
 import numpy as np
 import pandas as pd
 import sncosmo
@@ -230,7 +231,18 @@ def get_color(bandpass, format="hex"):
 
 
 def get_bandpasses_to_colors(bandpasses, colors_type="rgb"):
-    return {bandpass: get_color(bandpass, colors_type) for bandpass in bandpasses}
+    # Build per-bandpass instead of with a dict comprehension so a single
+    # broken sncosmo bandpass (occasionally produces an empty Bandpass on some
+    # runners, which makes get_effective_wavelength's downstream `np.max([])`
+    # raise) doesn't take out the whole mapping — and, by extension, app-import
+    # at module load. Skip the bad bandpass with a log line and continue.
+    out = {}
+    for bandpass in bandpasses:
+        try:
+            out[bandpass] = get_color(bandpass, colors_type)
+        except Exception as e:
+            log(f"Skipping bandpass {bandpass} in color mapping due to error: {e}")
+    return out
 
 
 def get_filters_mapper(photometry):
@@ -238,10 +250,28 @@ def get_filters_mapper(photometry):
     return get_bandpasses_to_colors(filters)
 
 
-BANDPASSES_COLORS = get_bandpasses_to_colors(ALLOWED_BANDPASSES, "rgb")
+def _safe_effective_wavelength(bandpass):
+    try:
+        return get_effective_wavelength(bandpass)
+    except Exception as e:
+        log(f"Skipping bandpass {bandpass} in wavelength mapping due to error: {e}")
+        return None
 
+
+# Build the import-time bandpass→color and bandpass→wavelength maps under a
+# short astropy `remote_timeout`. Without this, an uncached bandpass whose CDN
+# (typically SVO) is unreachable blocks for the default 10s; with ~20 such
+# bandpasses across ALLOWED_BANDPASSES the cumulative wait pushes app startup
+# past test_frontend's 180s health-check window. 2s is enough for fast hosts
+# but stops dead hosts from holding up module import.
+with astropy.utils.data.conf.set_temp("remote_timeout", 2):
+    BANDPASSES_COLORS = get_bandpasses_to_colors(ALLOWED_BANDPASSES, "rgb")
+    BANDPASSES_WAVELENGTHS = {
+        bandpass: _safe_effective_wavelength(bandpass)
+        for bandpass in ALLOWED_BANDPASSES
+    }
 BANDPASSES_WAVELENGTHS = {
-    bandpass: get_effective_wavelength(bandpass) for bandpass in ALLOWED_BANDPASSES
+    bp: w for bp, w in BANDPASSES_WAVELENGTHS.items() if w is not None
 }
 
 
@@ -1247,8 +1277,21 @@ def insert_new_photometry_data(
         for packet in params:
             phot_stat.add_photometry_point(packet)
     else:
+        # Only fetch what full_update() reads — skips heavy JSONB (altdata),
+        # ra/dec/refs/etc. to cut row payload on large lightcurves.
         all_phot = session.scalars(
-            sa.select(Photometry).where(Photometry.obj_id == obj_id)
+            sa.select(Photometry)
+            .where(Photometry.obj_id == obj_id)
+            .options(
+                load_only(
+                    Photometry.filter,
+                    Photometry.mjd,
+                    Photometry.flux,
+                    Photometry.fluxerr,
+                    Photometry.origin,
+                    Photometry.original_user_data,
+                )
+            )
         ).all()
         phot_stat.full_update(all_phot)
         for p in all_phot:
@@ -1440,36 +1483,57 @@ def add_external_photometry(
 
                 updated = False
                 # posting to new groups?
-                if len(set(group_ids) - duplicate_group_ids) > 0:
-                    # select old + new groups
-                    group_ids_update = set(group_ids).union(duplicate_group_ids)
-                    groups = (
-                        session.execute(
-                            sa.select(Group).filter(Group.id.in_(group_ids_update))
-                        )
-                        .scalars()
-                        .all()
+                # Use INSERT ... ON CONFLICT DO NOTHING against
+                # group_photometry's unique (group_id, photometr_id)
+                # index rather than ORM collection assignment. ORM
+                # cascade emits plain INSERTs that lose to concurrent
+                # posts racing on the same row + same new group; ON
+                # CONFLICT makes the attach idempotent.
+                group_ids_to_add = set(group_ids) - duplicate_group_ids
+                if group_ids_to_add:
+                    now = utcnow_naive()
+                    gp_rows = [
+                        {
+                            "group_id": gid,
+                            "photometr_id": duplicate.id,
+                            "created_at": now,
+                            "modified": now,
+                        }
+                        for gid in group_ids_to_add
+                    ]
+                    gp_stmt = pg_insert(GroupPhotometry).values(gp_rows)
+                    gp_stmt = gp_stmt.on_conflict_do_nothing(
+                        index_elements=["group_id", "photometr_id"]
                     )
-                    # update the corresponding photometry entry in the db
-                    duplicate.groups = groups
+                    session.execute(gp_stmt)
                     log(
-                        f"Adding groups {group_ids_update} to photometry {duplicate.id}"
+                        f"Adding groups {group_ids_to_add} to photometry {duplicate.id}"
                     )
                     updated = True
 
                 # posting to new streams?
+                # Same ON CONFLICT DO NOTHING pattern as groups above.
                 if stream_ids:
-                    # Add new stream_photometry rows if not already present
-                    stream_ids_update = set(stream_ids) - duplicate_stream_ids
-                    if len(stream_ids_update) > 0:
-                        for id in stream_ids_update:
-                            session.add(
-                                StreamPhotometry(
-                                    photometr_id=duplicate.id, stream_id=id
-                                )
-                            )
+                    stream_ids_to_add = set(stream_ids) - duplicate_stream_ids
+                    if stream_ids_to_add:
+                        now = utcnow_naive()
+                        sp_rows = [
+                            {
+                                "stream_id": sid,
+                                "photometr_id": duplicate.id,
+                                "created_at": now,
+                                "modified": now,
+                            }
+                            for sid in stream_ids_to_add
+                        ]
+                        sp_stmt = pg_insert(StreamPhotometry).values(sp_rows)
+                        sp_stmt = sp_stmt.on_conflict_do_nothing(
+                            index_elements=["stream_id", "photometr_id"]
+                        )
+                        session.execute(sp_stmt)
                         log(
-                            f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
+                            f"Adding streams {stream_ids_to_add} to photometry "
+                            f"{duplicate.id}"
                         )
                         updated = True
 
@@ -1794,35 +1858,57 @@ class PhotometryHandler(BaseHandler):
                     duplicate_stream_ids = {s.id for s in duplicate.streams}
 
                     # posting to new groups?
-                    if len(set(group_ids) - duplicate_group_ids) > 0:
-                        # select old + new groups
-                        group_ids_update = set(group_ids).union(duplicate_group_ids)
-                        groups = (
-                            session.execute(
-                                sa.select(Group).filter(Group.id.in_(group_ids_update))
-                            )
-                            .scalars()
-                            .all()
+                    # Use INSERT ... ON CONFLICT DO NOTHING against
+                    # group_photometry's unique (group_id, photometr_id)
+                    # index rather than ORM collection assignment. ORM
+                    # cascade emits plain INSERTs that lose to concurrent
+                    # PUTs racing on the same row + same new group; ON
+                    # CONFLICT makes the attach idempotent.
+                    group_ids_to_add = set(group_ids) - duplicate_group_ids
+                    if group_ids_to_add:
+                        now = utcnow_naive()
+                        gp_rows = [
+                            {
+                                "group_id": gid,
+                                "photometr_id": duplicate.id,
+                                "created_at": now,
+                                "modified": now,
+                            }
+                            for gid in group_ids_to_add
+                        ]
+                        gp_stmt = pg_insert(GroupPhotometry).values(gp_rows)
+                        gp_stmt = gp_stmt.on_conflict_do_nothing(
+                            index_elements=["group_id", "photometr_id"]
                         )
-                        # update the corresponding photometry entry in the db
-                        duplicate.groups = groups
+                        session.execute(gp_stmt)
                         log(
-                            f"Adding groups {group_ids_update} to photometry {duplicate.id}"
+                            f"Adding groups {group_ids_to_add} to photometry "
+                            f"{duplicate.id}"
                         )
 
                     # posting to new streams?
+                    # Same ON CONFLICT DO NOTHING pattern as groups above.
                     if stream_ids:
-                        # Add new stream_photometry rows if not already present
-                        stream_ids_update = set(stream_ids) - duplicate_stream_ids
-                        if len(stream_ids_update) > 0:
-                            for id in stream_ids_update:
-                                session.add(
-                                    StreamPhotometry(
-                                        photometr_id=duplicate.id, stream_id=id
-                                    )
-                                )
+                        stream_ids_to_add = set(stream_ids) - duplicate_stream_ids
+                        if stream_ids_to_add:
+                            now = utcnow_naive()
+                            sp_rows = [
+                                {
+                                    "stream_id": sid,
+                                    "photometr_id": duplicate.id,
+                                    "created_at": now,
+                                    "modified": now,
+                                }
+                                for sid in stream_ids_to_add
+                            ]
+                            sp_stmt = pg_insert(StreamPhotometry).values(sp_rows)
+                            sp_stmt = sp_stmt.on_conflict_do_nothing(
+                                index_elements=["stream_id", "photometr_id"]
+                            )
+                            session.execute(sp_stmt)
                             log(
-                                f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
+                                f"Adding streams {stream_ids_to_add} to photometry "
+                                f"{duplicate.id}"
                             )
 
                     # update duplicate's flux and fluxerr if we are ignoring flux deduplication

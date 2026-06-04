@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 import SelectWithChips from "../SelectWithChips";
@@ -17,7 +17,9 @@ const GcnTagsSelect = ({
   setSelectedGcnTags,
 }: GcnTagsSelectProps) => {
   const dispatch = useAppDispatch();
-  const gcnTags = [...(useAppSelector((state) => state.gcnTags) || [])].sort();
+  const gcnTags = [
+    ...(useAppSelector((state) => state["gcnTags"]) || []),
+  ].sort();
 
   useEffect(() => {
     dispatch(gcnTagsActions.fetchGcnTags());

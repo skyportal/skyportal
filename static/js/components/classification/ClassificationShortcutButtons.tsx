@@ -1,4 +1,3 @@
-import React from "react";
 import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 

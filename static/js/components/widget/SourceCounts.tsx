@@ -1,4 +1,3 @@
-import React from "react";
 import { CountUp } from "use-count-up";
 
 import { makeStyles } from "tss-react/mui";

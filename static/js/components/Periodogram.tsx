@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Link, useParams } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
@@ -226,7 +226,9 @@ const Periodogram = () => {
   const { handleSubmit, control, register } = useForm();
   const { id } = useParams();
   const dispatch = useAppDispatch();
-  const photometry = useAppSelector((state) => state.photometry[id as string]);
+  const photometry = useAppSelector(
+    (state) => state["photometry"][id as string],
+  );
   const [bestp, setBestp] = useState<any>(null);
   const [run, setRun] = useState(false);
   const [plotted, setPlotted] = useState(false);
@@ -391,10 +393,10 @@ const Periodogram = () => {
         // filtered times
         const ftimes = times.filter((x: any) => x >= mjdmin && x <= mjdmax);
         const fmag = mag.filter(
-          (x: any, i: number) => times[i] >= mjdmin && times[i] <= mjdmax,
+          (_x: any, i: number) => times[i] >= mjdmin && times[i] <= mjdmax,
         );
         const fmagerr = magerr.filter(
-          (x: any, i: number) => times[i] >= mjdmin && times[i] <= mjdmax,
+          (_x: any, i: number) => times[i] >= mjdmin && times[i] <= mjdmax,
         );
 
         const gls = GLS(ftimes, fmag, {
@@ -509,7 +511,7 @@ const Periodogram = () => {
     return `${value}×`;
   }
 
-  const handleMultiplierChange = (e: any, val: any) => {
+  const handleMultiplierChange = (_e: any, val: any) => {
     setPeriodmultiplier(val);
   };
 

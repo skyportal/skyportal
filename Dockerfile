@@ -69,6 +69,19 @@ RUN bash -c "\
     \
     mkdir -p /skyportal/persistentdata/sncosmo && \
     chown -R skyportal.skyportal /skyportal/persistentdata/sncosmo && \
+    \
+    # Pre-warm the sncosmo bandpass cache at build time. SkyPortal eagerly
+    # loads every ALLOWED_BANDPASSES at module import; on a cold cache
+    # sncosmo fetches each missing bandpass via astropy's download_file with
+    # a 10s urlopen timeout, and the cumulative wait keeps the tornado app
+    # workers from responding before nginx and the data_loader give up
+    # (HTTP 503). Touching every bandpass here forces the data files into
+    # SNCOSMO_DATA_DIR while the image build still has working network.
+    # Individual fetches that fail aren't fatal: the defensive bandpass
+    # loops in skyportal/handlers/api/photometry.py already log-and-skip.
+    python tools/warm_sncosmo_cache.py || true && \
+    chown -R skyportal.skyportal /skyportal/persistentdata/sncosmo && \
+    \
     # we remove the cache and temp files to reduce the image size
     rm -rf /root/.cache/pip && rm -rf /root/.cache/uv && rm -rf /tmp/* && \
     # we remove some unused data from the gwemopt package to reduce the image size

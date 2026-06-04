@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Responsive, WidthProvider } from "react-grid-layout";
 import "reactgridlayoutcss/styles.css";
 import "reactresizablecss/styles.css";

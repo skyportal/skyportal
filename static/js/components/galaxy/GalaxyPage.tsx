@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
@@ -225,7 +225,7 @@ const GalaxyList = ({ catalogs = null, setCatalogs }: GalaxyListProps) => {
 const defaultNumPerPage = 10;
 
 const GalaxyPage = () => {
-  const galaxies = useAppSelector((state) => state.galaxies?.galaxies);
+  const galaxies = useAppSelector((state) => state["galaxies"]?.galaxies);
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
   const [catalogs, setCatalogs] = useState<any[]>([]);

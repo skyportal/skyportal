@@ -1,4 +1,3 @@
-import React from "react";
 import {
   ComposableMap,
   Geographies,
@@ -7,10 +6,8 @@ import {
   useZoomPan,
 } from "react-simple-maps";
 
-import { useAppDispatch } from "../../types/hooks";
 import world_map from "../../../images/maps/world-110m.json";
 
-let dispatch: any;
 const width = 700;
 const height = 475;
 
@@ -75,35 +72,33 @@ interface MMADetectorMapProps {
 const MMADetectorMap = ({ mmadetectors }: MMADetectorMapProps) => {
   const nestedMMADetectors: any[] = [];
   for (let i = 0; i < mmadetectors.length; i += 1) {
+    const det = mmadetectors[i]!;
     if (i === 0) {
       nestedMMADetectors.push({
-        lat: mmadetectors[i].lat,
-        lon: mmadetectors[i].lon,
-        mmadetectors: [mmadetectors[i]],
+        lat: det.lat,
+        lon: det.lon,
+        mmadetectors: [det],
       });
     } else {
       for (let j = 0; j < nestedMMADetectors.length; j += 1) {
         if (
           Math.abs(
-            normalizeLatitudeDiff(
-              mmadetectors[i].lat as number,
-              nestedMMADetectors[j].lat,
-            ),
+            normalizeLatitudeDiff(det.lat as number, nestedMMADetectors[j].lat),
           ) < 1 &&
           Math.abs(
             normalizeLongitudeDiff(
-              mmadetectors[i].lon as number,
+              det.lon as number,
               nestedMMADetectors[j].lon,
             ),
           ) < 2
         ) {
-          nestedMMADetectors[j].mmadetectors.push(mmadetectors[i]);
+          nestedMMADetectors[j].mmadetectors.push(det);
           break;
         } else if (j === nestedMMADetectors.length - 1) {
           nestedMMADetectors.push({
-            lat: mmadetectors[i].lat,
-            lon: mmadetectors[i].lon,
-            mmadetectors: [mmadetectors[i]],
+            lat: det.lat,
+            lon: det.lon,
+            mmadetectors: [det],
           });
           break;
         }
@@ -111,8 +106,6 @@ const MMADetectorMap = ({ mmadetectors }: MMADetectorMapProps) => {
     }
   }
 
-  // eslint-disable-next-line react-hooks/globals
-  dispatch = useAppDispatch();
   return (
     <ComposableMap width={width} height={height}>
       <CustomZoomableGroup center={[0, 0]}>

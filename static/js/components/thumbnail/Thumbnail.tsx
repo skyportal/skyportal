@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Card from "@mui/material/Card";
 import { makeStyles } from "tss-react/mui";
 import Skeleton from "@mui/material/Skeleton";

@@ -10,7 +10,7 @@ export const fetchSourceCounts = () =>
   API.GET("/api/internal/source_counts", FETCH_SOURCE_COUNTS);
 
 // Websocket message handler
-messageHandler.add((actionType: any, payload: any, dispatch: any) => {
+messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
   if (actionType === FETCH_SOURCE_COUNTS) {
     dispatch(fetchSourceCounts());
   }

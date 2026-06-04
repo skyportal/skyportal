@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 import Paper from "@mui/material/Paper";
@@ -42,10 +42,10 @@ interface GroupSourcesProps {
 const GroupSources = ({ route }: GroupSourcesProps) => {
   const dispatch = useAppDispatch();
   const savedSourcesState = useAppSelector(
-    (state) => state.sources.savedGroupSources,
+    (state) => state["sources"].savedGroupSources,
   );
   const pendingSourcesState = useAppSelector(
-    (state) => state.sources.pendingGroupSources,
+    (state) => state["sources"].pendingGroupSources,
   );
   const groups = useAppSelector((state) => state.groups.userAccessible);
   const { classes } = useStyles();

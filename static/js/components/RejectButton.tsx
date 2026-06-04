@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 import IconButton from "@mui/material/IconButton";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -59,7 +59,7 @@ interface RejectButtonProps {
 
 const RejectButton = ({ objID }: RejectButtonProps) => {
   const { rejected_candidates } = useAppSelector(
-    (state) => state.rejected_candidates,
+    (state) => state["rejected_candidates"],
   );
 
   if (!objID) {

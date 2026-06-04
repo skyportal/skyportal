@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
@@ -92,11 +92,11 @@ const GcnEventAllocationTriggers = ({
 
   const currentUser = useAppSelector((state) => state.profile);
   const { allocationListApiObsplan } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   );
-  const { allocationList } = useAppSelector((state) => state.allocations);
+  const { allocationList } = useAppSelector((state) => state["allocations"]);
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
 
   const [selectedInstrument, setSelectedInstrument] = useState<any>(null);
 

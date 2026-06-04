@@ -158,7 +158,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
   const theme = useTheme();
   const { classes: styles } = useStyles();
 
-  const gcnEvent = useAppSelector((state) => state.gcnEvent);
+  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector((state) => state.profile);
   const permission =

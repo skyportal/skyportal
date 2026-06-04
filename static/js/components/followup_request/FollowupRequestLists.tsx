@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { JSONTree } from "react-json-tree";
 import CircularProgress from "@mui/material/CircularProgress";
 import Accordion from "@mui/material/Accordion";
@@ -218,21 +218,21 @@ const FollowupRequestLists = ({
         headerName: "Requester",
         flex: 1,
         minWidth: 120,
-        valueGetter: (value: any, row: any) => row.requester?.username,
+        valueGetter: (_value: any, row: any) => row.requester?.username,
       },
       {
         field: "allocation.group.name",
         headerName: "Group",
         flex: 1,
         minWidth: 120,
-        valueGetter: (value: any, row: any) => row.allocation?.group?.name,
+        valueGetter: (_value: any, row: any) => row.allocation?.group?.name,
       },
       {
         field: "allocation.pi",
         headerName: "PI",
         flex: 1,
         minWidth: 120,
-        valueGetter: (value: any, row: any) => row.allocation?.pi,
+        valueGetter: (_value: any, row: any) => row.allocation?.pi,
       },
     ];
     const defaultVisibility: any = {};
@@ -261,7 +261,7 @@ const FollowupRequestLists = ({
         minWidth: 120,
         sortable: false,
         filterable: false,
-        valueGetter: (value: any, row: any) => row?.payload?.station_name,
+        valueGetter: (_value: any, row: any) => row?.payload?.station_name,
       });
     }
 
@@ -272,7 +272,7 @@ const FollowupRequestLists = ({
         flex: 1,
         minWidth: 120,
         filterable: false,
-        valueGetter: (value: any, row: any) => row.obj?.id,
+        valueGetter: (_value: any, row: any) => row.obj?.id,
         renderCell: (params: any) => {
           const followupRequest = params.row;
           return (
@@ -309,7 +309,7 @@ const FollowupRequestLists = ({
         minWidth: 120,
         sortable: false,
         filterable: false,
-        valueGetter: (value: any, row: any) => {
+        valueGetter: (_value: any, row: any) => {
           const v = row.payload?.[key];
           return Array.isArray(v) ? v.join(",") : v;
         },

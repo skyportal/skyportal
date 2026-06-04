@@ -73,6 +73,7 @@ const VegaPhotometryMemo = React.memo(
     const keys = Object.keys(nextProps) as (keyof VegaPhotometryMemoProps)[];
     for (let i = 0; i < keys.length; i += 1) {
       const key = keys[i];
+      if (key === undefined) continue;
       if (key === "values") {
         // we simply compare the length of the values array
         if (prevProps.values.length !== nextProps.values.length) {
@@ -88,61 +89,6 @@ const VegaPhotometryMemo = React.memo(
 
 VegaPhotometryMemo.displayName = "VegaPhotometryMemo";
 
-interface ToggleButtonProps {
-  text: string;
-  id: string;
-  value: boolean;
-  onChange: (checked: boolean) => void;
-}
-
-const ToggleButton = (props: ToggleButtonProps) => {
-  const { text, id, value, onChange } = props;
-  return (
-    <div style={{ display: "flex", alignItems: "center" }}>
-      <label
-        htmlFor={`showNonDetections_${id}`}
-        style={{
-          position: "relative",
-          display: "inline-block",
-          width: "40px",
-          height: "20px",
-          backgroundColor: value ? "#457B9D" : "#ccc",
-          borderRadius: "20px",
-        }}
-      >
-        <input
-          id={`showNonDetections_${id}`}
-          type="checkbox"
-          checked={value}
-          onChange={(event) => onChange(event.target.checked)}
-          style={{
-            opacity: 0,
-            width: 0,
-            height: 0,
-          }}
-        />
-        <span
-          style={{
-            position: "absolute",
-            cursor: "pointer",
-            top: "2px",
-            left: "2px",
-            right: "2px",
-            bottom: "2px",
-            backgroundColor: "white",
-            borderRadius: "20px",
-            transition: "0.2s",
-            height: "16px",
-            width: "16px",
-            transform: value ? "translateX(20px)" : "translateX(0px)",
-          }}
-        />
-      </label>
-      <span style={{ marginLeft: "5px" }}>{text}</span>
-    </div>
-  );
-};
-
 interface VegaPhotometryProps {
   sourceId: string;
   annotations?: any[];
@@ -156,7 +102,7 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
   const photometry = useAppSelector(
     (state) => (state as any).photometry_minimal[sourceId],
   );
-  const config = useAppSelector((state) => state.config);
+  const config = useAppSelector((state) => state["config"]);
   const [filters, setFilters] = useState<string[] | null>(null);
   const [wavelengths, setWavelengths] = useState<string[] | null>(null);
   const [period, setPeriod] = useState<number | null>(null);
@@ -199,9 +145,10 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
   useEffect(() => {
     async function fetchPhotometry() {
       if (photometry === null || photometry === undefined) {
-        return await dispatch(
+        await dispatch(
           photometryMinimalActions.fetchSourcePhotometryMinimal(sourceId),
         );
+        return;
       }
       if (
         filters === null &&

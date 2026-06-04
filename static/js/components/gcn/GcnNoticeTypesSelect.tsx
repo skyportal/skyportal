@@ -1,5 +1,3 @@
-import React from "react";
-
 import SelectWithChips from "../SelectWithChips";
 import { useAppSelector } from "../../types/hooks";
 
@@ -13,7 +11,7 @@ const GcnNoticeTypesSelect = ({
   setSelectedGcnNoticeTypes,
 }: GcnNoticeTypesSelectProps) => {
   const gcn_notice_types = useAppSelector(
-    (state) => state.config.gcnNoticeTypes,
+    (state) => state["config"].gcnNoticeTypes,
   );
   if (!gcn_notice_types?.length) return null;
 

@@ -218,9 +218,14 @@ def add_observations(instrument_id, obstable):
 
         del missing, unique_observation_ids, unique_observation_ids_batched
 
-        # again, batch the insertions
-        obstable_batched = np.array_split(obstable, 100)
-        for chunk in obstable_batched:
+        # again, batch the insertions. Split the positional indices (a numpy
+        # array) and slice with iloc, rather than np.array_split(obstable, ...):
+        # as of pandas 3.0 the latter returns numpy ndarrays (not DataFrames),
+        # which lack .iterrows().
+        for index_chunk in np.array_split(np.arange(len(obstable)), 100):
+            if len(index_chunk) == 0:
+                continue
+            chunk = obstable.iloc[index_chunk]
             observations = []
             try:
                 for _, row in chunk.iterrows():

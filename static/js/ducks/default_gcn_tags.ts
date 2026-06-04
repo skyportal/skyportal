@@ -23,7 +23,7 @@ export const submitDefaultGcnTag = (default_plan: any) =>
   API.POST(`/api/default_gcn_tag`, SUBMIT_DEFAULT_GCN_TAG, default_plan);
 
 // Websocket message handler
-messageHandler.add((actionType: any, payload: any, dispatch: any) => {
+messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
   if (actionType === REFRESH_DEFAULT_GCN_TAGS) {
     dispatch(fetchDefaultGcnTags());
   }

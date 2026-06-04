@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -109,10 +109,10 @@ const ClassificationRow = ({
     );
   };
 
-  const classification = classifications[0];
+  const classification = classifications[0]!;
 
   const classifications_classes = useAppSelector(
-    (state) => state.config.classificationsClasses,
+    (state) => state["config"].classificationsClasses,
   );
 
   const upvoterIds: any[] = [];
@@ -122,7 +122,7 @@ const ClassificationRow = ({
   let upvoteColor: any = "disabled";
   let downvoteColor: any = "disabled";
 
-  classification.votes?.forEach((s: any) => {
+  classification["votes"]?.forEach((s: any) => {
     if (s.vote === 1) {
       upvoterIds.push(s.id);
       if (s.voter_id === currentUser.id) {
@@ -150,26 +150,26 @@ const ClassificationRow = ({
     currentUser.permissions.includes("System admin") ||
     currentUser.permissions.includes("Manage groups") ||
     isGroupAdmin ||
-    currentUser.username === classification.author_name;
+    currentUser.username === classification["author_name"];
 
-  const clsProb = classification.probability
-    ? classification.probability
+  const clsProb = classification["probability"]
+    ? classification["probability"]
     : "null";
   return (
     <div>
       <Tooltip
-        key={`${classification.modified}tt`}
+        key={`${classification["modified"]}tt`}
         disableFocusListener
         disableTouchListener
         title={
           <div>
             <div>
               {classifications.map((cls) => (
-                <span key={cls.id}>
+                <span key={cls["id"]}>
                   P=
-                  {clsProb} ({cls.taxname})
+                  {clsProb} ({cls["taxname"]})
                   <br />
-                  <i>{cls.author_name}</i>
+                  <i>{cls["author_name"]}</i>
                   <br />
                 </span>
               ))}
@@ -181,7 +181,7 @@ const ClassificationRow = ({
                   root: classes.classificationDelete,
                   disabled: classes.classificationDeleteDisabled,
                 }}
-                onClick={() => openDialog(classification.id)}
+                onClick={() => openDialog(classification["id"])}
                 disabled={!permission}
               >
                 <DeleteIcon />
@@ -195,7 +195,7 @@ const ClassificationRow = ({
             </div>
             <div>
               <Button
-                key={classification.id}
+                key={classification["id"]}
                 id="down_vote"
                 onClick={() => switchVotesVisible()}
               >
@@ -211,9 +211,9 @@ const ClassificationRow = ({
             </div>
             <div>
               <Button
-                key={classification.id}
+                key={classification["id"]}
                 id="down_vote"
-                onClick={() => addVote(classification.id, downvoteValue)}
+                onClick={() => addVote(classification["id"], downvoteValue)}
               >
                 <ThumbDown color={downvoteColor} />
                 <Font color="white">
@@ -228,9 +228,9 @@ const ClassificationRow = ({
             </div>
             <div>
               <Button
-                key={classification.id}
+                key={classification["id"]}
                 id="up_vote"
-                onClick={() => addVote(classification.id, upvoteValue)}
+                onClick={() => addVote(classification["id"], upvoteValue)}
               >
                 <ThumbUp color={upvoteColor} />
                 <Font color="white">
@@ -243,13 +243,13 @@ const ClassificationRow = ({
                 </Font>
               </Button>
             </div>
-            {classification.ml && (
+            {classification["ml"] && (
               <span>PS: This classification comes from a ML classifier.</span>
             )}
           </div>
         }
       >
-        {classifications_classes?.origin && classification.origin ? (
+        {classifications_classes?.origin && classification["origin"] ? (
           <Chip
             label={
               <span
@@ -260,28 +260,28 @@ const ClassificationRow = ({
                   fontSize,
                 }}
               >
-                {classification.ml ? (
+                {classification["ml"] ? (
                   <span>
-                    {classification.probability < 0.1
-                      ? `ML: ${classification.classification}?`
-                      : `ML: ${classification.classification}`}
+                    {classification["probability"] < 0.1
+                      ? `ML: ${classification["classification"]}?`
+                      : `ML: ${classification["classification"]}`}
                   </span>
                 ) : (
                   <span>
-                    {classification.probability < 0.1
-                      ? `${classification.classification}?`
-                      : classification.classification}
+                    {classification["probability"] < 0.1
+                      ? `${classification["classification"]}?`
+                      : classification["classification"]}
                   </span>
                 )}
               </span>
             }
-            key={`${classification.modified}tb`}
+            key={`${classification["modified"]}tb`}
             size="small"
             className={classes.chip}
             style={{
               color: classifications_classes?.origin
-                ? classifications_classes.origin[classification.origin]
-                : defaultColor(classification?.ml),
+                ? classifications_classes.origin[classification["origin"]]
+                : defaultColor(classification?.["ml"]),
             }}
           />
         ) : (
@@ -295,31 +295,31 @@ const ClassificationRow = ({
                   fontSize,
                 }}
               >
-                {classification.ml ? (
+                {classification["ml"] ? (
                   <span>
-                    {classification.probability < 0.1
-                      ? `ML: ${classification.classification}?`
-                      : `ML: ${classification.classification}`}
+                    {classification["probability"] < 0.1
+                      ? `ML: ${classification["classification"]}?`
+                      : `ML: ${classification["classification"]}`}
                   </span>
                 ) : (
                   <span>
-                    {classification.probability < 0.1
-                      ? `${classification.classification}?`
-                      : classification.classification}
+                    {classification["probability"] < 0.1
+                      ? `${classification["classification"]}?`
+                      : classification["classification"]}
                   </span>
                 )}
               </span>
             }
-            key={`${classification.modified}tb`}
+            key={`${classification["modified"]}tb`}
             size="small"
             className={classes.chip}
             style={{
               backgroundColor: classifications_classes?.classification
                 ? classifications_classes.classification[
-                    classification.classification
+                    classification["classification"]
                   ]
                 : "#999999",
-              color: defaultColor(classification?.ml),
+              color: defaultColor(classification?.["ml"]),
             }}
           />
         )}
@@ -344,7 +344,7 @@ export const getSortedClasses = (classifications: any[]) => {
 
   Object.keys(groupedClasses)?.forEach((item) =>
     sortedClasses.push(
-      groupedClasses[item].sort((a: any, b: any) =>
+      (groupedClasses[item] ?? []).sort((a: any, b: any) =>
         a.modified < b.modified ? 1 : -1,
       ),
     ),
@@ -367,7 +367,7 @@ function ShowClassification({
   fontSize = "1rem",
 }: ShowClassificationProps) {
   const sorted_classifications = (classifications || []).sort((a, b) =>
-    a.created_at > b.created_at ? -1 : 1,
+    a["created_at"] > b["created_at"] ? -1 : 1,
   );
 
   const classificationsGrouped = sorted_classifications.reduce(
@@ -380,16 +380,17 @@ function ShowClassification({
 
   const keys = Object.keys(classificationsGrouped);
   keys.forEach((key) => {
-    classificationsGrouped[key].forEach((item: any, index: number) => {
+    const group = classificationsGrouped[key] ?? [];
+    group.forEach((_item: any, index: number) => {
       let taxname: any = taxonomyList.filter(
-        (i) => i.id === classificationsGrouped[key][index].taxonomy_id,
+        (i) => i["id"] === group[index].taxonomy_id,
       );
       if (taxname.length > 0) {
         taxname = taxname[0].name;
       } else {
         taxname = "Unknown taxonomy";
       }
-      classificationsGrouped[key][index].taxname = taxname;
+      group[index].taxname = taxname;
     });
   });
 
@@ -410,7 +411,7 @@ function ShowClassification({
       {keys.map((key) => (
         <ClassificationRow
           key={key}
-          classifications={classificationsGrouped[key]}
+          classifications={classificationsGrouped[key] ?? []}
           fontSize={fontSize}
         />
       ))}

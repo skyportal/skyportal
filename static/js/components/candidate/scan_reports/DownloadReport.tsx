@@ -1,7 +1,6 @@
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
-import React from "react";
 import { fetchScanReportItem } from "../../../ducks/candidate/scan_report";
 import { useAppDispatch } from "../../../types/hooks";
 
