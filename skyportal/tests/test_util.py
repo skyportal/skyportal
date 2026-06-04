@@ -1,15 +1,16 @@
 import os
+import time
 
 import pytest
 from selenium import webdriver
 from selenium.common.exceptions import (
     ElementClickInterceptedException,
     JavascriptException,
+    MoveTargetOutOfBoundsException,
     NoSuchElementException,
     StaleElementReferenceException,
     TimeoutException,
 )
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import WebDriverWait
@@ -95,51 +96,91 @@ class MyCustomWebDriver(RequestsSessionMixin, webdriver.Firefox):
         )
 
     def scroll_to_element(self, element, scroll_parent=False):
-        scroll_script = (
-            """
-                arguments[0].scrollIntoView();
-            """
-            if scroll_parent
-            else """
-            const viewPortHeight = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-            const elementTop = arguments[0].getBoundingClientRect().top;
-            window.scrollBy(0, elementTop - (viewPortHeight / 2));
-            """
+        # scrollIntoView({block: 'center'}) walks ancestor scroll containers
+        # (MUI overflow:auto panels in the source/scanning views), where the
+        # old window.scrollBy was a silent no-op. `scroll_parent` is kept for
+        # back-compat; the behavior is equivalent under the new scroller.
+        self.execute_script(
+            "arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
+            element,
         )
-        self.execute_script(scroll_script, element)
 
-    def scroll_to_element_and_click(self, element, timeout=10, scroll_parent=False):
-        self.scroll_to_element(element, scroll_parent=scroll_parent)
-        ActionChains(self).move_to_element(element).perform()
-
+    def _try_click(self, element):
+        # element.click() first (real DOM click event with focus/blur), JS
+        # click as a fallback for elements obstructed by overlays.
         try:
-            return element.click()
+            element.click()
+            return True
         except ElementClickInterceptedException:
             pass
-        except StaleElementReferenceException:
-            pass
-
         try:
-            return self.execute_script("arguments[0].click();", element)
+            self.execute_script("arguments[0].click();", element)
+            return True
         except JavascriptException:
-            pass
-        except StaleElementReferenceException:
-            pass
+            return False
 
-        # Tried to click something that's not a button, try sending
-        # a mouse click to that coordinate
-        ActionChains(self).click().perform()
+    def scroll_to_element_and_click(self, element, timeout=10, scroll_parent=False):
+        # Two attempts: a single layout-shift between scroll and click (Aladin
+        # init, font swap, async data load) used to throw
+        # MoveTargetOutOfBoundsException / StaleElementReferenceException and
+        # kill the test even though a re-scroll would have worked.
+        for attempt in range(2):
+            try:
+                self.scroll_to_element(element, scroll_parent=scroll_parent)
+                if self._try_click(element):
+                    return
+            except (
+                StaleElementReferenceException,
+                MoveTargetOutOfBoundsException,
+            ):
+                if attempt == 0:
+                    time.sleep(0.05)
+                    continue
+                raise
 
     def click_xpath(self, xpath, wait_clickable=True, timeout=10, scroll_parent=False):
-        if wait_clickable:
-            element = self.wait_for_xpath_to_be_clickable(xpath, timeout=timeout)
-        else:
-            element = self.wait_for_xpath(xpath)
-        return self.scroll_to_element_and_click(element, scroll_parent=scroll_parent)
+        # Retry the whole find-scroll-click on stale-element: when the DOM
+        # re-renders mid-click the locator must be resolved again, not just
+        # the click retried.
+        for attempt in range(2):
+            try:
+                if wait_clickable:
+                    element = self.wait_for_xpath_to_be_clickable(
+                        xpath, timeout=timeout
+                    )
+                else:
+                    element = WebDriverWait(self, timeout).until(
+                        expected_conditions.visibility_of_element_located(
+                            (By.XPATH, xpath)
+                        )
+                    )
+                return self.scroll_to_element_and_click(
+                    element, scroll_parent=scroll_parent
+                )
+            except (
+                StaleElementReferenceException,
+                MoveTargetOutOfBoundsException,
+            ):
+                if attempt == 0:
+                    time.sleep(0.05)
+                    continue
+                raise
 
     def click_css(self, css, timeout=10, scroll_parent=False):
-        element = self.wait_for_css_to_be_clickable(css, timeout=timeout)
-        return self.scroll_to_element_and_click(element, scroll_parent=scroll_parent)
+        for attempt in range(2):
+            try:
+                element = self.wait_for_css_to_be_clickable(css, timeout=timeout)
+                return self.scroll_to_element_and_click(
+                    element, scroll_parent=scroll_parent
+                )
+            except (
+                StaleElementReferenceException,
+                MoveTargetOutOfBoundsException,
+            ):
+                if attempt == 0:
+                    time.sleep(0.05)
+                    continue
+                raise
 
 
 @pytest.fixture(scope="session")
