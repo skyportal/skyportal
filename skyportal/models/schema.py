@@ -23,7 +23,6 @@ from marshmallow import (
     pre_dump,
     validate,
 )
-from marshmallow_enum import EnumField
 from marshmallow_sqlalchemy import (
     ModelConversionError as _ModelConversionError,
 )
@@ -52,17 +51,26 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 
 def validate_fluxerr(fluxerr):
-    # TypeError covers None payloads — float(None) and iter(None) both raise it.
     try:
         if isinstance(fluxerr, float | int | str):
-            return float(fluxerr) >= 0
-        return all(float(el) >= 0 for el in fluxerr)
+            non_negative = float(fluxerr) >= 0
+        else:
+            non_negative = all(float(el) >= 0 for el in fluxerr)
     except (TypeError, ValueError):
         raise ValidationError("fluxerr must be a number or list of numbers")
+    if not non_negative:
+        raise ValidationError("Invalid value: fluxerr must be non-negative")
 
 
-class ApispecEnumField(EnumField):
-    """See https://github.com/justanr/marshmallow_enum/issues/24#issue-335162592"""
+class ApispecEnumField(fields.Enum):
+    """Enum field that also advertises its members in the ``enum`` metadata key
+    so apispec renders the allowed values in the OpenAPI spec.
+
+    marshmallow 4 ships a built-in ``fields.Enum`` which (with the default
+    ``by_value=False``) serializes/deserializes by member name — the same
+    behavior the old ``marshmallow_enum.EnumField`` provided — so the
+    unmaintained third-party package is no longer needed.
+    """
 
     def __init__(self, enum, *args, **kwargs):
         super().__init__(enum, *args, **kwargs)
