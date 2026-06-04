@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -57,7 +57,7 @@ const GroupFiltersStreams = ({
   const [panelStreamsExpanded, setPanelStreamsExpanded] =
     useState<any>("panel-streams");
   const dispatch = useAppDispatch();
-  const streams = useAppSelector((state) => state.streams);
+  const streams = useAppSelector((state) => state["streams"]);
 
   const {
     register,
@@ -86,7 +86,7 @@ const GroupFiltersStreams = ({
     setAddStreamOpen(false);
   };
   const handlePanelStreamsChange =
-    (panel: any) => (event: any, isExpanded: any) => {
+    (panel: any) => (_event: any, isExpanded: any) => {
       setPanelStreamsExpanded(isExpanded ? panel : false);
     };
 
@@ -329,9 +329,9 @@ const GroupFiltersStreams = ({
             />
             <FormControl required className={classes.selectEmpty}>
               <InputLabel>Alert stream</InputLabel>
-              {errors.filter_stream_id && (
+              {errors["filter_stream_id"] && (
                 <FormValidationError
-                  message={errors.filter_stream_id.message as any}
+                  message={errors["filter_stream_id"].message as any}
                 />
               )}
               <Controller

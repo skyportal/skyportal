@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
 import Select from "@mui/material/Select";
@@ -25,7 +25,7 @@ import { useAppDispatch, useAppSelector } from "../../types/hooks";
 interface MultipleClassificationsFormProps {
   objId: string;
   taxonomyList: any[];
-  groupId?: number | null;
+  groupId?: number | null | undefined;
   currentClassifications: any[];
 }
 
@@ -103,7 +103,7 @@ const MultipleClassificationsForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const stateTaxonomy = useAppSelector(
-    (state) => state.classifications.taxonomy,
+    (state) => state["classifications"].taxonomy,
   );
   const [selectedTaxonomy, setSelectedTaxonomy] = useState<any>(stateTaxonomy);
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
@@ -116,7 +116,7 @@ const MultipleClassificationsForm = ({
   }, [stateTaxonomy]);
 
   const scaleProbabilities = useAppSelector(
-    (state) => state.classifications.scaleProbabilities,
+    (state) => state["classifications"].scaleProbabilities,
   );
 
   const [scaleProbabilitiesChecked, setScaleProbabilitiesChecked] =

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
@@ -134,7 +134,6 @@ interface PeriodAnnotationDialogProps {
 const PeriodAnnotationDialog = ({
   obj_id,
   period,
-  periodUnit,
 }: PeriodAnnotationDialogProps) => {
   const dispatch = useAppDispatch();
   const groups = useAppSelector(
@@ -189,7 +188,8 @@ const PeriodAnnotationDialog = ({
       obj_id,
       origin: formData.origin,
       data: {
-        period: formData.period / periodUnitDividers[formData.periodUnitValue],
+        period:
+          formData.period / (periodUnitDividers[formData.periodUnitValue] ?? 1),
       },
       groups: formData.groupIDs,
     };
@@ -263,7 +263,7 @@ const PhotometryPlot = ({
   const dispatch = useAppDispatch();
 
   const profile = useAppSelector((state) => state.profile);
-  const config = useAppSelector((state) => state.config);
+  const config = useAppSelector((state) => state["config"]);
   const photometry = useAppSelector((state) => (state as any).photometry);
 
   const duplicateOptions = useMemo(() => {
@@ -794,7 +794,7 @@ const PhotometryPlot = ({
           const colorError = rgba(colorRGB, 0.5);
 
           const scaledPeriodValue =
-            periodValue / periodUnitDividers[periodUnitValue];
+            periodValue / (periodUnitDividers[periodUnitValue] ?? 1);
 
           const phases = groupedPhotometry[key].map(
             (point: any) => (point.mjd % scaledPeriodValue) / scaledPeriodValue,
@@ -833,16 +833,19 @@ const PhotometryPlot = ({
           let upperLimitsY = [];
           let upperLimitsText = [];
 
+          const groupForKey = groupedPhotometry[key] ?? [];
           for (let i = 0; i < indices.length; i += 1) {
-            if (groupedPhotometry[key][indices[i]].mag !== null) {
+            const idx = indices[i]!;
+            const point = groupForKey[idx];
+            if (point && point.mag !== null) {
               detectionsX.push(x[i]);
               detectionsY.push(y[i]);
               detectionsYerr.push(yerr[i]);
-              detectionsText.push(groupedPhotometry[key][indices[i]].text);
-            } else {
+              detectionsText.push(point.text);
+            } else if (point) {
               upperLimitsX.push(x[i]);
               upperLimitsY.push(y[i]);
-              upperLimitsText.push(groupedPhotometry[key][indices[i]].text);
+              upperLimitsText.push(point.text);
             }
           }
 
@@ -1380,7 +1383,7 @@ const PhotometryPlot = ({
     }
   }, [showForcedPhotometry]);
 
-  const handleChangeTab = (event: any, newValue: number) => {
+  const handleChangeTab = (_event: any, newValue: number) => {
     setTabIndex(newValue);
   };
 
@@ -1848,7 +1851,7 @@ const PhotometryPlot = ({
             <div className={classes.periodContainer}>
               <Slider
                 value={period}
-                onChange={(e, newValue) => setPeriod(newValue)}
+                onChange={(_e, newValue) => setPeriod(newValue)}
                 aria-labelledby="input-slider"
                 valueLabelDisplay="auto"
                 step={0.1}
@@ -1908,7 +1911,7 @@ const PhotometryPlot = ({
             <div className={classes.sliderContainer}>
               <Slider
                 value={smoothing}
-                onChange={(e, newValue) => setSmoothing(newValue)}
+                onChange={(_e, newValue) => setSmoothing(newValue)}
                 aria-labelledby="input-slider"
                 valueLabelDisplay="auto"
                 step={1}

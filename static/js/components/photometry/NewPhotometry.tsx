@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -49,7 +49,7 @@ interface NewPhotometryFormProps {
 
 const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
   const dispatch = useAppDispatch();
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
   const groups = useAppSelector((state) => state.groups.userAccessible);
 

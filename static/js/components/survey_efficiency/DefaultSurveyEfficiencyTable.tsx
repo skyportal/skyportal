@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -169,7 +169,7 @@ const DefaultSurveyEfficiencyTable = ({
       flex: 1,
       minWidth: 160,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.default_observationplan_request?.default_plan_name || "",
       renderCell: renderSurveyEfficiencyTitle,
     },
@@ -179,7 +179,7 @@ const DefaultSurveyEfficiencyTable = ({
       flex: 1,
       minWidth: 130,
       filterable: false,
-      valueGetter: (value: any, row: any) => row.payload?.modelName || "",
+      valueGetter: (_value: any, row: any) => row.payload?.modelName || "",
       renderCell: renderModelName,
     },
     {

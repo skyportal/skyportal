@@ -1,4 +1,3 @@
-import React from "react";
 import ReactMarkdown from "react-markdown";
 
 import { makeStyles } from "tss-react/mui";
@@ -63,7 +62,7 @@ const ShowSummaries = ({
       );
     }
     if (filteredSummaries?.length > 0) {
-      return filteredSummaries[0].summary;
+      return filteredSummaries[0]?.summary ?? null;
     }
     return null;
   };

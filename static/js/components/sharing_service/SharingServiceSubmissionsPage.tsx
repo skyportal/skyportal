@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import CircularProgress from "@mui/material/CircularProgress";
@@ -53,9 +53,9 @@ const SharingServiceSubmissionsPage = () => {
 
   const { id } = useParams<{ id: string }>();
 
-  const { users: allUsers } = useAppSelector((state) => state.users);
+  const { users: allUsers } = useAppSelector((state) => state["users"]);
   const submissions = useAppSelector(
-    (state) => state.sharingServices.submissions,
+    (state) => state["sharingServices"].submissions,
   );
 
   const sharingServiceSubmissions =

@@ -68,7 +68,10 @@ const config = (env, argv) => {
           options: {
             presets: [
               "@babel/preset-env",
-              "@babel/preset-react",
+              // Use the automatic JSX runtime so `import React from "react"`
+              // is no longer required in every JSX file. Matches the tsconfig
+              // setting "jsx": "react-jsx".
+              ["@babel/preset-react", { runtime: "automatic" }],
               // Strips TS types during bundling. Type *checking* is a separate
               // `tsc --noEmit` step (npm run typecheck), so a type error fails
               // CI without blocking local bundling.

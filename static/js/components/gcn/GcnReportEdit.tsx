@@ -68,7 +68,7 @@ function EditSourceToolbar(props: EditSourceToolbarProps) {
 export default function GcnReportEdit() {
   const dispatch = useAppDispatch();
 
-  const { report } = useAppSelector((state) => state.gcnEvent);
+  const { report } = useAppSelector((state) => state["gcnEvent"]);
 
   const [sourceRows, setSourceRows] = React.useState<any[]>([]);
   const [sourceRowModesModel, setSourceRowModesModel] = React.useState<any>({});

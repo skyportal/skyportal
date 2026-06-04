@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
@@ -155,8 +155,8 @@ interface ObservationPlanGlobeProps {
   skymapInstrument?: any;
   selectedFields: number[];
   setSelectedFields: (...a: any[]) => void;
-  selectedProjection?: string;
-  airmassValue?: number;
+  selectedProjection?: string | undefined;
+  airmassValue?: number | undefined;
 }
 
 const ObservationPlanGlobe = ({
@@ -217,16 +217,16 @@ const ObservationPlanRequestForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const gcnEvent = useAppSelector((state) => state.gcnEvent);
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const { allocationListApiObsplan } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   );
   const { useAMPM } = useAppSelector(
     (state) => state.profile.preferences ?? {},
   ) as { useAMPM?: boolean };
 
-  const { obsplanLoc } = useAppSelector((state) => state.localization);
+  const { obsplanLoc } = useAppSelector((state) => state["localization"]);
 
   const allGroups = useAppSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
@@ -258,7 +258,7 @@ const ObservationPlanRequestForm = ({
   ] = useState(false);
 
   const { instrumentList, instrumentObsplanFormParams } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   );
 
   const groupLookUp: Record<string, any> = {};

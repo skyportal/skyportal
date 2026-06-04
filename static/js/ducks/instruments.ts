@@ -24,9 +24,9 @@ export function fetchGcnEventInstruments(
   dateobs: string,
   filterParams: Record<string, any> = {},
 ) {
-  filterParams.localizationDateobs = dateobs;
-  filterParams.includeGeoJSONSummary = true;
-  filterParams.includeGeoJSON = false;
+  filterParams["localizationDateobs"] = dateobs;
+  filterParams["includeGeoJSONSummary"] = true;
+  filterParams["includeGeoJSON"] = false;
   return API.GET("/api/instrument", FETCH_GCNEVENT_INSTRUMENTS, filterParams);
 }
 
@@ -45,7 +45,7 @@ export const fetchInstrumentObsplanForms = () =>
 
 // Websocket message handler
 messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
+  (actionType: string, _payload: any, dispatch: AppDispatch) => {
     if (actionType === REFRESH_INSTRUMENTS) {
       dispatch(fetchInstruments());
       dispatch(fetchInstrumentForms());

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
@@ -33,7 +33,7 @@ const FavoritesPage = () => {
   }, [dispatch]);
 
   const sourcesState = useAppSelector(
-    (state) => state.sources.favorites,
+    (state) => state["sources"].favorites,
   ) as any;
 
   const handleSourcesTableSorting = (sortData: any, filterData: any) => {

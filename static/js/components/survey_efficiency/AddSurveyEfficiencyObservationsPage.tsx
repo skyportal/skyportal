@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -18,7 +18,7 @@ const AddSurveyEfficiencyObservationsPage = () => {
   const [fetchingSurveyEfficiency, setFetchingSurveyEfficiency] =
     useState(false);
 
-  const gcnEvent = useAppSelector((state) => state.gcnEvent) as any;
+  const gcnEvent = useAppSelector((state) => state["gcnEvent"]) as any;
 
   const openDialog = () => {
     setDialogOpen(true);

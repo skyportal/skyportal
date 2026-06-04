@@ -1,5 +1,3 @@
-import React from "react";
-
 import { useAppSelector } from "../../types/hooks";
 import NewTokenForm from "./NewTokenForm";
 import TokenList from "./TokenList";

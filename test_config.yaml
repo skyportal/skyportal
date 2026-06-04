@@ -116,6 +116,12 @@ app:
     host: localhost
     port: 64502
   ps1_endpoint: http://localhost:64502
+  # No live SEDM endpoint in tests — SEDMAPI short-circuits the HTTP call
+  # and returns a stub "accepted" response when this is empty.
+  sedm_endpoint:
+  # No live PS1 cutout service in tests — Obj.panstarrs_url falls back to
+  # the "currently_unavailable.png" placeholder without hitting the network.
+  ps1_cutout_url:
 
   observation_plan:
     default_filters: ["ztfg", "ztfr", "ztfi"]

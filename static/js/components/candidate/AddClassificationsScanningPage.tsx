@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -27,7 +27,9 @@ const AddClassificationsScanningPage = ({
   >([]);
   const dispatch = useAppDispatch();
 
-  const { taxonomyList } = useAppSelector((state) => state.taxonomies) as any;
+  const { taxonomyList } = useAppSelector(
+    (state) => state["taxonomies"],
+  ) as any;
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   const classificationsAndTaxonomyIds: Record<string, number> = {};
   latestTaxonomyList?.forEach((taxonomy: any) => {

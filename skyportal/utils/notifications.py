@@ -35,7 +35,7 @@ if SLACK_BASE_URL.endswith("/"):
 
 SLACK_URL = f"{SLACK_URL}/services"
 
-SLACK_MICROSERVICE_URL = f"http://127.0.0.1:{cfg['slack.microservice_port']}"
+SLACK_MICROSERVICE_URL = f"http://{cfg['hosts.slack']}:{cfg['slack.microservice_port']}"
 
 email_enabled = False
 if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
@@ -464,7 +464,7 @@ def source_email_notification(target, data=None):
 
 def post_notification(request_body, timeout=2):
     notifications_microservice_url = (
-        f"http://127.0.0.1:{cfg['ports.notification_queue']}"
+        f"http://{cfg['hosts.notification_queue']}:{cfg['ports.notification_queue']}"
     )
     try:
         resp = requests.post(

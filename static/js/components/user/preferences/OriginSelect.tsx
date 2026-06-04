@@ -1,4 +1,3 @@
-import React from "react";
 import { useAppSelector } from "../../../types/hooks";
 import SelectWithChips from "../../SelectWithChips";
 
@@ -13,7 +12,7 @@ const OriginSelect = ({
   initValue = [],
   parent,
 }: OriginSelectProps) => {
-  const photometry = useAppSelector((state) => state.photometry);
+  const photometry = useAppSelector((state) => state["photometry"]);
 
   const originsList = ["Clear selections"]
     .concat(photometry?.origins || [])

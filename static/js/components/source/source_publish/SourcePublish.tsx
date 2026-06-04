@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
@@ -75,7 +75,7 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
     groups: [],
     streams: [],
   });
-  const versions = useAppSelector((state) => state.publicSourceVersions);
+  const versions = useAppSelector((state) => state["publicSourceVersions"]);
 
   const publish = () => {
     if (manageSourcesAccess) {

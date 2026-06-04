@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import Paper from "@mui/material/Paper";
 import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
@@ -69,7 +69,7 @@ const QueuedObservationsTable = ({
 }: QueuedObservationsTableProps) => {
   const { classes } = useStyles();
 
-  const { instrumentList } = useAppSelector((state) => state.instruments);
+  const { instrumentList } = useAppSelector((state) => state["instruments"]);
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -136,7 +136,7 @@ const QueuedObservationsTable = ({
       minWidth: 120,
       sortable: false,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.telescope?.name || "",
       renderCell: (params: any) => {
         const instrument = instrumentsLookup[params.row.instrument_id] || null;
@@ -152,7 +152,7 @@ const QueuedObservationsTable = ({
       flex: 1,
       minWidth: 120,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.name || "",
       renderCell: (params: any) => {
         const instrument = instrumentsLookup[params.row.instrument_id] || null;
@@ -176,7 +176,7 @@ const QueuedObservationsTable = ({
       flex: 1,
       minWidth: 100,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.field ? row.field?.field_id?.toFixed(0) : "",
     },
     {
@@ -186,7 +186,7 @@ const QueuedObservationsTable = ({
       minWidth: 130,
       sortable: false,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.field ? row.field?.ra?.toFixed(5) : "",
     },
     {
@@ -196,7 +196,7 @@ const QueuedObservationsTable = ({
       minWidth: 120,
       sortable: false,
       filterable: false,
-      valueGetter: (value: any, row: any) =>
+      valueGetter: (_value: any, row: any) =>
         row.field ? row.field?.dec?.toFixed(5) : "",
     },
     {

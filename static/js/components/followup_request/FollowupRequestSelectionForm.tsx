@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -62,16 +62,16 @@ const FollowupRequestSelectionForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const { telescopeList } = useAppSelector((state) => state.telescopes);
+  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state.instruments,
+    (state) => state["instruments"],
   );
   const { allocationListApiClassname } = useAppSelector(
-    (state) => state.allocations,
+    (state) => state["allocations"],
   );
-  const { users: allUsers } = useAppSelector((state) => state.users);
+  const { users: allUsers } = useAppSelector((state) => state["users"]);
   const { followupRequestList } = useAppSelector(
-    (state) => state.followup_requests,
+    (state) => state["followup_requests"],
   );
 
   const defaultStartDate = dayjs()

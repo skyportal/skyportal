@@ -1,4 +1,3 @@
-import React from "react";
 import { makeStyles } from "tss-react/mui";
 import { useAppSelector } from "../types/hooks";
 
@@ -35,7 +34,7 @@ const Logo = ({
   src = "/static/images/skyportal_logo_dark.png",
   altText = "SkyPortal logo",
 }: LogoProps) => {
-  const rotateLogo = useAppSelector((state) => state.logo.rotateLogo);
+  const rotateLogo = useAppSelector((state) => state["logo"].rotateLogo);
   const { classes: styles } = useStyles();
   return (
     <div className={(styles as any).logoContainer}>

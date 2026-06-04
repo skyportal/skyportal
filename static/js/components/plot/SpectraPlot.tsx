@@ -1,10 +1,4 @@
-import React, {
-  useEffect,
-  useState,
-  useMemo,
-  useRef,
-  useCallback,
-} from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
@@ -103,7 +97,6 @@ const SpectraPlot = ({
 }: SpectraPlotProps) => {
   const { classes } = useStyles();
   const plotRef = useRef<any>(null);
-  const singleClickTimerRef = useRef<any>(null);
   const [data, setData] = useState<any>(null);
   const [plotData, setPlotData] = useState<any>(null);
 
@@ -121,17 +114,18 @@ const SpectraPlot = ({
   const isSyncingRef = useRef(false);
 
   const { preferences } = useAppSelector((state) => state.profile);
+  const spectroscopyButtons = (preferences as any)?.spectroscopyButtons;
 
   // Memoize user custom lines to avoid recreating on every render
   const userCustomLines = useMemo(() => {
-    return Object.entries((preferences as any)?.spectroscopyButtons || {}).map(
+    return Object.entries(spectroscopyButtons || {}).map(
       ([name, { color, wavelengths }]: [string, any]) => ({
         name,
         color,
         x: wavelengths,
       }),
     );
-  }, [(preferences as any)?.spectroscopyButtons]);
+  }, [spectroscopyButtons]);
 
   // Memoize the combined lines array to avoid recreating on every render
   const allLines = useMemo(
@@ -588,7 +582,7 @@ const SpectraPlot = ({
     }
   }, [vExpInput, redshiftInput, customWavelengthInput, specStats, types]);
 
-  const handleChangeTab = useCallback((event: any, newValue: any) => {
+  const handleChangeTab = useCallback((_event: any, newValue: any) => {
     setTabIndex(newValue);
     // Reset the layout when changing tabs to reset zoom
     setLayoutReset((prev) => prev + 1);
@@ -1032,7 +1026,7 @@ const SpectraPlot = ({
           <div className={classes.sliderContainer}>
             <Slider
               value={vExpInput}
-              onChange={(e, newValue) => setVExpInput(newValue)}
+              onChange={(_e, newValue) => setVExpInput(newValue)}
               aria-labelledby="input-slider"
               valueLabelDisplay="auto"
               step={1}
@@ -1059,7 +1053,7 @@ const SpectraPlot = ({
           <div className={classes.sliderContainer}>
             <Slider
               value={redshiftInput}
-              onChange={(e, newValue) => setRedshiftInput(newValue)}
+              onChange={(_e, newValue) => setRedshiftInput(newValue)}
               aria-labelledby="input-slider"
               valueLabelDisplay="auto"
               step={0.0001}
@@ -1086,7 +1080,7 @@ const SpectraPlot = ({
           <div className={classes.sliderContainer}>
             <Slider
               value={smoothingInput}
-              onChange={(e, newValue) => setSmoothingInput(newValue)}
+              onChange={(_e, newValue) => setSmoothingInput(newValue)}
               aria-labelledby="input-slider"
               valueLabelDisplay="auto"
               step={1}
@@ -1113,7 +1107,7 @@ const SpectraPlot = ({
           <div className={classes.sliderContainer}>
             <Slider
               value={customWavelengthInput}
-              onChange={(e, newValue) => setCustomWavelengthInput(newValue)}
+              onChange={(_e, newValue) => setCustomWavelengthInput(newValue)}
               aria-labelledby="input-slider"
               valueLabelDisplay="auto"
               step={1}

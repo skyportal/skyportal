@@ -76,24 +76,26 @@ interface UploadSpectrumFormProps {
 const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
   const dispatch = useAppDispatch();
   const groups = useAppSelector((state) => state.groups.all);
-  const { parsed } = useAppSelector((state) => state.spectra);
-  const { users } = useAppSelector((state) => state.users);
+  const { parsed } = useAppSelector((state) => state["spectra"]);
+  const { users } = useAppSelector((state) => state["users"]);
   const instrumentList = useAppSelector(
-    (state) => state.instruments.instrumentList,
+    (state) => state["instruments"].instrumentList,
   );
-  const telescopes = useAppSelector((state) => state.telescopes.telescopeList);
-  const source = useAppSelector((state) => state.source);
+  const telescopes = useAppSelector(
+    (state) => state["telescopes"].telescopeList,
+  );
+  const source = useAppSelector((state) => state["source"]);
   const [persistentFormData, setPersistentFormData] = useState<any>({});
   const [formKey, setFormKey] = useState<any>(null);
   const [header, setHeader] = useState<any[]>([]);
   const [data, setData] = useState<any[]>([]);
   const [headerHasComments, setHeaderHasComments] = useState(false);
   const spectrumTypes = useAppSelector(
-    (state) => state.config.allowedSpectrumTypes,
+    (state) => state["config"].allowedSpectrumTypes,
   );
 
   const defaultSpectrumType = useAppSelector(
-    (state) => state.config.defaultSpectrumType,
+    (state) => state["config"].defaultSpectrumType,
   );
   const [searchParams] = useSearchParams();
   const [uploadedFromURL, setUploadedFromURL] = useState(false);

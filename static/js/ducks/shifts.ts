@@ -241,17 +241,17 @@ const reducer = (
 
       // Update or add the shift in shiftList
       const formatedShift = shiftStringDateToDate(action.data);
-      newState.shiftList = state.shiftList.some(
+      newState["shiftList"] = state["shiftList"].some(
         (s: any) => s.id === formatedShift.id,
       )
-        ? state.shiftList.map((s: any) =>
+        ? state["shiftList"].map((s: any) =>
             s.id === formatedShift.id ? formatedShift : s,
           )
-        : [...state.shiftList, formatedShift];
+        : [...state["shiftList"], formatedShift];
 
       // Sync currentShift with the fetched shift
-      if (shift.id === state.currentShift?.id) {
-        newState.currentShift = shift;
+      if (shift.id === state["currentShift"]?.id) {
+        newState["currentShift"] = shift;
       }
       return {
         ...newState,
@@ -266,10 +266,12 @@ const reducer = (
       };
       // reset currentShift if it is not in the new shiftList
       if (
-        state.currentShift?.id &&
-        !newState.shiftList.some((s: any) => s.id === state.currentShift.id)
+        state["currentShift"]?.id &&
+        !newState["shiftList"].some(
+          (s: any) => s.id === state["currentShift"].id,
+        )
       ) {
-        newState.currentShift = {};
+        newState["currentShift"] = {};
       }
       return {
         ...newState,

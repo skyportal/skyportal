@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useState } from "react";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
@@ -58,6 +57,159 @@ function repeatedShiftInfos(shift: any) {
   return `${durationInHours.toFixed(1)} hours ${repeatedShiftRange}`;
 }
 
+interface ReplaceUserMenuProps {
+  shiftToManage: any;
+  currentUser: any;
+  dispatch: any;
+}
+
+const ReplaceUserMenu = ({
+  shiftToManage,
+  currentUser,
+  dispatch,
+}: ReplaceUserMenuProps) => {
+  const [selectedId, setSelectedId] = useState<any>(null);
+  const usersToReplace = shiftToManage.shift_users.filter(
+    (shiftUser: any) => shiftUser.needs_replacement,
+  );
+
+  const replaceUserInShift = (selectedUserId: any) => {
+    const shiftID = parseInt(shiftToManage.id, 10);
+    const shiftUser = usersToReplace.find((u: any) => u.id === selectedUserId);
+    dispatch(
+      deleteShiftUser({
+        userID: shiftUser.user_id,
+        shiftID,
+      }),
+    ).then((result: any) => {
+      if (result.status === "success") {
+        dispatch(
+          addShiftUser({
+            shiftID,
+            userID: currentUser.id,
+            admin: false,
+            needs_replacement: false,
+          }),
+        ).then((next_result: any) => {
+          if (next_result.status === "success") {
+            dispatch(showNotification(`replaced user: ${shiftUser.username}`));
+          }
+        });
+      }
+    });
+  };
+
+  const currentUserIsMemberInShift = shiftToManage.shift_users.some(
+    (shiftUser: any) =>
+      shiftUser.user_id === currentUser.id && !shiftUser.admin,
+  );
+  if (currentUserIsMemberInShift) {
+    // check if the user has already asked for a replacement
+    if (
+      usersToReplace.some(
+        (shiftUser: any) => shiftUser.user_id === currentUser.id,
+      )
+    )
+      return null;
+
+    return (
+      <Tooltip title="Ask for someone to replace you. All users from the group associated to the Shift will be notified">
+        <Button
+          primary
+          variant="outlined"
+          id="ask-for-replacement-button"
+          onClick={() => {
+            const shiftID = parseInt(shiftToManage.id, 10);
+            const userID = parseInt(currentUser.id as any, 10);
+            dispatch(
+              updateShiftUser({
+                shiftID,
+                userID,
+                admin: false,
+                needs_replacement: true,
+              }),
+            ).then((result: any) => {
+              if (result.status === "success") {
+                dispatch(showNotification(`asked for replacement`));
+              }
+            });
+          }}
+        >
+          Ask for Replacement
+        </Button>
+      </Tooltip>
+    );
+  } else if (usersToReplace.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        width: "100%",
+        gap: "0.5rem",
+      }}
+    >
+      <FormControl sx={{ width: "60%" }}>
+        <InputLabel id="select-user-replace-label">Replace user</InputLabel>
+        <Select
+          labelId="select-user-replace-label"
+          label="Replace user"
+          value={selectedId || ""}
+          onChange={(e) => setSelectedId(e.target.value)}
+          renderValue={(selectedIdValue: any) => {
+            const shiftUser = usersToReplace.find(
+              (u: any) => u.id === selectedIdValue,
+            );
+            return (
+              <Box>
+                {selectedIdValue && (
+                  <Chip
+                    id={selectedIdValue.id}
+                    label={userLabel(shiftUser, true)}
+                  />
+                )}
+              </Box>
+            );
+          }}
+          MenuProps={{ PaperProps: { style: { maxHeight: "25vh" } } }}
+        >
+          {usersToReplace.map((shiftUser: any) => (
+            <MenuItem key={shiftUser.id} value={shiftUser.id}>
+              <Checkbox checked={selectedId === shiftUser.id} />
+              <ListItemText
+                id={shiftUser.id}
+                primary={userLabel(shiftUser, true)}
+              />
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <Tooltip
+        style={{ flex: 1 }}
+        title={
+          !selectedId ? "No users selected, select users to replace them" : ""
+        }
+      >
+        <div>
+          <Button
+            sx={{ width: "100%", height: "100%" }}
+            primary
+            variant="outlined"
+            disabled={!selectedId}
+            onClick={() => {
+              replaceUserInShift(selectedId);
+              setSelectedId(null);
+            }}
+          >
+            Replace
+          </Button>
+        </div>
+      </Tooltip>
+    </div>
+  );
+};
+
 interface ShiftManagementProps {
   shiftToManage: any;
 }
@@ -87,153 +239,6 @@ const ShiftManagement = ({ shiftToManage }: ShiftManagementProps) => {
       }
     });
   };
-
-  function ReplaceUserMenu() {
-    const [selectedId, setSelectedId] = useState<any>(null);
-    const usersToReplace = shiftToManage.shift_users.filter(
-      (shiftUser: any) => shiftUser.needs_replacement,
-    );
-
-    function replaceUserInShift(selectedUserId: any) {
-      const shiftID = parseInt(shiftToManage.id, 10);
-      const shiftUser = usersToReplace.find(
-        (u: any) => u.id === selectedUserId,
-      );
-      dispatch(
-        deleteShiftUser({
-          userID: shiftUser.user_id,
-          shiftID,
-        }),
-      ).then((result: any) => {
-        if (result.status === "success") {
-          dispatch(
-            addShiftUser({
-              shiftID,
-              userID: currentUser.id,
-              admin: false,
-              needs_replacement: false,
-            }),
-          ).then((next_result: any) => {
-            if (next_result.status === "success") {
-              dispatch(
-                showNotification(`replaced user: ${shiftUser.username}`),
-              );
-            }
-          });
-        }
-      });
-    }
-
-    const currentUserIsMemberInShift = shiftToManage.shift_users.some(
-      (shiftUser: any) =>
-        shiftUser.user_id === currentUser.id && !shiftUser.admin,
-    );
-    if (currentUserIsMemberInShift) {
-      // check if the user has already asked for a replacement
-      if (
-        usersToReplace.some(
-          (shiftUser: any) => shiftUser.user_id === currentUser.id,
-        )
-      )
-        return null;
-
-      return (
-        <Tooltip title="Ask for someone to replace you. All users from the group associated to the Shift will be notified">
-          <Button
-            primary
-            variant="outlined"
-            id="ask-for-replacement-button"
-            onClick={() => {
-              const shiftID = parseInt(shiftToManage.id, 10);
-              const userID = parseInt(currentUser.id as any, 10);
-              dispatch(
-                updateShiftUser({
-                  shiftID,
-                  userID,
-                  admin: false,
-                  needs_replacement: true,
-                }),
-              ).then((result: any) => {
-                if (result.status === "success") {
-                  dispatch(showNotification(`asked for replacement`));
-                }
-              });
-            }}
-          >
-            Ask for Replacement
-          </Button>
-        </Tooltip>
-      );
-    } else if (usersToReplace.length === 0) return;
-
-    return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          width: "100%",
-          gap: "0.5rem",
-        }}
-      >
-        <FormControl sx={{ width: "60%" }}>
-          <InputLabel id="select-user-replace-label">Replace user</InputLabel>
-          <Select
-            labelId="select-user-replace-label"
-            label="Replace user"
-            value={selectedId || ""}
-            onChange={(e) => setSelectedId(e.target.value)}
-            renderValue={(selectedIdValue: any) => {
-              const shiftUser = usersToReplace.find(
-                (u: any) => u.id === selectedIdValue,
-              );
-              return (
-                <Box>
-                  {selectedIdValue && (
-                    <Chip
-                      id={selectedIdValue.id}
-                      label={userLabel(shiftUser, true)}
-                    />
-                  )}
-                </Box>
-              );
-            }}
-            MenuProps={{ PaperProps: { style: { maxHeight: "25vh" } } }}
-          >
-            {usersToReplace.map((shiftUser: any) => (
-              <MenuItem key={shiftUser.id} value={shiftUser.id}>
-                <Checkbox checked={selectedId === shiftUser.id} />
-                <ListItemText
-                  id={shiftUser.id}
-                  primary={userLabel(shiftUser, true)}
-                />
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <Tooltip
-          style={{ flex: 1 }}
-          title={
-            !selectedId ? "No users selected, select users to replace them" : ""
-          }
-        >
-          <div>
-            <Button
-              sx={{ width: "100%", height: "100%" }}
-              primary
-              variant="outlined"
-              disabled={!selectedId}
-              onClick={() => {
-                replaceUserInShift(selectedId);
-                setSelectedId(null);
-              }}
-            >
-              Replace
-            </Button>
-          </div>
-        </Tooltip>
-      </div>
-    );
-  }
 
   const leaveShift = (shift: any) => {
     dispatch(
@@ -385,7 +390,11 @@ const ShiftManagement = ({ shiftToManage }: ShiftManagementProps) => {
           />
         </>
       )}
-      <ReplaceUserMenu />
+      <ReplaceUserMenu
+        shiftToManage={shiftToManage}
+        currentUser={currentUser}
+        dispatch={dispatch}
+      />
       <Typography
         variant="body2"
         color="text.secondary"

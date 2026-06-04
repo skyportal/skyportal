@@ -40,7 +40,19 @@ jobs:
       # (e.g., to get access to a newer data loader or dependencies).
       # Pick any commit known to have passed the migration tests on
       # CI, or which has deployed successfully.
-      MIGRATION_REFERENCE: 53699ab25149fc6b1fb21f420de95fdd485ec933
+      #
+      # NOTE: this must be a commit that uses uv (i.e. on or after #6008,
+      # "move to uv"), so its dependencies install reproducibly from its own
+      # uv.lock. Pre-uv references install via pip with unpinned transitive
+      # deps that drift over time and intermittently break the demo-data load.
+      #
+      # It must also be on or after #6177 ("more Typescript options"), since
+      # the workflow writes `app.sedm_endpoint:` empty in the reference's
+      # config.yaml — and only the SEDMAPI from #6176+ short-circuits a missing
+      # endpoint into a stub "accepted" response, and only the photometry.py
+      # bandpass loop from #6177 tolerates the occasional empty sncosmo
+      # Bandpass without aborting app-import.
+      MIGRATION_REFERENCE: 3f99e2dcc22e5ce4d13c5ca75459cd3954bd6222
 
     services:
       postgres:
@@ -140,11 +152,6 @@ jobs:
           ref: ${{ env.MIGRATION_REFERENCE }}
           submodules: true
 
-      - name: Switch to Python 3.10 for reference commit
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.10"
-
       - name: Write SkyPortal configs
         run: |
           cat << EOF > config.yaml
@@ -154,6 +161,11 @@ jobs:
               port: 5432
               user: skyportal
               password: anything
+            # Short-circuit the SEDM facility-api HTTP call so the demo
+            # loader's followup_request POSTs don't depend on STScI's
+            # \`minar.caltech.edu/add_fritz\` being reachable from CI.
+            app:
+              sedm_endpoint:
           EOF
 
       - name: Initialize SkyPortal
@@ -173,32 +185,35 @@ jobs:
 
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
 
-          # Reference commit pre-dates using uv, so we will re-install some dependencies with pip directly here.
-          # We will also install some dependencies with specific versions, to fix known issues
-          # with dependency updates  that have occurred since the reference commit.
-          pip install pip==24.0
-          pip install wheel numpy
-          pip install "setuptools<76.1.0"
-          pip install black
-          pip install 'fiona==1.9.6' # 1.10.0 breaks geopandas
-          pip install 'joblib<1.5.0' # 1.5.0 breaks skyportal/utils/offset.py on reference commit
-          pip install 'lalsuite<7.26' # 7.26 breaks ligo.skymap
-          pip install 'python-ligo-lw==1.8.4' # 2.0.0 breaks ligo.skymap
-          pip install 'numexpr==2.13.1' # 2.14.0 breaks multiple packages
+          # The reference commit uses uv, so install its pinned dependencies
+          # straight from its own uv.lock (reproducible; no manual pip pins).
+          make dependencies
 
           make db_init
 
           npm ls --depth 0
 
           # Stamp Alembic HEAD
-          PYTHONPATH=. alembic -x config=config.yaml stamp head
+          PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
+
+      - name: Pre-warm sncosmo bandpass cache
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python tools/warm_sncosmo_cache.py || true
 
       - name: Test loading demo data
         run: |
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make run &
           sleep 180 && make load_demo_data
-          kill %1
+          # `kill %1` alone is racy — `make run` often backgrounds supervisord
+          # and returns, leaving `%1` already gone. `make stop` shuts the
+          # supervisor down so it can't race with the alembic upgrade in the
+          # next step (the race surfaces as `relation "objs" does not exist`
+          # when a respawned app worker's create_tables() collides with the
+          # migration's CREATE TABLE).
+          make stop
+          kill %1 2>/dev/null || true
+          sleep 5
 
       - name: Checkout branch being tested
         uses: actions/checkout@v4
@@ -278,6 +293,9 @@ jobs:
               port: 5432
               user: skyportal
               password: anything
+            # Same SEDM short-circuit as the first config.yaml above.
+            app:
+              sedm_endpoint:
           EOF
 
           createdb -h localhost -U skyportal skyportal2
@@ -290,7 +308,9 @@ jobs:
 
           make run &
           sleep 60 && make load_demo_data
-          kill %1
+          make stop
+          kill %1 2>/dev/null || true
+          sleep 5
           PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
 
       - name: Compare databases with migra

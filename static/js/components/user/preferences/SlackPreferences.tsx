@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -23,7 +23,7 @@ const useStyles = makeStyles()((theme) => ({
 const SlackPreferences = () => {
   const { classes } = useStyles();
   const slack_preamble = useAppSelector(
-    (state) => (state.config as any).slackPreamble,
+    (state) => (state["config"] as any).slackPreamble,
   );
   const profile = useAppSelector((state) => state.profile.preferences) as any;
   const dispatch = useAppDispatch();
