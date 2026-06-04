@@ -29,25 +29,18 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     assert status == 200
     assert data["data"]["id"] == obj_id
 
-    # wait for the thumbnails to populate
-    nretries = 0
-    thumbnails_loaded = False
-    thumbnails = []
+    # Don't wait for the thumbnail_queue background service — it fetches the
+    # most-recent unprocessed obj and a busy test suite keeps pushing newer
+    # objs to the front of the line. Call the same method synchronously.
+    session = DBSession()
+    obj = session.query(Obj).filter(Obj.id == obj_id).first()
+    obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
 
-    # wait for the thumbnails to populate, get the source
-    while nretries < 30:
-        # we put the sleep first, knowing that we will have to wait before the first try could be successful anyway
-        time.sleep(10)
-        status, data = api(
-            "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
-        )
-        thumbnails = data.get("data", {}).get("thumbnails", [])
-        if isinstance(thumbnails, list) and len(thumbnails) == 3:
-            thumbnails_loaded = True
-            break
-        nretries += 1
-
-    assert thumbnails_loaded
+    status, data = api(
+        "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
+    )
+    thumbnails = data.get("data", {}).get("thumbnails", [])
+    assert isinstance(thumbnails, list) and len(thumbnails) == 3
 
     orig_source_thumbnail_count = len(thumbnails)
     data = base64.b64encode(
@@ -70,7 +63,9 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     assert data["status"] == "success"
     assert data["data"]["type"] == "new"
 
-    # wait for the thumbnails to populate, get the source
+    # POST/thumbnail is synchronous; this short poll only guards read-after-write.
+    nretries = 0
+    thumbnails_loaded = False
     while nretries < 5:
         status, data = api(
             "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
