@@ -10,7 +10,7 @@ import TextField from "@mui/material/TextField";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import * as usersActions from "../../ducks/users";
+import { usePatchUserMutation } from "../../ducks/users";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -35,6 +35,7 @@ interface UpdateUserParameterProps {
 const UpdateUserParameter = ({ user, parameter }: UpdateUserParameterProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [patchUser] = usePatchUserMutation();
 
   const [param, setParam] = useState(user[parameter]);
 
@@ -53,14 +54,14 @@ const UpdateUserParameter = ({ user, parameter }: UpdateUserParameterProps) => {
     setIsSubmitting(true);
     const newState: Record<string, any> = {};
     newState[parameter] = param;
-    const result: any = await dispatch(
-      usersActions.patchUser(user.id, newState),
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await patchUser({ id: user.id, data: newState }).unwrap();
       dispatch(showNotification("Username successfully updated."));
       setDialogOpen(false);
+    } catch {
+      // error notification handled by the base query
     }
+    setIsSubmitting(false);
   };
 
   return (

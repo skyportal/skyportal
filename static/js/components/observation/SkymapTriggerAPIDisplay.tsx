@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
@@ -13,7 +14,7 @@ import FindGcnEvents from "../gcn/FindGcnEvents";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as skymapTriggerActions from "../../ducks/skymap_triggers";
-import * as allocationActions from "../../ducks/allocations";
+import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 
 dayjs.extend(utc);
 
@@ -50,34 +51,19 @@ const SkymapTriggerAPIDisplay = () => {
 
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationListApiObsplan } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const { data: allocationListApiObsplan = [] } =
+    useGetAllocationsApiObsplanQuery({
+      apiImplements: "send_skymap",
+    });
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
 
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result: any = await dispatch(
-        allocationActions.fetchAllocationsApiObsplan({
-          apiImplements: "send_skymap",
-        }),
-      );
-
-      const { data } = result;
-      setSelectedAllocationId(data[0]?.id);
-    };
-
-    getAllocations();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-  }, [dispatch]);
+    if (allocationListApiObsplan?.length > 0) {
+      setSelectedAllocationId(allocationListApiObsplan[0]?.["id"]);
+    }
+  }, [allocationListApiObsplan]);
 
   useEffect(() => {
     const getTriggers = async () => {
@@ -95,6 +81,7 @@ const SkymapTriggerAPIDisplay = () => {
       }
     };
     getTriggers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAllocationId]);
 
   if (

@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-
+import { useGetGroupsQuery } from "../../ducks/groups";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -9,7 +8,7 @@ import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as queuedObservationActions from "../../ducks/queued_observations";
-import * as allocationActions from "../../ducks/allocations";
+import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 
 dayjs.extend(utc);
 
@@ -22,10 +21,11 @@ const NewAPIQueuedObservation = ({
 }: NewAPIQueuedObservationProps) => {
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationListApiObsplan } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const { data: allocationListApiObsplan = [] } =
+    useGetAllocationsApiObsplanQuery({
+      apiImplements: "queued",
+    });
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
 
   const dispatch = useAppDispatch();
 
@@ -35,25 +35,6 @@ const NewAPIQueuedObservation = ({
     .add(1, "day")
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
-
-  useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      await dispatch(
-        allocationActions.fetchAllocationsApiObsplan({
-          apiImplements: "queued",
-        }),
-      );
-    };
-
-    getAllocations();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-  }, [dispatch]);
 
   if (
     !allGroups ||
@@ -149,7 +130,7 @@ const NewAPIQueuedObservation = ({
           } (PI ${allocation.pi})`,
         })),
         title: "Allocation",
-        default: allocationListApiObsplan[0]?.id,
+        default: allocationListApiObsplan[0]?.["id"],
       },
     },
     required: ["start_date", "end_date", "allocation_id"],

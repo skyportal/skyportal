@@ -6,7 +6,6 @@ import { geoMollweide } from "d3-geo-projection";
 import * as d3 from "d3";
 import d3GeoZoom from "../../d3GeoZoom";
 
-import { useAppSelector } from "../../types/hooks";
 import { moonGeoJSON, sunGeoJSON } from "../../utils";
 
 const useStyles = makeStyles()(() => ({
@@ -58,20 +57,8 @@ const LocalizationPlot = ({
   setSelectedFields = () => {},
   selectedObservations = [],
   setSelectedObservations = () => {},
-  type = null,
   projection = "orthographic",
 }: LocalizationPlotProps) => {
-  const { analysisLoc } = useAppSelector((state) => state["localization"]);
-  const { obsplanLoc } = useAppSelector((state) => state["localization"]);
-
-  if (!localization) {
-    if (type === "obsplan") {
-      localization = obsplanLoc;
-    } else if (type === "analysis") {
-      localization = analysisLoc;
-    }
-  }
-
   if (
     !localization?.id ||
     !localization?.dateobs ||

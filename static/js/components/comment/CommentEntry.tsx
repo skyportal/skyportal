@@ -7,6 +7,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import { useAppSelector } from "../../types/hooks";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import Button from "../Button";
 
 import UsernameTrie from "../../usernameTrie";
@@ -43,7 +44,8 @@ const CommentEntry = ({
 }: CommentEntryProps) => {
   const { classes: styles } = useStyles();
   const users = useAppSelector((state) => state["users"]);
-  const { userAccessible: groups } = useAppSelector((state) => state.groups);
+  const { data: groupsData } = useGetGroupsQuery();
+  const groups = useMemo(() => groupsData?.userAccessible ?? [], [groupsData]);
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const [textValue, setTextValue] = useState("");
   const [textInputCursorIndex, setTextInputCursorIndex] = useState(0);

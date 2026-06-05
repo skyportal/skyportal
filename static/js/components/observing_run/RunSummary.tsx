@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import React, { Suspense, useEffect, useState } from "react";
 
 import Typography from "@mui/material/Typography";
@@ -221,7 +222,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
   const { telescopeList } = useAppSelector(
     (state) => state["telescopes"],
   ) as any;
-  const groups = useAppSelector((state) => state.groups.all) as any;
+  const groups = (useGetGroupsQuery().data?.all ?? null) as any;
   const [dialog, setDialog] = useState(false);
   const [openedRows, setOpenedRows] = useState<any[]>([]);
 

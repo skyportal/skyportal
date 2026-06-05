@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useRef, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -23,7 +24,10 @@ import Chip from "@mui/material/Chip";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 import { modifyAllocation, submitAllocation } from "../../ducks/allocation";
-import { fetchAllocations } from "../../ducks/allocations";
+import {
+  allocationsApi,
+  useGetAllocationsQuery,
+} from "../../ducks/allocations";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { userLabel } from "../../utils/format";
 
@@ -225,14 +229,14 @@ const AllocationForm = ({
   allocationId = null,
 }: AllocationFormProps) => {
   const dispatch = useAppDispatch();
-  const { allocationList } = useAppSelector((state) => state["allocations"]);
+  const { data: allocationList = [] } = useGetAllocationsQuery();
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
   );
   const allowedAllocationTypes = useAppSelector(
     (state) => state["config"].allowedAllocationTypes,
   );
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const { users } = useAppSelector((state) => state["users"]);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [instrumentOptions, setInstrumentOptions] = useState<any[]>([]);
@@ -283,7 +287,7 @@ const AllocationForm = ({
       );
       if (allocation) {
         setAllocationToEdit(allocation);
-        setSelectedGroupIds(allocation.default_share_group_ids || []);
+        setSelectedGroupIds(allocation["default_share_group_ids"] || []);
       }
     }
   }, [allocationId, allocationList]);
@@ -300,7 +304,7 @@ const AllocationForm = ({
     );
     if (result.status === "success") {
       dispatch(showNotification("Allocation saved"));
-      dispatch(fetchAllocations());
+      dispatch(allocationsApi.util.invalidateTags(["Allocation"]));
       if (typeof onClose === "function") {
         onClose();
       }

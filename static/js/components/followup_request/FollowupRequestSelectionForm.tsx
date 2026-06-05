@@ -15,8 +15,13 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as followupRequestActions from "../../ducks/followup_requests";
+import {
+  useGetFollowupRequestsQuery,
+  downloadFollowupSchedule,
+  downloadAllocationReport,
+} from "../../ducks/followup_requests";
 import * as instrumentActions from "../../ducks/instruments";
+import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import Button from "../Button";
 
 dayjs.extend(utc);
@@ -66,13 +71,12 @@ const FollowupRequestSelectionForm = ({
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
   );
-  const { allocationListApiClassname } = useAppSelector(
-    (state) => state["allocations"],
-  );
+  const { data: allocationListApiClassname = [] } =
+    useGetAllocationsApiClassnameQuery();
   const { users: allUsers } = useAppSelector((state) => state["users"]);
-  const { followupRequestList } = useAppSelector(
-    (state) => state["followup_requests"],
-  );
+  const { data: followupRequestsData } =
+    useGetFollowupRequestsQuery(fetchParams);
+  const followupRequestList = followupRequestsData?.followup_requests;
 
   const defaultStartDate = dayjs()
     .subtract(1, "day")
@@ -215,7 +219,7 @@ const FollowupRequestSelectionForm = ({
 
     setIsSubmittingFilter(true);
     setSelectedInstrumentId(formData.instrumentID);
-    await dispatch(followupRequestActions.fetchFollowupRequests(formData));
+    // Updating fetchParams re-keys the followup-requests query, which refetches.
     setFetchParams(formData);
     setIsSubmittingFilter(false);
   };
@@ -224,7 +228,7 @@ const FollowupRequestSelectionForm = ({
     event.preventDefault(); // prevent the default form submission
     // we download the content here and then if status is 200 save it
     dispatch(
-      followupRequestActions.downloadFollowupSchedule(
+      downloadFollowupSchedule(
         selectedInstrumentId,
         selectedFormat,
         includeStandards,
@@ -234,9 +238,7 @@ const FollowupRequestSelectionForm = ({
 
   function handleDownloadAnalysis(event: any) {
     event.preventDefault(); // prevent the default form submission
-    dispatch(
-      followupRequestActions.downloadAllocationReport(selectedInstrumentId),
-    );
+    dispatch(downloadAllocationReport(selectedInstrumentId));
   }
 
   function validateFilter(formData: any, errors: any) {
@@ -341,7 +343,7 @@ const FollowupRequestSelectionForm = ({
                   }),
                 ),
                 title: "Allocation",
-                default: filteredAllocationListApiClassname[0]?.id || null,
+                default: filteredAllocationListApiClassname[0]?.["id"] || null,
               },
             },
           },

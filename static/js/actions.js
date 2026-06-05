@@ -92,23 +92,31 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("groups")) {
-        dispatch(groupsActions.fetchGroups(true)).then(() => {
-          dispatch(hydrationActions.finishedHydrating("groups"));
-        });
+        dispatch(groupsActions.groupsApi.endpoints.getGroups.initiate()).then(
+          () => {
+            dispatch(hydrationActions.finishedHydrating("groups"));
+          },
+        );
       }
       if (ducks_to_hydrate.includes("users")) {
-        dispatch(usersActions.fetchUsers()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("users"));
-        });
+        dispatch(usersActions.usersApi.endpoints.getUsers.initiate()).then(
+          () => {
+            dispatch(hydrationActions.finishedHydrating("users"));
+          },
+        );
       }
     }
     // dashboard data, always refreshed
     dispatch(newsFeedActions.fetchNewsFeed());
     dispatch(topSourcesActions.fetchTopSources());
     dispatch(topSaversActions.fetchTopSavers());
-    dispatch(recentSourcesActions.fetchRecentSources());
+    dispatch(
+      recentSourcesActions.recentSourcesApi.endpoints.getRecentSources.initiate(),
+    );
     dispatch(sourceCountsActions.fetchSourceCounts());
-    dispatch(recentGcnEventsActions.fetchRecentGcnEvents());
+    dispatch(
+      recentGcnEventsActions.recentGcnEventsApi.endpoints.getRecentGcnEvents.initiate(),
+    );
     if (!dashboardOnly) {
       // other data
       if (ducks_to_hydrate.includes("streams")) {
@@ -127,7 +135,9 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("allocations")) {
-        dispatch(allocationsActions.fetchAllocations()).then(() => {
+        dispatch(
+          allocationsActions.allocationsApi.endpoints.getAllocations.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("allocations"));
         });
       }
@@ -137,7 +147,9 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("taxonomy")) {
-        dispatch(taxonomyActions.fetchTaxonomies()).then(() => {
+        dispatch(
+          taxonomyActions.taxonomiesApi.endpoints.getTaxonomies.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("taxonomy"));
         });
       }
@@ -159,7 +171,9 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("galaxyCatalogs")) {
-        dispatch(galaxiesActions.fetchGalaxyCatalogs()).then(() => {
+        dispatch(
+          galaxiesActions.galaxiesApi.endpoints.getGalaxyCatalogs.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("galaxyCatalogs"));
         });
       }
@@ -176,14 +190,18 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("allocationsApiClassname")) {
-        dispatch(allocationsActions.fetchAllocationsApiClassname()).then(() => {
+        dispatch(
+          allocationsActions.allocationsApi.endpoints.getAllocationsApiClassname.initiate(),
+        ).then(() => {
           dispatch(
             hydrationActions.finishedHydrating("allocationsApiClassname"),
           );
         });
       }
       if (ducks_to_hydrate.includes("analysisServices")) {
-        dispatch(analysisServicesActions.fetchAnalysisServices()).then(() => {
+        dispatch(
+          analysisServicesActions.analysisServicesApi.endpoints.getAnalysisServices.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("analysisServices"));
         });
       }
@@ -198,7 +216,7 @@ export default function hydrate(
       }
       if (ducks_to_hydrate.includes("defaultObservationPlans")) {
         dispatch(
-          defaultObservationPlansActions.fetchDefaultObservationPlans(),
+          defaultObservationPlansActions.defaultObservationPlansApi.endpoints.getDefaultObservationPlans.initiate(),
         ).then(() => {
           dispatch(
             hydrationActions.finishedHydrating("defaultObservationPlans"),
@@ -207,7 +225,7 @@ export default function hydrate(
       }
       if (ducks_to_hydrate.includes("defaultSurveyEfficiencies")) {
         dispatch(
-          defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies(),
+          defaultSurveyEfficienciesActions.defaultSurveyEfficienciesApi.endpoints.getDefaultSurveyEfficiencies.initiate(),
         ).then(() => {
           dispatch(
             hydrationActions.finishedHydrating("defaultSurveyEfficiencies"),
@@ -215,17 +233,23 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("earthquake")) {
-        dispatch(earthquakeActions.fetchEarthquakes()).then(() => {
+        dispatch(
+          earthquakeActions.earthquakeApi.endpoints.getEarthquakes.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("earthquake"));
         });
       }
       if (ducks_to_hydrate.includes("mmadetector")) {
-        dispatch(mmadetectorActions.fetchMMADetectors()).then(() => {
+        dispatch(
+          mmadetectorActions.mmadetectorApi.endpoints.getMMADetectors.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("mmadetector"));
         });
       }
       if (ducks_to_hydrate.includes("followupApis")) {
-        dispatch(followupApisActions.fetchFollowupApis()).then(() => {
+        dispatch(
+          followupApisActions.followupApisApi.endpoints.getFollowupApis.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("followupApis"));
         });
       }

@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useMemo } from "react";
 
 import Form from "@rjsf/mui";
@@ -24,7 +25,7 @@ const ModifyObservingRun = ({
   const { observingRunList } = useAppSelector(
     (state) => state["observingRuns"],
   );
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const dispatch = useAppDispatch();
 
   const formData = useMemo(() => {

@@ -7,7 +7,10 @@ import { useAppSelector, useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
-import * as groupAdmissionRequestsActions from "../../ducks/groupAdmissionRequests";
+import {
+  useRequestGroupAdmissionMutation,
+  useDeleteAdmissionRequestMutation,
+} from "../../ducks/groupAdmissionRequests";
 
 interface NonMemberGroup {
   name?: string;
@@ -21,6 +24,8 @@ interface NonMemberGroupListProps {
 
 const NonMemberGroupList = ({ groups }: NonMemberGroupListProps) => {
   const dispatch = useAppDispatch();
+  const [requestGroupAdmission] = useRequestGroupAdmissionMutation();
+  const [deleteAdmissionRequest] = useDeleteAdmissionRequestMutation();
   const { id: currentUserID, groupAdmissionRequests } = useAppSelector(
     (state) => state.profile,
   ) as any;
@@ -35,21 +40,19 @@ const NonMemberGroupList = ({ groups }: NonMemberGroupListProps) => {
     ?.map((request: any) => request.group_id);
 
   const handleRequestAdmission = async (groupID: number) => {
-    const result = (await dispatch(
-      groupAdmissionRequestsActions.requestGroupAdmission(
-        currentUserID,
+    try {
+      await requestGroupAdmission({
+        userID: currentUserID,
         groupID,
-      ),
-    )) as any;
-    if (result.status === "success") {
+      }).unwrap();
       dispatch(showNotification("Successfully requested admission to group."));
+    } catch {
+      // error notification handled by the base query
     }
   };
 
   const handleDeleteAdmissionRequest = (admissionRequestID: number) => {
-    dispatch(
-      groupAdmissionRequestsActions.deleteAdmissionRequest(admissionRequestID),
-    );
+    deleteAdmissionRequest(admissionRequestID);
   };
 
   const renderActions = (params: any) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -15,7 +15,7 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyAssignment from "./ModifyAssignment";
 import StyledDataGrid from "../StyledDataGrid";
 import * as Actions from "../../ducks/source";
-import * as UserActions from "../../ducks/users";
+import { useGetUsersQuery } from "../../ducks/users";
 
 const useStyles = makeStyles()(() => ({
   assignmentManage: {
@@ -39,20 +39,14 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
   const [assignmentToEditDelete, setAssignmentToEditDelete] =
     useState<any>(null);
 
-  const { users: allUsers } = useAppSelector((state) => state["users"]) as any;
+  const { data: usersData } = useGetUsersQuery();
+  const allUsers = usersData?.users ?? [];
   const { observingRunList } = useAppSelector(
     (state) => state["observingRuns"],
   ) as any;
   const { instrumentList } = useAppSelector(
     (state) => state["instruments"],
   ) as any;
-
-  // use useEffect to only send 1 fetchUser per User
-  useEffect(() => {
-    if (allUsers.length === 0) {
-      dispatch(UserActions.fetchUsers());
-    }
-  }, [allUsers, dispatch]);
 
   const openEditDialog = (id: any) => {
     setEditDialogOpen(true);

@@ -15,7 +15,10 @@ import Button from "../Button";
 
 import { useAppDispatch } from "../../types/hooks";
 import * as groupActions from "../../ducks/group";
-import * as groupsActions from "../../ducks/groups";
+import {
+  useDeleteGroupUserMutation,
+  useUpdateGroupUserMutation,
+} from "../../ducks/groups";
 
 interface ManageUserButtonsProps {
   loadedId: number;
@@ -46,6 +49,8 @@ const ManageUserButtons = ({
 }: ManageUserButtonsProps) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const [updateGroupUser] = useUpdateGroupUserMutation();
+  const [deleteGroupUser] = useDeleteGroupUserMutation();
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -68,47 +73,51 @@ const ManageUserButtons = ({
   };
 
   const toggleUserAdmin = async (usr: any) => {
-    const result: any = await dispatch(
-      groupsActions.updateGroupUser(loadedId, {
-        userID: usr.id,
-        admin: !isAdmin(usr),
-      }),
-    );
-    if (result.status === "success") {
+    try {
+      await updateGroupUser({
+        groupID: loadedId,
+        params: {
+          userID: usr.id,
+          admin: !isAdmin(usr),
+        },
+      }).unwrap();
       dispatch(
         showNotification(
           "User admin status for this group successfully updated.",
         ),
       );
       dispatch(groupActions.fetchGroup(loadedId));
+    } catch {
+      // error notification handled by the API layer
     }
   };
 
   const toggleUserCanSave = async (usr: any) => {
-    const result: any = await dispatch(
-      groupsActions.updateGroupUser(loadedId, {
-        userID: usr.id,
-        canSave: !canSave(usr),
-      }),
-    );
-    if (result.status === "success") {
+    try {
+      await updateGroupUser({
+        groupID: loadedId,
+        params: {
+          userID: usr.id,
+          canSave: !canSave(usr),
+        },
+      }).unwrap();
       dispatch(
         showNotification(
           "User's save access status for this group successfully updated.",
         ),
       );
       dispatch(groupActions.fetchGroup(loadedId));
+    } catch {
+      // error notification handled by the API layer
     }
   };
 
   const handleDelete = () => {
     navigate("/groups");
-    dispatch(
-      groupsActions.deleteGroupUser({
-        userID: user.id,
-        group_id: group.id,
-      }),
-    );
+    deleteGroupUser({
+      userID: user.id,
+      group_id: group.id,
+    });
   };
 
   return (

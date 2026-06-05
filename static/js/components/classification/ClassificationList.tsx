@@ -18,6 +18,7 @@ import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
 import * as sourceActions from "../../ducks/source";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(relativeTime);
@@ -74,7 +75,7 @@ const ClassificationList = () => {
   const { classes: styles } = useStyles();
 
   const dispatch = useAppDispatch();
-  const { taxonomyList } = useAppSelector((state: any) => state.taxonomies);
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
   const source = useAppSelector((state: any) => state.source);
   const obj = source;
   const userProfile = useAppSelector((state) => state.profile);

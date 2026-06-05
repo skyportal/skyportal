@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../ducks/groups";
 import { useState, useMemo, useEffect } from "react";
 
 import Dialog from "@mui/material/Dialog";
@@ -8,7 +9,7 @@ import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
 import * as objectTagsActions from "../ducks/objectTags";
 
@@ -43,7 +44,11 @@ const EditTagGroups = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
-  const userGroups = useAppSelector((state) => state.groups.userAccessible);
+  const { data: groupsData } = useGetGroupsQuery();
+  const userGroups = useMemo(
+    () => groupsData?.userAccessible ?? [],
+    [groupsData],
+  );
   const userGroupIds = useMemo(
     () => new Set(userGroups?.map((g) => g.id) || []),
     [userGroups],

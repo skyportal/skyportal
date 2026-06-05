@@ -1,3 +1,5 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import React, { useState } from "react";
 
 import IconButton from "@mui/material/IconButton";
@@ -52,13 +54,11 @@ const CandidatesPreferences = ({
   );
   const { classes } = useStyles();
 
-  const userAccessibleGroups = useAppSelector(
-    (state) => state.groups.userAccessible,
-  );
+  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   // Get unique classification names, in alphabetical order
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
-  const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
+  const { data: taxonomyList } = useGetTaxonomiesQuery();
+  const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest) ?? [];
   let classifications: any[] = [];
   latestTaxonomyList.forEach((taxonomy: any) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(

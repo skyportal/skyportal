@@ -14,10 +14,14 @@ import Typography from "@mui/material/Typography";
 import { grey } from "@mui/material/colors";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
-import * as PhotometryValidationAction from "../../ducks/photometry_validation";
+import {
+  useSubmitPhotometryValidationMutation,
+  usePatchPhotometryValidationMutation,
+  useDeletePhotometryValidationMutation,
+} from "../../ducks/photometry_validation";
 
 const filter: any = createFilterOptions<any>();
 
@@ -111,10 +115,13 @@ const PhotometryValidation = ({
   phot,
   magsys = "ab",
 }: PhotometryValidationProps) => {
-  const dispatch = useAppDispatch();
   const { classes } = useStyles() as any;
   const { permissions } = useAppSelector((state) => state.profile);
   const [open, setOpen] = useState(false);
+
+  const [submitPhotometryValidation] = useSubmitPhotometryValidationMutation();
+  const [patchPhotometryValidation] = usePatchPhotometryValidationMutation();
+  const [deletePhotometryValidation] = useDeletePhotometryValidationMutation();
 
   const { control, getValues, register } = useForm();
 
@@ -151,109 +158,48 @@ const PhotometryValidation = ({
     }
   }
 
-  const handleValidate = () => {
+  const submitOrPatch = async (validated: boolean | null) => {
     const data = getValues();
-    if (currentState === "not_vetted") {
-      dispatch(
-        PhotometryValidationAction.submitValidation(phot.id, {
-          validated: true,
-          explanation: data["explanation"],
-          notes: data["notes"],
-          magsys: magsys,
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleClose();
-        }
-      });
-    } else {
-      dispatch(
-        PhotometryValidationAction.patchValidation(phot.id, {
-          validated: true,
-          explanation: data["explanation"],
-          notes: data["notes"],
-          magsys: magsys,
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleClose();
-        }
-      });
+    const body = {
+      validated,
+      explanation: data["explanation"],
+      notes: data["notes"],
+      magsys,
+    };
+    try {
+      if (currentState === "not_vetted") {
+        await submitPhotometryValidation({ id: phot.id, data: body }).unwrap();
+      } else {
+        await patchPhotometryValidation({ id: phot.id, data: body }).unwrap();
+      }
+      handleClose();
+    } catch {
+      // error notification handled by baseQuery
     }
+  };
+
+  const handleValidate = () => {
+    submitOrPatch(true);
   };
 
   const handleReject = () => {
-    const data = getValues();
-    if (currentState === "not_vetted") {
-      dispatch(
-        PhotometryValidationAction.submitValidation(phot.id, {
-          validated: false,
-          explanation: data["explanation"],
-          notes: data["notes"],
-          magsys: magsys,
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleClose();
-        }
-      });
-    } else {
-      dispatch(
-        PhotometryValidationAction.patchValidation(phot.id, {
-          validated: false,
-          explanation: data["explanation"],
-          notes: data["notes"],
-          magsys: magsys,
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleClose();
-        }
-      });
-    }
+    submitOrPatch(false);
   };
 
   const handleAmbiguous = () => {
-    const data = getValues();
-    if (currentState === "not_vetted") {
-      dispatch(
-        PhotometryValidationAction.submitValidation(phot.id, {
-          validated: null,
-          explanation: data["explanation"],
-          notes: data["notes"],
-          magsys: magsys,
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleClose();
-        }
-      });
-    } else {
-      dispatch(
-        PhotometryValidationAction.patchValidation(phot.id, {
-          validated: null,
-          explanation: data["explanation"],
-          notes: data["notes"],
-          magsys: magsys,
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleClose();
-        }
-      });
-    }
+    submitOrPatch(null);
   };
 
-  const handleNotVetted = () => {
-    dispatch(
-      (PhotometryValidationAction.deleteValidation as any)(phot.id, {
-        magsys: magsys,
-      }),
-    ).then((response: any) => {
-      if (response.status === "success") {
-        handleClose();
-      }
-    });
+  const handleNotVetted = async () => {
+    try {
+      await deletePhotometryValidation({
+        id: phot.id,
+        data: { magsys },
+      }).unwrap();
+      handleClose();
+    } catch {
+      // error notification handled by baseQuery
+    }
   };
 
   return permissions.includes("Manage sources") ? (

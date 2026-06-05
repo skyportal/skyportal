@@ -28,7 +28,7 @@ import {
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { fetchGroup } from "../../ducks/group";
-import { fetchGroups } from "../../ducks/groups";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { fetchInstruments } from "../../ducks/instruments";
 import { postGcnEventSummary } from "../../ducks/gcnEvent";
 import Button from "../Button";
@@ -145,7 +145,7 @@ interface GcnSummaryProps {
 
 const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
   const { classes } = useStyles();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const users = useAppSelector((state) => state["group"]?.users);
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const dispatch = useAppDispatch();
@@ -215,9 +215,6 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
   }, []);
 
   useEffect(() => {
-    if (!groups && open) {
-      dispatch(fetchGroups());
-    }
     const defaultStartDate = dayjs.utc(dateobs).format("YYYY-MM-DD HH:mm:ss");
     const defaultEndDate = dayjs
       .utc(dateobs)
@@ -226,8 +223,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
     setStartDate(defaultStartDate);
     setEndDate(defaultEndDate);
     setSubject(`Follow-up on GCN Event ${dateobs}`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateobs, dispatch]);
+  }, [dateobs]);
 
   useEffect(() => {
     if (selectedGroup?.id) {

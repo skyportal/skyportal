@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { Controller, useForm } from "react-hook-form";
 
 import Dialog from "@mui/material/Dialog";
@@ -7,7 +8,7 @@ import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import * as sourceActions from "../../ducks/source";
 import FormValidationError from "../FormValidationError";
 import Button from "../Button";
@@ -28,7 +29,7 @@ const CopyPhotometryDialog = ({
 }: CopyPhotometryDialogProps) => {
   const dispatch = useAppDispatch();
 
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const {
     handleSubmit,

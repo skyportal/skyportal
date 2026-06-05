@@ -1,3 +1,5 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import React, {
   useEffect,
   useState,
@@ -219,7 +221,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const { classes } = useSourceStyles() as { classes: any };
 
   const currentUser = useAppSelector((state) => state.profile);
-  const groups = (useAppSelector((state) => state.groups.all) || []).filter(
+  const groups = ((useGetGroupsQuery().data?.all ?? null) || []).filter(
     (g: any) => !g.single_user_group,
   );
   const spectra = useAppSelector((state) => state["spectra"])[source.id];
@@ -233,7 +235,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const { observingRunList } = useAppSelector(
     (state) => state["observingRuns"],
   );
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);

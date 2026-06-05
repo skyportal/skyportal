@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from "react";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import React, { useState } from "react";
 import Grid from "@mui/material/Grid";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as defaultSurveyEfficienciesActions from "../../ducks/default_survey_efficiencies";
-import * as defaultObservationPlansActions from "../../ducks/default_observation_plans";
-import * as allocationsActions from "../../ducks/allocations";
+import { useAppSelector } from "../../types/hooks";
+import { useGetDefaultSurveyEfficienciesQuery } from "../../ducks/default_survey_efficiencies";
+import { useGetDefaultObservationPlansQuery } from "../../ducks/default_observation_plans";
+import { useGetAllocationsQuery } from "../../ducks/allocations";
 import Spinner from "../Spinner";
 import AllocationTableComponent from "./AllocationTable";
 import DefaultObservationPlanTableComponent from "../observation_plan/DefaultObservationPlanTable";
@@ -40,16 +41,16 @@ interface AllocationListProps {
 }
 
 const AllocationList = ({ managePermission = false }: AllocationListProps) => {
-  const dispatch = useAppDispatch();
-  const allocationsState = useAppSelector((state) => state["allocations"]);
   const instrumentsState = useAppSelector((state) => state["instruments"]);
   const telescopesState = useAppSelector((state) => state["telescopes"]);
-  const groups = useAppSelector((state) => state.groups.all);
+  const groups = useGetGroupsQuery().data?.all ?? null;
   const [rowsPerPage, setRowsPerPage] = useState(100);
+  const [allocationQueryParams, setAllocationQueryParams] =
+    useState<any>(undefined);
 
-  useEffect(() => {
-    dispatch(allocationsActions.fetchAllocations());
-  }, [dispatch]);
+  const { data: allocationList } = useGetAllocationsQuery(
+    allocationQueryParams,
+  );
 
   const handleAllocationTablePagination = (
     pageNumber: number,
@@ -67,7 +68,7 @@ const AllocationList = ({ managePermission = false }: AllocationListProps) => {
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
-    dispatch((allocationsActions.fetchAllocations as any)(data));
+    setAllocationQueryParams(data);
   };
 
   const handleAllocationTableSorting = (sortData: any, filterData: any) => {
@@ -78,21 +79,21 @@ const AllocationList = ({ managePermission = false }: AllocationListProps) => {
       sortBy: sortData.name,
       sortOrder: sortData.direction,
     };
-    dispatch((allocationsActions.fetchAllocations as any)(data));
+    setAllocationQueryParams(data);
   };
 
-  if (!allocationsState.allocationList) return <Spinner />;
+  if (allocationList == null) return <Spinner />;
 
   return (
     <AllocationTable
       instruments={instrumentsState.instrumentList}
       telescopes={telescopesState.telescopeList}
       groups={groups}
-      allocations={allocationsState.allocationList}
+      allocations={allocationList}
       paginateCallback={handleAllocationTablePagination}
-      totalMatches={allocationsState.totalMatches}
-      pageNumber={allocationsState.pageNumber}
-      numPerPage={allocationsState.numPerPage}
+      totalMatches={undefined}
+      pageNumber={undefined}
+      numPerPage={undefined}
       sortingCallback={handleAllocationTableSorting}
       managePermission={managePermission}
       fixedHeader={true}
@@ -101,18 +102,15 @@ const AllocationList = ({ managePermission = false }: AllocationListProps) => {
 };
 
 const AllocationPage = () => {
-  const dispatch = useAppDispatch();
-  const { defaultObservationPlanList } = useAppSelector(
-    (state) => state["default_observation_plans"],
-  );
-  const { defaultSurveyEfficiencyList } = useAppSelector(
-    (state) => state["default_survey_efficiencies"],
-  );
+  const { data: defaultObservationPlanList } =
+    useGetDefaultObservationPlansQuery();
+  const { data: defaultSurveyEfficiencyList } =
+    useGetDefaultSurveyEfficienciesQuery();
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
   const currentUser = useAppSelector((state) => state.profile);
 
-  const [rowsPerPage, setRowsPerPage] = useState(100);
+  const [, setRowsPerPage] = useState(100);
 
   const permissionAllocation =
     currentUser.permissions?.includes("System admin") ||
@@ -126,86 +124,26 @@ const AllocationPage = () => {
     currentUser.permissions?.includes("Manage observation plans");
 
   const handleDefaultObservationPlanTablePagination = (
-    pageNumber: number,
+    _pageNumber: number,
     numPerPage: number,
-    sortData: any,
-    filterData: any,
+    _sortData: any,
+    _filterData: any,
   ) => {
     setRowsPerPage(numPerPage);
-    const data: any = {
-      ...filterData,
-      pageNumber,
-      numPerPage,
-    };
-    if (sortData && Object.keys(sortData).length > 0) {
-      data.sortBy = sortData.name;
-      data.sortOrder = sortData.direction;
-    }
-    dispatch(
-      (defaultObservationPlansActions.fetchDefaultObservationPlans as any)(
-        data,
-      ),
-    );
   };
 
-  const handleDefaultObservationPlanTableSorting = (
-    sortData: any,
-    filterData: any,
-  ) => {
-    const data: any = {
-      ...filterData,
-      pageNumber: 1,
-      rowsPerPage,
-      sortBy: sortData.name,
-      sortOrder: sortData.direction,
-    };
-    dispatch(
-      (defaultObservationPlansActions.fetchDefaultObservationPlans as any)(
-        data,
-      ),
-    );
-  };
+  const handleDefaultObservationPlanTableSorting = () => {};
 
   const handleDefaultSurveyEfficiencyTablePagination = (
-    pageNumber: number,
+    _pageNumber: number,
     numPerPage: number,
-    sortData: any,
-    filterData: any,
+    _sortData: any,
+    _filterData: any,
   ) => {
     setRowsPerPage(numPerPage);
-    const data: any = {
-      ...filterData,
-      pageNumber,
-      numPerPage,
-    };
-    if (sortData && Object.keys(sortData).length > 0) {
-      data.sortBy = sortData.name;
-      data.sortOrder = sortData.direction;
-    }
-    dispatch(
-      (defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies as any)(
-        data,
-      ),
-    );
   };
 
-  const handleDefaultSurveyEfficiencyTableSorting = (
-    sortData: any,
-    filterData: any,
-  ) => {
-    const data: any = {
-      ...filterData,
-      pageNumber: 1,
-      rowsPerPage,
-      sortBy: sortData.name,
-      sortOrder: sortData.direction,
-    };
-    dispatch(
-      (defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies as any)(
-        data,
-      ),
-    );
-  };
+  const handleDefaultSurveyEfficiencyTableSorting = () => {};
 
   const [tabIndex, setTabIndex] = React.useState(0);
 
@@ -234,9 +172,9 @@ const AllocationPage = () => {
             instruments={instrumentList}
             telescopes={telescopeList}
             paginateCallback={handleDefaultObservationPlanTablePagination}
-            totalMatches={defaultObservationPlanList.totalMatches}
-            pageNumber={defaultObservationPlanList.pageNumber}
-            numPerPage={defaultObservationPlanList.numPerPage}
+            totalMatches={(defaultObservationPlanList as any)?.totalMatches}
+            pageNumber={(defaultObservationPlanList as any)?.pageNumber}
+            numPerPage={(defaultObservationPlanList as any)?.numPerPage}
             sortingCallback={handleDefaultObservationPlanTableSorting}
             deletePermission={permissionDefaultObservationPlan}
           />
@@ -247,9 +185,9 @@ const AllocationPage = () => {
           <DefaultSurveyEfficiencyTable
             default_survey_efficiencies={defaultSurveyEfficiencyList || []}
             paginateCallback={handleDefaultSurveyEfficiencyTablePagination}
-            totalMatches={defaultSurveyEfficiencyList.totalMatches}
-            pageNumber={defaultSurveyEfficiencyList.pageNumber}
-            numPerPage={defaultSurveyEfficiencyList.numPerPage}
+            totalMatches={(defaultSurveyEfficiencyList as any)?.totalMatches}
+            pageNumber={(defaultSurveyEfficiencyList as any)?.pageNumber}
+            numPerPage={(defaultSurveyEfficiencyList as any)?.numPerPage}
             sortingCallback={handleDefaultSurveyEfficiencyTableSorting}
             deletePermission={permissionDefaultSurveyEfficiency}
           />

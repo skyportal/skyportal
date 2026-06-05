@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
@@ -15,6 +16,7 @@ import UserPreferencesHeader from "./UserPreferencesHeader";
 import ClassificationSelect from "../../classification/ClassificationSelect";
 import NotificationSettingsSelect from "./NotificationSettingsSelect";
 import * as profileActions from "../../../ducks/profile";
+import { useGetAllocationsApiClassnameQuery } from "../../../ducks/allocations";
 import NotificationGcnEvent from "./NotificationGcnEvent";
 import { SelectLabelWithChips } from "../../SelectWithChips";
 
@@ -70,10 +72,9 @@ const useStyles = makeStyles()((theme) => ({
 const NotificationPreferences = () => {
   const { classes } = useStyles();
   const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const groups = useAppSelector((state) => state.groups.userAccessible);
-  const { allocationListApiClassname } = useAppSelector(
-    (state) => state["allocations"],
-  );
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const { data: allocationListApiClassname = [] } =
+    useGetAllocationsApiClassnameQuery();
   const dispatch = useAppDispatch();
   const { handleSubmit } = useForm();
   const [selectedClassifications, setSelectedClassifications] = useState<any[]>(

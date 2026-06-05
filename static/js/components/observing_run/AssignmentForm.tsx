@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { Controller, useForm } from "react-hook-form";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -77,7 +78,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
 
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const groups = useAppSelector((state) => state.groups.all);
+  const groups = useGetGroupsQuery().data?.all ?? [];
 
   const { handleSubmit, getValues, reset, register, control } = useForm();
 

@@ -24,6 +24,7 @@ import { allowedClasses } from "../classification/ClassificationForm";
 import Button from "../Button";
 
 import * as summaryActions from "../../ducks/summary";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 
 const useStyles = makeStyles()((theme) => ({
   chip: {
@@ -81,9 +82,7 @@ const SummarySearch = () => {
   const [formData, setFormData] = useState<any>({});
 
   // Get unique classification names, in alphabetical order
-  const { taxonomyList } = useAppSelector(
-    (state) => state["taxonomies"],
-  ) as any;
+  const { data: taxonomyList } = useGetTaxonomiesQuery();
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   let classifications: any[] = [];
   latestTaxonomyList?.forEach((taxonomy: any) => {

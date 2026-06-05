@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -12,7 +13,10 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as allocationActions from "../../ducks/allocations";
+import {
+  useGetAllocationsQuery,
+  useGetAllocationsApiClassnameQuery,
+} from "../../ducks/allocations";
 
 import * as catalogQueryActions from "../../ducks/catalog_query";
 import GroupShareSelect from "../group/GroupShareSelect";
@@ -68,20 +72,17 @@ const CatalogQueryForm = ({ gcnevent }: CatalogQueryFormProps) => {
   const dispatch = useAppDispatch();
 
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationList } = useAppSelector(
-    (state) => state["allocations"],
-  ) as any;
+  const { data: allocationList = [] } = useGetAllocationsQuery();
 
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
   const [selectedLocalizationId, setSelectedLocalizationId] =
     useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { allocationListApiClassname } = useAppSelector(
-    (state) => state["allocations"],
-  ) as any;
+  const { data: allocationListApiClassname = [] } =
+    useGetAllocationsApiClassnameQuery();
 
   const defaultStartDate = dayjs(gcnevent?.dateobs).format(
     "YYYY-MM-DDTHH:mm:ssZ",
@@ -121,25 +122,8 @@ const CatalogQueryForm = ({ gcnevent }: CatalogQueryFormProps) => {
   });
 
   useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the instruments list can
-      // update
-      if (
-        !allocationListApiClassname ||
-        allocationListApiClassname?.length === 0
-      ) {
-        dispatch(allocationActions.fetchAllocationsApiClassname());
-      }
-      setSelectedLocalizationId(gcnevent.localizations?.[0]?.id);
-    };
-
-    getAllocations();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, gcnevent]);
+    setSelectedLocalizationId(gcnevent.localizations?.[0]?.id);
+  }, [gcnevent]);
 
   if (
     !groups ||
@@ -242,7 +226,7 @@ const CatalogQueryForm = ({ gcnevent }: CatalogQueryFormProps) => {
           } (PI ${allocation.pi})`,
         })),
         title: "Allocation",
-        default: allocationListApiClassname[0]?.id,
+        default: allocationListApiClassname[0]?.["id"],
       },
     },
     required: ["startDate", "endDate", "allocation_id", "catalogName"],

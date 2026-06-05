@@ -8,7 +8,10 @@ import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
 import { makeStyles } from "tss-react/mui";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as followupRequestActions from "../../ducks/followup_requests";
+import {
+  useGetFollowupRequestsQuery,
+  usePrioritizeFollowupRequestsMutation,
+} from "../../ducks/followup_requests";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 
 const useStyles = makeStyles()(() => ({
@@ -24,7 +27,13 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const FollowupRequestPrioritizationForm = () => {
+interface FollowupRequestPrioritizationFormProps {
+  fetchParams?: Record<string, any> | undefined;
+}
+
+const FollowupRequestPrioritizationForm = ({
+  fetchParams,
+}: FollowupRequestPrioritizationFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const gcnEvents = useAppSelector((state) => state["gcnEvents"]) as any;
@@ -33,9 +42,10 @@ const FollowupRequestPrioritizationForm = () => {
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
   ) as any;
-  const { followupRequestList } = useAppSelector(
-    (state) => state["followup_requests"],
-  ) as any;
+  const [prioritizeFollowupRequests] = usePrioritizeFollowupRequestsMutation();
+  const { data: followupRequestsData } =
+    useGetFollowupRequestsQuery(fetchParams);
+  const followupRequestList = followupRequestsData?.followup_requests;
 
   const [isSubmittingPrioritization, setIsSubmittingPrioritization] =
     useState(false);
@@ -136,7 +146,11 @@ const FollowupRequestPrioritizationForm = () => {
         formData.requestIds.push(request.id);
       },
     );
-    await dispatch(followupRequestActions.prioritizeFollowupRequests(formData));
+    try {
+      await prioritizeFollowupRequests(formData).unwrap();
+    } catch {
+      // error notification handled by the base query
+    }
     setIsSubmittingPrioritization(false);
   };
 

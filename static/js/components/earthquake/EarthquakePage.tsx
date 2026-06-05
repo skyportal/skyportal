@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from "react";
+import { Suspense } from "react";
 import { Link } from "react-router-dom";
 
 import Accordion from "@mui/material/Accordion";
@@ -18,8 +18,9 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as earthquakeActions from "../../ducks/earthquake";
+import { skipToken } from "@reduxjs/toolkit/query";
+
+import { useGetEarthquakeQuery } from "../../ducks/earthquake";
 
 import Spinner from "../Spinner";
 
@@ -97,17 +98,10 @@ interface EarthquakePageProps {
 const EarthquakePage = ({ route }: EarthquakePageProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
-  const earthquake = useAppSelector((state) => state["earthquake"]) as any;
-  const dispatch = useAppDispatch();
+  const { data: earthquake } = useGetEarthquakeQuery(
+    route.event_id ?? skipToken,
+  ) as { data: any };
   const { classes: styles } = useStyles() as any;
-
-  useEffect(() => {
-    const fetchEarthquake = async (event_id?: string) => {
-      if (!event_id) return;
-      await dispatch(earthquakeActions.fetchEarthquake(event_id));
-    };
-    fetchEarthquake(route.event_id);
-  }, [route, dispatch]);
 
   if (!earthquake?.event_id) return <Spinner />;
 
@@ -200,6 +194,7 @@ const EarthquakePage = ({ route }: EarthquakePageProps) => {
                     <CommentList
                       associatedResourceType="earthquake"
                       earthquakeID={earthquake.id.toString()}
+                      earthquakeEventID={earthquake.event_id}
                     />
                   </Suspense>
                 </AccordionDetails>

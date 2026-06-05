@@ -15,9 +15,15 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import HelpOutlineOutlined from "@mui/icons-material/HelpOutlineOutlined";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as shiftsActions from "../../ducks/shifts";
+import { useGetShiftsSummaryQuery } from "../../ducks/shifts";
 import SourceTable from "../source/SourceTable";
 import * as sourcesActions from "../../ducks/sources";
+
+export interface ShiftSummaryArgs {
+  shiftID?: number | string;
+  startDate?: string;
+  endDate?: string;
+}
 
 const useStyles = makeStyles()((theme) => ({
   content: {
@@ -56,7 +62,15 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const ShiftSummary = () => {
+interface ShiftSummaryProps {
+  summaryArgs?: ShiftSummaryArgs | null;
+  setSummaryArgs?: (args: ShiftSummaryArgs | null) => void;
+}
+
+const ShiftSummary = ({
+  summaryArgs = null,
+  setSummaryArgs,
+}: ShiftSummaryProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [selectedGCN, setSelectedGCN] = useState<any>(null);
@@ -67,8 +81,9 @@ const ShiftSummary = () => {
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
   // return a React json schema form where the user can select a start date and end date, and then click submit to get
   // json document that summarizes the activity during shifts between the start and end dates
-  const shiftsSummary = useAppSelector(
-    (state) => (state as any).shifts.shiftsSummary,
+  const { data: shiftsSummary } = useGetShiftsSummaryQuery(
+    summaryArgs as ShiftSummaryArgs,
+    { skip: summaryArgs == null },
   );
 
   const defaultStartDate = dayjs()
@@ -119,12 +134,10 @@ const ShiftSummary = () => {
       .replace("+00:00", "")
       .replace(".000Z", "");
     if (formData.end_date && formData.start_date) {
-      dispatch(
-        shiftsActions.getShiftsSummary({
-          startDate: formData.start_date,
-          endDate: formData.end_date,
-        }),
-      );
+      setSummaryArgs?.({
+        startDate: formData.start_date,
+        endDate: formData.end_date,
+      });
       showNotification("Shifts Summary", "Shifts Summary", "success" as any);
     }
   };

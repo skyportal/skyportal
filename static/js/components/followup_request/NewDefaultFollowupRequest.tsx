@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -8,7 +9,7 @@ import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import { makeStyles } from "tss-react/mui";
 import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
-import * as allocationActions from "../../ducks/allocations";
+import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import * as instrumentsActions from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
@@ -41,11 +42,10 @@ const NewDefaultFollowupRequest = () => {
   const dispatch = useAppDispatch();
 
   const { telescopeList } = useAppSelector((state: any) => state.telescopes);
-  const { allocationListApiClassname } = useAppSelector(
-    (state: any) => state.allocations,
-  );
+  const { data: allocationListApiClassname = [] } =
+    useGetAllocationsApiClassnameQuery();
 
-  const allGroups = useAppSelector((state: any) => state.groups.all);
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
 
@@ -54,21 +54,6 @@ const NewDefaultFollowupRequest = () => {
   );
 
   useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      if (
-        !allocationListApiClassname ||
-        allocationListApiClassname.length === 0
-      ) {
-        await dispatch(allocationActions.fetchAllocationsApiClassname());
-      }
-    };
-
-    getAllocations();
-
     if (
       !instrumentFormParams ||
       Object.keys(instrumentFormParams).length === 0
@@ -91,8 +76,10 @@ const NewDefaultFollowupRequest = () => {
 
   useEffect(() => {
     if (!selectedAllocationId) {
-      setSelectedAllocationId(filteredAllocationListApiClassname[0]?.id);
-      setSelectedGroupIds([filteredAllocationListApiClassname[0]?.group_id]);
+      setSelectedAllocationId(filteredAllocationListApiClassname[0]?.["id"]);
+      setSelectedGroupIds([
+        filteredAllocationListApiClassname[0]?.["group_id"],
+      ]);
     }
   }, [allocationListApiClassname, instrumentFormParams, dispatch]);
 

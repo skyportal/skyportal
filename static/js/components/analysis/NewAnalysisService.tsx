@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 
 import Form from "@rjsf/mui";
@@ -10,10 +11,7 @@ import utc from "dayjs/plugin/utc";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import GroupShareSelect from "../group/GroupShareSelect";
-import {
-  fetchAnalysisServices,
-  submitAnalysisService,
-} from "../../ducks/analysis_services";
+import { useSubmitAnalysisServiceMutation } from "../../ducks/analysis_services";
 
 dayjs.extend(utc);
 
@@ -24,21 +22,23 @@ interface NewAnalysisServiceProps {
 const NewAnalysisService = ({ onClose = null }: NewAnalysisServiceProps) => {
   const { enum_types } = useAppSelector((state) => state["enum_types"]);
 
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
   const dispatch = useAppDispatch();
+  const [submitAnalysisService] = useSubmitAnalysisServiceMutation();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     if (selectedGroupIds.length > 0) {
       formData.group_ids = selectedGroupIds;
     }
-    const result: any = await dispatch(submitAnalysisService(formData));
-    if (result.status === "success") {
+    try {
+      await submitAnalysisService(formData).unwrap();
       dispatch(showNotification("AnalysisService saved"));
-      dispatch(fetchAnalysisServices());
       if (typeof onClose === "function") {
         onClose();
       }
+    } catch {
+      // error notification is handled by the base query
     }
   };
 

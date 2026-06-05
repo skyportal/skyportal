@@ -10,11 +10,19 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
+import { skipToken } from "@reduxjs/toolkit/query";
+
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as sourceActions from "../../ducks/source";
 import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftsActions from "../../ducks/shifts";
-import * as earthquakeActions from "../../ducks/earthquake";
+import {
+  useAddCommentOnShiftMutation,
+  useGetShiftQuery,
+} from "../../ducks/shifts";
+import {
+  useGetEarthquakeQuery,
+  useAddCommentOnEarthquakeMutation,
+} from "../../ducks/earthquake";
 
 import CommentEntry from "./CommentEntry";
 import Comment from "./Comment";
@@ -162,6 +170,7 @@ interface CommentListProps {
   objID?: string | null;
   gcnEventID?: number | null;
   earthquakeID?: string | null;
+  earthquakeEventID?: string | null;
   associatedResourceType?: string;
   spectrumID?: number | null;
   shiftID?: number | null;
@@ -176,6 +185,7 @@ const CommentList = ({
   spectrumID = null,
   gcnEventID = null,
   earthquakeID = null,
+  earthquakeEventID = null,
   shiftID = null,
   includeCommentsOnAllResourceTypes = true,
   maxHeightList = "350px",
@@ -202,10 +212,16 @@ const CommentList = ({
   const obj = isCandidate ? candidate : source;
   const spectra = useAppSelector((state) => state["spectra"]);
   const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
-  const earthquake = useAppSelector((state) => state["earthquake"]);
+  const { data: earthquake } = useGetEarthquakeQuery(
+    earthquakeEventID ?? skipToken,
+  ) as { data: any };
   const userProfile = useAppSelector((state) => state.profile);
   const permissions = useAppSelector((state) => state.profile.permissions);
-  const { currentShift } = useAppSelector((state) => state["shifts"]);
+  const [addCommentOnShift] = useAddCommentOnShiftMutation();
+  const { data: currentShift } = useGetShiftQuery(shiftID ?? skipToken) as {
+    data: any;
+  };
+  const [addCommentOnEarthquake] = useAddCommentOnEarthquakeMutation();
   const { showBotComments } = useAppSelector(
     (state) => state.profile.preferences as any,
   );
@@ -225,10 +241,6 @@ const CommentList = ({
 
   if (!gcnEventID && gcnEvent) {
     gcnEventID = gcnEvent.id;
-  }
-
-  if (!shiftID && currentShift) {
-    shiftID = currentShift.id;
   }
 
   if (!earthquakeID && earthquake) {
@@ -255,21 +267,17 @@ const CommentList = ({
   };
 
   const addEarthquakeComment = (formData: any) => {
-    dispatch(
-      earthquakeActions.addCommentOnEarthquake({
-        earthquake_id: earthquakeID,
-        ...formData,
-      }),
-    );
+    addCommentOnEarthquake({
+      earthquake_id: earthquakeID,
+      ...formData,
+    });
   };
 
   const addShiftComment = (formData: any) => {
-    dispatch(
-      shiftsActions.addCommentOnShift({
-        shiftID,
-        ...formData,
-      }),
-    );
+    addCommentOnShift({
+      shiftID,
+      ...formData,
+    });
   };
 
   let comments: any = null;

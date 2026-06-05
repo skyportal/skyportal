@@ -21,7 +21,7 @@ import GroupShareSelect from "./group/GroupShareSelect";
 import EditTagGroups from "./EditTagGroups";
 import { useAppDispatch, useAppSelector } from "../types/hooks";
 import * as objectTagsActions from "../ducks/objectTags";
-import * as groupsActions from "../ducks/groups";
+import { useGetGroupsQuery } from "../ducks/groups";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -94,7 +94,7 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const tagOptions = useAppSelector((state) => state.objectTags || []);
   const currentUser = useAppSelector((state) => state.profile);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const permission =
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage sources");
@@ -104,9 +104,6 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
   useEffect(() => {
     if (!tagOptions || tagOptions.length === 0) {
       dispatch(objectTagsActions.fetchTagOptions());
-    }
-    if (!groups || groups.length === 0) {
-      dispatch(groupsActions.fetchGroups());
     }
   }, [dispatch]);
 

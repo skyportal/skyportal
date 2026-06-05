@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { Link, useParams } from "react-router-dom";
@@ -53,8 +54,8 @@ export const HtmlTooltip = withStyles(Tooltip, (theme) => ({
 const UploadPhotometryForm = () => {
   const dispatch = useAppDispatch();
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
-  const userGroups = useAppSelector((state) => state.groups.user);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const userGroups = useGetGroupsQuery().data?.user ?? [];
   const [showPreview, setShowPreview] = useState(false);
   const [csvData, setCsvData] = useState<any>({});
   const [successMessage, setSuccessMessage] = useState<string | null>("");

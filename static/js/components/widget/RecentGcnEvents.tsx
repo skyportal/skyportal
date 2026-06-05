@@ -13,6 +13,7 @@ import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
 import * as profileActions from "../../ducks/profile";
+import { useGetRecentGcnEventsQuery } from "../../ducks/recentGcnEvents";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import GcnTags from "../gcn/GcnTags";
 import GcnEventAllocationTriggers from "../gcn/GcnEventAllocationTriggers";
@@ -92,7 +93,7 @@ interface RecentGcnEventsProps {
 const RecentGcnEvents = ({ classes }: RecentGcnEventsProps) => {
   const { classes: styles } = useStyles();
 
-  const gcnEvents = useAppSelector((state) => state["recentGcnEvents"]);
+  const { data: gcnEvents } = useGetRecentGcnEventsQuery();
   const recentEventsPrefs: any =
     useAppSelector(
       (state) => (state.profile.preferences as any)?.recentGcnEvents,

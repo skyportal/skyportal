@@ -8,6 +8,7 @@ import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { useAppSelector } from "../../types/hooks";
+import { useGetEarthquakesQuery } from "../../ducks/earthquake";
 import NewEarthquake from "./NewEarthquake";
 
 const useStyles = makeStyles()((theme) => ({
@@ -88,9 +89,8 @@ const EarthquakeList = ({ earthquakes }: EarthquakeListProps) => {
 };
 
 const EarthquakePage = () => {
-  const { earthquakeList } = useAppSelector(
-    (state) => state["earthquakes"],
-  ) as any;
+  const { data: earthquakes } = useGetEarthquakesQuery();
+  const earthquakeList = (earthquakes as any)?.events;
   const currentUser = useAppSelector((state) => state.profile);
 
   const { classes } = useStyles();

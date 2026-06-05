@@ -32,6 +32,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { addAnnotation } from "../../ducks/source";
 import * as photometryActions from "../../ducks/photometry";
 
@@ -136,9 +137,7 @@ const PeriodAnnotationDialog = ({
   period,
 }: PeriodAnnotationDialogProps) => {
   const dispatch = useAppDispatch();
-  const groups = useAppSelector(
-    (state) => (state as any).groups.userAccessible,
-  );
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const periodUnits = Object.keys(periodUnitDividers);
 
   const [dialogOpen, setDialogOpen] = useState(false);

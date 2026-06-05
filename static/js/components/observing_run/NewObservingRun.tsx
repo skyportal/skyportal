@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Typography from "@mui/material/Typography";
@@ -15,7 +16,7 @@ dayjs.extend(utc);
 const NewObservingRun = () => {
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const dispatch = useAppDispatch();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {

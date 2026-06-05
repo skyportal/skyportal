@@ -4,17 +4,20 @@ import IconButton from "@mui/material/IconButton";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import Tooltip from "@mui/material/Tooltip";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
-import * as followupRequestActions from "../../ducks/followup_requests";
+import {
+  useAddToWatchListMutation,
+  useRemoveFromWatchListMutation,
+} from "../../ducks/followup_requests";
 
 const UnwatchButton = (
   requestID: number,
   textMode: boolean,
   serverSide = false,
 ) => {
-  const dispatch = useAppDispatch();
+  const [removeFromWatchList] = useRemoveFromWatchListMutation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -22,9 +25,11 @@ const UnwatchButton = (
     if (serverSide) {
       params.refreshRequests = true;
     }
-    await dispatch(
-      followupRequestActions.removeFromWatchList(requestID, params),
-    );
+    try {
+      await removeFromWatchList({ id: requestID, params }).unwrap();
+    } catch {
+      // error notification handled by the base query
+    }
     setIsSubmitting(false);
   };
   if (textMode) {
@@ -58,7 +63,7 @@ const WatchButton = (
   textMode: boolean,
   serverSide = false,
 ) => {
-  const dispatch = useAppDispatch();
+  const [addToWatchList] = useAddToWatchListMutation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -66,7 +71,11 @@ const WatchButton = (
     if (serverSide) {
       params.refreshRequests = true;
     }
-    await dispatch(followupRequestActions.addToWatchList(requestID, params));
+    try {
+      await addToWatchList({ id: requestID, params }).unwrap();
+    } catch {
+      // error notification handled by the base query
+    }
     setIsSubmitting(false);
   };
   if (textMode) {

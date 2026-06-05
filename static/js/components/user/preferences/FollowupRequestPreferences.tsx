@@ -1,9 +1,10 @@
+import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { makeStyles } from "tss-react/mui";
 import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as allocationActions from "../../../ducks/allocations";
+import { useGetAllocationsApiClassnameQuery } from "../../../ducks/allocations";
 import * as profileActions from "../../../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 
@@ -18,10 +19,9 @@ const useStyles = makeStyles()(() => ({
 
 const FollowupRequestPreferences = () => {
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationListApiClassname } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const { data: allocationListApiClassname = [] } =
+    useGetAllocationsApiClassnameQuery();
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
   );
@@ -35,10 +35,6 @@ const FollowupRequestPreferences = () => {
 
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-
-  useEffect(() => {
-    dispatch(allocationActions.fetchAllocationsApiClassname());
-  }, [dispatch]);
 
   useEffect(() => {
     if (defaultAllocationId) {

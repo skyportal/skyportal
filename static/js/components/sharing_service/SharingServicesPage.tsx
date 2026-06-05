@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { withTheme } from "@rjsf/core";
@@ -639,8 +640,8 @@ const SharingServicesPage = () => {
   const [enablePublishToHermes, setEnablePublishToHermes] = useState(true);
   const [sharingServiceToManage, setSharingServiceToManage] = useState<any>({});
 
-  const groups = useAppSelector((state) => state.groups.userAccessible);
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const allGroups = useGetGroupsQuery().data?.all ?? [];
   const { users: allUsers } = useAppSelector((state) => state["users"]);
   const { sharingServicesList } = useAppSelector(
     (state) => state["sharingServices"],

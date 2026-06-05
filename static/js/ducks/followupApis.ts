@@ -1,41 +1,27 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Followup API configurations.
+ *
+ * RTK Query conversion of the old `FETCH_FOLLOWUP_APIS` duck. The endpoint
+ * returns the available followup API classnames keyed by classname (each with a
+ * `formSchemaConfig`). The old websocket handler refetched the list on a
+ * REFRESH_FOLLOWUP_APIS message; here we invalidate the "FollowupApi" tag so
+ * the active query refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
+export type FollowupApis = Record<string, any>;
 
-export const FETCH_FOLLOWUP_APIS = "FETCH_FOLLOWUP_APIS";
-export const FETCH_FOLLOWUP_APIS_OK = "FETCH_FOLLOWUP_APIS_OK";
-
-export const REFRESH_FOLLOWUP_APIS = "REFRESH_FOLLOWUP_APIS";
-
-export const fetchFollowupApis = () =>
-  API.GET("/api/internal/followup_apis", FETCH_FOLLOWUP_APIS, {});
-
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === REFRESH_FOLLOWUP_APIS) {
-    dispatch(fetchFollowupApis());
-  }
+export const followupApisApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getFollowupApis: build.query<FollowupApis, void>({
+      query: () => "api/internal/followup_apis",
+      providesTags: ["FollowupApi"],
+    }),
+  }),
 });
 
-interface FollowupApisAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
+// Websocket: old handler refetched the followup APIs on REFRESH_FOLLOWUP_APIS.
+invalidateOnMessage("skyportal/REFRESH_FOLLOWUP_APIS", () => ["FollowupApi"]);
 
-const reducer = (state: any = [], action: FollowupApisAction): any => {
-  switch (action.type) {
-    case FETCH_FOLLOWUP_APIS_OK: {
-      const followupApis = action.data;
-      return {
-        ...state,
-        followupApis,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("followupApis", reducer);
+export const { useGetFollowupApisQuery } = followupApisApi;

@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-
+import { useGetGroupsQuery } from "../../ducks/groups";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -8,8 +7,8 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as observationActions from "../../ducks/observations";
-import * as allocationActions from "../../ducks/allocations";
+import { useRequestAPIObservationsMutation } from "../../ducks/observations";
+import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 
 dayjs.extend(utc);
 
@@ -20,12 +19,14 @@ interface NewAPIObservationProps {
 const NewAPIObservation = ({ onClose = null }: NewAPIObservationProps) => {
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationListApiObsplan } = useAppSelector(
-    (state) => state["allocations"],
-  ) as any;
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const { data: allocationListApiObsplan = [] } =
+    useGetAllocationsApiObsplanQuery({
+      apiImplements: "retrieve",
+    });
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
 
   const dispatch = useAppDispatch();
+  const [requestAPIObservations] = useRequestAPIObservationsMutation();
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultStartDate = dayjs()
@@ -33,24 +34,6 @@ const NewAPIObservation = ({ onClose = null }: NewAPIObservationProps) => {
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultEndDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-
-  useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-      await dispatch(
-        allocationActions.fetchAllocationsApiObsplan({
-          apiImplements: "retrieve",
-        }),
-      );
-    };
-
-    getAllocations();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-  }, [dispatch]);
 
   if (
     !allGroups ||
@@ -90,10 +73,8 @@ const NewAPIObservation = ({ onClose = null }: NewAPIObservationProps) => {
     formData.end_date = formData.end_date
       .replace("+00:00", "")
       .replace(".000Z", "");
-    const result = (await dispatch(
-      observationActions.requestAPIObservations(formData),
-    )) as any;
-    if (result.status === "success") {
+    try {
+      await requestAPIObservations(formData).unwrap();
       dispatch(
         showNotification(
           "Requested API Executed Observation, the list will update shortly.",
@@ -102,6 +83,8 @@ const NewAPIObservation = ({ onClose = null }: NewAPIObservationProps) => {
       if (typeof onClose === "function") {
         onClose();
       }
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 
@@ -145,7 +128,7 @@ const NewAPIObservation = ({ onClose = null }: NewAPIObservationProps) => {
           } (PI ${allocation.pi})`,
         })),
         title: "Allocation",
-        default: allocationListApiObsplan[0]?.id,
+        default: allocationListApiObsplan[0]?.["id"],
       },
     },
     required: ["start_date", "end_date", "allocation_id"],

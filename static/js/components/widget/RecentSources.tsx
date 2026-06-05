@@ -17,6 +17,7 @@ import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import * as profileActions from "../../ducks/profile";
 import * as objectTagsActions from "../../ducks/objectTags";
+import { useGetRecentSourcesQuery } from "../../ducks/recentSources";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
 dayjs.extend(relativeTime);
@@ -194,7 +195,7 @@ const defaultPrefs: any = {
 };
 
 interface RecentSourcesListProps {
-  sources?: any[];
+  sources?: any[] | undefined;
   styles: any;
   search?: boolean;
   displayTNS?: boolean;
@@ -416,9 +417,7 @@ const RecentSources = ({ classes }: RecentSourcesProps) => {
   ) as boolean | undefined;
   const { classes: styles } = useSourceListStyles({ invertThumbnails });
 
-  const { recentSources } = useAppSelector(
-    (state) => state["recentSources"],
-  ) as any;
+  const { data: recentSources } = useGetRecentSourcesQuery();
   const prefs =
     (useAppSelector(
       (state) => state.profile.preferences?.["recentSources"],

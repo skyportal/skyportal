@@ -42,6 +42,7 @@ import * as photometryActions from "../../ducks/photometry";
 import * as spectraActions from "../../ducks/spectra";
 import * as sourceActions from "../../ducks/source";
 import { deleteSpectrum } from "../../ducks/spectra";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useSourceStyles } from "./Source";
 
 import SpectraPlot from "../plot/SpectraPlot";
@@ -296,7 +297,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
   const [openedSpecRows, setOpenedSpecRows] = useState<any[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { all: groups } = useAppSelector((state) => state.groups);
+  const groups = useGetGroupsQuery().data?.all ?? null;
   const photometry = useAppSelector((state) => state["photometry"]);
   const spectra = useAppSelector((state) => state["spectra"]);
 

@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Form from "@rjsf/mui";
@@ -9,7 +10,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { checkSource, saveSource } from "../../ducks/source";
 import { dms_to_dec, hours_to_ra } from "../../units";
@@ -26,7 +27,7 @@ interface NewSourceProps {
 const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
   const [selectedFormData, setSelectedFormData] = useState<any>({
     id: "",

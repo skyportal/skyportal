@@ -7,6 +7,7 @@ import { useTheme } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
 
 import { useAppSelector } from "../../types/hooks";
+import { useGetMMADetectorsQuery } from "../../ducks/mmadetector";
 import Button from "../Button";
 import NewMMADetector from "./NewMMADetector";
 import MMADetectorList from "./MMADetectorList";
@@ -40,7 +41,7 @@ const MMADetectorPage = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
   const currentUser = useAppSelector((state) => state.profile);
   const canManage = currentUser.permissions?.includes("Manage allocations");
-  const { mmadetectorList } = useAppSelector((state) => state["mmadetectors"]);
+  const { data: mmadetectorList } = useGetMMADetectorsQuery();
   const [newMMADetector, setNewMMADetector] = useState(false);
 
   return (
@@ -56,7 +57,7 @@ const MMADetectorPage = () => {
                 <MMADetectorList isMobile />
               </>
             ) : (
-              <MMADetectorMap mmadetectors={mmadetectorList} />
+              <MMADetectorMap mmadetectors={mmadetectorList ?? []} />
             )}
           </Paper>
         </Grid>

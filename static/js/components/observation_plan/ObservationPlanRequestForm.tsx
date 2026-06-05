@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 
 import Checkbox from "@mui/material/Checkbox";
@@ -24,12 +25,12 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
-import * as allocationActions from "../../ducks/allocations";
+import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 import * as gcnEventActions from "../../ducks/gcnEvent";
 import * as instrumentActions from "../../ducks/instrument";
 import * as instrumentsActions from "../../ducks/instruments";
 import { planWithSameNameExists } from "../../ducks/observationPlans";
-import * as localizationActions from "../../ducks/localization";
+import { useGetLocalizationQuery } from "../../ducks/localization";
 import GroupShareSelect from "../group/GroupShareSelect";
 import LocalizationPlot from "../localization/LocalizationPlot";
 
@@ -219,20 +220,33 @@ const ObservationPlanRequestForm = ({
 
   const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationListApiObsplan } = useAppSelector(
-    (state) => state["allocations"],
-  );
+  const { data: allocationListApiObsplan = [] } =
+    useGetAllocationsApiObsplanQuery();
   const { useAMPM } = useAppSelector(
     (state) => state.profile.preferences ?? {},
   ) as { useAMPM?: boolean };
 
-  const { obsplanLoc } = useAppSelector((state) => state["localization"]);
-
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
   const [selectedLocalizationId, setSelectedLocalizationId] =
     useState<any>(null);
+
+  const selectedLocalizationName = gcnEvent?.localizations?.find(
+    (loc: any) => loc.id === selectedLocalizationId,
+  )?.localization_name;
+  const { data: obsplanLoc } = useGetLocalizationQuery(
+    {
+      dateobs: gcnEvent?.dateobs,
+      localization_name: selectedLocalizationName,
+    },
+    {
+      skip:
+        !gcnEvent?.dateobs ||
+        !selectedLocalizationName ||
+        !(gcnEvent?.localizations?.length > 0),
+    },
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [planQueues, setPlanQueues] = useState<any[]>([]);
   const [skymapInstrument, setSkymapInstrument] = useState<any>(null);
@@ -251,10 +265,6 @@ const ObservationPlanRequestForm = ({
   const [
     fetchingInstrumentObsplanFormParams,
     setFetchingInstrumentObsplanFormParams,
-  ] = useState(false);
-  const [
-    fetchingAllocationListApiObsplan,
-    setFetchingAllocationListApiObsplan,
   ] = useState(false);
 
   const { instrumentList, instrumentObsplanFormParams } = useAppSelector(
@@ -332,63 +342,15 @@ const ObservationPlanRequestForm = ({
   const [grid, setGrid] = useState("primary & secondary");
 
   useEffect(() => {
-    if (gcnEvent?.localizations?.length > 0 && selectedLocalizationId) {
-      dispatch(
-        localizationActions.fetchLocalization(
-          gcnEvent?.dateobs,
-          gcnEvent?.localizations.find(
-            (loc: any) => loc.id === selectedLocalizationId,
-          )?.localization_name,
-          "obsplan",
-        ),
+    if (allocationListApiObsplan?.length > 0 && !selectedAllocationId) {
+      const sortedAllocationListApiObsplan = [...allocationListApiObsplan];
+      sortedAllocationListApiObsplan.sort(
+        (a, b) => a["instrument_id"] - b["instrument_id"],
       );
+      setSelectedAllocationId(sortedAllocationListApiObsplan[0]?.["id"]);
+      setSelectedGroupIds([sortedAllocationListApiObsplan[0]?.["group_id"]]);
+      setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
     }
-  }, [selectedLocalizationId]);
-
-  useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      if (
-        !allocationListApiObsplan ||
-        (allocationListApiObsplan?.length === 0 &&
-          !fetchingAllocationListApiObsplan)
-      ) {
-        setFetchingAllocationListApiObsplan(true);
-        dispatch(allocationActions.fetchAllocationsApiObsplan()).then(
-          (response: any) => {
-            if (response.status !== "success") {
-              showNotification(
-                "Error fetching allocations, please try refreshing the page",
-                "error",
-              );
-              return;
-            }
-            const { data } = response;
-            data.sort((a: any, b: any) => a.instrument_id - b.instrument_id);
-            setSelectedAllocationId(data[0]?.id);
-            setSelectedGroupIds([data[0]?.group_id]);
-            setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
-            setFetchingAllocationListApiObsplan(false);
-          },
-        );
-      } else if (
-        allocationListApiObsplan?.length > 0 &&
-        !selectedAllocationId
-      ) {
-        const sortedAllocationListApiObsplan = [...allocationListApiObsplan];
-        sortedAllocationListApiObsplan.sort(
-          (a, b) => a.instrument_id - b.instrument_id,
-        );
-        setSelectedAllocationId(sortedAllocationListApiObsplan[0]?.id);
-        setSelectedGroupIds([sortedAllocationListApiObsplan[0]?.group_id]);
-        setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
-      }
-    };
-
-    getAllocations();
 
     if (
       Object.keys(instrumentObsplanFormParams).length === 0 &&

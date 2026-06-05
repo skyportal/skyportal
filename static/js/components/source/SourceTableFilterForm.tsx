@@ -20,7 +20,11 @@ import { allowedClasses } from "../classification/ClassificationForm";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
-import * as spatialCatalogsActions from "../../ducks/spatialCatalogs";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
+import {
+  useGetSpatialCatalogsQuery,
+  useGetSpatialCatalogQuery,
+} from "../../ducks/spatialCatalogs";
 
 const useStyles = makeStyles()((theme) => ({
   paperDiv: {
@@ -137,7 +141,7 @@ const SourceTableFilterForm = ({
   };
 
   // Get unique classification names, in alphabetical order
-  const { taxonomyList } = useAppSelector((state) => (state as any).taxonomies);
+  const { data: taxonomyList } = useGetTaxonomiesQuery();
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   let classifications: any[] = [];
   latestTaxonomyList?.forEach((taxonomy: any) => {
@@ -166,14 +170,13 @@ const SourceTableFilterForm = ({
   const gcnEvents = useAppSelector((state) => (state as any).gcnEvents);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState<any>(null);
 
-  const spatialCatalogs = useAppSelector(
-    (state) => (state as any).spatialCatalogs,
-  );
-  const spatialCatalog = useAppSelector(
-    (state) => (state as any).spatialCatalog,
-  );
+  const { data: spatialCatalogs } = useGetSpatialCatalogsQuery();
   const [selectedSpatialCatalogId, setSelectedSpatialCatalogId] =
     useState<any>(null);
+  const { data: spatialCatalog } = useGetSpatialCatalogQuery(
+    selectedSpatialCatalogId,
+    { skip: !selectedSpatialCatalogId },
+  );
 
   useEffect(() => {
     if (gcnEvents?.length > 0 || !gcnEvents) {
@@ -181,22 +184,6 @@ const SourceTableFilterForm = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (spatialCatalogs?.length > 0 || !spatialCatalogs) {
-      dispatch(spatialCatalogsActions.fetchSpatialCatalogs());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (selectedSpatialCatalogId) {
-      dispatch(
-        spatialCatalogsActions.fetchSpatialCatalog(selectedSpatialCatalogId),
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSpatialCatalogId]);
 
   const { handleSubmit, register, control, reset, getValues } = useForm();
 

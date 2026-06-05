@@ -1,9 +1,9 @@
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { useState } from "react";
 import {
-  addShiftUser,
-  deleteShiftUser,
-  updateShiftUser,
+  useAddShiftUserMutation,
+  useDeleteShiftUserMutation,
+  useUpdateShiftUserMutation,
 } from "../../ducks/shifts";
 import Tooltip from "@mui/material/Tooltip";
 import FormControl from "@mui/material/FormControl";
@@ -46,6 +46,9 @@ function ShiftUsersSelect({
 }: ShiftUsersSelectProps) {
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector((state) => state.profile);
+  const [addShiftUser] = useAddShiftUserMutation();
+  const [deleteShiftUser] = useDeleteShiftUserMutation();
+  const [updateShiftUser] = useUpdateShiftUserMutation();
   const [selectedIds, setSelectedIds] = useState<any[]>([]);
 
   if (!shiftsToManage || shiftsToManage.length === 0) return;
@@ -82,66 +85,63 @@ function ShiftUsersSelect({
         }
       }
 
-      [...userIdsToUpdate, ...userIdsToCreate].forEach((userId) => {
-        const functionToDispatch = userIdsToUpdate.includes(userId)
+      [...userIdsToUpdate, ...userIdsToCreate].forEach(async (userId) => {
+        const mutationTrigger = userIdsToUpdate.includes(userId)
           ? updateShiftUser
           : addShiftUser;
-        dispatch(
-          functionToDispatch({
+        try {
+          await mutationTrigger({
             shiftID: shift.id,
             userID: userId,
             admin: asAdmin,
-          }),
-        ).then((response: any) => {
-          if (response.status === "success") {
-            dispatch(
-              showNotification(
-                `User added to shift '${shift.name}' as ${
-                  asAdmin ? "admin" : "member"
-                }`,
-              ),
-            );
-          } else {
-            dispatch(
-              showNotification(
-                `Error adding user to shift '${shift.name}' as ${
-                  asAdmin ? "admin" : "member"
-                }`,
-                "error",
-              ),
-            );
-          }
-        });
+          }).unwrap();
+          dispatch(
+            showNotification(
+              `User added to shift '${shift.name}' as ${
+                asAdmin ? "admin" : "member"
+              }`,
+            ),
+          );
+        } catch {
+          dispatch(
+            showNotification(
+              `Error adding user to shift '${shift.name}' as ${
+                asAdmin ? "admin" : "member"
+              }`,
+              "error",
+            ),
+          );
+        }
       });
     });
   };
 
   function removeUsersFromShift(usersIdToRemove: any[], asAdmin = false) {
     usersIdToRemove.forEach((userId) => {
-      shiftsToManage!.forEach((shift: any) =>
-        dispatch(deleteShiftUser({ userID: userId, shiftID: shift.id })).then(
-          (result: any) => {
-            if (result.status === "success") {
-              dispatch(
-                showNotification(
-                  `User removed from shift '${shift.name}'${
-                    asAdmin ? " as admin" : ""
-                  }`,
-                ),
-              );
-            } else {
-              dispatch(
-                showNotification(
-                  `Error removing user from shift '${shift.name}'${
-                    asAdmin ? " as admin" : ""
-                  }`,
-                  "error",
-                ),
-              );
-            }
-          },
-        ),
-      );
+      shiftsToManage!.forEach(async (shift: any) => {
+        try {
+          await deleteShiftUser({
+            userID: userId,
+            shiftID: shift.id,
+          }).unwrap();
+          dispatch(
+            showNotification(
+              `User removed from shift '${shift.name}'${
+                asAdmin ? " as admin" : ""
+              }`,
+            ),
+          );
+        } catch {
+          dispatch(
+            showNotification(
+              `Error removing user from shift '${shift.name}'${
+                asAdmin ? " as admin" : ""
+              }`,
+              "error",
+            ),
+          );
+        }
+      });
     });
   }
 

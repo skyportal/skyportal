@@ -9,8 +9,9 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import ClassificationSelect from "../classification/ClassificationSelect";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import * as Actions from "../../ducks/source";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { allowedClasses } from "../classification/ClassificationForm";
 import Button from "../Button";
 
@@ -27,9 +28,7 @@ const AddClassificationsScanningPage = ({
   >([]);
   const dispatch = useAppDispatch();
 
-  const { taxonomyList } = useAppSelector(
-    (state) => state["taxonomies"],
-  ) as any;
+  const { data: taxonomyList } = useGetTaxonomiesQuery();
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   const classificationsAndTaxonomyIds: Record<string, number> = {};
   latestTaxonomyList?.forEach((taxonomy: any) => {

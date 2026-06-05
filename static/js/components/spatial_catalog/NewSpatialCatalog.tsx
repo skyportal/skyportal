@@ -3,13 +3,11 @@ import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import {
-  fetchSpatialCatalogs,
-  uploadSpatialCatalogs,
-} from "../../ducks/spatialCatalogs";
+import { useUploadSpatialCatalogsMutation } from "../../ducks/spatialCatalogs";
 
 const NewSpatialCatalog = () => {
   const dispatch = useAppDispatch();
+  const [uploadSpatialCatalogs] = useUploadSpatialCatalogsMutation();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     const parsed = dataUriToBuffer(formData.file);
@@ -18,12 +16,13 @@ const NewSpatialCatalog = () => {
       catalogData: ascii,
       catalogName: formData.catalogName,
     };
-    const result: any = await dispatch(uploadSpatialCatalogs(payload));
-    if (result.status === "success") {
+    try {
+      await uploadSpatialCatalogs(payload).unwrap();
       dispatch(
         showNotification("Saving spatial catalog... please be patient."),
       );
-      dispatch(fetchSpatialCatalogs());
+    } catch {
+      // error notification is dispatched by the base query
     }
   };
 

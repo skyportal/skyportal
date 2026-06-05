@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useState, useEffect, useMemo } from "react";
 import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import moment from "moment";
@@ -11,10 +12,10 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import { makeStyles } from "tss-react/mui";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import GroupsSelect from "../group/GroupsSelect";
-import * as shiftsActions from "../../ducks/shifts";
 import { getLastDayOfMonthTwoMonthsAgo } from "./ShiftPage";
+import type { ShiftSummaryArgs } from "./ShiftSummary";
 
 const allViews = Object.keys(Views).map((k) => (Views as any)[k]);
 const localizer = momentLocalizer(moment);
@@ -91,6 +92,10 @@ const transparent = "rgba(53,126,199,0.6)";
 
 interface MyCalendarProps {
   shifts: any[];
+  currentShift?: any;
+  setCurrentShiftId: (id: number | null) => void;
+  setSummaryArgs: (args: ShiftSummaryArgs | null) => void;
+  setEndDateLimit: (isoDate: string) => void;
   setShow: (...a: any[]) => void;
   preSelectedRange?: any;
   setPreSelectedRange: (...a: any[]) => void;
@@ -98,15 +103,18 @@ interface MyCalendarProps {
 
 function MyCalendar({
   shifts,
+  currentShift,
+  setCurrentShiftId,
+  setSummaryArgs,
+  setEndDateLimit: setParentEndDateLimit,
   setShow,
   preSelectedRange,
   setPreSelectedRange,
 }: MyCalendarProps) {
-  const dispatch = useAppDispatch();
   const { classes } = useStyles();
-  const currentShift = useAppSelector((state) => state["shifts"].currentShift);
   const currentUser = useAppSelector((state) => state.profile);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const { data: groupsData } = useGetGroupsQuery();
+  const groups = useMemo(() => groupsData?.userAccessible ?? [], [groupsData]);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();
   const [showAllShifts, setShowAllShifts] = useState(false);
   const [sortByGroups, setSortByGroups] = useState(false);
@@ -186,11 +194,7 @@ function MyCalendar({
     // If the user navigates to the past, we fetch the shifts accordingly
     if (lastDayOfMonthTwoMonthsAgo < endDateLimit) {
       setEndDateLimit(lastDayOfMonthTwoMonthsAgo);
-      dispatch(
-        shiftsActions.fetchShifts({
-          end_date_limit: lastDayOfMonthTwoMonthsAgo.toISOString(),
-        }),
-      );
+      setParentEndDateLimit(lastDayOfMonthTwoMonthsAgo.toISOString());
     }
     setDefaultDate(moment(date).toDate());
   };
@@ -241,7 +245,7 @@ function MyCalendar({
     ) {
       style.background = `repeating-linear-gradient(45deg, ${green}, ${green} 10px, ${style.background} 10px, ${style.background} 20px)`;
     }
-    if (event.id === currentShift.id) {
+    if (event.id === currentShift?.id) {
       style.borderColor = "black";
       style.borderWidth = "2px";
     }
@@ -348,13 +352,9 @@ function MyCalendar({
                 setPreSelectedRange(null);
                 return;
               }
-              if (event.id !== currentShift.id) {
-                dispatch(shiftsActions.setCurrentShift(event.id));
-                dispatch(
-                  shiftsActions.getShiftsSummary({
-                    shiftID: event.id,
-                  }),
-                );
+              if (event.id !== currentShift?.id) {
+                setCurrentShiftId(event.id);
+                setSummaryArgs({ shiftID: event.id });
               }
               setShow("manage shift");
             }}

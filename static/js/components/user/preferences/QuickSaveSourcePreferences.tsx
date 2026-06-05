@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useGetGroupsQuery } from "../../../ducks/groups";
+import { useEffect, useMemo, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -21,8 +22,10 @@ const QuickSaveSourcePreferences = () => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
-  const userAccessibleGroups = useAppSelector(
-    (state) => state.groups.userAccessible,
+  const { data: groupsData } = useGetGroupsQuery();
+  const userAccessibleGroups = useMemo(
+    () => groupsData?.userAccessible ?? [],
+    [groupsData],
   );
   const profile = useAppSelector((state) => state.profile);
 

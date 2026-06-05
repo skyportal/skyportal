@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useGetGroupsQuery } from "../ducks/groups";
+import { useEffect, useMemo, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../types/hooks";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -18,7 +19,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import * as analysisServicesActions from "../ducks/analysis_services";
+import { useGetAnalysisServicesQuery } from "../ducks/analysis_services";
 import * as sourceActions from "../ducks/source";
 import GroupShareSelect from "./group/GroupShareSelect";
 
@@ -69,8 +70,10 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   const dispatch = useAppDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { analysisServiceList } = useAppSelector(
-    (state) => state["analysis_services"],
+  const { data: analysisServiceListData } = useGetAnalysisServicesQuery();
+  const analysisServiceList = useMemo(
+    () => analysisServiceListData ?? [],
+    [analysisServiceListData],
   );
 
   const uniqueNames = [
@@ -79,7 +82,7 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   const uniqueAnalysisServiceList = uniqueNames.map((name) =>
     analysisServiceList.find((item: any) => item.name === name),
   );
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
   const prefs: any = useAppSelector((state) => state.profile.preferences);
   const config = useAppSelector((state) => state["config"]);
 
@@ -101,20 +104,10 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   });
 
   useEffect(() => {
-    const getAnalysisServices = async () => {
-      let data = [];
-      if (!analysisServiceList || analysisServiceList.length === 0) {
-        const result: any = await dispatch(
-          analysisServicesActions.fetchAnalysisServices(),
-        );
-        data = result?.data || [];
-      } else {
-        data = analysisServiceList;
-      }
-      setSelectedAnalysisServiceId(data[0]?.id);
-    };
-    getAnalysisServices();
-  }, [dispatch, setSelectedAnalysisServiceId]);
+    if (selectedAnalysisServiceId == null && analysisServiceList.length > 0) {
+      setSelectedAnalysisServiceId(analysisServiceList[0]?.id);
+    }
+  }, [analysisServiceList, selectedAnalysisServiceId]);
 
   if (
     !allGroups ||

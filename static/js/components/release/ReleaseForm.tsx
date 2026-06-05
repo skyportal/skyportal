@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
@@ -21,7 +22,7 @@ const ReleaseForm = ({
 }: ReleaseFormProps) => {
   const dispatch = useAppDispatch();
   const streams = useAppSelector((state) => state["streams"]);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const sourceOptionsSchema = sourcePublishOptionsSchema(
     streams as any,
     groups as any,

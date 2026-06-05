@@ -9,6 +9,10 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as gcnEventActions from "../../ducks/gcnEvent";
+import {
+  useGetAllocationsQuery,
+  useGetAllocationsApiObsplanQuery,
+} from "../../ducks/allocations";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -91,10 +95,9 @@ const GcnEventAllocationTriggers = ({
   const dispatch = useAppDispatch();
 
   const currentUser = useAppSelector((state) => state.profile);
-  const { allocationListApiObsplan } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const { allocationList } = useAppSelector((state) => state["allocations"]);
+  const { data: allocationListApiObsplan = [] } =
+    useGetAllocationsApiObsplanQuery();
+  const { data: allocationList = [] } = useGetAllocationsQuery();
 
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
 

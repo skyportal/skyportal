@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
@@ -10,7 +11,7 @@ import RadioGroup from "@mui/material/RadioGroup";
 import TextField from "@mui/material/TextField";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
@@ -43,7 +44,7 @@ interface SourceNotificationProps {
 
 const SourceNotification = ({ sourceId }: SourceNotificationProps) => {
   const { classes } = useStyles();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const groupIDToName: Record<number, string> = {};
   groups?.forEach((g: any) => {
     groupIDToName[g.id] = g.name;

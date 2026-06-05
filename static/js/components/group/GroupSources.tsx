@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
@@ -47,7 +48,7 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
   const pendingSourcesState = useAppSelector(
     (state) => state["sources"].pendingGroupSources,
   );
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const { classes } = useStyles();
   const [savedSourcesRowsPerPage, setSavedSourcesRowsPerPage] = useState(10);
   const [pendingSourcesRowsPerPage, setPendingSourcesRowsPerPage] =

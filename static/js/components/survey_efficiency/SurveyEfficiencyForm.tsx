@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -17,6 +18,7 @@ import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as surveyEfficiencyObservationsActions from "../../ducks/survey_efficiency_observations";
 import * as surveyEfficiencyObservationPlansActions from "../../ducks/survey_efficiency_observation_plans";
 import * as instrumentsActions from "../../ducks/instruments";
+import { useGetAllocationsQuery } from "../../ducks/allocations";
 import GroupShareSelect from "../group/GroupShareSelect";
 
 dayjs.extend(relativeTime);
@@ -69,9 +71,9 @@ const SurveyEfficiencyForm = ({
   const dispatch = useAppDispatch();
 
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationList } = useAppSelector((state) => state["allocations"]);
+  const { data: allocationList = [] } = useGetAllocationsQuery();
 
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
   const [selectedLocalizationId, setSelectedLocalizationId] =

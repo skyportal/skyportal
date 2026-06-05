@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 import Form from "@rjsf/mui";
@@ -8,7 +8,7 @@ import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitInstrument } from "../../ducks/instrument";
 import { modifyInstrument } from "../../ducks/instrument";
-import { fetchFollowupApis } from "../../ducks/followupApis";
+import { useGetFollowupApisQuery } from "../../ducks/followupApis";
 
 interface InstrumentFormProps {
   onClose: () => void;
@@ -21,16 +21,10 @@ const InstrumentForm = ({
 }: InstrumentFormProps) => {
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { followupApis } = useAppSelector((state) => state["followupApis"]);
+  const { data: followupApis } = useGetFollowupApisQuery();
   const { enum_types } = useAppSelector((state) => state["enum_types"]);
   const [formData, setFormData] = useState<any>({});
   const dispatch = useAppDispatch();
-
-  useEffect(() => {
-    if (!followupApis?.length) {
-      dispatch(fetchFollowupApis()).then();
-    }
-  }, [dispatch]);
 
   const handleSubmit = async () => {
     const dataToSubmit: any = { ...formData };
@@ -273,7 +267,7 @@ const InstrumentForm = ({
           "Configuration data i.e. {'overhead_per_exposure': 2.0, 'readout': 8.0, 'slew_rate': 2.6, 'filt_change_time': 60.0}",
         default: JSON.stringify(getDefaultConfigurationData()),
       },
-      ...(followupApis[formData.api_classname]?.formSchemaConfig?.properties
+      ...(followupApis?.[formData.api_classname]?.formSchemaConfig?.properties
         ? {
             specific_configuration: {
               type: "object",

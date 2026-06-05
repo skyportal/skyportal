@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { Chip, Tooltip } from "@mui/material";
 import { getContrastColor } from "../ObjectTags";
-import * as groupsActions from "../../ducks/groups";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import * as objectTagsActions from "../../ducks/objectTags";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 
@@ -24,12 +24,13 @@ const DynamicTagDisplay = ({ source, styles }: DynamicTagDisplayProps) => {
   const measureRef = useRef<any>(null);
   const dispatch = useAppDispatch();
   const tagOptions = useAppSelector((state: any) => state.objectTags || []);
-  const userGroups = useAppSelector((state) => state.groups.userAccessible);
+  const { data: groupsData } = useGetGroupsQuery();
+  const userGroups = useMemo(
+    () => groupsData?.userAccessible ?? [],
+    [groupsData],
+  );
 
   useEffect(() => {
-    if (!userGroups || userGroups.length === 0) {
-      dispatch(groupsActions.fetchGroups());
-    }
     if (!tagOptions || tagOptions.length === 0) {
       dispatch(objectTagsActions.fetchTagOptions());
     }

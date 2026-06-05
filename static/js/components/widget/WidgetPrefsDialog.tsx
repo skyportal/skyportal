@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import Dialog from "@mui/material/Dialog";
@@ -13,7 +14,7 @@ import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
 import Autocomplete from "@mui/material/Autocomplete";
 import Button from "../Button";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -44,7 +45,7 @@ const WidgetPrefsDialog = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const {
     handleSubmit,

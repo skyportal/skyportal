@@ -23,6 +23,7 @@ import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
 import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
+import { useGetGroupsQuery } from "../../ducks/groups";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -54,7 +55,7 @@ const DefaultFollowupRequestList = ({
   const { telescopeList } = useAppSelector(
     (state) => (state as any).telescopes,
   );
-  const groups = useAppSelector((state) => (state as any).groups.all);
+  const groups = useGetGroupsQuery().data?.all ?? null;
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

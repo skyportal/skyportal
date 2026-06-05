@@ -4,7 +4,7 @@ import Button from "../Button";
 import { useAppDispatch } from "../../types/hooks";
 import * as sourceActions from "../../ducks/source";
 import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftsActions from "../../ducks/shifts";
+import { useDeleteCommentOnShiftMutation } from "../../ducks/shifts";
 
 interface DeleteCommentProps {
   associatedResourceType?: string;
@@ -26,6 +26,7 @@ const DeleteComment = ({
   shiftID = null,
 }: DeleteCommentProps) => {
   const dispatch = useAppDispatch();
+  const [deleteCommentOnShiftMutation] = useDeleteCommentOnShiftMutation();
   const deleteCommentOnObject = (
     sourceID: string | null,
     commentID: string | number | null,
@@ -53,7 +54,7 @@ const DeleteComment = ({
     shift_id: number | null,
     commentID: string | number | null,
   ) => {
-    dispatch(shiftsActions.deleteCommentOnShift(shift_id!, commentID!));
+    deleteCommentOnShiftMutation({ shiftID: shift_id!, commentID: commentID! });
   };
 
   const deleteComment = (resourceType: string) => {

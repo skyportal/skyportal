@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import React, { Suspense, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import StyledDataGrid from "../StyledDataGrid";
@@ -29,7 +30,7 @@ import withRouter from "../withRouter";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as spectraActions from "../../ducks/spectra";
 import { fetchSource } from "../../ducks/source";
-import { fetchUsers } from "../../ducks/users";
+import { useGetUsersQuery } from "../../ducks/users";
 import { userLabel } from "../../utils/format";
 import Paper from "../Paper";
 import Spinner from "../Spinner";
@@ -75,9 +76,10 @@ interface UploadSpectrumFormProps {
 
 const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
   const dispatch = useAppDispatch();
-  const groups = useAppSelector((state) => state.groups.all);
+  const groups = useGetGroupsQuery().data?.all ?? null;
   const { parsed } = useAppSelector((state) => state["spectra"]);
-  const { users } = useAppSelector((state) => state["users"]);
+  const { data: usersData } = useGetUsersQuery();
+  const users = usersData?.users;
   const instrumentList = useAppSelector(
     (state) => state["instruments"].instrumentList,
   );
@@ -125,10 +127,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
     (async () => {
       dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
 
-      const [_, sourceResult] = await Promise.all([
-        dispatch(fetchUsers()),
-        dispatch(fetchSource(route.id)),
-      ]);
+      const sourceResult = await dispatch(fetchSource(route.id));
 
       let file: any;
       const fileUrl = unwrapQuotes(searchParams.get("file_url"));
@@ -207,7 +206,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
     !groups ||
     !instrumentList ||
     !telescopes ||
-    !users.length ||
+    !users?.length ||
     source.id !== route.id
   ) {
     return <Spinner />;

@@ -33,6 +33,7 @@ import ThumbnailList from "../thumbnail/ThumbnailList";
 import { allocationTitle } from "./AllocationPage";
 import withRouter from "../withRouter";
 
+import { useGetGroupsQuery } from "../../ducks/groups";
 import * as SourceAction from "../../ducks/source";
 import * as Action from "../../ducks/allocation";
 import * as ObservationPlansAction from "../../ducks/observationPlans";
@@ -177,7 +178,7 @@ const AllocationSummary = ({ route }: AllocationSummaryProps) => {
   const { telescopeList } = useAppSelector(
     (state) => (state as any).telescopes,
   );
-  const groups = useAppSelector((state) => (state as any).groups.all);
+  const groups = useGetGroupsQuery().data?.all ?? null;
   const { allocation, totalMatches: totalMatchesAllocations } = useAppSelector(
     (state) => (state as any).allocation,
   );

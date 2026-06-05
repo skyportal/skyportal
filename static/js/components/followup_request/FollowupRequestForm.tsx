@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 
 import CircularProgress from "@mui/material/CircularProgress";
@@ -20,7 +21,7 @@ import Chip from "@mui/material/Chip";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as allocationActions from "../../ducks/allocations";
+import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import * as instrumentsActions from "../../ducks/instruments";
 import * as sourceActions from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
@@ -63,10 +64,9 @@ const FollowupRequestForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationListApiClassname } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const { data: allocationListApiClassname = [] } =
+    useGetAllocationsApiClassnameQuery();
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
   const defaultAllocationId = useAppSelector(
     (state) => (state.profile.preferences as any).followupDefault,
   );
@@ -83,56 +83,48 @@ const FollowupRequestForm = ({
   const [settingFilteredList, setSettingFilteredList] = useState(false);
 
   useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-      let data = [];
-      if (
-        !allocationListApiClassname ||
-        allocationListApiClassname.length === 0
-      ) {
-        const result: any = await dispatch(
-          allocationActions.fetchAllocationsApiClassname(),
-        );
-        data = result?.data || [];
+    const data = allocationListApiClassname || [];
+    if (data.length === 0) {
+      return;
+    }
+    const tempAllocationLookUp: any = {};
+    data.forEach((allocation: any) => {
+      tempAllocationLookUp[allocation.id] = allocation;
+    });
+
+    if (!selectedAllocationId) {
+      if (data[0]?.["default_share_group_ids"]?.length > 0) {
+        setSelectedGroupIds(data[0]?.["default_share_group_ids"]);
       } else {
-        data = allocationListApiClassname;
+        setSelectedGroupIds([data[0]?.["group_id"]]);
       }
-      const tempAllocationLookUp: any = {};
-      data?.forEach((allocation: any) => {
-        tempAllocationLookUp[allocation.id] = allocation;
-      });
+    } else if (
+      tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids
+        ?.length > 0
+    ) {
+      setSelectedGroupIds(
+        tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids,
+      );
+    } else {
+      setSelectedGroupIds([
+        tempAllocationLookUp[selectedAllocationId]?.group_id,
+      ]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    allocationListApiClassname,
+    setSelectedAllocationId,
+    setSelectedGroupIds,
+  ]);
 
-      if (!selectedAllocationId) {
-        if (data[0]?.default_share_group_ids?.length > 0) {
-          setSelectedGroupIds(data[0]?.default_share_group_ids);
-        } else {
-          setSelectedGroupIds([data[0]?.group_id]);
-        }
-      } else if (
-        tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids
-          ?.length > 0
-      ) {
-        setSelectedGroupIds(
-          tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids,
-        );
-      } else {
-        setSelectedGroupIds([
-          tempAllocationLookUp[selectedAllocationId]?.group_id,
-        ]);
-      }
-    };
-
-    getAllocations();
-
+  useEffect(() => {
     if (
       !instrumentFormParams ||
       Object.keys(instrumentFormParams).length === 0
     ) {
       dispatch(instrumentsActions.fetchInstrumentForms());
     }
-  }, [setSelectedAllocationId, setSelectedGroupIds, dispatch]);
+  }, [dispatch, instrumentFormParams]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first

@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import EditIcon from "@mui/icons-material/Edit";
@@ -73,7 +74,7 @@ const ObservingRunList = ({
   const dispatch = useAppDispatch();
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const groups = useAppSelector((state) => state.groups.all);
+  const groups = useGetGroupsQuery().data?.all ?? [];
   const [observingRunToEdit, setObservingRunToEdit] = useState<number | null>(
     null,
   );

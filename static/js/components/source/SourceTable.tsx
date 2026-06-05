@@ -69,8 +69,9 @@ import MultipleClassificationsForm from "../classification/MultipleClassificatio
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../../ducks/source";
 import * as sourcesActions from "../../ducks/sources";
-import * as sourcesingcnActions from "../../ducks/sourcesingcn";
+import { useGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
 import * as objectTagsActions from "../../ducks/objectTags";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
@@ -195,7 +196,7 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
     window.localStorage.getItem("CURRENT_GROUP_ADMIN") as any,
   );
 
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [classificationSourceToDelete, setClassificationSourceToDelete] =
@@ -604,7 +605,7 @@ const SourceTable = ({
   // If groupID is not given, show all data available to user's accessible groups
 
   const dispatch = useAppDispatch();
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const { classes } = useStyles() as { classes: any };
 
@@ -624,8 +625,13 @@ const SourceTable = ({
   const [loading, setLoading] = useState(false);
 
   const gcnEvent = useAppSelector((state) => (state as any).gcnEvent);
-  const sourcesingcn = useAppSelector(
-    (state) => (state as any).sourcesingcn.sourcesingcn,
+  const { data: sourcesingcn = [] } = useGetSourcesInGcnQuery(
+    {
+      dateobs: gcnEvent?.dateobs,
+      localizationName: sourceInGcnFilter?.localizationName,
+      sourcesIdList: sources?.map((s: any) => s.id),
+    },
+    { skip: !includeGcnStatus || !gcnEvent?.dateobs || !sources },
   );
   const tagOptions = useAppSelector((state) => (state as any).objectTags || []);
 
@@ -663,16 +669,7 @@ const SourceTable = ({
   useEffect(() => {
     if (sources) {
       setLoading(false);
-      if (includeGcnStatus) {
-        dispatch(
-          sourcesingcnActions.fetchSourcesInGcn(gcnEvent.dateobs, {
-            localizationName: sourceInGcnFilter?.localizationName,
-            sourcesIdList: sources.map((s: any) => s.id),
-          }),
-        );
-      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sources]);
 
   useEffect(() => {
@@ -1079,13 +1076,13 @@ const SourceTable = ({
       ) {
         statusIcon = <PriorityHigh color="primary" />;
       } else if (
-        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0].confirmed ===
-        true
+        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
+          ?.confirmed === true
       ) {
         statusIcon = <CheckIcon color={"green" as any} />;
       } else if (
-        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0].confirmed ===
-        false
+        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
+          ?.confirmed === false
       ) {
         statusIcon = <ClearIcon color="secondary" />;
       } else {
@@ -1123,9 +1120,9 @@ const SourceTable = ({
       ) {
         statusExplanation = "";
       } else {
-        statusExplanation = sourcesingcn.filter(
-          (s: any) => s.obj_id === source.id,
-        )[0].explanation;
+        statusExplanation =
+          sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
+            ?.explanation ?? "";
       }
       return (
         <div
@@ -1146,8 +1143,9 @@ const SourceTable = ({
       const source = params.row;
       let notes = "";
       if (sourcesingcn.filter((s: any) => s.obj_id === source.id).length) {
-        notes = sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
-          .notes;
+        notes =
+          sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]?.notes ??
+          "";
       }
       return (
         <div

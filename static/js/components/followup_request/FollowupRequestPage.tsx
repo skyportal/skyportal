@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
@@ -19,7 +19,10 @@ import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationFo
 import ProgressIndicator from "../ProgressIndicators";
 import DefaultFollowupRequestList from "./DefaultFollowupRequestList";
 
-import * as followupRequestActions from "../../ducks/followup_requests";
+import {
+  useGetFollowupRequestsQuery,
+  useLazyGetFollowupRequestsQuery,
+} from "../../ducks/followup_requests";
 
 dayjs.extend(utc);
 
@@ -65,9 +68,6 @@ const FollowupRequestPage = () => {
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
   ) as any;
-  const { followupRequestList, totalMatches } = useAppSelector(
-    (state) => state["followup_requests"],
-  ) as any;
   const { defaultFollowupRequestList } = useAppSelector(
     (state) => state["default_followup_requests"],
   ) as any;
@@ -97,18 +97,16 @@ const FollowupRequestPage = () => {
     sortOrder: "desc",
   });
 
+  const { data: followupRequestsData } =
+    useGetFollowupRequestsQuery(fetchParams);
+  const followupRequestList = followupRequestsData?.followup_requests;
+  const totalMatches = followupRequestsData?.totalMatches ?? 0;
+  const [triggerFetchFollowupRequests] = useLazyGetFollowupRequestsQuery();
+
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
   const [tabIndex, setTabIndex] = React.useState(0);
-
-  useEffect(() => {
-    // everytime the list of followup requests is updated, we set the fetchParams in redux
-    dispatch({
-      type: followupRequestActions.UPDATE_FOLLOWUP_FETCH_PARAMS,
-      data: fetchParams,
-    });
-  }, [dispatch, fetchParams]);
 
   const handleChangeTab = (_event: any, newValue: number) => {
     setTabIndex(newValue);
@@ -120,9 +118,8 @@ const FollowupRequestPage = () => {
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future
+    // Updating fetchParams re-keys the followup-requests query, which refetches.
     setFetchParams(params);
-    await dispatch(followupRequestActions.fetchFollowupRequests(params));
   };
 
   const handleTableChange = async (action: string, tableState: any) => {
@@ -167,21 +164,17 @@ const FollowupRequestPage = () => {
           ...currentFetchParams,
           pageNumber: i,
           numPerPage: 100,
-          noRedux: true,
         };
 
-        const response: any = await dispatch(
-          followupRequestActions.fetchFollowupRequests(params),
-        );
-        if (response && response.data && response?.status === "success") {
-          const { data } = response;
+        try {
+          const data: any = await triggerFetchFollowupRequests(params).unwrap();
           allFollowupRequests = [
             ...allFollowupRequests,
             ...data.followup_requests,
           ];
           setDownloadProgressCurrent(allFollowupRequests.length);
           setDownloadProgressTotal(data.totalMatches);
-        } else if (response && response?.status !== "success") {
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
@@ -274,7 +267,7 @@ const FollowupRequestPage = () => {
                 <Typography variant="h6">
                   Prioritize Followup Requests
                 </Typography>
-                <FollowupRequestPrioritizationForm />
+                <FollowupRequestPrioritizationForm fetchParams={fetchParams} />
               </div>
             </Paper>
             <Dialog open={downloadProgressTotal > 0} maxWidth="md">

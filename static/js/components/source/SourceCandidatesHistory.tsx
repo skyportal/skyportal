@@ -15,6 +15,7 @@ import TextField from "@mui/material/TextField";
 import Search from "@mui/icons-material/Search";
 
 import { useAppSelector } from "../../types/hooks";
+import { useGetGroupsQuery } from "../../ducks/groups";
 
 const useStyles = makeStyles()(() => ({
   historyIcon: {
@@ -50,7 +51,7 @@ const SourceCandidatesHistory = ({
 }: SourceCandidatesHistoryProps) => {
   const { classes } = useStyles();
   const streams = useAppSelector((state) => state["streams"]);
-  const { userAccessible } = useAppSelector((state) => state.groups);
+  const userAccessible = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const [search, setSearch] = useState("");
 

@@ -39,6 +39,7 @@ import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
 import FormValidationError from "../FormValidationError";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import * as invitationsActions from "../../ducks/invitations";
 import * as streamsActions from "../../ducks/streams";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
@@ -78,7 +79,7 @@ const UserInvitations = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const streams = useAppSelector((state) => state["streams"]);
-  let { all: allGroups } = useAppSelector((state) => state.groups);
+  let allGroups = useGetGroupsQuery().data?.all ?? null;
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
   const currentUser = useAppSelector((state) => state.profile);
@@ -145,7 +146,7 @@ const UserInvitations = () => {
   ) {
     return <div>Access denied: Insufficient permissions.</div>;
   }
-  allGroups = allGroups?.filter((group) => !group.single_user_group);
+  allGroups = allGroups?.filter((group) => !group["single_user_group"]);
 
   const validateInvitationGroups = () => {
     const formState = getValues();

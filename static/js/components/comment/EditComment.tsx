@@ -10,7 +10,7 @@ import CommentEntry from "./CommentEntry";
 
 import * as sourceActions from "../../ducks/source";
 import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftsActions from "../../ducks/shifts";
+import { useEditCommentOnShiftMutation } from "../../ducks/shifts";
 
 interface EditCommentProps {
   associatedResourceType?: string;
@@ -36,6 +36,7 @@ const EditComment = ({
   attachmentName = "",
 }: EditCommentProps) => {
   const dispatch = useAppDispatch();
+  const [editCommentOnShiftMutation] = useEditCommentOnShiftMutation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const closeDialog = () => {
@@ -66,7 +67,7 @@ const EditComment = ({
 
   const editCommentOnShift = (shift_id: any, commentID: any, formData: any) => {
     formData.shift_id = shift_id;
-    dispatch(shiftsActions.editCommentOnShift(commentID, formData));
+    editCommentOnShiftMutation({ commentID, formData });
   };
 
   const editComment = (data: any) => {

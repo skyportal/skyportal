@@ -16,8 +16,8 @@ import ReactJson from "react-json-view";
 
 import * as sourceActions from "../../ducks/source";
 import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftsActions from "../../ducks/shifts";
-import * as earthquakeActions from "../../ducks/earthquake";
+import { useLazyGetCommentOnShiftAttachmentQuery } from "../../ducks/shifts";
+import { useLazyGetCommentOnEarthquakeTextAttachmentQuery } from "../../ducks/earthquake";
 
 const useStyles = makeStyles()((theme) => ({
   dialogTitle: {
@@ -190,22 +190,30 @@ const CommentAttachmentPreview = ({
   const theme = useTheme();
   const darkTheme = theme.palette.mode === "dark";
   const dispatch = useAppDispatch();
+  const [getShiftCommentAttachment, { data: shiftCommentAttachment }] =
+    useLazyGetCommentOnShiftAttachmentQuery();
+  const [
+    getEarthquakeCommentAttachment,
+    { data: earthquakeCommentAttachment },
+  ] = useLazyGetCommentOnEarthquakeTextAttachmentQuery();
 
   function resourceType(state: any): any {
     let type = "";
     if (associatedResourceType === "gcn_event") {
       type = state.gcnEvent.commentAttachment;
-    } else if (associatedResourceType === "shift") {
-      type = state.shifts.commentAttachment;
-    } else if (associatedResourceType === "earthquake") {
-      type = state.earthquake.commentAttachment;
     } else {
       type = state.source.commentAttachment;
     }
     return type;
   }
 
-  const commentAttachment = useAppSelector((state) => resourceType(state));
+  const reduxCommentAttachment = useAppSelector((state) => resourceType(state));
+  let commentAttachment = reduxCommentAttachment;
+  if (associatedResourceType === "shift") {
+    commentAttachment = shiftCommentAttachment;
+  } else if (associatedResourceType === "earthquake") {
+    commentAttachment = earthquakeCommentAttachment;
+  }
   const [open, setOpen] = useState(false);
 
   const getURLs = () => {
@@ -252,16 +260,12 @@ const CommentAttachmentPreview = ({
           ),
         );
       } else if (associatedResourceType === "earthquake") {
-        dispatch(
-          earthquakeActions.getCommentOnEarthquakeTextAttachment(
-            earthquakeID!,
-            commentId,
-          ),
-        );
+        getEarthquakeCommentAttachment({
+          earthquakeID: earthquakeID!,
+          commentID: commentId,
+        });
       } else if (associatedResourceType === "shift") {
-        dispatch(
-          shiftsActions.getCommentOnShiftTextAttachment(shiftID!, commentId),
-        );
+        getShiftCommentAttachment({ shiftID: shiftID!, commentID: commentId });
       }
     }
   }, [open]);

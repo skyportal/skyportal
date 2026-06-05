@@ -29,6 +29,7 @@ import utc from "dayjs/plugin/utc";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 import * as candidatesActions from "../../ducks/candidate/candidates";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "../FormValidationError";
 import { allowedClasses } from "../classification/ClassificationForm";
@@ -252,7 +253,7 @@ const FilterCandidateList = ({
   }
 
   // Get unique classification names, in alphabetical order
-  const { taxonomyList } = useAppSelector((state) => (state as any).taxonomies);
+  const { data: taxonomyList } = useGetTaxonomiesQuery();
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   let classifications: any[] = [];
   latestTaxonomyList?.forEach((taxonomy: any) => {

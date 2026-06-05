@@ -42,7 +42,7 @@ import GcnProperties from "./GcnProperties";
 import GcnTags from "./GcnTags";
 import Reminders from "../Reminders";
 
-import { postLocalizationFromNotice } from "../../ducks/localization";
+import { usePostLocalizationFromNoticeMutation } from "../../ducks/localization";
 import withRouter from "../withRouter";
 import Paper from "../Paper";
 
@@ -160,6 +160,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
 
   const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
   const dispatch = useAppDispatch();
+  const [postLocalizationFromNotice] = usePostLocalizationFromNoticeMutation();
   const currentUser = useAppSelector((state) => state.profile);
   const permission =
     currentUser.permissions?.includes("System admin") ||
@@ -561,27 +562,26 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                                       "warning",
                                     ),
                                   );
-                                  dispatch(
-                                    postLocalizationFromNotice({
-                                      dateobs: gcn_notice.dateobs,
-                                      noticeID: gcn_notice.id,
-                                    }),
-                                  ).then((response: any) => {
-                                    if (response.status === "success") {
+                                  postLocalizationFromNotice({
+                                    dateobs: gcn_notice.dateobs,
+                                    noticeID: gcn_notice.id,
+                                  })
+                                    .unwrap()
+                                    .then(() => {
                                       dispatch(
                                         showNotification(
                                           `Localization successfully ingested from notice ${gcn_notice.id}. Please wait for the contour to be generated. Default observation plans will be created shortly.`,
                                         ),
                                       );
-                                    } else {
+                                    })
+                                    .catch(() => {
                                       dispatch(
                                         showNotification(
                                           `Error ingesting localization from notice ${gcn_notice.id}. It might not be available yet.`,
                                           "error",
                                         ),
                                       );
-                                    }
-                                  });
+                                    });
                                 }}
                                 data-testid="ingest-localization-from-notice"
                               >

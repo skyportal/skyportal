@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 
 import SaveIcon from "@mui/icons-material/Save";
@@ -20,9 +21,7 @@ const QuickSaveButton = ({
 }: QuickSaveButtonProps) => {
   const dispatch = useAppDispatch();
   const profile = useAppSelector((state) => state.profile);
-  const userAccessibleGroups = useAppSelector(
-    (state) => state.groups.userAccessible,
-  );
+  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
   const { hydratedList } = useAppSelector((state) => state["hydration"]);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -82,7 +81,7 @@ const QuickSaveButton = ({
     : `Quick Save Source to: ${[...quickSaveGroupsSet]
         .map((groupId) => {
           const group = userAccessibleGroups.find((g) => g.id === groupId);
-          return group?.nickname || group?.name;
+          return group?.["nickname"] || group?.name;
         })
         .join(", ")}`;
 

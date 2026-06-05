@@ -23,7 +23,7 @@ import GroupFiltersStreams from "./GroupFiltersStreams";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as groupActions from "../../ducks/group";
-import * as groupsActions from "../../ducks/groups";
+import { useDeleteGroupMutation } from "../../ducks/groups";
 import * as streamsActions from "../../ducks/streams";
 
 const useStyles = makeStyles()((theme) => ({
@@ -69,6 +69,7 @@ const useStyles = makeStyles()((theme) => ({
 const Group = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [deleteGroup] = useDeleteGroupMutation();
   const theme = useTheme();
   const navigate = useNavigate();
 
@@ -119,11 +120,12 @@ const Group = () => {
   }, [currentUser, dispatch]);
 
   const handleDeleteGroup = async () => {
-    const result: any = await dispatch(groupsActions.deleteGroup(group.id));
-    if (result.status === "success") {
-      dispatch(groupsActions.fetchGroups(true));
+    try {
+      await deleteGroup(group.id).unwrap();
       setConfirmDeleteOpen(false);
       navigate("/groups");
+    } catch {
+      // error notification handled by the API layer
     }
   };
 

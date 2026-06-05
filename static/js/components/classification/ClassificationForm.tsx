@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
@@ -12,7 +13,7 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import * as Actions from "../../ducks/source";
 
 const useStyles = makeStyles()(() => ({
@@ -106,7 +107,7 @@ const CustomGroupsWidget = ({
   options,
 }: CustomGroupsWidgetProps) => {
   const { classes } = useStyles();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const groupIDToName: Record<string, any> = {};
   groups?.forEach((g) => {
@@ -235,7 +236,7 @@ const ClassificationForm = ({
   taxonomyList,
 }: ClassificationFormProps) => {
   const dispatch = useAppDispatch();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
 

@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import React, { Suspense, useEffect, useState } from "react";
 
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -28,11 +29,17 @@ import Button from "../Button";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
-import * as galaxiesActions from "../../ducks/galaxies";
+import {
+  useGetGalaxyCatalogsQuery,
+  useLazyGetGcnEventGalaxiesQuery,
+} from "../../ducks/galaxies";
 import * as instrumentActions from "../../ducks/instrument";
-import * as observationsActions from "../../ducks/observations";
+import {
+  useLazyGetGcnEventObservationsQuery,
+  useSubmitObservationsTreasureMapMutation,
+} from "../../ducks/observations";
 import * as sourcesActions from "../../ducks/sources";
-import * as sourcesingcnActions from "../../ducks/sourcesingcn";
+import { useLazyGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
 
 import AddCatalogQueryPage from "../catalog_query/AddCatalogQueryPage";
 import AddSurveyEfficiencyObservationsPage from "../survey_efficiency/AddSurveyEfficiencyObservationsPage";
@@ -42,7 +49,7 @@ import LocalizationPlot from "../localization/LocalizationPlot";
 import SourceTable from "../source/SourceTable";
 import ProgressIndicator from "../ProgressIndicators";
 
-import * as localizationActions from "../../ducks/localization";
+import { useGetLocalizationQuery } from "../../ducks/localization";
 import Spinner from "../Spinner";
 
 const GcnReport = React.lazy(() => import("./GcnReport"));
@@ -129,6 +136,7 @@ const GcnEventSourcesPage = ({
   });
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
+  const [fetchSourcesInGcn] = useLazyGetSourcesInGcnQuery();
 
   const handleSourcesTableSorting = (sortData: any, filterData: any) => {
     const data = {
@@ -220,15 +228,14 @@ const GcnEventSourcesPage = ({
     }
 
     // for all the sources, fetch the "sourcesConfirmedInGcn" status
-    const response = (await dispatch(
-      sourcesingcnActions.fetchSourcesInGcn(dateobs, {
+    try {
+      const sourcesInGcn = await fetchSourcesInGcn({
+        dateobs,
         localizationName,
         sourcesIdList: sourceAll.map((source) => source.id),
-      }),
-    )) as any;
-    if (response?.status === "success") {
+      }).unwrap();
       sourceAll.forEach((source) => {
-        const match = response.data.find(
+        const match = sourcesInGcn.find(
           (item: any) => item.obj_id === source.id,
         );
         if (match) {
@@ -245,6 +252,8 @@ const GcnEventSourcesPage = ({
           };
         }
       });
+    } catch {
+      // notification handled by baseQuery
     }
     return sourceAll;
   };
@@ -346,7 +355,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   const theme = useTheme();
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const [fetchingLocalization, setFetchingLocalization] = useState(false);
   const [selectedLocalizationName, setSelectedLocalizationName] = useState<
     string | null
   >(null);
@@ -365,20 +373,28 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   );
 
   const gcnEvent = useAppSelector((state) => state["gcnEvent"]) as any;
-  const groups = useAppSelector(
-    (state) => state.groups.userAccessible,
-  ) as any[];
-  const { analysisLoc } = useAppSelector(
-    (state) => state["localization"],
-  ) as any;
-  const galaxyCatalogs = useAppSelector(
-    (state) => (state as any).galaxies?.catalogs,
-  ) as any[];
+  const groups = (useGetGroupsQuery().data?.userAccessible ?? []) as any[];
+  const galaxyCatalogs = (useGetGalaxyCatalogsQuery().data ?? []) as any[];
   const [selectedFields, setSelectedFields] = useState<any[]>([]);
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
   const [selectedLocalizationId, setSelectedLocalizationId] =
     useState<any>(null);
+
+  const selectedLocalizationLoadName = gcnEvent?.localizations?.find(
+    (loc: any) => loc.id === selectedLocalizationId,
+  )?.localization_name;
+  const { data: analysisLoc, isFetching: fetchingLocalization } =
+    useGetLocalizationQuery(
+      {
+        dateobs: gcnEvent?.dateobs,
+        localization_name: selectedLocalizationLoadName,
+      },
+      {
+        skip: !gcnEvent?.dateobs || !selectedLocalizationLoadName,
+      },
+    );
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] =
     useState<any>(null);
@@ -438,12 +454,12 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   const gcnEventSources = useAppSelector(
     (state) => state?.["sources"]?.gcnEventSources,
   ) as any;
-  const gcnEventGalaxies = useAppSelector(
-    (state) => (state as any)?.galaxies?.gcnEventGalaxies,
-  ) as any;
-  const gcnEventObservations = useAppSelector(
-    (state) => (state as any)?.observations?.gcnEventObservations,
-  ) as any;
+  const [fetchGcnEventGalaxies, { data: gcnEventGalaxies }] =
+    useLazyGetGcnEventGalaxiesQuery();
+  const [gcnEventObservations, setGcnEventObservations] = useState<any>(null);
+  const [fetchGcnEventObservations] = useLazyGetGcnEventObservationsQuery();
+  const [submitObservationsTreasureMap] =
+    useSubmitObservationsTreasureMapMutation();
 
   useEffect(() => {
     const setDefaults = async () => {
@@ -526,7 +542,11 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
       numberObservations: filterParams?.numberDetections || 1,
       requireDetections: filterParams?.requireDetections,
     };
-    await dispatch(observationsActions.submitObservationsTreasureMap(id, data));
+    try {
+      await submitObservationsTreasureMap({ id, data }).unwrap();
+    } catch {
+      // error notification handled by the baseQuery
+    }
     setIsSubmittingTreasureMap(null);
   };
 
@@ -541,23 +561,24 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         i <= Math.ceil(gcnEventObservations.totalMatches / 100);
         i += 1
       ) {
-        const result = (await dispatch(
-          observationsActions.fetchGcnEventObservations(gcnEvent?.dateobs, {
-            ...formDataState,
-            instrumentName: instLookUp[selectedInstrumentId]?.name,
-            telescopeName:
-              telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
-            numberObservations: formDataState?.["numberDetections"] || 1,
-            numPerPage: 100,
-            pageNumber: i,
-            includeGeoJSON: true,
-          }),
-        )) as any;
-        if (result && result.data && result?.status === "success") {
-          observationsAll.push(...result.data.observations);
+        try {
+          const result: any = await fetchGcnEventObservations({
+            dateobs: gcnEvent?.dateobs,
+            filterParams: {
+              ...formDataState,
+              instrumentName: instLookUp[selectedInstrumentId]?.name,
+              telescopeName:
+                telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
+              numberObservations: formDataState?.["numberDetections"] || 1,
+              numPerPage: 100,
+              pageNumber: i,
+              includeGeoJSON: true,
+            },
+          }).unwrap();
+          observationsAll.push(...result.observations);
           setDownloadProgressCurrent(observationsAll.length);
           setDownloadProgressTotal(gcnEventObservations.totalMatches);
-        } else if (result && result?.status !== "success") {
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
@@ -637,21 +658,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     selectedInstrumentId,
   ]);
 
-  useEffect(() => {
-    if (selectedLocalizationId && gcnEvent?.dateobs) {
-      setFetchingLocalization(true);
-      dispatch(
-        localizationActions.fetchLocalization(
-          gcnEvent?.dateobs,
-          gcnEvent?.localizations.find(
-            (loc: any) => loc.id === selectedLocalizationId,
-          )?.localization_name,
-          "analysis",
-        ),
-      ).then(() => setFetchingLocalization(false));
-    }
-  }, [dispatch, selectedLocalizationId]);
-
   if (gcnEvent?.dateobs !== dateobs) return <Spinner />;
 
   const handleSelectedInstrumentChange = (e: any) => {
@@ -707,23 +713,30 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         return false;
       }
 
-      await dispatch(
-        observationsActions.fetchGcnEventObservations(gcnEvent?.dateobs, {
-          ...formData,
-          instrumentName: instrument.name,
-          telescopeName: telescope.name,
-          numberObservations: formData?.numberDetections || 1,
-        }),
-      );
+      try {
+        const result = await fetchGcnEventObservations({
+          dateobs: gcnEvent?.dateobs,
+          filterParams: {
+            ...formData,
+            instrumentName: instrument.name,
+            telescopeName: telescope.name,
+            numberObservations: formData?.numberDetections || 1,
+          },
+        }).unwrap();
+        setGcnEventObservations(result);
+      } catch {
+        // error notification handled by the baseQuery
+      }
       setHasFetchedObservations(true);
       return true;
     };
 
     const fetchGalaxies = async () => {
       formData.numPerPage = 100;
-      await dispatch(
-        galaxiesActions.fetchGcnEventGalaxies(gcnEvent?.dateobs, formData),
-      );
+      await fetchGcnEventGalaxies({
+        dateobs: gcnEvent?.dateobs,
+        filterParams: formData,
+      });
     };
 
     formData.includeGeoJSON = true;
@@ -861,7 +874,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         size={{ sm: 4 }}
         sx={{ display: { xs: "none", sm: "none", md: "block" } }}
       >
-        {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
+        {Object.keys(locLookUp).includes(analysisLoc?.id?.toString() ?? "") &&
         !fetchingLocalization ? (
           <div style={{ marginTop: "0.5rem" }}>
             <LocalizationPlot
@@ -957,8 +970,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
 
         {tabIndex === 0 && (
           <Box sx={{ display: { sm: "block", md: "none" } }}>
-            {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
-            !fetchingLocalization ? (
+            {Object.keys(locLookUp).includes(
+              analysisLoc?.id?.toString() ?? "",
+            ) && !fetchingLocalization ? (
               <Grid container spacing={2}>
                 <Grid
                   size={{ sm: 8, md: 12 }}

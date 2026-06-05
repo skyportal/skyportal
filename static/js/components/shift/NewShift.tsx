@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -8,7 +9,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import { submitShift } from "../../ducks/shifts";
+import { useSubmitShiftMutation } from "../../ducks/shifts";
 import { userLabel } from "../../utils/format";
 
 dayjs.extend(utc);
@@ -27,8 +28,9 @@ interface NewShiftProps {
 
 const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
   const dispatch = useAppDispatch();
+  const [submitShift] = useSubmitShiftMutation();
   const currentUser = useAppSelector((state) => state.profile);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const now = dayjs();
   const { users } = useAppSelector((state) => state["users"]);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
@@ -163,9 +165,11 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
 
     // Dispatch all shifts
     for (const shift of shifts) {
-      const response: any = await dispatch(submitShift(shift));
-      if (response.status === "success") {
+      try {
+        await submitShift(shift).unwrap();
         dispatch(showNotification("Shift created successfully"));
+      } catch {
+        // error notification handled by the API layer
       }
     }
     setPreSelectedRange?.(null);

@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
@@ -352,12 +353,10 @@ const CandidateInfo = ({
 }: CandidateInfoProps) => {
   const { classes } = useStyles();
 
-  const allGroups = (useAppSelector((state) => state.groups.all) || []).filter(
-    (g) => !g.single_user_group,
+  const allGroups = (useGetGroupsQuery().data?.all ?? []).filter(
+    (g) => !g["single_user_group"],
   );
-  const userAccessibleGroups = useAppSelector(
-    (state) => state.groups.userAccessible,
-  );
+  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const candidateHasAnnotationWithSelectedKey = (obj: any) => {
     const annotation = obj.annotations.find(
@@ -761,9 +760,7 @@ const CandidateList = () => {
     (profile: any) => profile.default,
   );
 
-  const userAccessibleGroups = useAppSelector(
-    (state) => state.groups.userAccessible,
-  );
+  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const availableAnnotationsInfo = useAppSelector(
     (state) => state["candidates"].annotationsInfo,

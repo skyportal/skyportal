@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -40,7 +41,7 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
   const instrumentsState = useAppSelector((state) => state["instruments"]);
-  const groups = useAppSelector((state) => state.groups.all);
+  const groups = useGetGroupsQuery().data?.all ?? [];
   const [telescope, setTelescope] = useState<any>(null);
   const { data: weather } = useGetWeatherQuery(
     telescope?.id ? parseInt(telescope.id, 10) : null,

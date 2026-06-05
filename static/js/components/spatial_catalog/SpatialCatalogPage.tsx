@@ -19,7 +19,11 @@ import SpatialCatalogTable from "./SpatialCatalogTable";
 import NewSpatialCatalog from "./NewSpatialCatalog";
 import SourceTable from "../source/SourceTable";
 
-import * as spatialCatalogsActions from "../../ducks/spatialCatalogs";
+import {
+  useGetSpatialCatalogsQuery,
+  useGetSpatialCatalogQuery,
+  useDeleteSpatialCatalogMutation,
+} from "../../ducks/spatialCatalogs";
 import * as sourcesActions from "../../ducks/sources";
 
 const useStyles = makeStyles()((theme) => ({
@@ -197,6 +201,7 @@ const SpatialCatalogList = ({
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
   const { classes: textClasses } = textStyles();
+  const [deleteSpatialCatalog] = useDeleteSpatialCatalogMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [catalogToDelete, setCatalogToDelete] = useState<any>(null);
   const openDialog = (id: any) => {
@@ -208,18 +213,16 @@ const SpatialCatalogList = ({
     setCatalogToDelete(null);
   };
 
-  const deleteCatalog = () => {
-    dispatch(spatialCatalogsActions.deleteSpatialCatalog(catalogToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(
-            showNotification("Spatial catalog deleting... please be patient."),
-          );
-          dispatch(spatialCatalogsActions.fetchSpatialCatalogs());
-          closeDialog();
-        }
-      },
-    );
+  const deleteCatalog = async () => {
+    try {
+      await deleteSpatialCatalog(catalogToDelete).unwrap();
+      dispatch(
+        showNotification("Spatial catalog deleting... please be patient."),
+      );
+      closeDialog();
+    } catch {
+      // error notification is dispatched by the base query
+    }
   };
 
   if (!Array.isArray(catalogs)) {
@@ -261,34 +264,21 @@ const SpatialCatalogList = ({
 };
 
 const SpatialCatalogPage = () => {
-  const spatialCatalogs = useAppSelector((state) => state["spatialCatalogs"]);
-  const spatialCatalog = useAppSelector((state) => state["spatialCatalog"]);
+  const { data: spatialCatalogs } = useGetSpatialCatalogsQuery();
   const [selectedSpatialCatalogId, setSelectedSpatialCatalogId] =
     useState<any>(null);
   const [selectedSpatialCatalogEntryId, setSelectedSpatialCatalogEntryId] =
     useState<any>(null);
 
+  const { data: spatialCatalog } = useGetSpatialCatalogQuery(
+    selectedSpatialCatalogId,
+    { skip: !selectedSpatialCatalogId },
+  );
+
   const currentUser = useAppSelector((state) => state.profile);
-  const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
   const { handleSubmit, control, reset, getValues } = useForm();
-
-  useEffect(() => {
-    if (spatialCatalogs?.length > 0 || !spatialCatalogs) {
-      dispatch(spatialCatalogsActions.fetchSpatialCatalogs());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (selectedSpatialCatalogId) {
-      dispatch(
-        spatialCatalogsActions.fetchSpatialCatalog(selectedSpatialCatalogId),
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSpatialCatalogId]);
 
   const spatialCatalogsSelect = spatialCatalogs
     ? [
@@ -300,7 +290,7 @@ const SpatialCatalogPage = () => {
       ]
     : [];
 
-  if (!spatialCatalogs) {
+  if (spatialCatalogs == null) {
     return <p>No Spatial Catalogs available...</p>;
   }
 

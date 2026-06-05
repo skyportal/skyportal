@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
@@ -5,7 +6,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Box from "@mui/material/Box";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import * as Actions from "../../ducks/gcnEvent";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
@@ -22,7 +23,7 @@ const AddRunFromObservationPlanPage = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   const dispatch = useAppDispatch();
 
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const allGroups = useGetGroupsQuery().data?.all ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
   const openDialog = () => {

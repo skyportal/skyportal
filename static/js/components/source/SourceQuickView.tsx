@@ -21,6 +21,7 @@ import Button from "../Button";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import ShowClassification from "../classification/ShowClassification";
 import * as Action from "../../ducks/source";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 const dialogTitleStyles = (theme: any) => ({
@@ -179,7 +180,7 @@ const SourceQuickView = ({ sourceId, className }: SourceQuickViewProps) => {
     }
   }, [dispatch, isCached, sourceId, open]);
 
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   // Only load more detailed source info once dialog is opened
   if (open) {

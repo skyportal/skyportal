@@ -18,7 +18,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { MyObjectFieldTemplate } from "../gcn/GcnSelectionForm";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as movingObjectActions from "../../ducks/moving_object";
+import { usePostMovingObjectObsPlanMutation } from "../../ducks/moving_object";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -62,6 +62,7 @@ const MovingObjectObsPlanPage = () => {
     (state) => state["instruments"].instrumentList,
   );
   const dispatch = useAppDispatch();
+  const [postMovingObjectObsPlan] = usePostMovingObjectObsPlanMutation();
 
   const [instrumentOptions, setInstrumentOptions] = useState<any[]>([]);
   const [formData, setFormData] = useState<any>({});
@@ -89,35 +90,28 @@ const MovingObjectObsPlanPage = () => {
     setInstrumentOptions(valid_instruments);
   }, [instruments]);
 
-  function onFormSubmit(params: any) {
+  async function onFormSubmit(params: any) {
     setLoading(true);
     let name = params.formData.name.replace(/\s/g, "");
     let data = Object.fromEntries(
       Object.entries(params.formData).filter(([_, v]) => v != null),
     );
-    dispatch(movingObjectActions.postMovingObjectObsPlan(name, data)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          if (result.data.length === 0) {
-            dispatch(
-              showNotification(
-                "No fields found for the given criteria",
-                "warning",
-              ),
-            );
-          } else {
-            dispatch(
-              showNotification(
-                "Observation plan generated successfully",
-                "info",
-              ),
-            );
-            setPlanData(result.data);
-          }
-        }
-        setLoading(false);
-      },
-    );
+    try {
+      const result = await postMovingObjectObsPlan({ name, data }).unwrap();
+      if (result.length === 0) {
+        dispatch(
+          showNotification("No fields found for the given criteria", "warning"),
+        );
+      } else {
+        dispatch(
+          showNotification("Observation plan generated successfully", "info"),
+        );
+        setPlanData(result);
+      }
+    } catch {
+      // error notification is handled by the base query
+    }
+    setLoading(false);
   }
 
   const formSchema = {

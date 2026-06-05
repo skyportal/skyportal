@@ -16,7 +16,10 @@ import QueueAPIDisplay from "./QueueAPIDisplay";
 import ProgressIndicator from "../ProgressIndicators";
 import SkymapTriggerAPIDisplay from "./SkymapTriggerAPIDisplay";
 
-import * as observationsActions from "../../ducks/observations";
+import {
+  useGetObservationsQuery,
+  useLazyGetObservationsQuery,
+} from "../../ducks/observations";
 import * as queuedObservationsActions from "../../ducks/queued_observations";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
@@ -116,7 +119,6 @@ const QueuedObservationList = ({
 };
 
 const ObservationPage = () => {
-  const observations = useAppSelector((state) => state["observations"]);
   const queued_observations = useAppSelector(
     (state) => state["queued_observations"],
   );
@@ -134,19 +136,13 @@ const ObservationPage = () => {
     numPerPage: defaultNumPerPage,
   });
 
+  const { data: observations } = useGetObservationsQuery(fetchExecutedParams);
+  const [fetchObservations] = useLazyGetObservationsQuery();
+
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
   const [tabIndex, setTabIndex] = React.useState(0);
-
-  useEffect(() => {
-    const params = {
-      ...fetchExecutedParams,
-      numPerPage: defaultNumPerPage,
-      pageNumber: 1,
-    };
-    dispatch(observationsActions.fetchObservations(params));
-  }, [dispatch]);
 
   useEffect(() => {
     const params = {
@@ -157,7 +153,7 @@ const ObservationPage = () => {
     dispatch(queuedObservationsActions.fetchQueuedObservations(params));
   }, [dispatch]);
 
-  if (!observations) {
+  if (observations == null) {
     return <p>No observations available...</p>;
   }
 
@@ -183,9 +179,8 @@ const ObservationPage = () => {
       params.sortBy = sortData.name;
       params.sortOrder = sortData.direction;
     }
-    // Save state for future
+    // Save state for future (triggers the observations query refetch)
     setFetchExecutedParams(params);
-    await dispatch(observationsActions.fetchObservations(params));
   };
 
   const handleQueuedPageChange = async (
@@ -211,7 +206,6 @@ const ObservationPage = () => {
       sortOrder: sortData.direction,
     };
     setFetchExecutedParams(params);
-    await dispatch(observationsActions.fetchObservations(params));
   };
 
   const handleQueuedTableSorting = async (sortData: any) => {
@@ -270,9 +264,8 @@ const ObservationPage = () => {
       params.endDate = filterData.endDate;
       params.instrumentName = filterData.instrumentName;
     }
-    // Save state for future
+    // Save state for future (triggers the observations query refetch)
     setFetchExecutedParams(params);
-    await dispatch(observationsActions.fetchObservations(params));
   };
 
   const handleQueuedTableFilter = async (
@@ -307,17 +300,14 @@ const ObservationPage = () => {
 
   const handleExecutedDownload = async () => {
     const observationsAll: any[] = [];
-    if (observations.observations.totalMatches === 0) {
+    if (observations.totalMatches === 0) {
       dispatch(showNotification("No observations to download", "warning"));
     } else {
-      setDownloadProgressTotal(observations.observations.totalMatches);
+      setDownloadProgressTotal(observations.totalMatches);
       for (
         let i = 1;
         i <=
-        Math.ceil(
-          observations.observations.totalMatches /
-            fetchExecutedParams.numPerPage,
-        );
+        Math.ceil(observations.totalMatches / fetchExecutedParams.numPerPage);
         i += 1
       ) {
         const data = {
@@ -325,14 +315,12 @@ const ObservationPage = () => {
           pageNumber: i,
         };
 
-        const result: any = await dispatch(
-          observationsActions.fetchObservations(data),
-        );
-        if (result && result.data && result?.status === "success") {
-          observationsAll.push(...result.data.observations);
+        try {
+          const result: any = await fetchObservations(data).unwrap();
+          observationsAll.push(...result.observations);
           setDownloadProgressCurrent(observationsAll.length);
-          setDownloadProgressTotal(observations.observations.totalMatches);
-        } else if (result && result?.status !== "success") {
+          setDownloadProgressTotal(observations.totalMatches);
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
@@ -446,7 +434,7 @@ const ObservationPage = () => {
         <Grid size={12} style={{ paddingTop: 0 }}>
           <div className={classes.Container}>
             <ExecutedObservationList
-              observations={observations.observations}
+              observations={observations}
               fetchParams={fetchExecutedParams}
               handleTableChange={handleExecutedTableChange}
               handleFilterSubmit={handleExecutedFilterSubmit}

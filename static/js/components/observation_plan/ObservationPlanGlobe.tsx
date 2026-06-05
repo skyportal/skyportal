@@ -4,6 +4,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import { useAppDispatch } from "../../types/hooks";
 import * as Actions from "../../ducks/gcnEvent";
+import { useGetLocalizationQuery } from "../../ducks/localization";
 import { GET } from "../../API";
 import Button from "../Button";
 
@@ -56,8 +57,21 @@ const ObservationPlanGlobe = ({
   displayOptionsDefault.localization = true;
   displayOptionsDefault.observations = true;
   const [obsList, setObsList] = useState<any>(null);
-  const [localization, setLocalization] = useState<any>(null);
   const [selectedObservations, setSelectedObservations] = useState<any[]>([]);
+
+  const { data: localization } = useGetLocalizationQuery(
+    {
+      dateobs: observationplanRequest.localization?.dateobs as string,
+      localization_name: observationplanRequest.localization
+        ?.localization_name as string,
+    },
+    {
+      skip:
+        !retrieveLocalization ||
+        !observationplanRequest.localization?.dateobs ||
+        !observationplanRequest.localization?.localization_name,
+    },
+  );
 
   useEffect(() => {
     const fetchObsList = async () => {
@@ -77,21 +91,6 @@ const ObservationPlanGlobe = ({
       fetchObsList();
     }
   }, [dispatch, setObsList, observationplanRequest]);
-
-  useEffect(() => {
-    const fetchLocalization = async () => {
-      const response = (await dispatch(
-        GET(
-          `/api/localization/${observationplanRequest.localization?.dateobs}/name/${observationplanRequest.localization?.localization_name}`,
-          "skyportal/FETCH_LOCALIZATION_OBSPLAN",
-        ),
-      )) as any;
-      setLocalization(response.data);
-    };
-    if (retrieveLocalization) {
-      fetchLocalization();
-    }
-  }, [dispatch, setLocalization, observationplanRequest]);
 
   if (!obsList) return <CircularProgress />;
 
