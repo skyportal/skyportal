@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -7,7 +7,8 @@ import * as Actions from "../../ducks/gcnEvent";
 import { GET } from "../../API";
 import Button from "../Button";
 
-import LocalizationPlot from "../localization/LocalizationPlot";
+// Lazy-loaded: aladin-lite is heavy and would otherwise sit in the main bundle.
+const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 
 interface ObservationPlanRequest {
   id?: number;
@@ -36,11 +37,15 @@ interface ObservationPlanRequest {
 interface ObservationPlanGlobeProps {
   observationplanRequest: ObservationPlanRequest;
   retrieveLocalization?: boolean;
+  // Square size (px) of the embedded skymap. Defaults to 600; the requests
+  // table passes a smaller value to keep its rows compact.
+  size?: number;
 }
 
 const ObservationPlanGlobe = ({
   observationplanRequest,
   retrieveLocalization = false,
+  size = 600,
 }: ObservationPlanGlobeProps) => {
   const dispatch = useAppDispatch();
   const displayOptions = [
@@ -112,17 +117,19 @@ const ObservationPlanGlobe = ({
         justifyItems: "center",
       }}
     >
-      <LocalizationPlot
-        localization={localization}
-        observations={obsList}
-        options={displayOptionsDefault}
-        height={600}
-        width={600}
-        type="obsplan"
-        projection="mollweide"
-        selectedObservations={selectedObservations}
-        setSelectedObservations={setSelectedObservations}
-      />
+      <Suspense fallback={<CircularProgress />}>
+        <LocalizationPlot
+          localization={localization}
+          observations={obsList}
+          options={displayOptionsDefault}
+          height={size}
+          width={size}
+          type="obsplan"
+          projection="mollweide"
+          selectedObservations={selectedObservations}
+          setSelectedObservations={setSelectedObservations}
+        />
+      </Suspense>
       {obsList?.geojson?.filter((f: any) => f?.selected)?.length ? (
         <Button
           secondary

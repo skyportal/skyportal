@@ -482,7 +482,7 @@ const ObservationPlanRequestLists = ({
         field: "skymap",
         headerName: "Skymap",
         flex: 1,
-        minWidth: 520,
+        minWidth: 360,
         sortable: false,
         renderCell: (params: any) => {
           const observationplanRequest = params.row;
@@ -494,9 +494,10 @@ const ObservationPlanRequestLists = ({
             return null;
           }
           return (
-            <Box sx={{ minWidth: "500px" }}>
+            <Box sx={{ minWidth: "350px" }}>
               <ObservationPlanGlobe
                 observationplanRequest={observationplanRequest}
+                size={350}
               />
             </Box>
           );
@@ -586,6 +587,9 @@ const ObservationPlanRequestLists = ({
       >
         <StyledDataGrid
           autoHeight
+          // Let rows grow to fit the embedded skymap cell; without this the
+          // default ~52px row height clips the localization plot to a sliver.
+          getRowHeight={() => "auto"}
           data-testid={`${instLookUp[instrument_id].name}_grid`}
           rows={requestsGroupedByInstId[instrument_id]}
           columns={getDataTableColumns(instrument_id)}
