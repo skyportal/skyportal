@@ -280,18 +280,20 @@ GroupStream.delete = (
 ) & CustomUserAccessControl(
     # Can only delete a stream from the group if none of the group's filters
     # are operating on the stream.
-    lambda cls, user_or_token: DBSession()
-    .query(cls)
-    .outerjoin(Stream)
-    .outerjoin(
-        Filter,
-        sa.and_(Filter.stream_id == Stream.id, Filter.group_id == cls.group_id),
-    )
-    .group_by(cls.id)
-    .having(
-        sa.or_(
-            sa.func.bool_and(Filter.id.is_(None)),
-            sa.func.bool_and(Stream.id.is_(None)),  # group has no streams
+    lambda cls, user_or_token: (
+        DBSession()
+        .query(cls)
+        .outerjoin(Stream)
+        .outerjoin(
+            Filter,
+            sa.and_(Filter.stream_id == Stream.id, Filter.group_id == cls.group_id),
+        )
+        .group_by(cls.id)
+        .having(
+            sa.or_(
+                sa.func.bool_and(Filter.id.is_(None)),
+                sa.func.bool_and(Stream.id.is_(None)),  # group has no streams
+            )
         )
     )
 )
@@ -303,23 +305,25 @@ GroupStream.create = (
         # Can only add a stream to a group if all users in the group have
         # access to the stream.
         # Also, cannot add stream access to single user groups.
-        lambda cls, user_or_token: DBSession()
-        .query(cls)
-        .join(Group, cls.group)
-        .outerjoin(User, Group.users)
-        .outerjoin(
-            StreamUser,
-            sa.and_(
-                cls.stream_id == StreamUser.stream_id,
-                User.id == StreamUser.user_id,
-            ),
-        )
-        .filter(Group.single_user_group.is_(False))
-        .group_by(cls.id)
-        .having(
-            sa.or_(
-                sa.func.bool_and(StreamUser.stream_id.isnot(None)),
-                sa.func.bool_and(User.id.is_(None)),
+        lambda cls, user_or_token: (
+            DBSession()
+            .query(cls)
+            .join(Group, cls.group)
+            .outerjoin(User, Group.users)
+            .outerjoin(
+                StreamUser,
+                sa.and_(
+                    cls.stream_id == StreamUser.stream_id,
+                    User.id == StreamUser.user_id,
+                ),
+            )
+            .filter(Group.single_user_group.is_(False))
+            .group_by(cls.id)
+            .having(
+                sa.or_(
+                    sa.func.bool_and(StreamUser.stream_id.isnot(None)),
+                    sa.func.bool_and(User.id.is_(None)),
+                )
             )
         )
     )

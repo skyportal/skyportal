@@ -21,6 +21,9 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
+          # `ADD . /skyportal` bakes the skyportal-data submodule into the
+          # image, so its LFS payload (SFD dust maps) must be materialized here.
+          lfs: true
 
       - name: Build Docker image
         run: |

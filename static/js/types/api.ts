@@ -627,7 +627,7 @@ export interface paths {
                          * @description Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                          * @default 3600
                          */
-                        timeout?: Record<string, never>;
+                        timeout?: number;
                         /**
                          * @description Establishes that analysis results on the resource should be considered a summary
                          * @default false
@@ -772,7 +772,7 @@ export interface paths {
                          * @description Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                          * @default 3600
                          */
-                        timeout?: Record<string, never>;
+                        timeout?: number;
                         /**
                          * @description Establishes that analysis results on the resource should be considered a summary
                          * @default false
@@ -906,7 +906,7 @@ export interface paths {
                     /** @description Return any analysis on an object with ID objID */
                     objID?: string;
                     /** @description ID of the analysis service used to create the analysis, used only if no analysis_id is given */
-                    analysisServiceID?: Record<string, never>;
+                    analysisServiceID?: number;
                     /**
                      * @description Boolean indicating whether to include the data associated
                      *     with the analysis in the response. Could be a large
@@ -934,7 +934,7 @@ export interface paths {
                      */
                     analysis_resource_type: string;
                     /** @description ID of the analysis to return. */
-                    analysis_id: Record<string, never>;
+                    analysis_id: number;
                 };
                 cookie?: never;
             };
@@ -1079,7 +1079,7 @@ export interface paths {
                         /** @description Whether to render the corner plots of this analysis */
                         show_corner?: boolean;
                         /** @description Filters to apply to the input data */
-                        input_filters?: unknown[];
+                        input_filters?: string[];
                         /** @description Dictionary of parameters to be passed thru to the analysis */
                         analysis_parameters?: {
                             [key: string]: string;
@@ -1132,7 +1132,7 @@ export interface paths {
                     /** @description Return any analysis on an object with ID objID */
                     objID?: string;
                     /** @description ID of the analysis service used to create the analysis, used only if no analysis_id is given */
-                    analysisServiceID?: Record<string, never>;
+                    analysisServiceID?: number;
                     /**
                      * @description Boolean indicating whether to include the data associated
                      *     with the analysis in the response. Could be a large
@@ -1160,7 +1160,7 @@ export interface paths {
                      */
                     analysis_resource_type: string;
                     /** @description ID of the analysis to return. */
-                    analysis_id: Record<string, never>;
+                    analysis_id: number;
                 };
                 cookie?: never;
             };
@@ -1305,7 +1305,7 @@ export interface paths {
                         /** @description Whether to render the corner plots of this analysis */
                         show_corner?: boolean;
                         /** @description Filters to apply to the input data */
-                        input_filters?: unknown[];
+                        input_filters?: string[];
                         /** @description Dictionary of parameters to be passed thru to the analysis */
                         analysis_parameters?: {
                             [key: string]: string;
@@ -2248,7 +2248,7 @@ export interface paths {
                          */
                         telescope_name?: number;
                         /** @description If provided, save to these group IDs. */
-                        groupIDs?: unknown;
+                        groupIDs?: number[];
                     };
                 };
             };
@@ -2308,11 +2308,11 @@ export interface paths {
                          */
                         telescope_name?: string;
                         /** @description If provided, save to these group IDs. */
-                        groupIDs?: unknown;
+                        groupIDs?: number[];
                         /** @description Arrow parsable string. Filter by start date. */
-                        startDate?: Record<string, never>;
+                        startDate?: string;
                         /** @description Arrow parsable string. Filter by end date. */
-                        endDate?: Record<string, never>;
+                        endDate?: string;
                     };
                 };
             };
@@ -2734,7 +2734,7 @@ export interface paths {
                          *     classifications ought to equal unity. Only individual
                          *     probabilities are checked.
                          */
-                        probability?: Record<string, never> | null;
+                        probability?: number | null;
                         /**
                          * @description List of group IDs corresponding to which groups should be
                          *     able to view classification. Defaults to the public group.
@@ -2797,23 +2797,23 @@ export interface paths {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
                                 /** @description list of allowed spectrum types */
-                                ALLOWED_SPECTRUM_TYPES?: unknown[];
+                                ALLOWED_SPECTRUM_TYPES?: string[];
                                 /** @description list of allowed magnitude systems */
-                                ALLOWED_MAGSYSTEMS?: unknown[];
+                                ALLOWED_MAGSYSTEMS?: string[];
                                 /** @description list of allowed bandpasses */
-                                ALLOWED_BANDPASSES?: unknown[];
+                                ALLOWED_BANDPASSES?: string[];
                                 /** @description list of allowed thumbnail types */
-                                THUMBNAIL_TYPES?: unknown[];
+                                THUMBNAIL_TYPES?: string[];
                                 /** @description list of allowed followup priorities */
-                                FOLLOWUP_PRIORITIES?: unknown[];
+                                FOLLOWUP_PRIORITIES?: string[];
                                 /** @description list of allowed API classnames */
-                                ALLOWED_API_CLASSNAMES?: unknown[];
+                                ALLOWED_API_CLASSNAMES?: string[];
                                 /** @description list of analysis types */
-                                ANALYSIS_TYPES?: unknown[];
+                                ANALYSIS_TYPES?: string[];
                                 /** @description list of analysis input types */
-                                ANALYSIS_INPUT_TYPES?: unknown[];
+                                ANALYSIS_INPUT_TYPES?: string[];
                                 /** @description list of authentication types */
-                                AUTHENTICATION_TYPES?: unknown[];
+                                AUTHENTICATION_TYPES?: string[];
                             };
                         };
                     };
@@ -3848,7 +3848,7 @@ export interface paths {
                      */
                     standardType?: string;
                     /** @description lowest and highest magnitude to return, e.g. "(12,9)" */
-                    magnitudeRange?: Record<string, never>;
+                    magnitudeRange?: number[];
                     /** @description Output format for schedule. Can be png, pdf, or csv */
                     output_format?: string;
                 };
@@ -4439,7 +4439,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    catalog_name: Record<string, never>;
+                    catalog_name: string;
                 };
                 cookie?: never;
             };
@@ -6053,7 +6053,7 @@ export interface paths {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
                                 /** @description The id of the GcnEvent */
-                                id?: Record<string, never>;
+                                id?: number;
                             };
                         };
                     };
@@ -6237,7 +6237,7 @@ export interface paths {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
                                 /** @description The id of the GcnEvent */
-                                id?: Record<string, never>;
+                                id?: number;
                             };
                         };
                     };
@@ -6389,7 +6389,7 @@ export interface paths {
                     /** @description Localization map name */
                     localization_name: string;
                     /** @description Cumulative integrated probability threshold */
-                    integrated_probability?: Record<string, never>;
+                    integrated_probability?: number;
                 };
                 header?: never;
                 path: {
@@ -7053,7 +7053,7 @@ export interface paths {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
                                 /** @description The id of the source_confirmed_in_gcn */
-                                id?: Record<string, never>;
+                                id?: number;
                             };
                         };
                     };
@@ -7093,7 +7093,7 @@ export interface paths {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
                                 /** @description The id of the deleted source_confirmed_in_gcn */
-                                id?: Record<string, never>;
+                                id?: number;
                             };
                         };
                     };
@@ -7141,7 +7141,7 @@ export interface paths {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
                                 /** @description The id of the modified source_confirmed_in_gcn */
-                                id?: Record<string, never>;
+                                id?: number;
                             };
                         };
                     };
@@ -7193,7 +7193,16 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: unknown[];
+                            data?: {
+                                /** @description the id of the confirmed_source_in_gcn */
+                                id?: number;
+                                /** @description the source_id of the source */
+                                obj_id?: string;
+                                /** @description dateobs of the GCN evn */
+                                dateobs?: string;
+                                /** @description Whether the source is confirmed (True) or rejected (False) */
+                                confirmed?: boolean;
+                            }[];
                         };
                     };
                 };
@@ -9122,7 +9131,7 @@ export interface paths {
                     /** @description If provided, filter only spectra observed with one of these mmadetector IDs. */
                     detectorIDs?: string;
                     /** @description If provided, filter only spectra saved to one of these group IDs. */
-                    groupIDs?: Record<string, never>;
+                    groupIDs?: number[];
                 };
                 header?: never;
                 path?: never;
@@ -9318,7 +9327,7 @@ export interface paths {
                     /** @description If provided, filter only time_intervals observed with one of these mmadetector IDs. */
                     detectorIDs?: string;
                     /** @description If provided, filter only time_interval saved to one of these group IDs. */
-                    groupIDs?: Record<string, never>;
+                    groupIDs?: number[];
                 };
                 header?: never;
                 path?: never;
@@ -9876,7 +9885,7 @@ export interface paths {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
                                 /** @description The id of the InstrumentLog */
-                                id?: Record<string, never>;
+                                id?: number;
                             };
                         };
                     };
@@ -10684,7 +10693,7 @@ export interface paths {
                      * @description Whether to include queued or executed observations.
                      *     Defaults to executed.
                      */
-                    observationStatus?: Record<string, never>;
+                    observationStatus?: string;
                     /**
                      * @description Minimum number of observations of a field required to include.
                      *     Defaults to 1.
@@ -12973,7 +12982,7 @@ export interface paths {
                 header?: never;
                 path: {
                     /** @description Photometry ID */
-                    photometry_id: Record<string, never>;
+                    photometry_id: number;
                 };
                 cookie?: never;
             };
@@ -12994,7 +13003,7 @@ export interface paths {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
                                 /** @description The id of the photomety_validation */
-                                id?: Record<string, never>;
+                                id?: number;
                             };
                         };
                     };
@@ -13019,7 +13028,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    photometric_id: Record<string, never>;
+                    photometric_id: number;
                 };
                 cookie?: never;
             };
@@ -13033,7 +13042,7 @@ export interface paths {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
                                 /** @description The id of the deleted photometry_validation */
-                                id?: Record<string, never>;
+                                id?: number;
                             };
                         };
                     };
@@ -13059,7 +13068,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    photometry_id: Record<string, never>;
+                    photometry_id: number;
                 };
                 cookie?: never;
             };
@@ -13080,7 +13089,7 @@ export interface paths {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
                                 /** @description The id of the modified photometry_validation */
-                                id?: Record<string, never>;
+                                id?: number;
                             };
                         };
                     };
@@ -13397,7 +13406,7 @@ export interface paths {
                      * @description Comma-separated string of object IDs not to be returned,
                      *     useful in cases where you are looking for new objects passing a query.
                      */
-                    rejectedObjectIDs?: Record<string, never>;
+                    rejectedObjectIDs?: string;
                     /**
                      * @description Get series that match this name.
                      *     The match must be exact.
@@ -13854,17 +13863,17 @@ export interface paths {
                      */
                     objID?: string;
                     /** @description Max number of sources to return. Default 5. */
-                    k?: Record<string, never>;
+                    k?: number;
                     /**
                      * @description Minimum redshift to consider of queries sources. If None or missing,
                      *     then no lower limit is applied.
                      */
-                    z_min?: Record<string, never>;
+                    z_min?: number;
                     /**
                      * @description Maximum redshift to consider of queries sources. If None or missing,
                      *     then no upper limit is applied.
                      */
-                    z_max?: Record<string, never>;
+                    z_max?: number;
                     /**
                      * @description List of classification types to consider. If [] or missing,
                      *     then all classification types are considered.
@@ -14205,7 +14214,7 @@ export interface paths {
                                 /** @description New Shift's end date */
                                 end_date?: string;
                                 /** @description New Shift's admins IDs */
-                                shift_admins?: unknown[];
+                                shift_admins?: number[];
                                 /** @description New Shift's description */
                                 description?: string;
                                 /** @description The number of users required to join this shift for it to be considered full */
@@ -15253,7 +15262,7 @@ export interface paths {
             parameters: {
                 query?: {
                     /** @description Image size in arcmin (square) */
-                    imsize?: Record<string, never>;
+                    imsize?: number;
                     facility?: "Keck" | "Shane" | "P200" | "P200-NGPS";
                     /** @description Source of the image used in the finding chart. Defaults to ps1 */
                     image_source?: "desi" | "dss" | "ztfref" | "ps1";
@@ -15619,8 +15628,8 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["Success"] & {
                             origin?: string;
-                            color?: Record<string, never>;
-                            abs_mag?: Record<string, never>;
+                            color?: number;
+                            abs_mag?: number;
                         }[];
                     };
                 };
@@ -15744,12 +15753,12 @@ export interface paths {
                          * @description Limiting magnitude down which to search.
                          *     Defaults to 24.0.
                          */
-                        limiting_magnitude?: Record<string, never>;
+                        limiting_magnitude?: number;
                         /**
                          * @description Search radius for MPC [in arcmin].
                          *     Defaults to 1 arcminute.
                          */
-                        search_radius?: Record<string, never>;
+                        search_radius?: number;
                     };
                 };
             };
@@ -16848,11 +16857,11 @@ export interface paths {
                     /** @description Portion of ID or TNS name to filter on */
                     sourceID?: string;
                     /** @description Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query. */
-                    rejectedSourceIDs?: Record<string, never>;
+                    rejectedSourceIDs?: string;
                     /** @description Simbad class to filter on */
                     simbadClass?: string;
                     /** @description additional name for the same object */
-                    alias?: unknown[];
+                    alias?: string[];
                     /** @description who posted/discovered this source */
                     origin?: string;
                     /** @description If true, return only those matches with TNS names */
@@ -16882,7 +16891,7 @@ export interface paths {
                     /** @description Get only sources saved to the querying user's list, e.g., "favorites". */
                     listName?: string;
                     /** @description If provided, filter only sources saved to one of these group IDs. */
-                    group_ids?: Record<string, never>;
+                    group_ids?: number[];
                     /**
                      * @description Boolean indicating whether to include the color-magnitude data from Gaia.
                      *     This will only include data for objects that have an annotation
@@ -17744,17 +17753,17 @@ export interface paths {
                     /** @description If provided, filter only spectra observed with one of these instrument IDs. */
                     instrumentIDs?: string;
                     /** @description If provided, filter only spectra saved to one of these group IDs. */
-                    groupIDs?: Record<string, never>;
+                    groupIDs?: number[];
                     /**
                      * @description If provided, filter only spectra associate with these
                      *     followup request IDs.
                      */
-                    followupRequestIDs?: Record<string, never>;
+                    followupRequestIDs?: number[];
                     /**
                      * @description If provided, filter only spectra associate with these
                      *     assignment request IDs.
                      */
-                    assignmentIDs?: Record<string, never>;
+                    assignmentIDs?: number[];
                     /**
                      * @description Return any spectra that have an origin with a (partial) match
                      *     to any of the values in this comma separated list.
@@ -17967,7 +17976,7 @@ export interface paths {
             parameters: {
                 query: {
                     /** @description List of filters */
-                    filters: Record<string, never>;
+                    filters: string[];
                 };
                 header?: never;
                 path: {
@@ -18263,17 +18272,17 @@ export interface paths {
                     /** @description If provided, filter only spectra observed with one of these instrument IDs. */
                     instrumentIDs?: string;
                     /** @description If provided, filter only spectra saved to one of these group IDs. */
-                    groupIDs?: Record<string, never>;
+                    groupIDs?: number[];
                     /**
                      * @description If provided, filter only spectra associate with these
                      *     followup request IDs.
                      */
-                    followupRequestIDs?: Record<string, never>;
+                    followupRequestIDs?: number[];
                     /**
                      * @description If provided, filter only spectra associate with these
                      *     assignment request IDs.
                      */
-                    assignmentIDs?: Record<string, never>;
+                    assignmentIDs?: number[];
                     /**
                      * @description Return any spectra that have an origin with a (partial) match
                      *     to any of the values in this comma separated list.
@@ -19118,7 +19127,7 @@ export interface paths {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
                                 /** @description Recent git commit lines */
-                                gitlog?: unknown[];
+                                gitlog?: string[];
                             };
                         };
                     };
@@ -19175,7 +19184,7 @@ export interface paths {
                                 /** @description Reference for the cosmology used. */
                                 cosmoref?: string;
                                 /** @description allowed values for spectrum type. */
-                                allowedSpectrumTypes?: unknown[];
+                                allowedSpectrumTypes?: string[];
                                 /** @description assigned to any spectrum posted without a type. */
                                 defaultSpectrumType?: string;
                                 /** @description allowed classifications classes. */
@@ -20621,10 +20630,10 @@ export interface paths {
                      */
                     location_type: "gaia_dr3" | "gaia_dr2" | "pos";
                     catalog_id?: string;
-                    ra?: Record<string, never>;
-                    dec?: Record<string, never>;
+                    ra?: number;
+                    dec?: number;
                     /** @description Image size in arcmin (square). Defaults to 4.0 */
-                    imsize?: Record<string, never>;
+                    imsize?: number;
                     facility?: "Keck" | "Shane" | "P200" | "P200-NGPS";
                     /** @description Source of the image used in the finding chart. Defaults to ps1 */
                     image_source?: "ps1" | "desi" | "dss" | "ztfref";
@@ -21074,7 +21083,7 @@ export interface paths {
                          *     `admin` is a boolean indicating whether they will be an admin in
                          *     that group, e.g. `[[group_id_1, true], [group_id_2, false]]`
                          */
-                        groupIDsAndAdmin?: unknown[][];
+                        groupIDsAndAdmin?: (number | boolean)[][];
                     };
                 };
             };
@@ -21857,28 +21866,30 @@ export interface components {
             data?: components["schemas"]["ACLNoID"][];
         };
         Allocation: {
-            readonly requests?: unknown[];
-            readonly default_requests?: unknown[];
-            readonly default_observation_plans?: unknown[];
-            readonly catalog_queries?: unknown[];
-            readonly observation_plans?: unknown[];
+            readonly requests?: components["schemas"]["FollowupRequest"][];
+            readonly default_requests?: components["schemas"]["DefaultFollowupRequest"][];
+            readonly default_observation_plans?: components["schemas"]["DefaultObservationPlanRequest"][];
+            readonly catalog_queries?: components["schemas"]["CatalogQuery"][];
+            readonly observation_plans?: components["schemas"]["ObservationPlanRequest"][];
             /** @description The Group the allocation is associated with. */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description The Instrument the allocation is associated with. */
-            readonly instrument?: unknown;
-            readonly allocation_users?: unknown[];
-            readonly gcn_triggers?: unknown[];
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly allocation_users?: components["schemas"]["AllocationUser"][];
+            readonly gcn_triggers?: components["schemas"]["GcnTrigger"][];
             /** @description The PI of the allocation's proposal. */
             pi?: string | null;
             /** @description The ID of the proposal associated with this allocation. */
             proposal_id?: string | null;
             /** @description A list of validity ranges for the allocation, each with a start_date and end_date in UTC. */
-            validity_ranges?: unknown;
+            validity_ranges?: {
+                [key: string]: unknown;
+            } | null;
             /** @description The number of hours allocated. */
             hours_allocated: number;
             default_share_group_ids?: number[] | null;
             /** @description The type of allocation. */
-            types?: unknown[];
+            types?: string[];
             /** @description The ID of the Group the allocation is associated with. */
             group_id: number;
             /** @description The ID of the Instrument the allocation is associated with. */
@@ -21900,28 +21911,30 @@ export interface components {
             data?: components["schemas"]["Allocation"][];
         };
         AllocationNoID: {
-            readonly requests?: unknown[];
-            readonly default_requests?: unknown[];
-            readonly default_observation_plans?: unknown[];
-            readonly catalog_queries?: unknown[];
-            readonly observation_plans?: unknown[];
+            readonly requests?: components["schemas"]["FollowupRequest"][];
+            readonly default_requests?: components["schemas"]["DefaultFollowupRequest"][];
+            readonly default_observation_plans?: components["schemas"]["DefaultObservationPlanRequest"][];
+            readonly catalog_queries?: components["schemas"]["CatalogQuery"][];
+            readonly observation_plans?: components["schemas"]["ObservationPlanRequest"][];
             /** @description The Group the allocation is associated with. */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description The Instrument the allocation is associated with. */
-            readonly instrument?: unknown;
-            readonly allocation_users?: unknown[];
-            readonly gcn_triggers?: unknown[];
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly allocation_users?: components["schemas"]["AllocationUser"][];
+            readonly gcn_triggers?: components["schemas"]["GcnTrigger"][];
             /** @description The PI of the allocation's proposal. */
             pi?: string | null;
             /** @description The ID of the proposal associated with this allocation. */
             proposal_id?: string | null;
             /** @description A list of validity ranges for the allocation, each with a start_date and end_date in UTC. */
-            validity_ranges?: unknown;
+            validity_ranges?: {
+                [key: string]: unknown;
+            } | null;
             /** @description The number of hours allocated. */
             hours_allocated: number;
             default_share_group_ids?: number[] | null;
             /** @description The type of allocation. */
-            types?: unknown[];
+            types?: string[];
             /** @description The ID of the Group the allocation is associated with. */
             group_id: number;
             /** @description The ID of the Instrument the allocation is associated with. */
@@ -21941,8 +21954,8 @@ export interface components {
             data?: components["schemas"]["AllocationNoID"][];
         };
         AllocationUser: {
-            readonly allocation?: unknown;
-            readonly user?: unknown;
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly user?: components["schemas"]["User"];
             /** @description Unique object identifier. */
             id?: number;
             allocation_id: number;
@@ -21961,8 +21974,8 @@ export interface components {
             data?: components["schemas"]["AllocationUser"][];
         };
         AllocationUserNoID: {
-            readonly allocation?: unknown;
-            readonly user?: unknown;
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly user?: components["schemas"]["User"];
             allocation_id: number;
             user_id: number;
         };
@@ -21979,9 +21992,9 @@ export interface components {
             data?: components["schemas"]["AllocationUserNoID"][];
         };
         AnalysisService: {
-            readonly groups?: unknown[];
-            readonly obj_analyses?: unknown[];
-            readonly default_analyses?: unknown[];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
+            readonly default_analyses?: components["schemas"]["DefaultAnalysis"][];
             /** @description Unique name/identifier of the analysis service. */
             name: string;
             /** @description Display name of the analysis service. */
@@ -22000,7 +22013,7 @@ export interface components {
             optional_analysis_parameters?: string | null;
             /**
              * @description Service authentiction method. One of: 'none', 'header_token', 'api_key', 'HTTPBasicAuth', 'HTTPDigestAuth', 'OAuth1'. See https://docs.python-requests.org/en/master/user/authentication/
-             * @enum {unknown}
+             * @enum {string}
              */
             authentication_type: "none" | "header_token" | "api_key" | "HTTPBasicAuth" | "HTTPDigestAuth" | "OAuth1";
             /** @description Contains authentication credentials for the service. */
@@ -22008,11 +22021,11 @@ export interface components {
             enabled?: boolean;
             /**
              * @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis'
-             * @enum {unknown}
+             * @enum {string}
              */
             analysis_type: "lightcurve_fitting" | "spectrum_fitting" | "meta_analysis";
             /** @description List of allowed_analysis_input_types required by the service. This data will be assembled and sent over to the analysis service. */
-            input_data_types?: unknown[] | null;
+            input_data_types?: string[] | null;
             /** @description Max time in seconds to wait for the analysis service to complete. */
             timeout?: number | null;
             /** @description If true, the analysis service is an upload type, where the user is responsible for providing the input data to the service. If false, the service is  called using the data provided in input_data_types */
@@ -22037,9 +22050,9 @@ export interface components {
             data?: components["schemas"]["AnalysisService"][];
         };
         AnalysisServiceNoID: {
-            readonly groups?: unknown[];
-            readonly obj_analyses?: unknown[];
-            readonly default_analyses?: unknown[];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
+            readonly default_analyses?: components["schemas"]["DefaultAnalysis"][];
             /** @description Unique name/identifier of the analysis service. */
             name: string;
             /** @description Display name of the analysis service. */
@@ -22058,7 +22071,7 @@ export interface components {
             optional_analysis_parameters?: string | null;
             /**
              * @description Service authentiction method. One of: 'none', 'header_token', 'api_key', 'HTTPBasicAuth', 'HTTPDigestAuth', 'OAuth1'. See https://docs.python-requests.org/en/master/user/authentication/
-             * @enum {unknown}
+             * @enum {string}
              */
             authentication_type: "none" | "header_token" | "api_key" | "HTTPBasicAuth" | "HTTPDigestAuth" | "OAuth1";
             /** @description Contains authentication credentials for the service. */
@@ -22066,11 +22079,11 @@ export interface components {
             enabled?: boolean;
             /**
              * @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis'
-             * @enum {unknown}
+             * @enum {string}
              */
             analysis_type: "lightcurve_fitting" | "spectrum_fitting" | "meta_analysis";
             /** @description List of allowed_analysis_input_types required by the service. This data will be assembled and sent over to the analysis service. */
-            input_data_types?: unknown[] | null;
+            input_data_types?: string[] | null;
             /** @description Max time in seconds to wait for the analysis service to complete. */
             timeout?: number | null;
             /** @description If true, the analysis service is an upload type, where the user is responsible for providing the input data to the service. If false, the service is  called using the data provided in input_data_types */
@@ -22094,14 +22107,16 @@ export interface components {
         };
         Annotation: {
             /** @description Annotation's author. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description The Annotation's Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description Unique object identifier. */
             id?: number;
             /** @description Searchable data in JSON format */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             /** @description What generated the annotation. This should generally map to a filter/group name. But since an annotation can be made accessible to multiple groups, the origin name does not necessarily have to map to a single group name. The important thing is to make the origin distinct and descriptive such that annotations from the same origin generally have the same metrics. One annotation with multiple fields from each origin is allowed. */
             origin: string;
             /** @description ID of the Annotation author's User instance. */
@@ -22123,12 +22138,14 @@ export interface components {
         };
         AnnotationNoID: {
             /** @description Annotation's author. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description The Annotation's Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description Searchable data in JSON format */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             /** @description What generated the annotation. This should generally map to a filter/group name. But since an annotation can be made accessible to multiple groups, the origin name does not necessarily have to map to a single group name. The important thing is to make the origin distinct and descriptive such that annotations from the same origin generally have the same metrics. One annotation with multiple fields from each origin is allowed. */
             origin: string;
             /** @description ID of the Annotation author's User instance. */
@@ -22150,18 +22167,20 @@ export interface components {
         };
         AnnotationOnPhotometry: {
             /** @description The Photometry referred to by this annotation. */
-            readonly photometry?: unknown;
+            readonly photometry?: components["schemas"]["Photometry"];
             /** @description Annotation's author. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description The Annotation's Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Annotation's Photometry. */
             photometry_id: number;
             /** @description Unique object identifier. */
             id?: number;
             /** @description Searchable data in JSON format */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             /** @description What generated the annotation. This should generally map to a filter/group name. But since an annotation can be made accessible to multiple groups, the origin name does not necessarily have to map to a single group name. The important thing is to make the origin distinct and descriptive such that annotations from the same origin generally have the same metrics. One annotation with multiple fields from each origin is allowed. */
             origin: string;
             /** @description ID of the Annotation author's User instance. */
@@ -22183,16 +22202,18 @@ export interface components {
         };
         AnnotationOnPhotometryNoID: {
             /** @description The Photometry referred to by this annotation. */
-            readonly photometry?: unknown;
+            readonly photometry?: components["schemas"]["Photometry"];
             /** @description Annotation's author. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description The Annotation's Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Annotation's Photometry. */
             photometry_id: number;
             /** @description Searchable data in JSON format */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             /** @description What generated the annotation. This should generally map to a filter/group name. But since an annotation can be made accessible to multiple groups, the origin name does not necessarily have to map to a single group name. The important thing is to make the origin distinct and descriptive such that annotations from the same origin generally have the same metrics. One annotation with multiple fields from each origin is allowed. */
             origin: string;
             /** @description ID of the Annotation author's User instance. */
@@ -22214,18 +22235,20 @@ export interface components {
         };
         AnnotationOnSpectrum: {
             /** @description The Spectrum referred to by this annotation. */
-            readonly spectrum?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
             /** @description Annotation's author. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description The Annotation's Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Annotation's Spectrum. */
             spectrum_id: number;
             /** @description Unique object identifier. */
             id?: number;
             /** @description Searchable data in JSON format */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             /** @description What generated the annotation. This should generally map to a filter/group name. But since an annotation can be made accessible to multiple groups, the origin name does not necessarily have to map to a single group name. The important thing is to make the origin distinct and descriptive such that annotations from the same origin generally have the same metrics. One annotation with multiple fields from each origin is allowed. */
             origin: string;
             /** @description ID of the Annotation author's User instance. */
@@ -22247,16 +22270,18 @@ export interface components {
         };
         AnnotationOnSpectrumNoID: {
             /** @description The Spectrum referred to by this annotation. */
-            readonly spectrum?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
             /** @description Annotation's author. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description The Annotation's Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Annotation's Spectrum. */
             spectrum_id: number;
             /** @description Searchable data in JSON format */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             /** @description What generated the annotation. This should generally map to a filter/group name. But since an annotation can be made accessible to multiple groups, the origin name does not necessarily have to map to a single group name. The important thing is to make the origin distinct and descriptive such that annotations from the same origin generally have the same metrics. One annotation with multiple fields from each origin is allowed. */
             origin: string;
             /** @description ID of the Annotation author's User instance. */
@@ -22346,9 +22371,9 @@ export interface components {
         };
         Candidate: {
             /** @description The Obj that passed a filter */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The filter that the Candidate passed */
-            readonly filter?: unknown;
+            readonly filter?: components["schemas"]["Filter"];
             /** @description ID of the Obj */
             obj_id: string;
             /** @description ID of the filter the candidate passed */
@@ -22379,9 +22404,9 @@ export interface components {
         };
         CandidateNoID: {
             /** @description The Obj that passed a filter */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The filter that the Candidate passed */
-            readonly filter?: unknown;
+            readonly filter?: components["schemas"]["Filter"];
             /** @description ID of the Obj */
             obj_id: string;
             /** @description ID of the filter the candidate passed */
@@ -22410,13 +22435,15 @@ export interface components {
         };
         CatalogQuery: {
             /** @description The User who requested the catalog query. */
-            readonly requester?: unknown;
-            readonly allocation?: unknown;
-            readonly target_groups?: unknown[];
+            readonly requester?: components["schemas"]["User"];
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly target_groups?: components["schemas"]["Group"][];
             /** @description ID of the User who requested the catalog query. */
             requester_id?: number | null;
             /** @description Content of the catalog query. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The status of the query. */
             status?: string;
             allocation_id: number;
@@ -22437,13 +22464,15 @@ export interface components {
         };
         CatalogQueryNoID: {
             /** @description The User who requested the catalog query. */
-            readonly requester?: unknown;
-            readonly allocation?: unknown;
-            readonly target_groups?: unknown[];
+            readonly requester?: components["schemas"]["User"];
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly target_groups?: components["schemas"]["Group"][];
             /** @description ID of the User who requested the catalog query. */
             requester_id?: number | null;
             /** @description Content of the catalog query. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The status of the query. */
             status?: string;
             allocation_id: number;
@@ -22488,8 +22517,8 @@ export interface components {
             data?: components["schemas"]["CatalogQueryPost"][];
         };
         CatalogQueryTargetGroup: {
-            readonly catalogquery?: unknown;
-            readonly group?: unknown;
+            readonly catalogquery?: components["schemas"]["CatalogQuery"];
+            readonly group?: components["schemas"]["Group"];
             /** @description Unique object identifier. */
             id?: number;
             catalog_querie_id: number;
@@ -22508,8 +22537,8 @@ export interface components {
             data?: components["schemas"]["CatalogQueryTargetGroup"][];
         };
         CatalogQueryTargetGroupNoID: {
-            readonly catalogquery?: unknown;
-            readonly group?: unknown;
+            readonly catalogquery?: components["schemas"]["CatalogQuery"];
+            readonly group?: components["schemas"]["Group"];
             catalog_querie_id: number;
             group_id: number;
         };
@@ -22527,15 +22556,15 @@ export interface components {
         };
         ClassicalAssignment: {
             /** @description The User who created this assignment. */
-            readonly requester?: unknown;
-            readonly last_modified_by?: unknown;
+            readonly requester?: components["schemas"]["User"];
+            readonly last_modified_by?: components["schemas"]["User"];
             /** @description The assigned Obj. */
-            readonly obj?: unknown;
-            readonly spectra?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
             /** @description The ObservingRun this target was assigned to. */
-            readonly run?: unknown;
+            readonly run?: components["schemas"]["ObservingRun"];
             /** @description The ID of the User who created this assignment. */
             requester_id: number;
             last_modified_by_id?: number | null;
@@ -22547,7 +22576,7 @@ export interface components {
             status?: string;
             /**
              * @description Priority of the request (1 = lowest, 5 = highest).
-             * @enum {unknown}
+             * @enum {string}
              */
             priority: "1" | "2" | "3" | "4" | "5";
             /** @description ID of the ObservingRun this target was assigned to. */
@@ -22569,15 +22598,15 @@ export interface components {
         };
         ClassicalAssignmentNoID: {
             /** @description The User who created this assignment. */
-            readonly requester?: unknown;
-            readonly last_modified_by?: unknown;
+            readonly requester?: components["schemas"]["User"];
+            readonly last_modified_by?: components["schemas"]["User"];
             /** @description The assigned Obj. */
-            readonly obj?: unknown;
-            readonly spectra?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
             /** @description The ObservingRun this target was assigned to. */
-            readonly run?: unknown;
+            readonly run?: components["schemas"]["ObservingRun"];
             /** @description The ID of the User who created this assignment. */
             requester_id: number;
             /** @description ID of the assigned Obj. */
@@ -22588,7 +22617,7 @@ export interface components {
             status?: string;
             /**
              * @description Priority of the request (1 = lowest, 5 = highest).
-             * @enum {unknown}
+             * @enum {string}
              */
             priority: "1" | "2" | "3" | "4" | "5";
             /** @description ID of the ObservingRun this target was assigned to. */
@@ -22608,13 +22637,13 @@ export interface components {
         };
         Classification: {
             /** @description Taxonomy in which this Classification was made. */
-            readonly taxonomy?: unknown;
+            readonly taxonomy?: components["schemas"]["Taxonomy"];
             /** @description The User that made this classification. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description The Classification's Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
-            readonly votes?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly votes?: components["schemas"]["ClassificationVote"][];
             /** @description The assigned class. */
             classification: string;
             /** @description String describing the source of this classification. */
@@ -22648,13 +22677,13 @@ export interface components {
         };
         ClassificationNoID: {
             /** @description Taxonomy in which this Classification was made. */
-            readonly taxonomy?: unknown;
+            readonly taxonomy?: components["schemas"]["Taxonomy"];
             /** @description The User that made this classification. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description The Classification's Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
-            readonly votes?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly votes?: components["schemas"]["ClassificationVote"][];
             /** @description The assigned class. */
             classification: string;
             /** @description String describing the source of this classification. */
@@ -22686,9 +22715,9 @@ export interface components {
         };
         ClassificationVote: {
             /** @description The Classification the vote is associated with. */
-            readonly classification?: unknown;
+            readonly classification?: components["schemas"]["Classification"];
             /** @description The User that scanned this source. */
-            readonly voter?: unknown;
+            readonly voter?: components["schemas"]["User"];
             /** @description Object ID for which the vote was registered. */
             classification_id: number;
             /** @description ID of the User that made this ClassificationVote */
@@ -22712,9 +22741,9 @@ export interface components {
         };
         ClassificationVoteNoID: {
             /** @description The Classification the vote is associated with. */
-            readonly classification?: unknown;
+            readonly classification?: components["schemas"]["Classification"];
             /** @description The User that scanned this source. */
-            readonly voter?: unknown;
+            readonly voter?: components["schemas"]["User"];
             /** @description Object ID for which the vote was registered. */
             classification_id: number;
             /** @description ID of the User that made this ClassificationVote */
@@ -22770,10 +22799,10 @@ export interface components {
         };
         Comment: {
             /** @description The Comment's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description Comment's author. */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Obj. */
             obj_id: string;
             /** @description Unique object identifier. */
@@ -22807,10 +22836,10 @@ export interface components {
         };
         CommentNoID: {
             /** @description The Comment's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description Comment's author. */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Obj. */
             obj_id: string;
             /** @description Comment body. */
@@ -22842,10 +22871,10 @@ export interface components {
         };
         CommentOnEarthquake: {
             /** @description The Earthquake referred to by this comment. */
-            readonly earthquake?: unknown;
+            readonly earthquake?: components["schemas"]["EarthquakeEvent"];
             /** @description Comment's author. */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Earthquake. */
             earthquake_id: number;
             /** @description Unique object identifier. */
@@ -22879,10 +22908,10 @@ export interface components {
         };
         CommentOnEarthquakeNoID: {
             /** @description The Earthquake referred to by this comment. */
-            readonly earthquake?: unknown;
+            readonly earthquake?: components["schemas"]["EarthquakeEvent"];
             /** @description Comment's author. */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Earthquake. */
             earthquake_id: number;
             /** @description Comment body. */
@@ -22914,10 +22943,10 @@ export interface components {
         };
         CommentOnGCN: {
             /** @description The GcnEvent referred to by this comment. */
-            readonly gcn?: unknown;
+            readonly gcn?: components["schemas"]["GcnEvent"];
             /** @description Comment's author. */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's GCN. */
             gcn_id: number;
             /** @description Unique object identifier. */
@@ -22951,10 +22980,10 @@ export interface components {
         };
         CommentOnGCNNoID: {
             /** @description The GcnEvent referred to by this comment. */
-            readonly gcn?: unknown;
+            readonly gcn?: components["schemas"]["GcnEvent"];
             /** @description Comment's author. */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's GCN. */
             gcn_id: number;
             /** @description Comment body. */
@@ -22986,10 +23015,10 @@ export interface components {
         };
         CommentOnShift: {
             /** @description The Shift referred to by this comment. */
-            readonly shift?: unknown;
+            readonly shift?: components["schemas"]["Shift"];
             /** @description Comment's author. */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Shift. */
             shift_id: number;
             /** @description Unique object identifier. */
@@ -23023,10 +23052,10 @@ export interface components {
         };
         CommentOnShiftNoID: {
             /** @description The Shift referred to by this comment. */
-            readonly shift?: unknown;
+            readonly shift?: components["schemas"]["Shift"];
             /** @description Comment's author. */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Shift. */
             shift_id: number;
             /** @description Comment body. */
@@ -23058,12 +23087,12 @@ export interface components {
         };
         CommentOnSpectrum: {
             /** @description The Comment's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The Spectrum referred to by this comment. */
-            readonly spectrum?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
             /** @description Comment's author. */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Obj. */
             obj_id: string;
             /** @description ID of the Comment's Spectrum. */
@@ -23099,12 +23128,12 @@ export interface components {
         };
         CommentOnSpectrumNoID: {
             /** @description The Comment's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The Spectrum referred to by this comment. */
-            readonly spectrum?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
             /** @description Comment's author. */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Comment's Obj. */
             obj_id: string;
             /** @description ID of the Comment's Spectrum. */
@@ -23180,10 +23209,10 @@ export interface components {
         };
         DefaultAnalysis: {
             /** @description Analysis Service associated with this analysis. */
-            readonly analysis_service?: unknown;
-            readonly groups?: unknown[];
+            readonly analysis_service?: components["schemas"]["AnalysisService"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description Annotation's author. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description ID of the associated analysis service. */
             analysis_service_id: number;
             /** @description Whether to render the parameters of this analysis */
@@ -23198,9 +23227,13 @@ export interface components {
              * @description JSONB column that defines the criteria for which this default analysis will be triggered.
              *                 Example: {"classifications": {"name": "Kilonova", "probability": 0.9}}
              */
-            source_filter: unknown;
+            source_filter: {
+                [key: string]: unknown;
+            };
             /** @description JSONB column that stores the stats for this default analysis */
-            stats?: unknown;
+            stats?: {
+                [key: string]: unknown;
+            };
             /** @description ID of the Annotation author's User instance. */
             author_id: number;
             /** @description Unique object identifier. */
@@ -23220,10 +23253,10 @@ export interface components {
         };
         DefaultAnalysisNoID: {
             /** @description Analysis Service associated with this analysis. */
-            readonly analysis_service?: unknown;
-            readonly groups?: unknown[];
+            readonly analysis_service?: components["schemas"]["AnalysisService"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description Annotation's author. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description ID of the associated analysis service. */
             analysis_service_id: number;
             /** @description Whether to render the parameters of this analysis */
@@ -23238,9 +23271,13 @@ export interface components {
              * @description JSONB column that defines the criteria for which this default analysis will be triggered.
              *                 Example: {"classifications": {"name": "Kilonova", "probability": 0.9}}
              */
-            source_filter: unknown;
+            source_filter: {
+                [key: string]: unknown;
+            };
             /** @description JSONB column that stores the stats for this default analysis */
-            stats?: unknown;
+            stats?: {
+                [key: string]: unknown;
+            };
             /** @description ID of the Annotation author's User instance. */
             author_id: number;
         };
@@ -23258,20 +23295,26 @@ export interface components {
         };
         DefaultFollowupRequest: {
             /** @description The User who requested the default follow-up. */
-            readonly requester?: unknown;
-            readonly allocation?: unknown;
-            readonly target_groups?: unknown[];
+            readonly requester?: components["schemas"]["User"];
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly target_groups?: components["schemas"]["Group"][];
             /** @description ID of the User who requested the default follow-up. */
             requester_id?: number | null;
             /** @description Content of the default follow-up request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             allocation_id: number;
             /** @description Default followup name */
             default_followup_name: string;
             /** @description Source filter for default follow-up request. */
-            source_filter: unknown;
+            source_filter: {
+                [key: string]: unknown;
+            };
             /** @description Trigger constraints applied before auto-submitting this default follow-up request, mirroring the constraints accepted by the manual follow-up request API (e.g. not_if_duplicates, not_if_classified, not_if_spectra_exist, source_group_ids, radius, ...). Null means no constraints (always submit). */
-            constraints?: unknown;
+            constraints?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Whether higher priority values mean higher ('asc') or lower ('desc') observing priority. Used to decide whether an incoming auto-trigger should bump an existing request's priority. Defaults to 'asc' when null. */
             priority_order?: string | null;
             /** @description Number of days the auto-submitted request should remain valid; sets the request's end_date to start_date + validity_days. Defaults to 7 when null. Ignored for urgency-based instruments (which do not use start/end dates). */
@@ -23297,20 +23340,26 @@ export interface components {
         };
         DefaultFollowupRequestNoID: {
             /** @description The User who requested the default follow-up. */
-            readonly requester?: unknown;
-            readonly allocation?: unknown;
-            readonly target_groups?: unknown[];
+            readonly requester?: components["schemas"]["User"];
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly target_groups?: components["schemas"]["Group"][];
             /** @description ID of the User who requested the default follow-up. */
             requester_id?: number | null;
             /** @description Content of the default follow-up request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             allocation_id: number;
             /** @description Default followup name */
             default_followup_name: string;
             /** @description Source filter for default follow-up request. */
-            source_filter: unknown;
+            source_filter: {
+                [key: string]: unknown;
+            };
             /** @description Trigger constraints applied before auto-submitting this default follow-up request, mirroring the constraints accepted by the manual follow-up request API (e.g. not_if_duplicates, not_if_classified, not_if_spectra_exist, source_group_ids, radius, ...). Null means no constraints (always submit). */
-            constraints?: unknown;
+            constraints?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Whether higher priority values mean higher ('asc') or lower ('desc') observing priority. Used to decide whether an incoming auto-trigger should bump an existing request's priority. Defaults to 'asc' when null. */
             priority_order?: string | null;
             /** @description Number of days the auto-submitted request should remain valid; sets the request's end_date to start_date + validity_days. Defaults to 7 when null. Ignored for urgency-based instruments (which do not use start/end dates). */
@@ -23333,8 +23382,8 @@ export interface components {
             data?: components["schemas"]["DefaultFollowupRequestNoID"][];
         };
         DefaultFollowupRequestTargetGroup: {
-            readonly defaultfollowuprequest?: unknown;
-            readonly group?: unknown;
+            readonly defaultfollowuprequest?: components["schemas"]["DefaultFollowupRequest"];
+            readonly group?: components["schemas"]["Group"];
             /** @description Unique object identifier. */
             id?: number;
             defaultfollowuprequest_id: number;
@@ -23353,8 +23402,8 @@ export interface components {
             data?: components["schemas"]["DefaultFollowupRequestTargetGroup"][];
         };
         DefaultFollowupRequestTargetGroupNoID: {
-            readonly defaultfollowuprequest?: unknown;
-            readonly group?: unknown;
+            readonly defaultfollowuprequest?: components["schemas"]["DefaultFollowupRequest"];
+            readonly group?: components["schemas"]["Group"];
             defaultfollowuprequest_id: number;
             group_id: number;
         };
@@ -23372,11 +23421,13 @@ export interface components {
         };
         DefaultGcnTag: {
             /** @description The User who requested the default gcn tag. */
-            readonly requester?: unknown;
+            readonly requester?: components["schemas"]["User"];
             /** @description ID of the User who requested the default gcn tag. */
             requester_id?: number | null;
             /** @description Filters to determine which of the default gcn tags get executed for which events */
-            filters?: unknown;
+            filters?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Default tag name */
             default_tag_name: string;
             /** @description Unique object identifier. */
@@ -23396,11 +23447,13 @@ export interface components {
         };
         DefaultGcnTagNoID: {
             /** @description The User who requested the default gcn tag. */
-            readonly requester?: unknown;
+            readonly requester?: components["schemas"]["User"];
             /** @description ID of the User who requested the default gcn tag. */
             requester_id?: number | null;
             /** @description Filters to determine which of the default gcn tags get executed for which events */
-            filters?: unknown;
+            filters?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Default tag name */
             default_tag_name: string;
         };
@@ -23418,16 +23471,20 @@ export interface components {
         };
         DefaultObservationPlanRequest: {
             /** @description The User who requested the default requests. */
-            readonly requester?: unknown;
-            readonly allocation?: unknown;
-            readonly target_groups?: unknown[];
-            readonly default_survey_efficiencies?: unknown[];
+            readonly requester?: components["schemas"]["User"];
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly target_groups?: components["schemas"]["Group"][];
+            readonly default_survey_efficiencies?: components["schemas"]["DefaultSurveyEfficiencyRequest"][];
             /** @description ID of the User who requested the default observation plan request. */
             requester_id?: number | null;
             /** @description Content of the default observation plan request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description Filters to determine which of the default observation plan requests get executed for which events */
-            filters?: unknown;
+            filters?: {
+                [key: string]: unknown;
+            } | null;
             allocation_id: number;
             /** @description Default plan name */
             default_plan_name: string;
@@ -23450,16 +23507,20 @@ export interface components {
         };
         DefaultObservationPlanRequestNoID: {
             /** @description The User who requested the default requests. */
-            readonly requester?: unknown;
-            readonly allocation?: unknown;
-            readonly target_groups?: unknown[];
-            readonly default_survey_efficiencies?: unknown[];
+            readonly requester?: components["schemas"]["User"];
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly target_groups?: components["schemas"]["Group"][];
+            readonly default_survey_efficiencies?: components["schemas"]["DefaultSurveyEfficiencyRequest"][];
             /** @description ID of the User who requested the default observation plan request. */
             requester_id?: number | null;
             /** @description Content of the default observation plan request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description Filters to determine which of the default observation plan requests get executed for which events */
-            filters?: unknown;
+            filters?: {
+                [key: string]: unknown;
+            } | null;
             allocation_id: number;
             /** @description Default plan name */
             default_plan_name: string;
@@ -23479,8 +23540,8 @@ export interface components {
             data?: components["schemas"]["DefaultObservationPlanRequestNoID"][];
         };
         DefaultObservationPlanRequestTargetGroup: {
-            readonly defaultobservationplanrequest?: unknown;
-            readonly group?: unknown;
+            readonly defaultobservationplanrequest?: components["schemas"]["DefaultObservationPlanRequest"];
+            readonly group?: components["schemas"]["Group"];
             /** @description Unique object identifier. */
             id?: number;
             defaultobservationplanrequest_id: number;
@@ -23499,8 +23560,8 @@ export interface components {
             data?: components["schemas"]["DefaultObservationPlanRequestTargetGroup"][];
         };
         DefaultObservationPlanRequestTargetGroupNoID: {
-            readonly defaultobservationplanrequest?: unknown;
-            readonly group?: unknown;
+            readonly defaultobservationplanrequest?: components["schemas"]["DefaultObservationPlanRequest"];
+            readonly group?: components["schemas"]["Group"];
             defaultobservationplanrequest_id: number;
             group_id: number;
         };
@@ -23517,10 +23578,12 @@ export interface components {
             data?: components["schemas"]["DefaultObservationPlanRequestTargetGroupNoID"][];
         };
         DefaultSurveyEfficiencyRequest: {
-            readonly default_observationplan_request?: unknown;
+            readonly default_observationplan_request?: components["schemas"]["DefaultObservationPlanRequest"];
             default_observationplan_request_id: number;
             /** @description Content of the survey efficiency assessment request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -23537,10 +23600,12 @@ export interface components {
             data?: components["schemas"]["DefaultSurveyEfficiencyRequest"][];
         };
         DefaultSurveyEfficiencyRequestNoID: {
-            readonly default_observationplan_request?: unknown;
+            readonly default_observationplan_request?: components["schemas"]["DefaultObservationPlanRequest"];
             default_observationplan_request_id: number;
             /** @description Content of the survey efficiency assessment request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
         };
         SingleDefaultSurveyEfficiencyRequestNoID: {
             /** @enum {string} */
@@ -23556,12 +23621,12 @@ export interface components {
         };
         EarthquakeEvent: {
             /** @description The user that saved this EarthquakeEvent */
-            readonly sent_by?: unknown;
-            readonly notices?: unknown[];
-            readonly predictions?: unknown[];
-            readonly measurements?: unknown[];
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
+            readonly sent_by?: components["schemas"]["User"];
+            readonly notices?: components["schemas"]["EarthquakeNotice"][];
+            readonly predictions?: components["schemas"]["EarthquakePrediction"][];
+            readonly measurements?: components["schemas"]["EarthquakeMeasured"][];
+            readonly comments?: components["schemas"]["CommentOnEarthquake"][];
+            readonly reminders?: components["schemas"]["ReminderOnEarthquake"][];
             /** @description The ID of the User who created this GcnTag. */
             sent_by_id: number;
             event_id: string;
@@ -23585,12 +23650,12 @@ export interface components {
         };
         EarthquakeEventNoID: {
             /** @description The user that saved this EarthquakeEvent */
-            readonly sent_by?: unknown;
-            readonly notices?: unknown[];
-            readonly predictions?: unknown[];
-            readonly measurements?: unknown[];
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
+            readonly sent_by?: components["schemas"]["User"];
+            readonly notices?: components["schemas"]["EarthquakeNotice"][];
+            readonly predictions?: components["schemas"]["EarthquakePrediction"][];
+            readonly measurements?: components["schemas"]["EarthquakeMeasured"][];
+            readonly comments?: components["schemas"]["CommentOnEarthquake"][];
+            readonly reminders?: components["schemas"]["ReminderOnEarthquake"][];
             /** @description The ID of the User who created this GcnTag. */
             sent_by_id: number;
             event_id: string;
@@ -23650,7 +23715,7 @@ export interface components {
         };
         EarthquakeNotice: {
             /** @description The user that saved this EarthquakeEvent */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this EarthquakeEvent. */
             sent_by_id: number;
             /** @description Raw QuakeML content */
@@ -23680,7 +23745,7 @@ export interface components {
         };
         EarthquakeNoticeNoID: {
             /** @description The user that saved this EarthquakeEvent */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this EarthquakeEvent. */
             sent_by_id: number;
             /** @description Raw QuakeML content */
@@ -23788,12 +23853,12 @@ export interface components {
         };
         EventObservationPlan: {
             /** @description The request that this observation plan belongs to */
-            readonly observation_plan_request?: unknown;
+            readonly observation_plan_request?: components["schemas"]["ObservationPlanRequest"];
             /** @description The Instrument that this observation plan belongs to */
-            readonly instrument?: unknown;
-            readonly planned_observations?: unknown[];
-            readonly survey_efficiency_analyses?: unknown[];
-            readonly statistics?: unknown[];
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly planned_observations?: components["schemas"]["PlannedObservation"][];
+            readonly survey_efficiency_analyses?: components["schemas"]["SurveyEfficiencyForObservationPlan"][];
+            readonly statistics?: components["schemas"]["EventObservationPlanStatistics"][];
             /** @description ObservationPlanRequest ID */
             observation_plan_request_id: number;
             /** @description Instrument ID */
@@ -23834,12 +23899,12 @@ export interface components {
         };
         EventObservationPlanNoID: {
             /** @description The request that this observation plan belongs to */
-            readonly observation_plan_request?: unknown;
+            readonly observation_plan_request?: components["schemas"]["ObservationPlanRequest"];
             /** @description The Instrument that this observation plan belongs to */
-            readonly instrument?: unknown;
-            readonly planned_observations?: unknown[];
-            readonly survey_efficiency_analyses?: unknown[];
-            readonly statistics?: unknown[];
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly planned_observations?: components["schemas"]["PlannedObservation"][];
+            readonly survey_efficiency_analyses?: components["schemas"]["SurveyEfficiencyForObservationPlan"][];
+            readonly statistics?: components["schemas"]["EventObservationPlanStatistics"][];
             /** @description ObservationPlanRequest ID */
             observation_plan_request_id: number;
             /** @description Instrument ID */
@@ -23878,13 +23943,15 @@ export interface components {
         };
         EventObservationPlanStatistics: {
             /** @description The EventObservationPlan that this planned observation belongs to */
-            readonly observation_plan?: unknown;
+            readonly observation_plan?: components["schemas"]["EventObservationPlan"];
             /** @description Event observation plan ID */
             observation_plan_id: number;
             /** @description Instrument ID */
             localization_id: number;
             /** @description Statistics related to the observation plan (sky area, 2D probability, etc.). */
-            statistics: unknown;
+            statistics: {
+                [key: string]: unknown;
+            };
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -23902,13 +23969,15 @@ export interface components {
         };
         EventObservationPlanStatisticsNoID: {
             /** @description The EventObservationPlan that this planned observation belongs to */
-            readonly observation_plan?: unknown;
+            readonly observation_plan?: components["schemas"]["EventObservationPlan"];
             /** @description Event observation plan ID */
             observation_plan_id: number;
             /** @description Instrument ID */
             localization_id: number;
             /** @description Statistics related to the observation plan (sky area, 2D probability, etc.). */
-            statistics: unknown;
+            statistics: {
+                [key: string]: unknown;
+            };
         };
         SingleEventObservationPlanStatisticsNoID: {
             /** @enum {string} */
@@ -23924,8 +23993,8 @@ export interface components {
         };
         ExecutedObservation: {
             /** @description The Instrument that executed the observation. */
-            readonly instrument?: unknown;
-            readonly field?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly field?: components["schemas"]["InstrumentField"];
             /** @description Instrument ID */
             instrument_id: number;
             /** @description Field ID */
@@ -23967,8 +24036,8 @@ export interface components {
         };
         ExecutedObservationNoID: {
             /** @description The Instrument that executed the observation. */
-            readonly instrument?: unknown;
-            readonly field?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly field?: components["schemas"]["InstrumentField"];
             /** @description Instrument ID */
             instrument_id: number;
             /** @description Field ID */
@@ -24008,15 +24077,19 @@ export interface components {
         };
         FacilityTransaction: {
             /** @description The FollowupRequest this message pertains to. */
-            readonly followup_request?: unknown;
+            readonly followup_request?: components["schemas"]["FollowupRequest"];
             /** @description The ObservationPlanRequest this message pertains to. */
-            readonly observation_plan_request?: unknown;
+            readonly observation_plan_request?: components["schemas"]["ObservationPlanRequest"];
             /** @description The User who initiated the transaction. */
-            readonly initiator?: unknown;
+            readonly initiator?: components["schemas"]["User"];
             /** @description Serialized HTTP request. */
-            request?: unknown;
+            request?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Serialized HTTP response. */
-            response?: unknown;
+            response?: {
+                [key: string]: unknown;
+            } | null;
             /** @description The ID of the FollowupRequest this message pertains to. */
             followup_request_id?: number | null;
             /** @description The ID of the ObservationPlanRequest this message pertains to. */
@@ -24040,15 +24113,19 @@ export interface components {
         };
         FacilityTransactionNoID: {
             /** @description The FollowupRequest this message pertains to. */
-            readonly followup_request?: unknown;
+            readonly followup_request?: components["schemas"]["FollowupRequest"];
             /** @description The ObservationPlanRequest this message pertains to. */
-            readonly observation_plan_request?: unknown;
+            readonly observation_plan_request?: components["schemas"]["ObservationPlanRequest"];
             /** @description The User who initiated the transaction. */
-            readonly initiator?: unknown;
+            readonly initiator?: components["schemas"]["User"];
             /** @description Serialized HTTP request. */
-            request?: unknown;
+            request?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Serialized HTTP response. */
-            response?: unknown;
+            response?: {
+                [key: string]: unknown;
+            } | null;
             /** @description The ID of the FollowupRequest this message pertains to. */
             followup_request_id?: number | null;
             /** @description The ID of the ObservationPlanRequest this message pertains to. */
@@ -24070,11 +24147,11 @@ export interface components {
         };
         FacilityTransactionRequest: {
             /** @description The FollowupRequest this message pertains to. */
-            readonly followup_request?: unknown;
+            readonly followup_request?: components["schemas"]["FollowupRequest"];
             /** @description The ObservationPlanRequest this message pertains to. */
-            readonly observation_plan_request?: unknown;
+            readonly observation_plan_request?: components["schemas"]["ObservationPlanRequest"];
             /** @description The User who initiated the transaction. */
-            readonly initiator?: unknown;
+            readonly initiator?: components["schemas"]["User"];
             /**
              * Format: date-time
              * @description UTC time this FacilityTransactionRequest was last queried.
@@ -24085,11 +24162,17 @@ export interface components {
             /** @description Endpoint for the transaction request */
             endpoint: string;
             /** @description Data to post. */
-            data?: unknown;
+            data?: {
+                [key: string]: unknown;
+            } | null;
             /** @description URL parameters, in get. */
-            params?: unknown;
+            params?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Request headers. */
-            headers?: unknown;
+            headers?: {
+                [key: string]: unknown;
+            } | null;
             /** @description The ID of the FollowupRequest this message pertains to. */
             followup_request_id?: number | null;
             /** @description The ID of the ObservationPlanRequest this message pertains to. */
@@ -24115,11 +24198,11 @@ export interface components {
         };
         FacilityTransactionRequestNoID: {
             /** @description The FollowupRequest this message pertains to. */
-            readonly followup_request?: unknown;
+            readonly followup_request?: components["schemas"]["FollowupRequest"];
             /** @description The ObservationPlanRequest this message pertains to. */
-            readonly observation_plan_request?: unknown;
+            readonly observation_plan_request?: components["schemas"]["ObservationPlanRequest"];
             /** @description The User who initiated the transaction. */
-            readonly initiator?: unknown;
+            readonly initiator?: components["schemas"]["User"];
             /**
              * Format: date-time
              * @description UTC time this FacilityTransactionRequest was last queried.
@@ -24130,11 +24213,17 @@ export interface components {
             /** @description Endpoint for the transaction request */
             endpoint: string;
             /** @description Data to post. */
-            data?: unknown;
+            data?: {
+                [key: string]: unknown;
+            } | null;
             /** @description URL parameters, in get. */
-            params?: unknown;
+            params?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Request headers. */
-            headers?: unknown;
+            headers?: {
+                [key: string]: unknown;
+            } | null;
             /** @description The ID of the FollowupRequest this message pertains to. */
             followup_request_id?: number | null;
             /** @description The ID of the ObservationPlanRequest this message pertains to. */
@@ -24158,16 +24247,18 @@ export interface components {
         };
         Filter: {
             /** @description The Filter's Stream. */
-            readonly stream?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
             /** @description The Filter's Group. */
-            readonly group?: unknown;
-            readonly candidates?: unknown[];
+            readonly group?: components["schemas"]["Group"];
+            readonly candidates?: components["schemas"]["Candidate"][];
             /** @description Filter name. */
             name: string;
             /** @description ID of the Filter's Stream. */
             stream_id: number;
             /** @description Arbitrary additional JSON data associated with the Filter. */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description ID of the Filter's Group. */
             group_id: number;
             /** @description Unique object identifier. */
@@ -24187,16 +24278,18 @@ export interface components {
         };
         FilterNoID: {
             /** @description The Filter's Stream. */
-            readonly stream?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
             /** @description The Filter's Group. */
-            readonly group?: unknown;
-            readonly candidates?: unknown[];
+            readonly group?: components["schemas"]["Group"];
+            readonly candidates?: components["schemas"]["Candidate"][];
             /** @description Filter name. */
             name: string;
             /** @description ID of the Filter's Stream. */
             stream_id: number;
             /** @description Arbitrary additional JSON data associated with the Filter. */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description ID of the Filter's Group. */
             group_id: number;
         };
@@ -24214,19 +24307,19 @@ export interface components {
         };
         FollowupRequest: {
             /** @description The User who requested the follow-up. */
-            readonly requester?: unknown;
+            readonly requester?: components["schemas"]["User"];
             /** @description The user who last modified the request. */
-            readonly last_modified_by?: unknown;
+            readonly last_modified_by?: components["schemas"]["User"];
             /** @description The target Obj. */
-            readonly obj?: unknown;
-            readonly allocation?: unknown;
-            readonly transactions?: unknown[];
-            readonly transaction_requests?: unknown[];
-            readonly target_groups?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly spectra?: unknown[];
-            readonly watchers?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly transactions?: components["schemas"]["FacilityTransaction"][];
+            readonly transaction_requests?: components["schemas"]["FacilityTransactionRequest"][];
+            readonly target_groups?: components["schemas"]["Group"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly watchers?: components["schemas"]["FollowupRequestUser"][];
             /** @description ID of the User who requested the follow-up. */
             requester_id?: number | null;
             /** @description The ID of the User who last modified the request. */
@@ -24234,7 +24327,9 @@ export interface components {
             /** @description ID of the target Obj. */
             obj_id: string;
             /** @description Content of the followup request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The status of the request. */
             status?: string;
             allocation_id: number;
@@ -24256,8 +24351,8 @@ export interface components {
             data?: components["schemas"]["FollowupRequest"][];
         };
         FollowupRequestGroup: {
-            readonly followuprequest?: unknown;
-            readonly group?: unknown;
+            readonly followuprequest?: components["schemas"]["FollowupRequest"];
+            readonly group?: components["schemas"]["Group"];
             /** @description Unique object identifier. */
             id?: number;
             followuprequest_id: number;
@@ -24276,8 +24371,8 @@ export interface components {
             data?: components["schemas"]["FollowupRequestGroup"][];
         };
         FollowupRequestGroupNoID: {
-            readonly followuprequest?: unknown;
-            readonly group?: unknown;
+            readonly followuprequest?: components["schemas"]["FollowupRequest"];
+            readonly group?: components["schemas"]["Group"];
             followuprequest_id: number;
             group_id: number;
         };
@@ -24295,25 +24390,27 @@ export interface components {
         };
         FollowupRequestNoID: {
             /** @description The User who requested the follow-up. */
-            readonly requester?: unknown;
+            readonly requester?: components["schemas"]["User"];
             /** @description The user who last modified the request. */
-            readonly last_modified_by?: unknown;
+            readonly last_modified_by?: components["schemas"]["User"];
             /** @description The target Obj. */
-            readonly obj?: unknown;
-            readonly allocation?: unknown;
-            readonly transactions?: unknown[];
-            readonly transaction_requests?: unknown[];
-            readonly target_groups?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly spectra?: unknown[];
-            readonly watchers?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly transactions?: components["schemas"]["FacilityTransaction"][];
+            readonly transaction_requests?: components["schemas"]["FacilityTransactionRequest"][];
+            readonly target_groups?: components["schemas"]["Group"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly watchers?: components["schemas"]["FollowupRequestUser"][];
             /** @description ID of the User who requested the follow-up. */
             requester_id?: number | null;
             /** @description ID of the target Obj. */
             obj_id: string;
             /** @description Content of the followup request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The status of the request. */
             status?: string;
             allocation_id: number;
@@ -24382,8 +24479,8 @@ export interface components {
             data?: components["schemas"]["FollowupRequestPost"][];
         };
         FollowupRequestUser: {
-            readonly followuprequest?: unknown;
-            readonly user?: unknown;
+            readonly followuprequest?: components["schemas"]["FollowupRequest"];
+            readonly user?: components["schemas"]["User"];
             /** @description Unique object identifier. */
             id?: number;
             followuprequest_id: number;
@@ -24402,8 +24499,8 @@ export interface components {
             data?: components["schemas"]["FollowupRequestUser"][];
         };
         FollowupRequestUserNoID: {
-            readonly followuprequest?: unknown;
-            readonly user?: unknown;
+            readonly followuprequest?: components["schemas"]["FollowupRequest"];
+            readonly user?: components["schemas"]["User"];
             followuprequest_id: number;
             user_id: number;
         };
@@ -24420,7 +24517,7 @@ export interface components {
             data?: components["schemas"]["FollowupRequestUserNoID"][];
         };
         Galaxy: {
-            readonly objects?: unknown[];
+            readonly objects?: components["schemas"]["Obj"][];
             /** @description ID of the catalog this galaxy belongs to. */
             catalog_id: number;
             /** @description Name of the object. */
@@ -24525,7 +24622,7 @@ export interface components {
             data?: components["schemas"]["GalaxyCatalogNoID"][];
         };
         GalaxyNoID: {
-            readonly objects?: unknown[];
+            readonly objects?: components["schemas"]["Obj"][];
             /** @description ID of the catalog this galaxy belongs to. */
             catalog_id: number;
             /** @description Name of the object. */
@@ -24587,21 +24684,21 @@ export interface components {
         };
         GcnEvent: {
             /** @description The user that saved this GcnEvent */
-            readonly sent_by?: unknown;
-            readonly gcn_notices?: unknown[];
-            readonly properties?: unknown[];
-            readonly reports?: unknown[];
-            readonly summaries?: unknown[];
-            readonly _tags?: unknown[];
-            readonly localizations?: unknown[];
-            readonly observationplan_requests?: unknown[];
-            readonly survey_efficiency_analyses?: unknown[];
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
-            readonly detectors?: unknown[];
-            readonly gcn_triggers?: unknown[];
-            readonly users?: unknown[];
-            readonly gcnevent_users?: unknown[];
+            readonly sent_by?: components["schemas"]["User"];
+            readonly gcn_notices?: components["schemas"]["GcnNotice"][];
+            readonly properties?: components["schemas"]["GcnProperty"][];
+            readonly reports?: components["schemas"]["GcnReport"][];
+            readonly summaries?: components["schemas"]["GcnSummary"][];
+            readonly _tags?: components["schemas"]["GcnTag"][];
+            readonly localizations?: components["schemas"]["Localization"][];
+            readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
+            readonly survey_efficiency_analyses?: components["schemas"]["SurveyEfficiencyForObservations"][];
+            readonly comments?: components["schemas"]["CommentOnGCN"][];
+            readonly reminders?: components["schemas"]["ReminderOnGCN"][];
+            readonly detectors?: components["schemas"]["MMADetector"][];
+            readonly gcn_triggers?: components["schemas"]["GcnTrigger"][];
+            readonly users?: components["schemas"]["User"][];
+            readonly gcnevent_users?: components["schemas"]["GcnEventUser"][];
             /** @description The ID of the User who created this GcnEvent. */
             sent_by_id: number;
             /**
@@ -24616,11 +24713,17 @@ export interface components {
             /** @description TACH id associated with a GCN event */
             tach_id?: string | null;
             /** @description List of circulars associated with a GCN event. Keys are circulars ids, values are circular titles. */
-            circulars?: unknown;
+            circulars?: {
+                [key: string]: unknown;
+            };
             /** @description List of GraceDB logs associated with a GW event. */
-            gracedb_log?: unknown;
+            gracedb_log?: {
+                [key: string]: unknown;
+            };
             /** @description List of GraceDB labels associated with a GW event. */
-            gracedb_labels?: unknown;
+            gracedb_labels?: {
+                [key: string]: unknown;
+            };
             /** @description Unique object identifier. */
             id?: number;
             readonly event_users_ids?: number[];
@@ -24638,8 +24741,8 @@ export interface components {
             data?: components["schemas"]["GcnEvent"][];
         };
         GcnEventMMADetector: {
-            readonly gcnevent?: unknown;
-            readonly mmadetector?: unknown;
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            readonly mmadetector?: components["schemas"]["MMADetector"];
             /** @description Unique object identifier. */
             id?: number;
             gcnevent_id: number;
@@ -24658,8 +24761,8 @@ export interface components {
             data?: components["schemas"]["GcnEventMMADetector"][];
         };
         GcnEventMMADetectorNoID: {
-            readonly gcnevent?: unknown;
-            readonly mmadetector?: unknown;
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            readonly mmadetector?: components["schemas"]["MMADetector"];
             gcnevent_id: number;
             mmadetector_id: number;
         };
@@ -24677,21 +24780,21 @@ export interface components {
         };
         GcnEventNoID: {
             /** @description The user that saved this GcnEvent */
-            readonly sent_by?: unknown;
-            readonly gcn_notices?: unknown[];
-            readonly properties?: unknown[];
-            readonly reports?: unknown[];
-            readonly summaries?: unknown[];
-            readonly _tags?: unknown[];
-            readonly localizations?: unknown[];
-            readonly observationplan_requests?: unknown[];
-            readonly survey_efficiency_analyses?: unknown[];
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
-            readonly detectors?: unknown[];
-            readonly gcn_triggers?: unknown[];
-            readonly users?: unknown[];
-            readonly gcnevent_users?: unknown[];
+            readonly sent_by?: components["schemas"]["User"];
+            readonly gcn_notices?: components["schemas"]["GcnNotice"][];
+            readonly properties?: components["schemas"]["GcnProperty"][];
+            readonly reports?: components["schemas"]["GcnReport"][];
+            readonly summaries?: components["schemas"]["GcnSummary"][];
+            readonly _tags?: components["schemas"]["GcnTag"][];
+            readonly localizations?: components["schemas"]["Localization"][];
+            readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
+            readonly survey_efficiency_analyses?: components["schemas"]["SurveyEfficiencyForObservations"][];
+            readonly comments?: components["schemas"]["CommentOnGCN"][];
+            readonly reminders?: components["schemas"]["ReminderOnGCN"][];
+            readonly detectors?: components["schemas"]["MMADetector"][];
+            readonly gcn_triggers?: components["schemas"]["GcnTrigger"][];
+            readonly users?: components["schemas"]["User"][];
+            readonly gcnevent_users?: components["schemas"]["GcnEventUser"][];
             /** @description The ID of the User who created this GcnEvent. */
             sent_by_id: number;
             /**
@@ -24706,11 +24809,17 @@ export interface components {
             /** @description TACH id associated with a GCN event */
             tach_id?: string | null;
             /** @description List of circulars associated with a GCN event. Keys are circulars ids, values are circular titles. */
-            circulars?: unknown;
+            circulars?: {
+                [key: string]: unknown;
+            };
             /** @description List of GraceDB logs associated with a GW event. */
-            gracedb_log?: unknown;
+            gracedb_log?: {
+                [key: string]: unknown;
+            };
             /** @description List of GraceDB labels associated with a GW event. */
-            gracedb_labels?: unknown;
+            gracedb_labels?: {
+                [key: string]: unknown;
+            };
             readonly event_users_ids?: number[];
         };
         SingleGcnEventNoID: {
@@ -24726,8 +24835,8 @@ export interface components {
             data?: components["schemas"]["GcnEventNoID"][];
         };
         GcnEventUser: {
-            readonly gcnevent?: unknown;
-            readonly user?: unknown;
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            readonly user?: components["schemas"]["User"];
             /** @description Unique object identifier. */
             id?: number;
             gcnevent_id: number;
@@ -24746,8 +24855,8 @@ export interface components {
             data?: components["schemas"]["GcnEventUser"][];
         };
         GcnEventUserNoID: {
-            readonly gcnevent?: unknown;
-            readonly user?: unknown;
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            readonly user?: components["schemas"]["User"];
             gcnevent_id: number;
             user_id: number;
         };
@@ -24765,7 +24874,7 @@ export interface components {
         };
         GcnNotice: {
             /** @description The user that saved this GcnNotice */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnNotice. */
             sent_by_id: number;
             /** @description Unique identifier of VOEvent */
@@ -24809,7 +24918,7 @@ export interface components {
         };
         GcnNoticeNoID: {
             /** @description The user that saved this GcnNotice */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnNotice. */
             sent_by_id: number;
             /** @description Unique identifier of VOEvent */
@@ -24851,13 +24960,15 @@ export interface components {
         };
         GcnProperty: {
             /** @description The user that saved this GcnProperty */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnProperty. */
             sent_by_id: number;
             /** Format: date-time */
             dateobs: string;
             /** @description Event properties in JSON format. */
-            data?: unknown;
+            data?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -24875,13 +24986,15 @@ export interface components {
         };
         GcnPropertyNoID: {
             /** @description The user that saved this GcnProperty */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnProperty. */
             sent_by_id: number;
             /** Format: date-time */
             dateobs: string;
             /** @description Event properties in JSON format. */
-            data?: unknown;
+            data?: {
+                [key: string]: unknown;
+            } | null;
         };
         SingleGcnPropertyNoID: {
             /** @enum {string} */
@@ -24897,9 +25010,9 @@ export interface components {
         };
         GcnReport: {
             /** @description The user that saved this GcnReport */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnReport is associated with. */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description The ID of the User who created this GcnReport. */
             sent_by_id: number;
             /** Format: date-time */
@@ -24907,7 +25020,9 @@ export interface components {
             /** @description The ID of the Group that this GcnReport is associated with. */
             group_id: number;
             /** @description Report data in JSON. */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             report_name: string;
             /** @description Whether GcnReport should be published */
             published?: boolean;
@@ -24928,9 +25043,9 @@ export interface components {
         };
         GcnReportNoID: {
             /** @description The user that saved this GcnReport */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnReport is associated with. */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description The ID of the User who created this GcnReport. */
             sent_by_id: number;
             /** Format: date-time */
@@ -24938,7 +25053,9 @@ export interface components {
             /** @description The ID of the Group that this GcnReport is associated with. */
             group_id: number;
             /** @description Report data in JSON. */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             report_name: string;
             /** @description Whether GcnReport should be published */
             published?: boolean;
@@ -24957,9 +25074,9 @@ export interface components {
         };
         GcnSummary: {
             /** @description The user that saved this GcnSummary */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnSummary is associated with. */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description The ID of the User who created this GcnSummary. */
             sent_by_id: number;
             /** Format: date-time */
@@ -24985,9 +25102,9 @@ export interface components {
         };
         GcnSummaryNoID: {
             /** @description The user that saved this GcnSummary */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The group that this GcnSummary is associated with. */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description The ID of the User who created this GcnSummary. */
             sent_by_id: number;
             /** Format: date-time */
@@ -25011,7 +25128,7 @@ export interface components {
         };
         GcnTag: {
             /** @description The user that saved this GcnTag */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnTag. */
             sent_by_id: number;
             /** Format: date-time */
@@ -25034,7 +25151,7 @@ export interface components {
         };
         GcnTagNoID: {
             /** @description The user that saved this GcnTag */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this GcnTag. */
             sent_by_id: number;
             /** Format: date-time */
@@ -25054,8 +25171,8 @@ export interface components {
             data?: components["schemas"]["GcnTagNoID"][];
         };
         GcnTrigger: {
-            readonly gcnevent?: unknown;
-            readonly allocation?: unknown;
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            readonly allocation?: components["schemas"]["Allocation"];
             /** @description Unique object identifier. */
             id?: number;
             /** Format: date-time */
@@ -25077,8 +25194,8 @@ export interface components {
             data?: components["schemas"]["GcnTrigger"][];
         };
         GcnTriggerNoID: {
-            readonly gcnevent?: unknown;
-            readonly allocation?: unknown;
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            readonly allocation?: components["schemas"]["Allocation"];
             /** Format: date-time */
             dateobs: string;
             allocation_id: number;
@@ -25098,23 +25215,23 @@ export interface components {
             data?: components["schemas"]["GcnTriggerNoID"][];
         };
         Group: {
-            readonly streams?: unknown[];
-            readonly filters?: unknown[];
-            readonly shifts?: unknown[];
-            readonly users?: unknown[];
-            readonly group_users?: unknown[];
-            readonly observing_runs?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly spectra?: unknown[];
-            readonly mmadetector_spectra?: unknown[];
-            readonly mmadetector_time_intervals?: unknown[];
-            readonly allocations?: unknown[];
-            readonly source_labels?: unknown[];
-            readonly admission_requests?: unknown[];
-            readonly sharing_services?: unknown[];
-            readonly gcnreports?: unknown[];
-            readonly gcnsummaries?: unknown[];
+            readonly streams?: components["schemas"]["Stream"][];
+            readonly filters?: components["schemas"]["Filter"][];
+            readonly shifts?: components["schemas"]["Shift"][];
+            readonly users?: components["schemas"]["User"][];
+            readonly group_users?: components["schemas"]["GroupUser"][];
+            readonly observing_runs?: components["schemas"]["ObservingRun"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly mmadetector_spectra?: components["schemas"]["MMADetectorSpectrum"][];
+            readonly mmadetector_time_intervals?: components["schemas"]["MMADetectorTimeInterval"][];
+            readonly allocations?: components["schemas"]["Allocation"][];
+            readonly source_labels?: components["schemas"]["SourceLabel"][];
+            readonly admission_requests?: components["schemas"]["GroupAdmissionRequest"][];
+            readonly sharing_services?: components["schemas"]["SharingServiceGroup"][];
+            readonly gcnreports?: components["schemas"]["GcnReport"][];
+            readonly gcnsummaries?: components["schemas"]["GcnSummary"][];
             /** @description Name of the group. */
             name: string;
             /** @description Short group nickname. */
@@ -25127,7 +25244,7 @@ export interface components {
             single_user_group?: boolean | null;
             /** @description Unique object identifier. */
             id?: number;
-            readonly obj_tags?: unknown[];
+            readonly obj_tags?: components["schemas"]["ObjTag"][];
         };
         SingleGroup: {
             /** @enum {string} */
@@ -25143,16 +25260,16 @@ export interface components {
         };
         GroupAdmissionRequest: {
             /** @description The User requesting to join a group */
-            readonly user?: unknown;
+            readonly user?: components["schemas"]["User"];
             /** @description The Group to which admission is requested */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description ID of the User requesting to join the group */
             user_id: number;
             /** @description ID of the Group to which admission is requested */
             group_id: number;
             /**
              * @description Admission request status. Can be one of either 'pending', 'accepted', or 'declined'.
-             * @enum {unknown}
+             * @enum {string}
              */
             status?: "pending" | "accepted" | "declined";
             /** @description Unique object identifier. */
@@ -25172,16 +25289,16 @@ export interface components {
         };
         GroupAdmissionRequestNoID: {
             /** @description The User requesting to join a group */
-            readonly user?: unknown;
+            readonly user?: components["schemas"]["User"];
             /** @description The Group to which admission is requested */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description ID of the User requesting to join the group */
             user_id: number;
             /** @description ID of the Group to which admission is requested */
             group_id: number;
             /**
              * @description Admission request status. Can be one of either 'pending', 'accepted', or 'declined'.
-             * @enum {unknown}
+             * @enum {string}
              */
             status?: "pending" | "accepted" | "declined";
         };
@@ -25198,8 +25315,8 @@ export interface components {
             data?: components["schemas"]["GroupAdmissionRequestNoID"][];
         };
         GroupAnalysisService: {
-            readonly group?: unknown;
-            readonly analysisservice?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly analysisservice?: components["schemas"]["AnalysisService"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25218,8 +25335,8 @@ export interface components {
             data?: components["schemas"]["GroupAnalysisService"][];
         };
         GroupAnalysisServiceNoID: {
-            readonly group?: unknown;
-            readonly analysisservice?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly analysisservice?: components["schemas"]["AnalysisService"];
             group_id: number;
             analysis_service_id: number;
         };
@@ -25236,8 +25353,8 @@ export interface components {
             data?: components["schemas"]["GroupAnalysisServiceNoID"][];
         };
         GroupAnnotation: {
-            readonly group?: unknown;
-            readonly annotation?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly annotation?: components["schemas"]["Annotation"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25256,8 +25373,8 @@ export interface components {
             data?: components["schemas"]["GroupAnnotation"][];
         };
         GroupAnnotationNoID: {
-            readonly group?: unknown;
-            readonly annotation?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly annotation?: components["schemas"]["Annotation"];
             group_id: number;
             annotation_id: number;
         };
@@ -25274,8 +25391,8 @@ export interface components {
             data?: components["schemas"]["GroupAnnotationNoID"][];
         };
         GroupAnnotationOnPhotometry: {
-            readonly group?: unknown;
-            readonly annotationonphotometry?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly annotationonphotometry?: components["schemas"]["AnnotationOnPhotometry"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25294,8 +25411,8 @@ export interface components {
             data?: components["schemas"]["GroupAnnotationOnPhotometry"][];
         };
         GroupAnnotationOnPhotometryNoID: {
-            readonly group?: unknown;
-            readonly annotationonphotometry?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly annotationonphotometry?: components["schemas"]["AnnotationOnPhotometry"];
             group_id: number;
             annotations_on_photometr_id: number;
         };
@@ -25312,8 +25429,8 @@ export interface components {
             data?: components["schemas"]["GroupAnnotationOnPhotometryNoID"][];
         };
         GroupAnnotationOnSpectrum: {
-            readonly group?: unknown;
-            readonly annotationonspectrum?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly annotationonspectrum?: components["schemas"]["AnnotationOnSpectrum"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25332,8 +25449,8 @@ export interface components {
             data?: components["schemas"]["GroupAnnotationOnSpectrum"][];
         };
         GroupAnnotationOnSpectrumNoID: {
-            readonly group?: unknown;
-            readonly annotationonspectrum?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly annotationonspectrum?: components["schemas"]["AnnotationOnSpectrum"];
             group_id: number;
             annotations_on_spectr_id: number;
         };
@@ -25350,8 +25467,8 @@ export interface components {
             data?: components["schemas"]["GroupAnnotationOnSpectrumNoID"][];
         };
         GroupClassification: {
-            readonly group?: unknown;
-            readonly classification?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly classification?: components["schemas"]["Classification"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25370,8 +25487,8 @@ export interface components {
             data?: components["schemas"]["GroupClassification"][];
         };
         GroupClassificationNoID: {
-            readonly group?: unknown;
-            readonly classification?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly classification?: components["schemas"]["Classification"];
             group_id: number;
             classification_id: number;
         };
@@ -25388,8 +25505,8 @@ export interface components {
             data?: components["schemas"]["GroupClassificationNoID"][];
         };
         GroupComment: {
-            readonly group?: unknown;
-            readonly comment?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly comment?: components["schemas"]["Comment"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25408,8 +25525,8 @@ export interface components {
             data?: components["schemas"]["GroupComment"][];
         };
         GroupCommentNoID: {
-            readonly group?: unknown;
-            readonly comment?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly comment?: components["schemas"]["Comment"];
             group_id: number;
             comment_id: number;
         };
@@ -25426,8 +25543,8 @@ export interface components {
             data?: components["schemas"]["GroupCommentNoID"][];
         };
         GroupCommentOnEarthquake: {
-            readonly group?: unknown;
-            readonly commentonearthquake?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly commentonearthquake?: components["schemas"]["CommentOnEarthquake"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25446,8 +25563,8 @@ export interface components {
             data?: components["schemas"]["GroupCommentOnEarthquake"][];
         };
         GroupCommentOnEarthquakeNoID: {
-            readonly group?: unknown;
-            readonly commentonearthquake?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly commentonearthquake?: components["schemas"]["CommentOnEarthquake"];
             group_id: number;
             comments_on_earthquake_id: number;
         };
@@ -25464,8 +25581,8 @@ export interface components {
             data?: components["schemas"]["GroupCommentOnEarthquakeNoID"][];
         };
         GroupCommentOnGCN: {
-            readonly group?: unknown;
-            readonly commentongcn?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly commentongcn?: components["schemas"]["CommentOnGCN"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25484,8 +25601,8 @@ export interface components {
             data?: components["schemas"]["GroupCommentOnGCN"][];
         };
         GroupCommentOnGCNNoID: {
-            readonly group?: unknown;
-            readonly commentongcn?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly commentongcn?: components["schemas"]["CommentOnGCN"];
             group_id: number;
             comments_on_gcn_id: number;
         };
@@ -25502,8 +25619,8 @@ export interface components {
             data?: components["schemas"]["GroupCommentOnGCNNoID"][];
         };
         GroupCommentOnShift: {
-            readonly group?: unknown;
-            readonly commentonshift?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly commentonshift?: components["schemas"]["CommentOnShift"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25522,8 +25639,8 @@ export interface components {
             data?: components["schemas"]["GroupCommentOnShift"][];
         };
         GroupCommentOnShiftNoID: {
-            readonly group?: unknown;
-            readonly commentonshift?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly commentonshift?: components["schemas"]["CommentOnShift"];
             group_id: number;
             comments_on_shift_id: number;
         };
@@ -25540,8 +25657,8 @@ export interface components {
             data?: components["schemas"]["GroupCommentOnShiftNoID"][];
         };
         GroupCommentOnSpectrum: {
-            readonly group?: unknown;
-            readonly commentonspectrum?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly commentonspectrum?: components["schemas"]["CommentOnSpectrum"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25560,8 +25677,8 @@ export interface components {
             data?: components["schemas"]["GroupCommentOnSpectrum"][];
         };
         GroupCommentOnSpectrumNoID: {
-            readonly group?: unknown;
-            readonly commentonspectrum?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly commentonspectrum?: components["schemas"]["CommentOnSpectrum"];
             group_id: number;
             comments_on_spectr_id: number;
         };
@@ -25578,8 +25695,8 @@ export interface components {
             data?: components["schemas"]["GroupCommentOnSpectrumNoID"][];
         };
         GroupDefaultAnalysis: {
-            readonly group?: unknown;
-            readonly defaultanalysis?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly defaultanalysis?: components["schemas"]["DefaultAnalysis"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25598,8 +25715,8 @@ export interface components {
             data?: components["schemas"]["GroupDefaultAnalysis"][];
         };
         GroupDefaultAnalysisNoID: {
-            readonly group?: unknown;
-            readonly defaultanalysis?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly defaultanalysis?: components["schemas"]["DefaultAnalysis"];
             group_id: number;
             default_analyse_id: number;
         };
@@ -25631,8 +25748,8 @@ export interface components {
             data?: components["schemas"]["GroupIDList"][];
         };
         GroupInvitation: {
-            readonly group?: unknown;
-            readonly invitation?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly invitation?: components["schemas"]["Invitation"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25651,8 +25768,8 @@ export interface components {
             data?: components["schemas"]["GroupInvitation"][];
         };
         GroupInvitationNoID: {
-            readonly group?: unknown;
-            readonly invitation?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly invitation?: components["schemas"]["Invitation"];
             group_id: number;
             invitation_id: number;
         };
@@ -25669,8 +25786,8 @@ export interface components {
             data?: components["schemas"]["GroupInvitationNoID"][];
         };
         GroupMMADetectorSpectrum: {
-            readonly group?: unknown;
-            readonly mmadetectorspectrum?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly mmadetectorspectrum?: components["schemas"]["MMADetectorSpectrum"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25689,8 +25806,8 @@ export interface components {
             data?: components["schemas"]["GroupMMADetectorSpectrum"][];
         };
         GroupMMADetectorSpectrumNoID: {
-            readonly group?: unknown;
-            readonly mmadetectorspectrum?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly mmadetectorspectrum?: components["schemas"]["MMADetectorSpectrum"];
             group_id: number;
             detector_spectr_id: number;
         };
@@ -25707,8 +25824,8 @@ export interface components {
             data?: components["schemas"]["GroupMMADetectorSpectrumNoID"][];
         };
         GroupMMADetectorTimeInterval: {
-            readonly group?: unknown;
-            readonly mmadetectortimeinterval?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly mmadetectortimeinterval?: components["schemas"]["MMADetectorTimeInterval"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25727,8 +25844,8 @@ export interface components {
             data?: components["schemas"]["GroupMMADetectorTimeInterval"][];
         };
         GroupMMADetectorTimeIntervalNoID: {
-            readonly group?: unknown;
-            readonly mmadetectortimeinterval?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly mmadetectortimeinterval?: components["schemas"]["MMADetectorTimeInterval"];
             group_id: number;
             mmadetectortimeinterval_id: number;
         };
@@ -25745,23 +25862,23 @@ export interface components {
             data?: components["schemas"]["GroupMMADetectorTimeIntervalNoID"][];
         };
         GroupNoID: {
-            readonly streams?: unknown[];
-            readonly filters?: unknown[];
-            readonly shifts?: unknown[];
-            readonly users?: unknown[];
-            readonly group_users?: unknown[];
-            readonly observing_runs?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly spectra?: unknown[];
-            readonly mmadetector_spectra?: unknown[];
-            readonly mmadetector_time_intervals?: unknown[];
-            readonly allocations?: unknown[];
-            readonly source_labels?: unknown[];
-            readonly admission_requests?: unknown[];
-            readonly sharing_services?: unknown[];
-            readonly gcnreports?: unknown[];
-            readonly gcnsummaries?: unknown[];
+            readonly streams?: components["schemas"]["Stream"][];
+            readonly filters?: components["schemas"]["Filter"][];
+            readonly shifts?: components["schemas"]["Shift"][];
+            readonly users?: components["schemas"]["User"][];
+            readonly group_users?: components["schemas"]["GroupUser"][];
+            readonly observing_runs?: components["schemas"]["ObservingRun"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly mmadetector_spectra?: components["schemas"]["MMADetectorSpectrum"][];
+            readonly mmadetector_time_intervals?: components["schemas"]["MMADetectorTimeInterval"][];
+            readonly allocations?: components["schemas"]["Allocation"][];
+            readonly source_labels?: components["schemas"]["SourceLabel"][];
+            readonly admission_requests?: components["schemas"]["GroupAdmissionRequest"][];
+            readonly sharing_services?: components["schemas"]["SharingServiceGroup"][];
+            readonly gcnreports?: components["schemas"]["GcnReport"][];
+            readonly gcnsummaries?: components["schemas"]["GcnSummary"][];
             /** @description Name of the group. */
             name: string;
             /** @description Short group nickname. */
@@ -25772,7 +25889,7 @@ export interface components {
             private?: boolean;
             /** @description Flag indicating whether this group is a singleton group for one user only. */
             single_user_group?: boolean | null;
-            readonly obj_tags?: unknown[];
+            readonly obj_tags?: components["schemas"]["ObjTag"][];
         };
         SingleGroupNoID: {
             /** @enum {string} */
@@ -25787,8 +25904,8 @@ export interface components {
             data?: components["schemas"]["GroupNoID"][];
         };
         GroupObj: {
-            readonly group?: unknown;
-            readonly obj?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly obj?: components["schemas"]["Obj"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25796,7 +25913,7 @@ export interface components {
             /** @description ID of the User that saved the Obj to its Group. */
             saved_by_id?: number | null;
             /** @description User that saved the Obj to its Group. */
-            readonly saved_by?: unknown;
+            readonly saved_by?: components["schemas"]["User"];
             /**
              * Format: date-time
              * @description ISO UTC time when the Obj was saved to its Group.
@@ -25809,7 +25926,7 @@ export interface components {
             /** @description ID of the User who unsaved the Source. */
             unsaved_by_id?: number | null;
             /** @description User who unsaved the Source. */
-            readonly unsaved_by?: unknown;
+            readonly unsaved_by?: components["schemas"]["User"];
             /**
              * Format: date-time
              * @description ISO UTC time when the Obj was unsaved from Group.
@@ -25829,8 +25946,8 @@ export interface components {
             data?: components["schemas"]["GroupObj"][];
         };
         GroupObjAnalysis: {
-            readonly group?: unknown;
-            readonly objanalysis?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly objanalysis?: components["schemas"]["ObjAnalysis"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25849,8 +25966,8 @@ export interface components {
             data?: components["schemas"]["GroupObjAnalysis"][];
         };
         GroupObjAnalysisNoID: {
-            readonly group?: unknown;
-            readonly objanalysis?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly objanalysis?: components["schemas"]["ObjAnalysis"];
             group_id: number;
             obj_analyse_id: number;
         };
@@ -25867,14 +25984,14 @@ export interface components {
             data?: components["schemas"]["GroupObjAnalysisNoID"][];
         };
         GroupObjNoID: {
-            readonly group?: unknown;
-            readonly obj?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly obj?: components["schemas"]["Obj"];
             group_id: number;
             obj_id: string;
             /** @description ID of the User that saved the Obj to its Group. */
             saved_by_id?: number | null;
             /** @description User that saved the Obj to its Group. */
-            readonly saved_by?: unknown;
+            readonly saved_by?: components["schemas"]["User"];
             /**
              * Format: date-time
              * @description ISO UTC time when the Obj was saved to its Group.
@@ -25887,7 +26004,7 @@ export interface components {
             /** @description ID of the User who unsaved the Source. */
             unsaved_by_id?: number | null;
             /** @description User who unsaved the Source. */
-            readonly unsaved_by?: unknown;
+            readonly unsaved_by?: components["schemas"]["User"];
             /**
              * Format: date-time
              * @description ISO UTC time when the Obj was unsaved from Group.
@@ -25907,8 +26024,8 @@ export interface components {
             data?: components["schemas"]["GroupObjNoID"][];
         };
         GroupObjTag: {
-            readonly group?: unknown;
-            readonly objtag?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly objtag?: components["schemas"]["ObjTag"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25927,8 +26044,8 @@ export interface components {
             data?: components["schemas"]["GroupObjTag"][];
         };
         GroupObjTagNoID: {
-            readonly group?: unknown;
-            readonly objtag?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly objtag?: components["schemas"]["ObjTag"];
             group_id: number;
             obj_tag_id: number;
         };
@@ -25945,8 +26062,8 @@ export interface components {
             data?: components["schemas"]["GroupObjTagNoID"][];
         };
         GroupPhotometricSeries: {
-            readonly group?: unknown;
-            readonly photometricseries?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly photometricseries?: components["schemas"]["PhotometricSeries"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -25965,8 +26082,8 @@ export interface components {
             data?: components["schemas"]["GroupPhotometricSeries"][];
         };
         GroupPhotometricSeriesNoID: {
-            readonly group?: unknown;
-            readonly photometricseries?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly photometricseries?: components["schemas"]["PhotometricSeries"];
             group_id: number;
             photometric_serie_id: number;
         };
@@ -25983,8 +26100,8 @@ export interface components {
             data?: components["schemas"]["GroupPhotometricSeriesNoID"][];
         };
         GroupPhotometry: {
-            readonly group?: unknown;
-            readonly photometry?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly photometry?: components["schemas"]["Photometry"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26003,8 +26120,8 @@ export interface components {
             data?: components["schemas"]["GroupPhotometry"][];
         };
         GroupPhotometryNoID: {
-            readonly group?: unknown;
-            readonly photometry?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly photometry?: components["schemas"]["Photometry"];
             group_id: number;
             photometr_id: number;
         };
@@ -26021,8 +26138,8 @@ export interface components {
             data?: components["schemas"]["GroupPhotometryNoID"][];
         };
         GroupPublicRelease: {
-            readonly group?: unknown;
-            readonly publicrelease?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly publicrelease?: components["schemas"]["PublicRelease"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26041,8 +26158,8 @@ export interface components {
             data?: components["schemas"]["GroupPublicRelease"][];
         };
         GroupPublicReleaseNoID: {
-            readonly group?: unknown;
-            readonly publicrelease?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly publicrelease?: components["schemas"]["PublicRelease"];
             group_id: number;
             publicrelease_id: number;
         };
@@ -26059,8 +26176,8 @@ export interface components {
             data?: components["schemas"]["GroupPublicReleaseNoID"][];
         };
         GroupReminder: {
-            readonly group?: unknown;
-            readonly reminder?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly reminder?: components["schemas"]["Reminder"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26079,8 +26196,8 @@ export interface components {
             data?: components["schemas"]["GroupReminder"][];
         };
         GroupReminderNoID: {
-            readonly group?: unknown;
-            readonly reminder?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly reminder?: components["schemas"]["Reminder"];
             group_id: number;
             reminder_id: number;
         };
@@ -26097,8 +26214,8 @@ export interface components {
             data?: components["schemas"]["GroupReminderNoID"][];
         };
         GroupReminderOnEarthquake: {
-            readonly group?: unknown;
-            readonly reminderonearthquake?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly reminderonearthquake?: components["schemas"]["ReminderOnEarthquake"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26117,8 +26234,8 @@ export interface components {
             data?: components["schemas"]["GroupReminderOnEarthquake"][];
         };
         GroupReminderOnEarthquakeNoID: {
-            readonly group?: unknown;
-            readonly reminderonearthquake?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly reminderonearthquake?: components["schemas"]["ReminderOnEarthquake"];
             group_id: number;
             reminders_on_earthquake_id: number;
         };
@@ -26135,8 +26252,8 @@ export interface components {
             data?: components["schemas"]["GroupReminderOnEarthquakeNoID"][];
         };
         GroupReminderOnGCN: {
-            readonly group?: unknown;
-            readonly reminderongcn?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly reminderongcn?: components["schemas"]["ReminderOnGCN"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26155,8 +26272,8 @@ export interface components {
             data?: components["schemas"]["GroupReminderOnGCN"][];
         };
         GroupReminderOnGCNNoID: {
-            readonly group?: unknown;
-            readonly reminderongcn?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly reminderongcn?: components["schemas"]["ReminderOnGCN"];
             group_id: number;
             reminders_on_gcn_id: number;
         };
@@ -26173,8 +26290,8 @@ export interface components {
             data?: components["schemas"]["GroupReminderOnGCNNoID"][];
         };
         GroupReminderOnShift: {
-            readonly group?: unknown;
-            readonly reminderonshift?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly reminderonshift?: components["schemas"]["ReminderOnShift"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26193,8 +26310,8 @@ export interface components {
             data?: components["schemas"]["GroupReminderOnShift"][];
         };
         GroupReminderOnShiftNoID: {
-            readonly group?: unknown;
-            readonly reminderonshift?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly reminderonshift?: components["schemas"]["ReminderOnShift"];
             group_id: number;
             reminders_on_shift_id: number;
         };
@@ -26211,8 +26328,8 @@ export interface components {
             data?: components["schemas"]["GroupReminderOnShiftNoID"][];
         };
         GroupReminderOnSpectrum: {
-            readonly group?: unknown;
-            readonly reminderonspectrum?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly reminderonspectrum?: components["schemas"]["ReminderOnSpectrum"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26231,8 +26348,8 @@ export interface components {
             data?: components["schemas"]["GroupReminderOnSpectrum"][];
         };
         GroupReminderOnSpectrumNoID: {
-            readonly group?: unknown;
-            readonly reminderonspectrum?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly reminderonspectrum?: components["schemas"]["ReminderOnSpectrum"];
             group_id: number;
             reminders_on_spectr_id: number;
         };
@@ -26249,8 +26366,8 @@ export interface components {
             data?: components["schemas"]["GroupReminderOnSpectrumNoID"][];
         };
         GroupScanReport: {
-            readonly group?: unknown;
-            readonly scanreport?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly scanreport?: components["schemas"]["ScanReport"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26269,8 +26386,8 @@ export interface components {
             data?: components["schemas"]["GroupScanReport"][];
         };
         GroupScanReportNoID: {
-            readonly group?: unknown;
-            readonly scanreport?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly scanreport?: components["schemas"]["ScanReport"];
             group_id: number;
             scanreport_id: number;
         };
@@ -26287,8 +26404,8 @@ export interface components {
             data?: components["schemas"]["GroupScanReportNoID"][];
         };
         GroupSourceNotification: {
-            readonly group?: unknown;
-            readonly sourcenotification?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly sourcenotification?: components["schemas"]["SourceNotification"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26307,8 +26424,8 @@ export interface components {
             data?: components["schemas"]["GroupSourceNotification"][];
         };
         GroupSourceNotificationNoID: {
-            readonly group?: unknown;
-            readonly sourcenotification?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly sourcenotification?: components["schemas"]["SourceNotification"];
             group_id: number;
             sourcenotification_id: number;
         };
@@ -26325,8 +26442,8 @@ export interface components {
             data?: components["schemas"]["GroupSourceNotificationNoID"][];
         };
         GroupSpectrum: {
-            readonly group?: unknown;
-            readonly spectrum?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly spectrum?: components["schemas"]["Spectrum"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26345,8 +26462,8 @@ export interface components {
             data?: components["schemas"]["GroupSpectrum"][];
         };
         GroupSpectrumNoID: {
-            readonly group?: unknown;
-            readonly spectrum?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly spectrum?: components["schemas"]["Spectrum"];
             group_id: number;
             spectr_id: number;
         };
@@ -26363,8 +26480,8 @@ export interface components {
             data?: components["schemas"]["GroupSpectrumNoID"][];
         };
         GroupStream: {
-            readonly group?: unknown;
-            readonly stream?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly stream?: components["schemas"]["Stream"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26383,8 +26500,8 @@ export interface components {
             data?: components["schemas"]["GroupStream"][];
         };
         GroupStreamNoID: {
-            readonly group?: unknown;
-            readonly stream?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly stream?: components["schemas"]["Stream"];
             group_id: number;
             stream_id: number;
         };
@@ -26401,8 +26518,8 @@ export interface components {
             data?: components["schemas"]["GroupStreamNoID"][];
         };
         GroupSurveyEfficiencyForObservationPlan: {
-            readonly group?: unknown;
-            readonly surveyefficiencyforobservationplan?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly surveyefficiencyforobservationplan?: components["schemas"]["SurveyEfficiencyForObservationPlan"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26421,8 +26538,8 @@ export interface components {
             data?: components["schemas"]["GroupSurveyEfficiencyForObservationPlan"][];
         };
         GroupSurveyEfficiencyForObservationPlanNoID: {
-            readonly group?: unknown;
-            readonly surveyefficiencyforobservationplan?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly surveyefficiencyforobservationplan?: components["schemas"]["SurveyEfficiencyForObservationPlan"];
             group_id: number;
             survey_efficiency_for_observation_plan_id: number;
         };
@@ -26439,8 +26556,8 @@ export interface components {
             data?: components["schemas"]["GroupSurveyEfficiencyForObservationPlanNoID"][];
         };
         GroupSurveyEfficiencyForObservations: {
-            readonly group?: unknown;
-            readonly surveyefficiencyforobservations?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly surveyefficiencyforobservations?: components["schemas"]["SurveyEfficiencyForObservations"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26459,8 +26576,8 @@ export interface components {
             data?: components["schemas"]["GroupSurveyEfficiencyForObservations"][];
         };
         GroupSurveyEfficiencyForObservationsNoID: {
-            readonly group?: unknown;
-            readonly surveyefficiencyforobservations?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly surveyefficiencyforobservations?: components["schemas"]["SurveyEfficiencyForObservations"];
             group_id: number;
             survey_efficiency_for_observation_id: number;
         };
@@ -26477,8 +26594,8 @@ export interface components {
             data?: components["schemas"]["GroupSurveyEfficiencyForObservationsNoID"][];
         };
         GroupTaxonomy: {
-            readonly group?: unknown;
-            readonly taxonomy?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly taxonomy?: components["schemas"]["Taxonomy"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26497,8 +26614,8 @@ export interface components {
             data?: components["schemas"]["GroupTaxonomy"][];
         };
         GroupTaxonomyNoID: {
-            readonly group?: unknown;
-            readonly taxonomy?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly taxonomy?: components["schemas"]["Taxonomy"];
             group_id: number;
             taxonomie_id: number;
         };
@@ -26515,8 +26632,8 @@ export interface components {
             data?: components["schemas"]["GroupTaxonomyNoID"][];
         };
         GroupUser: {
-            readonly group?: unknown;
-            readonly user?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly user?: components["schemas"]["User"];
             /** @description Unique object identifier. */
             id?: number;
             group_id: number;
@@ -26539,8 +26656,8 @@ export interface components {
             data?: components["schemas"]["GroupUser"][];
         };
         GroupUserNoID: {
-            readonly group?: unknown;
-            readonly user?: unknown;
+            readonly group?: components["schemas"]["Group"];
+            readonly user?: components["schemas"]["User"];
             group_id: number;
             user_id: number;
             /** @description Boolean flag indicating whether the User is an admin of the group. */
@@ -26562,24 +26679,24 @@ export interface components {
         };
         Instrument: {
             /** @description The Telescope that hosts the Instrument. */
-            readonly telescope?: unknown;
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly spectra?: unknown[];
-            readonly allocations?: unknown[];
-            readonly observing_runs?: unknown[];
-            readonly observations?: unknown[];
-            readonly queued_observations?: unknown[];
-            readonly fields?: unknown[];
-            readonly tiles?: unknown[];
-            readonly plans?: unknown[];
-            readonly logs?: unknown[];
-            readonly sharing_services?: unknown[];
+            readonly telescope?: components["schemas"]["Telescope"];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly allocations?: components["schemas"]["Allocation"][];
+            readonly observing_runs?: components["schemas"]["ObservingRun"][];
+            readonly observations?: components["schemas"]["ExecutedObservation"][];
+            readonly queued_observations?: components["schemas"]["QueuedObservation"][];
+            readonly fields?: components["schemas"]["InstrumentField"][];
+            readonly tiles?: components["schemas"]["InstrumentFieldTile"][];
+            readonly plans?: components["schemas"]["EventObservationPlan"][];
+            readonly logs?: components["schemas"]["InstrumentLog"][];
+            readonly sharing_services?: components["schemas"]["SharingService"][];
             /** @description Instrument name. */
             name: string;
             /**
              * @description Instrument type, one of Imager, Spectrograph, or Imaging Spectrograph.
-             * @enum {unknown}
+             * @enum {string}
              */
             type: "imager" | "spectrograph" | "imaging spectrograph";
             /** @description The spectral band covered by the instrument (e.g., Optical, IR). */
@@ -26587,13 +26704,19 @@ export interface components {
             /** @description The ID of the Telescope that hosts the Instrument. */
             telescope_id: number;
             /** @description List of filters on the instrument (if any). */
-            filters?: unknown[];
+            filters?: string[];
             /** @description JSON describing the filters on the instrument and the filter's corresponding limiting magnitude and exposure time. */
-            sensitivity_data?: unknown;
+            sensitivity_data?: {
+                [key: string]: unknown;
+            } | null;
             /** @description JSON describing instrument configuration properties such as instrument overhead, filter change time, readout, etc. */
-            configuration_data?: unknown;
+            configuration_data?: {
+                [key: string]: unknown;
+            } | null;
             /** @description JSON describing the latest status of the instrument. */
-            status?: unknown;
+            status?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Format: date-time
              * @description The time at which the status was last updated.
@@ -26601,17 +26724,17 @@ export interface components {
             last_status_update?: string | null;
             /**
              * @description Name of the instrument's API class.
-             * @enum {unknown|null}
+             * @enum {string|null}
              */
             api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | null;
             /**
              * @description Name of the instrument's ObservationPlan API class.
-             * @enum {unknown|null}
+             * @enum {string|null}
              */
             api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | null;
             /**
              * @description Name of the instrument's listener class.
-             * @enum {unknown|null}
+             * @enum {string|null}
              */
             listener_classname?: "SEDMListener" | null;
             /** @description treasuremap.space API ID for this instrument */
@@ -26641,8 +26764,8 @@ export interface components {
         };
         InstrumentField: {
             /** @description The Instrument that this field belongs to */
-            readonly instrument?: unknown;
-            readonly tiles?: unknown[];
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly tiles?: components["schemas"]["InstrumentFieldTile"][];
             /** @description Instrument ID */
             instrument_id: number;
             /** @description The Field ID for the tile (can be repeated between instruments). */
@@ -26652,9 +26775,13 @@ export interface components {
             /** @description The mid-point declination for the tile [degrees]. */
             dec?: number | null;
             /** @description GeoJSON contours */
-            contour: unknown;
+            contour: {
+                [key: string]: unknown;
+            };
             /** @description GeoJSON contour bounding box for lower memory display */
-            contour_summary: unknown;
+            contour_summary: {
+                [key: string]: unknown;
+            };
             reference_filters?: string[] | null;
             reference_filter_mags?: number[] | null;
             /** @description Unique object identifier. */
@@ -26674,8 +26801,8 @@ export interface components {
         };
         InstrumentFieldNoID: {
             /** @description The Instrument that this field belongs to */
-            readonly instrument?: unknown;
-            readonly tiles?: unknown[];
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly tiles?: components["schemas"]["InstrumentFieldTile"][];
             /** @description Instrument ID */
             instrument_id: number;
             /** @description The Field ID for the tile (can be repeated between instruments). */
@@ -26685,9 +26812,13 @@ export interface components {
             /** @description The mid-point declination for the tile [degrees]. */
             dec?: number | null;
             /** @description GeoJSON contours */
-            contour: unknown;
+            contour: {
+                [key: string]: unknown;
+            };
             /** @description GeoJSON contour bounding box for lower memory display */
-            contour_summary: unknown;
+            contour_summary: {
+                [key: string]: unknown;
+            };
             reference_filters?: string[] | null;
             reference_filter_mags?: number[] | null;
         };
@@ -26705,9 +26836,9 @@ export interface components {
         };
         InstrumentFieldTile: {
             /** @description The Instrument that this tile belongs to */
-            readonly instrument?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
             /** @description The Field that this tile belongs to */
-            readonly field?: unknown;
+            readonly field?: components["schemas"]["InstrumentField"];
             /** @description Instrument ID */
             instrument_id: number;
             /** @description Instrument Field ID */
@@ -26729,9 +26860,9 @@ export interface components {
         };
         InstrumentFieldTileNoID: {
             /** @description The Instrument that this tile belongs to */
-            readonly instrument?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
             /** @description The Field that this tile belongs to */
-            readonly field?: unknown;
+            readonly field?: components["schemas"]["InstrumentField"];
             /** @description Instrument ID */
             instrument_id: number;
             /** @description Instrument Field ID */
@@ -26751,7 +26882,7 @@ export interface components {
         };
         InstrumentLog: {
             /** @description The Instrument that this log belongs to */
-            readonly instrument?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
             /** @description Instrument ID */
             instrument_id: number;
             /**
@@ -26765,7 +26896,9 @@ export interface components {
              */
             end_date: string;
             /** @description Instrument logging information */
-            log: unknown;
+            log: {
+                [key: string]: unknown;
+            };
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -26783,7 +26916,7 @@ export interface components {
         };
         InstrumentLogNoID: {
             /** @description The Instrument that this log belongs to */
-            readonly instrument?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
             /** @description Instrument ID */
             instrument_id: number;
             /**
@@ -26797,7 +26930,9 @@ export interface components {
              */
             end_date: string;
             /** @description Instrument logging information */
-            log: unknown;
+            log: {
+                [key: string]: unknown;
+            };
         };
         SingleInstrumentLogNoID: {
             /** @enum {string} */
@@ -26813,24 +26948,24 @@ export interface components {
         };
         InstrumentNoID: {
             /** @description The Telescope that hosts the Instrument. */
-            readonly telescope?: unknown;
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly spectra?: unknown[];
-            readonly allocations?: unknown[];
-            readonly observing_runs?: unknown[];
-            readonly observations?: unknown[];
-            readonly queued_observations?: unknown[];
-            readonly fields?: unknown[];
-            readonly tiles?: unknown[];
-            readonly plans?: unknown[];
-            readonly logs?: unknown[];
-            readonly sharing_services?: unknown[];
+            readonly telescope?: components["schemas"]["Telescope"];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly allocations?: components["schemas"]["Allocation"][];
+            readonly observing_runs?: components["schemas"]["ObservingRun"][];
+            readonly observations?: components["schemas"]["ExecutedObservation"][];
+            readonly queued_observations?: components["schemas"]["QueuedObservation"][];
+            readonly fields?: components["schemas"]["InstrumentField"][];
+            readonly tiles?: components["schemas"]["InstrumentFieldTile"][];
+            readonly plans?: components["schemas"]["EventObservationPlan"][];
+            readonly logs?: components["schemas"]["InstrumentLog"][];
+            readonly sharing_services?: components["schemas"]["SharingService"][];
             /** @description Instrument name. */
             name: string;
             /**
              * @description Instrument type, one of Imager, Spectrograph, or Imaging Spectrograph.
-             * @enum {unknown}
+             * @enum {string}
              */
             type: "imager" | "spectrograph" | "imaging spectrograph";
             /** @description The spectral band covered by the instrument (e.g., Optical, IR). */
@@ -26838,13 +26973,19 @@ export interface components {
             /** @description The ID of the Telescope that hosts the Instrument. */
             telescope_id: number;
             /** @description List of filters on the instrument (if any). */
-            filters?: unknown[];
+            filters?: string[];
             /** @description JSON describing the filters on the instrument and the filter's corresponding limiting magnitude and exposure time. */
-            sensitivity_data?: unknown;
+            sensitivity_data?: {
+                [key: string]: unknown;
+            } | null;
             /** @description JSON describing instrument configuration properties such as instrument overhead, filter change time, readout, etc. */
-            configuration_data?: unknown;
+            configuration_data?: {
+                [key: string]: unknown;
+            } | null;
             /** @description JSON describing the latest status of the instrument. */
-            status?: unknown;
+            status?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Format: date-time
              * @description The time at which the status was last updated.
@@ -26852,17 +26993,17 @@ export interface components {
             last_status_update?: string | null;
             /**
              * @description Name of the instrument's API class.
-             * @enum {unknown|null}
+             * @enum {string|null}
              */
             api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | null;
             /**
              * @description Name of the instrument's ObservationPlan API class.
-             * @enum {unknown|null}
+             * @enum {string|null}
              */
             api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | null;
             /**
              * @description Name of the instrument's listener class.
-             * @enum {unknown|null}
+             * @enum {string|null}
              */
             listener_classname?: "SEDMListener" | null;
             /** @description treasuremap.space API ID for this instrument */
@@ -26889,8 +27030,8 @@ export interface components {
             data?: components["schemas"]["InstrumentNoID"][];
         };
         InstrumentSharingService: {
-            readonly instrument?: unknown;
-            readonly sharingservice?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly sharingservice?: components["schemas"]["SharingService"];
             /** @description Unique object identifier. */
             id?: number;
             instrument_id: number;
@@ -26909,8 +27050,8 @@ export interface components {
             data?: components["schemas"]["InstrumentSharingService"][];
         };
         InstrumentSharingServiceNoID: {
-            readonly instrument?: unknown;
-            readonly sharingservice?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly sharingservice?: components["schemas"]["SharingService"];
             instrument_id: number;
             sharing_service_id: number;
         };
@@ -26927,10 +27068,10 @@ export interface components {
             data?: components["schemas"]["InstrumentSharingServiceNoID"][];
         };
         Invitation: {
-            readonly role?: unknown;
-            readonly groups?: unknown[];
-            readonly streams?: unknown[];
-            readonly invited_by?: unknown;
+            readonly role?: components["schemas"]["Role"];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly streams?: components["schemas"]["Stream"][];
+            readonly invited_by?: components["schemas"]["User"];
             token: string;
             role_id: string;
             admin_for_groups: boolean[];
@@ -26955,10 +27096,10 @@ export interface components {
             data?: components["schemas"]["Invitation"][];
         };
         InvitationNoID: {
-            readonly role?: unknown;
-            readonly groups?: unknown[];
-            readonly streams?: unknown[];
-            readonly invited_by?: unknown;
+            readonly role?: components["schemas"]["Role"];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly streams?: components["schemas"]["Stream"][];
+            readonly invited_by?: components["schemas"]["User"];
             token: string;
             role_id: string;
             admin_for_groups: boolean[];
@@ -26982,9 +27123,9 @@ export interface components {
         };
         Listing: {
             /** @description The user that saved this object/listing */
-            readonly user?: unknown;
+            readonly user?: components["schemas"]["User"];
             /** @description The object referenced by this listing */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The ID of the User who created this Listing. */
             user_id: number;
             /** @description The ID of the object that is on this Listing */
@@ -26992,7 +27133,9 @@ export interface components {
             /** @description Name of the list, e.g., 'favorites'. */
             list_name: string;
             /** @description Optional parameters for "watchlist" type listings, when searching for new candidates around a given object. */
-            params?: unknown;
+            params?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -27010,9 +27153,9 @@ export interface components {
         };
         ListingNoID: {
             /** @description The user that saved this object/listing */
-            readonly user?: unknown;
+            readonly user?: components["schemas"]["User"];
             /** @description The object referenced by this listing */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The ID of the User who created this Listing. */
             user_id: number;
             /** @description The ID of the object that is on this Listing */
@@ -27020,7 +27163,9 @@ export interface components {
             /** @description Name of the list, e.g., 'favorites'. */
             list_name: string;
             /** @description Optional parameters for "watchlist" type listings, when searching for new candidates around a given object. */
-            params?: unknown;
+            params?: {
+                [key: string]: unknown;
+            } | null;
         };
         SingleListingNoID: {
             /** @enum {string} */
@@ -27036,11 +27181,11 @@ export interface components {
         };
         Localization: {
             /** @description The user that saved this Localization */
-            readonly sent_by?: unknown;
-            readonly observationplan_requests?: unknown[];
-            readonly survey_efficiency_analyses?: unknown[];
-            readonly properties?: unknown[];
-            readonly tags?: unknown[];
+            readonly sent_by?: components["schemas"]["User"];
+            readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
+            readonly survey_efficiency_analyses?: components["schemas"]["SurveyEfficiencyForObservations"][];
+            readonly properties?: components["schemas"]["LocalizationProperty"][];
+            readonly tags?: components["schemas"]["LocalizationTag"][];
             /** @description The ID of the User who created this Localization. */
             sent_by_id: number;
             /**
@@ -27061,7 +27206,9 @@ export interface components {
             /** @description Multiresolution HEALPix distance normalization array */
             distnorm?: number[] | null;
             /** @description GeoJSON contours */
-            contour?: unknown;
+            contour?: {
+                [key: string]: unknown;
+            } | null;
             /** @description file path where the data of the localization is saved. */
             _localization_path?: string | null;
             /** @description The ID of the Notice that this Localization is associated with, if any. */
@@ -27083,11 +27230,11 @@ export interface components {
         };
         LocalizationNoID: {
             /** @description The user that saved this Localization */
-            readonly sent_by?: unknown;
-            readonly observationplan_requests?: unknown[];
-            readonly survey_efficiency_analyses?: unknown[];
-            readonly properties?: unknown[];
-            readonly tags?: unknown[];
+            readonly sent_by?: components["schemas"]["User"];
+            readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
+            readonly survey_efficiency_analyses?: components["schemas"]["SurveyEfficiencyForObservations"][];
+            readonly properties?: components["schemas"]["LocalizationProperty"][];
+            readonly tags?: components["schemas"]["LocalizationTag"][];
             /** @description The ID of the User who created this Localization. */
             sent_by_id: number;
             /**
@@ -27108,7 +27255,9 @@ export interface components {
             /** @description Multiresolution HEALPix distance normalization array */
             distnorm?: number[] | null;
             /** @description GeoJSON contours */
-            contour?: unknown;
+            contour?: {
+                [key: string]: unknown;
+            } | null;
             /** @description file path where the data of the localization is saved. */
             _localization_path?: string | null;
             /** @description The ID of the Notice that this Localization is associated with, if any. */
@@ -27128,13 +27277,15 @@ export interface components {
         };
         LocalizationProperty: {
             /** @description The user that saved this LocalizationProperty */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationProperty. */
             sent_by_id: number;
             /** @description localization ID */
             localization_id: number;
             /** @description Localization properties in JSON format. */
-            data?: unknown;
+            data?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -27152,13 +27303,15 @@ export interface components {
         };
         LocalizationPropertyNoID: {
             /** @description The user that saved this LocalizationProperty */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationProperty. */
             sent_by_id: number;
             /** @description localization ID */
             localization_id: number;
             /** @description Localization properties in JSON format. */
-            data?: unknown;
+            data?: {
+                [key: string]: unknown;
+            } | null;
         };
         SingleLocalizationPropertyNoID: {
             /** @enum {string} */
@@ -27174,7 +27327,7 @@ export interface components {
         };
         LocalizationTag: {
             /** @description The user that saved this LocalizationTag */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationTag. */
             sent_by_id: number;
             /** @description localization ID */
@@ -27197,7 +27350,7 @@ export interface components {
         };
         LocalizationTagNoID: {
             /** @description The user that saved this LocalizationTag */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The ID of the User who created this LocalizationTag. */
             sent_by_id: number;
             /** @description localization ID */
@@ -30049,16 +30202,16 @@ export interface components {
             data?: components["schemas"]["LocalizationTile_defNoID"][];
         };
         MMADetector: {
-            readonly events?: unknown[];
-            readonly spectra?: unknown[];
-            readonly time_intervals?: unknown[];
+            readonly events?: components["schemas"]["GcnEvent"][];
+            readonly spectra?: components["schemas"]["MMADetectorSpectrum"][];
+            readonly time_intervals?: components["schemas"]["MMADetectorTimeInterval"][];
             /** @description Unabbreviated facility name (e.g., LIGO Hanford Observatory. */
             name: string;
             /** @description Abbreviated facility name (e.g., H1). */
             nickname: string;
             /**
              * @description MMA detector type, one of gravitational wave, neutrino, or gamma-ray burst.
-             * @enum {unknown}
+             * @enum {string}
              */
             type: "gravitational-wave" | "neutrino" | "gamma-ray-burst";
             /** @description Latitude in deg. */
@@ -30085,16 +30238,16 @@ export interface components {
             data?: components["schemas"]["MMADetector"][];
         };
         MMADetectorNoID: {
-            readonly events?: unknown[];
-            readonly spectra?: unknown[];
-            readonly time_intervals?: unknown[];
+            readonly events?: components["schemas"]["GcnEvent"][];
+            readonly spectra?: components["schemas"]["MMADetectorSpectrum"][];
+            readonly time_intervals?: components["schemas"]["MMADetectorTimeInterval"][];
             /** @description Unabbreviated facility name (e.g., LIGO Hanford Observatory. */
             name: string;
             /** @description Abbreviated facility name (e.g., H1). */
             nickname: string;
             /**
              * @description MMA detector type, one of gravitational wave, neutrino, or gamma-ray burst.
-             * @enum {unknown}
+             * @enum {string}
              */
             type: "gravitational-wave" | "neutrino" | "gamma-ray-burst";
             /** @description Latitude in deg. */
@@ -30120,10 +30273,10 @@ export interface components {
         };
         MMADetectorSpectrum: {
             /** @description The MMADetector that acquired the Spectrum. */
-            readonly detector?: unknown;
-            readonly groups?: unknown[];
+            readonly detector?: components["schemas"]["MMADetector"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The User who uploaded the detector spectrum. */
-            readonly owner?: unknown;
+            readonly owner?: components["schemas"]["User"];
             /** @description Frequency of the spectrum [Hz]. */
             frequencies: number[];
             /** @description Amplitudes of the Spectrum [1/sqrt(Hz)]. */
@@ -30163,10 +30316,10 @@ export interface components {
         };
         MMADetectorSpectrumNoID: {
             /** @description The MMADetector that acquired the Spectrum. */
-            readonly detector?: unknown;
-            readonly groups?: unknown[];
+            readonly detector?: components["schemas"]["MMADetector"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The User who uploaded the detector spectrum. */
-            readonly owner?: unknown;
+            readonly owner?: components["schemas"]["User"];
             /** @description Frequency of the spectrum [Hz]. */
             frequencies: number[];
             /** @description Amplitudes of the Spectrum [1/sqrt(Hz)]. */
@@ -30221,7 +30374,7 @@ export interface components {
              * @description IDs of the Groups to share this spectrum with. Set to "all" to make this spectrum visible to all users.
              * @default []
              */
-            group_ids: unknown;
+            group_ids: number[] | "all";
         };
         SingleMMADetectorSpectrumPost: {
             /** @enum {string} */
@@ -30237,10 +30390,10 @@ export interface components {
         };
         MMADetectorTimeInterval: {
             /** @description The MMADetector that acquired the Time Interval. */
-            readonly detector?: unknown;
-            readonly groups?: unknown[];
+            readonly detector?: components["schemas"]["MMADetector"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The User who uploaded the detector time interval. */
-            readonly owner?: unknown;
+            readonly owner?: components["schemas"]["User"];
             /** @description ID of the MMADetector that acquired the Time Interval. */
             detector_id: number;
             /** @description ID of the User who uploaded the detector time interval. */
@@ -30262,10 +30415,10 @@ export interface components {
         };
         MMADetectorTimeIntervalNoID: {
             /** @description The MMADetector that acquired the Time Interval. */
-            readonly detector?: unknown;
-            readonly groups?: unknown[];
+            readonly detector?: components["schemas"]["MMADetector"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The User who uploaded the detector time interval. */
-            readonly owner?: unknown;
+            readonly owner?: components["schemas"]["User"];
             /** @description ID of the MMADetector that acquired the Time Interval. */
             detector_id: number;
         };
@@ -30319,26 +30472,26 @@ export interface components {
         };
         Obj: {
             /** @description The Galaxy associated with this source. */
-            readonly host?: unknown;
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
-            readonly comments_on_spectra?: unknown[];
-            readonly reminders_on_spectra?: unknown[];
-            readonly annotations?: unknown[];
-            readonly annotations_on_spectra?: unknown[];
-            readonly annotations_on_photometry?: unknown[];
-            readonly classifications?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photstats?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly spectra?: unknown[];
-            readonly thumbnails?: unknown[];
-            readonly followup_requests?: unknown[];
-            readonly assignments?: unknown[];
-            readonly obj_notifications?: unknown[];
-            readonly obj_analyses?: unknown[];
-            readonly sources_in_gcns?: unknown[];
-            readonly sharing_service_submissions?: unknown[];
+            readonly host?: components["schemas"]["Galaxy"];
+            readonly comments?: components["schemas"]["Comment"][];
+            readonly reminders?: components["schemas"]["Reminder"][];
+            readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
+            readonly reminders_on_spectra?: components["schemas"]["ReminderOnSpectrum"][];
+            readonly annotations?: components["schemas"]["Annotation"][];
+            readonly annotations_on_spectra?: components["schemas"]["AnnotationOnSpectrum"][];
+            readonly annotations_on_photometry?: components["schemas"]["AnnotationOnPhotometry"][];
+            readonly classifications?: components["schemas"]["Classification"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photstats?: components["schemas"]["PhotStat"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly thumbnails?: components["schemas"]["Thumbnail"][];
+            readonly followup_requests?: components["schemas"]["FollowupRequest"][];
+            readonly assignments?: components["schemas"]["ClassicalAssignment"][];
+            readonly obj_notifications?: components["schemas"]["SourceNotification"][];
+            readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
+            readonly sources_in_gcns?: components["schemas"]["SourcesConfirmedInGCN"][];
+            readonly sharing_service_submissions?: components["schemas"]["SharingServiceSubmission"][];
             /** @description Name of the object. */
             id: string;
             /** @description J2000 Right Ascension at discovery time [deg]. */
@@ -30360,15 +30513,21 @@ export interface components {
             /** @description Redshift source. */
             redshift_origin?: string | null;
             /** @description Record of who set which redshift values and when. */
-            redshift_history?: unknown;
+            redshift_history?: {
+                [key: string]: unknown;
+            } | null;
             /** @description The ID of the Galaxy to which this Obj is associated. */
             host_id?: number | null;
             /** @description Summary of the obj. */
             summary?: string | null;
             /** @description Record of the summaries generated and written about this obj */
-            summary_history?: unknown;
+            summary_history?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Misc. alternative metadata stored in JSON format, e.g. `{'gaia': {'info': {'Teff': 5780}}}` */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Distance to the nearest Obj [arcsec]. */
             dist_nearest_source?: number | null;
             /** @description Magnitude of the nearest Obj [AB]. */
@@ -30388,7 +30547,9 @@ export interface components {
             /** @description Transient Name Server name. */
             tns_name?: string | null;
             /** @description TNS info in JSON format */
-            tns_info?: unknown;
+            tns_info?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -30401,10 +30562,10 @@ export interface components {
             detect_photometry_count?: number | null;
             ra?: number | null;
             dec?: number | null;
-            readonly candidates?: unknown[];
-            readonly sources?: unknown[];
-            readonly super_objs?: unknown[];
-            readonly users?: unknown[];
+            readonly candidates?: components["schemas"]["Candidate"][];
+            readonly sources?: components["schemas"]["GroupObj"][];
+            readonly super_objs?: components["schemas"]["SuperObj"][];
+            readonly users?: components["schemas"]["User"][];
         };
         SingleObj: {
             /** @enum {string} */
@@ -30420,12 +30581,12 @@ export interface components {
         };
         ObjAnalysis: {
             /** @description The ObjAnalysis's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description Annotation's author. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description Analysis Service associated with this analysis. */
-            readonly analysis_service?: unknown;
-            readonly groups?: unknown[];
+            readonly analysis_service?: components["schemas"]["AnalysisService"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the ObjAnalysis's Obj. */
             obj_id: string;
             /** @description Unique object identifier. */
@@ -30461,7 +30622,7 @@ export interface components {
             handled_by_url: string;
             /**
              * @description Status of the Webhook. One of: 'queued', 'pending', 'completed', 'failure', 'cancelled', 'timed_out'.
-             * @enum {unknown}
+             * @enum {string}
              */
             status: "queued" | "pending" | "completed" | "failure" | "cancelled" | "timed_out";
             /** @description How long did this take to run and return this webhook? */
@@ -30488,12 +30649,12 @@ export interface components {
         };
         ObjAnalysisNoID: {
             /** @description The ObjAnalysis's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description Annotation's author. */
-            readonly author?: unknown;
+            readonly author?: components["schemas"]["User"];
             /** @description Analysis Service associated with this analysis. */
-            readonly analysis_service?: unknown;
-            readonly groups?: unknown[];
+            readonly analysis_service?: components["schemas"]["AnalysisService"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the ObjAnalysis's Obj. */
             obj_id: string;
             /** @description Unique identifier for this analysis result. */
@@ -30527,7 +30688,7 @@ export interface components {
             handled_by_url: string;
             /**
              * @description Status of the Webhook. One of: 'queued', 'pending', 'completed', 'failure', 'cancelled', 'timed_out'.
-             * @enum {unknown}
+             * @enum {string}
              */
             status: "queued" | "pending" | "completed" | "failure" | "cancelled" | "timed_out";
             /** @description How long did this take to run and return this webhook? */
@@ -30554,26 +30715,26 @@ export interface components {
         };
         ObjNoID: {
             /** @description The Galaxy associated with this source. */
-            readonly host?: unknown;
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
-            readonly comments_on_spectra?: unknown[];
-            readonly reminders_on_spectra?: unknown[];
-            readonly annotations?: unknown[];
-            readonly annotations_on_spectra?: unknown[];
-            readonly annotations_on_photometry?: unknown[];
-            readonly classifications?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photstats?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly spectra?: unknown[];
-            readonly thumbnails?: unknown[];
-            readonly followup_requests?: unknown[];
-            readonly assignments?: unknown[];
-            readonly obj_notifications?: unknown[];
-            readonly obj_analyses?: unknown[];
-            readonly sources_in_gcns?: unknown[];
-            readonly sharing_service_submissions?: unknown[];
+            readonly host?: components["schemas"]["Galaxy"];
+            readonly comments?: components["schemas"]["Comment"][];
+            readonly reminders?: components["schemas"]["Reminder"][];
+            readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
+            readonly reminders_on_spectra?: components["schemas"]["ReminderOnSpectrum"][];
+            readonly annotations?: components["schemas"]["Annotation"][];
+            readonly annotations_on_spectra?: components["schemas"]["AnnotationOnSpectrum"][];
+            readonly annotations_on_photometry?: components["schemas"]["AnnotationOnPhotometry"][];
+            readonly classifications?: components["schemas"]["Classification"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photstats?: components["schemas"]["PhotStat"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly thumbnails?: components["schemas"]["Thumbnail"][];
+            readonly followup_requests?: components["schemas"]["FollowupRequest"][];
+            readonly assignments?: components["schemas"]["ClassicalAssignment"][];
+            readonly obj_notifications?: components["schemas"]["SourceNotification"][];
+            readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
+            readonly sources_in_gcns?: components["schemas"]["SourcesConfirmedInGCN"][];
+            readonly sharing_service_submissions?: components["schemas"]["SharingServiceSubmission"][];
             /** @description J2000 Right Ascension at discovery time [deg]. */
             ra_dis?: number | null;
             /** @description J2000 Declination at discovery time [deg]. */
@@ -30593,15 +30754,21 @@ export interface components {
             /** @description Redshift source. */
             redshift_origin?: string | null;
             /** @description Record of who set which redshift values and when. */
-            redshift_history?: unknown;
+            redshift_history?: {
+                [key: string]: unknown;
+            } | null;
             /** @description The ID of the Galaxy to which this Obj is associated. */
             host_id?: number | null;
             /** @description Summary of the obj. */
             summary?: string | null;
             /** @description Record of the summaries generated and written about this obj */
-            summary_history?: unknown;
+            summary_history?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Misc. alternative metadata stored in JSON format, e.g. `{'gaia': {'info': {'Teff': 5780}}}` */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Distance to the nearest Obj [arcsec]. */
             dist_nearest_source?: number | null;
             /** @description Magnitude of the nearest Obj [AB]. */
@@ -30621,7 +30788,9 @@ export interface components {
             /** @description Transient Name Server name. */
             tns_name?: string | null;
             /** @description TNS info in JSON format */
-            tns_info?: unknown;
+            tns_info?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -30634,10 +30803,10 @@ export interface components {
             detect_photometry_count?: number | null;
             ra?: number | null;
             dec?: number | null;
-            readonly candidates?: unknown[];
-            readonly sources?: unknown[];
-            readonly super_objs?: unknown[];
-            readonly users?: unknown[];
+            readonly candidates?: components["schemas"]["Candidate"][];
+            readonly sources?: components["schemas"]["GroupObj"][];
+            readonly super_objs?: components["schemas"]["SuperObj"][];
+            readonly users?: components["schemas"]["User"][];
         };
         SingleObjNoID: {
             /** @enum {string} */
@@ -30653,26 +30822,26 @@ export interface components {
         };
         ObjPost: {
             /** @description The Galaxy associated with this source. */
-            readonly host?: unknown;
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
-            readonly comments_on_spectra?: unknown[];
-            readonly reminders_on_spectra?: unknown[];
-            readonly annotations?: unknown[];
-            readonly annotations_on_spectra?: unknown[];
-            readonly annotations_on_photometry?: unknown[];
-            readonly classifications?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photstats?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly spectra?: unknown[];
-            readonly thumbnails?: unknown[];
-            readonly followup_requests?: unknown[];
-            readonly assignments?: unknown[];
-            readonly obj_notifications?: unknown[];
-            readonly obj_analyses?: unknown[];
-            readonly sources_in_gcns?: unknown[];
-            readonly sharing_service_submissions?: unknown[];
+            readonly host?: components["schemas"]["Galaxy"];
+            readonly comments?: components["schemas"]["Comment"][];
+            readonly reminders?: components["schemas"]["Reminder"][];
+            readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
+            readonly reminders_on_spectra?: components["schemas"]["ReminderOnSpectrum"][];
+            readonly annotations?: components["schemas"]["Annotation"][];
+            readonly annotations_on_spectra?: components["schemas"]["AnnotationOnSpectrum"][];
+            readonly annotations_on_photometry?: components["schemas"]["AnnotationOnPhotometry"][];
+            readonly classifications?: components["schemas"]["Classification"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photstats?: components["schemas"]["PhotStat"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly thumbnails?: components["schemas"]["Thumbnail"][];
+            readonly followup_requests?: components["schemas"]["FollowupRequest"][];
+            readonly assignments?: components["schemas"]["ClassicalAssignment"][];
+            readonly obj_notifications?: components["schemas"]["SourceNotification"][];
+            readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
+            readonly sources_in_gcns?: components["schemas"]["SourcesConfirmedInGCN"][];
+            readonly sharing_service_submissions?: components["schemas"]["SharingServiceSubmission"][];
             /** @description Name of the object. */
             id: string;
             /** @description J2000 Right Ascension at discovery time [deg]. */
@@ -30698,9 +30867,13 @@ export interface components {
             /** @description Summary of the obj. */
             summary?: string | null;
             /** @description Record of the summaries generated and written about this obj */
-            summary_history?: unknown;
+            summary_history?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Misc. alternative metadata stored in JSON format, e.g. `{'gaia': {'info': {'Teff': 5780}}}` */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Distance to the nearest Obj [arcsec]. */
             dist_nearest_source?: number | null;
             /** @description Magnitude of the nearest Obj [AB]. */
@@ -30720,7 +30893,9 @@ export interface components {
             /** @description Transient Name Server name. */
             tns_name?: string | null;
             /** @description TNS info in JSON format */
-            tns_info?: unknown;
+            tns_info?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -30732,10 +30907,10 @@ export interface components {
             detect_photometry_count?: number | null;
             ra?: number | null;
             dec?: number | null;
-            readonly candidates?: unknown[];
-            readonly sources?: unknown[];
-            readonly super_objs?: unknown[];
-            readonly users?: unknown[];
+            readonly candidates?: components["schemas"]["Candidate"][];
+            readonly sources?: components["schemas"]["GroupObj"][];
+            readonly super_objs?: components["schemas"]["SuperObj"][];
+            readonly users?: components["schemas"]["User"][];
         };
         SingleObjPost: {
             /** @enum {string} */
@@ -30750,8 +30925,8 @@ export interface components {
             data?: components["schemas"]["ObjPost"][];
         };
         ObjTag: {
-            readonly obj?: unknown;
-            readonly objtagoption?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
+            readonly objtagoption?: components["schemas"]["ObjTagOption"];
             /** @description Unique object identifier. */
             id?: number;
             obj_id: string;
@@ -30759,8 +30934,8 @@ export interface components {
             /** @description ID of the user who created the tag association */
             author_id: number;
             /** @description The associated User */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
         };
         SingleObjTag: {
             /** @enum {string} */
@@ -30775,15 +30950,15 @@ export interface components {
             data?: components["schemas"]["ObjTag"][];
         };
         ObjTagNoID: {
-            readonly obj?: unknown;
-            readonly objtagoption?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
+            readonly objtagoption?: components["schemas"]["ObjTagOption"];
             obj_id: string;
             objtagoption_id: number;
             /** @description ID of the user who created the tag association */
             author_id: number;
             /** @description The associated User */
-            readonly author?: unknown;
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
         };
         SingleObjTagNoID: {
             /** @enum {string} */
@@ -30875,9 +31050,9 @@ export interface components {
         };
         ObservationExternalAPIHandlerPost: {
             /** @description start date of the request. */
-            start_date: unknown;
+            start_date: string;
             /** @description end date of the request. */
-            end_date: unknown;
+            end_date: string;
             /** @description Followup request allocation ID. */
             allocation_id: number;
         };
@@ -30928,18 +31103,18 @@ export interface components {
         };
         ObservationPlanRequest: {
             /** @description The User who requested the follow-up. */
-            readonly requester?: unknown;
+            readonly requester?: components["schemas"]["User"];
             /** @description The user who last modified the request. */
-            readonly last_modified_by?: unknown;
+            readonly last_modified_by?: components["schemas"]["User"];
             /** @description The target GcnEvent. */
-            readonly gcnevent?: unknown;
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The target Localization. */
-            readonly localization?: unknown;
-            readonly allocation?: unknown;
-            readonly observation_plans?: unknown[];
-            readonly target_groups?: unknown[];
-            readonly transactions?: unknown[];
-            readonly transaction_requests?: unknown[];
+            readonly localization?: components["schemas"]["Localization"];
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly observation_plans?: components["schemas"]["EventObservationPlan"][];
+            readonly target_groups?: components["schemas"]["Group"][];
+            readonly transactions?: components["schemas"]["FacilityTransaction"][];
+            readonly transaction_requests?: components["schemas"]["FacilityTransactionRequest"][];
             /** @description ID of the User who requested the follow-up. */
             requester_id?: number | null;
             /** @description The ID of the User who last modified the request. */
@@ -30949,7 +31124,9 @@ export interface components {
             /** @description ID of the target Localization. */
             localization_id: number;
             /** @description Content of the observation plan request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The status of the request. */
             status?: string;
             allocation_id: number;
@@ -30974,18 +31151,18 @@ export interface components {
         };
         ObservationPlanRequestNoID: {
             /** @description The User who requested the follow-up. */
-            readonly requester?: unknown;
+            readonly requester?: components["schemas"]["User"];
             /** @description The user who last modified the request. */
-            readonly last_modified_by?: unknown;
+            readonly last_modified_by?: components["schemas"]["User"];
             /** @description The target GcnEvent. */
-            readonly gcnevent?: unknown;
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The target Localization. */
-            readonly localization?: unknown;
-            readonly allocation?: unknown;
-            readonly observation_plans?: unknown[];
-            readonly target_groups?: unknown[];
-            readonly transactions?: unknown[];
-            readonly transaction_requests?: unknown[];
+            readonly localization?: components["schemas"]["Localization"];
+            readonly allocation?: components["schemas"]["Allocation"];
+            readonly observation_plans?: components["schemas"]["EventObservationPlan"][];
+            readonly target_groups?: components["schemas"]["Group"][];
+            readonly transactions?: components["schemas"]["FacilityTransaction"][];
+            readonly transaction_requests?: components["schemas"]["FacilityTransactionRequest"][];
             /** @description ID of the User who requested the follow-up. */
             requester_id?: number | null;
             /** @description ID of the target GcnEvent. */
@@ -30993,7 +31170,9 @@ export interface components {
             /** @description ID of the target Localization. */
             localization_id: number;
             /** @description Content of the observation plan request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The status of the request. */
             status?: string;
             allocation_id: number;
@@ -31015,8 +31194,8 @@ export interface components {
             data?: components["schemas"]["ObservationPlanRequestNoID"][];
         };
         ObservationPlanRequestTargetGroup: {
-            readonly observationplanrequest?: unknown;
-            readonly group?: unknown;
+            readonly observationplanrequest?: components["schemas"]["ObservationPlanRequest"];
+            readonly group?: components["schemas"]["Group"];
             /** @description Unique object identifier. */
             id?: number;
             observationplanrequest_id: number;
@@ -31035,8 +31214,8 @@ export interface components {
             data?: components["schemas"]["ObservationPlanRequestTargetGroup"][];
         };
         ObservationPlanRequestTargetGroupNoID: {
-            readonly observationplanrequest?: unknown;
-            readonly group?: unknown;
+            readonly observationplanrequest?: components["schemas"]["ObservationPlanRequest"];
+            readonly group?: components["schemas"]["Group"];
             observationplanrequest_id: number;
             group_id: number;
         };
@@ -31054,13 +31233,13 @@ export interface components {
         };
         ObservingRun: {
             /** @description The Instrument for this run. */
-            readonly instrument?: unknown;
-            readonly sources?: unknown[];
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly sources?: components["schemas"]["Obj"][];
             /** @description The Group associated with this Run. */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description The User who created this ObservingRun. */
-            readonly owner?: unknown;
-            readonly assignments?: unknown[];
+            readonly owner?: components["schemas"]["User"];
+            readonly assignments?: components["schemas"]["ClassicalAssignment"][];
             /** @description ID of the Instrument used for this run. */
             instrument_id: number;
             /** @description The name(s) of the PI(s) of this run. */
@@ -31117,7 +31296,7 @@ export interface components {
             /** @description The User ID of the owner of this run. */
             owner_id?: number;
             /** @description Observing run ephemeris data. */
-            ephemeris?: unknown;
+            ephemeris?: Record<string, never>;
             /** @description Unique identifier for the run. */
             id?: number;
         };
@@ -31152,11 +31331,11 @@ export interface components {
             /** @description The User ID of the owner of this run. */
             owner_id?: number;
             /** @description Observing run ephemeris data. */
-            ephemeris?: unknown;
+            ephemeris?: Record<string, never>;
             /** @description Unique identifier for the run. */
             id?: number;
-            assignments?: unknown[];
-            instrument?: unknown;
+            assignments?: Record<string, never>[];
+            instrument?: Record<string, never>;
         };
         SingleObservingRunGetWithAssignments: {
             /** @enum {string} */
@@ -31172,13 +31351,13 @@ export interface components {
         };
         ObservingRunNoID: {
             /** @description The Instrument for this run. */
-            readonly instrument?: unknown;
-            readonly sources?: unknown[];
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly sources?: components["schemas"]["Obj"][];
             /** @description The Group associated with this Run. */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description The User who created this ObservingRun. */
-            readonly owner?: unknown;
-            readonly assignments?: unknown[];
+            readonly owner?: components["schemas"]["User"];
+            readonly assignments?: components["schemas"]["ClassicalAssignment"][];
             /** @description ID of the Instrument used for this run. */
             instrument_id: number;
             /** @description The name(s) of the PI(s) of this run. */
@@ -31245,7 +31424,9 @@ export interface components {
             /** @description Unique object identifier. */
             id?: number;
             token?: string | null;
-            data?: unknown;
+            data?: {
+                [key: string]: unknown;
+            } | null;
             next_step?: number | null;
             backend?: string | null;
         };
@@ -31263,7 +31444,9 @@ export interface components {
         };
         PartialNoID: {
             token?: string | null;
-            data?: unknown;
+            data?: {
+                [key: string]: unknown;
+            } | null;
             next_step?: number | null;
             backend?: string | null;
         };
@@ -31281,53 +31464,32 @@ export interface components {
         };
         PhotFluxFlexible: {
             /** @description MJD of the observation(s). Can be a given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. */
-            mjd: unknown;
+            mjd: number | number[];
             /** @description The bandpass of the observation(s). Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. Allowed values: `bessellux`, `bessellb`, `bessellv`, `bessellr`, `besselli`, `standard::u`, `standard::b`, `standard::v`, `standard::r`, `standard::i`, `desu`, `desg`, `desr`, `desi`, `desz`, `desy`, `sdssu`, `sdssg`, `sdssr`, `sdssi`, `sdssz`, `f435w`, `f475w`, `f555w`, `f606w`, `f625w`, `f775w`, `f850lp`, `nicf110w`, `nicf160w`, `f098m`, `f105w`, `f110w`, `f125w`, `f127m`, `f139m`, `f140w`, `f153m`, `f160w`, `f218w`, `f225w`, `f275w`, `f300x`, `f336w`, `f350lp`, `f390w`, `f689m`, `f763m`, `f845m`, `f438w`, `uvf475w`, `uvf555w`, `uvf606w`, `uvf625w`, `uvf775w`, `uvf814w`, `uvf850lp`, `kepler`, `cspb`, `csphs`, `csphd`, `cspjs`, `cspjd`, `cspv3009`, `cspv3014`, `cspv9844`, `cspys`, `cspyd`, `cspg`, `cspi`, `cspk`, `cspr`, `cspu`, `f070w`, `f090w`, `f115w`, `f150w`, `f200w`, `f277w`, `f356w`, `f444w`, `f140m`, `f162m`, `f182m`, `f210m`, `f250m`, `f300m`, `f335m`, `f360m`, `f410m`, `f430m`, `f460m`, `f480m`, `f560w`, `f770w`, `f1000w`, `f1130w`, `f1280w`, `f1500w`, `f1800w`, `f2100w`, `f2550w`, `f1065c`, `f1140c`, `f1550c`, `f2300c`, `lsstu`, `lsstg`, `lsstr`, `lssti`, `lsstz`, `lssty`, `keplercam::us`, `keplercam::b`, `keplercam::v`, `keplercam::r`, `keplercam::i`, `4shooter2::us`, `4shooter2::b`, `4shooter2::v`, `4shooter2::r`, `4shooter2::i`, `f062`, `f087`, `f106`, `f129`, `f158`, `f184`, `f213`, `f146`, `ztfg`, `ztfr`, `ztfi`, `uvot::b`, `uvot::u`, `uvot::uvm2`, `uvot::uvw1`, `uvot::uvw2`, `uvot::v`, `uvot::white`, `ps1::open`, `ps1::g`, `ps1::r`, `ps1::i`, `ps1::z`, `ps1::y`, `ps1::w`, `atlasc`, `atlaso`, `2massj`, `2massh`, `2massks`, `gaia::gbp`, `gaia::g`, `gaia::grp`, `gaia::grvs`, `tess`, `galex::fuv`, `galex::nuv`, `gotob`, `gotog`, `gotol`, `gotor`, `skymapperu`, `skymapperg`, `skymapperr`, `skymapperi`, `skymapperz`, `ztf::g`, `ztf::r`, `ztf::i`, `megacam6::g`, `megacam6::r`, `megacam6::i`, `megacam6::i2`, `megacam6::z`, `hsc::g`, `hsc::r`, `hsc::r2`, `hsc::i`, `hsc::i2`, `hsc::z`, `hsc::y`, `swiftxrt`, `nicerxti` */
-            filter: unknown;
+            filter: string | string[];
             /** @description ID of the `Obj`(s) to which the photometry will be attached. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values are not allowed. */
-            obj_id: unknown;
+            obj_id: string | string[];
             /** @description ID of the `Instrument`(s) with which the photometry was acquired. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values are not allowed. */
-            instrument_id: unknown;
+            instrument_id: number | number[];
             /**
              * @description ID of the classical assignment which generated the photometry
              * @default null
              */
             assignment_id: number | null;
-            /**
-             * @description ICRS Right Ascension of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            ra: unknown;
-            /**
-             * @description ICRS Declination of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            dec: unknown;
-            /**
-             * @description Uncertainty on RA [arcsec]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            ra_unc: unknown;
-            /**
-             * @description Uncertainty on dec [arcsec]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            dec_unc: unknown;
-            /**
-             * @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None.
-             * @default null
-             */
-            origin: unknown;
-            /**
-             * @description List of group IDs to which photometry points will be visible. If 'all', will be shared with site-wide public group (visible to all users who can view associated source).
-             * @default []
-             */
-            group_ids: unknown;
-            /**
-             * @description List of stream IDs to which photometry points will be visible.
-             * @default []
-             */
-            stream_ids: unknown;
+            /** @description ICRS Right Ascension of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            ra?: number | number[];
+            /** @description ICRS Declination of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            dec?: number | number[];
+            /** @description Uncertainty on RA [arcsec]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            ra_unc?: number | number[];
+            /** @description Uncertainty on dec [arcsec]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            dec_unc?: number | number[];
+            /** @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None. */
+            origin?: string | string[];
+            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with site-wide public group (visible to all users who can view associated source). */
+            group_ids?: number[];
+            /** @description List of stream IDs to which photometry points will be visible. */
+            stream_ids?: number[];
             /**
              * @description Misc. alternative metadata stored in JSON format, e.g. `{'calibration': {'source': 'ps1','color_term': 0.012}, 'photometry_method': 'allstar', 'method_reference': 'Masci et al. (2015)'}`. Can be a list of dicts or a single dict which will be broadcast to all values.
              * @default null
@@ -31336,28 +31498,19 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** @description The magnitude system to which the flux, flux error, and the zeropoint are tied. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. Allowed values: `jla1`, `ab`, `vega`, `bd17`, `csp`, `ab-b12` */
-            magsys: unknown;
-            /**
-             * @description Flux of the observation(s) in counts. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed, to accommodate,e.g., upper limits from ZTF1, where flux is not provided for non-detections. For a given photometry point, if `flux` is null, `fluxerr` is used to derive a n-sigma limiting magnitude (where n is configurable; 3.0 by default) when the photometry point is requested in magnitude space from the Photomety GET api.
-             * @default null
-             */
-            flux: unknown;
+            magsys: string | string[];
+            /** @description Flux of the observation(s) in counts. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed, to accommodate,e.g., upper limits from ZTF1, where flux is not provided for non-detections. For a given photometry point, if `flux` is null, `fluxerr` is used to derive a n-sigma limiting magnitude (where n is configurable; 3.0 by default) when the photometry point is requested in magnitude space from the Photomety GET api. */
+            flux?: number | number[];
             /** @description Gaussian error on the flux in counts. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. */
-            fluxerr: unknown;
+            fluxerr: number | number[];
             /** @description Magnitude zeropoint, given by `zp` in the equation `m = -2.5 log10(flux) + zp`. `m` is the magnitude of the object in the magnitude system `magsys`. Can be given as a scalar or a 1D list. Null values not allowed. */
-            zp: unknown;
-            /**
-             * @description Flux of the reference image in counts. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed if no reference is given.
-             * @default null
-             */
-            ref_flux: unknown;
-            /**
-             * @description Gaussian error on the reference flux in counts. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            ref_fluxerr: unknown;
+            zp: number | number[];
+            /** @description Flux of the reference image in counts. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed if no reference is given. */
+            ref_flux?: number | number[];
+            /** @description Gaussian error on the reference flux in counts. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            ref_fluxerr?: number | number[];
             /** @description Magnitude zeropoint for the reference flux, given by `zp` in the equation `m = -2.5 log10(flux) + zp`. `m` is the magnitude of the object in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If Null or not given, will be set to the default zeropoint of 23.9. */
-            ref_zp?: unknown;
+            ref_zp?: number | number[];
         };
         SinglePhotFluxFlexible: {
             /** @enum {string} */
@@ -31373,53 +31526,32 @@ export interface components {
         };
         PhotMagFlexible: {
             /** @description MJD of the observation(s). Can be a given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. */
-            mjd: unknown;
+            mjd: number | number[];
             /** @description The bandpass of the observation(s). Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. Allowed values: `bessellux`, `bessellb`, `bessellv`, `bessellr`, `besselli`, `standard::u`, `standard::b`, `standard::v`, `standard::r`, `standard::i`, `desu`, `desg`, `desr`, `desi`, `desz`, `desy`, `sdssu`, `sdssg`, `sdssr`, `sdssi`, `sdssz`, `f435w`, `f475w`, `f555w`, `f606w`, `f625w`, `f775w`, `f850lp`, `nicf110w`, `nicf160w`, `f098m`, `f105w`, `f110w`, `f125w`, `f127m`, `f139m`, `f140w`, `f153m`, `f160w`, `f218w`, `f225w`, `f275w`, `f300x`, `f336w`, `f350lp`, `f390w`, `f689m`, `f763m`, `f845m`, `f438w`, `uvf475w`, `uvf555w`, `uvf606w`, `uvf625w`, `uvf775w`, `uvf814w`, `uvf850lp`, `kepler`, `cspb`, `csphs`, `csphd`, `cspjs`, `cspjd`, `cspv3009`, `cspv3014`, `cspv9844`, `cspys`, `cspyd`, `cspg`, `cspi`, `cspk`, `cspr`, `cspu`, `f070w`, `f090w`, `f115w`, `f150w`, `f200w`, `f277w`, `f356w`, `f444w`, `f140m`, `f162m`, `f182m`, `f210m`, `f250m`, `f300m`, `f335m`, `f360m`, `f410m`, `f430m`, `f460m`, `f480m`, `f560w`, `f770w`, `f1000w`, `f1130w`, `f1280w`, `f1500w`, `f1800w`, `f2100w`, `f2550w`, `f1065c`, `f1140c`, `f1550c`, `f2300c`, `lsstu`, `lsstg`, `lsstr`, `lssti`, `lsstz`, `lssty`, `keplercam::us`, `keplercam::b`, `keplercam::v`, `keplercam::r`, `keplercam::i`, `4shooter2::us`, `4shooter2::b`, `4shooter2::v`, `4shooter2::r`, `4shooter2::i`, `f062`, `f087`, `f106`, `f129`, `f158`, `f184`, `f213`, `f146`, `ztfg`, `ztfr`, `ztfi`, `uvot::b`, `uvot::u`, `uvot::uvm2`, `uvot::uvw1`, `uvot::uvw2`, `uvot::v`, `uvot::white`, `ps1::open`, `ps1::g`, `ps1::r`, `ps1::i`, `ps1::z`, `ps1::y`, `ps1::w`, `atlasc`, `atlaso`, `2massj`, `2massh`, `2massks`, `gaia::gbp`, `gaia::g`, `gaia::grp`, `gaia::grvs`, `tess`, `galex::fuv`, `galex::nuv`, `gotob`, `gotog`, `gotol`, `gotor`, `skymapperu`, `skymapperg`, `skymapperr`, `skymapperi`, `skymapperz`, `ztf::g`, `ztf::r`, `ztf::i`, `megacam6::g`, `megacam6::r`, `megacam6::i`, `megacam6::i2`, `megacam6::z`, `hsc::g`, `hsc::r`, `hsc::r2`, `hsc::i`, `hsc::i2`, `hsc::z`, `hsc::y`, `swiftxrt`, `nicerxti` */
-            filter: unknown;
+            filter: string | string[];
             /** @description ID of the `Obj`(s) to which the photometry will be attached. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values are not allowed. */
-            obj_id: unknown;
+            obj_id: string | string[];
             /** @description ID of the `Instrument`(s) with which the photometry was acquired. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values are not allowed. */
-            instrument_id: unknown;
+            instrument_id: number | number[];
             /**
              * @description ID of the classical assignment which generated the photometry
              * @default null
              */
             assignment_id: number | null;
-            /**
-             * @description ICRS Right Ascension of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            ra: unknown;
-            /**
-             * @description ICRS Declination of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            dec: unknown;
-            /**
-             * @description Uncertainty on RA [arcsec]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            ra_unc: unknown;
-            /**
-             * @description Uncertainty on dec [arcsec]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            dec_unc: unknown;
-            /**
-             * @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None.
-             * @default null
-             */
-            origin: unknown;
-            /**
-             * @description List of group IDs to which photometry points will be visible. If 'all', will be shared with site-wide public group (visible to all users who can view associated source).
-             * @default []
-             */
-            group_ids: unknown;
-            /**
-             * @description List of stream IDs to which photometry points will be visible.
-             * @default []
-             */
-            stream_ids: unknown;
+            /** @description ICRS Right Ascension of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            ra?: number | number[];
+            /** @description ICRS Declination of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            dec?: number | number[];
+            /** @description Uncertainty on RA [arcsec]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            ra_unc?: number | number[];
+            /** @description Uncertainty on dec [arcsec]. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            dec_unc?: number | number[];
+            /** @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None. */
+            origin?: string | string[];
+            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with site-wide public group (visible to all users who can view associated source). */
+            group_ids?: number[];
+            /** @description List of stream IDs to which photometry points will be visible. */
+            stream_ids?: number[];
             /**
              * @description Misc. alternative metadata stored in JSON format, e.g. `{'calibration': {'source': 'ps1','color_term': 0.012}, 'photometry_method': 'allstar', 'method_reference': 'Masci et al. (2015)'}`. Can be a list of dicts or a single dict which will be broadcast to all values.
              * @default null
@@ -31428,34 +31560,19 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** @description The magnitude system to which the magnitude, magnitude error, and limiting magnitude are tied. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. Allowed values: `jla1`, `ab`, `vega`, `bd17`, `csp`, `ab-b12` */
-            magsys: unknown;
-            /**
-             * @description Magnitude of the observation in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed for non-detections. If `mag` is null, the corresponding `magerr` must also be null.
-             * @default null
-             */
-            mag: unknown;
-            /**
-             * @description Error on the magnitude in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed for non-detections. If `magerr` is null, the corresponding `mag` must also be null.
-             * @default null
-             */
-            magerr: unknown;
+            magsys: string | string[];
+            /** @description Magnitude of the observation in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed for non-detections. If `mag` is null, the corresponding `magerr` must also be null. */
+            mag?: number | number[];
+            /** @description Error on the magnitude in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed for non-detections. If `magerr` is null, the corresponding `mag` must also be null. */
+            magerr?: number | number[];
             /** @description Limiting magnitude of the image in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. */
-            limiting_mag: unknown;
-            /**
-             * @description Number of standard deviations above the background that the limiting magnitudes correspond to. Null values not allowed. Default = 3.0.
-             * @default 3
-             */
-            limiting_mag_nsigma: unknown;
-            /**
-             * @description Magnitude of the reference image. in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed if no reference is given.
-             * @default null
-             */
-            magref: unknown;
-            /**
-             * @description Gaussian error on the reference magnitude. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            e_magref: unknown;
+            limiting_mag: number | number[];
+            /** @description Number of standard deviations above the background that the limiting magnitudes correspond to. Null values not allowed. Default = 3.0. */
+            limiting_mag_nsigma?: number | number[];
+            /** @description Magnitude of the reference image. in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed if no reference is given. */
+            magref?: number | number[];
+            /** @description Gaussian error on the reference magnitude. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            e_magref?: number | number[];
         };
         SinglePhotMagFlexible: {
             /** @enum {string} */
@@ -31471,7 +31588,7 @@ export interface components {
         };
         PhotStat: {
             /** @description The PhotStat's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /**
              * Format: date-time
              * @description Time when this PhotStat entry underwent an update using the most recent photometry point or all points in a full update.
@@ -31487,13 +31604,17 @@ export interface components {
             /** @description Number of observations taken of this object in all filters combined. */
             num_obs_global?: number;
             /** @description Number of observations taken of this object in each filter. Will be None if no photometry points have been added to this object. */
-            num_obs_per_filter?: unknown;
+            num_obs_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Number of detections (measurements above threshold) of this object, in all filters combined. */
             num_det_global?: number;
             /** @description Number of detections (measurements above threshold) but ignoring forced photometry of this object, in all filters combined. */
             num_det_no_forced_phot_global?: number;
             /** @description Number of detections (measurements above threshold) of this object, in each filter. Will be None if no points are detections. */
-            num_det_per_filter?: unknown;
+            num_det_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Modified Julian date when object was first detected. Will be None if no points are detections. */
             first_detected_mjd?: number | null;
             /** @description The apparent magnitude of the first detection. Will be None if no points are detections. */
@@ -31529,25 +31650,37 @@ export interface components {
             /** @description Average magnitude across all filters. Will be None if no points are detections. */
             mean_mag_global?: number | null;
             /** @description Average magnitude in various filters. The value is saved in a separate key foreach filter in this JSONB. Will be None if no points are detections. */
-            mean_mag_per_filter?: unknown;
+            mean_mag_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Average magnitude difference in various filters combinations. The value is saved in a separate key for each filter combination, where the keys are named {filter1}-{filter2}. Will be None if there are no detections in multiple filters. */
-            mean_color?: unknown;
+            mean_color?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Modified Julian date of the brightest recorded observation, in any filter. */
             peak_mjd_global?: number | null;
             /** @description Modified Julian date of the brightest recorded observation, in each filter. */
-            peak_mjd_per_filter?: unknown;
+            peak_mjd_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Brightest recorded apparent magnitude, in any filter. Will be None if no points are detections. */
             peak_mag_global?: number | null;
             /** @description Brightest recorded apparent magnitude in each filter. Will be None if no points are detections. */
-            peak_mag_per_filter?: unknown;
+            peak_mag_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Faintest recorded apparent magnitude (not including non-detections), in any filter. Will be None if no points are detections. */
             faintest_mag_global?: number | null;
             /** @description Faintest recorded apparent magnitude (not including non-detections), in each filter. */
-            faintest_mag_per_filter?: unknown;
+            faintest_mag_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Deepest recorded limiting magnitude for non-detections, using any filter. Will be None if all photometry points are detections. */
             deepest_limit_global?: number | null;
             /** @description Deepest recorded limiting magnitude for non-detections in each filter. Will be None if all photometry points are detections. */
-            deepest_limit_per_filter?: unknown;
+            deepest_limit_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Rate of change in magnitude (in magnitudes per day) measured from the first detection to the peak magnitude. Peak magnitude is chosen using the same filter as the first detection. Will be None if no points are detections or if the first detection is also the peak. */
             rise_rate?: number | null;
             /** @description Rate of change in magnitude (in magnitudes per day) measured from the the peak magnitude to the last detection. Peak magnitude is chosen using the same filter as the last detection. Will be None if no points are detections or if the last detection is also the peak. */
@@ -31555,7 +31688,9 @@ export interface components {
             /** @description Average variability of the magnitude measurements for all filters. */
             mag_rms_global?: number | null;
             /** @description Average variability of the magnitude, keyed to the name of each filter. Will be None if no points are detections. */
-            mag_rms_per_filter?: unknown;
+            mag_rms_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -31573,7 +31708,7 @@ export interface components {
         };
         PhotStatNoID: {
             /** @description The PhotStat's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /**
              * Format: date-time
              * @description Time when this PhotStat entry underwent an update using the most recent photometry point or all points in a full update.
@@ -31589,13 +31724,17 @@ export interface components {
             /** @description Number of observations taken of this object in all filters combined. */
             num_obs_global?: number;
             /** @description Number of observations taken of this object in each filter. Will be None if no photometry points have been added to this object. */
-            num_obs_per_filter?: unknown;
+            num_obs_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Number of detections (measurements above threshold) of this object, in all filters combined. */
             num_det_global?: number;
             /** @description Number of detections (measurements above threshold) but ignoring forced photometry of this object, in all filters combined. */
             num_det_no_forced_phot_global?: number;
             /** @description Number of detections (measurements above threshold) of this object, in each filter. Will be None if no points are detections. */
-            num_det_per_filter?: unknown;
+            num_det_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Modified Julian date when object was first detected. Will be None if no points are detections. */
             first_detected_mjd?: number | null;
             /** @description The apparent magnitude of the first detection. Will be None if no points are detections. */
@@ -31631,25 +31770,37 @@ export interface components {
             /** @description Average magnitude across all filters. Will be None if no points are detections. */
             mean_mag_global?: number | null;
             /** @description Average magnitude in various filters. The value is saved in a separate key foreach filter in this JSONB. Will be None if no points are detections. */
-            mean_mag_per_filter?: unknown;
+            mean_mag_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Average magnitude difference in various filters combinations. The value is saved in a separate key for each filter combination, where the keys are named {filter1}-{filter2}. Will be None if there are no detections in multiple filters. */
-            mean_color?: unknown;
+            mean_color?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Modified Julian date of the brightest recorded observation, in any filter. */
             peak_mjd_global?: number | null;
             /** @description Modified Julian date of the brightest recorded observation, in each filter. */
-            peak_mjd_per_filter?: unknown;
+            peak_mjd_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Brightest recorded apparent magnitude, in any filter. Will be None if no points are detections. */
             peak_mag_global?: number | null;
             /** @description Brightest recorded apparent magnitude in each filter. Will be None if no points are detections. */
-            peak_mag_per_filter?: unknown;
+            peak_mag_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Faintest recorded apparent magnitude (not including non-detections), in any filter. Will be None if no points are detections. */
             faintest_mag_global?: number | null;
             /** @description Faintest recorded apparent magnitude (not including non-detections), in each filter. */
-            faintest_mag_per_filter?: unknown;
+            faintest_mag_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Deepest recorded limiting magnitude for non-detections, using any filter. Will be None if all photometry points are detections. */
             deepest_limit_global?: number | null;
             /** @description Deepest recorded limiting magnitude for non-detections in each filter. Will be None if all photometry points are detections. */
-            deepest_limit_per_filter?: unknown;
+            deepest_limit_per_filter?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Rate of change in magnitude (in magnitudes per day) measured from the first detection to the peak magnitude. Peak magnitude is chosen using the same filter as the first detection. Will be None if no points are detections or if the first detection is also the peak. */
             rise_rate?: number | null;
             /** @description Rate of change in magnitude (in magnitudes per day) measured from the the peak magnitude to the last detection. Peak magnitude is chosen using the same filter as the last detection. Will be None if no points are detections or if the last detection is also the peak. */
@@ -31657,7 +31808,9 @@ export interface components {
             /** @description Average variability of the magnitude measurements for all filters. */
             mag_rms_global?: number | null;
             /** @description Average variability of the magnitude, keyed to the name of each filter. Will be None if no points are detections. */
-            mag_rms_per_filter?: unknown;
+            mag_rms_per_filter?: {
+                [key: string]: unknown;
+            } | null;
         };
         SinglePhotStatNoID: {
             /** @enum {string} */
@@ -31673,15 +31826,15 @@ export interface components {
         };
         PhotometricSeries: {
             /** @description The photometric series' Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
-            readonly streams?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly streams?: components["schemas"]["Stream"][];
             /** @description Instrument that took this photometric series. */
-            readonly instrument?: unknown;
-            readonly followup_request?: unknown;
-            readonly assignment?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly followup_request?: components["schemas"]["FollowupRequest"];
+            readonly assignment?: components["schemas"]["ClassicalAssignment"];
             /** @description The User who uploaded the photometric series. */
-            readonly owner?: unknown;
+            readonly owner?: components["schemas"]["User"];
             /** @description ID of the photometric series' Obj. */
             obj_id: string;
             /** @description Unique identifier of the series of images out of which the photometry is generated. E.g., the TESS sector number. */
@@ -31690,7 +31843,7 @@ export interface components {
             series_obj_id: string;
             /**
              * @description Filter with which the observation was taken.
-             * @enum {unknown}
+             * @enum {string}
              */
             filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti";
             /** @description Name of channel of the photometric series. */
@@ -31723,7 +31876,7 @@ export interface components {
             num_exp: number;
             /**
              * @description When in each exposure is the mjd timestamp measured: start, middle, or end.
-             * @enum {unknown}
+             * @enum {string}
              */
             time_stamp_alignment?: "start" | "middle" | "end";
             /** @description Uncertainty of ra position [arcsec] */
@@ -31737,7 +31890,9 @@ export interface components {
             /** @description Uncertainty on the reference flux. */
             ref_fluxerr?: number | null;
             /** @description Arbitrary metadata in JSON format. */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description ID of the Instrument that took this photometric series. */
             instrument_id: number;
             followup_request_id?: number | null;
@@ -31759,13 +31914,21 @@ export interface components {
             /** @description Lowest signal to noise ratio among all measurements. */
             worst_snr?: number | null;
             /** @description Summary statistics on this series. The nanmedian value of each column in data. */
-            medians?: unknown;
+            medians?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Summary statistics on this series. The nanmax value of each column in data. */
-            maxima?: unknown;
+            maxima?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Summary statistics on this series. The nanmin value of each column in data. */
-            minima?: unknown;
+            minima?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Summary statistics on this series. The nanstd value of each column in data. */
-            stds?: unknown;
+            stds?: {
+                [key: string]: unknown;
+            } | null;
             /** @description MD5sum hash of the data to be saved to file. Prevents duplications. */
             hash: string;
             /** @description Whether the data file should be automatically deleted from disk when this row is deleted from database. */
@@ -31789,15 +31952,15 @@ export interface components {
         };
         PhotometricSeriesNoID: {
             /** @description The photometric series' Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
-            readonly streams?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly streams?: components["schemas"]["Stream"][];
             /** @description Instrument that took this photometric series. */
-            readonly instrument?: unknown;
-            readonly followup_request?: unknown;
-            readonly assignment?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly followup_request?: components["schemas"]["FollowupRequest"];
+            readonly assignment?: components["schemas"]["ClassicalAssignment"];
             /** @description The User who uploaded the photometric series. */
-            readonly owner?: unknown;
+            readonly owner?: components["schemas"]["User"];
             /** @description ID of the photometric series' Obj. */
             obj_id: string;
             /** @description Unique identifier of the series of images out of which the photometry is generated. E.g., the TESS sector number. */
@@ -31806,7 +31969,7 @@ export interface components {
             series_obj_id: string;
             /**
              * @description Filter with which the observation was taken.
-             * @enum {unknown}
+             * @enum {string}
              */
             filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti";
             /** @description Name of channel of the photometric series. */
@@ -31839,7 +32002,7 @@ export interface components {
             num_exp: number;
             /**
              * @description When in each exposure is the mjd timestamp measured: start, middle, or end.
-             * @enum {unknown}
+             * @enum {string}
              */
             time_stamp_alignment?: "start" | "middle" | "end";
             /** @description Uncertainty of ra position [arcsec] */
@@ -31853,7 +32016,9 @@ export interface components {
             /** @description Uncertainty on the reference flux. */
             ref_fluxerr?: number | null;
             /** @description Arbitrary metadata in JSON format. */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description ID of the Instrument that took this photometric series. */
             instrument_id: number;
             followup_request_id?: number | null;
@@ -31873,13 +32038,21 @@ export interface components {
             /** @description Lowest signal to noise ratio among all measurements. */
             worst_snr?: number | null;
             /** @description Summary statistics on this series. The nanmedian value of each column in data. */
-            medians?: unknown;
+            medians?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Summary statistics on this series. The nanmax value of each column in data. */
-            maxima?: unknown;
+            maxima?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Summary statistics on this series. The nanmin value of each column in data. */
-            minima?: unknown;
+            minima?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Summary statistics on this series. The nanstd value of each column in data. */
-            stds?: unknown;
+            stds?: {
+                [key: string]: unknown;
+            } | null;
             /** @description MD5sum hash of the data to be saved to file. Prevents duplications. */
             hash: string;
             /** @description Whether the data file should be automatically deleted from disk when this row is deleted from database. */
@@ -31901,17 +32074,17 @@ export interface components {
         };
         Photometry: {
             /** @description The Photometry's Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
-            readonly streams?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly streams?: components["schemas"]["Stream"][];
             /** @description Instrument that took this Photometry. */
-            readonly instrument?: unknown;
-            readonly followup_request?: unknown;
-            readonly assignment?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly followup_request?: components["schemas"]["FollowupRequest"];
+            readonly assignment?: components["schemas"]["ClassicalAssignment"];
             /** @description The User who uploaded the photometry. */
-            readonly owner?: unknown;
-            readonly annotations?: unknown[];
-            readonly validations?: unknown[];
+            readonly owner?: components["schemas"]["User"];
+            readonly annotations?: components["schemas"]["AnnotationOnPhotometry"][];
+            readonly validations?: components["schemas"]["PhotometryValidation"][];
             /** @description MJD of the observation. */
             mjd: number;
             /** @description Flux of the observation in µJy. Corresponds to an AB Zeropoint of 23.9 in all filters. */
@@ -31920,7 +32093,7 @@ export interface components {
             fluxerr: number;
             /**
              * @description Filter with which the observation was taken.
-             * @enum {unknown}
+             * @enum {string}
              */
             filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti";
             /** @description Uncertainty of ra position [arcsec] */
@@ -31932,9 +32105,13 @@ export interface components {
             /** @description Uncertainty on the reference flux. */
             ref_fluxerr?: number | null;
             /** @description Original data passed by the user through the PhotometryHandler.POST API or the PhotometryHandler.PUT API. The schema of this JSON validates under either schema.PhotometryFlux or schema.PhotometryMag (depending on how the data was passed). */
-            original_user_data?: unknown;
+            original_user_data?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Arbitrary metadata in JSON format.. */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description ID of the batch in which this Photometry was uploaded (for bulk deletes). */
             upload_id?: string;
             /** @description Origin from which this Photometry was extracted (if any). */
@@ -31990,7 +32167,7 @@ export interface components {
              * @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None.
              * @default null
              */
-            origin: unknown;
+            origin: string | null;
             /**
              * @description ICRS Right Ascension of the centroid of the photometric aperture [deg].
              * @default null
@@ -32032,21 +32209,12 @@ export interface components {
             fluxerr: number;
             /** @description Magnitude zeropoint, given by `ZP` in the equation m = -2.5 log10(flux) + `ZP`. m is the magnitude of the object in the magnitude system `magsys`. */
             zp: number;
-            /**
-             * @description Flux of the reference image in counts. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed if no reference is given.
-             * @default null
-             */
-            ref_flux: unknown;
-            /**
-             * @description Gaussian error on the reference flux in counts. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            ref_fluxerr: unknown;
-            /**
-             * @description Magnitude zeropoint of the reference image, given by `ZP` in the equation m = -2.5 log10(flux) + `ZP`. m is the magnitude of the object in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values assume the standard zero point of 23.9.
-             * @default null
-             */
-            ref_zp: unknown;
+            /** @description Flux of the reference image in counts. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed if no reference is given. */
+            ref_flux?: number | number[];
+            /** @description Gaussian error on the reference flux in counts. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            ref_fluxerr?: number | number[];
+            /** @description Magnitude zeropoint of the reference image, given by `ZP` in the equation m = -2.5 log10(flux) + `ZP`. m is the magnitude of the object in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values assume the standard zero point of 23.9. */
+            ref_zp?: number | number[];
         };
         SinglePhotometryFlux: {
             /** @enum {string} */
@@ -32086,7 +32254,7 @@ export interface components {
              * @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None.
              * @default null
              */
-            origin: unknown;
+            origin: string | null;
             /**
              * @description ICRS Right Ascension of the centroid of the photometric aperture [deg].
              * @default null
@@ -32131,16 +32299,10 @@ export interface components {
             magerr: number | null;
             /** @description Limiting magnitude of the image in the magnitude system `magsys`. */
             limiting_mag: number;
-            /**
-             * @description Magnitude of the reference image. in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed if no reference is given.
-             * @default null
-             */
-            magref: unknown;
-            /**
-             * @description Gaussian error on the reference magnitude. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed.
-             * @default null
-             */
-            e_magref: unknown;
+            /** @description Magnitude of the reference image. in the magnitude system `magsys`. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed if no reference is given. */
+            magref?: number | number[];
+            /** @description Gaussian error on the reference magnitude. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values allowed. */
+            e_magref?: number | number[];
         };
         SinglePhotometryMag: {
             /** @enum {string} */
@@ -32156,17 +32318,17 @@ export interface components {
         };
         PhotometryNoID: {
             /** @description The Photometry's Obj. */
-            readonly obj?: unknown;
-            readonly groups?: unknown[];
-            readonly streams?: unknown[];
+            readonly obj?: components["schemas"]["Obj"];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly streams?: components["schemas"]["Stream"][];
             /** @description Instrument that took this Photometry. */
-            readonly instrument?: unknown;
-            readonly followup_request?: unknown;
-            readonly assignment?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly followup_request?: components["schemas"]["FollowupRequest"];
+            readonly assignment?: components["schemas"]["ClassicalAssignment"];
             /** @description The User who uploaded the photometry. */
-            readonly owner?: unknown;
-            readonly annotations?: unknown[];
-            readonly validations?: unknown[];
+            readonly owner?: components["schemas"]["User"];
+            readonly annotations?: components["schemas"]["AnnotationOnPhotometry"][];
+            readonly validations?: components["schemas"]["PhotometryValidation"][];
             /** @description MJD of the observation. */
             mjd: number;
             /** @description Flux of the observation in µJy. Corresponds to an AB Zeropoint of 23.9 in all filters. */
@@ -32175,7 +32337,7 @@ export interface components {
             fluxerr: number;
             /**
              * @description Filter with which the observation was taken.
-             * @enum {unknown}
+             * @enum {string}
              */
             filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti";
             /** @description Uncertainty of ra position [arcsec] */
@@ -32187,9 +32349,13 @@ export interface components {
             /** @description Uncertainty on the reference flux. */
             ref_fluxerr?: number | null;
             /** @description Original data passed by the user through the PhotometryHandler.POST API or the PhotometryHandler.PUT API. The schema of this JSON validates under either schema.PhotometryFlux or schema.PhotometryMag (depending on how the data was passed). */
-            original_user_data?: unknown;
+            original_user_data?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Arbitrary metadata in JSON format.. */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description ID of the batch in which this Photometry was uploaded (for bulk deletes). */
             upload_id?: string;
             /** @description Origin from which this Photometry was extracted (if any). */
@@ -32248,7 +32414,7 @@ export interface components {
         };
         PhotometryValidation: {
             /** @description The Photometry referred to by this validation. */
-            readonly photometry?: unknown;
+            readonly photometry?: components["schemas"]["Photometry"];
             /** @description ID of the Annotation's Photometry. */
             photometry_id: number;
             /** @description If True, the photometry is confirmed to be valid. If False, the photometry is deemed unreliable.If undefined, the photometry is not yet validated or deemed unreliable. */
@@ -32276,7 +32442,7 @@ export interface components {
         };
         PhotometryValidationNoID: {
             /** @description The Photometry referred to by this validation. */
-            readonly photometry?: unknown;
+            readonly photometry?: components["schemas"]["Photometry"];
             /** @description ID of the Annotation's Photometry. */
             photometry_id: number;
             /** @description If True, the photometry is confirmed to be valid. If False, the photometry is deemed unreliable.If undefined, the photometry is not yet validated or deemed unreliable. */
@@ -32302,9 +32468,9 @@ export interface components {
         };
         PlannedObservation: {
             /** @description The EventObservationPlan that this planned observation belongs to */
-            readonly observation_plan?: unknown;
-            readonly instrument?: unknown;
-            readonly field?: unknown;
+            readonly observation_plan?: components["schemas"]["EventObservationPlan"];
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly field?: components["schemas"]["InstrumentField"];
             /** @description Event observation plan ID */
             observation_plan_id: number;
             /** @description Instrument ID */
@@ -32348,9 +32514,9 @@ export interface components {
         };
         PlannedObservationNoID: {
             /** @description The EventObservationPlan that this planned observation belongs to */
-            readonly observation_plan?: unknown;
-            readonly instrument?: unknown;
-            readonly field?: unknown;
+            readonly observation_plan?: components["schemas"]["EventObservationPlan"];
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly field?: components["schemas"]["InstrumentField"];
             /** @description Event observation plan ID */
             observation_plan_id: number;
             /** @description Instrument ID */
@@ -32391,8 +32557,8 @@ export interface components {
             data?: components["schemas"]["PlannedObservationNoID"][];
         };
         PublicRelease: {
-            readonly groups?: unknown[];
-            readonly source_pages?: unknown[];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly source_pages?: components["schemas"]["PublicSourcePage"][];
             id?: number;
             /** @description Name of the public release */
             name: string;
@@ -32405,7 +32571,9 @@ export interface components {
             /** @description Whether the source page from the same group should be automatically published in this release */
             auto_publish_enabled?: boolean;
             /** @description Default options for the public source of the release */
-            options: unknown;
+            options: {
+                [key: string]: unknown;
+            };
         };
         SinglePublicRelease: {
             /** @enum {string} */
@@ -32420,8 +32588,8 @@ export interface components {
             data?: components["schemas"]["PublicRelease"][];
         };
         PublicReleaseNoID: {
-            readonly groups?: unknown[];
-            readonly source_pages?: unknown[];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly source_pages?: components["schemas"]["PublicSourcePage"][];
             /** @description Name of the public release */
             name: string;
             /** @description Name of the public release to be used in URLs */
@@ -32433,7 +32601,9 @@ export interface components {
             /** @description Whether the source page from the same group should be automatically published in this release */
             auto_publish_enabled?: boolean;
             /** @description Default options for the public source of the release */
-            options: unknown;
+            options: {
+                [key: string]: unknown;
+            };
         };
         SinglePublicReleaseNoID: {
             /** @enum {string} */
@@ -32449,12 +32619,14 @@ export interface components {
         };
         PublicSourcePage: {
             /** @description The release associated with this source page */
-            readonly release?: unknown;
+            readonly release?: components["schemas"]["PublicRelease"];
             id?: number;
             /** @description ID of the source */
             source_id: string;
             /** @description Source data accessible on the page */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             /** @description Hash of the source data used to identify the page version */
             hash: string;
             /** @description Whether the page was automatically published */
@@ -32478,11 +32650,13 @@ export interface components {
         };
         PublicSourcePageNoID: {
             /** @description The release associated with this source page */
-            readonly release?: unknown;
+            readonly release?: components["schemas"]["PublicRelease"];
             /** @description ID of the source */
             source_id: string;
             /** @description Source data accessible on the page */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             /** @description Hash of the source data used to identify the page version */
             hash: string;
             /** @description Whether the page was automatically published */
@@ -32506,8 +32680,8 @@ export interface components {
         };
         QueuedObservation: {
             /** @description The Instrument that executed the observation. */
-            readonly instrument?: unknown;
-            readonly field?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly field?: components["schemas"]["InstrumentField"];
             /** @description Instrument ID */
             instrument_id: number;
             /** @description Field ID */
@@ -32550,8 +32724,8 @@ export interface components {
         };
         QueuedObservationNoID: {
             /** @description The Instrument that executed the observation. */
-            readonly instrument?: unknown;
-            readonly field?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly field?: components["schemas"]["InstrumentField"];
             /** @description Instrument ID */
             instrument_id: number;
             /** @description Field ID */
@@ -32592,13 +32766,15 @@ export interface components {
         };
         RecurringAPI: {
             /** @description The User that made the Recurring API call. */
-            readonly owner?: unknown;
+            readonly owner?: components["schemas"]["User"];
             /** @description The ID of the User that made the Recurring API call. */
             owner_id?: number | null;
             /** @description The endpoint of the API call. */
             endpoint: string;
             /** @description API call data in JSON format. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The HTTP method of the API call. */
             method: string;
             /**
@@ -32629,11 +32805,13 @@ export interface components {
         };
         RecurringAPINoID: {
             /** @description The User that made the Recurring API call. */
-            readonly owner?: unknown;
+            readonly owner?: components["schemas"]["User"];
             /** @description The endpoint of the API call. */
             endpoint: string;
             /** @description API call data in JSON format. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The HTTP method of the API call. */
             method: string;
             /**
@@ -32662,10 +32840,10 @@ export interface components {
         };
         Reminder: {
             /** @description The Reminder's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description Reminder's user. */
-            readonly user?: unknown;
-            readonly groups?: unknown[];
+            readonly user?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Reminder's Obj. */
             obj_id: string;
             /** @description Unique object identifier. */
@@ -32702,10 +32880,10 @@ export interface components {
         };
         ReminderNoID: {
             /** @description The Reminder's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description Reminder's user. */
-            readonly user?: unknown;
-            readonly groups?: unknown[];
+            readonly user?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Reminder's Obj. */
             obj_id: string;
             /** @description Reminder body. */
@@ -32740,10 +32918,10 @@ export interface components {
         };
         ReminderOnEarthquake: {
             /** @description The Earthquake referred to by this reminder. */
-            readonly earthquake?: unknown;
+            readonly earthquake?: components["schemas"]["EarthquakeEvent"];
             /** @description Reminder's user. */
-            readonly user?: unknown;
-            readonly groups?: unknown[];
+            readonly user?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Reminder's Earthquake. */
             earthquake_id: number;
             /** @description Unique object identifier. */
@@ -32780,10 +32958,10 @@ export interface components {
         };
         ReminderOnEarthquakeNoID: {
             /** @description The Earthquake referred to by this reminder. */
-            readonly earthquake?: unknown;
+            readonly earthquake?: components["schemas"]["EarthquakeEvent"];
             /** @description Reminder's user. */
-            readonly user?: unknown;
-            readonly groups?: unknown[];
+            readonly user?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Reminder's Earthquake. */
             earthquake_id: number;
             /** @description Reminder body. */
@@ -32818,10 +32996,10 @@ export interface components {
         };
         ReminderOnGCN: {
             /** @description The GcnEvent referred to by this reminder. */
-            readonly gcn?: unknown;
+            readonly gcn?: components["schemas"]["GcnEvent"];
             /** @description Reminder's user. */
-            readonly user?: unknown;
-            readonly groups?: unknown[];
+            readonly user?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Reminder's GCN. */
             gcn_id: number;
             /** @description Unique object identifier. */
@@ -32858,10 +33036,10 @@ export interface components {
         };
         ReminderOnGCNNoID: {
             /** @description The GcnEvent referred to by this reminder. */
-            readonly gcn?: unknown;
+            readonly gcn?: components["schemas"]["GcnEvent"];
             /** @description Reminder's user. */
-            readonly user?: unknown;
-            readonly groups?: unknown[];
+            readonly user?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Reminder's GCN. */
             gcn_id: number;
             /** @description Reminder body. */
@@ -32896,10 +33074,10 @@ export interface components {
         };
         ReminderOnShift: {
             /** @description The Shift referred to by this reminder. */
-            readonly shift?: unknown;
+            readonly shift?: components["schemas"]["Shift"];
             /** @description Reminder's user. */
-            readonly user?: unknown;
-            readonly groups?: unknown[];
+            readonly user?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Reminder's Shift. */
             shift_id: number;
             /** @description Unique object identifier. */
@@ -32936,10 +33114,10 @@ export interface components {
         };
         ReminderOnShiftNoID: {
             /** @description The Shift referred to by this reminder. */
-            readonly shift?: unknown;
+            readonly shift?: components["schemas"]["Shift"];
             /** @description Reminder's user. */
-            readonly user?: unknown;
-            readonly groups?: unknown[];
+            readonly user?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Reminder's Shift. */
             shift_id: number;
             /** @description Reminder body. */
@@ -32974,12 +33152,12 @@ export interface components {
         };
         ReminderOnSpectrum: {
             /** @description The Reminder's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The Spectrum referred to by this reminder. */
-            readonly spectrum?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
             /** @description Reminder's user. */
-            readonly user?: unknown;
-            readonly groups?: unknown[];
+            readonly user?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Reminder's Obj. */
             obj_id: string;
             /** @description ID of the Reminder's Spectrum. */
@@ -33018,12 +33196,12 @@ export interface components {
         };
         ReminderOnSpectrumNoID: {
             /** @description The Reminder's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The Spectrum referred to by this reminder. */
-            readonly spectrum?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
             /** @description Reminder's user. */
-            readonly user?: unknown;
-            readonly groups?: unknown[];
+            readonly user?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the Reminder's Obj. */
             obj_id: string;
             /** @description ID of the Reminder's Spectrum. */
@@ -33079,8 +33257,8 @@ export interface components {
             data?: components["schemas"]["Response"][];
         };
         Role: {
-            readonly acls?: unknown[];
-            readonly users?: unknown[];
+            readonly acls?: components["schemas"]["ACL"][];
+            readonly users?: components["schemas"]["User"][];
             /** @description Role name. */
             id: string;
         };
@@ -33097,8 +33275,8 @@ export interface components {
             data?: components["schemas"]["Role"][];
         };
         RoleACL: {
-            readonly role?: unknown;
-            readonly acl?: unknown;
+            readonly role?: components["schemas"]["Role"];
+            readonly acl?: components["schemas"]["ACL"];
             /** @description Unique object identifier. */
             id?: number;
             role_id: string;
@@ -33117,8 +33295,8 @@ export interface components {
             data?: components["schemas"]["RoleACL"][];
         };
         RoleACLNoID: {
-            readonly role?: unknown;
-            readonly acl?: unknown;
+            readonly role?: components["schemas"]["Role"];
+            readonly acl?: components["schemas"]["ACL"];
             role_id: string;
             acl_id: string;
         };
@@ -33135,8 +33313,8 @@ export interface components {
             data?: components["schemas"]["RoleACLNoID"][];
         };
         RoleNoID: {
-            readonly acls?: unknown[];
-            readonly users?: unknown[];
+            readonly acls?: components["schemas"]["ACL"][];
+            readonly users?: components["schemas"]["User"][];
         };
         SingleRoleNoID: {
             /** @enum {string} */
@@ -33152,13 +33330,15 @@ export interface components {
         };
         ScanReport: {
             /** @description The User that created this report */
-            readonly author?: unknown;
-            readonly items?: unknown[];
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly items?: components["schemas"]["ScanReportItem"][];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the user that created this report */
             author_id: number;
             /** @description Options used to create this report */
-            options: unknown;
+            options: {
+                [key: string]: unknown;
+            };
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -33175,13 +33355,15 @@ export interface components {
             data?: components["schemas"]["ScanReport"][];
         };
         ScanReportItem: {
-            readonly scan_report?: unknown;
+            readonly scan_report?: components["schemas"]["ScanReport"];
             /** @description ID of the Object associated with the candidate */
             obj_id: string;
             /** @description ID of the report where the saved candidate is listed */
             scan_report_id: number;
             /** @description Source data of the candidate when the report was generated */
-            data?: unknown;
+            data?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -33198,13 +33380,15 @@ export interface components {
             data?: components["schemas"]["ScanReportItem"][];
         };
         ScanReportItemNoID: {
-            readonly scan_report?: unknown;
+            readonly scan_report?: components["schemas"]["ScanReport"];
             /** @description ID of the Object associated with the candidate */
             obj_id: string;
             /** @description ID of the report where the saved candidate is listed */
             scan_report_id: number;
             /** @description Source data of the candidate when the report was generated */
-            data?: unknown;
+            data?: {
+                [key: string]: unknown;
+            } | null;
         };
         SingleScanReportItemNoID: {
             /** @enum {string} */
@@ -33220,13 +33404,15 @@ export interface components {
         };
         ScanReportNoID: {
             /** @description The User that created this report */
-            readonly author?: unknown;
-            readonly items?: unknown[];
-            readonly groups?: unknown[];
+            readonly author?: components["schemas"]["User"];
+            readonly items?: components["schemas"]["ScanReportItem"][];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the user that created this report */
             author_id: number;
             /** @description Options used to create this report */
-            options: unknown;
+            options: {
+                [key: string]: unknown;
+            };
         };
         SingleScanReportNoID: {
             /** @enum {string} */
@@ -33241,11 +33427,11 @@ export interface components {
             data?: components["schemas"]["ScanReportNoID"][];
         };
         SharingService: {
-            readonly instruments?: unknown[];
-            readonly streams?: unknown[];
-            readonly groups?: unknown[];
-            readonly coauthors?: unknown[];
-            readonly submissions?: unknown[];
+            readonly instruments?: components["schemas"]["Instrument"][];
+            readonly streams?: components["schemas"]["Stream"][];
+            readonly groups?: components["schemas"]["SharingServiceGroup"][];
+            readonly coauthors?: components["schemas"]["SharingServiceCoauthor"][];
+            readonly submissions?: components["schemas"]["SharingServiceSubmission"][];
             /** @description Sharing service name. */
             name: string;
             /** @description Acknowledgments to use for sharing. */
@@ -33253,7 +33439,9 @@ export interface components {
             /** @description If true, nothing will be shared but the request's payload will be stored */
             testing?: boolean;
             /** @description Photometry options to use to make some data optional or mandatory for manual and auto-publishing. */
-            photometry_options?: unknown;
+            photometry_options?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Whether to enable publishing to Hermes or not. */
             enable_sharing_with_hermes?: boolean;
             /** @description Whether to enable publishing to TNS or not. */
@@ -33284,7 +33472,7 @@ export interface components {
         };
         SharingServiceCoauthor: {
             /** @description The sharing service associated with this coauthor. */
-            readonly sharing_service?: unknown;
+            readonly sharing_service?: components["schemas"]["SharingService"];
             sharing_service_id: number;
             user_id: number;
             /** @description Unique object identifier. */
@@ -33304,7 +33492,7 @@ export interface components {
         };
         SharingServiceCoauthorNoID: {
             /** @description The sharing service associated with this coauthor. */
-            readonly sharing_service?: unknown;
+            readonly sharing_service?: components["schemas"]["SharingService"];
             sharing_service_id: number;
             user_id: number;
         };
@@ -33322,10 +33510,10 @@ export interface components {
         };
         SharingServiceGroup: {
             /** @description The sharing service associated with this group. */
-            readonly sharing_service?: unknown;
+            readonly sharing_service?: components["schemas"]["SharingService"];
             /** @description The Group associated with this mapper. */
-            readonly group?: unknown;
-            readonly auto_publishers?: unknown[];
+            readonly group?: components["schemas"]["Group"];
+            readonly auto_publishers?: components["schemas"]["SharingServiceGroupAutoPublisher"][];
             sharing_service_id: number;
             group_id: number;
             owner?: boolean;
@@ -33349,7 +33537,7 @@ export interface components {
         };
         SharingServiceGroupAutoPublisher: {
             /** @description The sharing service associated with this auto publisher. */
-            readonly sharing_service_groups?: unknown;
+            readonly sharing_service_groups?: components["schemas"]["SharingServiceGroup"];
             sharing_service_group_id: number;
             group_user_id: number;
             /** @description Unique object identifier. */
@@ -33370,7 +33558,7 @@ export interface components {
         };
         SharingServiceGroupAutoPublisherNoID: {
             /** @description The sharing service associated with this auto publisher. */
-            readonly sharing_service_groups?: unknown;
+            readonly sharing_service_groups?: components["schemas"]["SharingServiceGroup"];
             sharing_service_group_id: number;
             group_user_id: number;
             readonly user_id?: number;
@@ -33389,10 +33577,10 @@ export interface components {
         };
         SharingServiceGroupNoID: {
             /** @description The sharing service associated with this group. */
-            readonly sharing_service?: unknown;
+            readonly sharing_service?: components["schemas"]["SharingService"];
             /** @description The Group associated with this mapper. */
-            readonly group?: unknown;
-            readonly auto_publishers?: unknown[];
+            readonly group?: components["schemas"]["Group"];
+            readonly auto_publishers?: components["schemas"]["SharingServiceGroupAutoPublisher"][];
             sharing_service_id: number;
             group_id: number;
             owner?: boolean;
@@ -33413,11 +33601,11 @@ export interface components {
             data?: components["schemas"]["SharingServiceGroupNoID"][];
         };
         SharingServiceNoID: {
-            readonly instruments?: unknown[];
-            readonly streams?: unknown[];
-            readonly groups?: unknown[];
-            readonly coauthors?: unknown[];
-            readonly submissions?: unknown[];
+            readonly instruments?: components["schemas"]["Instrument"][];
+            readonly streams?: components["schemas"]["Stream"][];
+            readonly groups?: components["schemas"]["SharingServiceGroup"][];
+            readonly coauthors?: components["schemas"]["SharingServiceCoauthor"][];
+            readonly submissions?: components["schemas"]["SharingServiceSubmission"][];
             /** @description Sharing service name. */
             name: string;
             /** @description Acknowledgments to use for sharing. */
@@ -33425,7 +33613,9 @@ export interface components {
             /** @description If true, nothing will be shared but the request's payload will be stored */
             testing?: boolean;
             /** @description Photometry options to use to make some data optional or mandatory for manual and auto-publishing. */
-            photometry_options?: unknown;
+            photometry_options?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Whether to enable publishing to Hermes or not. */
             enable_sharing_with_hermes?: boolean;
             /** @description Whether to enable publishing to TNS or not. */
@@ -33454,11 +33644,11 @@ export interface components {
         };
         SharingServiceSubmission: {
             /** @description The sharing service associated with this submission. */
-            readonly sharing_service?: unknown;
+            readonly sharing_service?: components["schemas"]["SharingService"];
             /** @description The Obj submitted. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The User who submitted this object. */
-            readonly user?: unknown;
+            readonly user?: components["schemas"]["User"];
             sharing_service_id: number;
             obj_id: string;
             user_id: number;
@@ -33473,15 +33663,21 @@ export interface components {
             /** @description ID of the submission returned by TNS. */
             tns_submission_id?: number | null;
             /** @description Serialized HTTP response from TNS. */
-            tns_response?: unknown;
+            tns_response?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Payload to publish to TNS. */
-            tns_payload?: unknown;
+            tns_payload?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Whether to publish to Hermes or not. */
             publish_to_hermes?: boolean;
             /** @description Status of the Hermes submission. */
             hermes_status?: string | null;
             /** @description Serialized HTTP response from Hermes. */
-            hermes_response?: unknown;
+            hermes_response?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Whether this is an archival submission or not. */
             archival?: boolean;
             /** @description Comment to use for archival submission. */
@@ -33493,7 +33689,9 @@ export interface components {
             /** @description Stream IDs to use for this submission. If specified, overrides the sharing service's default stream IDs. */
             stream_ids?: number[] | null;
             /** @description Photometry options to use for this submission, to make some data optional or mandatory.If specified, overrides the sharing service's default photometry options. */
-            photometry_options?: unknown;
+            photometry_options?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -33511,11 +33709,11 @@ export interface components {
         };
         SharingServiceSubmissionNoID: {
             /** @description The sharing service associated with this submission. */
-            readonly sharing_service?: unknown;
+            readonly sharing_service?: components["schemas"]["SharingService"];
             /** @description The Obj submitted. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The User who submitted this object. */
-            readonly user?: unknown;
+            readonly user?: components["schemas"]["User"];
             sharing_service_id: number;
             obj_id: string;
             user_id: number;
@@ -33530,15 +33728,21 @@ export interface components {
             /** @description ID of the submission returned by TNS. */
             tns_submission_id?: number | null;
             /** @description Serialized HTTP response from TNS. */
-            tns_response?: unknown;
+            tns_response?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Payload to publish to TNS. */
-            tns_payload?: unknown;
+            tns_payload?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Whether to publish to Hermes or not. */
             publish_to_hermes?: boolean;
             /** @description Status of the Hermes submission. */
             hermes_status?: string | null;
             /** @description Serialized HTTP response from Hermes. */
-            hermes_response?: unknown;
+            hermes_response?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Whether this is an archival submission or not. */
             archival?: boolean;
             /** @description Comment to use for archival submission. */
@@ -33550,7 +33754,9 @@ export interface components {
             /** @description Stream IDs to use for this submission. If specified, overrides the sharing service's default stream IDs. */
             stream_ids?: number[] | null;
             /** @description Photometry options to use for this submission, to make some data optional or mandatory.If specified, overrides the sharing service's default photometry options. */
-            photometry_options?: unknown;
+            photometry_options?: {
+                [key: string]: unknown;
+            } | null;
         };
         SingleSharingServiceSubmissionNoID: {
             /** @enum {string} */
@@ -33566,11 +33772,11 @@ export interface components {
         };
         Shift: {
             /** @description The Shift's Group. */
-            readonly group?: unknown;
-            readonly users?: unknown[];
-            readonly shift_users?: unknown[];
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
+            readonly group?: components["schemas"]["Group"];
+            readonly users?: components["schemas"]["User"][];
+            readonly shift_users?: components["schemas"]["ShiftUser"][];
+            readonly comments?: components["schemas"]["CommentOnShift"][];
+            readonly reminders?: components["schemas"]["ReminderOnShift"][];
             /** @description Name of the shift. */
             name?: string | null;
             /** @description Longer description of the shift. */
@@ -33607,11 +33813,11 @@ export interface components {
         };
         ShiftNoID: {
             /** @description The Shift's Group. */
-            readonly group?: unknown;
-            readonly users?: unknown[];
-            readonly shift_users?: unknown[];
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
+            readonly group?: components["schemas"]["Group"];
+            readonly users?: components["schemas"]["User"][];
+            readonly shift_users?: components["schemas"]["ShiftUser"][];
+            readonly comments?: components["schemas"]["CommentOnShift"][];
+            readonly reminders?: components["schemas"]["ReminderOnShift"][];
             /** @description Name of the shift. */
             name?: string | null;
             /** @description Longer description of the shift. */
@@ -33645,8 +33851,8 @@ export interface components {
             data?: components["schemas"]["ShiftNoID"][];
         };
         ShiftUser: {
-            readonly shift?: unknown;
-            readonly user?: unknown;
+            readonly shift?: components["schemas"]["Shift"];
+            readonly user?: components["schemas"]["User"];
             /** @description Unique object identifier. */
             id?: number;
             shift_id: number;
@@ -33669,8 +33875,8 @@ export interface components {
             data?: components["schemas"]["ShiftUser"][];
         };
         ShiftUserNoID: {
-            readonly shift?: unknown;
-            readonly user?: unknown;
+            readonly shift?: components["schemas"]["Shift"];
+            readonly user?: components["schemas"]["User"];
             shift_id: number;
             user_id: number;
             /** @description Boolean flag indicating whether the User is an admin of the shift. */
@@ -33692,9 +33898,9 @@ export interface components {
         };
         SourceLabel: {
             /** @description The User that labelled this source. */
-            readonly labeller?: unknown;
+            readonly labeller?: components["schemas"]["User"];
             /** @description The Group the label is associated with. */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description Object ID for which the labelling was registered. */
             obj_id: string;
             /** @description ID of the User that made this SourceLabel */
@@ -33718,9 +33924,9 @@ export interface components {
         };
         SourceLabelNoID: {
             /** @description The User that labelled this source. */
-            readonly labeller?: unknown;
+            readonly labeller?: components["schemas"]["User"];
             /** @description The Group the label is associated with. */
-            readonly group?: unknown;
+            readonly group?: components["schemas"]["Group"];
             /** @description Object ID for which the labelling was registered. */
             obj_id: string;
             /** @description ID of the User that made this SourceLabel */
@@ -33741,11 +33947,11 @@ export interface components {
             data?: components["schemas"]["SourceLabelNoID"][];
         };
         SourceNotification: {
-            readonly groups?: unknown[];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The User who sent this notification. */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The target Obj. */
-            readonly source?: unknown;
+            readonly source?: components["schemas"]["Obj"];
             /** @description The ID of the User who sent this notification. */
             sent_by_id: number;
             /** @description ID of the target Obj. */
@@ -33768,11 +33974,11 @@ export interface components {
             data?: components["schemas"]["SourceNotification"][];
         };
         SourceNotificationNoID: {
-            readonly groups?: unknown[];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description The User who sent this notification. */
-            readonly sent_by?: unknown;
+            readonly sent_by?: components["schemas"]["User"];
             /** @description The target Obj. */
-            readonly source?: unknown;
+            readonly source?: components["schemas"]["Obj"];
             /** @description The ID of the User who sent this notification. */
             sent_by_id: number;
             /** @description ID of the target Obj. */
@@ -33836,9 +34042,9 @@ export interface components {
         };
         SourcesConfirmedInGCN: {
             /** @description The assigned Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The User who created this SourcesConfirmedInGCN. */
-            readonly confirmer?: unknown;
+            readonly confirmer?: components["schemas"]["User"];
             /** @description ID of the Obj. */
             obj_id: string;
             /**
@@ -33871,9 +34077,9 @@ export interface components {
         };
         SourcesConfirmedInGCNNoID: {
             /** @description The assigned Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The User who created this SourcesConfirmedInGCN. */
-            readonly confirmer?: unknown;
+            readonly confirmer?: components["schemas"]["User"];
             /** @description ID of the Obj. */
             obj_id: string;
             /**
@@ -33903,7 +34109,7 @@ export interface components {
             data?: components["schemas"]["SourcesConfirmedInGCNNoID"][];
         };
         SpatialCatalog: {
-            readonly entries?: unknown[];
+            readonly entries?: components["schemas"]["SpatialCatalogEntry"][];
             /** @description Name of the catalog. */
             catalog_name: string;
             /** @description Unique object identifier. */
@@ -33923,13 +34129,15 @@ export interface components {
         };
         SpatialCatalogEntry: {
             /** @description The SpatialCatalog that saved this SpatialCatalogEntry belongs to */
-            readonly catalog?: unknown;
+            readonly catalog?: components["schemas"]["SpatialCatalog"];
             /** @description localization ID */
             catalog_id: number;
             /** @description Entry name */
             entry_name: string;
             /** @description Entry initialization properties in JSON format. */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             /** @description Multiresolution HEALPix UNIQ pixel index array */
             uniq: number[];
             /** @description Multiresolution HEALPix probability density array */
@@ -33951,13 +34159,15 @@ export interface components {
         };
         SpatialCatalogEntryNoID: {
             /** @description The SpatialCatalog that saved this SpatialCatalogEntry belongs to */
-            readonly catalog?: unknown;
+            readonly catalog?: components["schemas"]["SpatialCatalog"];
             /** @description localization ID */
             catalog_id: number;
             /** @description Entry name */
             entry_name: string;
             /** @description Entry initialization properties in JSON format. */
-            data: unknown;
+            data: {
+                [key: string]: unknown;
+            };
             /** @description Multiresolution HEALPix UNIQ pixel index array */
             uniq: number[];
             /** @description Multiresolution HEALPix probability density array */
@@ -34014,7 +34224,7 @@ export interface components {
             data?: components["schemas"]["SpatialCatalogEntryTileNoID"][];
         };
         SpatialCatalogNoID: {
-            readonly entries?: unknown[];
+            readonly entries?: components["schemas"]["SpatialCatalogEntry"][];
             /** @description Name of the catalog. */
             catalog_name: string;
         };
@@ -34032,20 +34242,20 @@ export interface components {
         };
         Spectrum: {
             /** @description The Spectrum's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The Instrument that acquired the Spectrum. */
-            readonly instrument?: unknown;
-            readonly groups?: unknown[];
-            readonly pis?: unknown[];
-            readonly reducers?: unknown[];
-            readonly observers?: unknown[];
-            readonly followup_request?: unknown;
-            readonly assignment?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly pis?: components["schemas"]["User"][];
+            readonly reducers?: components["schemas"]["User"][];
+            readonly observers?: components["schemas"]["User"][];
+            readonly followup_request?: components["schemas"]["FollowupRequest"];
+            readonly assignment?: components["schemas"]["ClassicalAssignment"];
             /** @description The User who uploaded the spectrum. */
-            readonly owner?: unknown;
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
-            readonly annotations?: unknown[];
+            readonly owner?: components["schemas"]["User"];
+            readonly comments?: components["schemas"]["CommentOnSpectrum"][];
+            readonly reminders?: components["schemas"]["ReminderOnSpectrum"][];
+            readonly annotations?: components["schemas"]["AnnotationOnSpectrum"][];
             /** @description Wavelengths of the spectrum [Angstrom]. */
             wavelengths: number[];
             /** @description Flux of the Spectrum [F_lambda, arbitrary units]. */
@@ -34066,7 +34276,7 @@ export interface components {
             /**
              * @description Type of spectrum. One of: 'source', 'host', 'host_center'.
              *                     Defaults to 'fsource'.
-             * @enum {unknown}
+             * @enum {string}
              */
             type?: "source" | "host" | "host_center";
             /** @description User defined label (can be used to replace default instrument/date labeling on plot legends). */
@@ -34076,7 +34286,9 @@ export interface components {
             followup_request_id?: number | null;
             assignment_id?: number | null;
             /** @description Miscellaneous alternative metadata. */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Content of original file that was passed to upload the spectrum. */
             original_file_string?: string | null;
             /** @description Original file name that was passed to upload the spectrum. */
@@ -34499,7 +34711,7 @@ export interface components {
              * @description IDs of the Groups to share this spectrum with. Set to "all" to make this spectrum visible to all users.
              * @default []
              */
-            group_ids: unknown;
+            group_ids: number[] | "all";
             /** @description ID of the Followup request that generated this spectrum, if any. */
             followup_request_id?: number;
             /** @description ID of the classical assignment that generated this spectrum, if any. */
@@ -34523,20 +34735,20 @@ export interface components {
         };
         SpectrumNoID: {
             /** @description The Spectrum's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /** @description The Instrument that acquired the Spectrum. */
-            readonly instrument?: unknown;
-            readonly groups?: unknown[];
-            readonly pis?: unknown[];
-            readonly reducers?: unknown[];
-            readonly observers?: unknown[];
-            readonly followup_request?: unknown;
-            readonly assignment?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly pis?: components["schemas"]["User"][];
+            readonly reducers?: components["schemas"]["User"][];
+            readonly observers?: components["schemas"]["User"][];
+            readonly followup_request?: components["schemas"]["FollowupRequest"];
+            readonly assignment?: components["schemas"]["ClassicalAssignment"];
             /** @description The User who uploaded the spectrum. */
-            readonly owner?: unknown;
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
-            readonly annotations?: unknown[];
+            readonly owner?: components["schemas"]["User"];
+            readonly comments?: components["schemas"]["CommentOnSpectrum"][];
+            readonly reminders?: components["schemas"]["ReminderOnSpectrum"][];
+            readonly annotations?: components["schemas"]["AnnotationOnSpectrum"][];
             /** @description Wavelengths of the spectrum [Angstrom]. */
             wavelengths: number[];
             /** @description Flux of the Spectrum [F_lambda, arbitrary units]. */
@@ -34557,7 +34769,7 @@ export interface components {
             /**
              * @description Type of spectrum. One of: 'source', 'host', 'host_center'.
              *                     Defaults to 'fsource'.
-             * @enum {unknown}
+             * @enum {string}
              */
             type?: "source" | "host" | "host_center";
             /** @description User defined label (can be used to replace default instrument/date labeling on plot legends). */
@@ -34567,7 +34779,9 @@ export interface components {
             followup_request_id?: number | null;
             assignment_id?: number | null;
             /** @description Miscellaneous alternative metadata. */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Content of original file that was passed to upload the spectrum. */
             original_file_string?: string | null;
             /** @description Original file name that was passed to upload the spectrum. */
@@ -34586,8 +34800,8 @@ export interface components {
             data?: components["schemas"]["SpectrumNoID"][];
         };
         SpectrumObserver: {
-            readonly spectrum?: unknown;
-            readonly user?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
+            readonly user?: components["schemas"]["User"];
             /** @description Unique object identifier. */
             id?: number;
             spectr_id: number;
@@ -34608,8 +34822,8 @@ export interface components {
             data?: components["schemas"]["SpectrumObserver"][];
         };
         SpectrumObserverNoID: {
-            readonly spectrum?: unknown;
-            readonly user?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
+            readonly user?: components["schemas"]["User"];
             spectr_id: number;
             user_id: number;
             /** @description The actual observer for the spectrum, provided as free text if the observer is not a user in the database. Separate from the point-of-contact user designated as observer */
@@ -34628,8 +34842,8 @@ export interface components {
             data?: components["schemas"]["SpectrumObserverNoID"][];
         };
         SpectrumPI: {
-            readonly spectrum?: unknown;
-            readonly user?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
+            readonly user?: components["schemas"]["User"];
             /** @description Unique object identifier. */
             id?: number;
             spectr_id: number;
@@ -34650,8 +34864,8 @@ export interface components {
             data?: components["schemas"]["SpectrumPI"][];
         };
         SpectrumPINoID: {
-            readonly spectrum?: unknown;
-            readonly user?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
+            readonly user?: components["schemas"]["User"];
             spectr_id: number;
             user_id: number;
             /** @description The actual PI for the spectrum, provided as free text if the PI is not a user in the database. Separate from the point-of-contact user designated as PI */
@@ -34731,7 +34945,7 @@ export interface components {
              * @description IDs of the Groups to share this spectrum with. Set to "all" to make this spectrum visible to all users.
              * @default []
              */
-            group_ids: unknown;
+            group_ids: number[] | "all";
             /** @description ID of the Followup request that generated this spectrum, if any. */
             followup_request_id?: number;
             /** @description ID of the classical assignment that generated this spectrum, if any. */
@@ -34754,8 +34968,8 @@ export interface components {
             data?: components["schemas"]["SpectrumPost"][];
         };
         SpectrumReducer: {
-            readonly spectrum?: unknown;
-            readonly user?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
+            readonly user?: components["schemas"]["User"];
             /** @description Unique object identifier. */
             id?: number;
             spectr_id: number;
@@ -34776,8 +34990,8 @@ export interface components {
             data?: components["schemas"]["SpectrumReducer"][];
         };
         SpectrumReducerNoID: {
-            readonly spectrum?: unknown;
-            readonly user?: unknown;
+            readonly spectrum?: components["schemas"]["Spectrum"];
+            readonly user?: components["schemas"]["User"];
             spectr_id: number;
             user_id: number;
             /** @description The actual reducer for the spectrum, provided as free text if the reducer is not a user in the database. Separate from the point-of-contact user designated as reducer */
@@ -34796,16 +35010,18 @@ export interface components {
             data?: components["schemas"]["SpectrumReducerNoID"][];
         };
         Stream: {
-            readonly groups?: unknown[];
-            readonly users?: unknown[];
-            readonly filters?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly sharing_services?: unknown[];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly users?: components["schemas"]["User"][];
+            readonly filters?: components["schemas"]["Filter"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly sharing_services?: components["schemas"]["SharingService"][];
             /** @description Stream name. */
             name: string;
             /** @description Misc. metadata stored in JSON format, e.g. `{'collection': 'ZTF_alerts', selector: [1, 2]}` */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -34822,8 +35038,8 @@ export interface components {
             data?: components["schemas"]["Stream"][];
         };
         StreamInvitation: {
-            readonly stream?: unknown;
-            readonly invitation?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
+            readonly invitation?: components["schemas"]["Invitation"];
             /** @description Unique object identifier. */
             id?: number;
             stream_id: number;
@@ -34842,8 +35058,8 @@ export interface components {
             data?: components["schemas"]["StreamInvitation"][];
         };
         StreamInvitationNoID: {
-            readonly stream?: unknown;
-            readonly invitation?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
+            readonly invitation?: components["schemas"]["Invitation"];
             stream_id: number;
             invitation_id: number;
         };
@@ -34860,16 +35076,18 @@ export interface components {
             data?: components["schemas"]["StreamInvitationNoID"][];
         };
         StreamNoID: {
-            readonly groups?: unknown[];
-            readonly users?: unknown[];
-            readonly filters?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly sharing_services?: unknown[];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly users?: components["schemas"]["User"][];
+            readonly filters?: components["schemas"]["Filter"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly sharing_services?: components["schemas"]["SharingService"][];
             /** @description Stream name. */
             name: string;
             /** @description Misc. metadata stored in JSON format, e.g. `{'collection': 'ZTF_alerts', selector: [1, 2]}` */
-            altdata?: unknown;
+            altdata?: {
+                [key: string]: unknown;
+            } | null;
         };
         SingleStreamNoID: {
             /** @enum {string} */
@@ -34884,8 +35102,8 @@ export interface components {
             data?: components["schemas"]["StreamNoID"][];
         };
         StreamPhotometricSeries: {
-            readonly stream?: unknown;
-            readonly photometricseries?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
+            readonly photometricseries?: components["schemas"]["PhotometricSeries"];
             /** @description Unique object identifier. */
             id?: number;
             stream_id: number;
@@ -34904,8 +35122,8 @@ export interface components {
             data?: components["schemas"]["StreamPhotometricSeries"][];
         };
         StreamPhotometricSeriesNoID: {
-            readonly stream?: unknown;
-            readonly photometricseries?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
+            readonly photometricseries?: components["schemas"]["PhotometricSeries"];
             stream_id: number;
             photometric_serie_id: number;
         };
@@ -34922,8 +35140,8 @@ export interface components {
             data?: components["schemas"]["StreamPhotometricSeriesNoID"][];
         };
         StreamPhotometry: {
-            readonly stream?: unknown;
-            readonly photometry?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
+            readonly photometry?: components["schemas"]["Photometry"];
             /** @description Unique object identifier. */
             id?: number;
             stream_id: number;
@@ -34942,8 +35160,8 @@ export interface components {
             data?: components["schemas"]["StreamPhotometry"][];
         };
         StreamPhotometryNoID: {
-            readonly stream?: unknown;
-            readonly photometry?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
+            readonly photometry?: components["schemas"]["Photometry"];
             stream_id: number;
             photometr_id: number;
         };
@@ -34960,8 +35178,8 @@ export interface components {
             data?: components["schemas"]["StreamPhotometryNoID"][];
         };
         StreamSharingService: {
-            readonly stream?: unknown;
-            readonly sharingservice?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
+            readonly sharingservice?: components["schemas"]["SharingService"];
             /** @description Unique object identifier. */
             id?: number;
             stream_id: number;
@@ -34980,8 +35198,8 @@ export interface components {
             data?: components["schemas"]["StreamSharingService"][];
         };
         StreamSharingServiceNoID: {
-            readonly stream?: unknown;
-            readonly sharingservice?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
+            readonly sharingservice?: components["schemas"]["SharingService"];
             stream_id: number;
             sharing_service_id: number;
         };
@@ -34998,8 +35216,8 @@ export interface components {
             data?: components["schemas"]["StreamSharingServiceNoID"][];
         };
         StreamUser: {
-            readonly stream?: unknown;
-            readonly user?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
+            readonly user?: components["schemas"]["User"];
             /** @description Unique object identifier. */
             id?: number;
             stream_id: number;
@@ -35018,8 +35236,8 @@ export interface components {
             data?: components["schemas"]["StreamUser"][];
         };
         StreamUserNoID: {
-            readonly stream?: unknown;
-            readonly user?: unknown;
+            readonly stream?: components["schemas"]["Stream"];
+            readonly user?: components["schemas"]["User"];
             stream_id: number;
             user_id: number;
         };
@@ -35036,7 +35254,7 @@ export interface components {
             data?: components["schemas"]["StreamUserNoID"][];
         };
         SuperObj: {
-            readonly objs?: unknown[];
+            readonly objs?: components["schemas"]["Obj"][];
             /** @description Name of the super-object (e.g., its AT name from the Transient Name Server). */
             name?: string | null;
             /** @description Boolean indicating whether the super-object is a moving object. */
@@ -35057,7 +35275,7 @@ export interface components {
             data?: components["schemas"]["SuperObj"][];
         };
         SuperObjNoID: {
-            readonly objs?: unknown[];
+            readonly objs?: components["schemas"]["Obj"][];
             /** @description Name of the super-object (e.g., its AT name from the Transient Name Server). */
             name?: string | null;
             /** @description Boolean indicating whether the super-object is a moving object. */
@@ -35077,20 +35295,24 @@ export interface components {
         };
         SurveyEfficiencyForObservationPlan: {
             /** @description The EventObservationPlan that this survey efficiency analysis belongs to */
-            readonly observation_plan?: unknown;
+            readonly observation_plan?: components["schemas"]["EventObservationPlan"];
             /** @description SurveyEfficiencyAnalysis's requester. */
-            readonly requester?: unknown;
-            readonly groups?: unknown[];
+            readonly requester?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description Event observation plan ID */
             observation_plan_id: number;
             /** @description Unique object identifier. */
             id?: number;
             /** @description Content of the survey efficiency assessment request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The status of the request. */
             status?: string;
             /** @description Simulated light curve dictionary */
-            lightcurves?: unknown;
+            lightcurves?: {
+                [key: string]: unknown;
+            } | null;
             /** @description ID of the SurveyEfficiencyAnalysis requester's User instance. */
             requester_id: number;
         };
@@ -35108,18 +35330,22 @@ export interface components {
         };
         SurveyEfficiencyForObservationPlanNoID: {
             /** @description The EventObservationPlan that this survey efficiency analysis belongs to */
-            readonly observation_plan?: unknown;
+            readonly observation_plan?: components["schemas"]["EventObservationPlan"];
             /** @description SurveyEfficiencyAnalysis's requester. */
-            readonly requester?: unknown;
-            readonly groups?: unknown[];
+            readonly requester?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description Event observation plan ID */
             observation_plan_id: number;
             /** @description Content of the survey efficiency assessment request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The status of the request. */
             status?: string;
             /** @description Simulated light curve dictionary */
-            lightcurves?: unknown;
+            lightcurves?: {
+                [key: string]: unknown;
+            } | null;
             /** @description ID of the SurveyEfficiencyAnalysis requester's User instance. */
             requester_id: number;
         };
@@ -35137,14 +35363,14 @@ export interface components {
         };
         SurveyEfficiencyForObservations: {
             /** @description The target GcnEvent. */
-            readonly gcnevent?: unknown;
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The target Localization. */
-            readonly localization?: unknown;
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The Instrument that this efficiency analysis belongs to */
-            readonly instrument?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
             /** @description SurveyEfficiencyAnalysis's requester. */
-            readonly requester?: unknown;
-            readonly groups?: unknown[];
+            readonly requester?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the target GcnEvent. */
             gcnevent_id: number;
             /** @description ID of the target Localization. */
@@ -35154,11 +35380,15 @@ export interface components {
             /** @description Unique object identifier. */
             id?: number;
             /** @description Content of the survey efficiency assessment request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The status of the request. */
             status?: string;
             /** @description Simulated light curve dictionary */
-            lightcurves?: unknown;
+            lightcurves?: {
+                [key: string]: unknown;
+            } | null;
             /** @description ID of the SurveyEfficiencyAnalysis requester's User instance. */
             requester_id: number;
         };
@@ -35176,14 +35406,14 @@ export interface components {
         };
         SurveyEfficiencyForObservationsNoID: {
             /** @description The target GcnEvent. */
-            readonly gcnevent?: unknown;
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
             /** @description The target Localization. */
-            readonly localization?: unknown;
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The Instrument that this efficiency analysis belongs to */
-            readonly instrument?: unknown;
+            readonly instrument?: components["schemas"]["Instrument"];
             /** @description SurveyEfficiencyAnalysis's requester. */
-            readonly requester?: unknown;
-            readonly groups?: unknown[];
+            readonly requester?: components["schemas"]["User"];
+            readonly groups?: components["schemas"]["Group"][];
             /** @description ID of the target GcnEvent. */
             gcnevent_id: number;
             /** @description ID of the target Localization. */
@@ -35191,11 +35421,15 @@ export interface components {
             /** @description Instrument ID */
             instrument_id: number;
             /** @description Content of the survey efficiency assessment request. */
-            payload: unknown;
+            payload: {
+                [key: string]: unknown;
+            };
             /** @description The status of the request. */
             status?: string;
             /** @description Simulated light curve dictionary */
-            lightcurves?: unknown;
+            lightcurves?: {
+                [key: string]: unknown;
+            } | null;
             /** @description ID of the SurveyEfficiencyAnalysis requester's User instance. */
             requester_id: number;
         };
@@ -35212,12 +35446,14 @@ export interface components {
             data?: components["schemas"]["SurveyEfficiencyForObservationsNoID"][];
         };
         Taxonomy: {
-            readonly groups?: unknown[];
-            readonly classifications?: unknown[];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly classifications?: components["schemas"]["Classification"][];
             /** @description Short string to make this taxonomy memorable to end users. */
             name: string;
             /** @description Nested JSON describing the taxonomy which should be validated against a schema before entry. */
-            hierarchy: unknown;
+            hierarchy: {
+                [key: string]: unknown;
+            };
             /** @description Identifier (e.g., URL or git hash) that uniquely ties this taxonomy back to an origin or place of record. */
             provenance?: string | null;
             /** @description Semantic version of this taxonomy */
@@ -35240,12 +35476,14 @@ export interface components {
             data?: components["schemas"]["Taxonomy"][];
         };
         TaxonomyNoID: {
-            readonly groups?: unknown[];
-            readonly classifications?: unknown[];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly classifications?: components["schemas"]["Classification"][];
             /** @description Short string to make this taxonomy memorable to end users. */
             name: string;
             /** @description Nested JSON describing the taxonomy which should be validated against a schema before entry. */
-            hierarchy: unknown;
+            hierarchy: {
+                [key: string]: unknown;
+            };
             /** @description Identifier (e.g., URL or git hash) that uniquely ties this taxonomy back to an origin or place of record. */
             provenance?: string | null;
             /** @description Semantic version of this taxonomy */
@@ -35266,7 +35504,7 @@ export interface components {
             data?: components["schemas"]["TaxonomyNoID"][];
         };
         Telescope: {
-            readonly instruments?: unknown[];
+            readonly instruments?: components["schemas"]["Instrument"][];
             /** @description Unabbreviated facility name (e.g., Palomar 200-inch Hale Telescope). */
             name: string;
             /** @description Abbreviated facility name (e.g., P200). */
@@ -35303,7 +35541,7 @@ export interface components {
             data?: components["schemas"]["Telescope"][];
         };
         TelescopeNoID: {
-            readonly instruments?: unknown[];
+            readonly instruments?: components["schemas"]["Instrument"][];
             /** @description Unabbreviated facility name (e.g., Palomar 200-inch Hale Telescope). */
             name: string;
             /** @description Abbreviated facility name (e.g., P200). */
@@ -35339,10 +35577,10 @@ export interface components {
         };
         Thumbnail: {
             /** @description The Thumbnail's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /**
              * @description Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)
-             * @enum {unknown|null}
+             * @enum {string|null}
              */
             type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "new_gz" | "ref_gz" | "sub_gz" | null;
             /** @description Path of the Thumbnail on the machine running SkyPortal. */
@@ -35372,10 +35610,10 @@ export interface components {
         };
         ThumbnailNoID: {
             /** @description The Thumbnail's Obj. */
-            readonly obj?: unknown;
+            readonly obj?: components["schemas"]["Obj"];
             /**
              * @description Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)
-             * @enum {unknown|null}
+             * @enum {string|null}
              */
             type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "new_gz" | "ref_gz" | "sub_gz" | null;
             /** @description Path of the Thumbnail on the machine running SkyPortal. */
@@ -35403,8 +35641,8 @@ export interface components {
         };
         Token: {
             /** @description The User that created the token. */
-            readonly created_by?: unknown;
-            readonly acls?: unknown[];
+            readonly created_by?: components["schemas"]["User"];
+            readonly acls?: components["schemas"]["ACL"][];
             /** @description The value of the token. This field is used for authenticating as a User on the command line. */
             id?: string;
             /** @description The ID of the User that created the Token. */
@@ -35425,8 +35663,8 @@ export interface components {
             data?: components["schemas"]["Token"][];
         };
         TokenACL: {
-            readonly token?: unknown;
-            readonly acl?: unknown;
+            readonly token?: components["schemas"]["Token"];
+            readonly acl?: components["schemas"]["ACL"];
             /** @description Unique object identifier. */
             id?: number;
             token_id: string;
@@ -35445,8 +35683,8 @@ export interface components {
             data?: components["schemas"]["TokenACL"][];
         };
         TokenACLNoID: {
-            readonly token?: unknown;
-            readonly acl?: unknown;
+            readonly token?: components["schemas"]["Token"];
+            readonly acl?: components["schemas"]["ACL"];
             token_id: string;
             acl_id: string;
         };
@@ -35464,8 +35702,8 @@ export interface components {
         };
         TokenNoID: {
             /** @description The User that created the token. */
-            readonly created_by?: unknown;
-            readonly acls?: unknown[];
+            readonly created_by?: components["schemas"]["User"];
+            readonly acls?: components["schemas"]["ACL"][];
             /** @description The ID of the User that created the Token. */
             created_by_id?: number | null;
             /** @description The name of the token. */
@@ -35484,9 +35722,9 @@ export interface components {
             data?: components["schemas"]["TokenNoID"][];
         };
         User: {
-            readonly roles?: unknown[];
-            readonly tokens?: unknown[];
-            readonly acls?: unknown[];
+            readonly roles?: components["schemas"]["Role"][];
+            readonly tokens?: components["schemas"]["Token"][];
+            readonly acls?: components["schemas"]["ACL"][];
             /** @description The user's username. */
             username: string;
             /** @description The User's first name. */
@@ -35504,7 +35742,9 @@ export interface components {
             /** @description The user's OAuth UID. */
             oauth_uid?: string | null;
             /** @description The user's application settings. */
-            preferences?: unknown;
+            preferences?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Whether or not the user account should be flagged as a bot account. */
             is_bot?: boolean;
             /**
@@ -35514,61 +35754,61 @@ export interface components {
             expiration_date?: string | null;
             /** @description Unique object identifier. */
             id?: number;
-            readonly group_admission_requests?: unknown[];
-            readonly streams?: unknown[];
-            readonly groups?: unknown[];
-            readonly shifts?: unknown[];
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
-            readonly annotations?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly spectra?: unknown[];
-            readonly mmadetector_spectra?: unknown[];
-            readonly mmadetector_time_intervals?: unknown[];
-            readonly comments_on_spectra?: unknown[];
-            readonly reminders_on_spectra?: unknown[];
-            readonly annotations_on_spectra?: unknown[];
-            readonly annotations_on_photometry?: unknown[];
-            readonly comments_on_gcns?: unknown[];
-            readonly reminders_on_gcns?: unknown[];
-            readonly comments_on_earthquakes?: unknown[];
-            readonly reminders_on_earthquakes?: unknown[];
-            readonly default_observationplan_requests?: unknown[];
-            readonly default_gcntags?: unknown[];
-            readonly catalog_queries?: unknown[];
-            readonly comments_on_shifts?: unknown[];
-            readonly reminders_on_shifts?: unknown[];
-            readonly followup_requests?: unknown[];
-            readonly default_followup_requests?: unknown[];
-            readonly observationplan_requests?: unknown[];
-            readonly survey_efficiency_for_observations?: unknown[];
-            readonly survey_efficiency_for_observation_plan?: unknown[];
-            readonly transactions?: unknown[];
-            readonly transaction_requests?: unknown[];
-            readonly assignments?: unknown[];
-            readonly recurring_apis?: unknown[];
-            readonly gcnevents?: unknown[];
-            readonly gcnnotices?: unknown[];
-            readonly gcnreports?: unknown[];
-            readonly gcnsummaries?: unknown[];
-            readonly gcntags?: unknown[];
-            readonly gcnproperties?: unknown[];
-            readonly earthquakeevents?: unknown[];
-            readonly earthquakenotices?: unknown[];
-            readonly listings?: unknown[];
-            readonly localizations?: unknown[];
-            readonly localizationtags?: unknown[];
-            readonly localizationproperties?: unknown[];
-            readonly notifications?: unknown[];
-            readonly observing_runs?: unknown[];
-            readonly sources_in_gcn?: unknown[];
-            readonly photometryvalidations?: unknown[];
-            readonly source_notifications?: unknown[];
-            readonly sources?: unknown[];
-            readonly sharing_service_submissions?: unknown[];
-            readonly social_auth?: unknown[];
-            readonly saved_sources?: unknown[];
+            readonly group_admission_requests?: components["schemas"]["GroupAdmissionRequest"][];
+            readonly streams?: components["schemas"]["Stream"][];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly shifts?: components["schemas"]["Shift"][];
+            readonly comments?: components["schemas"]["Comment"][];
+            readonly reminders?: components["schemas"]["Reminder"][];
+            readonly annotations?: components["schemas"]["Annotation"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly mmadetector_spectra?: components["schemas"]["MMADetectorSpectrum"][];
+            readonly mmadetector_time_intervals?: components["schemas"]["MMADetectorTimeInterval"][];
+            readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
+            readonly reminders_on_spectra?: components["schemas"]["ReminderOnSpectrum"][];
+            readonly annotations_on_spectra?: components["schemas"]["AnnotationOnSpectrum"][];
+            readonly annotations_on_photometry?: components["schemas"]["AnnotationOnPhotometry"][];
+            readonly comments_on_gcns?: components["schemas"]["CommentOnGCN"][];
+            readonly reminders_on_gcns?: components["schemas"]["ReminderOnGCN"][];
+            readonly comments_on_earthquakes?: components["schemas"]["CommentOnEarthquake"][];
+            readonly reminders_on_earthquakes?: components["schemas"]["ReminderOnEarthquake"][];
+            readonly default_observationplan_requests?: components["schemas"]["DefaultObservationPlanRequest"][];
+            readonly default_gcntags?: components["schemas"]["DefaultGcnTag"][];
+            readonly catalog_queries?: components["schemas"]["CatalogQuery"][];
+            readonly comments_on_shifts?: components["schemas"]["CommentOnShift"][];
+            readonly reminders_on_shifts?: components["schemas"]["ReminderOnShift"][];
+            readonly followup_requests?: components["schemas"]["FollowupRequest"][];
+            readonly default_followup_requests?: components["schemas"]["DefaultFollowupRequest"][];
+            readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
+            readonly survey_efficiency_for_observations?: components["schemas"]["SurveyEfficiencyForObservations"][];
+            readonly survey_efficiency_for_observation_plan?: components["schemas"]["SurveyEfficiencyForObservationPlan"][];
+            readonly transactions?: components["schemas"]["FacilityTransaction"][];
+            readonly transaction_requests?: components["schemas"]["FacilityTransactionRequest"][];
+            readonly assignments?: components["schemas"]["ClassicalAssignment"][];
+            readonly recurring_apis?: components["schemas"]["RecurringAPI"][];
+            readonly gcnevents?: components["schemas"]["GcnEvent"][];
+            readonly gcnnotices?: components["schemas"]["GcnNotice"][];
+            readonly gcnreports?: components["schemas"]["GcnReport"][];
+            readonly gcnsummaries?: components["schemas"]["GcnSummary"][];
+            readonly gcntags?: components["schemas"]["GcnTag"][];
+            readonly gcnproperties?: components["schemas"]["GcnProperty"][];
+            readonly earthquakeevents?: components["schemas"]["EarthquakeEvent"][];
+            readonly earthquakenotices?: components["schemas"]["EarthquakeNotice"][];
+            readonly listings?: components["schemas"]["Listing"][];
+            readonly localizations?: components["schemas"]["Localization"][];
+            readonly localizationtags?: components["schemas"]["LocalizationTag"][];
+            readonly localizationproperties?: components["schemas"]["LocalizationProperty"][];
+            readonly notifications?: components["schemas"]["UserNotification"][];
+            readonly observing_runs?: components["schemas"]["ObservingRun"][];
+            readonly sources_in_gcn?: components["schemas"]["SourcesConfirmedInGCN"][];
+            readonly photometryvalidations?: components["schemas"]["PhotometryValidation"][];
+            readonly source_notifications?: components["schemas"]["SourceNotification"][];
+            readonly sources?: components["schemas"]["Obj"][];
+            readonly sharing_service_submissions?: components["schemas"]["SharingServiceSubmission"][];
+            readonly social_auth?: components["schemas"]["UserSocialAuth"][];
+            readonly saved_sources?: components["schemas"]["GroupObj"][];
         };
         SingleUser: {
             /** @enum {string} */
@@ -35583,8 +35823,8 @@ export interface components {
             data?: components["schemas"]["User"][];
         };
         UserACL: {
-            readonly user?: unknown;
-            readonly acl?: unknown;
+            readonly user?: components["schemas"]["User"];
+            readonly acl?: components["schemas"]["ACL"];
             /** @description Unique object identifier. */
             id?: number;
             user_id: number;
@@ -35603,8 +35843,8 @@ export interface components {
             data?: components["schemas"]["UserACL"][];
         };
         UserACLNoID: {
-            readonly user?: unknown;
-            readonly acl?: unknown;
+            readonly user?: components["schemas"]["User"];
+            readonly acl?: components["schemas"]["ACL"];
             user_id: number;
             acl_id: string;
         };
@@ -35621,8 +35861,8 @@ export interface components {
             data?: components["schemas"]["UserACLNoID"][];
         };
         UserInvitation: {
-            readonly user?: unknown;
-            readonly invitation?: unknown;
+            readonly user?: components["schemas"]["User"];
+            readonly invitation?: components["schemas"]["Invitation"];
             /** @description Unique object identifier. */
             id?: number;
             user_id: number;
@@ -35641,8 +35881,8 @@ export interface components {
             data?: components["schemas"]["UserInvitation"][];
         };
         UserInvitationNoID: {
-            readonly user?: unknown;
-            readonly invitation?: unknown;
+            readonly user?: components["schemas"]["User"];
+            readonly invitation?: components["schemas"]["Invitation"];
             user_id: number;
             invitation_id: number;
         };
@@ -35659,9 +35899,9 @@ export interface components {
             data?: components["schemas"]["UserInvitationNoID"][];
         };
         UserNoID: {
-            readonly roles?: unknown[];
-            readonly tokens?: unknown[];
-            readonly acls?: unknown[];
+            readonly roles?: components["schemas"]["Role"][];
+            readonly tokens?: components["schemas"]["Token"][];
+            readonly acls?: components["schemas"]["ACL"][];
             /** @description The user's username. */
             username: string;
             /** @description The User's first name. */
@@ -35679,7 +35919,9 @@ export interface components {
             /** @description The user's OAuth UID. */
             oauth_uid?: string | null;
             /** @description The user's application settings. */
-            preferences?: unknown;
+            preferences?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Whether or not the user account should be flagged as a bot account. */
             is_bot?: boolean;
             /**
@@ -35687,61 +35929,61 @@ export interface components {
              * @description The date until which the user's account is valid. Users are set to view-only upon expiration.
              */
             expiration_date?: string | null;
-            readonly group_admission_requests?: unknown[];
-            readonly streams?: unknown[];
-            readonly groups?: unknown[];
-            readonly shifts?: unknown[];
-            readonly comments?: unknown[];
-            readonly reminders?: unknown[];
-            readonly annotations?: unknown[];
-            readonly photometry?: unknown[];
-            readonly photometric_series?: unknown[];
-            readonly spectra?: unknown[];
-            readonly mmadetector_spectra?: unknown[];
-            readonly mmadetector_time_intervals?: unknown[];
-            readonly comments_on_spectra?: unknown[];
-            readonly reminders_on_spectra?: unknown[];
-            readonly annotations_on_spectra?: unknown[];
-            readonly annotations_on_photometry?: unknown[];
-            readonly comments_on_gcns?: unknown[];
-            readonly reminders_on_gcns?: unknown[];
-            readonly comments_on_earthquakes?: unknown[];
-            readonly reminders_on_earthquakes?: unknown[];
-            readonly default_observationplan_requests?: unknown[];
-            readonly default_gcntags?: unknown[];
-            readonly catalog_queries?: unknown[];
-            readonly comments_on_shifts?: unknown[];
-            readonly reminders_on_shifts?: unknown[];
-            readonly followup_requests?: unknown[];
-            readonly default_followup_requests?: unknown[];
-            readonly observationplan_requests?: unknown[];
-            readonly survey_efficiency_for_observations?: unknown[];
-            readonly survey_efficiency_for_observation_plan?: unknown[];
-            readonly transactions?: unknown[];
-            readonly transaction_requests?: unknown[];
-            readonly assignments?: unknown[];
-            readonly recurring_apis?: unknown[];
-            readonly gcnevents?: unknown[];
-            readonly gcnnotices?: unknown[];
-            readonly gcnreports?: unknown[];
-            readonly gcnsummaries?: unknown[];
-            readonly gcntags?: unknown[];
-            readonly gcnproperties?: unknown[];
-            readonly earthquakeevents?: unknown[];
-            readonly earthquakenotices?: unknown[];
-            readonly listings?: unknown[];
-            readonly localizations?: unknown[];
-            readonly localizationtags?: unknown[];
-            readonly localizationproperties?: unknown[];
-            readonly notifications?: unknown[];
-            readonly observing_runs?: unknown[];
-            readonly sources_in_gcn?: unknown[];
-            readonly photometryvalidations?: unknown[];
-            readonly source_notifications?: unknown[];
-            readonly sources?: unknown[];
-            readonly sharing_service_submissions?: unknown[];
-            readonly social_auth?: unknown[];
-            readonly saved_sources?: unknown[];
+            readonly group_admission_requests?: components["schemas"]["GroupAdmissionRequest"][];
+            readonly streams?: components["schemas"]["Stream"][];
+            readonly groups?: components["schemas"]["Group"][];
+            readonly shifts?: components["schemas"]["Shift"][];
+            readonly comments?: components["schemas"]["Comment"][];
+            readonly reminders?: components["schemas"]["Reminder"][];
+            readonly annotations?: components["schemas"]["Annotation"][];
+            readonly photometry?: components["schemas"]["Photometry"][];
+            readonly photometric_series?: components["schemas"]["PhotometricSeries"][];
+            readonly spectra?: components["schemas"]["Spectrum"][];
+            readonly mmadetector_spectra?: components["schemas"]["MMADetectorSpectrum"][];
+            readonly mmadetector_time_intervals?: components["schemas"]["MMADetectorTimeInterval"][];
+            readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
+            readonly reminders_on_spectra?: components["schemas"]["ReminderOnSpectrum"][];
+            readonly annotations_on_spectra?: components["schemas"]["AnnotationOnSpectrum"][];
+            readonly annotations_on_photometry?: components["schemas"]["AnnotationOnPhotometry"][];
+            readonly comments_on_gcns?: components["schemas"]["CommentOnGCN"][];
+            readonly reminders_on_gcns?: components["schemas"]["ReminderOnGCN"][];
+            readonly comments_on_earthquakes?: components["schemas"]["CommentOnEarthquake"][];
+            readonly reminders_on_earthquakes?: components["schemas"]["ReminderOnEarthquake"][];
+            readonly default_observationplan_requests?: components["schemas"]["DefaultObservationPlanRequest"][];
+            readonly default_gcntags?: components["schemas"]["DefaultGcnTag"][];
+            readonly catalog_queries?: components["schemas"]["CatalogQuery"][];
+            readonly comments_on_shifts?: components["schemas"]["CommentOnShift"][];
+            readonly reminders_on_shifts?: components["schemas"]["ReminderOnShift"][];
+            readonly followup_requests?: components["schemas"]["FollowupRequest"][];
+            readonly default_followup_requests?: components["schemas"]["DefaultFollowupRequest"][];
+            readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
+            readonly survey_efficiency_for_observations?: components["schemas"]["SurveyEfficiencyForObservations"][];
+            readonly survey_efficiency_for_observation_plan?: components["schemas"]["SurveyEfficiencyForObservationPlan"][];
+            readonly transactions?: components["schemas"]["FacilityTransaction"][];
+            readonly transaction_requests?: components["schemas"]["FacilityTransactionRequest"][];
+            readonly assignments?: components["schemas"]["ClassicalAssignment"][];
+            readonly recurring_apis?: components["schemas"]["RecurringAPI"][];
+            readonly gcnevents?: components["schemas"]["GcnEvent"][];
+            readonly gcnnotices?: components["schemas"]["GcnNotice"][];
+            readonly gcnreports?: components["schemas"]["GcnReport"][];
+            readonly gcnsummaries?: components["schemas"]["GcnSummary"][];
+            readonly gcntags?: components["schemas"]["GcnTag"][];
+            readonly gcnproperties?: components["schemas"]["GcnProperty"][];
+            readonly earthquakeevents?: components["schemas"]["EarthquakeEvent"][];
+            readonly earthquakenotices?: components["schemas"]["EarthquakeNotice"][];
+            readonly listings?: components["schemas"]["Listing"][];
+            readonly localizations?: components["schemas"]["Localization"][];
+            readonly localizationtags?: components["schemas"]["LocalizationTag"][];
+            readonly localizationproperties?: components["schemas"]["LocalizationProperty"][];
+            readonly notifications?: components["schemas"]["UserNotification"][];
+            readonly observing_runs?: components["schemas"]["ObservingRun"][];
+            readonly sources_in_gcn?: components["schemas"]["SourcesConfirmedInGCN"][];
+            readonly photometryvalidations?: components["schemas"]["PhotometryValidation"][];
+            readonly source_notifications?: components["schemas"]["SourceNotification"][];
+            readonly sources?: components["schemas"]["Obj"][];
+            readonly sharing_service_submissions?: components["schemas"]["SharingServiceSubmission"][];
+            readonly social_auth?: components["schemas"]["UserSocialAuth"][];
+            readonly saved_sources?: components["schemas"]["GroupObj"][];
         };
         SingleUserNoID: {
             /** @enum {string} */
@@ -35757,7 +35999,7 @@ export interface components {
         };
         UserNotification: {
             /** @description The associated User */
-            readonly user?: unknown;
+            readonly user?: components["schemas"]["User"];
             /** @description ID of the associated User */
             user_id: number;
             /** @description The notification text to display */
@@ -35785,7 +36027,7 @@ export interface components {
         };
         UserNotificationNoID: {
             /** @description The associated User */
-            readonly user?: unknown;
+            readonly user?: components["schemas"]["User"];
             /** @description ID of the associated User */
             user_id: number;
             /** @description The notification text to display */
@@ -35810,8 +36052,8 @@ export interface components {
             data?: components["schemas"]["UserNotificationNoID"][];
         };
         UserRole: {
-            readonly user?: unknown;
-            readonly role?: unknown;
+            readonly user?: components["schemas"]["User"];
+            readonly role?: components["schemas"]["Role"];
             /** @description Unique object identifier. */
             id?: number;
             user_id: number;
@@ -35830,8 +36072,8 @@ export interface components {
             data?: components["schemas"]["UserRole"][];
         };
         UserRoleNoID: {
-            readonly user?: unknown;
-            readonly role?: unknown;
+            readonly user?: components["schemas"]["User"];
+            readonly role?: components["schemas"]["Role"];
             user_id: number;
             role_id: string;
         };
@@ -35848,13 +36090,15 @@ export interface components {
             data?: components["schemas"]["UserRoleNoID"][];
         };
         UserSocialAuth: {
-            readonly user?: unknown;
+            readonly user?: components["schemas"]["User"];
             uid?: string | null;
             user_id: number;
             /** @description Unique object identifier. */
             id?: number;
             provider?: string | null;
-            extra_data?: unknown;
+            extra_data?: {
+                [key: string]: unknown;
+            } | null;
         };
         SingleUserSocialAuth: {
             /** @enum {string} */
@@ -35869,11 +36113,13 @@ export interface components {
             data?: components["schemas"]["UserSocialAuth"][];
         };
         UserSocialAuthNoID: {
-            readonly user?: unknown;
+            readonly user?: components["schemas"]["User"];
             uid?: string | null;
             user_id: number;
             provider?: string | null;
-            extra_data?: unknown;
+            extra_data?: {
+                [key: string]: unknown;
+            } | null;
         };
         SingleUserSocialAuthNoID: {
             /** @enum {string} */
@@ -35889,9 +36135,11 @@ export interface components {
         };
         Weather: {
             /** @description The associated Telescope. */
-            readonly telescope?: unknown;
+            readonly telescope?: components["schemas"]["Telescope"];
             /** @description Latest weather information. */
-            weather_info?: unknown;
+            weather_info?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Format: date-time
              * @description UTC time at which the weather was last retrieved.
@@ -35916,9 +36164,11 @@ export interface components {
         };
         WeatherNoID: {
             /** @description The associated Telescope. */
-            readonly telescope?: unknown;
+            readonly telescope?: components["schemas"]["Telescope"];
             /** @description Latest weather information. */
-            weather_info?: unknown;
+            weather_info?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Format: date-time
              * @description UTC time at which the weather was last retrieved.
@@ -35956,7 +36206,9 @@ export interface components {
             /** @description Unique name of the default follow-up request. */
             default_followup_name: string;
             /** @description Source filter used to decide which saved sources this default follow-up request applies to (keys: name, group_id, origin, classification). */
-            source_filter: unknown;
+            source_filter: {
+                [key: string]: unknown;
+            };
             /** @description If true, the request will not be submitted if the object already has a pending or completed request of the same allocation. */
             not_if_duplicates?: boolean;
             /** @description IDs of groups to which there must be a source for the object for the request to be submitted. */
@@ -35988,7 +36240,9 @@ export interface components {
         };
         DefaultGcnTagPost: {
             /** @description Filters to determine which of the default gcn tags get executed for which events */
-            filters: unknown;
+            filters: {
+                [key: string]: unknown;
+            };
             /** @description Default tag name. */
             default_tag_name: string;
         };
@@ -36046,25 +36300,27 @@ export interface components {
         };
         GcnEventTagPost: {
             /** @description UTC event timestamp */
-            dateobs?: unknown;
+            dateobs?: string;
             /** @description GCN Event tag */
             text?: string;
         };
         GcnEventHandlerGet: {
             /** @description Event tags */
-            tags?: unknown[];
+            tags?: string[];
             /** @description UTC event timestamp */
-            dateobs?: unknown;
+            dateobs?: string;
             /** @description Healpix localizations */
-            localizations?: unknown[];
+            localizations?: {
+                [key: string]: unknown;
+            }[];
             /** @description VOEvent XML notices */
-            notices?: unknown[];
+            notices?: string[];
             /** @description URL for light curve */
             lightcurve?: string;
         };
         GcnHandlerPut: {
             /** @description UTC event timestamp */
-            dateobs?: unknown;
+            dateobs?: string;
             /** @description VOEvent XML content. */
             xml?: string;
             /** @description JSON notice content. */
@@ -36078,7 +36334,9 @@ export interface components {
             /** @description Flattened 2D healpix map */
             flat_2d?: number[];
             /** @description GeoJSON contours of healpix map */
-            contour?: unknown;
+            contour?: {
+                [key: string]: unknown;
+            };
         };
         ObservationHandlerPost: {
             /** @description The telescope name associated with the fields */

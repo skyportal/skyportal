@@ -2277,7 +2277,9 @@ class FollowupRequestSchedulerHandler(BaseHandler):
           name: magnitudeRange
           nullable: True
           schema:
-            type: list
+            type: array
+            items:
+              type: number
           description: |
             lowest and highest magnitude to return, e.g. "(12,9)"
         - in: query

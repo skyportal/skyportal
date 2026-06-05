@@ -599,7 +599,16 @@ misc:
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
   dustmap: sfd
-  dustmap_folder: persistentdata/dustmap
+  # Vendored in the skyportal-data submodule so the SFD maps are present
+  # without a network fetch at startup. obj.py still falls back to fetching
+  # if the files are absent (e.g. submodule not initialized).
+  dustmap_folder: skyportal-data/dustmaps
+
+  # sncosmo cache (bandpasses, SED models, spectra), vendored in the
+  # skyportal-data submodule. Pointing sncosmo here keeps app import off the
+  # flaky SVO Filter Profile Service; any missing bandpass still falls back to
+  # a network fetch into this directory.
+  sncosmo_data_folder: skyportal-data/sncosmo
 
   # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
   # consider a photometry point as a detection

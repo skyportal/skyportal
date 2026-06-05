@@ -448,10 +448,12 @@ GroupUser.delete = (
     (accessible_by_group_admins | AccessibleIfUserMatches("user"))
     & GroupUser.read
     & CustomUserAccessControl(
-        lambda cls, user_or_token: DBSession()
-        .query(cls)
-        .join(Group)
-        .filter(Group.single_user_group.is_(False))
+        lambda cls, user_or_token: (
+            DBSession()
+            .query(cls)
+            .join(Group)
+            .filter(Group.single_user_group.is_(False))
+        )
     )
 )
 

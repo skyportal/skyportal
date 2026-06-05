@@ -355,7 +355,7 @@ class ClassificationHandler(BaseHandler):
                   taxonomy_id:
                     type: integer
                   probability:
-                    type: float
+                    type: number
                     nullable: true
                     minimum: 0.0
                     maximum: 1.0

@@ -54,7 +54,7 @@ class UnsourcedFinderHandler(BaseHandler):
         - in: query
           name: ra
           schema:
-            type: float
+            type: number
             minimum: 0.0
             maximum: 360.0
             exclusiveMaximum: true
@@ -65,7 +65,7 @@ class UnsourcedFinderHandler(BaseHandler):
         - in: query
           name: dec
           schema:
-            type: float
+            type: number
             minimum: -90.0
             maximum: 90.0
             description: |
@@ -75,7 +75,7 @@ class UnsourcedFinderHandler(BaseHandler):
         - in: query
           name: imsize
           schema:
-            type: float
+            type: number
             minimum: 2
             maximum: 15
           description: Image size in arcmin (square). Defaults to 4.0
