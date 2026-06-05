@@ -58,7 +58,7 @@ class PublicReleaseHandler(BaseHandler):
                     group_ids:
                       type: array
                       items:
-                      type: integer
+                        type: integer
                     description:
                       type: string
                     options:

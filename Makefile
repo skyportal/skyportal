@@ -55,6 +55,11 @@ api-docs: | doc_reqs
 	@$(PYTHON) tools/docs/patch-api-doc-template.py $(FLAGS)
 	rm -f openapi.{yml,json}
 
+typegen: ## Generate TS types from the OpenAPI spec into static/js/types/api.ts
+	@$(PYTHON) tools/docs/build-spec.py $(FLAGS)
+	bun x openapi-typescript openapi.json -o static/js/types/api.ts
+	rm -f openapi.{yml,json}
+
 docs: ## Build the SkyPortal docs
 docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; uv run make -C doc html

@@ -190,11 +190,19 @@ class FilterWavelengthHandler(BaseHandler):
             schema:
               type: string
             description: Comma-separated list of filter names (e.g., "g,r,i,z")
-        response:
+        responses:
           200:
             content:
               application/json:
-                schema: ArrayOfWavelengths
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            type: number
         """
         filters = self.get_query_argument("filters", None)
         if not filters:
