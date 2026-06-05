@@ -10,11 +10,11 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: |
-            ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+            ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
-            ${{ runner.os }}-npm-
+            ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+            ${{ runner.os }}-bun-
 
       # caching dustmap & sncosmo files is dependent on their corresponding
       # python package versions, so we use that as the cache key

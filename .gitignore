@@ -20,6 +20,7 @@ node_modules/
 config.yaml
 static/thumbnails
 *.lock
+!bun.lock
 *.dirlock
 package-lock.json
 .jobs_timestamps.yaml

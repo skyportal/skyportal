@@ -98,6 +98,10 @@ jobs:
           node-version: "22.x"
           package-manager-cache: false
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
       - name: Install system dependencies
         run: |
           sudo apt update -y
@@ -117,7 +121,7 @@ jobs:
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
           which python; python --version
-          echo npm $(npm --version)
+          echo bun $(bun --version)
           echo node $(node --version)
           nginx -v
           firefox --version
@@ -191,6 +195,9 @@ jobs:
 
           make db_init
 
+          # Still on MIGRATION_REFERENCE here — predates bun, so npm is what
+          # its package.json declares. The bun-side listing happens after the
+          # branch checkout below.
           npm ls --depth 0
 
           # Stamp Alembic HEAD
@@ -228,7 +235,7 @@ jobs:
       - name: Check for migration branching
         run: |
           # First make sure the dependencies are up-to-date
-          npm i --legacy-peer-deps
+          bun install
           make dependencies
           # Make sure to remove python packages from the reference commit that conflict
           # with the current branch (e.g pinecone-client that has later been renamed to pinecone).
