@@ -36,7 +36,7 @@ class StandardsHandler(BaseHandler):
           nullable: True
           required: false
           schema:
-            type: list
+            type: array
           description: |
             lowest and highest dec to return, e.g. "(-10,30)"
         - in: query
@@ -44,7 +44,7 @@ class StandardsHandler(BaseHandler):
           required: false
           nullable: True
           schema:
-            type: list
+            type: array
           description: |
             lowest and highest ra to return (or wrapped range)
             e.g. "(125,320)" or "(300,10)"

@@ -595,7 +595,7 @@ class AnalysisServiceHandler(BaseHandler):
                         List of input data types that the service requires. Zero to many of:
                         {ANALYSIS_INPUT_TYPES}
                   timeout:
-                    type: float
+                    type: number
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
                   is_summary:
@@ -892,7 +892,7 @@ class AnalysisServiceHandler(BaseHandler):
                         List of input data types that the service requires. Zero to many of:
                         {ANALYSIS_INPUT_TYPES}
                   timeout:
-                    type: float
+                    type: number
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
                   is_summary:
@@ -1062,6 +1062,8 @@ class AnalysisHandler(BaseHandler):
                     description: Whether to render the corner plots of this analysis
                   input_filters:
                     type: array
+                    items:
+                      type: string
                     description: Filters to apply to the input data
                   analysis_parameters:
                     type: object
@@ -1237,7 +1239,7 @@ class AnalysisHandler(BaseHandler):
               name: analysis_id
               required: false
               schema:
-                type: int
+                type: integer
               description: |
                 ID of the analysis to return.
             - in: query
@@ -1251,7 +1253,7 @@ class AnalysisHandler(BaseHandler):
               name: analysisServiceID
               required: false
               schema:
-                type: int
+                type: integer
               description: |
                 ID of the analysis service used to create the analysis, used only if no analysis_id is given
             - in: query

@@ -483,6 +483,12 @@ class UserHandler(BaseHandler):
                     type: array
                     items:
                       type: array
+                      items:
+                        oneOf:
+                          - type: integer
+                          - type: boolean
+                      minItems: 2
+                      maxItems: 2
                     description: |
                       Array of 2-element arrays `[groupID, admin]` where `groupID`
                       is the ID of a group that the new user will be added to and

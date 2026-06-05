@@ -396,7 +396,7 @@ class SpectrumHandler(BaseHandler):
             - in: query
               name: instrumentIDs
               nullable: true
-              type: list
+              type: array
               items:
                 type: integer
               description: |
@@ -405,7 +405,7 @@ class SpectrumHandler(BaseHandler):
               name: groupIDs
               nullable: true
               schema:
-                type: list
+                type: array
                 items:
                   type: integer
               description: |
@@ -414,7 +414,7 @@ class SpectrumHandler(BaseHandler):
               name: followupRequestIDs
               nullable: true
               schema:
-                type: list
+                type: array
                 items:
                   type: integer
               description: |
@@ -424,7 +424,7 @@ class SpectrumHandler(BaseHandler):
               name: assignmentIDs
               nullable: true
               schema:
-                type: list
+                type: array
                 items:
                   type: integer
               description: |
@@ -1736,7 +1736,9 @@ class SyntheticPhotometryHandler(BaseHandler):
           - in: query
             name: filters
             schema:
-              type: list
+              type: array
+              items:
+                type: string
             required: true
             description: |
                 List of filters

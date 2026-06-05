@@ -396,7 +396,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             - in: query
               name: detectorIDs
               nullable: true
-              type: list
+              type: array
               items:
                 type: integer
               description: |
@@ -405,7 +405,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
               name: groupIDs
               nullable: true
               schema:
-                type: list
+                type: array
                 items:
                   type: integer
               description: |
@@ -778,7 +778,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             - in: query
               name: detectorIDs
               nullable: true
-              type: list
+              type: array
               items:
                 type: integer
               description: |
@@ -787,7 +787,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
               name: groupIDs
               nullable: true
               schema:
-                type: list
+                type: array
                 items:
                   type: integer
               description: |

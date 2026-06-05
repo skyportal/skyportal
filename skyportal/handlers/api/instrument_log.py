@@ -64,7 +64,7 @@ class InstrumentLogHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the InstrumentLog
           400:
             content:
