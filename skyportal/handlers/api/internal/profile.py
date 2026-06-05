@@ -153,7 +153,7 @@ class ProfileHandler(BaseHandler):
                     description: |
                       Whether or not the user account should be flagged as a bot account
                   preferences:
-                    schema: UpdateUserPreferencesRequestJSON
+                    type: object
                     description: JSON describing updates to user preferences dict
         responses:
           200:

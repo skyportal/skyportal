@@ -209,7 +209,7 @@ class ScanReportHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: ArrayOfCandidateScanReport
+                schema: ArrayOfScanReports
           400:
             content:
               application/json:

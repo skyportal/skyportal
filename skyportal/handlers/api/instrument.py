@@ -992,73 +992,64 @@ InstrumentHandler.post.__doc__ = f"""
                       default: []
                     sensitivity_data:
                       type: object
-                      properties:
-                        filter_name:
-                          type: object
-                          enum: {list(ALLOWED_BANDPASSES)}
-                          properties:
-                            limiting_magnitude:
-                              type: float
-                            magsys:
-                              type: string
-                            exposure_time:
-                              type: float
-                              description: |
-                                Exposure time in seconds.
+                      additionalProperties:
+                        type: object
+                        properties:
+                          limiting_magnitude:
+                            type: number
+                          magsys:
+                            type: string
+                          exposure_time:
+                            type: number
+                            description: Exposure time in seconds.
                       description: |
-                        List of filters and associated limiting magnitude and exposure time.
+                        Map of filter name to its limiting magnitude and exposure time.
                         Sensitivity_data filters must be a subset of the instrument filters.
                         Limiting magnitude assumed to be AB magnitude.
                     configuration_data:
                       type: object
-                      properties:
-                        filter_name:
-                          type: object
-                          properties:
-                            filt_change_time:
-                              type: float
-                              description: |
-                                Time in seconds to change filters
-                            readout:
-                              type: float
-                              description: |
-                                Time in seconds to readout camera
-                            overhead_per_exposure:
-                              type: float
-                              description: |
-                                Non-readout overheads, e.g. instrument settling times, in seconds.
-                            slew_rate:
-                              type: float
-                              description: |
-                                Slew rate for the telescope in deg/s.
+                      additionalProperties:
+                        type: object
+                        properties:
+                          filt_change_time:
+                            type: number
+                            description: Time in seconds to change filters
+                          readout:
+                            type: number
+                            description: Time in seconds to readout camera
+                          overhead_per_exposure:
+                            type: number
+                            description: |
+                              Non-readout overheads, e.g. instrument settling times, in seconds.
+                          slew_rate:
+                            type: number
+                            description: Slew rate for the telescope in deg/s.
                       description: |
                         Instrument configuration properties such as instrument overhead, filter change time, readout, etc.
                     field_data:
-                      type: dict
-                      items:
-                        type: array
+                      type: object
                       description: |
                         List of ID, RA, and Dec for each field.
                     field_region:
-                      type: str
+                      type: string
                       description: |
                         Serialized version of a regions.Region describing
                         the shape of the instrument field. Note: should
                         only include field_region or field_fov_type.
                     references:
-                      type: dict
-                      items:
-                        type: array
+                      type: object
                       description: |
                         List of filter, and limiting magnitude for each reference.
                     field_fov_type:
-                      type: str
+                      type: string
                       description: |
                         Option for instrument field shape. Must be either
                         circle or rectangle. Note: should only
                         include field_region or field_fov_type.
                     field_fov_attributes:
-                      type: list
+                      type: array
+                      items:
+                        type: number
                       description: |
                         Option for instrument field shape parameters.
                         Single float radius in degrees in case of circle or
