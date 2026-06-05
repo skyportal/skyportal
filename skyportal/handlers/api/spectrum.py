@@ -10,7 +10,7 @@ from arrow import ParserError
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import defer, joinedload, load_only
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
@@ -301,6 +301,16 @@ class SpectrumHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: includeOriginalFile
+              nullable: true
+              default: false
+              schema:
+                type: boolean
+              description: |
+                If true, include the raw uploaded spectrum file
+                (original_file_string) in the response. Defaults to false;
+                when omitted, that field is neither loaded nor returned.
           responses:
             200:
               content:
@@ -332,6 +342,17 @@ class SpectrumHandler(BaseHandler):
                 observed_at, created_at, modified,
                 instrument_id, instrument_name, original_file_name,
                 followup_request_id, assignment_id, and altdata.
+            - in: query
+              name: includeOriginalFile
+              nullable: true
+              default: false
+              schema:
+                type: boolean
+              description: |
+                If true, include the raw uploaded spectrum file
+                (original_file_string) in each spectrum. Defaults to false;
+                when omitted, that field is neither loaded nor returned.
+                Ignored when minimalPayload is true (which never includes it).
             - in: query
               name: observedBefore
               nullable: true
@@ -473,13 +494,22 @@ class SpectrumHandler(BaseHandler):
                 only return sources that have comments after this time.
         """
 
+        # original_file_string (the raw uploaded file, TOAST-stored, avg ~36 kB
+        # and up to ~2.4 MB per row) is opt-in: only loaded/returned when
+        # includeOriginalFile=true. The download button in the UI falls back to
+        # reconstructing a CSV from wavelengths/fluxes when it is absent.
+        include_original_file = self.get_query_argument("includeOriginalFile", False)
+
         if spectrum_id is not None:
             with self.Session() as session:
-                spectrum = session.scalars(
-                    Spectrum.select(session.user_or_token).where(
-                        Spectrum.id == spectrum_id
+                single_query = Spectrum.select(session.user_or_token).where(
+                    Spectrum.id == spectrum_id
+                )
+                if not include_original_file:
+                    single_query = single_query.options(
+                        defer(Spectrum.original_file_string)
                     )
-                ).first()
+                spectrum = session.scalars(single_query).first()
                 if spectrum is None:
                     return self.error(
                         f"Could not access spectrum {spectrum_id}.", status=403
@@ -707,31 +737,49 @@ class SpectrumHandler(BaseHandler):
             if spec_type:
                 spec_query = spec_query.where(Spectrum.type.in_(spec_type))
 
+            # Columns returned by the minimalPayload response. Used both to
+            # restrict what SQL fetches (load_only, below) and to trim the
+            # serialized dicts afterwards.
+            minimal_columns = [
+                "id",
+                "owner_id",
+                "obj_id",
+                "observed_at",
+                "origin",
+                "type",
+                "label",
+                "instrument_id",
+                "followup_request_id",
+                "assignment_id",
+                "altdata",
+                "original_file_filename",
+                "modified",
+                "created_at",
+            ]
+
+            if minimal_payload:
+                # Push the projection into SQL so the heavy, TOAST-stored
+                # columns (wavelengths, fluxes, errors, original_file_string)
+                # are never fetched or deserialized on this high-volume path.
+                # to_dict() serializes only loaded attributes (self.__dict__),
+                # so the omitted columns are never lazily re-loaded.
+                spec_query = spec_query.options(
+                    load_only(*(getattr(Spectrum, c) for c in minimal_columns))
+                )
+            elif not include_original_file:
+                # Full payload, but original_file_string was not requested:
+                # defer it so the largest column is not fetched/serialized.
+                spec_query = spec_query.options(defer(Spectrum.original_file_string))
+
             spectra = session.scalars(spec_query).unique().all()
 
             result_spectra = recursive_to_dict(spectra)
 
             if minimal_payload:
-                columns = [
-                    "id",
-                    "owner_id",
-                    "obj_id",
-                    "observed_at",
-                    "origin",
-                    "type",
-                    "label",
-                    "instrument_id",
-                    "followup_request_id",
-                    "assignment_id",
-                    "altdata",
-                    "original_file_filename",
-                    "modified",
-                    "created_at",
-                ]
                 for spec in result_spectra:
                     keys = list(spec.keys())
                     for key in keys:
-                        if key not in columns:
+                        if key not in minimal_columns:
                             del spec[key]
 
             if (
@@ -1385,6 +1433,16 @@ class ObjSpectraHandler(BaseHandler):
             description: |
                 The order to sort the spectra by. Defaults to asc.
                 Options are: asc, desc
+          - in: query
+            name: includeOriginalFile
+            required: false
+            default: false
+            schema:
+              type: boolean
+            description: |
+              If true, include the raw uploaded spectrum file
+              (original_file_string) in each spectrum. Defaults to false;
+              when omitted, that field is neither loaded nor returned.
 
         responses:
           200:
@@ -1413,6 +1471,8 @@ class ObjSpectraHandler(BaseHandler):
 
         sortBy = self.get_query_argument("sortBy", "observed_at")
         sortOrder = self.get_query_argument("sortOrder", "asc")
+        # original_file_string (raw uploaded file, TOAST-stored) is opt-in.
+        include_original_file = self.get_query_argument("includeOriginalFile", False)
 
         if sortBy not in ["observed_at", "created_at"]:
             return self.error(
@@ -1432,6 +1492,8 @@ class ObjSpectraHandler(BaseHandler):
             stmt = Spectrum.select(session.user_or_token).where(
                 Spectrum.obj_id == obj_id
             )
+            if not include_original_file:
+                stmt = stmt.options(defer(Spectrum.original_file_string))
 
             if sortBy == "observed_at":
                 stmt = stmt.order_by(
@@ -1588,6 +1650,16 @@ class SpectrumRangeHandler(BaseHandler):
             description: |
               Maximum UTC date of range in ISOT format. If None,
               open ended range.
+          - in: query
+            name: includeOriginalFile
+            required: false
+            default: false
+            schema:
+              type: boolean
+            description: |
+              If true, include the raw uploaded spectrum file
+              (original_file_string) in each spectrum. Defaults to false;
+              when omitted, that field is neither loaded nor returned.
 
         responses:
           200:
@@ -1617,6 +1689,8 @@ class SpectrumRangeHandler(BaseHandler):
         instrument_ids = self.get_query_arguments("instrument_ids")
         min_date = self.get_query_argument("min_date", None)
         max_date = self.get_query_argument("max_date", None)
+        # original_file_string (raw uploaded file, TOAST-stored) is opt-in.
+        include_original_file = self.get_query_argument("includeOriginalFile", False)
 
         try:
             instrument_ids = [int(i) for i in instrument_ids]
@@ -1630,6 +1704,9 @@ class SpectrumRangeHandler(BaseHandler):
                 )
             else:
                 query = Spectrum.select(session.user_or_token)
+
+            if not include_original_file:
+                query = query.options(defer(Spectrum.original_file_string))
 
             if min_date is not None:
                 utc = Time(min_date, format="isot", scale="utc")

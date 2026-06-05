@@ -1149,6 +1149,93 @@ def test_minimal_spectrum(
         assert single_spec[k] == full_spec[k]
 
 
+def test_include_original_file(upload_data_token, public_source, public_group, lris):
+    # upload via the ASCII endpoint so original_file_string is populated
+    ascii_content = "4000 0.01\n4500 0.02\n5000 0.005\n5500 0.006\n6000 0.01\n"
+    status, data = api(
+        "POST",
+        "spectrum/ascii",
+        data={
+            "obj_id": str(public_source.id),
+            "observed_at": "2020-02-01T00:00:00",
+            "instrument_id": lris.id,
+            "group_ids": [public_group.id],
+            "ascii": ascii_content,
+            "filename": f"{uuid.uuid4()}.ascii",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    spectrum_id = data["data"]["id"]
+
+    # --- list endpoint (SpectrumHandler.get, multiple) ---
+    # default: original_file_string omitted, rest of full payload intact
+    status, data = api(
+        "GET", "spectra", params={"objID": public_source.id}, token=upload_data_token
+    )
+    assert status == 200
+    spec = next(s for s in data["data"] if s["id"] == spectrum_id)
+    assert "original_file_string" not in spec
+    # full payload otherwise unchanged
+    assert "wavelengths" in spec and "fluxes" in spec
+    assert spec["original_file_filename"] is not None
+
+    # includeOriginalFile=true: field present and equal to what was uploaded
+    status, data = api(
+        "GET",
+        "spectra",
+        params={"objID": public_source.id, "includeOriginalFile": True},
+        token=upload_data_token,
+    )
+    assert status == 200
+    spec = next(s for s in data["data"] if s["id"] == spectrum_id)
+    assert spec["original_file_string"] == ascii_content
+
+    # explicit includeOriginalFile=false behaves like the default
+    status, data = api(
+        "GET",
+        "spectra",
+        params={"objID": public_source.id, "includeOriginalFile": False},
+        token=upload_data_token,
+    )
+    assert status == 200
+    spec = next(s for s in data["data"] if s["id"] == spectrum_id)
+    assert "original_file_string" not in spec
+
+    # --- single endpoint (SpectrumHandler.get, single) ---
+    status, data = api("GET", f"spectra/{spectrum_id}", token=upload_data_token)
+    assert status == 200
+    assert "original_file_string" not in data["data"]
+
+    status, data = api(
+        "GET",
+        f"spectra/{spectrum_id}",
+        params={"includeOriginalFile": True},
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["original_file_string"] == ascii_content
+
+    # --- object spectra endpoint (ObjSpectraHandler.get) ---
+    status, data = api(
+        "GET", f"sources/{public_source.id}/spectra", token=upload_data_token
+    )
+    assert status == 200
+    spec = next(s for s in data["data"]["spectra"] if s["id"] == spectrum_id)
+    assert "original_file_string" not in spec
+
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}/spectra",
+        params={"includeOriginalFile": True},
+        token=upload_data_token,
+    )
+    assert status == 200
+    spec = next(s for s in data["data"]["spectra"] if s["id"] == spectrum_id)
+    assert spec["original_file_string"] == ascii_content
+
+
 def test_token_user_get_range_spectrum(
     upload_data_token, public_source, public_group, lris
 ):
