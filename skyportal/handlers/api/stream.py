@@ -90,11 +90,7 @@ class StreamHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New stream ID
+                          $ref: '#/components/schemas/Stream'
         """
         data = self.get_json()
         with self.Session() as session:
@@ -138,7 +134,13 @@ class StreamHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Stream'
           400:
             content:
               application/json:
@@ -238,14 +240,7 @@ class StreamUserHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            stream_id:
-                              type: integer
-                              description: Stream ID
-                            user_id:
-                              type: integer
-                              description: User ID
+                          $ref: '#/components/schemas/StreamUser'
         """
         data = self.get_json()
 

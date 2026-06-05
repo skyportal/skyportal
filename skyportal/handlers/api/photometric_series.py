@@ -725,11 +725,7 @@ class PhotometricSeriesHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New photometric series ID
+                          $ref: '#/components/schemas/PhotometricSeries'
         """
         json_data = self.get_json()
         data = json_data.pop("data", None)
@@ -815,11 +811,7 @@ class PhotometricSeriesHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New photometric series ID
+                          $ref: '#/components/schemas/PhotometricSeries'
         """
         with self.Session() as session:
             ps = session.scalars(
@@ -1330,9 +1322,7 @@ class PhotometricSeriesHandler(BaseHandler):
                             type: object
                             properties:
                               series:
-                                type: array
-                                items:
-                                  $ref: '#/components/schemas/PhotometricSeries'
+                                $ref: '#/components/schemas/ArrayOfPhotometricSeriess'
                               totalMatches:
                                 type: integer
                               pageNumber:

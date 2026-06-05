@@ -86,7 +86,13 @@ class SharingServiceSubmissionHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/SharingServiceSubmission'
           400:
             content:
               application/json:
@@ -233,7 +239,7 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 200:
                     content:
                         application/json:
-                            schema: SharingServiceSubmission
+                            schema: SingleSharingServiceSubmission
                 400:
                     content:
                         application/json:
