@@ -31296,9 +31296,7 @@ export interface components {
             /** @description The User ID of the owner of this run. */
             owner_id?: number;
             /** @description Observing run ephemeris data. */
-            ephemeris?: {
-                [key: string]: unknown;
-            };
+            ephemeris?: Record<string, never>;
             /** @description Unique identifier for the run. */
             id?: number;
         };
@@ -31333,17 +31331,11 @@ export interface components {
             /** @description The User ID of the owner of this run. */
             owner_id?: number;
             /** @description Observing run ephemeris data. */
-            ephemeris?: {
-                [key: string]: unknown;
-            };
+            ephemeris?: Record<string, never>;
             /** @description Unique identifier for the run. */
             id?: number;
-            assignments?: {
-                [key: string]: unknown;
-            }[];
-            instrument?: {
-                [key: string]: unknown;
-            };
+            assignments?: Record<string, never>[];
+            instrument?: Record<string, never>;
         };
         SingleObservingRunGetWithAssignments: {
             /** @enum {string} */

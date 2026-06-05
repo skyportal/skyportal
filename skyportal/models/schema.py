@@ -709,17 +709,20 @@ class PhotBase:
         load_default=None,
     )
 
-    origin = fields.String(
+    # Kept as Raw so the PhotometryFlux/Mag load path (called from
+    # photometry.py:2098) accepts whatever the caller sends; spec gets
+    # `type: string` via metadata.
+    origin = fields.Raw(
         metadata={
             "description": (
                 "Provenance of the Photometry. If a record is "
                 "already present with identical origin, only the "
                 "groups or streams list will be updated (other data assumed "
                 "identical). Defaults to None."
-            )
+            ),
+            "type": "string",
         },
         load_default=None,
-        allow_none=True,
     )
 
     ra = fields.Float(
@@ -1193,12 +1196,17 @@ class ObservationHandlerPost(_Schema):
 
 
 class ObservationExternalAPIHandlerPost(_Schema):
-    start_date = fields.String(
-        required=True, metadata={"description": "start date of the request."}
+    # The handler pre-processes both to `astropy.time.Time` or `datetime` and
+    # then calls `.load()` on this schema, so Raw is needed to pass them
+    # through; the spec gets its type via the metadata override.
+    start_date = fields.Raw(
+        required=True,
+        metadata={"description": "start date of the request.", "type": "string"},
     )
 
-    end_date = fields.String(
-        required=True, metadata={"description": "end date of the request."}
+    end_date = fields.Raw(
+        required=True,
+        metadata={"description": "end date of the request.", "type": "string"},
     )
 
     allocation_id = fields.Integer(
@@ -1743,7 +1751,14 @@ class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(
         metadata={"description": "The User ID of the owner of this run."}
     )
-    ephemeris = fields.Dict(metadata={"description": "Observing run ephemeris data."})
+    # Raw so the @pre_dump injected ephemeris pass-through stays unchanged;
+    # `type: object` in metadata gives apispec a real type for the spec.
+    ephemeris = fields.Raw(
+        metadata={
+            "description": "Observing run ephemeris data.",
+            "type": "object",
+        }
+    )
     id = fields.Integer(metadata={"description": "Unique identifier for the run."})
 
     @pre_dump
@@ -1753,8 +1768,14 @@ class ObservingRunGet(ObservingRunPost):
 
 
 class ObservingRunGetWithAssignments(ObservingRunGet):
-    assignments = fields.List(fields.Dict())
-    instrument = fields.Dict()
+    # SQLAlchemy ORM instances flow through these fields verbatim; Raw keeps
+    # the runtime behaviour (the call site in observingrun.py does its own
+    # post-processing) and the metadata supplies the OpenAPI type.
+    assignments = fields.List(
+        fields.Raw(metadata={"type": "object"}),
+        metadata={"type": "array"},
+    )
+    instrument = fields.Raw(metadata={"type": "object"})
 
 
 class PhotometryRangeQuery(_Schema):
