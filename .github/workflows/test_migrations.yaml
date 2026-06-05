@@ -52,7 +52,7 @@ jobs:
       # endpoint into a stub "accepted" response, and only the photometry.py
       # bandpass loop from #6177 tolerates the occasional empty sncosmo
       # Bandpass without aborting app-import.
-      MIGRATION_REFERENCE: 3f99e2dcc22e5ce4d13c5ca75459cd3954bd6222
+      MIGRATION_REFERENCE: 94049094226ed1815d9ff57e76810a492e9b2762
 
     services:
       postgres:
