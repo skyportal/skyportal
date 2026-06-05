@@ -1039,7 +1039,7 @@ class ObservationHandler(BaseHandler):
               name: observationStatus
               nullable: true
               schema:
-                type: str
+                type: string
               description: |
                  Whether to include queued or executed observations.
                  Defaults to executed.

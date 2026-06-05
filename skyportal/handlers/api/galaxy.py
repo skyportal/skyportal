@@ -824,7 +824,7 @@ class GalaxyCatalogHandler(BaseHandler):
             name: catalog_name
             required: true
             schema:
-              type: str
+              type: string
         responses:
           200:
             content:

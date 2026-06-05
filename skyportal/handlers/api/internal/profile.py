@@ -133,7 +133,7 @@ class ProfileHandler(BaseHandler):
                     description: |
                       User's preferred last name
                   affiliations:
-                    type: list
+                    type: array
                     description: |
                       User's list of affiliations
                   contact_email:

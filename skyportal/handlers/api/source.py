@@ -1173,7 +1173,7 @@ class SourceHandler(BaseHandler):
             name: rejectedSourceIDs
             nullable: true
             schema:
-              type: str
+              type: string
             description: Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query.
           - in: query
             name: simbadClass
@@ -1187,7 +1187,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: array
               items:
-                types: string
+                type: string
             description: additional name for the same object
           - in: query
             name: origin
@@ -1269,7 +1269,7 @@ class SourceHandler(BaseHandler):
             name: group_ids
             nullable: true
             schema:
-              type: list
+              type: array
               items:
                 type: integer
             description: |
@@ -2719,7 +2719,7 @@ class SourceFinderHandler(BaseHandler):
         - in: query
           name: imsize
           schema:
-            type: float
+            type: number
             minimum: 2
             maximum: 15
           description: Image size in arcmin (square)

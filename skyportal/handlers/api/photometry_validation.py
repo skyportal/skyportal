@@ -50,7 +50,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometry_id
             required: true
             schema:
-              type: int
+              type: integer
             description: Photometry ID
         requestBody:
           content:
@@ -76,7 +76,7 @@ class PhotometryValidationHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the photomety_validation
           400:
             content:
@@ -179,7 +179,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometry_id
             required: true
             schema:
-              type: int
+              type: integer
         requestBody:
           content:
             application/json:
@@ -205,7 +205,7 @@ class PhotometryValidationHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the modified photometry_validation
           400:
             content:
@@ -282,7 +282,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometric_id
             required: true
             schema:
-              type: int
+              type: integer
         responses:
           200:
             content:
@@ -296,7 +296,7 @@ class PhotometryValidationHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the deleted photometry_validation
           400:
             content:
