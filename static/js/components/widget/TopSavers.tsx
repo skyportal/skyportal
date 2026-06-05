@@ -142,12 +142,14 @@ const TopSaversSearch = ({ savers, setOptions }: TopSaversSearchProps) => {
       size="small"
       onChange={handleChange}
       variant="outlined"
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <SearchIcon fontSize="small" />
-          </InputAdornment>
-        ),
+      slotProps={{
+        input: {
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" />
+            </InputAdornment>
+          ),
+        },
       }}
       style={{ width: "100%" }}
     />

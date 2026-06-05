@@ -1864,11 +1864,13 @@ const PhotometryPlot = ({
                 onChange={(e) => setPeriod(e.target.value)}
                 margin="dense"
                 type="number"
-                inputProps={{
-                  step: 0.1,
-                  min: 0.1,
-                  max: 365,
-                  "aria-labelledby": "input-slider",
+                slotProps={{
+                  htmlInput: {
+                    step: 0.1,
+                    min: 0.1,
+                    max: 365,
+                    "aria-labelledby": "input-slider",
+                  },
                 }}
                 style={{ minWidth: "8rem", width: "100%" }}
                 size="small"
@@ -1923,12 +1925,14 @@ const PhotometryPlot = ({
                 onChange={(e) => setSmoothing(e.target.value)}
                 margin="dense"
                 type="number"
-                inputProps={{
-                  step: 1,
-                  min: 0,
-                  max: 100,
-                  type: "number",
-                  "aria-labelledby": "input-slider",
+                slotProps={{
+                  htmlInput: {
+                    step: 1,
+                    min: 0,
+                    max: 100,
+                    type: "number",
+                    "aria-labelledby": "input-slider",
+                  },
                 }}
                 size="small"
               />

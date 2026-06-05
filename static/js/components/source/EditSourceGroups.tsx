@@ -160,12 +160,14 @@ const EditSourceGroups = ({
             label="Search groups"
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              },
             }}
             data-testid="searchGroupsInput"
           />

@@ -297,9 +297,9 @@ const CandidatesPreferencesForm = ({
                 label="Name"
                 data-testid="profile-name"
                 value={value}
-                InputProps={{ "data-testid": "name" } as any}
-                InputLabelProps={{
-                  shrink: true,
+                slotProps={{
+                  input: { "data-testid": "name" } as any,
+                  inputLabel: { shrink: true },
                 }}
                 onChange={(event) => onChange(event.target.value)}
               />
@@ -318,10 +318,12 @@ const CandidatesPreferencesForm = ({
                 label="Time range (hours before now)"
                 type="number"
                 value={value}
-                inputProps={{ step: 1 }}
-                InputProps={{ "data-testid": "timeRange" } as any}
-                InputLabelProps={{
-                  shrink: true,
+                slotProps={{
+                  htmlInput: { step: 1 },
+                  input: { "data-testid": "timeRange" } as any,
+                  inputLabel: {
+                    shrink: true,
+                  },
                 }}
                 onChange={(event) => onChange(event.target.value)}
               />
@@ -368,7 +370,7 @@ const CandidatesPreferencesForm = ({
         <div className={classes.formRow}>
           {/* select between including candidates with the selected classifications, or without */}
           <InputLabel id="profile-classifications-with-select-label">
-            {classificationsWith === false ? "without" : "with"} the selected
+            {classificationsWith ? "with" : "without"} the selected
             classifications
           </InputLabel>
           <Switch
@@ -388,12 +390,14 @@ const CandidatesPreferencesForm = ({
                   label="Minimum"
                   type="number"
                   value={value}
-                  inputProps={{ step: 0.001 }}
+                  slotProps={{
+                    htmlInput: { step: 0.001 },
+                    inputLabel: {
+                      shrink: true,
+                    },
+                  }}
                   size="small"
                   margin="dense"
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
                   onChange={(event) => onChange(event.target.value)}
                 />
               )}
@@ -410,12 +414,14 @@ const CandidatesPreferencesForm = ({
                   label="Maximum"
                   type="number"
                   value={value}
-                  inputProps={{ step: 0.001 }}
+                  slotProps={{
+                    htmlInput: { step: 0.001 },
+                    inputLabel: {
+                      shrink: true,
+                    },
+                  }}
                   size="small"
                   margin="dense"
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
                   onChange={(event) => onChange(event.target.value)}
                 />
               )}
@@ -576,9 +582,7 @@ const CandidatesPreferencesForm = ({
                   <Controller
                     render={({ field: { onChange, value } }) => (
                       <Checkbox
-                        onChange={(event) => {
-                          onChange(event.target.checked);
-                        }}
+                        onChange={(event) => onChange(event.target.checked)}
                         checked={value}
                         data-testid={`profileFilteringFormGroupCheckbox-${group.id}`}
                       />

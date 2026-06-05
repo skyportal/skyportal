@@ -91,8 +91,10 @@ const SourceCandidatesHistory = ({
             size="small"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            InputProps={{
-              endAdornment: <Search />,
+            slotProps={{
+              input: {
+                endAdornment: <Search />,
+              },
             }}
           />
         </DialogTitle>

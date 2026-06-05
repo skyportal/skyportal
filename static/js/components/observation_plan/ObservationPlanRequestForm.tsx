@@ -695,13 +695,15 @@ const ObservationPlanRequestForm = ({
                     type="number"
                     value={airmassValue}
                     onChange={(e) => setAirmassValue(e.target.value)}
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
-                    inputProps={{
-                      step: 0.1,
-                      min: 1.0,
-                      max: 3.0,
+                    slotProps={{
+                      inputLabel: {
+                        shrink: true,
+                      },
+                      htmlInput: {
+                        step: 0.1,
+                        min: 1.0,
+                        max: 3.0,
+                      },
                     }}
                     style={{ width: "100%" }}
                   />

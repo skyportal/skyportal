@@ -206,8 +206,10 @@ const GalaxyTableFilterForm = ({
                 label="RA (deg)"
                 name="position.ra"
                 type="number"
-                inputProps={{
-                  step: 0.001,
+                slotProps={{
+                  htmlInput: {
+                    step: 0.001,
+                  },
                 }}
                 inputRef={register("position.ra") as any}
                 className={classes.positionField}
@@ -225,8 +227,10 @@ const GalaxyTableFilterForm = ({
                 label="Dec (deg)"
                 name="position.dec"
                 type="number"
-                inputProps={{
-                  step: 0.001,
+                slotProps={{
+                  htmlInput: {
+                    step: 0.001,
+                  },
                 }}
                 inputRef={register("position.dec") as any}
                 className={classes.positionField}
@@ -244,8 +248,10 @@ const GalaxyTableFilterForm = ({
                 label="Radius (deg)"
                 name="position.radius"
                 type="number"
-                inputProps={{
-                  step: 0.001,
+                slotProps={{
+                  htmlInput: {
+                    step: 0.001,
+                  },
                 }}
                 inputRef={register("position.radius") as any}
                 className={classes.positionField}
@@ -268,8 +274,10 @@ const GalaxyTableFilterForm = ({
                 label="Min"
                 name="minRedshift"
                 type="number"
-                inputProps={{
-                  step: 0.001,
+                slotProps={{
+                  htmlInput: {
+                    step: 0.001,
+                  },
                 }}
                 inputRef={register("minRedshift") as any}
                 onChange={onChange}
@@ -286,8 +294,10 @@ const GalaxyTableFilterForm = ({
                 label="Max"
                 name="maxRedshift"
                 type="number"
-                inputProps={{
-                  step: 0.001,
+                slotProps={{
+                  htmlInput: {
+                    step: 0.001,
+                  },
                 }}
                 inputRef={register("maxRedshift") as any}
                 onChange={onChange}
@@ -309,8 +319,10 @@ const GalaxyTableFilterForm = ({
                 label="Min"
                 name="minDistance"
                 type="number"
-                inputProps={{
-                  step: 0.1,
+                slotProps={{
+                  htmlInput: {
+                    step: 0.1,
+                  },
                 }}
                 inputRef={register("minDistance") as any}
                 onChange={onChange}
@@ -327,8 +339,10 @@ const GalaxyTableFilterForm = ({
                 label="Max"
                 name="maxDistance"
                 type="number"
-                inputProps={{
-                  step: 0.1,
+                slotProps={{
+                  htmlInput: {
+                    step: 0.1,
+                  },
                 }}
                 inputRef={register("maxDistance") as any}
                 onChange={onChange}

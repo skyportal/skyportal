@@ -1038,11 +1038,13 @@ const SpectraPlot = ({
               onChange={(e) => setVExpInput(e.target.value)}
               margin="dense"
               type="number"
-              inputProps={{
-                step: 1,
-                min: 0,
-                max: 30000,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 1,
+                  min: 0,
+                  max: 30000,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />
@@ -1065,11 +1067,13 @@ const SpectraPlot = ({
               onChange={(e) => setRedshiftInput(e.target.value)}
               margin="dense"
               type="number"
-              inputProps={{
-                step: 0.0001,
-                min: 0,
-                max: 3.0,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 0.0001,
+                  min: 0,
+                  max: 3.0,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />
@@ -1092,11 +1096,13 @@ const SpectraPlot = ({
               onChange={(e) => setSmoothingInput(e.target.value)}
               margin="dense"
               type="number"
-              inputProps={{
-                step: 1,
-                min: 0,
-                max: 100,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 1,
+                  min: 0,
+                  max: 100,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />
@@ -1119,11 +1125,13 @@ const SpectraPlot = ({
               onChange={(e) => setCustomWavelengthInput(e.target.value)}
               margin="dense"
               type="number"
-              inputProps={{
-                step: 1,
-                min: 0,
-                max: 50000,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 1,
+                  min: 0,
+                  max: 50000,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />
