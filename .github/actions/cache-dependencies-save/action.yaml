@@ -13,8 +13,8 @@ runs:
     - uses: actions/cache/save@v5
       with:
         path: |
-          ~/.npm
-        key: ${{ inputs.key-prefix }}-${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+          ~/.bun/install/cache
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
 
     - uses: actions/cache/save@v5
       with:

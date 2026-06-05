@@ -23,9 +23,12 @@ RUN apt-get update && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     apt-get update && \
-    apt-get install -y cargo nodejs nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter && \
-    npm install -g npm@latest && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    apt-get install -y cargo nodejs nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter unzip && \
+    # bun is the project's package manager (per packageManager in package.json);
+    # baselayer's check_js_deps.sh auto-detects it from there.
+    curl -fsSL https://bun.sh/install | bash && \
+    install -m 0755 /root/.bun/bin/bun /usr/local/bin/bun && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.bun
 
 ARG SKYPORTAL_UID=1000
 ARG SKYPORTAL_GID=1000

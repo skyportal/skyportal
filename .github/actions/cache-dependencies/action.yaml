@@ -13,10 +13,10 @@ runs:
     - uses: actions/cache@v5
       with:
         path: |
-          ~/.npm
-        key: ${{ inputs.key-prefix }}-${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+          ~/.bun/install/cache
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
         restore-keys: |
-          ${{ inputs.key-prefix }}-${{ runner.os }}-npm-
+          ${{ inputs.key-prefix }}-${{ runner.os }}-bun-
 
     - uses: actions/cache@v5
       with:

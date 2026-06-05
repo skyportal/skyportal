@@ -59,6 +59,10 @@ jobs:
           node-version: "22.x"
           package-manager-cache: false
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
       - uses: browser-actions/setup-geckodriver@latest
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -113,7 +117,7 @@ jobs:
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
           which python; python --version
-          echo npm $(npm --version)
+          echo bun $(bun --version)
           echo node $(node --version)
           nginx -v
           firefox --version
@@ -137,7 +141,7 @@ jobs:
           uv sync --inexact --group dev
           make db_init
 
-          npm ls --depth 0 || true
+          bun pm ls || true
 
       - name: Refresh SkyPortal dependencies for tested version
         run: |
