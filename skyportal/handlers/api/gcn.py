@@ -354,7 +354,7 @@ def post_gcnevent_from_xml(
     if gracedb_id is not None:
         if asynchronous:
             try:
-                loop = asyncio.get_event_loop()
+                asyncio.get_event_loop()
             except Exception:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -1333,7 +1333,7 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        # if an xml or json notice is not provided, then a dateobs must be specified
+        # If neither an XML nor a JSON notice is provided, a dateobs must be specified
         if not any(format in data for format in ["xml", "json"]):
             required_keys = {"dateobs"}
             if not required_keys.issubset(set(data.keys())):
