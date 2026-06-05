@@ -47,7 +47,11 @@ import {
 } from "../../ducks/users_management";
 import * as streamsActions from "../../ducks/streams";
 import * as invitationsActions from "../../ducks/invitations";
-import * as aclsActions from "../../ducks/acls";
+import {
+  useGetAclsQuery,
+  useAddUserAclsMutation,
+  useDeleteUserAclMutation,
+} from "../../ducks/acls";
 import * as rolesActions from "../../ducks/roles";
 import Spinner from "../Spinner";
 
@@ -99,7 +103,9 @@ const UserManagement = () => {
   const [tableFilterList, setTableFilterList] = useState<string[]>([]);
   const streams = useAppSelector((state) => state["streams"]);
   let { all: allGroups } = useAppSelector((state) => state.groups);
-  const acls = useAppSelector((state) => state["acls"]);
+  const { data: acls } = useGetAclsQuery();
+  const [addUserAcls] = useAddUserAclsMutation();
+  const [deleteUserAcl] = useDeleteUserAclMutation();
   const roles = useAppSelector((state) => state["roles"]);
   const [addUserGroupsDialogOpen, setAddUserGroupsDialogOpen] = useState(false);
   const [addUserRolesDialogOpen, setAddUserRolesDialogOpen] = useState(false);
@@ -141,7 +147,6 @@ const UserManagement = () => {
       );
       dispatch(fetchUsersManagement());
       dispatch(streamsActions.fetchStreams());
-      dispatch(aclsActions.fetchACLs());
       dispatch(rolesActions.fetchRoles());
       dispatch(invitationsActions.fetchInvitations());
     };
@@ -336,18 +341,18 @@ const UserManagement = () => {
   };
 
   const handleAddUserACLs = async (formData: any) => {
-    const result: any = await dispatch(
-      aclsActions.addUserACLs({
+    try {
+      await addUserAcls({
         userID: clickedUser.id,
         aclIds: formData.acls,
-      }),
-    );
-    if (result.status === "success") {
+      }).unwrap();
       dispatch(showNotification("User successfully granted specified ACL(s)."));
       reset({ acls: [] });
       setAddUserACLsDialogOpen(false);
       await dispatch(fetchUsersManagement());
       setClickedUser(null);
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
@@ -407,12 +412,12 @@ const UserManagement = () => {
   };
 
   const handleClickDeleteUserACL = async (userID: any, acl: any) => {
-    const result: any = await dispatch(
-      aclsActions.deleteUserACL({ userID, acl }),
-    );
-    if (result.status === "success") {
+    try {
+      await deleteUserAcl({ userID, acl }).unwrap();
       dispatch(showNotification("User ACL successfully removed."));
       await dispatch(fetchUsersManagement());
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 

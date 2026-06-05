@@ -66,14 +66,20 @@ export default function hydrate(
     if (!dashboardOnly) {
       // initial data
       if (ducks_to_hydrate.includes("sysInfo")) {
-        dispatch(sysInfoActions.fetchSystemInfo()).then(() => {
+        // RTK Query: `initiate()` is a dispatchable thunk that resolves when the
+        // request settles, so the hydration-count gating is preserved.
+        dispatch(
+          sysInfoActions.sysInfoApi.endpoints.getSysInfo.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("sysInfo"));
         });
       }
       if (ducks_to_hydrate.includes("dbInfo")) {
-        dispatch(dbInfoActions.fetchDBInfo()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("dbInfo"));
-        });
+        dispatch(dbInfoActions.dbInfoApi.endpoints.getDbInfo.initiate()).then(
+          () => {
+            dispatch(hydrationActions.finishedHydrating("dbInfo"));
+          },
+        );
       }
       if (ducks_to_hydrate.includes("config")) {
         dispatch(configActions.fetchConfig()).then(() => {
@@ -141,7 +147,9 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("favorites")) {
-        dispatch(favoritesActions.fetchFavorites()).then(() => {
+        dispatch(
+          favoritesActions.favoritesApi.endpoints.getFavorites.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("favorites"));
         });
       }
@@ -156,7 +164,9 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("rejected")) {
-        dispatch(rejectedActions.fetchRejected()).then(() => {
+        dispatch(
+          rejectedActions.rejectedCandidatesApi.endpoints.getRejectedCandidates.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("rejected"));
         });
       }

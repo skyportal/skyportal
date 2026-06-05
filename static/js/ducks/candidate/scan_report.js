@@ -1,45 +1,49 @@
-import * as API from "../../API";
-import store from "../../store";
-import messageHandler from "../../../../baselayer/static/js/MessageHandler";
+/**
+ * Scan report items.
+ *
+ * RTK Query conversion of the old `FETCH_SCAN_REPORT_ITEM` /
+ * `UPDATE_SCAN_REPORT_ITEM` duck. The endpoints are injected into the central
+ * `skyportalApi`; the websocket `REFRESH_SCAN_REPORT_ITEM` message is bridged to
+ * cache invalidation via `invalidateOnMessage`, preserving the old conditional
+ * logic that only refreshed when the pushed `report_id` matched the currently
+ * loaded report.
+ */
+import { skyportalApi } from "../../api/skyportalApi";
+import { invalidateOnMessage } from "../../api/wsInvalidation";
 
-const FETCH_SCAN_REPORT_ITEM = "skyportal/FETCH_SCAN_REPORT_ITEM";
-const FETCH_SCAN_REPORT_ITEM_OK = "skyportal/FETCH_SCAN_REPORT_ITEM_OK";
-const UPDATE_SCAN_REPORT_ITEM = "skyportal/UPDATE_SCAN_REPORT_ITEM";
-const REFRESH_SCAN_REPORT_ITEM = "skyportal/REFRESH_SCAN_REPORT_ITEM";
-
-export const fetchScanReportItem = (reportId) =>
-  API.GET(
-    `/api/candidates/scan_reports/${reportId}/items`,
-    FETCH_SCAN_REPORT_ITEM,
-  );
-
-export const updateScanReportItem = (reportId, itemId, payload) =>
-  API.PATCH(
-    `/api/candidates/scan_reports/${reportId}/items/${itemId}`,
-    UPDATE_SCAN_REPORT_ITEM,
-    payload,
-  );
-
-messageHandler.add((actionType, payload, dispatch, getState) => {
-  if (actionType === REFRESH_SCAN_REPORT_ITEM) {
-    const { report_id } = payload;
-    if (
-      getState().scanReportItems?.length &&
-      Number(report_id) === Number(getState().scanReportItems[0].scan_report_id)
-    ) {
-      dispatch(fetchScanReportItem(report_id));
-    }
-  }
+export const scanReportItemApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getScanReportItems: build.query({
+      query: (reportId) => `api/candidates/scan_reports/${reportId}/items`,
+      providesTags: ["ScanReportItem"],
+    }),
+    updateScanReportItem: build.mutation({
+      query: ({ reportId, itemId, payload }) => ({
+        url: `api/candidates/scan_reports/${reportId}/items/${itemId}`,
+        method: "PATCH",
+        body: payload,
+      }),
+      invalidatesTags: ["ScanReportItem"],
+    }),
+  }),
 });
 
-const reducer = (state = [], action) => {
-  switch (action.type) {
-    case FETCH_SCAN_REPORT_ITEM_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-};
+export const { useGetScanReportItemsQuery, useUpdateScanReportItemMutation } =
+  scanReportItemApi;
 
-store.injectReducer("scanReportItems", reducer);
+invalidateOnMessage(
+  "skyportal/REFRESH_SCAN_REPORT_ITEM",
+  (payload, getState) => {
+    const { report_id } = payload;
+    const items = scanReportItemApi.endpoints.getScanReportItems.select(
+      Number(report_id),
+    )(getState()).data;
+    if (
+      items?.length &&
+      Number(report_id) === Number(items[0].scan_report_id)
+    ) {
+      return ["ScanReportItem"];
+    }
+    return null;
+  },
+);

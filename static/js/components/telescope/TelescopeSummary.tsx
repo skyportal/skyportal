@@ -15,7 +15,7 @@ import Spinner from "../Spinner";
 import withRouter from "../withRouter";
 
 import * as telescopesAction from "../../ducks/telescopes";
-import * as weatherActions from "../../ducks/weather";
+import { useGetWeatherQuery } from "../../ducks/weather";
 import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
 
 const useStyles = makeStyles()((theme) => ({
@@ -41,8 +41,11 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
   const { classes } = useStyles();
   const instrumentsState = useAppSelector((state) => state["instruments"]);
   const groups = useAppSelector((state) => state.groups.all);
-  const weather = useAppSelector((state) => state["weather"]);
   const [telescope, setTelescope] = useState<any>(null);
+  const { data: weather } = useGetWeatherQuery(
+    telescope?.id ? parseInt(telescope.id, 10) : null,
+    { skip: !telescope?.id },
+  );
 
   // Load the instrument if needed
   useEffect(() => {
@@ -54,15 +57,6 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
       }
     });
   }, [route.id, dispatch]);
-
-  useEffect(() => {
-    if (
-      telescope?.id &&
-      weather?.telescope_id !== parseInt(telescope?.id, 10)
-    ) {
-      dispatch(weatherActions.fetchWeather(parseInt(telescope.id, 10)));
-    }
-  }, [weather, telescope, dispatch]);
 
   if (!telescope) {
     return (
@@ -94,7 +88,8 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
             <Typography className={classes.title} color="textSecondary">
               Weather
             </Typography>
-            {weather && weather?.telescope_id === parseInt(telescope.id, 10) ? (
+            {weather &&
+            weather["telescope_id"] === parseInt(telescope.id, 10) ? (
               <WeatherView weather={weather} />
             ) : (
               <Spinner />

@@ -19,6 +19,7 @@
     "@mui/styled-engine": "7.3.10",
     "@mui/x-data-grid": "8.15.0",
     "@mui/x-date-pickers": "7.29.4",
+    "@reduxjs/toolkit": "^2.12.0",
     "@rjsf/core": "6.5.3",
     "@rjsf/mui": "6.5.3",
     "@rjsf/utils": "6.5.3",

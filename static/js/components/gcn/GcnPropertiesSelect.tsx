@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
 import InputLabel from "@mui/material/InputLabel";
@@ -10,8 +9,7 @@ import { Controller, useForm } from "react-hook-form";
 import Button from "../Button";
 import SelectWithChips from "../SelectWithChips";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as gcnPropertiesActions from "../../ducks/gcnProperties";
+import { useGetGcnPropertiesQuery } from "../../ducks/gcnProperties";
 
 interface GcnPropertiesSelectProps {
   selectedGcnProperties: string[];
@@ -26,15 +24,9 @@ const GcnPropertiesSelect = ({
   conversions,
   comparators,
 }: GcnPropertiesSelectProps) => {
-  const dispatch = useAppDispatch();
-  const gcnProperties = [
-    ...(useAppSelector((state) => state["gcnProperties"]) || []),
-  ].sort();
+  const { data: gcnPropertiesData } = useGetGcnPropertiesQuery();
+  const gcnProperties = [...(gcnPropertiesData || [])].sort();
   const { handleSubmit, control, reset, getValues } = useForm();
-
-  useEffect(() => {
-    dispatch(gcnPropertiesActions.fetchGcnProperties());
-  }, [dispatch]);
 
   const handleSubmitProperties = async () => {
     const { property, propertyComparator, propertyComparatorValue } =

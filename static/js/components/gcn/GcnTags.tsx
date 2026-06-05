@@ -10,7 +10,7 @@ import AddGcnTag from "./AddGcnTag";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
-import * as gcnTagsActions from "../../ducks/gcnTags";
+import { useDeleteGcnTagMutation } from "../../ducks/gcnTags";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -63,6 +63,7 @@ const GcnTags = ({
   const { classes: styles } = useStyles();
 
   const dispatch = useAppDispatch();
+  const [deleteGcnTag] = useDeleteGcnTagMutation();
 
   const userProfile = useAppSelector((state) => state.profile);
 
@@ -82,14 +83,15 @@ const GcnTags = ({
   };
 
   const deleteTag = () => {
-    dispatch(gcnTagsActions.deleteGcnTag(gcnEvent.dateobs, tagToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("GCN Event Tag deleted"));
-          closeDialog();
-        }
-      },
-    );
+    deleteGcnTag({ gcnEventID: gcnEvent.dateobs, tag: tagToDelete })
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("GCN Event Tag deleted"));
+        closeDialog();
+      })
+      .catch(() => {
+        // error notification handled centrally by the base query
+      });
   };
 
   const gcnTags: string[] = [];

@@ -15,7 +15,7 @@ import FilterPlugins from "./FilterPlugins";
 
 import * as groupActions from "../../ducks/group";
 import * as filterActions from "../../ducks/filter";
-import * as streamActions from "../../ducks/stream";
+import { useGetStreamQuery } from "../../ducks/stream";
 
 const useStyles = makeStyles()((theme) => ({
   paper: {
@@ -72,7 +72,6 @@ const Filter = () => {
 
   const [filterLoadError, setFilterLoadError] = useState("");
   const [groupLoadError, setGroupLoadError] = useState("");
-  const [streamLoadError, setStreamLoadError] = useState("");
 
   const { fid } = useParams();
   const loadedId = useAppSelector((state) => state["filter"].id);
@@ -108,24 +107,12 @@ const Filter = () => {
     if (group_id) fetchGroup();
   }, [group_id, dispatch, groupLoadError]);
 
-  useEffect(() => {
-    const fetchStream = async () => {
-      const data = (await dispatch(
-        streamActions.fetchStream(stream_id),
-      )) as any;
-      if (data.status === "error") {
-        setStreamLoadError(data.message);
-        if (streamLoadError.length > 1) {
-          dispatch(showNotification(streamLoadError, "error"));
-        }
-      }
-    };
-    if (stream_id) fetchStream();
-  }, [stream_id, dispatch, streamLoadError]);
+  const { data: stream } = useGetStreamQuery(stream_id ?? "", {
+    skip: !stream_id,
+  });
 
   const filter = useAppSelector((state) => state["filter"]);
   const group = useAppSelector((state) => state["group"]) as any;
-  const stream = useAppSelector((state) => state["stream"]) as any;
 
   if (filterLoadError) {
     return <div>{filterLoadError}</div>;
@@ -161,7 +148,7 @@ const Filter = () => {
                   <br />
                   Group id: {group.id}
                   <br />
-                  Stream: {stream.name}
+                  Stream: {stream["name"]}
                 </Typography>
               )}
             </CardContent>

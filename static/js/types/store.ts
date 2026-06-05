@@ -9,6 +9,7 @@
 import type { ThunkAction, ThunkDispatch } from "redux-thunk";
 import type { Store, UnknownAction } from "redux";
 
+import type { skyportalApi } from "../api/skyportalApi";
 import type { Profile, Group, SourceTag } from "./domain";
 
 export interface ObjectTagsState {
@@ -23,6 +24,8 @@ export interface RootState {
     all: Group[];
   };
   objectTags: SourceTag[];
+  // RTK Query cache slice. All endpoints injected by migrated ducks live here.
+  skyportalApi: ReturnType<typeof skyportalApi.reducer>;
   // Fallback for ducks not yet typed. Replace with concrete slice types as
   // each duck is migrated; delete once every slice is typed.
   [slice: string]: any;

@@ -10,7 +10,7 @@ import Typography from "@mui/material/Typography";
 
 import clsx from "clsx";
 import dayjs from "dayjs";
-import { useAppSelector } from "../types/hooks";
+import { useGetSysInfoQuery } from "../ducks/sysInfo";
 import Button from "./Button";
 
 const useStyles = makeStyles()((theme) => ({
@@ -78,8 +78,9 @@ const BibLink = ({ bibtex, children }: BibLinkProps) => {
 
 const AboutPlugins = () => {
   const { classes } = useStyles();
-  const version = useAppSelector((state) => state["sysInfo"].version);
-  const gitlog = useAppSelector((state) => state["sysInfo"].gitlog);
+  const { data: sysInfo } = useGetSysInfoQuery();
+  const version = sysInfo?.version;
+  const gitlog = sysInfo?.gitlog;
 
   return (
     <div>

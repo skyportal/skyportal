@@ -45,8 +45,11 @@ const useStyles = makeStyles()(() => ({
 
 const About = () => {
   const { classes } = useStyles();
-  const cosmology = useAppSelector((state) => state["sysInfo"].cosmology);
-  const cosmoref = useAppSelector((state) => state["sysInfo"].cosmoref);
+  // cosmology/cosmoref are served by `/api/config` and live in the `config`
+  // slice; this previously read them from `sysInfo` (where they never existed),
+  // so the block below never rendered. Sourced correctly now.
+  const cosmology = useAppSelector((state) => state["config"].cosmology);
+  const cosmoref = useAppSelector((state) => state["config"].cosmoref);
 
   const developers = [
     {
