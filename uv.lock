@@ -4478,6 +4478,8 @@ requires-dist = [
     { name = "lxml", specifier = "==6.1.0" },
     { name = "marshmallow", specifier = "==4.3.0" },
     { name = "marshmallow-sqlalchemy", specifier = "==1.5.0" },
+    { name = "marshmallow-enum", specifier = "==1.5.1" },
+    { name = "marshmallow-jsonschema", specifier = "==0.16.0" },
     { name = "matplotlib", specifier = "==3.10.9" },
     { name = "mocpy", specifier = "==0.18.0" },
     { name = "noaodatalab", specifier = "==2.20.0" },
