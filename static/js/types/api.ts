@@ -14983,6 +14983,13 @@ export interface paths {
                      *     Options are: asc, desc
                      */
                     sortOrder?: string;
+                    /**
+                     * @description If true, include the raw uploaded spectrum file
+                     *     (original_file_string) in each spectrum. Defaults to false;
+                     *     when omitted, that field is neither loaded nor returned.
+                     * @default false
+                     */
+                    includeOriginalFile?: boolean;
                 };
                 header?: never;
                 path: {
@@ -17563,7 +17570,15 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /**
+                     * @description If true, include the raw uploaded spectrum file
+                     *     (original_file_string) in the response. Defaults to false;
+                     *     when omitted, that field is neither loaded nor returned.
+                     * @default false
+                     */
+                    includeOriginalFile?: boolean;
+                };
                 header?: never;
                 path: {
                     spectrum_id: number;
@@ -17693,6 +17708,14 @@ export interface paths {
                      * @default false
                      */
                     minimalPayload?: boolean;
+                    /**
+                     * @description If true, include the raw uploaded spectrum file
+                     *     (original_file_string) in each spectrum. Defaults to false;
+                     *     when omitted, that field is neither loaded nor returned.
+                     *     Ignored when minimalPayload is true (which never includes it).
+                     * @default false
+                     */
+                    includeOriginalFile?: boolean;
                     /**
                      * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
                      *     return only spectra observed before this time.
@@ -18007,6 +18030,13 @@ export interface paths {
                      *     open ended range.
                      */
                     max_date?: Record<string, never>;
+                    /**
+                     * @description If true, include the raw uploaded spectrum file
+                     *     (original_file_string) in each spectrum. Defaults to false;
+                     *     when omitted, that field is neither loaded nor returned.
+                     * @default false
+                     */
+                    includeOriginalFile?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -18059,7 +18089,15 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /**
+                     * @description If true, include the raw uploaded spectrum file
+                     *     (original_file_string) in the response. Defaults to false;
+                     *     when omitted, that field is neither loaded nor returned.
+                     * @default false
+                     */
+                    includeOriginalFile?: boolean;
+                };
                 header?: never;
                 path: {
                     spectrum_id: number;
@@ -18189,6 +18227,14 @@ export interface paths {
                      * @default false
                      */
                     minimalPayload?: boolean;
+                    /**
+                     * @description If true, include the raw uploaded spectrum file
+                     *     (original_file_string) in each spectrum. Defaults to false;
+                     *     when omitted, that field is neither loaded nor returned.
+                     *     Ignored when minimalPayload is true (which never includes it).
+                     * @default false
+                     */
+                    includeOriginalFile?: boolean;
                     /**
                      * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
                      *     return only spectra observed before this time.
@@ -18452,6 +18498,13 @@ export interface paths {
                      *     open ended range.
                      */
                     max_date?: Record<string, never>;
+                    /**
+                     * @description If true, include the raw uploaded spectrum file
+                     *     (original_file_string) in each spectrum. Defaults to false;
+                     *     when omitted, that field is neither loaded nor returned.
+                     * @default false
+                     */
+                    includeOriginalFile?: boolean;
                 };
                 header?: never;
                 path?: never;
