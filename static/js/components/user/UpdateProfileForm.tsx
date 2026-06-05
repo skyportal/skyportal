@@ -189,7 +189,7 @@ const UpdateProfileForm = () => {
                   id="bio_id"
                   multiline
                   style={{ width: "100%" }}
-                  inputProps={{ maxLength: 1000 }}
+                  slotProps={{ htmlInput: { maxLength: 1000 } }}
                 />
               </Grid>
             </Grid>
@@ -351,7 +351,9 @@ const UpdateProfileForm = () => {
                           checked={value}
                           onChange={(e) => onChange(e.target.checked)}
                           color="primary"
-                          inputProps={{ "aria-label": "primary checkbox" }}
+                          slotProps={{
+                            input: { "aria-label": "primary checkbox" },
+                          }}
                         />
                       )}
                       control={control}

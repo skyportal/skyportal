@@ -367,7 +367,9 @@ const TagManagement = () => {
             margin="normal"
             variant="outlined"
             disabled={loading}
-            inputProps={{ "data-testid": "edit-tag-name-input" }}
+            slotProps={{
+              htmlInput: { "data-testid": "edit-tag-name-input" },
+            }}
           />
 
           <div className={classes.colorPicker}>
@@ -444,7 +446,9 @@ const TagManagement = () => {
             variant="outlined"
             disabled={loading}
             helperText="Only letters and numbers, no spaces or special characters"
-            inputProps={{ "data-testid": "create-tag-name-input" }}
+            slotProps={{
+              htmlInput: { "data-testid": "create-tag-name-input" },
+            }}
           />
 
           <div className={classes.colorPicker}>

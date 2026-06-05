@@ -710,7 +710,7 @@ const FilterCandidateList = ({
                         onChange={(event) =>
                           onChange(event.target.checked ? "hide" : "show")
                         }
-                        inputProps={{ "aria-label": "controlled" }}
+                        slotProps={{ input: { "aria-label": "controlled" } }}
                         data-testid="rejectedStatusSelect"
                       />
                     )}

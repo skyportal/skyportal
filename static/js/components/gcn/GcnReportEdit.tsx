@@ -546,7 +546,7 @@ export default function GcnReportEdit() {
           <CheckBox
             checked={report?.published || false}
             onChange={handlePublishedChange}
-            inputProps={{ "aria-label": "controlled" }}
+            slotProps={{ input: { "aria-label": "controlled" } }}
           />
         </div>
       </div>

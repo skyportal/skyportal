@@ -377,7 +377,7 @@ const CandidatesPreferencesForm = ({
             checked={classificationsWith}
             onChange={() => setClassificationsWith(!classificationsWith)}
             color="primary"
-            inputProps={{ "aria-label": "primary checkbox" }}
+            slotProps={{ input: { "aria-label": "primary checkbox" } }}
           />
         </div>
         <div className={classes.formRow}>
