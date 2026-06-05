@@ -1575,6 +1575,37 @@ def test_candidates_annotation_filtering(
     assert status == 200
     assert len(data["data"]["candidates"]) == 0
 
+    # Date-bounded filters on the photometry annotation's created_at. These
+    # exercise the AnnotationOnPhotometry.created_at (timestamp) comparison: the
+    # date string must be coerced to a datetime or psycopg3 raises "operator
+    # does not exist: timestamp without time zone = character varying".
+    status, data = api(
+        "GET",
+        "candidates",
+        params={
+            "groupIDs": f"{public_group.id}",
+            "photometryAnnotationsFilterOrigin": "kowalski",
+            "photometryAnnotationsFilterAfter": "2000-01-01T00:00:00",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 1
+    assert data["data"]["candidates"][0]["id"] == obj_id
+
+    status, data = api(
+        "GET",
+        "candidates",
+        params={
+            "groupIDs": f"{public_group.id}",
+            "photometryAnnotationsFilterOrigin": "kowalski",
+            "photometryAnnotationsFilterBefore": "2000-01-01T00:00:00",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 0
+
 
 def test_candidate_savers(
     upload_data_token,

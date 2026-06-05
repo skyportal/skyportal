@@ -824,6 +824,30 @@ class CandidateHandler(BaseHandler):
             "photometryAnnotationsFilterMinCount", 1
         )
 
+        # Coerce the date filters to datetimes before they reach the
+        # AnnotationOnPhotometry.created_at (timestamp) comparison -- psycopg3
+        # rejects a "timestamp = varchar" comparison if these stay strings.
+        if photometry_annotations_filter_after is not None:
+            try:
+                photometry_annotations_filter_after = arrow.get(
+                    photometry_annotations_filter_after
+                ).naive
+            except Exception:
+                return self.error(
+                    f"Invalid photometryAnnotationsFilterAfter: "
+                    f"{photometry_annotations_filter_after}"
+                )
+        if photometry_annotations_filter_before is not None:
+            try:
+                photometry_annotations_filter_before = arrow.get(
+                    photometry_annotations_filter_before
+                ).naive
+            except Exception:
+                return self.error(
+                    f"Invalid photometryAnnotationsFilterBefore: "
+                    f"{photometry_annotations_filter_before}"
+                )
+
         first_detected_date = self.get_query_argument("firstDetectionAfter", None)
         last_detected_date = self.get_query_argument("lastDetectionBefore", None)
         number_of_detections = self.get_query_argument("numberDetections", None)
