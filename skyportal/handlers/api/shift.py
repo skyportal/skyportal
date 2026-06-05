@@ -66,6 +66,8 @@ class ShiftHandler(BaseHandler):
                               description: New Shift's end date
                             shift_admins:
                               type: array
+                              items:
+                                type: integer
                               description: New Shift's admins IDs
                             description:
                               type: string

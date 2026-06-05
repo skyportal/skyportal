@@ -22,16 +22,6 @@ runs:
           ~/.cache/uv
         key: ${{ inputs.key-prefix }}-${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
 
-    # caching dustmap & sncosmo files is dependent on their corresponding
-    # python package versions, so we use that as the cache key
-    - uses: actions/cache/save@v5
-      with:
-        path: |
-          persistentdata/dustmap/sfd
-        key: ${{ inputs.key-prefix }}-${{ runner.os }}-dustmap-${{ hashFiles('uv.lock') }}
-
-    - uses: actions/cache/save@v5
-      with:
-        path: |
-          ~/.astropy/cache/sncosmo/bandpasses
-        key: ${{ inputs.key-prefix }}-${{ runner.os }}-sncosmo-${{ hashFiles('uv.lock') }}
+    # The sncosmo bandpass and SFD dustmap data are now vendored in the
+    # skyportal-data submodule (see misc.sncosmo_data_folder / dustmap_folder),
+    # so they no longer need to be fetched and cached here.

@@ -950,7 +950,7 @@ class PhotometricSeriesHandler(BaseHandler):
               name: rejectedObjectIDs
               nullable: true
               schema:
-                type: str
+                type: string
               description: |
                 Comma-separated string of object IDs not to be returned,
                 useful in cases where you are looking for new objects passing a query.

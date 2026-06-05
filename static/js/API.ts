@@ -14,16 +14,56 @@ const API_CALL = "skyportal/API_CALL";
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
-/** A redux-thunk returned by the API helpers; dispatch it to run the request. */
-type ApiThunk = (dispatch: AppDispatch) => Promise<unknown>;
+/**
+ * Shape of a successful API response (always wrapped in a {status,data,message}
+ * envelope by `BaseHandler.success`).
+ */
+export interface ApiSuccess<T = unknown> {
+  status: "success";
+  message?: string;
+  data: T;
+}
 
-function API(
+/** Shape of a failed API response. */
+export interface ApiError {
+  status: "error";
+  message: string;
+}
+
+/** Action dispatched after a successful API call: type=<actionType>_OK. */
+export type ApiOkAction<T = unknown> = {
+  type: string;
+  status: "success";
+  message?: string;
+  data: T;
+  parameters: ApiCallParameters;
+};
+
+interface ApiCallParameters {
+  endpoint: string;
+  actionType?: string;
+  body: Record<string, unknown>;
+  method: HttpMethod;
+  otherArgs: Record<string, unknown>;
+}
+
+/**
+ * A redux-thunk returned by the API helpers; dispatch it to run the request.
+ * The T parameter is the *data* shape returned by the endpoint (i.e. the
+ * `data` field of {@link ApiSuccess}); pass it explicitly at the call site to
+ * propagate the type into the dispatched _OK action and the reducer.
+ */
+export type ApiThunk<T = unknown> = (
+  dispatch: AppDispatch,
+) => Promise<ApiOkAction<T> | { type: string; [k: string]: unknown }>;
+
+function API<T = unknown>(
   endpoint: string,
   actionType?: string,
   method: HttpMethod = "GET",
   body: Record<string, unknown> = {},
   otherArgs: Record<string, unknown> = {},
-): ApiThunk {
+): ApiThunk<T> {
   const parameters = { endpoint, actionType, body, method, otherArgs };
 
   let fetchInit: RequestInit = {
@@ -108,12 +148,12 @@ export const filterOutEmptyValues = (
   return filteredParams;
 };
 
-function GET(
+function GET<T = unknown>(
   endpoint: string,
   actionType?: string,
   queryParams?: Record<string, unknown>,
   removeFalse = true,
-): ApiThunk {
+): ApiThunk<T> {
   let url = endpoint;
   if (queryParams) {
     const filteredQueryParams = filterOutEmptyValues(
@@ -126,39 +166,39 @@ function GET(
     ).toString();
     url += `?${queryString}`;
   }
-  return API(url, actionType, "GET");
+  return API<T>(url, actionType, "GET");
 }
 
-function POST(
+function POST<T = unknown>(
   endpoint: string,
   actionType?: string,
   payload?: Record<string, unknown>,
-): ApiThunk {
-  return API(endpoint, actionType, "POST", payload);
+): ApiThunk<T> {
+  return API<T>(endpoint, actionType, "POST", payload);
 }
 
-function PATCH(
+function PATCH<T = unknown>(
   endpoint: string,
   actionType?: string,
   payload?: Record<string, unknown>,
-): ApiThunk {
-  return API(endpoint, actionType, "PATCH", payload);
+): ApiThunk<T> {
+  return API<T>(endpoint, actionType, "PATCH", payload);
 }
 
-function PUT(
+function PUT<T = unknown>(
   endpoint: string,
   actionType?: string,
   payload?: Record<string, unknown>,
-): ApiThunk {
-  return API(endpoint, actionType, "PUT", payload);
+): ApiThunk<T> {
+  return API<T>(endpoint, actionType, "PUT", payload);
 }
 
-function DELETE(
+function DELETE<T = unknown>(
   endpoint: string,
   actionType?: string,
   payload?: Record<string, unknown>,
-): ApiThunk {
-  return API(endpoint, actionType, "DELETE", payload);
+): ApiThunk<T> {
+  return API<T>(endpoint, actionType, "DELETE", payload);
 }
 
 function DOWNLOAD(

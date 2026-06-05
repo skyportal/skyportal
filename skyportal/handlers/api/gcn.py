@@ -5053,7 +5053,7 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
             name: integrated_probability
             nullable: true
             schema:
-              type: float
+              type: number
             description: Cumulative integrated probability threshold
         responses:
           200:
