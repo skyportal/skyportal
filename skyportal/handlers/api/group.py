@@ -332,7 +332,13 @@ class GroupHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Group'
           400:
             content:
               application/json:
@@ -450,17 +456,7 @@ class GroupUserHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            group_id:
-                              type: integer
-                              description: Group ID
-                            user_id:
-                              type: integer
-                              description: User ID
-                            admin:
-                              type: boolean
-                              description: Boolean indicating whether user is group admin
+                          $ref: '#/components/schemas/GroupUser'
         """
 
         data = self.get_json()
@@ -584,7 +580,13 @@ class GroupUserHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/GroupUser'
         """
         data = self.get_json()
         try:
@@ -717,7 +719,13 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/GroupUser'
         """
         data = self.get_json()
 
@@ -817,14 +825,7 @@ class GroupStreamHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            group_id:
-                              type: integer
-                              description: Group ID
-                            stream_id:
-                              type: integer
-                              description: Stream ID
+                          $ref: '#/components/schemas/GroupStream'
         """
         data = self.get_json()
         stream_id = data.get("stream_id")

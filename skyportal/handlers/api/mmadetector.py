@@ -38,11 +38,7 @@ class MMADetectorHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New mmadetector ID
+                          $ref: '#/components/schemas/MMADetector'
           400:
             content:
               application/json:
@@ -163,7 +159,13 @@ class MMADetectorHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetector'
           400:
             content:
               application/json:
@@ -273,11 +275,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New mmadetector spectrum ID
+                          $ref: '#/components/schemas/MMADetectorSpectrum'
           400:
             content:
               application/json:
@@ -504,7 +502,13 @@ class MMADetectorSpectrumHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetectorSpectrum'
           400:
             content:
               application/json:
@@ -905,7 +909,13 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetectorTimeInterval'
           400:
             content:
               application/json:

@@ -632,11 +632,7 @@ class AnalysisServiceHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New AnalysisService ID
+                          $ref: '#/components/schemas/AnalysisService'
         """
         data = self.get_json()
 
@@ -916,7 +912,13 @@ class AnalysisServiceHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/AnalysisService'
           400:
             content:
               application/json:
@@ -1088,11 +1090,7 @@ class AnalysisHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            analysis_id:
-                              type: integer
-                              description: New analysis ID
+                          $ref: '#/components/schemas/ObjAnalysis'
         """
         try:
             data = self.get_json()
@@ -1742,11 +1740,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            analysis_id:
-                              type: integer
-                              description: New analysis ID
+                          $ref: '#/components/schemas/ObjAnalysis'
         """
         # allowable resources now are [obj]. Can be extended in the future.
         if analysis_resource_type.lower() not in ["obj"]:
@@ -2008,9 +2002,8 @@ class DefaultAnalysisHandler(BaseHandler):
                                 - $ref: '#/components/schemas/Success'
                                 - type: object
                                   properties:
-                                    id:
-                                      type: integer
-                                      description: New default analysis ID
+                                    data:
+                                      $ref: '#/components/schemas/DefaultAnalysis'
             400:
                 content:
                     application/json:

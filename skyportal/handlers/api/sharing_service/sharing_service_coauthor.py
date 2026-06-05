@@ -42,7 +42,13 @@ class SharingServiceCoauthorHandler(BaseHandler):
             200:
                 content:
                     application/json:
-                        schema: Success
+                        schema:
+                            allOf:
+                                - $ref: '#/components/schemas/Success'
+                                - type: object
+                                  properties:
+                                    data:
+                                      $ref: '#/components/schemas/SharingServiceCoauthor'
             400:
                 content:
                     application/json:

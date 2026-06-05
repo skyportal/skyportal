@@ -50,31 +50,7 @@ class ShiftHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New Shift
-                            name:
-                              type: string
-                              description: New Shift's name
-                            start_date:
-                              type: string
-                              description: New Shift's start date
-                            end_date:
-                              type: string
-                              description: New Shift's end date
-                            shift_admins:
-                              type: array
-                              items:
-                                type: integer
-                              description: New Shift's admins IDs
-                            description:
-                              type: string
-                              description: New Shift's description
-                            required_users_number:
-                              type: integer
-                              description: The number of users required to join this shift for it to be considered full
+                          $ref: '#/components/schemas/Shift'
           400:
             content:
               application/json:
@@ -139,7 +115,7 @@ class ShiftHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: Shift
+                  schema: SingleShift
             400:
               content:
                 application/json:
@@ -305,7 +281,13 @@ class ShiftHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Shift'
           400:
             content:
               application/json:
@@ -449,20 +431,7 @@ class ShiftUserHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            shift_id:
-                              type: integer
-                              description: Shift ID
-                            user_id:
-                              type: integer
-                              description: User ID
-                            admin:
-                              type: boolean
-                              description: Boolean indicating whether user is shift admin
-                            needs_replacement:
-                              type: boolean
-                              description: Boolean indicating whether user needs replacement or not
+                          $ref: '#/components/schemas/ShiftUser'
         """
 
         data = self.get_json()
@@ -581,7 +550,13 @@ class ShiftUserHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/ShiftUser'
         """
         data = self.get_json()
         try:

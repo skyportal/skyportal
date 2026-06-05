@@ -229,11 +229,7 @@ class SharingServiceHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New Sharing Service ID
+                          $ref: '#/components/schemas/SingleSharingService'
         """
         try:
             data = self.get_json()

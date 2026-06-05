@@ -80,11 +80,7 @@ class ObservingRunHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New Observing Run ID
+                          $ref: '#/components/schemas/ObservingRun'
           400:
             content:
               application/json:
@@ -275,7 +271,13 @@ class ObservingRunHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/ObservingRun'
           400:
             content:
               application/json:

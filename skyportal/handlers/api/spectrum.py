@@ -925,7 +925,13 @@ class SpectrumHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Spectrum'
           400:
             content:
               application/json:
@@ -1098,7 +1104,13 @@ class SpectrumHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -1377,7 +1389,13 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
           200:
             content:
               application/json:
-                schema: SpectrumNoID
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/SpectrumNoID'
           400:
             content:
               application/json:

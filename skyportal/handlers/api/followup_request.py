@@ -1451,11 +1451,7 @@ class FollowupRequestHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New follow-up request ID
+                          $ref: '#/components/schemas/FollowupRequest'
         """
         data = self.get_json()
 
@@ -1532,7 +1528,13 @@ class FollowupRequestHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/FollowupRequest'
           400:
             content:
               application/json:
@@ -1734,7 +1736,13 @@ class FollowupRequestCommentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/FollowupRequest'
           400:
             content:
               application/json:
@@ -2496,7 +2504,13 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/FollowupRequest'
           400:
             content:
               application/json:
@@ -2687,11 +2701,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New default follow-up request ID
+                          $ref: '#/components/schemas/DefaultFollowupRequest'
         """
         data = self.get_json()
 
