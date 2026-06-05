@@ -2640,3 +2640,53 @@ def test_deduplicate_photometry(
     assert len(data["data"]["photometry"]) == 1
     # should be the second one (which is first in the list)
     assert np.isclose(data["data"]["photometry"][0]["mag"], 12.8)
+
+
+def test_source_gcn_crossmatch_string_dateobs(
+    super_admin_token, super_admin_user, public_source
+):
+    # Regression test for a psycopg3 type mismatch. Obj.gcn_crossmatch is an
+    # ARRAY(String) column, so its GCN-event dateobs round-trip out of the DB as
+    # strings. get_source() then filters GcnEvent.dateobs (a timestamp) with that
+    # list; under psycopg3 a "timestamp = varchar" comparison raises
+    # UndefinedFunction unless the values are coerced to datetimes first. Before
+    # the fix this request 500'd; it should return the crossmatched event.
+    import sqlalchemy as sa
+
+    from skyportal.models import DBSession, GcnEvent, Obj
+
+    dateobs = datetime(2019, 4, 25, 8, 18, 5)
+    # Exactly how the value round-trips out of the ARRAY(String) column: psycopg
+    # renders the timestamp with a space (not a "T") separator.
+    dateobs_str = "2019-04-25 08:18:05"
+
+    session = DBSession()
+    event = GcnEvent(dateobs=dateobs, sent_by_id=super_admin_user.id)
+    session.add(event)
+    obj = session.scalar(sa.select(Obj).where(Obj.id == public_source.id))
+    # Populate the crossmatch column the way LocalizationCrossmatchHandler does.
+    obj.gcn_crossmatch = [dateobs_str]
+    session.commit()
+
+    try:
+        status, data = api(
+            "GET",
+            f"sources/{public_source.id}",
+            params={"includeGCNCrossmatches": "true"},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        assert data["status"] == "success"
+        crossmatches = data["data"]["gcn_crossmatch"]
+        assert any(arrow.get(c["dateobs"]).naive == dateobs for c in crossmatches), (
+            crossmatches
+        )
+    finally:
+        session = DBSession()
+        obj = session.scalar(sa.select(Obj).where(Obj.id == public_source.id))
+        if obj is not None:
+            obj.gcn_crossmatch = None
+        event = session.scalar(sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs))
+        if event is not None:
+            session.delete(event)
+        session.commit()
