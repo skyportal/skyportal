@@ -56,6 +56,9 @@ jobs:
           fetch-depth: 0
           submodules: true
           clean: false
+          # Pull the skyportal-data submodule's LFS payload (SFD dust maps);
+          # bandpasses are plain git and come down with the submodule itself.
+          lfs: true
 
       - name: Cache dependencies
         uses: ./.github/actions/cache-dependencies
@@ -156,10 +159,6 @@ jobs:
       - name: Patch Notifications.jsx for a longer display
         run: |
           sed -i 's/duration = 3000/duration = 15000/g' baselayer/static/js/components/Notifications.jsx
-
-      - name: Pre-warm sncosmo bandpass cache
-        run: |
-          source .venv/bin/activate && PYTHONPATH=. python tools/warm_sncosmo_cache.py || true
 
       - name: Save dependency caches
         uses: ./.github/actions/cache-dependencies-save
