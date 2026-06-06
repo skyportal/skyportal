@@ -686,7 +686,7 @@ def test_user_without_save_access_cannot_save(
 def test_add_classification_on_scanning_page(
     page, user, public_group, taxonomy_token, public_filter, upload_data_token
 ):
-    from ..test_profile import add_classification_shortcut
+    from ..users_groups_and_content.test_profile import add_classification_shortcut
 
     shortcut_name = add_classification_shortcut(
         page, user, public_group, taxonomy_token

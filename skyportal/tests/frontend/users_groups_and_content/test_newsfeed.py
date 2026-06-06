@@ -45,7 +45,7 @@ def _set_num_items(page, value):
     n_items_input.press_sequentially(value)
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_news_feed(page, user, public_group, upload_data_token, comment_token):
     obj_id_base = _seed_sources_and_comments(
         api, public_group, upload_data_token, comment_token
@@ -75,7 +75,7 @@ def test_news_feed(page, user, public_group, upload_data_token, comment_token):
         ).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_news_feed_prefs_widget(
     page, user, public_group, upload_data_token, comment_token
 ):

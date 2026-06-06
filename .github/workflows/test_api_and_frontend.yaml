@@ -14,6 +14,11 @@ concurrency:
 
 env:
   FRONTEND_TEST_HEADLESS: "1"
+  # The 2-vCPU runner renders pages more slowly under load than a dev machine, so
+  # give Playwright's default action/expect wait more headroom (locally it stays
+  # at the 30s default). Resolves as soon as the element is ready, so this only
+  # affects the worst-case waits.
+  PLAYWRIGHT_DEFAULT_TIMEOUT_MS: "60000"
 
 jobs:
   test-api-and-frontend:

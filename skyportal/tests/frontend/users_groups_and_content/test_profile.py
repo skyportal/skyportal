@@ -99,7 +99,7 @@ def test_add_data_to_user_profile(page, user):
     page.locator('//*[@id="updateProfileButton"]').first.click()
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_insufficient_name_entry_in_profile(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")

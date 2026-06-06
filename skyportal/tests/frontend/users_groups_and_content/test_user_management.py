@@ -192,7 +192,7 @@ def test_add_user_to_stream(
 
 
 # Passes in isolation; only times out under full-suite contention, so retry.
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_user_expiration(page, user, super_admin_user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")

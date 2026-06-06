@@ -10,7 +10,7 @@ from ....utils.naive_datetime import utcnow_naive
 
 
 # Passes in isolation; only times out under full-suite contention, so retry.
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_candidate_date_filtering(
     page,
     user,

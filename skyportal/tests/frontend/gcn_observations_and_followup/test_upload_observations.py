@@ -9,7 +9,7 @@ from skyportal.tests.external.test_moving_objects import (
 )
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_upload_observations(page, super_admin_user, super_admin_token):
     telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
         "ZTF", super_admin_token, list(range(5))

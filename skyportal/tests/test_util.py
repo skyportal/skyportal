@@ -29,7 +29,11 @@ TESTUSER_XPATH = '//*[contains(string(),"testuser-cesium-ml-org")]'
 # resolves as soon as the condition is met), and several pages (maps, GCN
 # events, observation plans) render slowly. The legacy Selenium tests used
 # explicit 20-30s waits on these; a 30s default covers them centrally.
-PLAYWRIGHT_DEFAULT_TIMEOUT_MS = 30_000
+# Overridable via env so CI (where the 2-vCPU runner makes page rendering slower
+# under load) can grant more headroom without affecting local runs.
+PLAYWRIGHT_DEFAULT_TIMEOUT_MS = int(
+    os.environ.get("PLAYWRIGHT_DEFAULT_TIMEOUT_MS", 30_000)
+)
 
 
 def _frontend_test_headless():
