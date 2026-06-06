@@ -75,12 +75,12 @@ def test_candidate_date_filtering(
             locator.press_sequentially(part)
 
     start_date_input = page.locator(
-        '//label[text()="Start (Local Time)"]/../div/input'
+        '//label[text()="Start (Local Time)"]/../div//input'
     ).first
     _type_date(start_date_input, now - datetime.timedelta(minutes=2))
 
     end_date_input = page.locator(
-        "//label[text()='End (Local Time)']/../div/input"
+        "//label[text()='End (Local Time)']/../div//input"
     ).first
     _type_date(end_date_input, now - datetime.timedelta(minutes=1))
 

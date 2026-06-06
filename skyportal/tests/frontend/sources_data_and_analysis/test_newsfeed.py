@@ -63,7 +63,7 @@ def test_news_feed(page, user, public_group, upload_data_token, comment_token):
         page.locator('//*[@data-testid="categories.includeCommentsFromBots"]').first
     ).to_be_visible()
     page.locator('//*[@data-testid="categories.includeCommentsFromBots"]').first.click()
-    page.locator('//button[contains(., "Save")]').first.click()
+    page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
     for i in range(2):
         expect(
             page.locator(
@@ -96,7 +96,7 @@ def test_news_feed_prefs_widget(
         page.locator('//*[@data-testid="categories.includeCommentsFromBots"]').first
     ).to_be_visible()
     page.locator('//*[@data-testid="categories.includeCommentsFromBots"]').first.click()
-    page.locator('//button[contains(., "Save")]').first.click()
+    page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
     expect(page.locator('//span[text()="a few seconds ago"]').first).to_be_visible()
     for i in range(2):
         expect(
@@ -112,17 +112,17 @@ def test_news_feed_prefs_widget(
 
     page.locator('//*[@id="newsFeedSettingsIcon"]').first.click()
     _set_num_items(page, "2")
-    page.locator('//button[contains(., "Save")]').first.click()
+    page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
     expect(page.locator(source_added_item_xpath).first).to_be_hidden()
 
     page.locator('//*[@id="newsFeedSettingsIcon"]').first.click()
     _set_num_items(page, "4")
-    page.locator('//button[contains(., "Save")]').first.click()
+    page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
     expect(page.locator(source_added_item_xpath).first).to_be_visible()
 
     page.locator('//*[@id="newsFeedSettingsIcon"]').first.click()
     page.locator('//*[@data-testid="categories.sources"]').first.click()
-    page.locator('//button[contains(., "Save")]').first.click()
+    page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
     for i in range(2):
         expect(
             page.locator(
@@ -132,7 +132,7 @@ def test_news_feed_prefs_widget(
 
     page.locator('//*[@id="newsFeedSettingsIcon"]').first.click()
     page.locator('//*[@data-testid="categories.comments"]').first.click()
-    page.locator('//button[contains(., "Save")]').first.click()
+    page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
     for i in range(2):
         expect(
             page.locator(f'//p[contains(text(),"comment_text_{i}")]').first
@@ -140,7 +140,7 @@ def test_news_feed_prefs_widget(
 
     page.locator('//*[@id="newsFeedSettingsIcon"]').first.click()
     page.locator('//*[@data-testid="categories.comments"]').first.click()
-    page.locator('//button[contains(., "Save")]').first.click()
+    page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
     for i in range(2):
         expect(
             page.locator(f'//p[contains(text(),"comment_text_{i}")]').first
@@ -148,7 +148,7 @@ def test_news_feed_prefs_widget(
 
     page.locator('//*[@id="newsFeedSettingsIcon"]').first.click()
     page.locator('//*[@data-testid="categories.includeCommentsFromBots"]').first.click()
-    page.locator('//button[contains(., "Save")]').first.click()
+    page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
     for i in range(2):
         expect(
             page.locator(f'//p[contains(text(),"comment_text_{i}")]').first

@@ -45,9 +45,14 @@ def test_slider_classifications(
     page.locator(f"//li[text()='{test_taxonomy}']").first.click()
     page.locator("//h6[text()='Stellar variable']").first.click()
 
-    # Set the 'Eclipsing' and 'Algol' sliders to 0.5 (mark at data-index 2)
-    page.locator("//span[@id='Eclipsing']//span[@data-index='2']").first.click()
-    page.locator("//span[@id='Algol']//span[@data-index='2']").first.click()
+    # Set the 'Eclipsing' and 'Algol' sliders to 0.5. MUI slider marks are
+    # 0-size visual dots and aren't pointer-actionable, so drive the value via
+    # the range input instead (min=0, max=1, step=0.25 -> 2 ArrowRights = 0.5).
+    for slider_id in ("Eclipsing", "Algol"):
+        thumb = page.locator(f"//span[@id='{slider_id}']//input[@type='range']").first
+        thumb.focus()
+        thumb.press("ArrowRight")
+        thumb.press("ArrowRight")
 
     page.locator("//button[@name='submitClassificationsButton']").first.click()
 
