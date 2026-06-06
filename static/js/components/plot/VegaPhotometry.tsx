@@ -12,7 +12,8 @@ const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
 const findPeriodInAnnotations = (annotations: any[] = []) => {
   // sort the annotations by modified date descending
   // so we can find the most recent period
-  const sortedAnnotations = annotations.sort((a, b) => {
+  // `annotations` may be frozen RTK Query data, so copy before sorting in place.
+  const sortedAnnotations = [...annotations].sort((a, b) => {
     const aDate = new Date(a.modified);
     const bDate = new Date(b.modified);
     return bDate.getTime() - aDate.getTime();

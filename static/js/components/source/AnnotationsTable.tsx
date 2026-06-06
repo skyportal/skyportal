@@ -136,10 +136,12 @@ const AnnotationsTable = ({
     [canExpand],
   );
 
-  // Curate data
-  annotations?.push(...spectrumAnnotations);
+  // Curate data. Combine source + spectrum annotations into a NEW array — the
+  // `annotations` prop is now frozen RTK Query cache data, so mutating it with
+  // `.push(...)` throws `TypeError: "length" is read-only`.
+  const allAnnotations = [...(annotations ?? []), ...spectrumAnnotations];
   const tableData: any[] = [];
-  annotations?.forEach((annotation: any) => {
+  allAnnotations.forEach((annotation: any) => {
     const {
       id,
       obj_id,

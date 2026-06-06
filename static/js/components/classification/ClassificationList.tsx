@@ -147,7 +147,8 @@ const ClassificationList = ({ obj }: ClassificationListProps) => {
   classifications = classifications || [];
 
   // newest classifications on top reverse sort the classifications by created_at
-  let sorted_classifications = classifications.sort((a: any, b: any) =>
+  // `classifications` is frozen RTK Query data, so copy before sorting in place.
+  let sorted_classifications = [...classifications].sort((a: any, b: any) =>
     a.created_at > b.created_at ? -1 : 1,
   );
 

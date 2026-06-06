@@ -78,7 +78,10 @@ const ObservationPlanRequestLists = ({
     useDeleteObservationPlanRequestTreasureMapMutation();
   const [anchorEl, setAnchorEl] = useState<any>(null);
 
-  const observationPlanRequestList = (observationPlanRequests || []) as any[];
+  // `observationPlanRequests` is frozen RTK Query data, so copy before sorting.
+  const observationPlanRequestList = [
+    ...(observationPlanRequests || []),
+  ] as any[];
 
   const [
     observationPlanRequestFetchedForLocalization,

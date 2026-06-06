@@ -141,9 +141,13 @@ const ScanningProfilesList = ({
   };
 
   const deleteProfile = (dataIndex: number) => {
-    profiles.splice(dataIndex, 1);
+    // `profiles` is frozen RTK Query data, so build a new array without the
+    // deleted entry rather than splicing in place.
+    const updatedProfiles = profiles.filter(
+      (_profile: any, i: number) => i !== dataIndex,
+    );
     const prefs = {
-      scanningProfiles: profiles,
+      scanningProfiles: updatedProfiles,
     };
     updateUserPreferences(prefs);
   };

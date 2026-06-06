@@ -104,7 +104,8 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
     observingRunDict[run.id] = run;
   });
 
-  assignments.sort((a, b) =>
+  // `assignments` is frozen RTK Query data, so copy before sorting in place.
+  assignments = [...assignments].sort((a, b) =>
     observingRunDict[a.run_id]?.calendar_date &&
     observingRunDict[b.run_id]?.calendar_date
       ? dayjs(observingRunDict[a.run_id].calendar_date).unix() -

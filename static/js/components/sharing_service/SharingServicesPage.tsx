@@ -950,7 +950,8 @@ const SharingServicesPage = () => {
             title: "Owner Group(s)",
             items: {
               type: "integer",
-              enum: (groups || [])
+              // `groups` is frozen RTK Query data, so copy before sorting.
+              enum: [...(groups || [])]
                 .sort((a: any, b: any) => a?.name?.localeCompare(b?.name))
                 .map((group: any) => group.id),
             },
@@ -1267,7 +1268,8 @@ const SharingServicesPage = () => {
             schema={getFormSchema(enablePublishToTNS) as any}
             uiSchema={{
               owner_group_ids: {
-                "ui:enumNames": (groups || [])
+                // `groups` is frozen RTK Query data, so copy before sorting.
+                "ui:enumNames": [...(groups || [])]
                   .sort((a: any, b: any) => a?.name?.localeCompare(b?.name))
                   .map((group: any) => group.name),
               },

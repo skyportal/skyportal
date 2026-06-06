@@ -44,8 +44,9 @@ const SourceRedshiftHistory = ({
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Sort history from newest to oldest
-  const sortedHistory = redshiftHistory?.sort((a, b) => {
+  // Sort history from newest to oldest.
+  // `redshiftHistory` is frozen RTK Query data, so copy before sorting in place.
+  const sortedHistory = [...(redshiftHistory ?? [])].sort((a, b) => {
     const dateA = new Date(a.set_at_utc);
     const dateB = new Date(b.set_at_utc);
     return dateB.getTime() - dateA.getTime();

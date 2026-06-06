@@ -376,7 +376,8 @@ function ShowClassification({
   shortened = false,
   fontSize = "1rem",
 }: ShowClassificationProps) {
-  const sorted_classifications = (classifications || []).sort((a, b) =>
+  // `classifications` is frozen RTK Query data, so copy before sorting in place.
+  const sorted_classifications = [...(classifications || [])].sort((a, b) =>
     a["created_at"] > b["created_at"] ? -1 : 1,
   );
 
@@ -391,16 +392,18 @@ function ShowClassification({
   const keys = Object.keys(classificationsGrouped);
   keys.forEach((key) => {
     const group = classificationsGrouped[key] ?? [];
-    group.forEach((_item: any, index: number) => {
-      let taxname: any = taxonomyList.filter(
-        (i) => i["id"] === group[index].taxonomy_id,
+    // The grouped items are the original frozen RTK Query classification
+    // objects, so build new objects with the added `taxname` rather than
+    // mutating them in place.
+    classificationsGrouped[key] = group.map((item: any) => {
+      const matchingTaxonomies: any = taxonomyList.filter(
+        (i) => i["id"] === item.taxonomy_id,
       );
-      if (taxname.length > 0) {
-        taxname = taxname[0].name;
-      } else {
-        taxname = "Unknown taxonomy";
-      }
-      group[index].taxname = taxname;
+      const taxname =
+        matchingTaxonomies.length > 0
+          ? matchingTaxonomies[0].name
+          : "Unknown taxonomy";
+      return { ...item, taxname };
     });
   });
 

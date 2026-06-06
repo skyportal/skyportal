@@ -818,7 +818,8 @@ const SourceTable = ({
       const group = source.groups.find((g: any) => g.id === groupID);
       return group?.saved_by?.username;
     }
-    const usernames = source.groups
+    // `source.groups` is frozen RTK Query data, so copy before sorting in place.
+    const usernames = [...source.groups]
       .sort((g1: any, g2: any) => (g1.saved_at < g2.saved_at ? -1 : 1))
       .map((g: any) => g.saved_by?.username);
     return usernames[usernames.length - 1];

@@ -55,8 +55,9 @@ const ShowSummaryHistory = ({
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Sort history from newest to oldest
-  const sortedHistory = summaries?.sort((a, b) => {
+  // Sort history from newest to oldest.
+  // `summaries` is frozen RTK Query data, so copy before sorting in place.
+  const sortedHistory = [...(summaries ?? [])].sort((a, b) => {
     const dateA = new Date(a.set_at_utc as string);
     const dateB = new Date(b.set_at_utc as string);
     return dateB.getTime() - dateA.getTime();

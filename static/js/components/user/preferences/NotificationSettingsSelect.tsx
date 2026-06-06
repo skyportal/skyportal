@@ -243,7 +243,8 @@ const NotificationSettingsSelect = ({
             },
           },
         };
-        setValueSMS(valueSMS.reverse());
+        // `valueSMS` may be frozen RTK Query data, so copy before reversing.
+        setValueSMS([...valueSMS].reverse());
         setInvertedSMS(!invertedSMS);
         updateUserPreferences(prefs);
       } else if (type === "phone") {
@@ -256,7 +257,8 @@ const NotificationSettingsSelect = ({
             },
           },
         };
-        setValuePhone(valuePhone.reverse());
+        // `valuePhone` may be frozen RTK Query data, so copy before reversing.
+        setValuePhone([...valuePhone].reverse());
         setInvertedPhone(!invertedPhone);
         updateUserPreferences(prefs);
       } else if (type === "whatsapp") {
@@ -269,7 +271,8 @@ const NotificationSettingsSelect = ({
             },
           },
         };
-        setValueWhatsapp(valueWhatsapp.reverse());
+        // `valueWhatsapp` may be frozen RTK Query data, so copy before reversing.
+        setValueWhatsapp([...valueWhatsapp].reverse());
         setInvertedWhatsapp(!invertedWhatsapp);
         updateUserPreferences(prefs);
       }

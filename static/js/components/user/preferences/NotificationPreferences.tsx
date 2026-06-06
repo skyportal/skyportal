@@ -88,7 +88,8 @@ const NotificationPreferences = () => {
   const [selectedGroups, setSelectedGroups] = useState<any[]>([]);
   const [selectedAllocations, setSelectedAllocations] = useState<any[]>([]);
 
-  let sortedGroups: any[] = groups.sort((a: any, b: any) => {
+  // `groups` is frozen RTK Query data, so copy before sorting in place.
+  let sortedGroups: any[] = [...groups].sort((a: any, b: any) => {
     if (a.name.toLowerCase() < b.name.toLowerCase()) {
       return -1;
     }
