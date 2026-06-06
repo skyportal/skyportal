@@ -773,7 +773,8 @@ const CandidateList = () => {
     selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null,
   );
 
-  const { scanningProfiles } = useGetProfileQuery().data?.preferences as any;
+  const scanningProfiles = (useGetProfileQuery().data?.preferences as any)
+    ?.scanningProfiles;
 
   const defaultScanningProfile = scanningProfiles?.find(
     (profile: any) => profile.default,

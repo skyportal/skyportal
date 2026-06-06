@@ -12,8 +12,9 @@ const ClassificationShortcutButtons = ({
   setSelectedClassifications,
   inDialog = false,
 }: ClassificationShortcutButtonsProps) => {
-  const { classificationShortcuts } = useGetProfileQuery().data
-    ?.preferences as any;
+  const classificationShortcuts = (
+    useGetProfileQuery().data?.preferences as any
+  )?.classificationShortcuts;
   if (!classificationShortcuts) return null;
 
   const handleClassificationShortcutClick = (

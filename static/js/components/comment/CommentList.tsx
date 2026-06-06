@@ -240,7 +240,8 @@ const CommentList = ({
     data: any;
   };
   const [addCommentOnEarthquake] = useAddCommentOnEarthquakeMutation();
-  const { showBotComments } = useGetProfileQuery().data?.preferences as any;
+  const showBotComments = (useGetProfileQuery().data?.preferences as any)
+    ?.showBotComments;
   const userColorTheme = (useGetProfileQuery().data?.preferences as any)?.theme;
 
   const [includeBots, setIncludeBots] = useState(false);
