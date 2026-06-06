@@ -15,7 +15,7 @@ import { useAppDispatch } from "../../types/hooks";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
-import * as Actions from "../../ducks/source";
+import { useSendAlertMutation } from "../../ducks/source";
 
 const useStyles = makeStyles()((theme) => ({
   formControl: {
@@ -61,6 +61,7 @@ const SourceNotification = ({ sourceId }: SourceNotificationProps) => {
     formState: { errors },
   } = useForm();
   const dispatch = useAppDispatch();
+  const [sendAlert] = useSendAlertMutation();
 
   const initialFormState = {
     additionalNotes: "",
@@ -77,10 +78,12 @@ const SourceNotification = ({ sourceId }: SourceNotificationProps) => {
     if (selectedGroupIds.length >= 0) {
       formData.groupIds = selectedGroupIds;
     }
-    const result: any = await dispatch(Actions.sendAlert(formData));
-    if (result.status === "success") {
+    try {
+      await sendAlert(formData).unwrap();
       dispatch(showNotification("Notification queued up successfully", "info"));
       reset(initialFormState);
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 

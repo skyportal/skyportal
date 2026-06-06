@@ -1,8 +1,10 @@
 import CloseIcon from "@mui/icons-material/Close";
 import Button from "../Button";
 
-import { useAppDispatch } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
+import {
+  useDeleteCommentMutation,
+  useDeleteCommentOnSpectrumMutation,
+} from "../../ducks/source";
 import { useDeleteCommentOnGcnEventMutation } from "../../ducks/gcnEvent";
 import { useDeleteCommentOnShiftMutation } from "../../ducks/shifts";
 
@@ -25,7 +27,9 @@ const DeleteComment = ({
   hoverID = null,
   shiftID = null,
 }: DeleteCommentProps) => {
-  const dispatch = useAppDispatch();
+  const [deleteCommentMutation] = useDeleteCommentMutation();
+  const [deleteCommentOnSpectrumMutation] =
+    useDeleteCommentOnSpectrumMutation();
   const [deleteCommentOnShiftMutation] = useDeleteCommentOnShiftMutation();
   const [deleteCommentOnGcnEventMutation] =
     useDeleteCommentOnGcnEventMutation();
@@ -33,16 +37,17 @@ const DeleteComment = ({
     sourceID: string | null,
     commentID: string | number | null,
   ) => {
-    dispatch(sourceActions.deleteComment(sourceID!, commentID!));
+    deleteCommentMutation({ sourceID: sourceID!, commentID: commentID! });
   };
 
   const deleteCommentOnSpectrum = (
     commentSpectrumID: string | null,
     commentID: string | number | null,
   ) => {
-    dispatch(
-      sourceActions.deleteCommentOnSpectrum(commentSpectrumID!, commentID!),
-    );
+    deleteCommentOnSpectrumMutation({
+      spectrumID: commentSpectrumID!,
+      commentID: commentID!,
+    });
   };
 
   const deleteCommentOnGcnEvent = (

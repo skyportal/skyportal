@@ -9,7 +9,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
+import { useCopySourcePhotometryMutation } from "../../ducks/source";
 import FormValidationError from "../FormValidationError";
 import Button from "../Button";
 import type { Source } from "../../types";
@@ -28,6 +28,7 @@ const CopyPhotometryDialog = ({
   closeDialog,
 }: CopyPhotometryDialogProps) => {
   const dispatch = useAppDispatch();
+  const [copySourcePhotometry] = useCopySourcePhotometryMutation();
 
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
@@ -59,14 +60,14 @@ const CopyPhotometryDialog = ({
     data.group_ids = savedGroups
       ?.filter((_: any, idx: number) => data.groupIds[idx])
       .map((g: any) => g.id);
-    const result: any = await dispatch(
-      sourceActions.copySourcePhotometry(source.id, data),
-    );
-    if (result.status === "success") {
+    try {
+      await copySourcePhotometry({ id: source.id, formData: data }).unwrap();
       dispatch(
         showNotification("Source photometry updated successfully", "info"),
       );
       reset();
+    } catch {
+      // error notification handled by the baseQuery
     }
     closeDialog();
   };

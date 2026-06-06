@@ -11,7 +11,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
+import { useAddGCNCrossmatchMutation } from "../../ducks/source";
 
 dayjs.extend(utc);
 
@@ -38,6 +38,7 @@ const UpdateSourceGCNCrossmatch = ({
 }: UpdateSourceGCNCrossmatchProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [addGCNCrossmatch] = useAddGCNCrossmatchMutation();
 
   let firstDet: any = source?.photstats?.[0]?.first_detected_mjd;
   if (firstDet !== undefined && firstDet !== null) {
@@ -53,21 +54,18 @@ const UpdateSourceGCNCrossmatch = ({
     : dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
-    dispatch(sourceActions.addGCNCrossmatch(source.id!, formData)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(
-            showNotification(
-              "Successfully triggered GCN crossmatch. Please be patient.",
-            ),
-          );
-        } else {
-          dispatch(
-            showNotification("Failed to trigger the GCN crossmatch.", "error"),
-          );
-        }
-      },
-    );
+    try {
+      await addGCNCrossmatch({ id: source.id!, formData }).unwrap();
+      dispatch(
+        showNotification(
+          "Successfully triggered GCN crossmatch. Please be patient.",
+        ),
+      );
+    } catch {
+      dispatch(
+        showNotification("Failed to trigger the GCN crossmatch.", "error"),
+      );
+    }
   };
 
   const gcnFormSchema = {

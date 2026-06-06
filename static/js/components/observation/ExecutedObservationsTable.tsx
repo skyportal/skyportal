@@ -32,7 +32,10 @@ import ObservationFilterForm from "./ObservationFilterForm";
 import NewObservation from "./NewObservation";
 import NewAPIObservation from "./NewAPIObservation";
 
-import { checkSource, saveSource } from "../../ducks/source";
+import {
+  useLazyCheckSourceQuery,
+  useSaveSourceMutation,
+} from "../../ducks/source";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -88,6 +91,8 @@ const ExecutedObservationsTable = ({
   const { classes } = useStyles();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const [checkSource] = useLazyCheckSourceQuery();
+  const [saveSource] = useSaveSourceMutation();
 
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
 
@@ -128,17 +133,20 @@ const ExecutedObservationsTable = ({
 
   const handleSave = async (formData: any) => {
     setIsSaving(formData.id);
-    const data: any = await dispatch(checkSource(formData.id, formData));
-    if (data.status === "success") {
-      if (data.data?.source_exists === true) {
-        dispatch(showNotification(data.data.message, "error"));
+    try {
+      const data: any = await checkSource({
+        id: formData.id,
+        params: formData,
+      }).unwrap();
+      if (data?.source_exists === true) {
+        dispatch(showNotification(data.message, "error"));
       } else {
-        const result: any = await dispatch(saveSource(formData));
-        if (result.status === "success") {
-          dispatch(showNotification("Source saved"));
-          navigate(`/source/${formData.id}`);
-        }
+        await saveSource(formData).unwrap();
+        dispatch(showNotification("Source saved"));
+        navigate(`/source/${formData.id}`);
       }
+    } catch {
+      // error notification handled by the baseQuery
     }
     setIsSaving(null);
   };

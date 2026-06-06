@@ -4,11 +4,10 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 
 import EditIcon from "@mui/icons-material/Edit";
-import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import CommentEntry from "./CommentEntry";
 
-import * as sourceActions from "../../ducks/source";
+import { useEditCommentMutation } from "../../ducks/source";
 import { useEditCommentOnGcnEventMutation } from "../../ducks/gcnEvent";
 import { useEditCommentOnShiftMutation } from "../../ducks/shifts";
 
@@ -35,7 +34,7 @@ const EditComment = ({
   commentText = "",
   attachmentName = "",
 }: EditCommentProps) => {
-  const dispatch = useAppDispatch();
+  const [editCommentMutation] = useEditCommentMutation();
   const [editCommentOnShiftMutation] = useEditCommentOnShiftMutation();
   const [editCommentOnGcnEventMutation] = useEditCommentOnGcnEventMutation();
 
@@ -50,7 +49,7 @@ const EditComment = ({
     formData: any,
   ) => {
     formData.obj_id = sourceID;
-    dispatch(sourceActions.editComment(commentID, formData));
+    editCommentMutation({ commentID, formData });
   };
 
   const editCommentOnSpectrum = (
@@ -59,7 +58,7 @@ const EditComment = ({
     formData: any,
   ) => {
     formData.spectrum_id = spectrumID;
-    dispatch(sourceActions.editComment(commentID, formData));
+    editCommentMutation({ commentID, formData });
   };
 
   const editCommentOnGcnEvent = (gcnID: any, commentID: any, formData: any) => {

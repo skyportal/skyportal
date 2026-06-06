@@ -68,7 +68,14 @@ import VegaPhotometry from "../plot/VegaPhotometry";
 import FavoritesButton from "../listing/FavoritesButton";
 import MultipleClassificationsForm from "../classification/MultipleClassificationsForm";
 import UpdateSourceSummary from "./UpdateSourceSummary";
-import * as sourceActions from "../../ducks/source";
+import {
+  useDeleteClassificationsMutation,
+  useAddClassificationVoteMutation,
+  useAddSourceLabelsMutation,
+  useDeleteSourceLabelsMutation,
+  useAcceptSaveRequestMutation,
+  useDeclineSaveRequestMutation,
+} from "../../ducks/source";
 import {
   useLazyFetchPendingGroupSourcesQuery,
   useLazyFetchSavedGroupSourcesQuery,
@@ -177,6 +184,8 @@ const useStyles = makeStyles()((theme) => ({
 const RenderShowClassification = React.memo(({ source }: { source: any }) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [deleteClassificationsMutation] = useDeleteClassificationsMutation();
+  const [addClassificationVote] = useAddClassificationVoteMutation();
   const { data: currentUser } = useGetProfileQuery();
   const groupUsers = useAppSelector(
     (state) => (state as any).group?.group_users,
@@ -216,26 +225,25 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
   };
 
   const deleteClassifications = () => {
-    dispatch(
-      sourceActions.deleteClassifications(classificationSourceToDelete),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    deleteClassificationsMutation(classificationSourceToDelete)
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("Classification deleted"));
         closeDialog();
-      }
-    });
+      })
+      .catch(() => {
+        // error notification handled by the baseQuery
+      });
   };
 
   const addVotes = (vote: any) => {
     let success = true;
     source.classifications?.forEach((c: any) => {
-      dispatch(sourceActions.addClassificationVote(c.id, { vote })).then(
-        (result: any) => {
-          if (result.status !== "success") {
-            success = false;
-          }
-        },
-      );
+      addClassificationVote({ classification_id: c.id, data: { vote } })
+        .unwrap()
+        .catch(() => {
+          success = false;
+        });
     });
     if (success) {
       dispatch(showNotification("Votes registered"));
@@ -340,7 +348,8 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
 RenderShowClassification.displayName = "RenderShowClassification";
 
 const RenderShowLabelling = React.memo(({ source }: { source: any }) => {
-  const dispatch = useAppDispatch();
+  const [addSourceLabels] = useAddSourceLabelsMutation();
+  const [deleteSourceLabels] = useDeleteSourceLabelsMutation();
   const { control } = useForm();
   const [checked, setChecked] = useState(false);
 
@@ -362,9 +371,9 @@ const RenderShowLabelling = React.memo(({ source }: { source: any }) => {
     });
 
     if (check === true) {
-      dispatch(sourceActions.addSourceLabels(source.id, { groupIds }));
+      addSourceLabels({ id: source.id, data: { groupIds } });
     } else {
-      dispatch(sourceActions.deleteSourceLabels(source.id, { groupIds }));
+      deleteSourceLabels({ id: source.id, data: { groupIds } });
     }
   };
 
@@ -618,6 +627,8 @@ const SourceTable = ({
   // If groupID is not given, show all data available to user's accessible groups
 
   const dispatch = useAppDispatch();
+  const [acceptSaveRequest] = useAcceptSaveRequestMutation();
+  const [declineSaveRequest] = useDeclineSaveRequestMutation();
   const [fetchPendingGroupSourcesTrigger] =
     useLazyFetchPendingGroupSourcesQuery();
   const [fetchSavedGroupSourcesTrigger] = useLazyFetchSavedGroupSourcesQuery();
@@ -739,10 +750,8 @@ const SourceTable = ({
   };
 
   const handleSaveSource = async (sourceID: any) => {
-    const result: any = await dispatch(
-      sourceActions.acceptSaveRequest({ sourceID, groupID: groupID! }),
-    );
-    if (result.status === "success") {
+    try {
+      await acceptSaveRequest({ sourceID, groupID: groupID! }).unwrap();
       fetchPendingGroupSourcesTrigger({
         group_ids: [groupID],
         pageNumber: 1,
@@ -753,19 +762,21 @@ const SourceTable = ({
         pageNumber: 1,
         numPerPage: 10,
       });
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 
   const handleIgnoreSource = async (sourceID: any) => {
-    const result: any = await dispatch(
-      sourceActions.declineSaveRequest({ sourceID, groupID: groupID! }),
-    );
-    if (result.status === "success") {
+    try {
+      await declineSaveRequest({ sourceID, groupID: groupID! }).unwrap();
       fetchPendingGroupSourcesTrigger({
         group_ids: [groupID],
         pageNumber: 1,
         numPerPage: 10,
       });
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 

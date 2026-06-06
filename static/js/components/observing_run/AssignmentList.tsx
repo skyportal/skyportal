@@ -14,7 +14,7 @@ import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyAssignment from "./ModifyAssignment";
 import StyledDataGrid from "../StyledDataGrid";
-import * as Actions from "../../ducks/source";
+import { useDeleteAssignmentMutation } from "../../ducks/source";
 import { useGetUsersQuery } from "../../ducks/users";
 import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 
@@ -34,6 +34,7 @@ interface AssignmentListProps {
 const AssignmentList = ({ assignments }: AssignmentListProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [deleteAssignmentMutation] = useDeleteAssignmentMutation();
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -66,14 +67,15 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
   };
 
   const deleteAssignment = () => {
-    dispatch(Actions.deleteAssignment(assignmentToEditDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Unassigned target from observing run"));
-          closeDeleteDialog();
-        }
-      },
-    );
+    deleteAssignmentMutation(assignmentToEditDelete)
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("Unassigned target from observing run"));
+        closeDeleteDialog();
+      })
+      .catch(() => {
+        // error notification handled by the baseQuery
+      });
   };
 
   if (allUsers.length === 0) {

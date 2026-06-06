@@ -41,7 +41,7 @@ import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "../StarList";
 import withRouter from "../withRouter";
 
-import * as SourceAction from "../../ducks/source";
+import { useEditAssignmentMutation } from "../../ducks/source";
 import {
   useGetObservingRunQuery,
   usePutObservingRunNotObservedMutation,
@@ -92,7 +92,7 @@ interface SimpleMenuProps {
 const SimpleMenu = ({ assignment }: SimpleMenuProps) => {
   const [anchorEl, setAnchorEl] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const dispatch = useAppDispatch();
+  const [editAssignment] = useEditAssignmentMutation();
 
   const { data: observingRunList = [] } = useGetObservingRunsQuery();
 
@@ -106,7 +106,7 @@ const SimpleMenu = ({ assignment }: SimpleMenuProps) => {
 
   const updateAssignmentStatus = (status: string) => () => {
     handleClose();
-    return dispatch(SourceAction.editAssignment({ status }, assignment.id));
+    return editAssignment({ params: { status }, assignmentID: assignment.id });
   };
 
   const openDialog = () => {

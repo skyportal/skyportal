@@ -8,7 +8,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
+import { useSaveSourceMutation } from "../../ducks/source";
 import Button from "../Button";
 
 interface QuickSaveButtonProps {
@@ -21,6 +21,7 @@ const QuickSaveButton = ({
   alreadySavedGroups = [],
 }: QuickSaveButtonProps) => {
   const dispatch = useAppDispatch();
+  const [saveSource] = useSaveSourceMutation();
   const { data: profile } = useGetProfileQuery();
   const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
   const { hydratedList } = useAppSelector((state) => state["hydration"]);
@@ -41,19 +42,20 @@ const QuickSaveButton = ({
       id: sourceId,
       group_ids: saveGroups,
     };
-    dispatch(sourceActions.saveSource(data)).then((response: any) => {
-      if (response.status === "success") {
+    saveSource(data)
+      .unwrap()
+      .then(() => {
         dispatch(
           showNotification(
             `Source quick saved to ${quickSaveGroupsSet.size} group(s)`,
           ),
         );
         setIsSaving(false);
-      } else {
+      })
+      .catch(() => {
         setIsSaving(false);
         dispatch(showNotification("Error saving source", "error"));
-      }
-    });
+      });
   };
 
   if (!((profile?.preferences as any)?.quicksave_group_ids?.length > 0)) {

@@ -32,7 +32,7 @@ import {
   useParseASCIISpectrumMutation,
   useUploadASCIISpectrumMutation,
 } from "../../ducks/spectra";
-import { fetchSource } from "../../ducks/source";
+import { useGetSourceQuery } from "../../ducks/source";
 import { useGetUsersQuery } from "../../ducks/users";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { userLabel } from "../../utils/format";
@@ -90,7 +90,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
     (state) => state["instruments"].instrumentList,
   );
   const { data: telescopes = [] } = useGetTelescopesQuery();
-  const source = useAppSelector((state) => state["source"]);
+  const { data: source } = useGetSourceQuery(route.id);
   const [persistentFormData, setPersistentFormData] = useState<any>({});
   const [formKey, setFormKey] = useState<any>(null);
   const [header, setHeader] = useState<any[]>([]);
@@ -128,10 +128,11 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
 
   // on page load or refresh, reset the locally-parsed spectrum
   useEffect(() => {
+    if (!source) {
+      return;
+    }
     (async () => {
       setParsed(null);
-
-      const sourceResult = await dispatch(fetchSource(route.id));
 
       let file: any;
       const fileUrl = unwrapQuotes(searchParams.get("file_url"));
@@ -156,8 +157,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
       setPersistentFormData({
         file,
         group_ids:
-          getIntList("group_ids") ??
-          (sourceResult as any).data.groups?.map((g: any) => g.id),
+          getIntList("group_ids") ?? source["groups"]?.map((g: any) => g.id),
         mjd: parseFloat(searchParams.get("mjd") as any) || undefined,
         wave_column: parseInt(searchParams.get("wave_column") as any, 10) || 0,
         flux_column: parseInt(searchParams.get("flux_column") as any, 10) || 1,
@@ -172,7 +172,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
         reduced_by: getIntList("reduced_by"),
       });
     })();
-  }, [dispatch, route.id, searchParams]);
+  }, [source, route.id, searchParams]);
 
   useEffect(() => {
     if (!parsed) return;
@@ -211,7 +211,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
     !instrumentList ||
     !telescopes ||
     !users?.length ||
-    source.id !== route.id
+    source?.id !== route.id
   ) {
     return <Spinner />;
   }
@@ -631,7 +631,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
       setParsed(null);
       setPersistentFormData({
         file: undefined,
-        group_ids: source.groups?.map((group: any) => group.id),
+        group_ids: source?.["groups"]?.map((group: any) => group.id),
         mjd: undefined,
         wave_column: 0,
         flux_column: 1,

@@ -34,7 +34,7 @@ import { useAppSelector, useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { addAnnotation } from "../../ducks/source";
+import { useAddAnnotationMutation } from "../../ducks/source";
 import {
   photometryApi,
   useFetchSourcePhotometryQuery,
@@ -142,6 +142,7 @@ const PeriodAnnotationDialog = ({
   period,
 }: PeriodAnnotationDialogProps) => {
   const dispatch = useAppDispatch();
+  const [addAnnotation] = useAddAnnotationMutation();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const periodUnits = Object.keys(periodUnitDividers);
 
@@ -197,14 +198,15 @@ const PeriodAnnotationDialog = ({
       },
       groups: formData.groupIDs,
     };
-    dispatch(addAnnotation(obj_id, periodData)).then((result: any) => {
-      if (result.status === "success") {
+    addAnnotation({ sourceID: obj_id, formData: periodData })
+      .unwrap()
+      .then(() => {
         setDialogOpen(false);
         dispatch(showNotification("Period saved as annotation"));
-      } else {
+      })
+      .catch(() => {
         dispatch(showNotification("Failed to save period as annotation"));
-      }
-    });
+      });
   };
 
   return (

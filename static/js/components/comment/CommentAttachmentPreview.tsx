@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
@@ -14,7 +13,10 @@ import Tooltip from "@mui/material/Tooltip";
 
 import ReactJson from "react-json-view";
 
-import * as sourceActions from "../../ducks/source";
+import {
+  useLazyGetCommentTextAttachmentQuery,
+  useLazyGetCommentOnSpectrumTextAttachmentQuery,
+} from "../../ducks/source";
 import { useLazyGetCommentOnGcnEventTextAttachmentQuery } from "../../ducks/gcnEvent";
 import { useLazyGetCommentOnShiftAttachmentQuery } from "../../ducks/shifts";
 import { useLazyGetCommentOnEarthquakeTextAttachmentQuery } from "../../ducks/earthquake";
@@ -189,7 +191,6 @@ const CommentAttachmentPreview = ({
   const { classes } = useStyles();
   const theme = useTheme();
   const darkTheme = theme.palette.mode === "dark";
-  const dispatch = useAppDispatch();
   const [getShiftCommentAttachment, { data: shiftCommentAttachment }] =
     useLazyGetCommentOnShiftAttachmentQuery();
   const [
@@ -198,13 +199,12 @@ const CommentAttachmentPreview = ({
   ] = useLazyGetCommentOnEarthquakeTextAttachmentQuery();
   const [getGcnEventCommentAttachment, { data: gcnEventCommentAttachment }] =
     useLazyGetCommentOnGcnEventTextAttachmentQuery();
+  const [getSourceCommentAttachment, { data: sourceTextAttachment }] =
+    useLazyGetCommentTextAttachmentQuery();
+  const [getSpectrumCommentAttachment, { data: spectrumTextAttachment }] =
+    useLazyGetCommentOnSpectrumTextAttachmentQuery();
 
-  // The source comment attachment still lives in the (un-migrated) source
-  // redux slice; the gcn_event one now comes from the RTK Query lazy hook.
-  const sourceCommentAttachment = useAppSelector(
-    (state: any) => state.source.commentAttachment,
-  );
-  let commentAttachment = sourceCommentAttachment;
+  let commentAttachment: any = sourceTextAttachment ?? spectrumTextAttachment;
   if (associatedResourceType === "gcn_event") {
     commentAttachment = gcnEventCommentAttachment;
   } else if (associatedResourceType === "shift") {
@@ -242,14 +242,15 @@ const CommentAttachmentPreview = ({
       open
     ) {
       if (associatedResourceType === "sources") {
-        dispatch(sourceActions.getCommentTextAttachment(objectID!, commentId));
+        getSourceCommentAttachment({
+          sourceID: objectID!,
+          commentID: commentId,
+        });
       } else if (associatedResourceType === "spectra") {
-        dispatch(
-          sourceActions.getCommentOnSpectrumTextAttachment(
-            objectID!,
-            commentId,
-          ),
-        );
+        getSpectrumCommentAttachment({
+          spectrumID: objectID!,
+          commentID: commentId,
+        });
       } else if (associatedResourceType === "gcn_event") {
         getGcnEventCommentAttachment({
           gcnEventID: gcnEventID!,

@@ -14,7 +14,7 @@ import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import * as Actions from "../../ducks/source";
+import { useAddClassificationMutation } from "../../ducks/source";
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -236,6 +236,7 @@ const ClassificationForm = ({
   taxonomyList,
 }: ClassificationFormProps) => {
   const dispatch = useAppDispatch();
+  const [addClassification] = useAddClassificationMutation();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
@@ -257,11 +258,13 @@ const ClassificationForm = ({
     if (formData.groupIDs) {
       data.group_ids = formData.groupIDs?.map((id: any) => parseInt(id, 10));
     }
-    const result: any = await dispatch(Actions.addClassification(data));
-    setSubmissionRequestInProcess(false);
-    if (result.status === "success") {
+    try {
+      await addClassification(data).unwrap();
       dispatch(showNotification("Classification saved"));
+    } catch {
+      // error notification handled by the baseQuery
     }
+    setSubmissionRequestInProcess(false);
   };
 
   const widgets = {

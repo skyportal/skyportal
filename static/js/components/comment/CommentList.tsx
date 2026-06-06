@@ -13,8 +13,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import { skipToken } from "@reduxjs/toolkit/query";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
+import { useGetSourceQuery, useAddCommentMutation } from "../../ducks/source";
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 import { useGetCandidateQuery } from "../../ducks/candidate/candidate";
 import {
@@ -214,12 +213,14 @@ const CommentList = ({
     setHoverID(null);
   };
 
-  const dispatch = useAppDispatch();
-  const source = useAppSelector((state) => state["source"]);
+  const [addCommentMutation] = useAddCommentMutation();
   const { data: candidate } = useGetCandidateQuery(
     isCandidate && objID ? objID : skipToken,
   );
-  const obj = isCandidate ? candidate : source;
+  const { data: source } = useGetSourceQuery(
+    !isCandidate && objID ? objID : skipToken,
+  );
+  const obj: any = isCandidate ? candidate : source;
   const resolvedObjID = objID ?? obj?.id ?? null;
   const { data: spectra } = useFetchSourceSpectraQuery(
     { id: resolvedObjID as string },
@@ -261,13 +262,11 @@ const CommentList = ({
   }
 
   const addComment = (formData: any) => {
-    dispatch(
-      sourceActions.addComment({
-        obj_id: objID,
-        spectrum_id: spectrumID,
-        ...formData,
-      }),
-    );
+    addCommentMutation({
+      obj_id: objID,
+      spectrum_id: spectrumID,
+      ...formData,
+    });
   };
 
   const addGcnEventComment = (formData: any) => {

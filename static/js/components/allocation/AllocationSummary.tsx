@@ -36,7 +36,7 @@ import withRouter from "../withRouter";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
-import * as SourceAction from "../../ducks/source";
+import { useEditFollowupRequestMutation } from "../../ducks/source";
 import {
   useGetAllocationQuery,
   useEditFollowupRequestCommentMutation,
@@ -75,6 +75,7 @@ interface SimpleMenuProps {
 const SimpleMenu = ({ request }: SimpleMenuProps) => {
   const [anchorEl, setAnchorEl] = React.useState<any>(null);
   const dispatch = useAppDispatch();
+  const [editFollowupRequestMutation] = useEditFollowupRequestMutation();
 
   const handleClick = (event: any) => {
     setAnchorEl(event.currentTarget);
@@ -86,13 +87,16 @@ const SimpleMenu = ({ request }: SimpleMenuProps) => {
 
   const updateRequestStatus = async (status: string) => {
     handleClose();
-    const result: any = await dispatch(
-      SourceAction.editFollowupRequest({ status }, request.id),
-    );
-    if (result.status === "success") {
+    try {
+      await editFollowupRequestMutation({
+        params: { status },
+        requestID: request.id,
+      }).unwrap();
       dispatch(
         showNotification("Follow-up request status successfully updated"),
       );
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 

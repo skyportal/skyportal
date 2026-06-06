@@ -11,8 +11,8 @@ import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as Actions from "../../ducks/source";
+import { useAppSelector } from "../../types/hooks";
+import { useSubmitAssignmentMutation } from "../../ducks/source";
 
 import Button from "../Button";
 
@@ -74,7 +74,7 @@ interface AssignmentFormProps {
 }
 
 const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
-  const dispatch = useAppDispatch();
+  const [submitAssignment] = useSubmitAssignmentMutation();
   const { classes } = useStyles();
 
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
@@ -111,7 +111,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
       ...initialFormState,
       ...getValues(),
     };
-    dispatch(Actions.submitAssignment(formData));
+    submitAssignment(formData);
     reset(initialFormState);
   };
 

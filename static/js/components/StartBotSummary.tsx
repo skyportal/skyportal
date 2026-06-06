@@ -1,7 +1,7 @@
 import { useGetProfileQuery } from "../ducks/profile";
 import { useGetGroupsQuery } from "../ducks/groups";
 import { useEffect, useMemo, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../types/hooks";
+import { useAppSelector } from "../types/hooks";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -21,7 +21,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import { useGetAnalysisServicesQuery } from "../ducks/analysis_services";
-import * as sourceActions from "../ducks/source";
+import { useStartAnalysisMutation } from "../ducks/source";
 import GroupShareSelect from "./group/GroupShareSelect";
 
 dayjs.extend(relativeTime);
@@ -68,7 +68,7 @@ interface StartBotSummaryProps {
 
 const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [startAnalysis] = useStartAnalysisMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: analysisServiceListData } = useGetAnalysisServicesQuery();
@@ -136,9 +136,11 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
     if (selectedGroupIds.length >= 0) {
       params.group_ids = selectedGroupIds;
     }
-    await dispatch(
-      sourceActions.startAnalysis(obj_id, selectedAnalysisServiceId, params),
-    );
+    await startAnalysis({
+      id: obj_id,
+      analysis_service_id: selectedAnalysisServiceId,
+      formData: params,
+    });
     setIsSubmitting(false);
     setDialogOpen(false);
   };

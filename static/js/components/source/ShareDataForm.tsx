@@ -43,7 +43,7 @@ import {
   useFetchSourceSpectraQuery,
   useDeleteSpectrumMutation,
 } from "../../ducks/spectra";
-import * as sourceActions from "../../ducks/source";
+import { useShareDataMutation } from "../../ducks/source";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useSourceStyles } from "./Source";
 
@@ -297,6 +297,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
   const darkTheme = theme.palette.mode === "dark";
 
   const dispatch = useAppDispatch();
+  const [shareData] = useShareDataMutation();
   const [selectedPhotRows, setSelectedPhotRows] = useState<any[]>([]);
   const [selectedSpecRows, setSelectedSpecRows] = useState<any[]>([]);
   const [openedSpecRows, setOpenedSpecRows] = useState<any[]>([]);
@@ -327,12 +328,14 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
       photometryIDs: selectedPhotRows,
       spectrumIDs: selectedSpecRows,
     };
-    const result: any = await dispatch(sourceActions.shareData(data));
-    if (result.status === "success") {
+    try {
+      await shareData(data).unwrap();
       dispatch(showNotification("Data successfully shared"));
       reset({ groups: [] });
       setSelectedPhotRows([]);
       setSelectedSpecRows([]);
+    } catch {
+      // error notification handled by the baseQuery
     }
     setIsSubmitting(false);
   };

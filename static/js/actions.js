@@ -32,7 +32,7 @@ import * as objTagActions from "./ducks/objectTags";
 
 // we also import actions that won't be hydrated, to make sure they are
 // registered as reducers, to avoid conflicts with redux-state-sync
-import * as sourceActions from "./ducks/source";
+import "./ducks/source";
 import * as gcnTagsActions from "./ducks/gcnTags";
 import "./ducks/gcnEvent";
 import "./ducks/gcnEvents";

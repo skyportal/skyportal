@@ -7,6 +7,7 @@ import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetSourceQuery } from "../../ducks/source";
 import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import { PHOT_ZP, greatCircleDistance } from "../../utils";
 
@@ -326,7 +327,10 @@ const CentroidPlot = ({
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
-  const { id, ra, dec } = useAppSelector((state) => state["source"]);
+  const { data: source } = useGetSourceQuery(sourceId);
+  const id = source?.id ?? null;
+  const ra = source?.ra ?? null;
+  const dec = source?.dec ?? null;
   const { data: photometry } = useFetchSourcePhotometryQuery({ id: sourceId });
   const config = useAppSelector((state) => state["config"]);
 
@@ -358,8 +362,8 @@ const CentroidPlot = ({
     ) {
       const { refRA, refDec, points, oneSigmaCircle, stdCircle } = prepareData(
         photometry ?? [],
-        ra,
-        dec,
+        ra as number,
+        dec as number,
       );
       setData({ refRA, refDec, oneSigmaCircle, stdCircle });
 

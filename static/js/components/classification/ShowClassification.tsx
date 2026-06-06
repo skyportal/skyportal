@@ -13,7 +13,10 @@ import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
-import * as sourceActions from "../../ducks/source";
+import {
+  useAddClassificationVoteMutation,
+  useDeleteClassificationMutation,
+} from "../../ducks/source";
 
 // preserve the legacy <font> tag (not a typed JSX intrinsic element)
 const Font: any = "font";
@@ -47,6 +50,8 @@ const ClassificationRow = ({
 }: ClassificationRowProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [addClassificationVote] = useAddClassificationVoteMutation();
+  const [deleteClassificationMutation] = useDeleteClassificationMutation();
 
   const { data: currentUser } = useGetProfileQuery();
   const groupUsers = useAppSelector(
@@ -86,13 +91,14 @@ const ClassificationRow = ({
   };
 
   const addVote = (classification_id: any, vote: number) => {
-    dispatch(
-      sourceActions.addClassificationVote(classification_id, { vote }),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    addClassificationVote({ classification_id, data: { vote } })
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("Vote registered"));
-      }
-    });
+      })
+      .catch(() => {
+        // error notification handled by the baseQuery
+      });
   };
 
   const switchVotesVisible = () => {
@@ -100,14 +106,15 @@ const ClassificationRow = ({
   };
 
   const deleteClassification = () => {
-    dispatch(sourceActions.deleteClassification(classificationToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Classification deleted"));
-          closeDialog();
-        }
-      },
-    );
+    deleteClassificationMutation(classificationToDelete)
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("Classification deleted"));
+        closeDialog();
+      })
+      .catch(() => {
+        // error notification handled by the baseQuery
+      });
   };
 
   const classification = classifications[0]!;

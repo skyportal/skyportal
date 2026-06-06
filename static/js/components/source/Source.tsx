@@ -33,7 +33,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import withRouter from "../withRouter";
 
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
@@ -80,7 +80,14 @@ import Button from "../Button";
 import SourcePlugins from "./SourcePlugins";
 import ObjectTags from "../ObjectTags";
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
-import * as sourceActions from "../../ducks/source";
+import {
+  useGetSourceQuery,
+  useGetAssociatedGcnsQuery,
+  useGetSourcePositionQuery,
+  useAddHostMutation,
+  useRemoveHostMutation,
+  useAddSourceViewMutation,
+} from "../../ducks/source";
 
 import PhotometryPlot from "../plot/PhotometryPlot";
 import SpectraPlot from "../plot/SpectraPlot";
@@ -218,7 +225,6 @@ interface SourceContentProps {
 }
 
 const SourceContent = ({ source }: SourceContentProps) => {
-  const dispatch = useAppDispatch();
   const { classes } = useSourceStyles() as { classes: any };
 
   const { data: currentUser } = useGetProfileQuery();
@@ -226,9 +232,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
     (g: any) => !g.single_user_group,
   );
   const { data: spectra } = useFetchSourceSpectraQuery({ id: source.id });
-  const associatedGCNs = useAppSelector(
-    (state) => (state as any).source.associatedGCNs,
-  );
+  const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
+  const associatedGCNs = associatedGcnsData?.["gcns"];
+  const [addHost] = useAddHostMutation();
+  const [removeHostMutation] = useRemoveHostMutation();
 
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
@@ -316,20 +323,21 @@ const SourceContent = ({ source }: SourceContentProps) => {
     )
     .sort((a: any, b: any) => new Date(b).getTime() - new Date(a).getTime());
 
-  useEffect(() => {
-    dispatch(sourceActions.fetchPosition(source.id));
-    dispatch(sourceActions.fetchAssociatedGCNs(source.id));
-  }, [source.id, dispatch]);
+  const { data: adjustedPosition } = useGetSourcePositionQuery(source.id);
+  const sourceWithPosition = useMemo(
+    () => ({ ...source, adjusted_position: adjustedPosition }),
+    [source, adjustedPosition],
+  );
 
   const getZRound = (redshift_error: any) =>
     redshift_error ? ceil(abs(log10(redshift_error))) : 4;
 
   const setHost = (galaxyName: any) => {
-    dispatch(sourceActions.addHost(source.id, { galaxyName }));
+    addHost({ id: source.id, formData: { galaxyName } });
   };
 
   const removeHost = () => {
-    dispatch(sourceActions.removeHost(source.id));
+    removeHostMutation(source.id);
   };
 
   const handleHover = (type: any) => {
@@ -435,7 +443,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
             }}
           >
             <Suspense fallback={<CircularProgress />}>
-              <CommentList maxHeightList={downLarge ? "28.5vh" : "350px"} />
+              <CommentList
+                objID={source.id}
+                maxHeightList={downLarge ? "28.5vh" : "350px"}
+              />
             </Suspense>
           </AccordionDetails>
         </Accordion>
@@ -457,7 +468,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionSummary>
           <AccordionDetails>
             <div className={classes.classifications}>
-              <ClassificationList />
+              <ClassificationList obj={source} />
               <ClassificationForm
                 obj_id={source.id}
                 taxonomyList={taxonomyList}
@@ -619,7 +630,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             <div style={{ marginBottom: "0.25rem" }}>
               <ObjectTags source={source} />
             </div>
-            <SourceCoordinates classes={classes} source={source} />
+            <SourceCoordinates classes={classes} source={sourceWithPosition} />
             <div
               className={classes.flexRow}
               style={{
@@ -1503,28 +1514,25 @@ interface SourceProps {
 }
 
 const Source = ({ route }: SourceProps) => {
-  const dispatch = useAppDispatch();
-  const source = useAppSelector((state) => state["source"]);
-  const cachedSourceId = source ? source.id : null;
-  const isCached = route.id === cachedSourceId;
+  const {
+    data: source,
+    isError,
+    error,
+    isLoading,
+    isSuccess,
+  } = useGetSourceQuery(route.id);
+  const [addSourceView] = useAddSourceViewMutation();
 
   useEffect(() => {
-    const fetchSource = async () => {
-      const data: any = await dispatch(sourceActions.fetchSource(route.id));
-      if (data.status === "success") {
-        dispatch(sourceActions.addSourceView(route.id));
-      }
-    };
-
-    if (!isCached) {
-      fetchSource();
+    if (isSuccess && source?.id !== undefined) {
+      addSourceView(route.id);
     }
-  }, [dispatch, isCached, route.id]);
+  }, [isSuccess, source?.id, route.id, addSourceView]);
 
-  if (source.loadError) {
-    return <div>{source.loadError}</div>;
+  if (isError) {
+    return <div>{(error as any)?.error ?? "Error while loading source"}</div>;
   }
-  if (!isCached) {
+  if (isLoading || !source) {
     return (
       <div>
         <Spinner />

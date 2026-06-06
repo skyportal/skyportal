@@ -18,10 +18,10 @@ import utc from "dayjs/plugin/utc";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
-import * as sourceActions from "../../ducks/source";
+import { useDeleteClassificationMutation } from "../../ducks/source";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { useGetConfigQuery } from "../../ducks/config";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -73,13 +73,16 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const ClassificationList = () => {
+interface ClassificationListProps {
+  obj: any;
+}
+
+const ClassificationList = ({ obj }: ClassificationListProps) => {
   const { classes: styles } = useStyles();
 
   const dispatch = useAppDispatch();
   const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
-  const source = useAppSelector((state: any) => state.source);
-  const obj = source;
+  const [deleteClassificationMutation] = useDeleteClassificationMutation();
   const { data: userProfile } = useGetProfileQuery();
   // `state.group` (the ambient single-group slice) was removed during the RTK
   // Query migration; this component never fetched a group, so `groupUsers` was
@@ -131,15 +134,14 @@ const ClassificationList = () => {
     setClassificationToDelete(null);
   };
 
-  const deleteClassification = () => {
-    dispatch(sourceActions.deleteClassification(classificationToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Classification deleted"));
-          closeDialog();
-        }
-      },
-    );
+  const deleteClassification = async () => {
+    try {
+      await deleteClassificationMutation(classificationToDelete).unwrap();
+      dispatch(showNotification("Classification deleted"));
+      closeDialog();
+    } catch {
+      // error notification handled by the baseQuery
+    }
   };
 
   classifications = classifications || [];

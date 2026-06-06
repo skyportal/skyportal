@@ -24,7 +24,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
-import * as sourceActions from "../../ducks/source";
+import { useSubmitFollowupRequestMutation } from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
 import {
@@ -64,6 +64,7 @@ const FollowupRequestForm = ({
 }: FollowupRequestFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [submitFollowupRequestMutation] = useSubmitFollowupRequestMutation();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiClassname = [] } =
     useGetAllocationsApiClassnameQuery();
@@ -238,18 +239,17 @@ const FollowupRequestForm = ({
       target_group_ids: selectedGroupIds,
       payload: formData,
     };
-    await dispatch(sourceActions.submitFollowupRequest(json)).then(
-      (response: any) => {
-        setIsSubmitting(false);
-        if (response.status === "success") {
-          if (response.data.request_status?.startsWith("rejected")) {
-            dispatch(showNotification("Request has been rejected.", "warning"));
-          } else {
-            dispatch(showNotification("Request successfully submitted."));
-          }
-        }
-      },
-    );
+    try {
+      const data: any = await submitFollowupRequestMutation(json).unwrap();
+      setIsSubmitting(false);
+      if (data?.request_status?.startsWith("rejected")) {
+        dispatch(showNotification("Request has been rejected.", "warning"));
+      } else {
+        dispatch(showNotification("Request successfully submitted."));
+      }
+    } catch {
+      // error notification handled by the baseQuery
+    }
     setIsSubmitting(false);
   };
 

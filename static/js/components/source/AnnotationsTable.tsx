@@ -21,12 +21,11 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { useAppDispatch } from "../../types/hooks";
 import StyledDataGridBase from "../StyledDataGrid";
 import QuickFilter from "../QuickFilter";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 
-import * as sourceActions from "../../ducks/source";
+import { useDeleteAnnotationMutation as useDeleteSourceAnnotationMutation } from "../../ducks/source";
 import { useDeleteAnnotationMutation } from "../../ducks/spectra";
 
 dayjs.extend(relativeTime);
@@ -69,7 +68,7 @@ const AnnotationsTable = ({
   canExpand = true,
 }: AnnotationsTableProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [deleteSourceAnnotation] = useDeleteSourceAnnotationMutation();
   const [deleteSpectrumAnnotation] = useDeleteAnnotationMutation();
 
   const [openAnnotations, setOpenAnnotations] = useState(false);
@@ -82,7 +81,14 @@ const AnnotationsTable = ({
   ) => {
     setIsRemoving(annotation_id);
     if (type === "source") {
-      await dispatch(sourceActions.deleteAnnotation(id, annotation_id));
+      try {
+        await deleteSourceAnnotation({
+          sourceID: id,
+          annotationID: annotation_id,
+        }).unwrap();
+      } catch {
+        // error notification handled by the baseQuery
+      }
     } else if (type === "spectrum") {
       try {
         await deleteSpectrumAnnotation({

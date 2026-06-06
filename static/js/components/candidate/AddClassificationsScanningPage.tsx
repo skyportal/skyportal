@@ -10,7 +10,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import ClassificationSelect from "../classification/ClassificationSelect";
 import { useAppDispatch } from "../../types/hooks";
-import * as Actions from "../../ducks/source";
+import { useAddClassificationMutation } from "../../ducks/source";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { allowedClasses } from "../classification/ClassificationForm";
 import Button from "../Button";
@@ -27,6 +27,7 @@ const AddClassificationsScanningPage = ({
     string[]
   >([]);
   const dispatch = useAppDispatch();
+  const [addClassification] = useAddClassificationMutation();
 
   const { data: taxonomyList } = useGetTaxonomiesQuery();
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
@@ -56,9 +57,11 @@ const AddClassificationsScanningPage = ({
         classification,
         probability: 1,
       };
-      const result: any = await dispatch(Actions.addClassification(data));
-      if (result.status === "success") {
+      try {
+        await addClassification(data).unwrap();
         dispatch(showNotification(`Classification ${classification} saved`));
+      } catch {
+        // error notification handled by the baseQuery
       }
     });
     setSelectedClassifications([]);

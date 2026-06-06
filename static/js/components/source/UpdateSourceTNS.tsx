@@ -13,7 +13,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
+import { useAddTNSMutation } from "../../ducks/source";
 
 dayjs.extend(utc);
 
@@ -42,19 +42,17 @@ interface UpdateSourceTNSProps {
 const UpdateSourceTNS = ({ source }: UpdateSourceTNSProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [addTNS] = useAddTNSMutation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
-    dispatch(sourceActions.addTNS(source.id, formData)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Successfully queried TNS"));
-        } else {
-          dispatch(showNotification("Failed to query TNS", "error"));
-        }
-      },
-    );
+    try {
+      await addTNS({ id: source.id, formData }).unwrap();
+      dispatch(showNotification("Successfully queried TNS"));
+    } catch {
+      dispatch(showNotification("Failed to query TNS", "error"));
+    }
   };
 
   const tnsFormSchema = {

@@ -13,7 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
-import * as sourceActions from "../../ducks/source";
+import { useUpdateSourceMutation } from "../../ducks/source";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -51,6 +51,7 @@ interface SourceAliasProps {
 const SourceAlias = ({ source }: SourceAliasProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [updateSource] = useUpdateSourceMutation();
   const [alias, setAlias] = useState<string | null>(null);
 
   const [hovering, setHovering] = useState<boolean | null>(null);
@@ -72,16 +73,14 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
     const newState: any = {};
     newState.alias = [...(source.alias || []), alias];
 
-    const result: any = await dispatch(
-      sourceActions.updateSource(source.id, {
-        ...newState,
-      }),
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await updateSource({ id: source.id, payload: { ...newState } }).unwrap();
       dispatch(showNotification("Source alias successfully updated."));
       setDialogOpen(false);
+    } catch {
+      // error notification handled by the baseQuery
     }
+    setIsSubmitting(false);
   };
 
   const handleDelete = async (aliasToDelete: string) => {
@@ -90,15 +89,16 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
       (a) => a !== aliasToDelete,
     );
 
-    const result: any = await dispatch(
-      sourceActions.updateSource(source.id, {
-        alias: newAliasList,
-      }),
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await updateSource({
+        id: source.id,
+        payload: { alias: newAliasList },
+      }).unwrap();
       dispatch(showNotification("Source alias removed successfully."));
+    } catch {
+      // error notification handled by the baseQuery
     }
+    setIsSubmitting(false);
   };
 
   const handleHover = () => {
