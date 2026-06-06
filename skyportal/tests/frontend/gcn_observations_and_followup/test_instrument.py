@@ -73,7 +73,7 @@ def test_instrument_frontend(super_admin_token, super_admin_user, page):
     _search_instrument(instrument_name)
     expect(
         page.locator(f'//*[contains(text(),"{instrument_name}")]').first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()
 
     instrument_name2 = str(uuid.uuid4())
     dialog = _fill_new_instrument_form(instrument_name2)

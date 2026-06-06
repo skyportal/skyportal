@@ -39,7 +39,7 @@ def add_comment(page, comment_text):
 def wait_for_comment_text_found(page, comment_text):
     expect(
         page.locator('//*[@id="comment"]//p', has_text=comment_text.strip()).first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()
 
 
 def add_comment_and_wait_for_display(page, comment_text):
@@ -344,7 +344,7 @@ def test_comment_groups_validation(page, user, public_source, public_group):
         page.locator(
             f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
         ).first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()
 
     enter_comment_text(page, "")
     comment_text = str(uuid.uuid4())
@@ -362,7 +362,7 @@ def test_comment_groups_validation(page, user, public_source, public_group):
         page.locator(
             f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
         ).first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()
 
 
 def test_view_only_user_cannot_comment(page, view_only_user, public_source):
@@ -434,9 +434,7 @@ def test_show_starlist(page, user, public_source):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
     page.locator('//button[text()="Show Starlist"]').first.click()
-    expect(page.locator("//pre[text()[contains(., '_k1')]]").first).to_be_visible(
-        timeout=45000
-    )
+    expect(page.locator("//pre[text()[contains(., '_k1')]]").first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
@@ -487,14 +485,10 @@ def test_dropdown_facility_change(page, user, public_source):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
     page.locator('//*[text()="Show Starlist"]').first.click()
-    expect(page.locator("//pre[text()[contains(., 'raoffset')]]").first).to_be_visible(
-        timeout=45000
-    )
+    expect(page.locator("//pre[text()[contains(., 'raoffset')]]").first).to_be_visible()
     page.locator('//*[@id="mui-component-select-StarListSelectElement"]').first.click()
     page.locator('//li[@data-value="P200"]').first.click()
-    expect(page.locator("//pre[text()[contains(., 'dist')]]").first).to_be_visible(
-        timeout=45000
-    )
+    expect(page.locator("//pre[text()[contains(., 'dist')]]").first).to_be_visible()
 
 
 def test_source_notification(page, user, public_group, public_source):
@@ -529,7 +523,7 @@ def test_unsave_from_group(
     ).first.click()
     expect(
         page.locator('//*[text()="Source groups updated successfully"]').first
-    ).to_be_visible(timeout=10000)
+    ).to_be_visible()
     expect(
         page.locator(f'//div[@data-testid="groupChip_{public_group2.id}"]').first
     ).to_be_hidden()
@@ -551,7 +545,7 @@ def test_request_group_to_save_then_save(
     ).first.click()
     expect(
         page.locator('//*[text()="Source groups updated successfully"]').first
-    ).to_be_visible(timeout=10000)
+    ).to_be_visible()
     page.goto(f"/become_user/{user_two_groups.id}")
     page.goto(f"/group_sources/{public_group2.id}")
     page.locator(
@@ -588,7 +582,7 @@ def test_update_redshift_and_history(page, user, public_source):
     expect(page.locator("//*[contains(., '0.0001')]").first).to_be_visible()
 
     page.locator("//*[@data-testid='redshiftHistoryIconButton']").first.click()
-    expect(page.locator("//th[text()='Set By']").first).to_be_visible(timeout=10000)
+    expect(page.locator("//th[text()='Set By']").first).to_be_visible()
     expect(page.locator("//td[text()='0.9999']").first).to_be_visible()
     expect(page.locator("//td[text()='0.0001']").first).to_be_visible()
     expect(page.locator(f"//td[text()='{user.username}']").first).to_be_visible()
@@ -687,7 +681,7 @@ def test_source_hr_diagram(page, user, public_source, annotation_token):
         f"//div[contains(@data-testid, 'hr_diagram_{public_source.id}')]"
     )
     vegaplot_div = page.locator(component_class_xpath).first
-    expect(vegaplot_div).to_be_visible(timeout=20000)
+    expect(vegaplot_div).to_be_visible()
 
     # Since Vega uses a <canvas>, compare an image of the plot to the baseline.
     generated_plot = Image.open(BytesIO(vegaplot_div.screenshot()))
@@ -747,6 +741,4 @@ def test_duplicate_sources_render(
         page.locator('//*[contains(text(), "Possible duplicate of:")]').first
     ).to_be_visible()
     page.locator(f'//*[contains(text(), "{obj_id2}")]').first.click()
-    expect(page.locator(f'//*[contains(text(), "{obj_id2}")]').first).to_be_visible(
-        timeout=20000
-    )
+    expect(page.locator(f'//*[contains(text(), "{obj_id2}")]').first).to_be_visible()

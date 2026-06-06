@@ -54,12 +54,10 @@ def test_upload_spectroscopy(
     #  look into the plot on the Source page.
     page.goto(f"/share_data/{public_source.id}")
 
-    expect(page.locator(f'//*[contains(.,"{sedm.name}")]').first).to_be_visible(
-        timeout=20000
-    )
+    expect(page.locator(f'//*[contains(.,"{sedm.name}")]').first).to_be_visible()
     expect(
         page.locator(f'//*[contains(.,"{ALLOWED_SPECTRUM_TYPES[-1]}")]').first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()
     expect(
         page.locator(f'//*[contains(.,"{user_defined_label}")]').first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()

@@ -48,9 +48,7 @@ def test_shift(
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/shifts/{data['data']['id']}")
 
-    expect(page.locator(f'//*/p[contains(.,"{name}")]').first).to_be_visible(
-        timeout=30000
-    )
+    expect(page.locator(f'//*/p[contains(.,"{name}")]').first).to_be_visible()
 
     today_button = '//button[contains(.,"Today")]'
     page.locator(today_button).first.click()
@@ -209,7 +207,7 @@ def test_shift(
         '//*[contains(., "Show All Shifts")]/../span[contains(@class, "MuiSwitch-root")]'
     ).first.click()
 
-    expect(page.locator(shift_on_calendar).first).to_be_visible(timeout=30000)
+    expect(page.locator(shift_on_calendar).first).to_be_visible()
     page.locator(shift_on_calendar).first.click()
 
 
@@ -332,10 +330,10 @@ def test_shift_summary(
         page.locator(
             '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]'
         ).first
-    ).to_be_visible(timeout=30000)
+    ).to_be_visible()
 
     page.locator('//*[@id="gcn_list_item_2018-01-16T00:36:53"]').first.click()
 
     expect(
         page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
-    ).to_be_visible(timeout=30000)
+    ).to_be_visible()

@@ -125,7 +125,7 @@ def test_comment_on_favorite_source_triggers_notification(
     ).first.click()
     expect(
         page.locator(f'//*[@data-testid="favorites-include_{public_source.id}"]').first
-    ).to_be_visible(timeout=30000)
+    ).to_be_visible()
 
     page.goto(f"/become_user/{user2.id}")
     page.goto(f"/source/{public_source.id}")

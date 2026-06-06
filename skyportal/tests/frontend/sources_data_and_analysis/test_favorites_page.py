@@ -34,7 +34,7 @@ def test_add_remove_favorites(page, user, public_source):
         page.locator(
             f"//*[contains(@data-testid, 'favorites-include_{public_source.id}')]"
         ).first
-    ).to_be_visible(timeout=30000)
+    ).to_be_visible()
 
     # click to un-save the source as favorite
     page.locator(
@@ -148,7 +148,7 @@ def test_remove_favorites_from_api(page, super_admin_user, public_group):
 
     expect(
         page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()
 
     status, data = api("DELETE", f"listing/{listing_id}", token=token_id)
     assert status == 200

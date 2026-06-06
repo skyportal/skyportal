@@ -150,9 +150,7 @@ def test_reminder_on_source(page, super_admin_user, super_admin_token):
     reminder_text = post_and_verify_reminder(endpoint, super_admin_token)
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/source/{obj_id}")
-    expect(page.locator(f'//*[contains(.,"{obj_id}")]').first).to_be_visible(
-        timeout=30000
-    )
+    expect(page.locator(f'//*[contains(.,"{obj_id}")]').first).to_be_visible()
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(page.locator(f'//*[@href="/source/{obj_id}"]').first).to_be_visible()
     page.keyboard.press("Escape")

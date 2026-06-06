@@ -29,8 +29,6 @@ def test_weather_widget(page, user, public_group, super_admin_token, p60_telesco
     page.goto("/")
 
     page.locator('//*[@data-testid="tel-list-button"]').first.click()
-    expect(page.locator(f'//*[text()="{p60_telescope.name}"]').first).to_be_visible(
-        timeout=30000
-    )
+    expect(page.locator(f'//*[text()="{p60_telescope.name}"]').first).to_be_visible()
     page.locator(f'//*[text()="{p60_telescope.name}"]').first.click()
     expect(page.locator(f'//h6[text()="{p60_telescope.name}"]').first).to_be_visible()

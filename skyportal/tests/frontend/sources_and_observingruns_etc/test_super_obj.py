@@ -103,12 +103,10 @@ def test_super_obj_classification_provenance_on_source_page(
         expect(page.locator(f'//h6[text()="{obj1}"]').first).to_be_visible()
 
         # The aggregated classification from the linked source is shown ...
-        expect(page.locator("//*[contains(text(), 'Cepheid')]").first).to_be_visible(
-            timeout=20000
-        )
+        expect(page.locator("//*[contains(text(), 'Cepheid')]").first).to_be_visible()
         # ... tagged with a provenance chip linking back to that source.
         expect(
             page.locator(f'//a[contains(@href, "/source/{obj2}")]').first
-        ).to_be_visible(timeout=20000)
+        ).to_be_visible()
     finally:
         teardown()

@@ -183,18 +183,18 @@ def test_observationplan_request(
 
     expect(
         page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first
-    ).to_be_visible(timeout=30000)
+    ).to_be_visible()
     page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "ztfr")]'
         ).first
-    ).to_be_visible(timeout=15000)
+    ).to_be_visible()
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'
         ).first
-    ).to_be_visible(timeout=15000)
+    ).to_be_visible()
 
     status, data = api("GET", "observation_plan", token=super_admin_token)
     assert status == 200
@@ -291,9 +291,7 @@ def test_gcn_request(page, user, super_admin_token, public_group):
     nretries = 0
     while nretries < 5:
         try:
-            expect(page.locator('//*[text()="190425 08:18:05"]').first).to_be_visible(
-                timeout=20000
-            )
+            expect(page.locator('//*[text()="190425 08:18:05"]').first).to_be_visible()
             break
         except AssertionError:
             page.reload()

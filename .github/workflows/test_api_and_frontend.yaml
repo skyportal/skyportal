@@ -51,6 +51,7 @@ jobs:
             "frontend_pt1",
             "frontend_pt2",
             "frontend_pt3",
+            "frontend_pt4",
             "external",
           ]
 
@@ -166,12 +167,12 @@ jobs:
       - name: Save dependency caches
         uses: ./.github/actions/cache-dependencies-save
 
-      # The frontend suite is split across three sibling folders (one matrix job
-      # each) to keep per-runner load down: sources_and_observingruns_etc (pt1),
-      # gcn_observations_and_followup (pt2, the heavy GCN/observation/follow-up +
-      # contention-prone tests), and users_groups_and_content (pt3, everything
-      # else). New test files just go in the relevant folder -- no list to keep
-      # in sync.
+      # The frontend suite is split across four sibling folders (one matrix job
+      # each) to keep per-runner load down on the 2-vCPU runners:
+      # sources_and_observingruns_etc (pt1), gcn_observations_and_followup (pt2,
+      # the heavy GCN/observation/follow-up tests), users_groups_and_content (pt3,
+      # users/groups/account/admin), and sources_data_and_analysis (pt4, sources/
+      # data-products/analysis). New test files just go in the relevant folder.
       - name: Run front-end tests part 1 (sources & observing runs)
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
         run: |
@@ -182,10 +183,15 @@ jobs:
         run: |
           source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/gcn_observations_and_followup'
 
-      - name: Run front-end tests part 3 (users, groups & content)
+      - name: Run front-end tests part 3 (users, groups & account)
         if: ${{ matrix.test_subset == 'frontend_pt3' }}
         run: |
           source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/users_groups_and_content'
+
+      - name: Run front-end tests part 4 (sources, data & analysis)
+        if: ${{ matrix.test_subset == 'frontend_pt4' }}
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/sources_data_and_analysis'
 
       - name: Run API & utils tests part 1
         if: ${{ matrix.test_subset == 'api_and_utils_pt1' }}

@@ -22,12 +22,12 @@ def test_bulk_invite_users(page, super_admin_user, public_group, public_stream):
         page.locator(
             f"//*[@data-testid='pendingInvitations']//*[text()='{user1_email}']"
         ).first
-    ).to_be_visible(timeout=15000)
+    ).to_be_visible()
     expect(
         page.locator(
             f"//*[@data-testid='pendingInvitations']//*[text()='{user2_email}']"
         ).first
-    ).to_be_visible(timeout=15000)
+    ).to_be_visible()
 
 
 def test_invite_single_user(page, super_admin_user, public_group, public_stream):

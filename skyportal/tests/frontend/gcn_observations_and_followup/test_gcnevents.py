@@ -199,9 +199,7 @@ def test_reminder_on_gcn(page, super_admin_user, super_admin_token):
     post_and_verify_reminder(endpoint, super_admin_token)
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/gcn_events/{dateobs}")
-    expect(page.locator('//*[contains(.,"190814 21:10:39")]').first).to_be_visible(
-        timeout=30000
-    )
+    expect(page.locator('//*[contains(.,"190814 21:10:39")]').first).to_be_visible()
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(
         page.locator('//*[@href="/gcn_events/2019-08-14T21:10:39"]').first
@@ -357,7 +355,5 @@ def test_confirm_reject_source_in_gcn(
     # The source page should render the resulting GCN crossmatch.
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/source/{obj_id}")
-    expect(page.locator('//*[contains(., "GCN Crossmatches:")]').first).to_be_visible(
-        timeout=30000
-    )
+    expect(page.locator('//*[contains(., "GCN Crossmatches:")]').first).to_be_visible()
     expect(page.locator(f'//*[contains(., "{dateobs}")]').first).to_be_visible()

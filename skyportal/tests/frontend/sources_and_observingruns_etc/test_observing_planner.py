@@ -46,9 +46,7 @@ def test_source_is_added_to_observing_run_via_frontend(
 
     page.goto(f"/run/{red_transients_run.id}")
     # long timeout to give the backend time to perform ephemeris calcs
-    expect(page.locator(f'//*[text()="{public_source.id}"]').first).to_be_visible(
-        timeout=20000
-    )
+    expect(page.locator(f'//*[text()="{public_source.id}"]').first).to_be_visible()
     expect(page.locator(f'//*[text()="{comment_text}"]').first).to_be_visible()
 
 
@@ -68,9 +66,7 @@ def test_assignment_posts_to_observing_run(
     assert data["status"] == "success"
 
     page.goto(f"/run/{red_transients_run.id}")
-    expect(page.locator(f'//*[text()="{public_source.id}"]').first).to_be_visible(
-        timeout=20000
-    )
+    expect(page.locator(f'//*[text()="{public_source.id}"]').first).to_be_visible()
     for group in [s.group for s in public_source.sources]:
         locator = page.locator(f'//span[text()="{group.name[:15]}"]').first
         if group.single_user_group:
@@ -95,9 +91,7 @@ def test_observing_run_skycam_component(
     assert data["status"] == "success"
 
     page.goto(f"/run/{red_transients_run.id}")
-    expect(page.locator('//*[text()="Current Conditions"]').first).to_be_visible(
-        timeout=20000
-    )
+    expect(page.locator('//*[text()="Current Conditions"]').first).to_be_visible()
     expect(
         page.locator(
             f'//img[contains(@src, "{red_transients_run.instrument.telescope.skycam_link}")]'
@@ -130,7 +124,7 @@ def test_observing_run_skycam_component(
         page.locator(
             f'//b[contains(text(), "{red_transients_run.instrument.name}")]'
         ).first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()
     expect(page.locator('//*[text()="Current Conditions"]').first).to_be_hidden()
 
 
@@ -170,9 +164,7 @@ def test_add_run_to_observing_run_page(
         f"(PI: {red_transients_run.pi} / "
         f"Group: {red_transients_run.group.name})"
     )
-    expect(page.locator(f'//*[text()="{observingrun_title}"]').first).to_be_visible(
-        timeout=15000
-    )
+    expect(page.locator(f'//*[text()="{observingrun_title}"]').first).to_be_visible()
 
     calendar_keys = "01022021"
     observer = uuid.uuid4().hex
@@ -201,4 +193,4 @@ def test_add_run_to_observing_run_page(
         page.locator(
             f"""//*[text()='2021-01-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']"""
         ).first
-    ).to_be_visible(timeout=15000)
+    ).to_be_visible()

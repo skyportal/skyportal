@@ -142,7 +142,7 @@ def test_upload_download_comment_attachment(page, user, public_source):
     comment_p = page.locator(
         f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
     ).first
-    expect(comment_p).to_be_visible(timeout=20000)
+    expect(comment_p).to_be_visible()
 
     # hover the comment to reveal the attachment controls, then open the preview
     comment_p.locator("xpath=../..").hover()

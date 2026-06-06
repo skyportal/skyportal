@@ -34,9 +34,7 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
     page.goto("/")
     page.reload()
     page.goto("/groups")
-    expect(page.locator('//h3[text()="Create New Group"]').first).to_be_visible(
-        timeout=30000
-    )
+    expect(page.locator('//h3[text()="Create New Group"]').first).to_be_visible()
     page.locator('//input[@name="name"]').first.fill(test_proj_name)
     page.locator('//input[@name="description"]').first.fill(group_description)
     page.locator('//div[@id="groupAdminsSelect"]').first.click()

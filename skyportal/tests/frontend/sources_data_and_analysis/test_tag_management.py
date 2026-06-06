@@ -18,12 +18,10 @@ def test_access_with_permission(page, super_admin_user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/tag_management")
 
-    expect(page.locator('//*[@data-testid="tag-management-page"]').first).to_be_visible(
-        timeout=10000
-    )
-    expect(page.locator('//*[@data-testid="create-tag-button"]').first).to_be_visible(
-        timeout=10000
-    )
+    expect(
+        page.locator('//*[@data-testid="tag-management-page"]').first
+    ).to_be_visible()
+    expect(page.locator('//*[@data-testid="create-tag-button"]').first).to_be_visible()
 
 
 def test_create_new_tag(page, super_admin_user):
@@ -31,9 +29,9 @@ def test_create_new_tag(page, super_admin_user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/tag_management")
 
-    expect(page.locator('//*[@data-testid="tag-management-page"]').first).to_be_visible(
-        timeout=10000
-    )
+    expect(
+        page.locator('//*[@data-testid="tag-management-page"]').first
+    ).to_be_visible()
 
     page.locator('//*[@data-testid="create-tag-button"]').first.click()
     expect(page.locator('//*[@data-testid="create-tag-dialog"]').first).to_be_visible()
@@ -52,10 +50,10 @@ def test_create_new_tag(page, super_admin_user):
     page.locator('//*[@data-testid="create-tag-save-button"]').first.click()
     expect(
         page.locator('//*[contains(text(), "Tag created successfully")]').first
-    ).to_be_visible(timeout=10000)
+    ).to_be_visible()
     expect(
         page.locator(f'//span[contains(text(), "{test_tag_name}")]').first
-    ).to_be_visible(timeout=10000)
+    ).to_be_visible()
 
 
 def test_create_tag_validation_empty_name(page, super_admin_user):
@@ -63,9 +61,9 @@ def test_create_tag_validation_empty_name(page, super_admin_user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/tag_management")
 
-    expect(page.locator('//*[@data-testid="tag-management-page"]').first).to_be_visible(
-        timeout=10000
-    )
+    expect(
+        page.locator('//*[@data-testid="tag-management-page"]').first
+    ).to_be_visible()
 
     page.locator('//*[@data-testid="create-tag-button"]').first.click()
     expect(page.locator('//*[@data-testid="create-tag-dialog"]').first).to_be_visible()
@@ -92,9 +90,9 @@ def test_edit_existing_tag(page, super_admin_user, super_admin_token):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/tag_management")
 
-    expect(page.locator('//*[@data-testid="tag-management-page"]').first).to_be_visible(
-        timeout=10000
-    )
+    expect(
+        page.locator('//*[@data-testid="tag-management-page"]').first
+    ).to_be_visible()
 
     page.locator(f'//*[@data-testid="edit-tag-button-{tag_id}"]').first.click()
     expect(page.locator('//*[@data-testid="edit-tag-dialog"]').first).to_be_visible()
@@ -113,10 +111,10 @@ def test_edit_existing_tag(page, super_admin_user, super_admin_token):
     page.locator('//*[@data-testid="edit-tag-save-button"]').first.click()
     expect(
         page.locator('//*[contains(text(), "Tag updated successfully")]').first
-    ).to_be_visible(timeout=10000)
+    ).to_be_visible()
     expect(
         page.locator(f'//span[contains(text(), "{test_tag_name}")]').first
-    ).to_be_visible(timeout=10000)
+    ).to_be_visible()
 
 
 def test_delete_tag(page, super_admin_user, super_admin_token):
@@ -134,9 +132,9 @@ def test_delete_tag(page, super_admin_user, super_admin_token):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/tag_management")
 
-    expect(page.locator('//*[@data-testid="tag-management-page"]').first).to_be_visible(
-        timeout=10000
-    )
+    expect(
+        page.locator('//*[@data-testid="tag-management-page"]').first
+    ).to_be_visible()
 
     delete_button = page.locator(
         f'//*[@data-testid="delete-tag-button-{tag_id}"]'
@@ -157,9 +155,9 @@ def test_delete_tag(page, super_admin_user, super_admin_token):
 
     page.locator('//*[@data-testid="delete-tag-cancel-button"]').first.click()
     expect(page.locator('//*[@data-testid="delete-tag-dialog"]').first).to_be_hidden()
-    expect(page.locator(f'//span[contains(text(), "{tag_name}")]').first).to_be_visible(
-        timeout=10000
-    )
+    expect(
+        page.locator(f'//span[contains(text(), "{tag_name}")]').first
+    ).to_be_visible()
 
     # Then, delete the tag
     delete_button.click()
@@ -167,5 +165,5 @@ def test_delete_tag(page, super_admin_user, super_admin_token):
     page.locator('//*[@data-testid="delete-tag-confirm-button"]').first.click()
     expect(
         page.locator('//*[contains(text(), "Tag deleted successfully")]').first
-    ).to_be_visible(timeout=10000)
+    ).to_be_visible()
     expect(page.locator(f'//span[contains(text(), "{tag_name}")]').first).to_be_hidden()

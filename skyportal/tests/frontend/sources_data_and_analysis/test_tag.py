@@ -17,12 +17,10 @@ def test_add_delete_tag(page, public_source, super_admin_token, super_admin_user
     page.goto(f"/source/{public_source.id}")
     expect(
         page.locator(f'//h6[contains(text(), "{public_source.id}")]').first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()
 
     page.locator('//button[@data-testid="add-tag-button"]').first.click()
-    expect(page.locator('//div[@data-testid="add-tag-dialog"]').first).to_be_visible(
-        timeout=20000
-    )
+    expect(page.locator('//div[@data-testid="add-tag-dialog"]').first).to_be_visible()
 
     page.locator('//div[@data-testid="tag-select"]').first.click()
     expect(
@@ -60,12 +58,10 @@ def test_create_new_tag(page, user, public_source, super_admin_user):
     page.goto(f"/source/{public_source.id}")
     expect(
         page.locator(f'//h6[contains(text(), "{public_source.id}")]').first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()
 
     page.locator('//button[@data-testid="add-tag-button"]').first.click()
-    expect(page.locator('//div[@data-testid="add-tag-dialog"]').first).to_be_visible(
-        timeout=20000
-    )
+    expect(page.locator('//div[@data-testid="add-tag-dialog"]').first).to_be_visible()
 
     tag_name = f"newtag{uuid.uuid4().hex}"
     page.locator('//input[@data-testid="new-tag-input"]').first.fill(tag_name)
@@ -86,12 +82,10 @@ def test_permission_for_tag_creation(page, user, public_source):
     page.goto(f"/source/{public_source.id}")
     expect(
         page.locator(f'//h6[contains(text(), "{public_source.id}")]').first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()
 
     page.locator('//button[@data-testid="add-tag-button"]').first.click()
-    expect(page.locator('//div[@data-testid="add-tag-dialog"]').first).to_be_visible(
-        timeout=20000
-    )
+    expect(page.locator('//div[@data-testid="add-tag-dialog"]').first).to_be_visible()
 
     expect(page.locator('//div[contains(@class, "createTagSection")]')).to_have_count(0)
     page.locator('//button[contains(text(), "Cancel")]').first.click()

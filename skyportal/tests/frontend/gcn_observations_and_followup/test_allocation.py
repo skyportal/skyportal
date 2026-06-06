@@ -199,7 +199,7 @@ def test_super_user_post_allocation(
     search.fill(instrument_name)
     expect(
         page.locator(f'//*[contains(text(),"{instrument_name}")]').first
-    ).to_be_visible(timeout=20000)
+    ).to_be_visible()
 
     # Create a second allocation via the New Allocation dialog form.
     page.locator('//*[@name="new_allocation"]').first.click()
