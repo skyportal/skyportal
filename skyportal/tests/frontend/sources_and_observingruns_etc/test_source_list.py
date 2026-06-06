@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import pytest
 from dateutil import parser
+from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
 from baselayer.app.config import load_config
@@ -13,9 +14,15 @@ from ....utils.naive_datetime import utcnow_naive
 cfg = load_config()
 
 
+def _filter_by_source_id(page, source_id):
+    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
+    page.locator("//input[@name='sourceID']").first.fill(source_id)
+    page.locator("//button[text()='Submit']").first.click()
+
+
 @pytest.mark.flaky(reruns=3)
 def test_add_sources_two_groups(
-    driver,
+    page,
     super_admin_user_two_groups,
     public_group,
     public_group2,
@@ -26,7 +33,6 @@ def test_add_sources_two_groups(
     obj_id = str(uuid.uuid4())
     t1 = utcnow_naive()
 
-    # upload a new source, saved to the public group
     status, data = api(
         "POST",
         "sources",
@@ -45,43 +51,30 @@ def test_add_sources_two_groups(
     assert status == 200
     assert data["data"]["id"] == f"{obj_id}"
 
-    driver.get(
-        f"/become_user/{super_admin_user_two_groups.id}"
-    )  # TODO decorator/context manager?
-    assert "localhost" in driver.current_url
-    driver.get("/sources")
+    page.goto(f"/become_user/{super_admin_user_two_groups.id}")
+    assert "localhost" in page.url
+    page.goto("/sources")
 
-    # filter on the object id
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    _filter_by_source_id(page, obj_id)
 
-    obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
-    obj_button.clear()
-    obj_button.send_keys(obj_id)
-    driver.click_xpath(
-        "//button[text()='Submit']",
-        scroll_parent=True,
-    )
+    expect(
+        page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
+    ).to_be_visible()
 
-    # find the name of the newly added source
-    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
-
-    # find the date it was saved
-    saved_at_element = driver.wait_for_xpath(
+    saved_at_element = page.locator(
         f"//*[text()[contains(., '{t1.strftime('%Y-%m-%dT%H:%M')}')]]"
-    )
-    saved_group1 = parser.parse(saved_at_element.text)
+    ).first
+    expect(saved_at_element).to_be_visible()
+    saved_group1 = parser.parse(saved_at_element.inner_text())
     assert abs(saved_group1 - t1) < timedelta(seconds=30)
 
-    # check the redshift shows up
-    driver.wait_for_xpath(f"//*[text()[contains(., '{'0.153'}')]]")
+    expect(page.locator("//*[text()[contains(., '0.153')]]").first).to_be_visible()
 
-    # little triangle you push to expand the table
-    driver.click_xpath("//div[@data-rowindex='0']//*[@id='expandable-button']")
+    page.locator("//div[@data-rowindex='0']//*[@id='expandable-button']").first.click()
+    expect(
+        page.locator(f'//*[@data-testid="groupSourceExpand_{obj_id}"]').first
+    ).to_be_visible()
 
-    # make sure the div containing the individual source appears
-    driver.wait_for_xpath(f'//*[@data-testid="groupSourceExpand_{obj_id}"]')
-
-    # post a taxonomy and classification
     status, data = api(
         "POST",
         "taxonomy",
@@ -112,25 +105,12 @@ def test_add_sources_two_groups(
     )
     assert status == 200
 
-    # check the classification doesn't shows up (it should not show up without a page refresh!)
-    driver.wait_for_xpath_to_disappear(
-        f"//*[text()[contains(., '{'Algol'}')]]", timeout=1
-    )
+    # classification should not show up without a page refresh
+    expect(page.locator("//*[text()[contains(., 'Algol')]]").first).to_be_hidden()
 
-    # filter on the object id (page refresh, but still filtering on this object)
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-    obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
-    obj_button.clear()
-    obj_button.send_keys(obj_id)
-    driver.click_xpath(
-        "//button[text()='Submit']",
-        scroll_parent=True,
-    )
+    _filter_by_source_id(page, obj_id)
+    expect(page.locator("//*[text()[contains(., 'Algol')]]").first).to_be_visible()
 
-    # check the classification does show up after a refresh
-    driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
-
-    # add this source to another group
     t2 = utcnow_naive()
     status, data = api(
         "POST",
@@ -150,7 +130,6 @@ def test_add_sources_two_groups(
     assert status == 200
     assert data["status"] == "success"
 
-    # post another classification, by another group
     status, data = api(
         "POST",
         "classification",
@@ -165,40 +144,24 @@ def test_add_sources_two_groups(
     )
     assert status == 200
 
-    # filter on the object id (page refresh, but still filtering on this object)
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-    obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
-    obj_button.clear()
-    obj_button.send_keys(obj_id)
-    driver.click_xpath(
-        "//button[text()='Submit']",
-        scroll_parent=True,
-    )
+    _filter_by_source_id(page, obj_id)
 
-    # make sure the new classification, made to group 2, shows up
-    driver.wait_for_xpath(f"//*[text()[contains(., '{'RS CVn'}')]]")
+    expect(page.locator("//*[text()[contains(., 'RS CVn')]]").first).to_be_visible()
 
-    # find the date it was saved to group2
-    saved_at_element = driver.wait_for_xpath(
+    saved_at_element = page.locator(
         f"//*[text()[contains(., '{t2.strftime('%Y-%m-%dT%H:%M')}')]]"
-    )
-    saved_group2 = parser.parse(saved_at_element.text)
+    ).first
+    expect(saved_at_element).to_be_visible()
+    saved_group2 = parser.parse(saved_at_element.inner_text())
     assert abs(saved_group2 - t2) < timedelta(seconds=2)
 
-    # the new group must have been saved later!
     assert saved_group2 > saved_group1
 
 
 @pytest.mark.flaky(reruns=2)
 def test_filter_by_classification(
-    driver,
-    user,
-    public_group,
-    upload_data_token,
-    taxonomy_token,
-    classification_token,
+    page, user, public_group, upload_data_token, taxonomy_token, classification_token
 ):
-    # Post an object with a classification
     source_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -247,46 +210,29 @@ def test_filter_by_classification(
     )
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/sources")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/sources")
 
-    # Filter for classification
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']", timeout=30)
-    driver.click_xpath(
-        "//div[@data-testid='classifications-select']",
-        scroll_parent=True,
-    )
-    driver.click_xpath(
-        f"//li[@data-value='{taxonomy_name}: Algol']", scroll_parent=True
-    )
-    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
+    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
+    page.locator("//div[@data-testid='classifications-select']").first.click()
+    page.locator(f"//li[@data-value='{taxonomy_name}: Algol']").first.click()
+    page.keyboard.press("Escape")
+    page.locator("//button[text()='Submit']").first.click()
 
-    # Should see the posted source
-    driver.wait_for_xpath(f'//a[@data-testid="{source_id}"]')
+    expect(page.locator(f'//a[@data-testid="{source_id}"]').first).to_be_visible()
 
-    # Now search for a different classification
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-    driver.click_xpath(
-        "//div[@data-testid='classifications-select']",
-        scroll_parent=True,
-    )
-    driver.click_xpath(f"//li[@data-value='{taxonomy_name}: AGN']", scroll_parent=True)
-    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
-    # Should no longer see the source
-    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
+    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
+    page.locator("//div[@data-testid='classifications-select']").first.click()
+    page.locator(f"//li[@data-value='{taxonomy_name}: AGN']").first.click()
+    page.keyboard.press("Escape")
+    page.locator("//button[text()='Submit']").first.click()
+    expect(page.locator(f'//a[@data-testid="{source_id}"]').first).to_be_hidden()
 
 
-def test_filter_by_spectrum_time(
-    driver,
-    user,
-    public_group,
-    upload_data_token,
-    lris,
-):
+def test_filter_by_spectrum_time(page, user, public_group, upload_data_token, lris):
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
 
-    # Upload two new sources
     status, data = api(
         "POST",
         "sources",
@@ -314,7 +260,6 @@ def test_filter_by_spectrum_time(
     assert status == 200
     assert data["data"]["id"] == obj_id2
 
-    # Add spectrum to source 1
     status, data = api(
         "POST",
         "spectrum",
@@ -331,7 +276,6 @@ def test_filter_by_spectrum_time(
     assert status == 200
     assert data["status"] == "success"
 
-    # Add spectrum to source 2
     status, data = api(
         "POST",
         "spectrum",
@@ -350,55 +294,31 @@ def test_filter_by_spectrum_time(
     assert status == 200
     assert data["status"] == "success"
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/sources")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/sources")
 
     test_time = utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S")
 
-    # Filter for spectrum time after
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-    driver.click_xpath(
-        "//div[@data-testid='hasSpectrumBeforeTest']",
-        scroll_parent=True,
+    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
+    page.locator("//div[@data-testid='hasSpectrumBeforeTest']").first.click()
+    page.locator("//div[@data-testid='hasSpectrumBeforeTest']//input").first.fill(
+        test_time
     )
-    before_input = driver.wait_for_xpath(
-        "//div[@data-testid='hasSpectrumBeforeTest']//input"
+    page.locator("//button[text()='Submit']").first.click()
+
+    expect(page.locator(f'//a[@data-testid="{obj_id1}"]').first).to_be_visible()
+
+    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
+    page.locator("//div[@data-testid='hasSpectrumAfterTest']").first.click()
+    page.locator("//div[@data-testid='hasSpectrumAfterTest']//input").first.fill(
+        test_time
     )
+    page.locator("//button[text()='Submit']").first.click()
 
-    before_input.send_keys(test_time)
-    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
-
-    # Should see the first source
-    driver.wait_for_xpath(f'//a[@data-testid="{obj_id1}"]')
-
-    # Filter for spectrum time after
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-    driver.click_xpath(
-        "//div[@data-testid='hasSpectrumAfterTest']",
-        scroll_parent=True,
-    )
-    after_input = driver.wait_for_xpath(
-        "//div[@data-testid='hasSpectrumAfterTest']//input"
-    )
-
-    after_input.send_keys(test_time)
-    driver.click_xpath(
-        "//button[text()='Submit']",
-        scroll_parent=True,
-    )
-
-    # Should see the posted source
-    driver.wait_for_xpath(f'//a[@data-testid="{obj_id2}"]')
+    expect(page.locator(f'//a[@data-testid="{obj_id2}"]').first).to_be_visible()
 
 
-def test_hr_diagram(
-    driver,
-    user,
-    public_group,
-    upload_data_token,
-    annotation_token,
-):
-    # Post an object with Gaia data
+def test_hr_diagram(page, user, public_group, upload_data_token, annotation_token):
     source_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -416,7 +336,7 @@ def test_hr_diagram(
     )
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
+    page.goto(f"/become_user/{user.id}")
 
     status, data = api(
         "POST",
@@ -430,21 +350,18 @@ def test_hr_diagram(
     )
     assert status == 200
 
-    driver.get("/sources")
+    page.goto("/sources")
 
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-    obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
-    obj_button.clear()
-    obj_button.send_keys(source_id)
-    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
+    _filter_by_source_id(page, source_id)
 
-    # find the name of the newly added source
-    driver.wait_for_xpath(f"//a[contains(@href, '/source/{source_id}')]")
+    expect(
+        page.locator(f"//a[contains(@href, '/source/{source_id}')]").first
+    ).to_be_visible()
 
-    # little triangle you push to expand the table
-    driver.click_xpath("//*[@id='expandable-button']")
-
-    # make sure the div containing the individual source appears
-    driver.wait_for_xpath(f'//*[@data-testid="groupSourceExpand_{source_id}"]')
-
-    driver.wait_for_xpath(f'//div[@data-testid="hr_diagram_{source_id}"]')
+    page.locator("//*[@id='expandable-button']").first.click()
+    expect(
+        page.locator(f'//*[@data-testid="groupSourceExpand_{source_id}"]').first
+    ).to_be_visible()
+    expect(
+        page.locator(f'//div[@data-testid="hr_diagram_{source_id}"]').first
+    ).to_be_visible()

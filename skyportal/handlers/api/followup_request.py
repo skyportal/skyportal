@@ -1327,6 +1327,12 @@ class FollowupRequestHandler(BaseHandler):
                     obj_subquery, FollowupRequest.obj_id == obj_subquery.c.id
                 )
             if allocationID:
+                try:
+                    allocationID = int(allocationID)
+                except (TypeError, ValueError):
+                    return self.error(
+                        f"Invalid allocationID: {allocationID}; must be an integer"
+                    )
                 followup_requests = followup_requests.where(
                     FollowupRequest.allocation_id == allocationID
                 )
@@ -1334,6 +1340,12 @@ class FollowupRequestHandler(BaseHandler):
                 # allocation query required as only way to reach
                 # instrument_id is through allocation (as requests
                 # are associated to allocations, not instruments)
+                try:
+                    instrumentID = int(instrumentID)
+                except (TypeError, ValueError):
+                    return self.error(
+                        f"Invalid instrumentID: {instrumentID}; must be an integer"
+                    )
                 allocation_query = Allocation.select(session.user_or_token).where(
                     Allocation.instrument_id == instrumentID
                 )

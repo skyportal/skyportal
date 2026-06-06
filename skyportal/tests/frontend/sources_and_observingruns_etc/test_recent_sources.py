@@ -1,7 +1,7 @@
 import uuid
 
 import pytest
-from selenium.common.exceptions import TimeoutException
+from playwright.sync_api import expect
 
 from skyportal.tests import api
 
@@ -9,18 +9,16 @@ from ....utils.naive_datetime import utcnow_naive
 
 
 @pytest.mark.flaky(reruns=2)
-def test_recent_sources(driver, user, public_group, upload_data_token):
+def test_recent_sources(page, user, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
-    ra = 50.1
-    redshift = 2.5
     status, data = api(
         "POST",
         "sources",
         data={
             "id": obj_id,
-            "ra": ra,
+            "ra": 50.1,
             "dec": 22.33,
-            "redshift": redshift,
+            "redshift": 2.5,
             "altdata": {"simbad": {"class": "RRLyr"}},
             "transient": False,
             "ra_dis": 2.3,
@@ -31,29 +29,27 @@ def test_recent_sources(driver, user, public_group, upload_data_token):
     assert status == 200
     assert data["data"]["id"] == obj_id
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
 
-    # Wait for just added source to show up in added sources
-    recent_source_dataid = "recentSourceItem"
-    driver.wait_for_xpath(
-        f'//div[starts-with(@data-testid, "{recent_source_dataid}")][.//span[contains(text(), "few seconds")]][.//span[contains(text(), "{obj_id}")]]'
-    )
+    expect(
+        page.locator(
+            f'//div[starts-with(@data-testid, "recentSourceItem")][.//span[contains(text(), "few seconds")]][.//span[contains(text(), "{obj_id}")]]'
+        ).first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_hidden_recent_source(driver, user_no_groups, public_group, upload_data_token):
+def test_hidden_recent_source(page, user_no_groups, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
-    ra = 50.1
-    redshift = 2.5
     status, data = api(
         "POST",
         "sources",
         data={
             "id": obj_id,
-            "ra": ra,
+            "ra": 50.1,
             "dec": 22.33,
-            "redshift": redshift,
+            "redshift": 2.5,
             "altdata": {"simbad": {"class": "RRLyr"}},
             "transient": False,
             "ra_dis": 2.3,
@@ -64,19 +60,20 @@ def test_hidden_recent_source(driver, user_no_groups, public_group, upload_data_
     assert status == 200
     assert data["data"]["id"] == obj_id
 
-    driver.get(f"/become_user/{user_no_groups.id}")
-    driver.get("/")
+    page.goto(f"/become_user/{user_no_groups.id}")
+    page.goto("/")
 
-    # Make sure just added source doesn't show up
-    with pytest.raises(TimeoutException):
-        recent_source_class = "makeStyles-recentSourceItemWithButton"
-        driver.wait_for_xpath(
-            f'//div[starts-with(@class, "{recent_source_class}")][.//span[contains(text(), "few seconds")]][.//span[contains(text(), "{obj_id}")]]'
+    # Give the widget time to render, then confirm the source never shows up.
+    page.wait_for_timeout(3000)
+    expect(
+        page.locator(
+            f'//div[starts-with(@class, "makeStyles-recentSourceItemWithButton")][.//span[contains(text(), "few seconds")]][.//span[contains(text(), "{obj_id}")]]'
         )
+    ).to_have_count(0)
 
 
 def test_recently_saved_candidate(
-    driver, user, public_group, public_filter, upload_data_token
+    page, user, public_group, public_filter, upload_data_token
 ):
     obj_id = str(uuid.uuid4())
 
@@ -106,8 +103,10 @@ def test_recently_saved_candidate(
     )
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
-    driver.wait_for_xpath(
-        f'//div[starts-with(@data-testid, "recentSourceItem")][.//span[contains(text(), "few seconds")]][.//span[contains(text(), "{obj_id}")]]'
-    )
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
+    expect(
+        page.locator(
+            f'//div[starts-with(@data-testid, "recentSourceItem")][.//span[contains(text(), "few seconds")]][.//span[contains(text(), "{obj_id}")]]'
+        ).first
+    ).to_be_visible()

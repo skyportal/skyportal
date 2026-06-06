@@ -2,7 +2,6 @@
 
 import base64
 import os
-import shutil
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -58,16 +57,9 @@ from skyportal.tests.fixtures import (
     UserFactory,
     UserNotificationFactory,
 )
-from skyportal.tests.test_util import driver  # noqa: F401
+from skyportal.tests.test_util import page  # noqa: F401
 
 from ..utils.naive_datetime import utcnow_naive
-
-if shutil.which("geckodriver") is None:
-    raise RuntimeError(
-        "Geckodriver needs to be installed for browser automation.\n"
-        "See https://github.com/mozilla/geckodriver/releases"
-    )
-
 
 # Add a "test factory" User so that all factory-generated comments have a
 # proper author, if it doesn't already exist (the user may already be in
@@ -80,9 +72,9 @@ if (
     DBSession.add(User(username="test factory"))
     DBSession.commit()
 
-# Also add the test driver user (testuser-cesium-ml-org) if needed so that the driver
-# fixture has a user to login as (without needing an invitation token).
-# With invitations enabled on the test configs, the driver fails to login properly
+# Also add the frontend test user (testuser-cesium-ml-org) if needed so that the
+# Playwright ``page`` fixture has a user to login as (without needing an
+# invitation token). With invitations enabled on the test configs, login fails
 # without this user because the authenticator looks for the user or an
 # invitation token when neither exists initially on fresh test databases.
 if (
@@ -119,82 +111,46 @@ def pytest_runtest_makereport(item, call):
 def test_driver_user(request):
     """
     If a frontend test becomes some fixture-generated user, and the fixture
-    user is subsequently deleted, than the driver will have no current_user.
+    user is subsequently deleted, then the page will have no current_user.
     So, default back to the testuser-cesium-ml-org user upon frontend test
     completion.
     """
     yield  # Yield immediately since we only need to run teardown code
-    if "driver" in request.node.funcargs:
+    if "page" in request.node.funcargs:
         testuser = (
             DBSession()
             .execute(sa.select(User).filter(User.username == "testuser-cesium-ml-org"))
             .scalars()
             .first()
         )
-        webdriver = request.node.funcargs["driver"]
-        webdriver.get(f"/become_user/{testuser.id}")
+        request.node.funcargs["page"].goto(f"/become_user/{testuser.id}")
 
 
 # check if a test has failed
 @pytest.fixture(scope="function", autouse=True)
 def test_failed_check(request):
-    gecko = Path("geckodriver.log")
-    gecko.touch(exist_ok=True)
-
-    # get the number of bytes in the file currently
-    log_bytes = os.path.getsize(gecko)
-
-    # add a separator to the geckodriver logs
-    with open(gecko, "a") as f:
-        f.write(f"BEGIN {request.node.nodeid}\n")
-
     yield
     # request.node is an "item" because we use the default
     # "function" scope
-
-    # add a separator to the geckodriver logs
-    with open(gecko, "a") as f:
-        f.write(f"END {request.node.nodeid}\n")
-
-    if request.node.rep_call.failed and "driver" in request.node.funcargs:
-        webdriver = request.node.funcargs["driver"]
-        take_screenshot_and_page_source(webdriver, request.node.nodeid)
-
-    # delete the interstitial data from the geckodriver log by
-    # truncating the file back to its original number of bytes
-    with open(gecko, "a") as f:
-        f.truncate(log_bytes)
+    if request.node.rep_call.failed and "page" in request.node.funcargs:
+        take_playwright_screenshot_and_page_source(
+            request.node.funcargs["page"], request.node.nodeid
+        )
 
 
-# make a screenshot with a name of the test, date and time.
-# also save the page HTML.
-def take_screenshot_and_page_source(webdriver, nodeid):
-    file_name = f"{nodeid}_{datetime.today().strftime('%Y-%m-%d_%H:%M')}.png".replace(
+# On failure, save a screenshot + page HTML for debugging.
+def take_playwright_screenshot_and_page_source(page, nodeid):
+    base = f"{nodeid}_{datetime.today().strftime('%Y-%m-%d_%H:%M')}".replace(
         "/", "_"
     ).replace(":", "_")
-    file_name = os.path.join(os.path.dirname(__file__), "../../test-results", file_name)
-    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
-
-    webdriver.save_screenshot(file_name)
-    with open(file_name.replace("png", "html"), "w") as f:
-        f.write(webdriver.page_source)
-
-    file_name = (
-        f"{nodeid}_{datetime.today().strftime('%Y-%m-%d_%H:%M')}.console.log".replace(
-            "/", "_"
-        ).replace(":", "_")
-    )
-    file_name = os.path.join(
-        os.path.dirname(__file__), "../../webdriver-console", file_name
-    )
-    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
-
-    with open(file_name, "w") as f, open("geckodriver.log") as gl:
-        lines = gl.readlines()
-        revlines = list(reversed(lines))
-        istart = revlines.index(f"BEGIN {nodeid}\n")
-        iend = revlines.index(f"END {nodeid}\n")
-        f.write("\n".join(list(reversed(revlines[iend : (istart + 1)]))))  # noqa: E203
+    base = os.path.join(os.path.dirname(__file__), "../../test-results", base)
+    Path(base).parent.mkdir(parents=True, exist_ok=True)
+    try:
+        page.screenshot(path=f"{base}.png", full_page=True)
+        with open(f"{base}.html", "w") as f:
+            f.write(page.content())
+    except Exception as e:
+        print(f"Could not capture Playwright failure artifacts: {e}")
 
 
 @pytest.fixture()
