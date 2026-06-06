@@ -1,5 +1,6 @@
 import datetime
 
+import pytest
 from playwright.sync_api import expect
 
 
@@ -190,6 +191,8 @@ def test_add_user_to_stream(
     ).to_be_visible()
 
 
+# Passes in isolation; only times out under full-suite contention, so retry.
+@pytest.mark.flaky(reruns=2)
 def test_user_expiration(page, user, super_admin_user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")

@@ -131,7 +131,9 @@ def test_edit_invitation_role(
         f"//*[@data-testid='editInvitationRoleButton{user_email}']"
     ).first.click()
     page.locator("//*[@data-testid='invitationRoleSelect']").first.click()
-    page.locator("//*[text()='View only']").first.click()
+    # scope to the open dropdown option ("View only" also appears elsewhere on
+    # the page, and the unscoped .first can land on a non-clickable match)
+    page.locator('//li[@role="option"][normalize-space(.)="View only"]').first.click()
     page.locator("//*[@data-testid='submitEditRoleButton']").first.click()
     expect(
         page.locator(

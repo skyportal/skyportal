@@ -745,8 +745,9 @@ def get_summary(page, user, group, showSources, showGalaxies, showObservations):
     if showObservations is True:
         page.locator('//*[@label="Show Observations"]').first.click()
 
+    # The summary is now produced by a single "Generate" action (the separate
+    # "Retrieve" step is gone); the text then populates the textarea.
     page.locator('//button[contains(.,"Generate")]').first.click()
-    page.locator('//button[contains(.,"Retrieve")]').first.click()
 
     expect(page.locator('//textarea[@id="text"]').first).to_be_visible(timeout=60000)
     expect(

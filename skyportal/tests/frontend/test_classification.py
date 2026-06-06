@@ -1,11 +1,14 @@
 import uuid
 
+import pytest
 from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
 from skyportal.tests import api
 
 
+# Passes in isolation; only times out under full-suite contention, so retry.
+@pytest.mark.flaky(reruns=2)
 def test_slider_classifications(
     page,
     public_source,

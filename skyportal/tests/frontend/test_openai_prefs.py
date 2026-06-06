@@ -1,3 +1,4 @@
+import time
 import uuid
 
 import pytest
@@ -23,22 +24,35 @@ def test_openai_prefs(page, user, upload_data_token):
 
     dummy_gpt_model = f"gpt-{uuid.uuid4()}"
     # rjsf's controlled input ignores fill(); select-all + type so React's
-    # onChange fires and the form state actually updates.
+    # onChange fires and the form state actually updates. Wait for the form to
+    # finish populating its default model first -- typing before that races the
+    # async default-set, leaving the field (and saved prefs) wrong.
     model_input = page.locator('//input[@name="root_model"]').first
+    expect(model_input).not_to_have_value("")
     model_input.click()
     model_input.press("ControlOrMeta+a")
+    model_input.press("Delete")
     model_input.press_sequentially(dummy_gpt_model)
+    expect(model_input).to_have_value(dummy_gpt_model)
 
     page.locator(
         "//form[@class='rjsf']//button[normalize-space()='Submit']"
     ).first.click()
     expect(page.locator("div.MuiDialog-container").first).to_be_hidden()
 
-    status, data = api("GET", "internal/profile", token=upload_data_token)
-    assert status == 200
-    assert data["data"]["preferences"]["summary"]["OpenAI"]["model"] == dummy_gpt_model
-    assert data["data"]["preferences"]["summary"]["OpenAI"]["apikey"] == dummy_api_key
-    assert data["data"]["preferences"]["summary"]["OpenAI"]["active"]
+    # The preference save is async (the dialog closes optimistically), so poll
+    # the profile until the model lands rather than racing the GET.
+    openai = {}
+    for _ in range(20):
+        status, data = api("GET", "internal/profile", token=upload_data_token)
+        assert status == 200
+        openai = data["data"]["preferences"].get("summary", {}).get("OpenAI", {})
+        if openai.get("model") == dummy_gpt_model:
+            break
+        time.sleep(0.5)
+    assert openai.get("model") == dummy_gpt_model
+    assert openai.get("apikey") == dummy_api_key
+    assert openai.get("active")
 
     # uncheck the toggle
     page.locator('[data-testid="OpenAI_toggle"]').first.click()

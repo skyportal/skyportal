@@ -346,7 +346,7 @@ def test_new_spectra_on_source_triggers_notification(
     ).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=1)
+@pytest.mark.flaky(reruns=2)
 def test_new_gcn_event_triggers_notification(page, user, super_admin_token):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")

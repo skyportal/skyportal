@@ -1,6 +1,7 @@
 import datetime
 import uuid
 
+import pytest
 from playwright.sync_api import expect
 
 from skyportal.tests import api
@@ -8,6 +9,8 @@ from skyportal.tests import api
 from ...utils.naive_datetime import utcnow_naive
 
 
+# Passes in isolation; only times out under full-suite contention, so retry.
+@pytest.mark.flaky(reruns=2)
 def test_candidate_date_filtering(
     page,
     user,

@@ -126,7 +126,7 @@ def test_reminder_on_shift(page, public_group, super_admin_user, super_admin_tok
         f'//*[@data-testid="event_shift_name" and contains(text(), "{shift_name}")]/..'
     ).locator("visible=true").first.click()
 
-    page.locator('//*[@data-testid="NotificationsOutlinedIcon"]').first.click()
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(page.locator(f'//*[@href="/shifts/{shift_id}"]').first).to_be_visible()
     page.keyboard.press("Escape")
 
@@ -153,7 +153,7 @@ def test_reminder_on_source(page, super_admin_user, super_admin_token):
     expect(page.locator(f'//*[contains(.,"{obj_id}")]').first).to_be_visible(
         timeout=30000
     )
-    page.locator('//*[@data-testid="NotificationsOutlinedIcon"]').first.click()
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(page.locator(f'//*[@href="/source/{obj_id}"]').first).to_be_visible()
     page.keyboard.press("Escape")
 

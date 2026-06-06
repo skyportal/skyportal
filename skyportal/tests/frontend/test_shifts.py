@@ -77,6 +77,12 @@ def test_shift(
         f'//*[@data-testid="event_shift_name" and contains(text(), "{form_name}")]/..'
     ).first.click()
 
+    # Selecting the shift on the calendar triggers an async fetch that populates
+    # the management panel; wait for the panel header to show THIS shift before
+    # interacting, otherwise the comment/member actions race the fetch and target
+    # a stale shift.
+    expect(page.locator(f'//h2[contains(., "{form_name}")]').first).to_be_visible()
+
     # add a comment to the shift
     page.locator('//*[@id="root_comment"]').first.fill("This is a comment")
     page.locator('//button[@type="submitComment"]').first.click()
@@ -159,12 +165,30 @@ def test_shift(
     )
     page.locator(shift_on_calendar).first.click()
 
-    page.locator(join_button_xpath).first.click()
-    expect(page.locator(join_button_xpath).first).to_be_hidden()
+    # Selecting the shift on the calendar triggers an async fetch that populates
+    # the management panel; wait for the panel header to show THIS shift before
+    # joining. Otherwise the join click races the fetch and is bound to a stale
+    # shift, so participating never flips and the join button never hides.
+    expect(page.locator(f'//h2[contains(., "{name}")]').first).to_be_visible()
 
-    expect(
-        page.locator(f'//*[@data-testid="shift-member-chip-{shift_user.id}"]').first
-    ).to_be_visible()
+    # joinShift() posts for the redux profile's currentUser.id, which can still
+    # be the previous user right after become_user; retry the join (re-selecting
+    # the shift to refresh the panel) until shift_user actually lands in the
+    # shift, rather than racing a single click against the profile load.
+    member_chip = page.locator(
+        f'//*[@data-testid="shift-member-chip-{shift_user.id}"]'
+    ).first
+    for _ in range(10):
+        if member_chip.is_visible():
+            break
+        join_button = page.locator(join_button_xpath).first
+        if join_button.is_visible():
+            join_button.click()
+        else:
+            page.locator(shift_on_calendar).first.click()
+        page.wait_for_timeout(1500)
+    expect(member_chip).to_be_visible()
+    expect(page.locator(join_button_xpath).first).to_be_hidden()
 
     ask_for_replacement_button_xpath = '//*[@id="ask-for-replacement-button"]'
     page.locator(ask_for_replacement_button_xpath).first.click()

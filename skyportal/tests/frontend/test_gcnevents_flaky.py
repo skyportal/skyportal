@@ -190,11 +190,11 @@ def test_reminder_on_gcn(page, super_admin_user, super_admin_token):
     expect(page.locator('//*[contains(.,"190814 21:10:39")]').first).to_be_visible(
         timeout=30000
     )
-    page.locator('//*[@data-testid="NotificationsOutlinedIcon"]').first.click()
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(
         page.locator('//*[@href="/gcn_events/2019-08-14T21:10:39"]').first
     ).to_be_visible()
-    page.locator('//*[@data-testid="NotificationsOutlinedIcon"]').first.click()
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
 
 
 @pytest.mark.flaky(reruns=3)
