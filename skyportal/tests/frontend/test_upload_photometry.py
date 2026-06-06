@@ -1,47 +1,41 @@
 import pytest
-from selenium.webdriver import ActionChains
-from selenium.webdriver.common.keys import Keys
+from playwright.sync_api import expect
+
+CSV = (
+    "mjd,flux,fluxerr,zp,magsys,filter\n58001,55,1,25,ab,sdssg\n58002,53,1,25,ab,sdssg"
+)
 
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_photometry_csv(
-    driver, sedm, super_admin_user, public_source, super_admin_token, public_group
+    page, sedm, super_admin_user, public_source, super_admin_token, public_group
 ):
     inst_id = sedm.id
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/upload_photometry/{public_source.id}")
-    csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
-    csv_text_input.send_keys(
-        "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,sdssg\n"
-        "58002,53,1,25,ab,sdssg"
-    )
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/upload_photometry/{public_source.id}")
+    page.locator('//textarea[@name="csvData"]').first.fill(CSV)
 
     # instrument select
-    driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
-    driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
-
-    # Click somewhere outside to remove focus from instrument select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
+    page.locator('//*[@aria-labelledby="instrumentSelectLabel"]').first.click()
+    page.locator(f'//li[@data-value="{inst_id}"]').first.click()
+    page.keyboard.press("Escape")
 
     # group select
-    driver.click_xpath('//div[@id="selectGroups"]')
-    driver.click_xpath(f'//li[@data-value="{public_group.id}"]', scroll_parent=True)
+    page.locator('//div[@id="selectGroups"]').first.click()
+    page.locator(f'//li[@data-value="{public_group.id}"]').first.click()
+    page.keyboard.press("Escape")
 
-    # Click somewhere outside to remove focus from group select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
-
-    driver.click_xpath('//*[text()="Preview in Tabular Form"]')
-    driver.wait_for_xpath('//div[text()="58001"]')
-    driver.click_xpath('//*[text()="Upload Photometry"]', scroll_parent=True)
-    driver.wait_for_xpath('//*[contains(.,"Upload successful. Your upload ID is")]')
+    page.locator('//*[text()="Preview in Tabular Form"]').first.click()
+    expect(page.locator('//div[text()="58001"]').first).to_be_visible()
+    page.locator('//*[text()="Upload Photometry"]').first.click()
+    expect(
+        page.locator('//*[contains(.,"Upload successful. Your upload ID is")]').first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_photometry_csv_multiple_groups(
-    driver,
+    page,
     sedm,
     super_admin_user_two_groups,
     public_group,
@@ -52,168 +46,139 @@ def test_upload_photometry_csv_multiple_groups(
     user = super_admin_user_two_groups
     public_source = public_source_two_groups
     inst_id = sedm.id
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/upload_photometry/{public_source.id}")
-    csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
-    csv_text_input.send_keys(
-        "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,sdssg\n"
-        "58002,53,1,25,ab,sdssg"
-    )
-    # instrument select
-    driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
-    driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/upload_photometry/{public_source.id}")
+    page.locator('//textarea[@name="csvData"]').first.fill(CSV)
 
-    # Click somewhere outside to remove focus from instrument select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
+    page.locator('//*[@aria-labelledby="instrumentSelectLabel"]').first.click()
+    page.locator(f'//li[@data-value="{inst_id}"]').first.click()
+    page.keyboard.press("Escape")
 
-    # group select
-    driver.click_xpath('//div[@id="selectGroups"]')
-    driver.click_xpath(f'//li[@data-value="{public_group.id}"]', scroll_parent=True)
-    driver.click_xpath(f'//li[@data-value="{public_group2.id}"]', scroll_parent=True)
+    page.locator('//div[@id="selectGroups"]').first.click()
+    page.locator(f'//li[@data-value="{public_group.id}"]').first.click()
+    page.locator(f'//li[@data-value="{public_group2.id}"]').first.click()
+    page.keyboard.press("Escape")
 
-    # Click somewhere outside to remove focus from group select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
-
-    driver.click_xpath('//*[text()="Preview in Tabular Form"]')
-    driver.wait_for_xpath('//div[text()="58001"]')
-    driver.click_xpath('//*[text()="Upload Photometry"]')
-    driver.wait_for_xpath('//*[contains(.,"Upload successful. Your upload ID is")]')
+    page.locator('//*[text()="Preview in Tabular Form"]').first.click()
+    expect(page.locator('//div[text()="58001"]').first).to_be_visible()
+    page.locator('//*[text()="Upload Photometry"]').first.click()
+    expect(
+        page.locator('//*[contains(.,"Upload successful. Your upload ID is")]').first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_photometry_csv_with_altdata(
-    driver, sedm, super_admin_user, public_source, super_admin_token, public_group
+    page, sedm, super_admin_user, public_source, super_admin_token, public_group
 ):
     inst_id = sedm.id
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/upload_photometry/{public_source.id}")
-    csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
-    csv_text_input.send_keys(
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/upload_photometry/{public_source.id}")
+    page.locator('//textarea[@name="csvData"]').first.fill(
         "mjd,flux,fluxerr,zp,magsys,filter,altdata.meta1,altdata.meta2\n"
         '58001,55,1,25,ab,sdssg,44.4,"abc,abc"\n'
         '58002,53,1,25,ab,sdssg,44.2,"edf,edf"'
     )
-    # instrument select
-    driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
-    driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
 
-    # Click somewhere outside to remove focus from instrument select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
+    page.locator('//*[@aria-labelledby="instrumentSelectLabel"]').first.click()
+    page.locator(f'//li[@data-value="{inst_id}"]').first.click()
+    page.keyboard.press("Escape")
 
-    # group select
-    driver.click_xpath('//div[@id="selectGroups"]')
-    driver.click_xpath(f'//li[@data-value="{public_group.id}"]', scroll_parent=True)
+    page.locator('//div[@id="selectGroups"]').first.click()
+    page.locator(f'//li[@data-value="{public_group.id}"]').first.click()
+    page.keyboard.press("Escape")
 
-    # Click somewhere outside to remove focus from group select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
-
-    driver.click_xpath('//*[text()="Preview in Tabular Form"]')
-    driver.wait_for_xpath('//div[text()="58001"]')
-    driver.click_xpath('//*[text()="Upload Photometry"]')
-    driver.wait_for_xpath('//*[contains(.,"Upload successful. Your upload ID is")]')
+    page.locator('//*[text()="Preview in Tabular Form"]').first.click()
+    expect(page.locator('//div[text()="58001"]').first).to_be_visible()
+    page.locator('//*[text()="Upload Photometry"]').first.click()
+    expect(
+        page.locator('//*[contains(.,"Upload successful. Your upload ID is")]').first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_upload_photometry_csv_form_validation(
-    driver, sedm, super_admin_user, public_source, super_admin_token, public_group
+    page, sedm, super_admin_user, public_source, super_admin_token, public_group
 ):
     inst_id = sedm.id
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/upload_photometry/{public_source.id}")
-    csv_text_input = driver.wait_for_xpath('//textarea[@name="csvData"]')
-    csv_text_input.send_keys(
-        "mjd,flux,fluxerr,zp,magsys,OTHER\n"
-        "58001,55,1,25,ab,sdssg\n"
-        "58002,53,1,25,ab,sdssg"
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/upload_photometry/{public_source.id}")
+    csv_text_input = page.locator('//textarea[@name="csvData"]').first
+    csv_text_input.fill(
+        "mjd,flux,fluxerr,zp,magsys,OTHER\n58001,55,1,25,ab,sdssg\n58002,53,1,25,ab,sdssg"
     )
-    driver.wait_for_xpath('//*[text()="Preview in Tabular Form"]').click()
-    driver.wait_for_xpath(
-        '//div[contains(.,"Invalid input: Missing required column: filter")]'
-    )
-    csv_text_input.clear()
-    csv_text_input.send_keys(
+    page.locator('//*[text()="Preview in Tabular Form"]').first.click()
+    expect(
+        page.locator(
+            '//div[contains(.,"Invalid input: Missing required column: filter")]'
+        ).first
+    ).to_be_visible()
+    csv_text_input.fill(
         "mjd,flux,fluxerr,zp,magsys,filter\n58001,55,1,25,ab,sdssg\n58002,53,1,25,ab"
     )
-    driver.wait_for_xpath(
-        '//div[contains(.,"Invalid input: All data rows must have the same number of columns as header row")]'
-    )
-    csv_text_input.clear()
-    csv_text_input.send_keys("mjd,flux,fluxerr,zp,magsys,filter")
-    driver.wait_for_xpath(
-        '//div[contains(.,"Invalid input: There must be a header row and one or more data rows")]'
-    )
-    csv_text_input.clear()
-    csv_text_input.send_keys(
-        "mjd,flux,fluxerr,zp,magsys,filter\n"
-        "58001,55,1,25,ab,sdssg\n"
-        "58002,53,1,25,ab,sdssg"
-    )
-    driver.wait_for_xpath('//div[contains(.,"Select an instrument")]')
+    expect(
+        page.locator(
+            '//div[contains(.,"Invalid input: All data rows must have the same number of columns as header row")]'
+        ).first
+    ).to_be_visible()
+    csv_text_input.fill("mjd,flux,fluxerr,zp,magsys,filter")
+    expect(
+        page.locator(
+            '//div[contains(.,"Invalid input: There must be a header row and one or more data rows")]'
+        ).first
+    ).to_be_visible()
+    csv_text_input.fill(CSV)
+    expect(
+        page.locator('//div[contains(.,"Select an instrument")]').first
+    ).to_be_visible()
 
-    # instrument select
-    driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
-    driver.click_xpath(f'//li[@data-value="{inst_id}"]', scroll_parent=True)
+    page.locator('//*[@aria-labelledby="instrumentSelectLabel"]').first.click()
+    page.locator(f'//li[@data-value="{inst_id}"]').first.click()
+    page.keyboard.press("Escape")
 
-    # Click somewhere outside to remove focus from instrument select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
+    page.locator('//div[@id="selectGroups"]').first.click()
+    page.locator(f'//li[@data-value="{public_group.id}"]').first.click()
+    page.keyboard.press("Escape")
 
-    # group select
-    driver.click_xpath('//div[@id="selectGroups"]')
-    driver.click_xpath(f'//li[@data-value="{public_group.id}"]', scroll_parent=True)
-
-    driver.click_xpath('//*[text()="Preview in Tabular Form"]')
-    driver.wait_for_xpath('//div[text()="58001"]')
+    page.locator('//*[text()="Preview in Tabular Form"]').first.click()
+    expect(page.locator('//div[text()="58001"]').first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_upload_photometry_form(driver, sedm, super_admin_user, public_source):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/upload_photometry/{public_source.id}")
+def test_upload_photometry_form(page, sedm, super_admin_user, public_source):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/upload_photometry/{public_source.id}")
 
-    button = driver.wait_for_xpath('//*[contains(text(), "Using Form (one)")]')
-    button.click()
+    page.locator('//*[contains(text(), "Using Form (one)")]').first.click()
 
     # instrument select
-    driver.click_xpath('//*[@aria-labelledby="instrumentSelectLabel"]')
-    driver.click_xpath(f'//li[@data-value="{sedm.id}"]', scroll_parent=True)
-    # wait for the modal to disappear
-    driver.wait_for_xpath_to_disappear(f'//li[@data-value="{sedm.id}"]')
+    page.locator('//*[@aria-labelledby="instrumentSelectLabel"]').first.click()
+    page.locator(f'//li[@data-value="{sedm.id}"]').first.click()
+    expect(page.locator(f'//li[@data-value="{sedm.id}"]').first).to_be_hidden()
 
-    groups_dropdown = driver.wait_for_xpath('//*[@id="root_group_ids"]')
-    driver.scroll_to_element_and_click(groups_dropdown)
-    # click on the first group
-    driver.wait_for_xpath('//*[@aria-labelledby="root_group_ids-label"]/li[1]').click()
-    groups_dropdown.send_keys(Keys.ESCAPE)
+    page.locator('//*[@id="root_group_ids"]').first.click()
+    page.locator('//*[@aria-labelledby="root_group_ids-label"]/li[1]').first.click()
+    page.keyboard.press("Escape")
+    expect(
+        page.locator('//*[@aria-labelledby="root_group_ids-label"]/li[1]').first
+    ).to_be_hidden()
 
-    driver.wait_for_xpath_to_disappear(
-        '//*[@aria-labelledby="root_group_ids-label"]/li[1]'
-    )
+    page.locator('//*[@id="root_obsdate"]').first.fill("2017-05-09T12:34:56")
+    page.locator('//*[@id="root_mag"]').first.fill("12.3")
+    page.locator('//*[@id="root_magerr"]').first.fill("0.1")
+    page.locator('//*[@id="root_limiting_mag"]').first.fill("20.0")
+    page.locator('//*[@id="root_origin"]').first.fill("test")
+    page.locator('//*[@id="root_nb_exposure"]').first.fill("6")
+    page.locator('//*[@id="root_exposure_time"]').first.fill("60")
 
-    driver.wait_for_xpath('//*[@id="root_obsdate"]').send_keys("2017-05-09T12:34:56")
-    driver.wait_for_xpath('//*[@id="root_mag"]').send_keys("12.3")
-    driver.wait_for_xpath('//*[@id="root_magerr"]').send_keys("0.1")
-    driver.wait_for_xpath('//*[@id="root_limiting_mag"]').send_keys("20.0")
+    page.locator('//*[@id="root_coordinates"]').first.click()
+    page.locator('//*[@id="root_ra"]').first.fill("10.625")
+    page.locator('//*[@id="root_dec"]').first.fill("41.2")
 
-    driver.wait_for_xpath('//*[@id="root_origin"]').send_keys("test")
-    driver.wait_for_xpath('//*[@id="root_nb_exposure"]').send_keys("6")
-    driver.wait_for_xpath('//*[@id="root_exposure_time"]').send_keys("60")
+    page.locator('//*[@id="root_filter"]').first.click()
+    page.locator('//*[text()="sdssg"]').first.click()
 
-    coordinates_option = driver.wait_for_xpath('//*[@id="root_coordinates"]')
-    driver.scroll_to_element_and_click(coordinates_option)
-    driver.wait_for_xpath('//*[@id="root_ra"]').send_keys("10.625")
-    driver.wait_for_xpath('//*[@id="root_dec"]').send_keys("41.2")
-
-    filter_dropdown = driver.wait_for_xpath('//*[@id="root_filter"]')
-    driver.scroll_to_element_and_click(filter_dropdown)
-    driver.wait_for_xpath('//*[text()="sdssg"]').click()
-
-    submit = driver.wait_for_xpath('//*[text()="Submit"]')
-    driver.scroll_to_element_and_click(submit)
-
-    driver.wait_for_xpath('//*[contains(text(), "Photometry added successfully")]')
+    page.locator('//*[text()="Submit"]').first.click()
+    expect(
+        page.locator('//*[contains(text(), "Photometry added successfully")]').first
+    ).to_be_visible()

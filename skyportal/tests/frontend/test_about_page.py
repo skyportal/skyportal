@@ -1,14 +1,20 @@
+from playwright.sync_api import expect
+
 import skyportal
 
 
-def test_skyportal_version_displayed(driver):
-    driver.get("/about")
-    driver.wait_for_xpath(f"//*[contains(.,'{skyportal.__version__}')]")
-    driver.click_xpath("//button[contains(.,'Show BiBTeX')]")
-    driver.wait_for_xpath("//*[contains(.,'Journal of Open Source Software')]")
-    driver.click_xpath("//button[contains(.,'Hide BiBTeX')]")
+def test_skyportal_version_displayed(page):
+    page.goto("/about")
+    expect(
+        page.locator(f"//*[contains(.,'{skyportal.__version__}')]").first
+    ).to_be_visible()
+    page.locator("//button[contains(.,'Show BiBTeX')]").first.click()
+    expect(
+        page.locator("//*[contains(.,'Journal of Open Source Software')]").first
+    ).to_be_visible()
+    page.locator("//button[contains(.,'Hide BiBTeX')]").first.click()
 
 
-def test_invalid_route(driver):
-    driver.get("/invalid_route")
-    driver.wait_for_xpath("//*[contains(.,'Invalid route')]")
+def test_invalid_route(page):
+    page.goto("/invalid_route")
+    expect(page.locator("//*[contains(.,'Invalid route')]").first).to_be_visible()

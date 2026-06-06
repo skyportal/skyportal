@@ -2,6 +2,7 @@ import uuid
 
 import numpy as np
 import numpy.testing as npt
+from playwright.sync_api import expect
 
 from baselayer.app.config import load_config
 from skyportal.tests import api
@@ -10,7 +11,7 @@ cfg = load_config()
 
 
 def test_periodogram(
-    driver, user, public_source, public_group, ztf_camera, upload_data_token
+    page, user, public_source, public_group, ztf_camera, upload_data_token
 ):
     obj_id = str(uuid.uuid4())
     status, data = api(
@@ -52,26 +53,22 @@ def test_periodogram(
         "group_ids": [public_group.id],
     }
     # Put in some actual photometry data first
-    status, data = api(
-        "POST",
-        "photometry",
-        data=data,
-        token=upload_data_token,
-    )
+    status, data = api("POST", "photometry", data=data, token=upload_data_token)
     assert status == 200
     assert data["status"] == "success"
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{obj_id}/periodogram")
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{obj_id}/periodogram")
 
     # If the bestp id shows up then a period was found
-    best_period = "//span[contains(@data-testid, 'bestp')]"
-    bestp = driver.wait_for_xpath(best_period)
+    bestp = page.locator("//span[contains(@data-testid, 'bestp')]").first
+    expect(bestp).to_be_visible()
 
     # did we find the right period?
-    bestp_flt = float(bestp.text)
+    bestp_flt = float(bestp.inner_text())
     npt.assert_almost_equal(bestp_flt, P, decimal=1)
 
     # Is the bottom phaseplot rendering?
-    phaseplot = "//div[contains(@data-testid, 'phaseplot')]"
-    driver.wait_for_xpath(phaseplot)
+    expect(
+        page.locator("//div[contains(@data-testid, 'phaseplot')]").first
+    ).to_be_visible()

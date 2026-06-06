@@ -1,7 +1,7 @@
 import uuid
 
 import pytest
-from selenium.webdriver.common.by import By
+from playwright.sync_api import expect
 
 from baselayer.app.env import load_env
 from skyportal.tests import api
@@ -9,42 +9,42 @@ from skyportal.tests import api
 _, cfg = load_env()
 
 
-def test_public_groups_list(driver, user, public_group):
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    driver.get("/groups")
-    driver.wait_for_xpath('//h6[text()="My Groups"]')
-    driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
+def test_public_groups_list(page, user, public_group):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/groups")
+    expect(page.locator('//h6[text()="My Groups"]').first).to_be_visible()
+    expect(
+        page.locator(f'//a[contains(.,"{public_group.name}")]').first
+    ).to_be_visible()
 
 
-def test_super_admin_groups_list(driver, super_admin_user, public_group):
-    driver.get(f"/become_user/{super_admin_user.id}")  # TODO decorator/context manager?
-    driver.get("/groups")
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
-    driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
-    # TODO: Make sure ALL groups are actually displayed here - not sure how to
-    # get list of names of previously created groups here
+def test_super_admin_groups_list(page, super_admin_user, public_group):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/groups")
+    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
+    expect(
+        page.locator(f'//a[contains(.,"{public_group.name}")]').first
+    ).to_be_visible()
 
 
-def test_add_new_group(driver, super_admin_user, user, super_admin_token):
+def test_add_new_group(page, super_admin_user, user, super_admin_token):
     test_proj_name = str(uuid.uuid4())
     group_description = str(uuid.uuid4())
-    driver.get(f"/become_user/{super_admin_user.id}")  # TODO decorator/context manager?
-    driver.get("/")
-    driver.refresh()
-    driver.get("/groups")
-    driver.wait_for_xpath('//h3[text()="Create New Group"]', timeout=30)
-    driver.wait_for_xpath('//input[@name="name"]').send_keys(test_proj_name)
-    driver.wait_for_xpath('//input[@name="description"]').send_keys(group_description)
-    driver.click_xpath('//div[@id="groupAdminsSelect"]')
-    driver.click_xpath(f'//li[contains(text(),"{user.username}")]', scroll_parent=True)
-    driver.click_xpath('//button[contains(.,"Create Group")]', wait_clickable=False)
-    driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
-    # check for group description
-    status, data = api(
-        "GET",
-        "groups",
-        token=super_admin_token,
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/")
+    page.reload()
+    page.goto("/groups")
+    expect(page.locator('//h3[text()="Create New Group"]').first).to_be_visible(
+        timeout=30000
     )
+    page.locator('//input[@name="name"]').first.fill(test_proj_name)
+    page.locator('//input[@name="description"]').first.fill(group_description)
+    page.locator('//div[@id="groupAdminsSelect"]').first.click()
+    page.locator(f'//li[contains(text(),"{user.username}")]').first.click()
+    page.locator('//button[contains(.,"Create Group")]').first.click()
+    expect(page.locator(f'//a[contains(.,"{test_proj_name}")]').first).to_be_visible()
+    # check for group description
+    status, data = api("GET", "groups", token=super_admin_token)
     assert status == 200
     assert data["status"] == "success"
     user_groups = data["data"]["user_groups"]
@@ -52,47 +52,44 @@ def test_add_new_group(driver, super_admin_user, user, super_admin_token):
         if group["description"] == group_description:
             id = group["id"]
             break
-    driver.get(f"/group/{id}")
-    driver.wait_for_xpath('//h6[@data-testid="description"]')
-    driver.wait_for_xpath(f'//*[text()[contains(., "{group_description}")]]')
+    page.goto(f"/group/{id}")
+    expect(page.locator('//h6[@data-testid="description"]').first).to_be_visible()
+    expect(
+        page.locator(f'//*[text()[contains(., "{group_description}")]]').first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
+def test_add_new_group_explicit_self_admin(page, super_admin_user, user):
     test_proj_name = str(uuid.uuid4())
-    driver.get(f"/become_user/{super_admin_user.id}")  # TODO decorator/context manager?
-    driver.get("/")
-    driver.refresh()
-    driver.get("/groups")
-    driver.wait_for_xpath('//input[@name="name"]').send_keys(test_proj_name)
-    driver.click_xpath('//div[@id="groupAdminsSelect"]')
-    driver.click_xpath(f'//li[contains(text(),"{user.username}")]', scroll_parent=True)
-    driver.click_xpath('//button[contains(.,"Create Group")]', wait_clickable=False)
-    driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/")
+    page.reload()
+    page.goto("/groups")
+    page.locator('//input[@name="name"]').first.fill(test_proj_name)
+    page.locator('//div[@id="groupAdminsSelect"]').first.click()
+    page.locator(f'//li[contains(text(),"{user.username}")]').first.click()
+    page.locator('//button[contains(.,"Create Group")]').first.click()
+    expect(page.locator(f'//a[contains(.,"{test_proj_name}")]').first).to_be_visible()
 
 
 def test_add_new_group_user_admin(
-    driver, super_admin_user, super_admin_token, user_no_groups, public_group
+    page, super_admin_user, super_admin_token, user_no_groups, public_group
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/groups")
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
-    driver.click_xpath(
-        f'//li[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
-    )
-    driver.click_xpath('//div[@data-testid="newGroupUserTextInput"]')
-    driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/groups")
+    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
+    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator('//div[@data-testid="newGroupUserTextInput"]').first.click()
+    page.locator(f'//li[text()="{user_no_groups.username}"]').first.click()
     # Default is unchecked; just need to click once to make group admin
-    driver.click_xpath('//*[@data-testid="adminCheckbox"]')
-    driver.click_xpath('//button[contains(.,"Add user")]')
-    driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
-    assert (
-        len(
-            driver.find_elements(
-                By.XPATH, f'//div[@id="{user_no_groups.id}-admin-chip"]'
-            )
-        )
-        == 1
+    page.locator('//*[@data-testid="adminCheckbox"]').first.click()
+    page.locator('//button[contains(.,"Add user")]').first.click()
+    expect(
+        page.locator(f'//a[contains(.,"{user_no_groups.username}")]').first
+    ).to_be_visible()
+    expect(page.locator(f'//div[@id="{user_no_groups.id}-admin-chip"]')).to_have_count(
+        1
     )
 
     status, data = api(
@@ -111,25 +108,20 @@ def test_add_new_group_user_admin(
 
 @pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_nonadmin(
-    driver, super_admin_user, super_admin_token, user_no_groups, public_group
+    page, super_admin_user, super_admin_token, user_no_groups, public_group
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/groups")
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
-    driver.click_xpath(
-        f'//li[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
-    )
-    driver.click_xpath('//div[@data-testid="newGroupUserTextInput"]')
-    driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
-    driver.click_xpath('//button[contains(.,"Add user")]')
-    driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
-    assert (
-        len(
-            driver.find_elements(
-                By.XPATH, f'//div[@id="{user_no_groups.id}-admin-chip"]'
-            )
-        )
-        == 0
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/groups")
+    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
+    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator('//div[@data-testid="newGroupUserTextInput"]').first.click()
+    page.locator(f'//li[text()="{user_no_groups.username}"]').first.click()
+    page.locator('//button[contains(.,"Add user")]').first.click()
+    expect(
+        page.locator(f'//a[contains(.,"{user_no_groups.username}")]').first
+    ).to_be_visible()
+    expect(page.locator(f'//div[@id="{user_no_groups.id}-admin-chip"]')).to_have_count(
+        0
     )
 
     status, data = api(
@@ -148,27 +140,22 @@ def test_add_new_group_user_nonadmin(
 
 @pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_cant_save(
-    driver, super_admin_user, super_admin_token, user_no_groups, public_group
+    page, super_admin_user, super_admin_token, user_no_groups, public_group
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/groups")
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
-    driver.click_xpath(
-        f'//li[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
-    )
-    driver.click_xpath('//div[@data-testid="newGroupUserTextInput"]')
-    driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/groups")
+    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
+    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator('//div[@data-testid="newGroupUserTextInput"]').first.click()
+    page.locator(f'//li[text()="{user_no_groups.username}"]').first.click()
     # Checkbox is checked by default
-    driver.click_xpath('//*[@data-testid="canSaveCheckbox"]')
-    driver.click_xpath('//button[contains(.,"Add user")]')
-    driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
-    assert (
-        len(
-            driver.find_elements(
-                By.XPATH, f'//div[@id="{user_no_groups.id}-admin-chip"]'
-            )
-        )
-        == 0
+    page.locator('//*[@data-testid="canSaveCheckbox"]').first.click()
+    page.locator('//button[contains(.,"Add user")]').first.click()
+    expect(
+        page.locator(f'//a[contains(.,"{user_no_groups.username}")]').first
+    ).to_be_visible()
+    expect(page.locator(f'//div[@id="{user_no_groups.id}-admin-chip"]')).to_have_count(
+        0
     )
 
     status, data = api(
@@ -187,118 +174,109 @@ def test_add_new_group_user_cant_save(
 
 @pytest.mark.flaky(reruns=2)
 def test_invite_all_users_from_other_group(
-    driver, super_admin_user, public_group, public_group2, user, user_group2
+    page, super_admin_user, public_group, public_group2, user, user_group2
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/groups")
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
-    driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{user_group2.username}")]')
-    driver.click_xpath(
-        f'//li[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
-    )
-    driver.click_xpath('//*[@data-testid="addUsersFromGroupsTextField"]')
-    driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
-    driver.click_xpath('//*[text()="Add users"]')
-    driver.wait_for_xpath(
-        "//*[text()='Successfully added users from specified group(s)']"
-    )
-    driver.wait_for_xpath(f'//*[text()="{user_group2.username}"]')
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/groups")
+    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
+    expect(
+        page.locator(f'//a[contains(.,"{user_group2.username}")]').first
+    ).to_be_hidden()
+    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator('//*[@data-testid="addUsersFromGroupsTextField"]').first.click()
+    page.locator(f'//li[text()="{public_group2.name}"]').first.click()
+    page.locator('//*[text()="Add users"]').first.click()
+    expect(
+        page.locator(
+            "//*[text()='Successfully added users from specified group(s)']"
+        ).first
+    ).to_be_visible()
+    expect(page.locator(f'//*[text()="{user_group2.username}"]').first).to_be_visible()
 
 
-def test_delete_group_user(driver, super_admin_user, user, public_group):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/groups")
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
-    driver.click_xpath(
-        f'//li[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
-    )
+def test_delete_group_user(page, super_admin_user, user, public_group):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/groups")
+    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
+    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
 
-    driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
-    driver.click_xpath(f'//button[@data-testid="delete-{user.username}"]')
-    driver.click_xpath(f'//button[@data-testid="confirm-delete-{user.username}"]')
-    driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{user.username}")]')
+    expect(page.locator(f'//a[contains(.,"{user.username}")]').first).to_be_visible()
+    page.locator(f'//button[@data-testid="delete-{user.username}"]').first.click()
+    page.locator(
+        f'//button[@data-testid="confirm-delete-{user.username}"]'
+    ).first.click()
+    expect(page.locator(f'//a[contains(.,"{user.username}")]').first).to_be_hidden()
 
 
 @pytest.mark.flaky(reruns=2)
-# @pytest.mark.xfail(strict=False)
-def test_delete_group(driver, super_admin_user, user, public_group):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/groups")
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
-    driver.click_xpath(
-        f'//li[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
-    )
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//button[contains(.,"Delete Group")]')
-    )
-    driver.wait_for_xpath('//button[contains(.,"Confirm")]').click()
-    driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{public_group.name}")]')
+def test_delete_group(page, super_admin_user, user, public_group):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/groups")
+    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
+    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator('//button[contains(.,"Delete Group")]').first.click()
+    page.locator('//button[contains(.,"Confirm")]').first.click()
+    expect(page.locator(f'//a[contains(.,"{public_group.name}")]').first).to_be_hidden()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_add_stream_add_delete_filter_group(
-    driver, super_admin_user, super_admin_token, public_group, public_stream2
+    page, super_admin_user, super_admin_token, public_group, public_stream2
 ):
     status, data = api(
         "POST",
         f"streams/{public_stream2.id}/users",
-        data={
-            "user_id": super_admin_user.id,
-        },
+        data={"user_id": super_admin_user.id},
         token=super_admin_token,
     )
     assert status == 200
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/groups")
-    driver.click_xpath('//h6[text()="All Groups"]', scroll_parent=True)
-    driver.click_xpath(
-        f'//li[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
-    )
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/groups")
+    page.locator('//h6[text()="All Groups"]').first.click()
+    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
 
     # Add stream
-    driver.click_xpath('//button[contains(.,"Add stream")]')
-    driver.click_xpath('//div[@aria-labelledby="alert-stream-select-required-label"]')
-
-    driver.click_xpath(f'//li[contains(.,"{public_stream2.name}")]', scroll_parent=True)
-    driver.click_xpath('//button[@data-testid="add-stream-dialog-submit"]')
+    page.locator('//button[contains(.,"Add stream")]').first.click()
+    page.locator(
+        '//div[@aria-labelledby="alert-stream-select-required-label"]'
+    ).first.click()
+    page.locator(f'//li[contains(.,"{public_stream2.name}")]').first.click()
+    page.locator('//button[@data-testid="add-stream-dialog-submit"]').first.click()
 
     # add filter
     filter_name = str(uuid.uuid4())
-    driver.click_xpath('//button[contains(.,"Add filter")]')
-    driver.click_xpath('//input[@name="filter_name"]/..')
-    driver.wait_for_xpath('//input[@name="filter_name"]').send_keys(filter_name)
+    page.locator('//button[contains(.,"Add filter")]').first.click()
+    page.locator('//input[@name="filter_name"]/..').first.click()
+    page.locator('//input[@name="filter_name"]').first.fill(filter_name)
 
-    driver.click_xpath('//*[@aria-labelledby="alert-stream-select-required-label"]')
-    driver.click_xpath(
-        f'//li[@data-value="{public_stream2.id}"]',
-        scroll_parent=True,
-    )
-    driver.click_xpath('//button[@data-testid="add-filter-dialog-submit"]')
-    driver.wait_for_xpath(f'//span[contains(.,"{filter_name}")]')
-    assert (
-        len(driver.find_elements(By.XPATH, f'//span[contains(.,"{filter_name}")]')) == 1
-    )
+    page.locator(
+        '//*[@aria-labelledby="alert-stream-select-required-label"]'
+    ).first.click()
+    page.locator(f'//li[@data-value="{public_stream2.id}"]').first.click()
+    page.locator('//button[@data-testid="add-filter-dialog-submit"]').first.click()
+    expect(page.locator(f'//span[contains(.,"{filter_name}")]')).to_have_count(1)
 
     # delete filter
-    driver.click_xpath(f'//a[contains(.,"{filter_name}")]')
-    driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{filter_name}")]')
+    page.locator(f'//a[contains(.,"{filter_name}")]').first.click()
+    expect(page.locator(f'//a[contains(.,"{filter_name}")]').first).to_be_hidden()
 
 
 def test_cannot_add_stream_group_users_cant_access(
-    driver, super_admin_user, user, public_group, public_stream2
+    page, super_admin_user, user, public_group, public_stream2
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/groups")
-    driver.click_xpath('//h6[text()="All Groups"]', scroll_parent=True)
-    driver.click_xpath(
-        f'//li[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
-    )
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/groups")
+    page.locator('//h6[text()="All Groups"]').first.click()
+    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
 
     # Cannot add stream that group members don't have access to
-    driver.click_xpath('//button[contains(.,"Add stream")]', scroll_parent=True)
-    driver.click_xpath('//*[@aria-labelledby="alert-stream-select-required-label"]')
-
-    driver.click_xpath(f'//li[contains(.,"{public_stream2.name}")]', scroll_parent=True)
-    driver.click_xpath('//button[@data-testid="add-stream-dialog-submit"]')
-    driver.wait_for_xpath('//*[contains(.,"Not all users have stream access with")]')
+    page.locator('//button[contains(.,"Add stream")]').first.click()
+    page.locator(
+        '//*[@aria-labelledby="alert-stream-select-required-label"]'
+    ).first.click()
+    page.locator(f'//li[contains(.,"{public_stream2.name}")]').first.click()
+    page.locator('//button[@data-testid="add-stream-dialog-submit"]').first.click()
+    expect(
+        page.locator('//*[contains(.,"Not all users have stream access with")]').first
+    ).to_be_visible()

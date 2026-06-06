@@ -8,11 +8,8 @@ import pandas as pd
 import pytest
 from astropy.table import Table
 from numpy import random
+from playwright.sync_api import expect
 from regions import Regions
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 
 from baselayer.app.config import load_config
 from skyportal.tests import api
@@ -24,15 +21,16 @@ from skyportal.tests.external.test_moving_objects import (
 cfg = load_config()
 
 
-def enter_comment_text(driver, comment_text):
-    comment_xpath = "//div[@data-testid='comments-accordion']//textarea[@name='text']"
-    comment_box = driver.wait_for_xpath(comment_xpath)
-    driver.click_xpath(comment_xpath)
-    comment_box.send_keys(comment_text)
+def enter_comment_text(page, comment_text):
+    comment_box = page.locator(
+        "//div[@data-testid='comments-accordion']//textarea[@name='text']"
+    ).first
+    comment_box.click()
+    comment_box.fill(comment_text)
 
 
 def test_download_sources(
-    driver, user, public_group, upload_data_token, annotation_token
+    page, user, public_group, upload_data_token, annotation_token
 ):
     # generate a list of 20 source ids:
     source_ids = [str(uuid.uuid4()) for i in range(20)]
@@ -86,33 +84,24 @@ def test_download_sources(
         )
         assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/sources")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/sources")
 
     # Filter for origin
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-    alias_field = driver.wait_for_xpath(
-        "//*[@data-testid='origin-text']//input",
-    )
-    alias_field.send_keys(origin)
-    driver.click_xpath(
-        "//button[text()='Submit']",
-        scroll_parent=True,
-    )
+    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
+    origin_input = page.locator("//*[@data-testid='origin-text']//input").first
+    origin_input.click()
+    origin_input.fill(origin)
+    page.locator("//button[text()='Submit']").first.click()
+    # wait for the filtered results to load before downloading (otherwise the
+    # CSV is generated from the unfiltered table)
+    page.wait_for_load_state("networkidle")
 
-    # click the download button
-    driver.click_xpath('//button[@aria-label="Download CSV"]')
-
-    driver.wait_for_xpath('//*[contains(., "Downloading 20 sources")]')
-
-    driver.wait_for_xpath_to_disappear('//*[contains(., "Downloading 20 sources")]')
-
-    # check that the download has the right number of lines
+    # click the download button and capture the download
     fpath = str(os.path.abspath(pjoin(cfg["paths.downloads_folder"], "sources.csv")))
-    try_count = 1
-    while not os.path.exists(fpath) and try_count <= 5:
-        try_count += 1
-        time.sleep(1)
+    with page.expect_download() as download_info:
+        page.locator('//button[@aria-label="Download CSV"]').first.click()
+    download_info.value.save_as(fpath)
     assert os.path.exists(fpath)
 
     try:
@@ -126,76 +115,41 @@ def test_download_sources(
 
 
 @pytest.mark.flaky(reruns=2)
-def test_upload_download_comment_attachment(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
+def test_upload_download_comment_attachment(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
     comment_text = str(uuid.uuid4())
-    enter_comment_text(driver, comment_text)
-    # attachment_file = driver.find_element_by_css_selector('input[type=file]')
-    attachment_file = driver.wait_for_xpath(
+    enter_comment_text(page, comment_text)
+
+    page.locator(
         "//div[@data-testid='comments-accordion']//input[@name='attachment']"
+    ).first.set_input_files(
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "spec.csv")
     )
-
-    filename = "spec.csv"
-    attachment_file.send_keys(
-        os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "data",
-            filename,
-        ),
-    )
-    driver.click_xpath(
+    page.locator(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    )
-    try:
-        comment_text_p = driver.wait_for_xpath(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]',
-            timeout=20,
-        )
-    except TimeoutException:
-        driver.refresh()
-        comment_text_p = driver.wait_for_xpath(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
-        )
-    comment_div = comment_text_p.find_element(By.XPATH, "../..")
-    driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-    ActionChains(driver).move_to_element(comment_div).perform()
+    ).first.click()
 
-    # Scroll up to top of comments list
-    comments = driver.wait_for_xpath(
-        "//div[@data-testid='comments-accordion']//p[text()='Comments']"
-    )
-    driver.scroll_to_element(comments)
+    comment_p = page.locator(
+        f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
+    ).first
+    expect(comment_p).to_be_visible(timeout=20000)
 
-    attachment_div = driver.wait_for_xpath(
-        "//div[@data-testid='comments-accordion']//div[contains(text(), 'Attachment:')]"
-    )
-    attachment_button = driver.wait_for_xpath(
+    # hover the comment to reveal the attachment controls, then open the preview
+    comment_p.locator("xpath=../..").hover()
+    attachment_button = page.locator(
         '//div[@data-testid="comments-accordion"]//button[@data-testid="attachmentButton_spec"]'
-    )
+    ).first
+    attachment_button.hover()
+    attachment_button.click()
 
-    # Try to open the preview dialog twice before failing to make it more robust
-    try:
-        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
-        ActionChains(driver).move_to_element(attachment_button).pause(
-            0.5
-        ).click().perform()
-        # Preview dialog
-        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
-    except TimeoutException:
-        ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
-        ActionChains(driver).move_to_element(attachment_button).pause(
-            0.5
-        ).click().perform()
-        # Preview dialog
-        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
-
+    # preview dialog -> download
     fpath = str(os.path.abspath(pjoin(cfg["paths.downloads_folder"], "spec.csv")))
-    try_count = 1
-    while not os.path.exists(fpath) and try_count <= 3:
-        try_count += 1
-        assert os.path.exists(fpath)
+    with page.expect_download() as download_info:
+        page.locator('//a[@data-testid="attachmentDownloadButton_spec"]').first.click()
+    download_info.value.save_as(fpath)
+    assert os.path.exists(fpath)
 
     try:
         with open(fpath) as f:
@@ -206,7 +160,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
 
 
 def test_gcn_summary_observations(
-    driver,
+    page,
     super_admin_user,
     super_admin_token,
     public_group,
@@ -385,7 +339,7 @@ def test_gcn_summary_observations(
         "noText": False,
     }
 
-    get_summary(driver, super_admin_user, public_group, False, False, True)
+    get_summary(page, super_admin_user, public_group, False, False, True)
 
     fpath = str(
         os.path.abspath(
@@ -435,7 +389,7 @@ def test_gcn_summary_observations(
 
 
 def test_gcn_summary_galaxies(
-    driver,
+    page,
     super_admin_user,
     super_admin_token,
     view_only_token,
@@ -540,7 +494,7 @@ def test_gcn_summary_galaxies(
         "noText": False,
     }
 
-    get_summary(driver, super_admin_user, public_group, False, True, False)
+    get_summary(page, super_admin_user, public_group, False, True, False)
 
     fpath = str(
         os.path.abspath(
@@ -591,7 +545,7 @@ def test_gcn_summary_galaxies(
 
 
 def test_gcn_summary_sources(
-    driver,
+    page,
     super_admin_user,
     super_admin_token,
     view_only_token,
@@ -723,7 +677,7 @@ def test_gcn_summary_sources(
         "noText": False,
     }
 
-    get_summary(driver, super_admin_user, public_group, True, False, False)
+    get_summary(page, super_admin_user, public_group, True, False, False)
 
     fpath = str(
         os.path.abspath(
@@ -773,51 +727,36 @@ def test_gcn_summary_sources(
         os.remove(fpath)
 
 
-def get_summary(driver, user, group, showSources, showGalaxies, showObservations):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/gcn_events/2019-08-14T21:10:39")
+def get_summary(page, user, group, showSources, showGalaxies, showObservations):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/gcn_events/2019-08-14T21:10:39")
 
-    summary_button = driver.wait_for_xpath_to_be_clickable(
-        '//button[@name="gcn_summary"]'
-    )
-    driver.scroll_to_element_and_click(summary_button)
+    page.locator('//button[@name="gcn_summary"]').first.click()
 
-    group_select = '//*[@aria-labelledby="group-select"]'
-    driver.wait_for_xpath(group_select)
-    driver.click_xpath(group_select)
-    group_select_option = f'//li[contains(., "{group.name}")]'
-    driver.wait_for_xpath(group_select_option)
-    driver.click_xpath(group_select_option)
+    page.locator('//*[@aria-labelledby="group-select"]').first.click()
+    page.locator(f'//li[contains(., "{group.name}")]').first.click()
+    # (the single-select closes on option click; no Escape, which would close
+    # the whole summary dialog)
 
     if showSources is True:
-        show_sources = '//*[@label="Show Sources"]'
-        driver.wait_for_xpath(show_sources)
-        driver.click_xpath(show_sources, scroll_parent=True)
+        page.locator('//*[@label="Show Sources"]').first.click()
     if showGalaxies is True:
-        show_galaxies = '//*[@label="Show Galaxies"]'
-        driver.wait_for_xpath(show_galaxies)
-        driver.click_xpath(show_galaxies, scroll_parent=True)
+        page.locator('//*[@label="Show Galaxies"]').first.click()
     if showObservations is True:
-        show_observations = '//*[@label="Show Observations"]'
-        driver.wait_for_xpath(show_observations)
-        driver.click_xpath(show_observations, scroll_parent=True)
+        page.locator('//*[@label="Show Observations"]').first.click()
 
-    get_summary_button = '//button[contains(.,"Generate")]'
-    element = driver.wait_for_xpath(get_summary_button)
-    element.send_keys(Keys.END)
-    driver.click_xpath(get_summary_button, scroll_parent=True)
+    page.locator('//button[contains(.,"Generate")]').first.click()
+    page.locator('//button[contains(.,"Retrieve")]').first.click()
 
-    retrieve_button = '//button[contains(.,"Retrieve")]'
-    element = driver.wait_for_xpath(retrieve_button)
-    element.send_keys(Keys.END)
-    driver.click_xpath(retrieve_button, scroll_parent=True)
+    expect(page.locator('//textarea[@id="text"]').first).to_be_visible(timeout=60000)
+    expect(
+        page.locator('//textarea[contains(.,"TITLE: GCN SUMMARY")]').first
+    ).to_be_visible(timeout=60000)
 
-    text_area = '//textarea[@id="text"]'
-    driver.wait_for_xpath(text_area, timeout=60)
-    driver.wait_for_xpath('//textarea[contains(.,"TITLE: GCN SUMMARY")]', 60)
-
-    download_button = '//button[contains(.,"Download")]'
-    driver.click_xpath(download_button, scroll_parent=True)
+    with page.expect_download() as download_info:
+        page.locator('//button[contains(.,"Download")]').first.click()
+    download = download_info.value
+    download.save_as(pjoin(cfg["paths.downloads_folder"], download.suggested_filename))
 
 
 def test_download_localization(super_admin_token):

@@ -2,7 +2,7 @@ import time
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from selenium.webdriver.common.by import By
+from playwright.sync_api import expect
 
 from skyportal.tests import api
 
@@ -22,12 +22,7 @@ def post_and_verify_reminder(endpoint, token):
         "number_of_reminders": number_of_reminders,
     }
 
-    status, data = api(
-        "POST",
-        endpoint,
-        data=request_data,
-        token=token,
-    )
+    status, data = api("POST", endpoint, data=request_data, token=token)
     assert status == 200
     assert data["status"] == "success"
 
@@ -35,7 +30,6 @@ def post_and_verify_reminder(endpoint, token):
     assert status == 200
     assert data["status"] == "success"
     data = data["data"]["reminders"]
-    # find the index of reminder we just created using the text
     reminder_index = next(
         index
         for index, reminder in enumerate(data)
@@ -51,14 +45,9 @@ def post_and_verify_reminder(endpoint, token):
 
     n_retries = 0
     while n_retries < 5:
-        status, data = api(
-            "GET",
-            endpoint,
-            token=token,
-        )
+        status, data = api("GET", endpoint, token=token)
         if data["status"] == "success":
             data = data["data"]["reminders"]
-            # find the index of reminder we just created using the text
             reminder_index = next(
                 index
                 for index, reminder in enumerate(data)
@@ -81,54 +70,36 @@ def post_and_verify_reminder(endpoint, token):
     return reminder_text
 
 
-def post_and_verify_reminder_frontend(driver, reminder_text, resource_id):
-    # The reminders data grid exposes a quick-filter search input (always
-    # present in the DOM) that filters rows as you type.
-    search_bar = driver.wait_for_xpath(
-        '//*[@data-testid="reminders-quick-filter"]//input'
-    )
-    driver.scroll_to_element(search_bar)
-    search_bar.send_keys(f"{reminder_text}")
-    driver.wait_for_xpath(f'//*[text()="{reminder_text}"]', timeout=10)
-    driver.scroll_to_element(search_bar)
-    search_bar.clear()
+def post_and_verify_reminder_frontend(page, reminder_text, resource_id):
+    # The reminders data grid exposes a quick-filter search input that filters
+    # rows as you type.
+    search = page.locator('//*[@data-testid="reminders-quick-filter"]//input').first
+    search.fill(reminder_text)
+    expect(page.locator(f'//*[text()="{reminder_text}"]').first).to_be_visible()
+    search.fill("")
 
-    new_reminder_button = driver.wait_for_xpath(
-        f'//button[@name="new_reminder_{resource_id}"]'
-    )
-    driver.scroll_to_element_and_click(new_reminder_button)
+    page.locator(f'//button[@name="new_reminder_{resource_id}"]').first.click()
 
     reminder_text_2 = str(uuid.uuid4())
 
-    # Wait for the dialog to load
-    driver.wait_for_xpath('//*[contains(.,"New Reminder on ")]')
-    # timeout to let the form load with default values
+    expect(page.locator('//*[contains(.,"New Reminder on ")]').first).to_be_visible()
+    # let the form load with default values before typing
     time.sleep(2)
 
-    text_input = driver.wait_for_xpath('//*[@id="root_text"]')
-    text_input.click()  # click to focus the input field
-    text_input.send_keys(reminder_text_2)
+    text_input = page.locator('//*[@id="root_text"]').first
+    text_input.click()
+    text_input.fill(reminder_text_2)
 
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//form[@id="reminder-form"]/*/*[@type="submit"]')
-    )
-    driver.wait_for_xpath_to_disappear('//*[contains(.,"New Reminder on ")]')
-    search_bar = driver.wait_for_xpath(
-        '//*[@data-testid="reminders-quick-filter"]//input'
-    )
-    driver.scroll_to_element(search_bar)
-    search_bar.send_keys(f"{reminder_text_2}")
-    driver.wait_for_xpath(f'//*[text()="{reminder_text_2}"]', timeout=10)
-    driver.scroll_to_element(search_bar)
-    search_bar.clear()
+    page.locator('//form[@id="reminder-form"]/*/*[@type="submit"]').first.click()
+    expect(page.locator('//*[contains(.,"New Reminder on ")]').first).to_be_hidden()
+
+    search = page.locator('//*[@data-testid="reminders-quick-filter"]//input').first
+    search.fill(reminder_text_2)
+    expect(page.locator(f'//*[text()="{reminder_text_2}"]').first).to_be_visible()
+    search.fill("")
 
 
-def test_reminder_on_shift(
-    driver,
-    public_group,
-    super_admin_user,
-    super_admin_token,
-):
+def test_reminder_on_shift(page, public_group, super_admin_user, super_admin_token):
     shift_name = str(uuid.uuid4())
     start_date = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
     end_date = (datetime.now(UTC) + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
@@ -148,37 +119,26 @@ def test_reminder_on_shift(
     endpoint = f"shift/{shift_id}/reminders"
     reminder_text = post_and_verify_reminder(endpoint, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/shifts/{shift_id}")
-    # check that the shift has been created and is visible in the calendar
-    shift_events = driver.find_elements(
-        By.XPATH,
-        f'//*[@data-testid="event_shift_name" and contains(text(), "{shift_name}")]/..',
-    )
-    # Since one event can be rendered on multiple days, we need to find one that is well displayed and click on it
-    for shift_event in shift_events:
-        if shift_event.is_displayed():
-            driver.scroll_to_element_and_click(shift_event)
-            break
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/shifts/{shift_id}")
+    # One event can render on multiple days; click the visible one.
+    page.locator(
+        f'//*[@data-testid="event_shift_name" and contains(text(), "{shift_name}")]/..'
+    ).locator("visible=true").first.click()
 
-    driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
-    driver.wait_for_xpath(f'//*[@href="/shifts/{shift_id}"]')
-    driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
+    page.locator('//*[@data-testid="NotificationsOutlinedIcon"]').first.click()
+    expect(page.locator(f'//*[@href="/shifts/{shift_id}"]').first).to_be_visible()
+    page.keyboard.press("Escape")
 
-    post_and_verify_reminder_frontend(driver, reminder_text, shift_id)
+    post_and_verify_reminder_frontend(page, reminder_text, shift_id)
 
 
-def test_reminder_on_source(driver, super_admin_user, super_admin_token):
+def test_reminder_on_source(page, super_admin_user, super_admin_token):
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
         "sources",
-        data={
-            "id": obj_id,
-            "ra": 24.6258,
-            "dec": -32.9024,
-            "redshift": 3,
-        },
+        data={"id": obj_id, "ra": 24.6258, "dec": -32.9024, "redshift": 3},
         token=super_admin_token,
     )
     assert status == 200
@@ -188,14 +148,13 @@ def test_reminder_on_source(driver, super_admin_user, super_admin_token):
 
     endpoint = f"source/{data['data']['id']}/reminders"
     reminder_text = post_and_verify_reminder(endpoint, super_admin_token)
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/source/{obj_id}")
-    driver.wait_for_xpath(
-        f'//*[contains(.,"{obj_id}")]',
-        timeout=30,
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/source/{obj_id}")
+    expect(page.locator(f'//*[contains(.,"{obj_id}")]').first).to_be_visible(
+        timeout=30000
     )
-    driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
-    driver.wait_for_xpath(f'//*[@href="/source/{obj_id}"]')
-    driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
+    page.locator('//*[@data-testid="NotificationsOutlinedIcon"]').first.click()
+    expect(page.locator(f'//*[@href="/source/{obj_id}"]').first).to_be_visible()
+    page.keyboard.press("Escape")
 
-    post_and_verify_reminder_frontend(driver, reminder_text, obj_id)
+    post_and_verify_reminder_frontend(page, reminder_text, obj_id)

@@ -4,6 +4,7 @@ import uuid
 
 import numpy as np
 import pytest
+from playwright.sync_api import expect
 
 from skyportal.tests import api
 from skyportal.tests.frontend.test_reminders import (
@@ -44,7 +45,7 @@ def test_gcn_IPN(super_admin_token):
 
 @pytest.mark.flaky(reruns=2)
 def test_gcnevents_object(
-    driver, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
+    page, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
     datafile = f"{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
     with open(datafile, "rb") as fid:
@@ -140,26 +141,25 @@ def test_gcnevents_object(
             nretries = nretries + 1
             time.sleep(3)
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/gcn_events/2018-01-16T00:36:53")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/gcn_events/2018-01-16T00:36:53")
 
-    driver.wait_for_xpath('//*[text()="180116 00:36:53"]')
-    driver.wait_for_xpath('//*[text()="Fermi"]')
-    driver.wait_for_xpath('//*[text()="GRB"]')
+    expect(page.locator('//*[text()="180116 00:36:53"]').first).to_be_visible()
+    expect(page.locator('//*[text()="Fermi"]').first).to_be_visible()
+    expect(page.locator('//*[text()="GRB"]').first).to_be_visible()
 
     submit_button_xpath = '//button[@type="submit"]'
-    driver.wait_for_xpath(submit_button_xpath)
-    driver.click_xpath(submit_button_xpath)
+    page.locator(submit_button_xpath).first.click()
 
-    sources_button = driver.wait_for_xpath('//button[text()="Sources"]')
-    driver.scroll_to_element_and_click(sources_button)
+    page.locator('//button[text()="Sources"]').first.click()
 
     # check for object
-    driver.wait_for_xpath(f'//*[text()[contains(.,"{obj_id}")]]', timeout=15)
+    expect(page.locator(f'//*[text()[contains(.,"{obj_id}")]]').first).to_be_visible(
+        timeout=15000
+    )
 
 
-# @pytest.mark.flaky(reruns=3)
-def test_reminder_on_gcn(driver, super_admin_user, super_admin_token):
+def test_reminder_on_gcn(page, super_admin_user, super_admin_token):
     datafile = f"{os.path.dirname(__file__)}/../../../data/GW190814.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
@@ -185,17 +185,21 @@ def test_reminder_on_gcn(driver, super_admin_user, super_admin_token):
 
     endpoint = f"gcn_event/{gcn_event_id}/reminders"
     post_and_verify_reminder(endpoint, super_admin_token)
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/gcn_events/{dateobs}")
-    driver.wait_for_xpath('//*[contains(.,"190814 21:10:39")]', timeout=30)
-    driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
-    driver.wait_for_xpath('//*[@href="/gcn_events/2019-08-14T21:10:39"]')
-    driver.click_xpath('//*[@data-testid="NotificationsOutlinedIcon"]')
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/gcn_events/{dateobs}")
+    expect(page.locator('//*[contains(.,"190814 21:10:39")]').first).to_be_visible(
+        timeout=30000
+    )
+    page.locator('//*[@data-testid="NotificationsOutlinedIcon"]').first.click()
+    expect(
+        page.locator('//*[@href="/gcn_events/2019-08-14T21:10:39"]').first
+    ).to_be_visible()
+    page.locator('//*[@data-testid="NotificationsOutlinedIcon"]').first.click()
 
 
 @pytest.mark.flaky(reruns=3)
 def test_confirm_reject_source_in_gcn(
-    driver,
+    page,
     super_admin_user,
     super_admin_token,
     view_only_token,
@@ -305,49 +309,48 @@ def test_confirm_reject_source_in_gcn(
     assert status == 200
     assert data["status"] == "success"
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/gcn_events/2019-08-14T21:10:39")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/gcn_events/2019-08-14T21:10:39")
 
     submit_button_xpath = '//button[@type="submit"]'
-    driver.wait_for_xpath(submit_button_xpath)
-    driver.click_xpath(submit_button_xpath)
+    page.locator(submit_button_xpath).first.click()
 
-    sources_button = driver.wait_for_xpath('//button[text()="Sources"]')
-    driver.scroll_to_element_and_click(sources_button)
-    driver.wait_for_xpath(f'//*[@name="{obj_id}_gcn_status"]')
-    driver.wait_for_xpath(
-        f'//*[@name="{obj_id}_gcn_status"]/*[@data-testid="PriorityHighIcon"]'
-    )
+    page.locator('//button[text()="Sources"]').first.click()
+    expect(page.locator(f'//*[@name="{obj_id}_gcn_status"]').first).to_be_visible()
+    expect(
+        page.locator(
+            f'//*[@name="{obj_id}_gcn_status"]/*[@data-testid="PriorityHighIcon"]'
+        ).first
+    ).to_be_visible()
 
-    edit_btn = driver.wait_for_xpath(
-        f'//*[@name="{obj_id}_gcn_status"]/div/*[@type="button"]'
-    )
-    driver.scroll_to_element_and_click(edit_btn)
-    reject_btn = driver.wait_for_xpath('//*[@type="button" and contains(., "REJECT")]')
-    driver.scroll_to_element_and_click(reject_btn)
-    driver.wait_for_xpath(
-        f'//*[@name="{obj_id}_gcn_status"]/*[@data-testid="ClearIcon"]'
-    )
+    edit_btn = f'//*[@name="{obj_id}_gcn_status"]/div/*[@type="button"]'
+    page.locator(edit_btn).first.click()
+    page.locator('//*[@type="button" and contains(., "REJECT")]').first.click()
+    expect(
+        page.locator(
+            f'//*[@name="{obj_id}_gcn_status"]/*[@data-testid="ClearIcon"]'
+        ).first
+    ).to_be_visible()
 
-    driver.scroll_to_element_and_click(edit_btn)
-    undefined_btn = driver.wait_for_xpath(
-        '//*[@type="button" and contains(., "AMBIGUOUS")]'
-    )
-    driver.scroll_to_element_and_click(undefined_btn)
-    driver.wait_for_xpath(
-        f'//*[@name="{obj_id}_gcn_status"]/*[@data-testid="QuestionMarkIcon"]'
-    )
+    page.locator(edit_btn).first.click()
+    page.locator('//*[@type="button" and contains(., "AMBIGUOUS")]').first.click()
+    expect(
+        page.locator(
+            f'//*[@name="{obj_id}_gcn_status"]/*[@data-testid="QuestionMarkIcon"]'
+        ).first
+    ).to_be_visible()
 
-    driver.scroll_to_element_and_click(edit_btn)
-    confirm_btn = driver.wait_for_xpath(
-        '//*[@type="button" and contains(., "HIGHLIGHT")]'
-    )
-    driver.scroll_to_element_and_click(confirm_btn)
-    driver.wait_for_xpath(
-        f'//*[@name="{obj_id}_gcn_status"]/*[@data-testid="CheckIcon"]'
-    )
+    page.locator(edit_btn).first.click()
+    page.locator('//*[@type="button" and contains(., "HIGHLIGHT")]').first.click()
+    expect(
+        page.locator(
+            f'//*[@name="{obj_id}_gcn_status"]/*[@data-testid="CheckIcon"]'
+        ).first
+    ).to_be_visible()
 
-    driver.get(f"/source/{obj_id}")
+    page.goto(f"/source/{obj_id}")
 
-    driver.wait_for_xpath('//*[contains(., "GCN Crossmatches:")]')
-    driver.wait_for_xpath('//*[contains(., "2019-08-14T21:10:39")]')
+    expect(page.locator('//*[contains(., "GCN Crossmatches:")]').first).to_be_visible()
+    expect(
+        page.locator('//*[contains(., "2019-08-14T21:10:39")]').first
+    ).to_be_visible()

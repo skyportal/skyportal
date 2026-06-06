@@ -1,174 +1,208 @@
-from selenium.webdriver.common.keys import Keys
+import datetime
+
+from playwright.sync_api import expect
 
 
-def filter_for_user(driver, username):
+def filter_for_user(page, username):
     # Helper function to filter for a specific user on the page
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-    username_input_xpath = "//input[@id='root_username']"
-    username_input = driver.wait_for_xpath(username_input_xpath)
-    driver.click_xpath(username_input_xpath)
-    username_input.send_keys(username)
-    driver.click_xpath(
-        "//div[contains(@class, 'MuiDialog-root')]//button[text()='Submit']",
-        scroll_parent=True,
-    )
+    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
+    page.locator("//input[@id='root_username']").first.fill(username)
+    page.locator(
+        "//div[contains(@class, 'MuiDialog-root')]//button[text()='Submit']"
+    ).first.click()
 
 
-def test_delete_user_role(driver, super_admin_user, user):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
-    filter_for_user(driver, user.username)
-    driver.click_xpath(
-        f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']//*[contains(@class, 'MuiChip-deleteIcon')]",
-    )
-    driver.wait_for_xpath("//div[text()='User role successfully removed.']", timeout=10)
-    driver.wait_for_xpath_to_disappear(
+def test_delete_user_role(page, super_admin_user, user):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+    filter_for_user(page, user.username)
+    page.locator(
         f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']//*[contains(@class, 'MuiChip-deleteIcon')]"
-    )
+    ).first.click()
+    expect(
+        page.locator("//div[text()='User role successfully removed.']").first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']//*[contains(@class, 'MuiChip-deleteIcon')]"
+        ).first
+    ).to_be_hidden()
 
 
-def test_add_and_delete_user_affiliations(driver, super_admin_user, user):
+def test_add_and_delete_user_affiliations(page, super_admin_user, user):
     affiliation = "Test affiliation"
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
-    filter_for_user(driver, user.username)
-    driver.click_xpath(f'//*[@data-testid="addUserAffiliationsButton{user.id}"]')
-    driver.click_xpath('//*[@data-testid="addUserAffiliationsSelect"]')
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+    filter_for_user(page, user.username)
+    page.locator(
+        f'//*[@data-testid="addUserAffiliationsButton{user.id}"]'
+    ).first.click()
+    page.locator('//*[@data-testid="addUserAffiliationsSelect"]').first.click()
 
-    affiliations_entry_xpath = (
+    entry = page.locator(
         '//*[@data-testid="addUserAffiliationsTextField"]/div/input'
-    )
-    driver.wait_for_xpath(affiliations_entry_xpath).send_keys(affiliation)
-    driver.wait_for_xpath(affiliations_entry_xpath).send_keys(Keys.ENTER)
+    ).first
+    entry.fill(affiliation)
+    entry.press("Enter")
 
-    driver.click_xpath('//*[text()="Submit"]')
-    driver.wait_for_xpath("""//*[text()="Successfully updated user's affiliations."]""")
-    driver.click_xpath(
+    page.locator('//*[text()="Submit"]').first.click()
+    expect(
+        page.locator(
+            """//*[text()="Successfully updated user's affiliations."]"""
+        ).first
+    ).to_be_visible()
+    page.locator(
         f"//*[@data-testid='deleteUserAffiliationsButton_{user.id}_{affiliation}']//*[contains(@class, 'MuiChip-deleteIcon')]"
-    )
-    driver.wait_for_xpath(
-        """//div[text()="Successfully deleted user's affiliation."]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"//*[@data-testid='deleteUserAffiliationsButton_{user.id}_{affiliation}']//*[contains(@class, 'MuiChip-deleteIcon')]"
-    )
+    ).first.click()
+    expect(
+        page.locator(
+            """//div[text()="Successfully deleted user's affiliation."]"""
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"//*[@data-testid='deleteUserAffiliationsButton_{user.id}_{affiliation}']//*[contains(@class, 'MuiChip-deleteIcon')]"
+        ).first
+    ).to_be_hidden()
 
 
-def test_grant_and_delete_user_acl(driver, super_admin_user, user):
+def test_grant_and_delete_user_acl(page, super_admin_user, user):
     acl = "Post taxonomy"
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
-    filter_for_user(driver, user.username)
-    driver.click_xpath(f'//*[@data-testid="addUserACLsButton{user.id}"]')
-    driver.click_xpath('//*[@data-testid="addUserACLsSelect"]')
-    element = driver.wait_for_xpath(f'//li[text()="{acl}"]')
-    driver.scroll_to_element(element, True)
-    driver.click_xpath(f'//li[text()="{acl}"]')
-    driver.click_xpath('//*[text()="Submit"]')
-    driver.wait_for_xpath('//*[text()="User successfully granted specified ACL(s)."]')
-    driver.click_xpath(
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+    filter_for_user(page, user.username)
+    page.locator(f'//*[@data-testid="addUserACLsButton{user.id}"]').first.click()
+    page.locator('//*[@data-testid="addUserACLsSelect"]').first.click()
+    page.locator(f'//li[text()="{acl}"]').first.click()
+    page.locator('//*[text()="Submit"]').first.click()
+    expect(
+        page.locator('//*[text()="User successfully granted specified ACL(s)."]').first
+    ).to_be_visible()
+    page.locator(
         f"//*[@data-testid='deleteUserACLButton_{user.id}_{acl}']//*[contains(@class, 'MuiChip-deleteIcon')]"
-    )
-    driver.wait_for_xpath("//div[text()='User ACL successfully removed.']")
-    driver.wait_for_xpath_to_disappear(
-        f"//*[@data-testid='deleteUserACLButton_{user.id}_{acl}']//*[contains(@class, 'MuiChip-deleteIcon')]"
-    )
+    ).first.click()
+    expect(
+        page.locator("//div[text()='User ACL successfully removed.']").first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"//*[@data-testid='deleteUserACLButton_{user.id}_{acl}']//*[contains(@class, 'MuiChip-deleteIcon')]"
+        ).first
+    ).to_be_hidden()
 
 
-def test_add_user_role(driver, super_admin_user, user):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
-    filter_for_user(driver, user.username)
-    driver.click_xpath(f'//*[@data-testid="addUserRolesButton{user.id}"]')
-    driver.click_xpath('//*[@data-testid="addUserRolesSelect"]')
-    driver.click_xpath('//li[text()="Group admin"]')
-    driver.click_xpath('//*[text()="Submit"]')
-    driver.wait_for_xpath('//*[text()="User successfully granted specified role(s)."]')
-    driver.wait_for_xpath(
-        f"//*[@data-testid='deleteUserRoleButton_{user.id}_Group admin']//*[contains(@class, 'MuiChip-deleteIcon')]"
-    )
+def test_add_user_role(page, super_admin_user, user):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+    filter_for_user(page, user.username)
+    page.locator(f'//*[@data-testid="addUserRolesButton{user.id}"]').first.click()
+    page.locator('//*[@data-testid="addUserRolesSelect"]').first.click()
+    page.locator('//li[text()="Group admin"]').first.click()
+    page.locator('//*[text()="Submit"]').first.click()
+    expect(
+        page.locator('//*[text()="User successfully granted specified role(s)."]').first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"//*[@data-testid='deleteUserRoleButton_{user.id}_Group admin']//*[contains(@class, 'MuiChip-deleteIcon')]"
+        ).first
+    ).to_be_visible()
 
 
-def test_delete_group_user(driver, super_admin_user, user, public_group):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
-    filter_for_user(driver, user.username)
-    driver.wait_for_xpath(
-        f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
-    )
-    # The chips live in a MUI X DataGrid cell. Selenium's scroll-to/move-to before
-    # clicking causes the virtualized grid to re-render the cell, leaving the
-    # delete-icon element stale so the click is silently dropped (the handler never
-    # fires and the success notification never appears). Dispatching a bubbling
-    # click MouseEvent on the delete icon (an SVG, which has no .click() method in
-    # Firefox) fires the Chip's onDelete directly, with no scroll/hover dance.
-    driver.execute_script(
-        "document.querySelector(arguments[0]).dispatchEvent("
-        "new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));",
-        f"[data-testid='deleteGroupUserButton_{user.id}_{public_group.id}'] .MuiChip-deleteIcon",
-    )
-    driver.wait_for_xpath(
-        "//div[text()='User successfully removed from specified group.']"
-    )
+def test_delete_group_user(page, super_admin_user, user, public_group):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+    filter_for_user(page, user.username)
+    # Playwright clicks SVG icons and auto-retries on the virtualized DataGrid,
+    # so a normal click replaces the old dispatchEvent workaround.
+    page.locator(
+        f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']//*[contains(@class, 'MuiChip-deleteIcon')]"
+    ).first.click()
+    expect(
+        page.locator(
+            "//div[text()='User successfully removed from specified group.']"
+        ).first
+    ).to_be_visible()
 
 
-def test_delete_stream_user(driver, super_admin_user, user, stream_with_users):
+def test_delete_stream_user(page, super_admin_user, user, stream_with_users):
     stream = stream_with_users
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
-    filter_for_user(driver, user.username)
-    driver.wait_for_xpath(
-        f"//*[@data-testid='deleteStreamUserButton_{user.id}_{stream.id}']"
-    )
-    # The chips live in a MUI X DataGrid cell. Selenium's scroll-to/move-to before
-    # clicking causes the virtualized grid to re-render the cell, leaving the
-    # delete-icon element stale so the click is silently dropped (the handler never
-    # fires and the success notification never appears). Dispatching a bubbling
-    # click MouseEvent on the delete icon (an SVG, which has no .click() method in
-    # Firefox) fires the Chip's onDelete directly, with no scroll/hover dance.
-    driver.execute_script(
-        "document.querySelector(arguments[0]).dispatchEvent("
-        "new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));",
-        f"[data-testid='deleteStreamUserButton_{user.id}_{stream.id}'] .MuiChip-deleteIcon",
-    )
-    driver.wait_for_xpath("//div[text()='Stream access successfully revoked.']")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+    filter_for_user(page, user.username)
+    page.locator(
+        f"//*[@data-testid='deleteStreamUserButton_{user.id}_{stream.id}']//*[contains(@class, 'MuiChip-deleteIcon')]"
+    ).first.click()
+    expect(
+        page.locator("//div[text()='Stream access successfully revoked.']").first
+    ).to_be_visible()
 
 
-def test_add_user_to_group(driver, user, super_admin_user, public_group, public_group2):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
-    filter_for_user(driver, user.username)
-    driver.wait_for_xpath(
-        f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
-    )
-    driver.click_xpath(f'//*[@data-testid="addUserGroupsButton{user.id}"]')
-    driver.click_xpath('//*[@data-testid="addUserToGroupsSelect"]')
-    driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
-    driver.click_xpath('//button[@data-testid="submitAddFromGroupsButton"]')
-    driver.wait_for_xpath(
-        '//*[text()="User successfully added to specified group(s)."]'
-    )
-    driver.wait_for_xpath(
-        f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group2.id}']"
-    )
+def test_add_user_to_group(page, user, super_admin_user, public_group, public_group2):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+    filter_for_user(page, user.username)
+    expect(
+        page.locator(
+            f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
+        ).first
+    ).to_be_visible()
+    page.locator(f'//*[@data-testid="addUserGroupsButton{user.id}"]').first.click()
+    page.locator('//*[@data-testid="addUserToGroupsSelect"]').first.click()
+    page.locator(f'//li[text()="{public_group2.name}"]').first.click()
+    page.locator('//button[@data-testid="submitAddFromGroupsButton"]').first.click()
+    expect(
+        page.locator(
+            '//*[text()="User successfully added to specified group(s)."]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group2.id}']"
+        ).first
+    ).to_be_visible()
 
 
 def test_add_user_to_stream(
-    driver, user, super_admin_user, public_group, public_stream, public_stream2
+    page, user, super_admin_user, public_group, public_stream, public_stream2
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
-    filter_for_user(driver, user.username)
-    driver.wait_for_xpath(
-        f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
-    )
-    driver.click_xpath(f'//*[@data-testid="addUserStreamsButton{user.id}"]')
-    driver.click_xpath('//*[@data-testid="addUserToStreamsSelect"]')
-    driver.click_xpath(f'//li[text()="{public_stream2.name}"]', scroll_parent=True)
-    driver.click_xpath('//*[text()="Submit"]')
-    driver.wait_for_xpath(
-        '//*[text()="User successfully added to specified stream(s)."]'
-    )
-    driver.wait_for_xpath(
-        f"//*[@data-testid='deleteStreamUserButton_{user.id}_{public_stream2.id}']"
-    )
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+    filter_for_user(page, user.username)
+    expect(
+        page.locator(
+            f"//*[@data-testid='deleteGroupUserButton_{user.id}_{public_group.id}']"
+        ).first
+    ).to_be_visible()
+    page.locator(f'//*[@data-testid="addUserStreamsButton{user.id}"]').first.click()
+    page.locator('//*[@data-testid="addUserToStreamsSelect"]').first.click()
+    page.locator(f'//li[text()="{public_stream2.name}"]').first.click()
+    page.locator('//*[text()="Submit"]').first.click()
+    expect(
+        page.locator(
+            '//*[text()="User successfully added to specified stream(s)."]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"//*[@data-testid='deleteStreamUserButton_{user.id}_{public_stream2.id}']"
+        ).first
+    ).to_be_visible()
+
+
+def test_user_expiration(page, user, super_admin_user):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+    filter_for_user(page, user.username)
+
+    # Set expiration date to today
+    page.locator(f"//*[@data-testid='editUserExpirationDate{user.id}']").first.click()
+    date = datetime.datetime.now().strftime("%m/%d/%Y")
+    page.locator("//input[@placeholder='MM/DD/YYYY']").first.fill(date)
+
+    page.locator('//*[text()="Submit"]').first.click()
+
+    # Check that user deactivated
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
+    expect(page.locator("//*[contains(text(), 'Top Sources')]").first).to_be_hidden()

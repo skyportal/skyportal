@@ -1,6 +1,7 @@
 import os
 
 import pytest
+from playwright.sync_api import expect
 
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
@@ -9,48 +10,46 @@ from skyportal.tests.external.test_moving_objects import (
 
 
 @pytest.mark.flaky(reruns=2)
-def test_upload_observations(driver, super_admin_user, super_admin_token):
+def test_upload_observations(page, super_admin_user, super_admin_token):
     telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
         "ZTF", super_admin_token, list(range(5))
     )
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/observations/")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/observations/")
 
     filename = "sample_observation_data_upload_malformed.csv"
 
-    attachment_file = driver.wait_for_xpath('//input[@type="file"]')
-    attachment_file.send_keys(
+    page.locator('//input[@type="file"]').first.set_input_files(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
             "data",
             filename,
-        ),
+        )
     )
 
-    driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
+    expect(page.locator(f'//*[contains(., "{filename}")]').first).to_be_visible()
     submit_button_xpath = '//button[contains(.,"Submit")]'
-    driver.click_xpath(submit_button_xpath, scroll_parent=True)
+    page.locator(submit_button_xpath).first.click()
 
     filename = "sample_observation_data_upload.csv"
 
-    attachment_file = driver.wait_for_xpath('//input[@type="file"]')
-    attachment_file.send_keys(
+    page.locator('//input[@type="file"]').first.set_input_files(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
             "data",
             filename,
-        ),
+        )
     )
 
-    driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
+    expect(page.locator(f'//*[contains(., "{filename}")]').first).to_be_visible()
     submit_button_xpath = '//button[contains(.,"Submit")]'
-    driver.click_xpath(submit_button_xpath, scroll_parent=True)
+    page.locator(submit_button_xpath).first.click()
 
     search_button_xpath = '//button[@data-testid="Search-iconButton"]'
-    driver.click_xpath(search_button_xpath, scroll_parent=True)
-    search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
-    search_bar.send_keys("84434604")
-    driver.wait_for_xpath('//*[text()="84434604"]', timeout=10)
+    page.locator(search_button_xpath).first.click()
+    search_bar = page.locator('//input[@aria-label="Search"]').first
+    search_bar.fill("84434604")
+    expect(page.locator('//*[text()="84434604"]').first).to_be_visible()
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)

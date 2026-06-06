@@ -52,7 +52,6 @@ from skyportal.models import (
     UserNotification,
     init_db,
 )
-from skyportal.tests.test_util import set_server_url
 
 TMP_DIR = mkdtemp()
 env, cfg = load_env()
@@ -60,7 +59,6 @@ env, cfg = load_env()
 print("Loading test configuration from _test_config.yaml")
 basedir = pathlib.Path(os.path.dirname(__file__))
 cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
-set_server_url(f"http://localhost:{cfg['ports.app']}")
 print("Setting test database to:", cfg["database"])
 init_db(**cfg["database"])
 

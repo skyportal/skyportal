@@ -1,38 +1,40 @@
 import pytest
-from selenium.common.exceptions import TimeoutException
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import expect
 
 
-def remove_notification(driver):
-    notification_xpath = '//*[contains(@data-testid, "notification-")]'
+def remove_notification(page):
+    notification = page.locator('[data-testid*="notification-"]')
     n_retries = 0  # we enforce a max, just to not have a runaway loop
     while n_retries < 5:
         try:
-            driver.click_xpath(notification_xpath, timeout=3)
-            driver.wait_for_xpath_to_disappear(notification_xpath, timeout=3)
-        except TimeoutException:
-            try:
-                driver.wait_for_xpath_to_disappear(notification_xpath, timeout=3)
-                break
-            except TimeoutException:
-                pass
+            notification.first.click(timeout=3000)
+        except PlaywrightTimeoutError:
+            return  # nothing to dismiss
+        try:
+            expect(notification).to_have_count(0, timeout=3000)
+            return
+        except AssertionError:
+            pass
+        n_retries += 1
 
 
 @pytest.mark.flaky(reruns=3)
 def test_quick_search(
-    driver,
+    page,
     super_admin_user,
     public_source,
     public_group,
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/")
-    remove_notification(driver)
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/")
+    remove_notification(page)
 
-    driver.wait_for_xpath('//*[@id="quick-search-bar"]').send_keys(public_source.id)
-    driver.click_xpath('//*[@id="quick-search-bar-listbox"]')
+    page.locator("#quick-search-bar").first.fill(public_source.id)
+    page.locator("#quick-search-bar-listbox").first.click()
     # Should be redirected to source page; check for elements that should render
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-    driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    expect(page.locator(f'//span[text()="{public_group.name}"]').first).to_be_visible()
 
-    driver.wait_for_xpath('//*[@id="quick-search-bar"]').send_keys("invalid_source_id")
-    driver.wait_for_xpath('//*[text()="No matching Sources."]')
+    page.locator("#quick-search-bar").first.fill("invalid_source_id")
+    expect(page.locator('//*[text()="No matching Sources."]').first).to_be_visible()

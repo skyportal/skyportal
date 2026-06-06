@@ -1,34 +1,37 @@
 import uuid
 
+from playwright.sync_api import expect
+
 from skyportal.tests import api
 from skyportal.tests.frontend.sources_and_observingruns_etc.test_sources import (
     add_comment_and_wait_for_display,
 )
 
 
-def test_comments(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")
+def test_comments(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
 
     comment_text = str(uuid.uuid4())
 
     # now test the Share data page
-    driver.get(f"/share_data/{public_source.id}")
+    page.goto(f"/share_data/{public_source.id}")
 
     # little triangle you push to expand the table
-    driver.click_xpath("//*[@id='expandable-button']")
+    page.locator("//*[@id='expandable-button']").first.click()
 
-    add_comment_and_wait_for_display(driver, comment_text)
+    add_comment_and_wait_for_display(page, comment_text)
 
     # Make sure individual spectra comments appear on the Source page
-    driver.get(f"/source/{public_source.id}")
-
-    driver.wait_for_xpath(f'//p[contains(text(), "{comment_text}")]')
+    page.goto(f"/source/{public_source.id}")
+    expect(
+        page.locator(f'//p[contains(text(), "{comment_text}")]').first
+    ).to_be_visible()
 
 
 def test_annotations(
-    driver, user, annotation_token, upload_data_token, public_source, lris
+    page, user, annotation_token, upload_data_token, public_source, lris
 ):
-    driver.get(f"/become_user/{user.id}")
+    page.goto(f"/become_user/{user.id}")
     annotation_data = str(uuid.uuid4())
 
     status, data = api(
@@ -50,49 +53,38 @@ def test_annotations(
     status, data = api(
         "POST",
         f"spectra/{spectrum_id}/annotations",
-        data={
-            "origin": "kowalski",
-            "data": {"useful_info": annotation_data},
-        },
+        data={"origin": "kowalski", "data": {"useful_info": annotation_data}},
         token=annotation_token,
     )
-
     assert status == 200
 
     # ----> now test the Share data page <----
-    driver.get(f"/share_data/{public_source.id}")
+    page.goto(f"/share_data/{public_source.id}")
 
     # filter to only the new spectrum we've added, by typing its id into the
-    # data grid's quick-filter search box (the id column is shown in the table)
-    spectrum_filter = driver.wait_for_xpath(
+    # data grid's quick-filter search box
+    spectrum_filter = page.locator(
         "//*[@data-testid='spectrum-quick-filter']//input"
-    )
-    # wait_for_xpath only checks DOM presence; the input may be below the fold,
-    # so scroll it into view before interacting or .clear() raises
-    # "element not interactable".
-    driver.scroll_to_element(spectrum_filter)
-    spectrum_filter.clear()
-    spectrum_filter.send_keys(str(spectrum_id))
+    ).first
+    spectrum_filter.fill(str(spectrum_id))
 
     # push the little triangle to expand the table
-    driver.click_xpath(
+    page.locator(
         "//*[@data-testid='spectrum-div']//*[@id='expandable-button']/.."
-    )
-    driver.wait_for_xpath(f'//div[text()="{annotation_data}"]')
+    ).first.click()
+    expect(page.locator(f'//div[text()="{annotation_data}"]').first).to_be_visible()
 
     # ----> now go to the source page <----
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath('//div[text()="Spectrum Obs. at"]')
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator('//div[text()="Spectrum Obs. at"]').first).to_be_visible()
 
     # filter once more for only this spectrum, via the annotations table's
-    # quick-filter search box (the "Spectrum Obs. at" column shows 2021-11-02.5)
-    annotations_filter = driver.wait_for_xpath(
+    # quick-filter search box
+    annotations_filter = page.locator(
         "//*[@id='annotations-content']"
         "//*[@data-testid='annotations-quick-filter']//input"
-    )
-    driver.scroll_to_element(annotations_filter)
-    annotations_filter.clear()
-    annotations_filter.send_keys("2021-11-02.5")
+    ).first
+    annotations_filter.fill("2021-11-02.5")
 
-    driver.wait_for_xpath('//div[text()="2021-11-02.5"]')
-    driver.wait_for_xpath(f'//div[text()="{annotation_data}"]')
+    expect(page.locator('//div[text()="2021-11-02.5"]').first).to_be_visible()
+    expect(page.locator(f'//div[text()="{annotation_data}"]').first).to_be_visible()

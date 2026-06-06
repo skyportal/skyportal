@@ -1,12 +1,13 @@
 import uuid
 
 import pytest
+from playwright.sync_api import expect
 
 from skyportal.tests import api
 
 
 @pytest.mark.flaky(reruns=2)
-def test_weather_widget(driver, user, public_group, super_admin_token, p60_telescope):
+def test_weather_widget(page, user, public_group, super_admin_token, p60_telescope):
     name = str(uuid.uuid4())
     post_data = {
         "name": name,
@@ -24,10 +25,12 @@ def test_weather_widget(driver, user, public_group, super_admin_token, p60_teles
     assert status == 200
     assert data["status"] == "success"
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
 
-    driver.click_xpath('//*[@data-testid="tel-list-button"]')
-    driver.wait_for_xpath(f'//*[text()="{p60_telescope.name}"]', timeout=30)
-    driver.click_xpath(f'//*[text()="{p60_telescope.name}"]', scroll_parent=True)
-    driver.wait_for_xpath(f'//h6[text()="{p60_telescope.name}"]')
+    page.locator('//*[@data-testid="tel-list-button"]').first.click()
+    expect(page.locator(f'//*[text()="{p60_telescope.name}"]').first).to_be_visible(
+        timeout=30000
+    )
+    page.locator(f'//*[text()="{p60_telescope.name}"]').first.click()
+    expect(page.locator(f'//h6[text()="{p60_telescope.name}"]').first).to_be_visible()

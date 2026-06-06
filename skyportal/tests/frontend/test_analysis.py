@@ -4,6 +4,7 @@ import uuid
 
 import numpy as np
 import pytest
+from playwright.sync_api import expect
 
 from skyportal.tests import api
 
@@ -12,7 +13,7 @@ analysis_port = 6802
 
 @pytest.mark.flaky(reruns=3)
 def test_analysis_page(
-    driver,
+    page,
     user,
     ztf_camera,
     analysis_service_token,
@@ -132,9 +133,9 @@ def test_analysis_page(
             f"analysis was not started properly ({data['data']['status_message']})"
         )
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{obj_id}/analysis/{analysis_id}")
-    driver.wait_for_xpath(f'//span[text()="{analysis_status}"]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{obj_id}/analysis/{analysis_id}")
+    expect(page.locator(f'//span[text()="{analysis_status}"]').first).to_be_visible()
 
     if analysis_status == "completed":
-        driver.wait_for_xpath('//p[text()="Analysis Results"]')
+        expect(page.locator('//p[text()="Analysis Results"]').first).to_be_visible()

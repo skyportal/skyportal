@@ -2,39 +2,35 @@ import os
 import uuid
 
 import pytest
-from selenium.webdriver.common.keys import Keys
+from playwright.sync_api import expect
 
 
 @pytest.mark.flaky(reruns=2)
-def test_upload_galaxies(driver, super_admin_user, super_admin_token):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/galaxies/")
+def test_upload_galaxies(page, super_admin_user, super_admin_token):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/galaxies/")
 
     filename = "CLU_mini.csv"
     catalog_name = str(uuid.uuid4())
 
-    submit_button_xpath = '//button[@name="new_gcnevent"]'
-    driver.wait_for_xpath(submit_button_xpath)
-    driver.click_xpath(submit_button_xpath)
+    page.locator('//button[@name="new_gcnevent"]').first.click()
 
-    driver.wait_for_xpath('//*[@id="root_catalogName"]').send_keys(catalog_name)
-    attachment_file = driver.wait_for_xpath('//input[@type="file"]')
-    attachment_file.send_keys(
+    page.locator('//*[@id="root_catalogName"]').first.fill(catalog_name)
+    page.locator('//input[@type="file"]').first.set_input_files(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
             "data",
             filename,
-        ),
+        )
     )
 
-    driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
-    submit_button_xpath = '//button[contains(.,"Submit")]'
-    driver.click_xpath(submit_button_xpath, scroll_parent=True)
+    expect(page.locator(f'//*[contains(., "{filename}")]').first).to_be_visible()
+    page.locator('//button[contains(.,"Submit")]').first.click()
 
     # The galaxy name search is a server-side search box in the data grid
     # toolbar; type into it and press Enter to trigger the query.
-    search_bar = driver.wait_for_xpath('//*[@data-testid="galaxy-search-input"]//input')
-    search_bar.send_keys("6dFgs gJ0001313-055904")
-    search_bar.send_keys(Keys.ENTER)
-    driver.wait_for_xpath('//*[text()="6dFgs gJ0001313-055904"]', timeout=10)
-    search_bar.clear()
+    search_bar = page.locator('//*[@data-testid="galaxy-search-input"]//input').first
+    search_bar.fill("6dFgs gJ0001313-055904")
+    search_bar.press("Enter")
+    expect(page.locator('//*[text()="6dFgs gJ0001313-055904"]').first).to_be_visible()
+    search_bar.fill("")

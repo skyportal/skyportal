@@ -1,25 +1,28 @@
-def test_fixed_location_filtering(  # noqa: E302
-    driver, view_only_user, hst, public_source, keck1_telescope
+from playwright.sync_api import expect
+
+
+def test_fixed_location_filtering(
+    page, view_only_user, hst, public_source, keck1_telescope
 ):
-    driver.get(f"/become_user/{view_only_user.id}")
-    driver.get(f"/observability/{public_source.id}")
-    driver.click_xpath("//*[@id='selectTelescopes']")
-    driver.wait_for_xpath(f'//*[text()="{keck1_telescope.name}"]')
-    driver.wait_for_xpath_to_disappear(f'//*[text()="{hst.name}"]')
+    page.goto(f"/become_user/{view_only_user.id}")
+    page.goto(f"/observability/{public_source.id}")
+    page.locator("//*[@id='selectTelescopes']").first.click()
+    expect(page.locator(f'//*[text()="{keck1_telescope.name}"]').first).to_be_visible()
+    expect(page.locator(f'//*[text()="{hst.name}"]').first).to_be_hidden()
 
 
 def test_user_preference_filtering(
-    driver, view_only_user, public_source, keck1_telescope, p60_telescope
+    page, view_only_user, public_source, keck1_telescope, p60_telescope
 ):
-    driver.get(f"/become_user/{view_only_user.id}")
-    driver.get(f"/observability/{public_source.id}")
+    page.goto(f"/become_user/{view_only_user.id}")
+    page.goto(f"/observability/{public_source.id}")
 
     # Go to preferences and set to only show p60
-    driver.get("/profile")
-    driver.click_xpath("//*[@id='selectTelescopes']")
-    driver.click_xpath(f"//li[@data-value='{p60_telescope.name}']")
+    page.goto("/profile")
+    page.locator("//*[@id='selectTelescopes']").first.click()
+    page.locator(f"//li[@data-value='{p60_telescope.name}']").first.click()
 
     # Now should only show p60
-    driver.get(f"/observability/{public_source.id}")
-    driver.wait_for_xpath_to_disappear(f'//*[text()="{keck1_telescope.name}"]')
-    driver.wait_for_xpath(f'//*[text()="{p60_telescope.name}"]')
+    page.goto(f"/observability/{public_source.id}")
+    expect(page.locator(f'//*[text()="{keck1_telescope.name}"]').first).to_be_hidden()
+    expect(page.locator(f'//*[text()="{p60_telescope.name}"]').first).to_be_visible()

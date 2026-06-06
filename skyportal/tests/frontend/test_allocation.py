@@ -1,56 +1,36 @@
+import uuid
+
 import pytest
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.wait import WebDriverWait
+from playwright.sync_api import expect
 
 from skyportal.tests import api
 
 
 def one_request_comment_process(
-    driver, request_comment_xpath, actual_comment, comment_to_put
+    page, request_comment_xpath, actual_comment, comment_to_put
 ):
-    """Test that one comment, update on one request, is well displayed
-    Parameters
-    ----------
-    driver: 'selenium.webdriver.chrome.webdriver.WebDriver'
-        The selenium webdriver
-    request_comment_xpath: 'str'
-        The xpath of the comment div of the request
-    actual_comment: 'str'
-        The actual comment
-    comment_to_put: 'str'
-        The comment to put
-    Returns
-    -------
-    None
-    """
-    # Add a comment to the first request by clicking the edit button
-    driver.wait_for_xpath(request_comment_xpath + "//span").click()
-    # Check that the comment in the pop-up is empty
-    popup_textarea = driver.wait_for_xpath(
+    """Test that one comment, updated on one request, is displayed correctly."""
+    # Open the comment editor for this request
+    page.locator(request_comment_xpath + "//span").first.click()
+    # The pop-up textarea should hold the current comment
+    popup_textarea = page.locator(
         '//div[@data-testid="updateCommentTextfield"]//textarea'
-    )
-    assert popup_textarea.text == actual_comment
-    # Clear the text field
-    popup_textarea.clear()
-    # Enter the comment text and submit
-    popup_textarea.send_keys(comment_to_put)
-    driver.find_element(
-        By.XPATH, '//button[@data-testid="updateCommentSubmitButton"]'
-    ).click()
+    ).first
+    expect(popup_textarea).to_have_value(actual_comment)
+    # Enter the new comment text (fill replaces, covering clear + send_keys)
+    popup_textarea.fill(comment_to_put)
+    page.locator('//button[@data-testid="updateCommentSubmitButton"]').first.click()
 
-    WebDriverWait(driver, 10).until(
-        EC.invisibility_of_element_located(
-            (By.XPATH, '//div[@data-testid="updateCommentTextfield"]')
-        )
-    )
+    expect(
+        page.locator('//div[@data-testid="updateCommentTextfield"]').first
+    ).to_be_hidden()
 
-    assert driver.wait_for_xpath(request_comment_xpath).text == comment_to_put
+    expect(page.locator(request_comment_xpath).first).to_have_text(comment_to_put)
 
 
 @pytest.mark.flaky(reruns=2)
 def test_allocation_comment_display(
-    driver, super_admin_user, public_group, public_source, super_admin_token, sedm
+    page, super_admin_user, public_group, public_source, super_admin_token, sedm
 ):
     # Create an allocation
     request_data = {
@@ -66,13 +46,11 @@ def test_allocation_comment_display(
         ],
         "proposal_id": "COO-2020A-P01",
     }
-    # Post the allocation
     status, data = api("POST", "allocation", data=request_data, token=super_admin_token)
-    # Check that the allocation was created
     assert status == 200
     assert data["status"] == "success"
     allocation_id = data["data"]["id"]
-    # Create one followup request with the allocation id
+
     request_data = {
         "allocation_id": allocation_id,
         "obj_id": public_source.id,
@@ -86,14 +64,12 @@ def test_allocation_comment_display(
             "maximum_fwhm": 1.2,
         },
     }
-    # Post the first followup request with no comment
     status, data = api(
         "POST", "followup_request", data=request_data, token=super_admin_token
     )
-    # Check that the followup request was created and get the request id
     assert status == 200
     assert data["status"] == "success"
-    # Create a second followup requests with the same allocation id
+
     request_data = {
         "allocation_id": allocation_id,
         "obj_id": public_source.id,
@@ -107,44 +83,139 @@ def test_allocation_comment_display(
             "maximum_fwhm": 1.3,
         },
     }
-    # Post the second followup request with no comment
     status, data = api(
         "POST", "followup_request", data=request_data, token=super_admin_token
     )
-    # Check that the second followup request was created and get the request id
     assert status == 200
     assert data["status"] == "success"
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/allocation/{allocation_id}")
 
-    # Get the comment div for each request
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/allocation/{allocation_id}")
+
     request1_comment_xpath = (
         '//div[@data-rowindex="0"]//span[@aria-label="Update comment"]/..'
     )
     request2_comment_xpath = (
         '//div[@data-rowindex="1"]//span[@aria-label="Update comment"]/..'
     )
-    request1_div_comment = driver.wait_for_xpath(request1_comment_xpath)
-    request2_div_comment = driver.wait_for_xpath(request2_comment_xpath)
-    # Check that each comment is empty
-    assert request1_div_comment.text == ""
-    assert request2_div_comment.text == ""
+    expect(page.locator(request1_comment_xpath).first).to_have_text("")
+    expect(page.locator(request2_comment_xpath).first).to_have_text("")
 
-    # Add a comment to the first request by clicking the edit button
-    one_request_comment_process(driver, request1_comment_xpath, "", "comment number 1")
+    one_request_comment_process(page, request1_comment_xpath, "", "comment number 1")
+    one_request_comment_process(page, request2_comment_xpath, "", "comment number 2")
+    one_request_comment_process(page, request1_comment_xpath, "comment number 1", "")
 
-    # Add a comment to the second request by clicking the edit button
-    one_request_comment_process(driver, request2_comment_xpath, "", "comment number 2")
+    page.goto(f"/allocation/{allocation_id}")
+    expect(page.locator(request1_comment_xpath).first).to_have_text("")
+    expect(page.locator(request2_comment_xpath).first).to_have_text("comment number 2")
 
-    # Delete the comment of the first request by clicking the edit button and clearing the text field
-    one_request_comment_process(driver, request1_comment_xpath, "comment number 1", "")
 
-    driver.get(f"/allocation/{allocation_id}")
-    request1_comment_xpath = (
-        '//div[@data-rowindex="0"]//span[@aria-label="Update comment"]/..'
+@pytest.mark.flaky(reruns=3)
+def test_super_user_post_allocation(
+    public_group, super_admin_token, super_admin_user, page
+):
+    telescope_name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "telescope",
+        data={
+            "name": telescope_name,
+            "nickname": telescope_name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
+        },
+        token=super_admin_token,
     )
-    request2_comment_xpath = (
-        '//div[@data-rowindex="1"]//span[@aria-label="Update comment"]/..'
+    assert status == 200
+    assert data["status"] == "success"
+    telescope_id = data["data"]["id"]
+
+    instrument_name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "instrument",
+        data={
+            "name": instrument_name,
+            "type": "imager",
+            "band": "NIR",
+            "filters": ["f110w"],
+            "telescope_id": telescope_id,
+            "api_classname": "ZTFAPI",
+        },
+        token=super_admin_token,
     )
-    assert driver.wait_for_xpath(request1_comment_xpath).text == ""
-    assert driver.wait_for_xpath(request2_comment_xpath).text == "comment number 2"
+    assert status == 200
+    assert data["status"] == "success"
+    instrument_id = data["data"]["id"]
+
+    instrument_name2 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "instrument",
+        data={
+            "name": instrument_name2,
+            "type": "imager",
+            "band": "NIR",
+            "filters": ["f110w"],
+            "telescope_id": telescope_id,
+            "api_classname": "ZTFAPI",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    request_data = {
+        "group_id": public_group.id,
+        "instrument_id": instrument_id,
+        "pi": "Shri Kulkarni",
+        "hours_allocated": 200,
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+        "proposal_id": "COO-2020A-P01",
+    }
+
+    status, data = api("POST", "allocation", data=request_data, token=super_admin_token)
+    assert status == 200
+    assert data["status"] == "success"
+    id = data["data"]["id"]
+
+    status, data = api("GET", f"allocation/{id}", token=super_admin_token)
+    assert status == 200
+    assert data["status"] == "success"
+
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/allocations")
+
+    # The allocation grid is a (virtualized) show-all DataGrid; filter to the
+    # instrument so its row is rendered before asserting.
+    search = page.locator(".MuiDataGrid-root").get_by_placeholder("Search…").first
+    search.fill(instrument_name)
+    expect(
+        page.locator(f'//*[contains(text(),"{instrument_name}")]').first
+    ).to_be_visible(timeout=20000)
+
+    # Create a second allocation via the New Allocation dialog form.
+    page.locator('//*[@name="new_allocation"]').first.click()
+    dialog = page.locator('//div[@role="dialog"]')
+    dialog.locator('//*[@id="root_group_id"]').first.click()
+    page.locator('//li[contains(text(), "Sitewide Group")]').first.click()
+    dialog.locator('//*[@id="root_pi"]').first.fill("Shri")
+    dialog.locator('//*[@id="root_hours_allocated"]').first.fill("100")
+    dialog.locator('//*[@id="root_instrument_id"]').first.click()
+    page.locator(f'//li[contains(text(), "{instrument_name2}")]').first.click()
+
+    dialog.locator('//button[@type="submit"]').first.click()
+    expect(page.locator('//div[@role="dialog"]')).to_have_count(0)
+
+    # ``fill`` replaces the field contents; filtering to the new instrument.
+    search.fill(instrument_name2)
+    expect(
+        page.locator(f'//*[contains(text(),"{instrument_name2}")]').first
+    ).to_be_visible()

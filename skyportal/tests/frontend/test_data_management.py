@@ -1,11 +1,11 @@
 import pytest
-from selenium.common.exceptions import TimeoutException
+from playwright.sync_api import expect
 
 from skyportal.tests import IS_CI_BUILD
 
 
 def test_share_data(
-    driver,
+    page,
     super_admin_user,
     super_admin_token,
     public_source,
@@ -14,50 +14,39 @@ def test_share_data(
 ):
     if IS_CI_BUILD:
         pytest.xfail("Xfailing this test on CI builds.")
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.click_xpath('//*[text()="Share data"]')
-    driver.wait_for_xpath(f"//div[text()='{public_group.name}']", timeout=15)
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/source/{public_source.id}")
+    page.locator('//*[text()="Share data"]').first.click()
+    expect(page.locator(f"//div[text()='{public_group.name}']").first).to_be_visible()
 
-    driver.wait_for_xpath(
-        '//div[@data-rowindex="0"]',
-        timeout=10,
-    )
-    select = driver.wait_for_xpath(
-        '//div[@data-rowindex="0"]//input[@type="checkbox"]',
-        timeout=10,
-    )
-    select.click()
-    driver.click_xpath('//*[@id="dataSharingFormGroupsSelect"]')
-    driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
-    driver.click_xpath('//*[text()="Submit"]')
-    driver.wait_for_xpath('//*[text()="Data successfully shared"]', timeout=15)
+    expect(page.locator('//div[@data-rowindex="0"]').first).to_be_visible()
+    page.locator('//div[@data-rowindex="0"]//input[@type="checkbox"]').first.click()
+    page.locator('//*[@id="dataSharingFormGroupsSelect"]').first.click()
+    page.locator(f'//li[text()="{public_group2.name}"]').first.click()
+    page.locator('//*[text()="Submit"]').first.click()
+    expect(page.locator('//*[text()="Data successfully shared"]').first).to_be_visible()
+
     groups_str = ", ".join([public_group.name, public_group2.name])
-    try:
-        driver.wait_for_xpath(f"//div[text()='{groups_str}']")
-    except TimeoutException:
-        groups_str = ", ".join([public_group2.name, public_group.name])
-        driver.wait_for_xpath(f"//div[text()='{groups_str}']")
+    groups_str_alt = ", ".join([public_group2.name, public_group.name])
+    expect(
+        page.locator(f"//div[text()='{groups_str}']")
+        .or_(page.locator(f"//div[text()='{groups_str_alt}']"))
+        .first
+    ).to_be_visible()
 
 
-def test_delete_spectrum(driver, public_source):
+def test_delete_spectrum(page, public_source):
     spectrum = public_source.spectra[0]
-    driver.get(f"/become_user/{spectrum.owner_id}")
-    driver.get(f"/share_data/{public_source.id}")
+    page.goto(f"/become_user/{spectrum.owner_id}")
+    page.goto(f"/share_data/{public_source.id}")
 
     delete_button_xpath = f"//*[@data-testid='delete-spectrum-button-{spectrum.id}']"
-    delete = driver.wait_for_xpath(delete_button_xpath)
-    x = delete.location["x"]
-    y = delete.location["y"]
-    scroll_by_coord = f"window.scrollTo({x},{y});"
-    scroll_nav_out_of_way = "window.scrollBy(0, -120);"
-    driver.execute_script(scroll_by_coord)
-    driver.execute_script(scroll_nav_out_of_way)
+    # Playwright auto-scrolls the target into view before clicking.
+    page.locator(delete_button_xpath).first.click()
+    page.locator("//*[@data-testid='yes-delete']").first.click()
 
-    driver.scroll_to_element_and_click(delete)
-    driver.click_xpath(delete_button_xpath, scroll_parent=True)
-    driver.click_xpath("//*[@data-testid='yes-delete']", scroll_parent=True)
-
-    driver.wait_for_xpath_to_disappear(
-        '//*[@data-testid="spectrum-table"]//div[@data-rowindex="1"]'
-    )
+    expect(
+        page.locator(
+            '//*[@data-testid="spectrum-table"]//div[@data-rowindex="1"]'
+        ).first
+    ).to_be_hidden()

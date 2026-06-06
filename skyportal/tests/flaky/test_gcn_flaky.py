@@ -4,7 +4,7 @@ import uuid
 
 import numpy as np
 import pandas as pd
-from selenium.webdriver.common.keys import Keys
+from playwright.sync_api import expect
 
 from skyportal.tests import api
 from skyportal.tests.external.test_moving_objects import (
@@ -14,7 +14,7 @@ from skyportal.tests.external.test_moving_objects import (
 
 
 def test_filter_by_gcnevent(
-    driver,
+    page,
     user,
     super_admin_token,
     view_only_token,
@@ -120,49 +120,29 @@ def test_filter_by_gcnevent(
     )
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/sources")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/sources")
 
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
 
-    # give the page time to load the GCN events
-    time.sleep(2)
+    page.locator('//input[@name="startDate"]').first.fill("2019-08-14T21:10:39")
+    page.locator('//input[@name="endDate"]').first.fill("2019-08-21T21:10:39")
 
-    before_input = driver.wait_for_xpath('//input[@name="startDate"]')
-    before_input.send_keys("2019-08-14T21:10:39")
+    page.locator('//*[@aria-labelledby="gcnEventSelectLabel"]').first.click()
+    page.locator('//li[contains(text(), "2019-08-14T21:10:39")]').first.click()
 
-    after_input = driver.wait_for_xpath('//input[@name="endDate"]')
-    after_input.send_keys("2019-08-21T21:10:39")
+    page.locator('//*[@aria-labelledby="localizationSelectLabel"]').first.click()
+    page.locator('//li[contains(text(), "LALInference.v1.fits.gz")]').first.click()
 
-    gcnevent_select = driver.wait_for_xpath(
-        '//*[@aria-labelledby="gcnEventSelectLabel"]'
-    )
-    gcnevent_select.send_keys(Keys.END)
-    driver.scroll_to_element_and_click(gcnevent_select)
-    driver.click_xpath(
-        '//li[contains(text(), "2019-08-14T21:10:39")]',
-        scroll_parent=True,
-    )
-
-    localization_select = driver.wait_for_xpath(
-        '//*[@aria-labelledby="localizationSelectLabel"]'
-    )
-    driver.scroll_to_element_and_click(localization_select)
-    driver.click_xpath(
-        '//li[contains(text(), "LALInference.v1.fits.gz")]',
-        scroll_parent=True,
-    )
-
-    driver.click_xpath(
-        "//button[text()='Submit']",
-        scroll_parent=True,
-    )
+    page.locator("//button[text()='Submit']").first.click()
 
     # The source that is not in the event should disappear
-    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{notinevent_obj_id}"]')
+    expect(
+        page.locator(f'//a[@data-testid="{notinevent_obj_id}"]').first
+    ).to_be_hidden()
 
     # Should see the posted source
-    driver.wait_for_xpath(f'//a[@data-testid="{obj_id}"]')
+    expect(page.locator(f'//a[@data-testid="{obj_id}"]').first).to_be_visible()
 
 
 def test_gcn_summary_observations(

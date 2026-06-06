@@ -3,14 +3,16 @@
 # fixture data directly into the database). Used for testing broadly that a
 # server or Docker image was started successfully.
 
+from playwright.sync_api import expect
+
 from skyportal.models import DBSession, Source
 
 
-def test_remote(driver):
+def test_remote(page):
     # TODO expand to cover the basics of all site functionality
     # (c.f. `test_pipeline_sequentially` from `cesium_web`)
     Source.query.delete()
     DBSession.commit()
-    driver.get("/")
-    assert "localhost" in driver.current_url
-    driver.wait_for_xpath('//p[contains(.,"New Sources")]')
+    page.goto("/")
+    assert "localhost" in page.url
+    expect(page.locator('//p[contains(.,"New Sources")]').first).to_be_visible()

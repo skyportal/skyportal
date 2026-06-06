@@ -1,12 +1,10 @@
 import csv
 import os
-import time
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from os.path import join
 
-import pytest
 from astropy.time import Time
-from selenium.webdriver.common.by import By
+from playwright.sync_api import expect
 
 from baselayer.app.config import load_config
 
@@ -40,57 +38,54 @@ ALL_PHOTOMETRY_COLUMNS = DEFAULT_PHOTOMETRY_COLUMNS + [
 ]
 
 
-def test_download_photometry_table_default(driver, super_admin_user, public_source):
-    """Test opening the download options dialog."""
+def _open_download_options(page, super_admin_user, public_source):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/source/{public_source.id}")
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/source/{public_source.id}")
+    page.locator('//button[@data-testid="show-photometry-table-button"]').first.click()
+    expect(
+        page.locator('//div[contains(@class, "MuiDialog-root")]').first
+    ).to_be_visible()
+    expect(
+        page.locator('//div[contains(@class, "MuiDataGrid-root")]').first
+    ).to_be_visible()
 
-    phot_table_button = driver.wait_for_xpath_to_be_clickable(
-        '*//button[@data-testid="show-photometry-table-button"]',
-        timeout=10,
-    )
-    phot_table_button.click()
-
-    driver.wait_for_xpath('//div[contains(@class, "MuiDialog-root")]')
-    driver.wait_for_xpath('//div[contains(@class, "MuiDataGrid-root")]')
-
-    # Use click_xpath (re-locates + tolerates stale refs) because the data grid
-    # finishes loading just after the button becomes clickable, re-rendering the
-    # dialog subtree and invalidating a previously captured element reference.
-    driver.click_xpath(
+    page.locator(
         '//div[contains(@class, "MuiDialog-root")]'
-        '//button[@data-testid="open-photometry-download-button"]',
-        timeout=10,
-    )
+        '//button[@data-testid="open-photometry-download-button"]'
+    ).first.click()
+    expect(
+        page.locator('//h6[contains(text(), "Download Options")]').first
+    ).to_be_visible()
 
-    driver.wait_for_xpath('//h6[contains(text(), "Download Options")]')
-    default_columns_button = driver.wait_for_xpath_to_be_clickable(
-        '//button[contains(text(), "Default")]'
-    )
-    default_columns_button.click()
-    driver.wait_for_xpath('//button[contains(text(), "All")]')
-    driver.wait_for_xpath('//button[@data-testid="download-photometry-table-button"]')
 
-    driver.click_xpath('//label[.//span[text()="Not vetted"]]')
+def _download_to(page, file_path):
+    with page.expect_download() as download_info:
+        page.locator(
+            '//button[@data-testid="download-photometry-table-button"]'
+        ).first.click()
+    download_info.value.save_as(file_path)
+    assert os.path.exists(file_path)
 
-    execute_download_button = driver.wait_for_xpath_to_be_clickable(
-        '//button[@data-testid="download-photometry-table-button"]',
-        timeout=10,
-    )
-    execute_download_button.click()
+
+def test_download_photometry_table_default(page, super_admin_user, public_source):
+    """Test downloading the photometry table with the default columns."""
+    _open_download_options(page, super_admin_user, public_source)
+
+    page.locator('//button[contains(text(), "Default")]').first.click()
+    expect(page.locator('//button[contains(text(), "All")]').first).to_be_visible()
+    expect(
+        page.locator('//button[@data-testid="download-photometry-table-button"]').first
+    ).to_be_visible()
+
+    page.locator('//label[.//span[text()="Not vetted"]]').first.click()
 
     file_path = str(
         os.path.abspath(
             join(cfg["paths.downloads_folder"], f"{public_source.id}_photometry.csv")
         )
     )
-
-    try_count = 1
-    while not os.path.exists(file_path) and try_count <= 5:
-        try_count += 1
-        time.sleep(1)
-    assert os.path.exists(file_path)
+    _download_to(page, file_path)
 
     try:
         with open(file_path) as f:
@@ -109,55 +104,22 @@ def test_download_photometry_table_default(driver, super_admin_user, public_sour
         os.remove(file_path)
 
 
-def test_download_photometry_table_all(driver, super_admin_user, public_source):
-    """Test opening the download options dialog."""
+def test_download_photometry_table_all(page, super_admin_user, public_source):
+    """Test downloading the photometry table with all columns."""
+    _open_download_options(page, super_admin_user, public_source)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/source/{public_source.id}")
-
-    phot_table_button = driver.wait_for_xpath_to_be_clickable(
-        '*//button[@data-testid="show-photometry-table-button"]',
-        timeout=10,
-    )
-    phot_table_button.click()
-
-    driver.wait_for_xpath('//div[contains(@class, "MuiDialog-root")]')
-    driver.wait_for_xpath('//div[contains(@class, "MuiDataGrid-root")]')
-
-    # Use click_xpath (re-locates + tolerates stale refs) because the data grid
-    # finishes loading just after the button becomes clickable, re-rendering the
-    # dialog subtree and invalidating a previously captured element reference.
-    driver.click_xpath(
-        '//div[contains(@class, "MuiDialog-root")]'
-        '//button[@data-testid="open-photometry-download-button"]',
-        timeout=10,
-    )
-
-    driver.wait_for_xpath('//h6[contains(text(), "Download Options")]')
-    driver.wait_for_xpath('//button[contains(text(), "Default")]')
-    all_columns_button = driver.wait_for_xpath_to_be_clickable(
-        '//button[contains(text(), "All")]'
-    )
-    all_columns_button.click()
-    driver.wait_for_xpath('//button[@data-testid="download-photometry-table-button"]')
-
-    execute_download_button = driver.wait_for_xpath_to_be_clickable(
-        '//button[@data-testid="download-photometry-table-button"]',
-        timeout=10,
-    )
-    execute_download_button.click()
+    expect(page.locator('//button[contains(text(), "Default")]').first).to_be_visible()
+    page.locator('//button[contains(text(), "All")]').first.click()
+    expect(
+        page.locator('//button[@data-testid="download-photometry-table-button"]').first
+    ).to_be_visible()
 
     file_path = str(
         os.path.abspath(
             join(cfg["paths.downloads_folder"], f"{public_source.id}_photometry.csv")
         )
     )
-
-    try_count = 1
-    while not os.path.exists(file_path) and try_count <= 5:
-        try_count += 1
-        time.sleep(1)
-    assert os.path.exists(file_path)
+    _download_to(page, file_path)
 
     try:
         with open(file_path) as f:
@@ -176,6 +138,5 @@ def test_download_photometry_table_all(driver, super_admin_user, public_source):
         assert datetime.fromisoformat(
             csv_data[0]["utc"][:-1] + "+00:00"
         ) == phot_utc.datetime.replace(microsecond=0, tzinfo=UTC)
-
     finally:
         os.remove(file_path)

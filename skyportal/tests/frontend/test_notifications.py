@@ -1,11 +1,9 @@
 import os
 import uuid
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
+from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
 from skyportal.tests import api
@@ -14,59 +12,58 @@ from skyportal.tests.frontend.sources_and_observingruns_etc.test_sources import 
 )
 
 
-def filter_for_value(driver, value, last=False):
-    # The x-data-grid default-toolbar quick-filter renders a TextField whose
-    # `aria-label="Search"` lands on the wrapper (FormControl root div), not the
-    # inner <input>. So target the input as a descendant of that wrapper.
+def filter_for_value(page, value, last=False):
     input_xpath = "//*[@aria-label='Search']//input"
     if last:
         input_xpath = f"({input_xpath})[last()]"
-    search_input = driver.wait_for_xpath(input_xpath)
-    search_input.send_keys(value)
+    page.locator(input_xpath).first.fill(value)
+
+
+def _enable_switch(page, name):
+    """Click a notification preference switch and wait until it's checked."""
+    page.locator(f'//*[@name="{name}"]').first.click()
+    expect(
+        page.locator(
+            f'//*[@name="{name}"]/../../span[contains(@class,"Mui-checked")]'
+        ).first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_mention_generates_notification_then_mark_read_and_delete(
-    driver, user, public_source
+    page, user, public_source
 ):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
 
-    # Enable notifications for mentions
-    mention = driver.wait_for_xpath('//*[@name="mention"]')
-    driver.scroll_to_element_and_click(mention)
+    _enable_switch(page, "mention")
 
-    driver.wait_for_xpath(
-        '//*[@name="mention"]/../../span[contains(@class,"Mui-checked")]'
-    )
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
+    add_comment_and_wait_for_display(page, f"@{user.username}")
 
-    comment_text = f"@{user.username}"
-    add_comment_and_wait_for_display(driver, comment_text)
-
-    driver.wait_for_xpath("//span[text()='1']")
-    driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[text()=" mentioned you in a comment on "]')
-    driver.click_xpath('//*[contains(@data-testid, "markReadButton")]')
-    driver.wait_for_xpath("//button[text()='Mark unread']")
-    driver.click_xpath('//*[contains(@data-testid, "deleteNotificationButton")]')
-    driver.wait_for_xpath_to_disappear('//*[text()=" mentioned you in a comment on "]')
-    driver.wait_for_xpath("//*[text()='No notifications']")
+    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
+    expect(
+        page.locator('//*[text()=" mentioned you in a comment on "]').first
+    ).to_be_visible()
+    page.locator('//*[contains(@data-testid, "markReadButton")]').first.click()
+    expect(page.locator("//button[text()='Mark unread']").first).to_be_visible()
+    page.locator(
+        '//*[contains(@data-testid, "deleteNotificationButton")]'
+    ).first.click()
+    expect(
+        page.locator('//*[text()=" mentioned you in a comment on "]').first
+    ).to_be_hidden()
+    expect(page.locator("//*[text()='No notifications']").first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_group_admission_requests_notifications(
-    driver,
-    user,
-    super_admin_user,
-    public_group,
-    public_group2,
-    super_admin_token,
+    page, user, super_admin_user, public_group, public_group2, super_admin_token
 ):
-    # Make super_admin_user an admin member of group2
     status, data = api(
         "POST",
         f"groups/{public_group2.id}/users",
@@ -75,96 +72,78 @@ def test_group_admission_requests_notifications(
     )
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/groups")
-    driver.wait_for_xpath('//h6[text()="My Groups"]')
-    filter_for_value(driver, public_group2.name)
-    driver.click_xpath(f'//*[@data-testid="requestAdmissionButton{public_group2.id}"]')
-    driver.wait_for_xpath(
-        f'//*[@data-testid="deleteAdmissionRequestButton{public_group2.id}"]'
-    )
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/group/{public_group2.id}")
-    driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[text()="New Group Admission Request from "]')
-    driver.click_xpath('//*[@data-testid="deleteAllNotificationsButton"]')
-    driver.wait_for_xpath_to_disappear(
-        '//*[text()="New Group Admission Request from "]'
-    )
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/groups")
+    expect(page.locator('//h6[text()="My Groups"]').first).to_be_visible()
+    filter_for_value(page, public_group2.name)
+    page.locator(
+        f'//*[@data-testid="requestAdmissionButton{public_group2.id}"]'
+    ).first.click()
+    expect(
+        page.locator(
+            f'//*[@data-testid="deleteAdmissionRequestButton{public_group2.id}"]'
+        ).first
+    ).to_be_visible()
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/group/{public_group2.id}")
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
+    expect(
+        page.locator('//*[text()="New Group Admission Request from "]').first
+    ).to_be_visible()
+    page.locator('//*[@data-testid="deleteAllNotificationsButton"]').first.click()
+    expect(
+        page.locator('//*[text()="New Group Admission Request from "]').first
+    ).to_be_hidden()
 
-    filter_for_value(driver, user.username, last=True)
-    driver.wait_for_xpath('//div[text()="pending"]')
-    driver.click_xpath(f'//*[@data-testid="acceptRequestButton{user.id}"]')
-    driver.wait_for_xpath('//div[text()="accepted"]')
-    driver.wait_for_xpath(f'//a[text()="{user.username}"]')
+    filter_for_value(page, user.username, last=True)
+    expect(page.locator('//div[text()="pending"]').first).to_be_visible()
+    page.locator(f'//*[@data-testid="acceptRequestButton{user.id}"]').first.click()
+    expect(page.locator('//div[text()="accepted"]').first).to_be_visible()
+    expect(page.locator(f'//a[text()="{user.username}"]').first).to_be_visible()
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
-    driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//em[text()="accepted"]')
-    driver.wait_for_xpath(f'//em[text()="{public_group2.name}"]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
+    expect(page.locator('//em[text()="accepted"]').first).to_be_visible()
+    expect(page.locator(f'//em[text()="{public_group2.name}"]').first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=3)
 def test_comment_on_favorite_source_triggers_notification(
-    driver, user, user2, public_source
+    page, user, user2, public_source
 ):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
 
-    # Enable browser notifications for favorite source comments
-    favorite_sources = driver.wait_for_xpath('//*[@name="favorite_sources"]')
-    driver.scroll_to_element_and_click(favorite_sources)
+    _enable_switch(page, "favorite_sources")
+    _enable_switch(page, "favorite_sources_new_comments")
+    _enable_switch(page, "favorite_sources_new_bot_comments")
 
-    driver.wait_for_xpath(
-        '//*[@name="favorite_sources"]/../../span[contains(@class,"Mui-checked")]'
-    )
+    page.goto(f"/source/{public_source.id}")
+    page.locator(
+        f'//*[@data-testid="favorites-exclude_{public_source.id}"]'
+    ).first.click()
+    expect(
+        page.locator(f'//*[@data-testid="favorites-include_{public_source.id}"]').first
+    ).to_be_visible(timeout=30000)
 
-    favorite_sources_new_comments = driver.wait_for_xpath(
-        '//*[@name="favorite_sources_new_comments"]'
-    )
-    driver.scroll_to_element_and_click(favorite_sources_new_comments)
-
-    driver.wait_for_xpath(
-        '//*[@name="favorite_sources_new_comments"]/../../span[contains(@class,"Mui-checked")]'
-    )
-
-    # activate notification for bot comments too, which is a comment posted using a token
-    favorite_sources_new_bot_comments = driver.wait_for_xpath(
-        '//*[@name="favorite_sources_new_bot_comments"]'
-    )
-    driver.scroll_to_element_and_click(favorite_sources_new_bot_comments)
-
-    driver.wait_for_xpath(
-        '//*[@name="favorite_sources_new_bot_comments"]/../../span[contains(@class,"Mui-checked")]'
-    )
-
-    # Make public_source a favorite
-    driver.get(f"/source/{public_source.id}")
-    driver.click_xpath(
-        f'//*[@data-testid="favorites-exclude_{public_source.id}"]', timeout=30
-    )
-    driver.wait_for_xpath(
-        f'//*[@data-testid="favorites-include_{public_source.id}"]', timeout=30
-    )
-
-    # Become user2 and submit comment on source
-    driver.get(f"/become_user/{user2.id}")
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/become_user/{user2.id}")
+    page.goto(f"/source/{public_source.id}")
     comment_text = str(uuid.uuid4())
-    add_comment_and_wait_for_display(driver, comment_text)
+    add_comment_and_wait_for_display(page, comment_text)
 
-    # Check that notification was created
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
-    driver.wait_for_xpath(f"//p[text()='{comment_text}']")
-    driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[contains(text(), "New comment on favorite source")]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
+    expect(page.locator(f"//p[text()='{comment_text}']").first).to_be_visible()
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
+    expect(
+        page.locator('//*[contains(text(), "New comment on favorite source")]').first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=3)
 def test_classification_on_favorite_source_triggers_notification(
-    driver, user, public_source, public_group, taxonomy_token, classification_token
+    page, user, public_source, public_group, taxonomy_token, classification_token
 ):
     status, data = api(
         "POST",
@@ -182,40 +161,20 @@ def test_classification_on_favorite_source_triggers_notification(
     assert status == 200
     taxonomy_id = data["data"]["taxonomy_id"]
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
 
-    # Enable browser notifications for favorite source comments
-    favorite_sources = driver.wait_for_xpath('//*[@name="favorite_sources"]')
-    driver.scroll_to_element_and_click(favorite_sources)
+    _enable_switch(page, "favorite_sources")
+    _enable_switch(page, "favorite_sources_new_classifications")
+    _enable_switch(page, "favorite_sources_new_ml_classifications")
 
-    driver.wait_for_xpath(
-        '//*[@name="favorite_sources"]/../../span[contains(@class,"Mui-checked")]'
-    )
-
-    favorite_sources_new_classifications = driver.wait_for_xpath(
-        '//*[@name="favorite_sources_new_classifications"]'
-    )
-    driver.scroll_to_element_and_click(favorite_sources_new_classifications)
-
-    driver.wait_for_xpath(
-        '//*[@name="favorite_sources_new_classifications"]/../../span[contains(@class,"Mui-checked")]'
-    )
-
-    # also activate notification for ML (bot) classifications, which are non-human classifications
-    favorite_sources_new_ml_classifications = driver.wait_for_xpath(
-        '//*[@name="favorite_sources_new_ml_classifications"]'
-    )
-    driver.scroll_to_element_and_click(favorite_sources_new_ml_classifications)
-
-    driver.wait_for_xpath(
-        '//*[@name="favorite_sources_new_ml_classifications"]/../../span[contains(@class,"Mui-checked")]'
-    )
-
-    # Make public_source a favorite
-    driver.get(f"/source/{public_source.id}")
-    driver.click_xpath(f'//*[@data-testid="favorites-exclude_{public_source.id}"]')
-    driver.wait_for_xpath(f'//*[@data-testid="favorites-include_{public_source.id}"]')
+    page.goto(f"/source/{public_source.id}")
+    page.locator(
+        f'//*[@data-testid="favorites-exclude_{public_source.id}"]'
+    ).first.click()
+    expect(
+        page.locator(f'//*[@data-testid="favorites-include_{public_source.id}"]').first
+    ).to_be_visible()
 
     status, data = api(
         "POST",
@@ -232,46 +191,35 @@ def test_classification_on_favorite_source_triggers_notification(
     )
     assert status == 200
 
-    # Check that notification was created
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
-    driver.wait_for_xpath("//span[text()='1']")
-    driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath(
-        '//*[contains(text(), "New classification on favorite source")]'
-    )
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
+    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
+    expect(
+        page.locator(
+            '//*[contains(text(), "New classification on favorite source")]'
+        ).first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=3)
 def test_spectra_on_favorite_source_triggers_notification(
-    driver, user, public_source, lris, upload_data_token, public_group
+    page, user, public_source, lris, upload_data_token, public_group
 ):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
 
-    # Enable browser notifications for favorite source comments
-    favorite_sources = driver.wait_for_xpath('//*[@name="favorite_sources"]')
-    driver.scroll_to_element_and_click(favorite_sources)
+    _enable_switch(page, "favorite_sources")
+    _enable_switch(page, "favorite_sources_new_spectra")
 
-    driver.wait_for_xpath(
-        '//*[@name="favorite_sources"]/../../span[contains(@class,"Mui-checked")]'
-    )
+    page.goto(f"/source/{public_source.id}")
+    page.locator(
+        f'//*[@data-testid="favorites-exclude_{public_source.id}"]'
+    ).first.click()
+    expect(
+        page.locator(f'//*[@data-testid="favorites-include_{public_source.id}"]').first
+    ).to_be_visible()
 
-    favorite_sources_new_comments = driver.wait_for_xpath(
-        '//*[@name="favorite_sources_new_spectra"]'
-    )
-    driver.scroll_to_element_and_click(favorite_sources_new_comments)
-
-    driver.wait_for_xpath(
-        '//*[@name="favorite_sources_new_spectra"]/../../span[contains(@class,"Mui-checked")]'
-    )
-
-    # Make public_source a favorite
-    driver.get(f"/source/{public_source.id}")
-    driver.click_xpath(f'//*[@data-testid="favorites-exclude_{public_source.id}"]')
-    driver.wait_for_xpath(f'//*[@data-testid="favorites-include_{public_source.id}"]')
-
-    # Add spectrum to public_source
     status, data = api(
         "POST",
         "spectrum",
@@ -288,16 +236,17 @@ def test_spectra_on_favorite_source_triggers_notification(
     assert status == 200
     assert data["status"] == "success"
 
-    # Check that notification was created
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
-    driver.wait_for_xpath("//span[text()='1']")
-    driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[contains(text(), "New spectrum on favorite source")]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
+    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
+    expect(
+        page.locator('//*[contains(text(), "New spectrum on favorite source")]').first
+    ).to_be_visible()
 
 
 def test_new_classification_on_source_triggers_notification(
-    driver, user, public_source, public_group, taxonomy_token, classification_token
+    page, user, public_source, public_group, taxonomy_token, classification_token
 ):
     status, data = api(
         "POST",
@@ -315,31 +264,21 @@ def test_new_classification_on_source_triggers_notification(
     assert status == 200
     taxonomy_id = data["data"]["taxonomy_id"]
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
 
-    # Enable notifications for sources when a specific classification is added
-    sources = driver.wait_for_xpath('//*[@name="sources"]')
-    driver.scroll_to_element_and_click(sources)
+    _enable_switch(page, "sources")
 
-    driver.wait_for_xpath(
-        '//*[@name="sources"]/../../span[contains(@class,"Mui-checked")]'
-    )
+    page.locator("//*[@id='classifications-select']").first.click()
+    page.locator('//li[@data-value="AGN"]').first.click()
+    page.keyboard.press("Escape")
 
-    sources_new_classification = driver.wait_for_xpath(
-        "//*[@id='classifications-select']"
-    )
-    driver.scroll_to_element_and_click(sources_new_classification)
-    driver.click_xpath(
-        '//li[@data-value="AGN"]',
-        scroll_parent=True,
-    )
-
-    driver.click_xpath(
+    page.locator(
         '//*[@data-testid="addShortcutButton" and contains(., "Update")]'
-    )
-
-    driver.wait_for_xpath('//*[contains(text(), "Sources classifications updated")]')
+    ).first.click()
+    expect(
+        page.locator('//*[contains(text(), "Sources classifications updated")]').first
+    ).to_be_visible()
 
     status, data = api(
         "POST",
@@ -355,49 +294,33 @@ def test_new_classification_on_source_triggers_notification(
     )
     assert status == 200
 
-    # Check that notification was created
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
-    driver.wait_for_xpath("//span[text()='1']")
-    driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[contains(text(), "New classification")]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
+    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
+    expect(
+        page.locator('//*[contains(text(), "New classification")]').first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=3)
 def test_new_spectra_on_source_triggers_notification(
-    driver, user, public_source, lris, upload_data_token, public_group
+    page, user, public_source, lris, upload_data_token, public_group
 ):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
 
-    # Enable notifications for sources when a specific classification is added
-    sources = driver.wait_for_xpath('//*[@name="sources"]')
-    driver.scroll_to_element_and_click(sources)
+    _enable_switch(page, "sources")
+    _enable_switch(page, "sources_new_spectra")
 
-    driver.wait_for_xpath(
-        '//*[@name="sources"]/../../span[contains(@class,"Mui-checked")]'
-    )
+    page.locator("//*[@id='groups-select']").first.click()
+    page.locator(f'//li[contains(text(), "{public_group.name}")]').first.click()
+    page.keyboard.press("Escape")
 
-    sources_new_spectra = driver.wait_for_xpath('//*[@name="sources_new_spectra"]')
-    driver.scroll_to_element_and_click(sources_new_spectra)
-
-    driver.wait_for_xpath(
-        '//*[@name="sources_new_spectra"]/../../span[contains(@class,"Mui-checked")]'
-    )
-
-    groups = driver.wait_for_xpath("//*[@id='groups-select']")
-    driver.scroll_to_element_and_click(groups)
-
-    driver.click_xpath(
-        f'//li[contains(text(), "{public_group.name}")]',
-        scroll_parent=True,
-    )
-
-    driver.click_xpath(
+    page.locator(
         '//*[@data-testid="addShortcutButton" and contains(., "Update")]'
-    )
+    ).first.click()
 
-    # Add spectrum to public_source
     status, data = api(
         "POST",
         "spectrum",
@@ -414,54 +337,36 @@ def test_new_spectra_on_source_triggers_notification(
     assert status == 200
     assert data["status"] == "success"
 
-    # Check that notification was created
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
-    driver.wait_for_xpath("//span[text()='1']")
-    driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[contains(text(), "New spectrum for source")]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
+    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
+    expect(
+        page.locator('//*[contains(text(), "New spectrum for source")]').first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=1)
-def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+def test_new_gcn_event_triggers_notification(page, user, super_admin_token):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
 
-    # Enable notifications for sources when a specific classification is added
-    gcn_events = driver.wait_for_xpath('//*[@name="gcn_events"]')
-    driver.scroll_to_element_and_click(gcn_events)
+    _enable_switch(page, "gcn_events")
 
-    driver.wait_for_xpath(
-        '//*[@name="gcn_events"]/../../span[contains(@class,"Mui-checked")]'
-    )
+    page.locator('//*[@id="new-gcn-notification-profile"]').first.click()
 
-    new_notif_profile = '//*[@id="new-gcn-notification-profile"]'
-    driver.wait_for_xpath(new_notif_profile)
-    driver.click_xpath(new_notif_profile)
+    page.locator('//*[@id="GcnNotificationNameInput"]').first.fill("test")
 
-    gcn_events_name = driver.wait_for_xpath('//*[@id="GcnNotificationNameInput"]')
-    gcn_events_name.send_keys("test")
+    page.locator('//*[@aria-labelledby="selectGcns"]').first.click()
+    page.locator('//li[@data-value="FERMI_GBM_GND_POS"]').first.click()
+    page.keyboard.press("Escape")
 
-    gcn_events_notice_types = driver.wait_for_xpath(
-        '//*[@aria-labelledby="selectGcns"]'
-    )
-    driver.scroll_to_element_and_click(gcn_events_notice_types)
-
-    driver.click_xpath(
-        '//li[@data-value="FERMI_GBM_GND_POS"]',
-    )
-
-    # we close the dropdown list
-    element = driver.switch_to.active_element
-    element.send_keys(Keys.ESCAPE)
-
-    create = '//*[@data-testid="addShortcutButton" and contains(., "Create")]'
-    driver.execute_script(
-        "arguments[0].scrollIntoView(true);", driver.wait_for_xpath(create)
-    )
-    driver.click_xpath(create)
-
-    driver.wait_for_xpath('//*[contains(text(), "Gcn notice preferences updated")]')
+    page.locator(
+        '//*[@data-testid="addShortcutButton" and contains(., "Create")]'
+    ).first.click()
+    expect(
+        page.locator('//*[contains(text(), "Gcn notice preferences updated")]').first
+    ).to_be_visible()
 
     datafile = f"{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
     with open(datafile, "rb") as fid:
@@ -472,130 +377,103 @@ def test_new_gcn_event_triggers_notification(driver, user, super_admin_token):
     assert status == 200
     assert data["status"] == "success"
 
-    # Check that notification was created
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
-    driver.wait_for_xpath("//span[text()='1']")
-    driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[contains(text(), "New GCN Event")]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
+    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
+    expect(page.locator('//*[contains(text(), "New GCN Event")]').first).to_be_visible()
 
 
-def test_notification_setting_select(driver, user):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+def test_notification_setting_select(page, user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
 
-    # Enable notifications for new mentions
-    mention = driver.wait_for_xpath('//*[@name="mention"]')
-    driver.scroll_to_element_and_click(mention)
+    _enable_switch(page, "mention")
 
-    driver.wait_for_xpath(
-        '//*[@name="mention"]/../../span[contains(@class,"Mui-checked")]'
-    )
+    page.locator('//*[@name="notification_settings_button_mention"]').first.click()
 
-    mention_settings = driver.wait_for_xpath(
-        '//*[@name="notification_settings_button_mention"]'
-    )
-    driver.scroll_to_element_and_click(mention_settings)
+    def _enable_setting(name):
+        page.locator(
+            f'//*[@name="{name}" and contains(@class, "MuiSwitch-input")]'
+        ).first.click()
+        expect(
+            page.locator(
+                f'//*[@name="{name}" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+            ).first
+        ).to_be_visible()
 
-    email_setting = driver.wait_for_xpath(
-        '//*[@name="email" and contains(@class, "MuiSwitch-input")]'
-    )
-    driver.scroll_to_element_and_click(email_setting)
+    _enable_setting("email")
+    _enable_setting("slack")
+    # sms toggle reveals further sms options
+    page.locator('//*[@name="sms"]').first.click()
+    expect(
+        page.locator(
+            '//*[@name="sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+        ).first
+    ).to_be_visible()
+    _enable_setting("on_shift_sms")
+    _enable_setting("time_slot_sms")
 
-    driver.wait_for_xpath(
-        '//*[@name="email" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-    )
+    expect(
+        page.locator('//*[@aria-label="time_slot_slider" and @value="8"]').first
+    ).to_be_visible()
+    expect(
+        page.locator('//*[@aria-label="time_slot_slider" and @value="20"]').first
+    ).to_be_visible()
 
-    # same for slack
-    slack_setting = driver.wait_for_xpath(
-        '//*[@name="slack" and contains(@class, "MuiSwitch-input")]'
-    )
-    driver.scroll_to_element_and_click(slack_setting)
-    driver.wait_for_xpath(
-        '//*[@name="slack" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-    )
+    # Move the start slider 8H -> 3H. Range inputs respond reliably to arrow
+    # keys (drag-and-drop on a slider thumb is flaky), so focus and step down.
+    slider = page.locator(
+        '//*[@aria-label="time_slot_slider" and @data-index="0"]'
+    ).first
+    slider.focus()
+    for _ in range(5):
+        slider.press("ArrowLeft")
 
-    # same for sms
-    sms_setting = driver.wait_for_xpath('//*[@name="sms"]')
-    driver.scroll_to_element_and_click(sms_setting)
-    driver.wait_for_xpath(
-        '//*[@name="sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-    )
-
-    # sms settings appeared, so we can test them
-    sms_on_shift_setting = driver.wait_for_xpath(
-        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]'
-    )
-    driver.scroll_to_element_and_click(sms_on_shift_setting)
-    driver.wait_for_xpath(
-        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-    )
-
-    sms_time_slot_setting = driver.wait_for_xpath(
-        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]'
-    )
-    driver.scroll_to_element_and_click(sms_time_slot_setting)
-    driver.wait_for_xpath(
-        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-    )
-
-    driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="8"]')
-    driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="20"]')
-    start_time_slot = driver.find_elements(
-        By.XPATH, '//*[@aria-label="time_slot_slider" and @value="8"]'
-    )
-    start_time_slot_move_to = driver.find_elements(By.XPATH, '//*[@data-index="3"]')
-
-    ActionChains(driver).drag_and_drop(
-        start_time_slot[0], start_time_slot_move_to[0]
-    ).perform()
-
-    driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="3"]')
+    expect(
+        page.locator('//*[@aria-label="time_slot_slider" and @value="3"]').first
+    ).to_be_visible()
 
     # test inverting the timeslot
-    time_slot_invert = driver.wait_for_xpath(
+    page.locator(
         '//*[@label="Invert" and contains(@class, "MuiCheckbox-root")]'
-    )
-    driver.scroll_to_element_and_click(time_slot_invert)
-
-    driver.wait_for_xpath('//*[@label="Invert" and contains(@class,"Mui-checked")]')
-
-    driver.wait_for_xpath(
-        '//*[contains(@class, "MuiSlider-root") and contains(@class, "MuiSlider-trackInverted")]'
-    )
+    ).first.click()
+    expect(
+        page.locator('//*[@label="Invert" and contains(@class,"Mui-checked")]').first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            '//*[contains(@class, "MuiSlider-root") and contains(@class, "MuiSlider-trackInverted")]'
+        ).first
+    ).to_be_visible()
 
     # reload profile to see if the settings were saved
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
 
-    driver.wait_for_xpath(
-        '//*[@name="mention"]/../../span[contains(@class,"Mui-checked")]'
-    )
+    expect(
+        page.locator(
+            '//*[@name="mention"]/../../span[contains(@class,"Mui-checked")]'
+        ).first
+    ).to_be_visible()
 
-    mention_settings = driver.wait_for_xpath(
-        '//*[@name="notification_settings_button_mention"]'
-    )
-    driver.scroll_to_element_and_click(mention_settings)
+    page.locator('//*[@name="notification_settings_button_mention"]').first.click()
 
-    driver.wait_for_xpath(
-        '//*[@name="email" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-    )
-    driver.wait_for_xpath(
-        '//*[@name="slack" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-    )
-    driver.wait_for_xpath(
-        '//*[@name="sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-    )
-    driver.wait_for_xpath(
-        '//*[@name="on_shift_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-    )
-    driver.wait_for_xpath(
-        '//*[@name="time_slot_sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-    )
+    for name in ("email", "slack", "sms", "on_shift_sms", "time_slot_sms"):
+        expect(
+            page.locator(
+                f'//*[@name="{name}" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
+            ).first
+        ).to_be_visible()
 
-    driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="3"]')
-    driver.wait_for_xpath('//*[@aria-label="time_slot_slider" and @value="20"]')
-
-    driver.wait_for_xpath(
-        '//*[contains(@class, "MuiSlider-root") and contains(@class, "MuiSlider-trackInverted")]'
-    )
+    expect(
+        page.locator('//*[@aria-label="time_slot_slider" and @value="3"]').first
+    ).to_be_visible()
+    expect(
+        page.locator('//*[@aria-label="time_slot_slider" and @value="20"]').first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            '//*[contains(@class, "MuiSlider-root") and contains(@class, "MuiSlider-trackInverted")]'
+        ).first
+    ).to_be_visible()

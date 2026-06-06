@@ -1,6 +1,9 @@
+from playwright.sync_api import expect
+
+
 def test_db_stats_page_render(
-    driver, super_admin_user, public_group, public_source, public_candidate
+    page, super_admin_user, public_group, public_source, public_candidate
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/db_stats")
-    driver.wait_for_xpath('//*[text()="Number of candidates"]')
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/db_stats")
+    expect(page.locator('//*[text()="Number of candidates"]').first).to_be_visible()

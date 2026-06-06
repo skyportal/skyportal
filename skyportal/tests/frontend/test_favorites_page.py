@@ -1,53 +1,59 @@
 import uuid
 
 import pytest
+from playwright.sync_api import expect
 
 from skyportal.model_util import create_token
 from skyportal.tests import api
 
 
 @pytest.mark.flaky(reruns=3)
-def test_add_remove_favorites(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")
+def test_add_remove_favorites(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
 
     # go to source page, wait until it finishes loading
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
-    # make sure an empty favorites button appears, then click it!
-    driver.click_xpath(f'//*[@data-testid="favorites-exclude_{public_source.id}"]')
+    # click the empty favorites button
+    page.locator(
+        f'//*[@data-testid="favorites-exclude_{public_source.id}"]'
+    ).first.click()
 
-    # make sure a filled favorites button appears (include) that means it was added successfully
-    driver.wait_for_xpath(f'//*[@data-testid="favorites-include_{public_source.id}"]')
+    # a filled favorites button means it was added successfully
+    expect(
+        page.locator(f'//*[@data-testid="favorites-include_{public_source.id}"]').first
+    ).to_be_visible()
 
     # go to the favorite page
-    driver.get("/favorites")
+    page.goto("/favorites")
 
-    # find the name of the newly added source
-    driver.wait_for_xpath(f"//a[contains(@href, '/source/{public_source.id}')]")
-
-    driver.wait_for_xpath(
-        f"//*[contains(@data-testid, 'favorites-include_{public_source.id}')]",
-        timeout=30,
-    )
+    expect(
+        page.locator(f"//a[contains(@href, '/source/{public_source.id}')]").first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"//*[contains(@data-testid, 'favorites-include_{public_source.id}')]"
+        ).first
+    ).to_be_visible(timeout=30000)
 
     # click to un-save the source as favorite
-    driver.click_xpath(
-        f'//*[@data-testid="favorites-include_{public_source.id}"]',
-    )
+    page.locator(
+        f'//*[@data-testid="favorites-include_{public_source.id}"]'
+    ).first.click()
 
-    driver.wait_for_xpath(
-        '//*[contains(text(), "No sources have been saved as favorites.")]'
-    )
+    expect(
+        page.locator(
+            '//*[contains(text(), "No sources have been saved as favorites.")]'
+        ).first
+    ).to_be_visible()
 
 
-def test_add_favorites_from_api(driver, super_admin_user, public_group):
+def test_add_favorites_from_api(page, super_admin_user, public_group):
     token_id = create_token(
         ACLs=["Upload data"], user_id=super_admin_user.id, name=str(uuid.uuid4())
     )
-
     obj_id = str(uuid.uuid4())
 
-    # upload a new source, saved to the public group
     status, data = api(
         "POST",
         "sources",
@@ -76,45 +82,36 @@ def test_add_favorites_from_api(driver, super_admin_user, public_group):
         },
         token=token_id,
     )
-
     assert status == 200
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/group_sources/{public_group.id}")
 
-    # go to the group sources page
-    driver.get(f"/group_sources/{public_group.id}")
+    page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
+    page.locator("//input[@name='sourceID']").first.fill(obj_id)
+    page.locator("//button[text()='Submit']").first.click()
 
-    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-    driver.click_xpath("//input[@name='sourceID']")
-    driver.wait_for_xpath("//input[@name='sourceID']").send_keys(obj_id)
-
-    driver.click_xpath(
-        "//button[text()='Submit']",
-        scroll_parent=True,
-    )
-    # find the name of the newly added source
-    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
+    expect(
+        page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
+    ).to_be_visible()
 
     # click the filled star to un-save this source
-    driver.click_xpath(f'//*[@data-testid="favorites-include_{obj_id}"]')
+    page.locator(f'//*[@data-testid="favorites-include_{obj_id}"]').first.click()
 
-    # back to the favorite table
-    driver.get("/favorites")
+    page.goto("/favorites")
+    expect(
+        page.locator(
+            '//*[contains(text(), "No sources have been saved as favorites.")]'
+        ).first
+    ).to_be_visible()
 
-    # make sure there are no saved sources now
-    driver.wait_for_xpath(
-        '//*[contains(text(), "No sources have been saved as favorites.")]'
-    )
 
-
-def test_remove_favorites_from_api(driver, super_admin_user, public_group):
+def test_remove_favorites_from_api(page, super_admin_user, public_group):
     token_id = create_token(
         ACLs=["Upload data"], user_id=super_admin_user.id, name=str(uuid.uuid4())
     )
-
     obj_id = str(uuid.uuid4())
 
-    # upload a new source, saved to the public group
     status, data = api(
         "POST",
         "sources",
@@ -143,31 +140,22 @@ def test_remove_favorites_from_api(driver, super_admin_user, public_group):
         },
         token=token_id,
     )
-
     assert status == 200
     listing_id = data["data"]["id"]
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/favorites")
 
-    # go to the favorite page
-    driver.get("/favorites")
+    expect(
+        page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
+    ).to_be_visible(timeout=20000)
 
-    # find the name of the newly added source
-    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]", timeout=20)
-
-    # remove this listing via API
-    status, data = api(
-        "DELETE",
-        f"listing/{listing_id}",
-        token=token_id,
-    )
-
+    status, data = api("DELETE", f"listing/{listing_id}", token=token_id)
     assert status == 200
 
-    # refresh the page to see the source is gone
-    driver.get("/favorites")
-
-    # make sure there are no saved sources now
-    driver.wait_for_xpath(
-        '//*[contains(text(), "No sources have been saved as favorites.")]'
-    )
+    page.goto("/favorites")
+    expect(
+        page.locator(
+            '//*[contains(text(), "No sources have been saved as favorites.")]'
+        ).first
+    ).to_be_visible()

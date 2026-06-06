@@ -1,9 +1,11 @@
 import uuid
 
+from playwright.sync_api import expect
 
-def test_bulk_invite_users(driver, super_admin_user, public_group, public_stream):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
+
+def test_bulk_invite_users(page, super_admin_user, public_group, public_stream):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
 
     user1_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
     user2_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
@@ -12,128 +14,127 @@ def test_bulk_invite_users(driver, super_admin_user, public_group, public_stream
 {user2_email},{public_stream.id},{public_group.id},false
     """
 
-    textarea = driver.wait_for_xpath("//textarea[@name='bulkInviteCSVInput']")
-    driver.scroll_to_element_and_click(textarea)
-    textarea.send_keys(csv)
-
-    driver.click_xpath("//*[@data-testid='bulkAddUsersButton']")
+    page.locator("//textarea[@name='bulkInviteCSVInput']").first.fill(csv)
+    page.locator("//*[@data-testid='bulkAddUsersButton']").first.click()
 
     # Check that the users show up in pending invitations
-    driver.wait_for_xpath(
-        f"//*[@data-testid='pendingInvitations']//*[text()='{user1_email}']", timeout=15
-    )
-    driver.wait_for_xpath(
-        f"//*[@data-testid='pendingInvitations']//*[text()='{user2_email}']", timeout=15
-    )
+    expect(
+        page.locator(
+            f"//*[@data-testid='pendingInvitations']//*[text()='{user1_email}']"
+        ).first
+    ).to_be_visible(timeout=15000)
+    expect(
+        page.locator(
+            f"//*[@data-testid='pendingInvitations']//*[text()='{user2_email}']"
+        ).first
+    ).to_be_visible(timeout=15000)
 
 
-def test_invite_single_user(driver, super_admin_user, public_group, public_stream):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/group/{public_group.id}")
-
-    user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
-
-    textarea = driver.wait_for_xpath("//*[@data-testid='newUserEmail']//input")
-    driver.scroll_to_element_and_click(textarea)
-    textarea.send_keys(user_email)
-
-    driver.click_xpath("//*[@data-testid='inviteNewUserButton']")
-    driver.click_xpath("//*[@data-testid='confirmNewUserButton']")
-
-    driver.wait_for_xpath(f"//*[text()='Invitation successfully sent to {user_email}']")
-
-
-def test_delete_invitation(driver, super_admin_user, public_group, public_stream):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
+def test_invite_single_user(page, super_admin_user, public_group, public_stream):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/group/{public_group.id}")
 
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
 
+    page.locator("//*[@data-testid='newUserEmail']//input").first.fill(user_email)
+    page.locator("//*[@data-testid='inviteNewUserButton']").first.click()
+    page.locator("//*[@data-testid='confirmNewUserButton']").first.click()
+
+    expect(
+        page.locator(
+            f"//*[text()='Invitation successfully sent to {user_email}']"
+        ).first
+    ).to_be_visible()
+
+
+def test_delete_invitation(page, super_admin_user, public_group, public_stream):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+
+    user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
     csv = f"{user_email},{public_stream.id},{public_group.id},false"
 
-    textarea = driver.wait_for_xpath("//textarea[@name='bulkInviteCSVInput']")
-    driver.scroll_to_element_and_click(textarea)
-    textarea.send_keys(csv)
+    page.locator("//textarea[@name='bulkInviteCSVInput']").first.fill(csv)
+    page.locator("//*[@data-testid='bulkAddUsersButton']").first.click()
 
-    driver.click_xpath("//*[@data-testid='bulkAddUsersButton']")
+    expect(
+        page.locator(
+            f"//*[@data-testid='pendingInvitations']//*[text()='{user_email}']"
+        ).first
+    ).to_be_visible()
 
-    # Check that the users show up in pending invitations
-    driver.wait_for_xpath(
-        f"//*[@data-testid='pendingInvitations']//*[text()='{user_email}']"
-    )
+    page.locator(f"//*[@data-testid='deleteInvitation_{user_email}']").first.click()
+    page.locator("//*[@data-testid='confirmDeletetionButton']").first.click()
 
-    # Try deleting
-    driver.click_xpath(f"//*[@data-testid='deleteInvitation_{user_email}']")
-
-    # it opens a confirmation dialog, we need to confirm
-    driver.wait_for_xpath("//*[@data-testid='confirmDeletetionButton']")
-    driver.click_xpath("//*[@data-testid='confirmDeletetionButton']")
-
-    driver.wait_for_xpath_to_disappear(
-        f"//*[@data-testid='pendingInvitations']//*[text()='{user_email}']"
-    )
+    expect(
+        page.locator(
+            f"//*[@data-testid='pendingInvitations']//*[text()='{user_email}']"
+        ).first
+    ).to_be_hidden()
 
 
 def test_add_invitation_stream(
-    driver, super_admin_user, public_group, public_stream, public_stream2
+    page, super_admin_user, public_group, public_stream, public_stream2
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
 
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
-
     csv = f"{user_email},{public_stream.id},{public_group.id},false"
 
-    textarea = driver.wait_for_xpath("//textarea[@name='bulkInviteCSVInput']")
-    driver.scroll_to_element_and_click(textarea)
-    textarea.send_keys(csv)
+    page.locator("//textarea[@name='bulkInviteCSVInput']").first.fill(csv)
+    page.locator("//*[@data-testid='bulkAddUsersButton']").first.click()
 
-    driver.click_xpath("//*[@data-testid='bulkAddUsersButton']")
+    expect(
+        page.locator(
+            f"//*[@data-testid='pendingInvitations']//*[text()='{user_email}']"
+        ).first
+    ).to_be_visible()
 
-    # Check that the users show up in pending invitations
-    driver.wait_for_xpath(
-        f"//*[@data-testid='pendingInvitations']//*[text()='{user_email}']"
-    )
-
-    # Try adding a stream
-    driver.click_xpath(f"//*[@data-testid='addInvitationStreamsButton{user_email}']")
-    driver.click_xpath("//*[@data-testid='addInvitationStreamsSelect']")
-    driver.click_xpath(f"//*[text()='{public_stream2.name}']")
-    driver.click_xpath("//*[@data-testid='submitAddInvitationStreamsButton']")
-    driver.wait_for_xpath(
-        f"//*[@data-testid='pendingInvitations']//*[text()='{public_stream2.name}']"
-    )
+    page.locator(
+        f"//*[@data-testid='addInvitationStreamsButton{user_email}']"
+    ).first.click()
+    page.locator("//*[@data-testid='addInvitationStreamsSelect']").first.click()
+    page.locator(f"//*[text()='{public_stream2.name}']").first.click()
+    page.locator("//*[@data-testid='submitAddInvitationStreamsButton']").first.click()
+    expect(
+        page.locator(
+            f"//*[@data-testid='pendingInvitations']//*[text()='{public_stream2.name}']"
+        ).first
+    ).to_be_visible()
 
 
 def test_edit_invitation_role(
-    driver, super_admin_user, public_group, public_stream, public_stream2
+    page, super_admin_user, public_group, public_stream, public_stream2
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/user_management")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
 
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
-
     csv = f"{user_email},{public_stream.id},{public_group.id},false"
 
-    textarea = driver.wait_for_xpath("//textarea[@name='bulkInviteCSVInput']")
-    driver.scroll_to_element_and_click(textarea)
-    textarea.send_keys(csv)
+    page.locator("//textarea[@name='bulkInviteCSVInput']").first.fill(csv)
+    page.locator("//*[@data-testid='bulkAddUsersButton']").first.click()
 
-    driver.click_xpath("//*[@data-testid='bulkAddUsersButton']")
+    expect(
+        page.locator(
+            f"//*[@data-testid='pendingInvitations']//*[text()='{user_email}']"
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            "//*[@data-testid='pendingInvitations']//*[text()='Full user']"
+        ).first
+    ).to_be_visible()
 
-    # Check that the users show up in pending invitations
-    driver.wait_for_xpath(
-        f"//*[@data-testid='pendingInvitations']//*[text()='{user_email}']"
-    )
-    driver.wait_for_xpath(
-        "//*[@data-testid='pendingInvitations']//*[text()='Full user']"
-    )
-
-    # Edit role
-    driver.click_xpath(f"//*[@data-testid='editInvitationRoleButton{user_email}']")
-    driver.click_xpath("//*[@data-testid='invitationRoleSelect']")
-    driver.click_xpath("//*[text()='View only']")
-    driver.click_xpath("//*[@data-testid='submitEditRoleButton']")
-    driver.wait_for_xpath(
-        "//*[@data-testid='pendingInvitations']//*[text()='View only']"
-    )
+    page.locator(
+        f"//*[@data-testid='editInvitationRoleButton{user_email}']"
+    ).first.click()
+    page.locator("//*[@data-testid='invitationRoleSelect']").first.click()
+    page.locator("//*[text()='View only']").first.click()
+    page.locator("//*[@data-testid='submitEditRoleButton']").first.click()
+    expect(
+        page.locator(
+            "//*[@data-testid='pendingInvitations']//*[text()='View only']"
+        ).first
+    ).to_be_visible()

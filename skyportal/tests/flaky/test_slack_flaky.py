@@ -1,36 +1,30 @@
 import pytest
-from selenium.webdriver import ActionChains
-from selenium.webdriver.common.keys import Keys
+from playwright.sync_api import expect
 
 
 @pytest.mark.flaky(reruns=2)
-def test_slack_url(driver, user):
+def test_slack_url(page, user):
     good_path = "https://hooks.slack.com/"
     bad_path = "http://garbage.url"
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
-    slack_toggle = driver.wait_for_xpath('//*[@data-testid="slack_toggle"]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
+    slack_toggle = page.locator('//*[@data-testid="slack_toggle"]').first
+    expect(slack_toggle).to_be_visible()
 
-    if not slack_toggle.is_selected():
+    if not slack_toggle.is_checked():
         slack_toggle.click()
 
-    driver.wait_for_xpath('//*[@data-testid="slack_url"]')
-    url_path = driver.wait_for_xpath('//input[@name="url"]')
-    url_path.clear()
-    url_path.send_keys(bad_path, Keys.ENTER)
+    expect(page.locator('//*[@data-testid="slack_url"]').first).to_be_visible()
 
-    # Click somewhere outside to remove focus from the URL entry
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
+    # bad URL -> validation error appears
+    page.locator('//input[@name="url"]').first.fill(bad_path)
+    page.locator('//input[@name="url"]').first.press("Enter")
+    page.locator("//header").first.click()  # blur the field
+    expect(page.locator('//*[text()="Must be a Slack URL"]').first).to_be_visible()
 
-    # since we added a bad URL, check for the error message
-    driver.wait_for_xpath('//*[text()="Must be a Slack URL"]')
-
-    # now add a good path and make sure the error goes away
-    url_path = driver.wait_for_xpath('//input[@name="url"]')
-    url_path.clear()
-    url_path.send_keys(good_path, Keys.ENTER)
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
-    driver.wait_for_xpath_to_disappear('//*[text()="Must be a Slack URL"]')
+    # good URL -> error goes away
+    page.locator('//input[@name="url"]').first.fill(good_path)
+    page.locator('//input[@name="url"]').first.press("Enter")
+    page.locator("//header").first.click()
+    expect(page.locator('//*[text()="Must be a Slack URL"]').first).to_be_hidden()

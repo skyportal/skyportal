@@ -2,41 +2,34 @@ import uuid
 
 import numpy as np
 import pytest
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver import ActionChains
+from playwright.sync_api import expect
 
 
 @pytest.mark.flaky(reruns=2)
-def test_new_source(driver, user, super_admin_token, view_only_token, public_group):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/sources")
+def test_new_source(page, user, super_admin_token, view_only_token, public_group):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/sources")
 
-    driver.wait_for_xpath('//button[@name="new_source"]')
-    driver.click_xpath('//button[@name="new_source"]')
+    page.locator('//button[@name="new_source"]').first.click()
 
     source_name = uuid.uuid4().hex
-    driver.click_xpath("//div[@id='selectGroups']", scroll_parent=True)
-    driver.click_xpath(
-        f'//div[@data-testid="group_{public_group.id}"]',
-        scroll_parent=True,
-    )
+    page.locator("//div[@id='selectGroups']").first.click()
+    page.locator(f'//div[@data-testid="group_{public_group.id}"]').first.click()
 
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
+    # Dismiss the open group-select dropdown
+    page.keyboard.press("Escape")
 
     # test add sources form
-    driver.wait_for_xpath('//*[@id="root_id"]').send_keys(source_name)
-    driver.wait_for_xpath('//*[@id="root_ra"]').send_keys(np.random.uniform(0, 360))
-    driver.wait_for_xpath('//*[@id="root_dec"]').send_keys(np.random.uniform(-90, 90))
+    page.locator('//*[@id="root_id"]').first.fill(source_name)
+    page.locator('//*[@id="root_ra"]').first.fill(str(np.random.uniform(0, 360)))
+    page.locator('//*[@id="root_dec"]').first.fill(str(np.random.uniform(-90, 90)))
 
-    submit_button_xpath = '//button[@type="submit"]'
-    driver.wait_for_xpath(submit_button_xpath)
-    driver.click_xpath(submit_button_xpath)
+    page.locator('//button[@type="submit"]').first.click()
 
     try:
-        driver.wait_for_xpath('//*[text()="Source saved"]')
-    except TimeoutException:
+        expect(page.locator('//*[text()="Source saved"]').first).to_be_visible()
+    except AssertionError:
         pass
 
-    driver.get("/")
-    driver.wait_for_xpath(f'//*[text()="{source_name}"]')
+    page.goto("/")
+    expect(page.locator(f'//*[text()="{source_name}"]').first).to_be_visible()

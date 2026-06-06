@@ -5,10 +5,17 @@ from datetime import date, datetime, timedelta
 
 import numpy as np
 import pytest
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
+from playwright.sync_api import expect
 
 from skyportal.tests import api
+
+
+def _retype(locator, value):
+    """Clear a (possibly pre-filled, controlled) input and type a new value."""
+    locator.click()
+    locator.press("ControlOrMeta+a")
+    locator.press("Delete")
+    locator.press_sequentially(value)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -20,7 +27,7 @@ def test_shift(
     view_only_user,
     shift_admin,
     shift_user,
-    driver,
+    page,
 ):
     name = str(uuid.uuid4())
     start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
@@ -38,233 +45,148 @@ def test_shift(
     assert status == 200
     assert data["status"] == "success"
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/shifts/{data['data']['id']}")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/shifts/{data['data']['id']}")
 
-    # check that the shift has been created and is visible in the calendar
-    driver.wait_for_xpath(
-        f'//*/p[contains(.,"{name}")]',
-        timeout=30,
+    expect(page.locator(f'//*/p[contains(.,"{name}")]').first).to_be_visible(
+        timeout=30000
     )
 
     today_button = '//button[contains(.,"Today")]'
-    driver.wait_for_xpath(today_button, timeout=10).click()
+    page.locator(today_button).first.click()
 
-    driver.click_xpath(
-        '//*/button[@name="add_shift_button"]',
-    )
+    page.locator('//*/button[@name="add_shift_button"]').first.click()
 
     form_name = str(uuid.uuid4())
     start_date = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     end_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
 
-    driver.wait_for_xpath('//*[@id="root_name"]').send_keys(form_name)
-    driver.click_xpath('//*[@id="root_group_id"]')
-    driver.wait_for_xpath('//li[contains(text(), "Sitewide Group")]')
-    driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
-    driver.wait_for_xpath('//*[@id="root_required_users_number"]').send_keys("5")
-    # first empty the start date field
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.COMMAND + "a")
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.CONTROL + "a")
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.DELETE)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(start_date)
+    page.locator('//*[@id="root_name"]').first.fill(form_name)
+    page.locator('//*[@id="root_group_id"]').first.click()
+    page.locator('//li[contains(text(), "Sitewide Group")]').first.click()
+    page.locator('//*[@id="root_required_users_number"]').first.fill("5")
+    _retype(page.locator('//*[@id="root_start_date"]').first, start_date)
+    _retype(page.locator('//*[@id="root_end_date"]').first, end_date)
 
-    # first empty the end date field
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.COMMAND + "a")
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.CONTROL + "a")
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.DELETE)
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(end_date)
+    page.locator('//button[@type="submit"]').first.click()
 
-    submit_button_xpath = '//button[@type="submit"]'
-    driver.wait_for_xpath(submit_button_xpath)
-    driver.click_xpath(submit_button_xpath)
-
-    driver.scroll_to_element_and_click(driver.wait_for_xpath(today_button, timeout=10))
-
-    # scroll to the top of the page
-    driver.execute_script("window.scrollTo(0, 0);")
+    page.locator(today_button).first.click()
 
     # check for shift in calendar and click it
-    driver.wait_for_xpath(
-        f'//*[@data-testid="event_shift_name" and contains(text(), "{form_name}")]/..',
-        timeout=30,
-    ).click()
+    page.locator(
+        f'//*[@data-testid="event_shift_name" and contains(text(), "{form_name}")]/..'
+    ).first.click()
 
     # add a comment to the shift
-    driver.wait_for_xpath('//*[@id="root_comment"]').send_keys("This is a comment")
-    driver.click_xpath('//button[@type="submitComment"]')
+    page.locator('//*[@id="root_comment"]').first.fill("This is a comment")
+    page.locator('//button[@type="submitComment"]').first.click()
 
-    driver.wait_for_xpath('//*[contains(text(), "This is a comment")]')
-    assert (
-        len(
-            driver.find_elements(By.XPATH, '//*[contains(text(), "This is a comment")]')
-        )
-        == 1
-    )
+    expect(page.locator('//*[contains(text(), "This is a comment")]')).to_have_count(1)
 
     # delete the comment from the shift
-    driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[@id="comment"]'))
-    driver.click_xpath('//*[contains(@name, "deleteCommentButton")]')
+    page.locator('//*[@id="comment"]').first.click()
+    page.locator('//*[contains(@name, "deleteCommentButton")]').first.click()
 
-    driver.wait_for_xpath_to_disappear('//*[contains(text(), "This is a comment")]')
+    expect(page.locator('//*[contains(text(), "This is a comment")]')).to_have_count(0)
 
-    # check if comment has been successfully deleted
-    assert (
-        len(
-            driver.find_elements(By.XPATH, '//*[contains(text(), "This is a comment")]')
-        )
-        == 0
-    )
-
-    # xpath for the button to add and remove users as shift members
     remove_members_button_xpath = '//*[@id="remove-members-button"]'
     add_members_button_xpath = '//*[@id="add-members-button"]'
 
-    # check that add button is disabled because no user has been selected yet
-    button = driver.wait_for_xpath(add_members_button_xpath)
-    assert button.get_attribute("disabled"), "The add button should be disabled"
+    # add button disabled because no user selected yet
+    expect(page.locator(add_members_button_xpath).first).to_be_disabled()
 
-    # check for the dropdown to add a user as a shift member
     select_members = '//*[@aria-labelledby="select-members-label"]'
-    driver.wait_for_xpath(select_members)
-    driver.click_xpath(select_members)
-    driver.wait_for_xpath(f'//li[@id="select-members"]/*[@id="{user.id}"]')
-    driver.click_xpath(
-        f'//li[@id="select-members"]/*[@id="{user.id}"]', scroll_parent=True
-    )
+    page.locator(select_members).first.click()
+    page.locator(f'//li[@id="select-members"]/*[@id="{user.id}"]').first.click()
+    page.keyboard.press("Escape")  # close the multi-select so buttons are clickable
 
-    # check that remove button is disabled because no added user has been selected yet
-    button = driver.wait_for_xpath(remove_members_button_xpath)
-    assert button.get_attribute("disabled"), "The remove button should be disabled"
+    # remove button disabled because no added user selected yet
+    expect(page.locator(remove_members_button_xpath).first).to_be_disabled()
 
-    # check for button to add users
-    driver.wait_for_xpath(add_members_button_xpath)
-    driver.click_xpath(add_members_button_xpath)
+    page.locator(add_members_button_xpath).first.click()
+    expect(
+        page.locator(f'//*[@data-testid="shift-member-chip-{user.id}"]').first
+    ).to_be_visible()
 
-    # check if user has been added
-    driver.wait_for_xpath(f'//*[@data-testid="shift-member-chip-{user.id}"]')
+    page.locator(select_members).first.click()
+    page.locator(f'//li[@id="select-members"]/*[@id="{user.id}"]').first.click()
+    page.locator(
+        f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]'
+    ).first.click()
+    page.keyboard.press("Escape")
 
-    # check for the dropdown to remove the user as a shift member and add another user
-    driver.wait_for_xpath(select_members)
-    driver.click_xpath(select_members)
-    driver.wait_for_xpath(f'//li[@id="select-members"]/*[@id="{user.id}"]')
-    driver.click_xpath(
-        f'//li[@id="select-members"]/*[@id="{user.id}"]', scroll_parent=True
-    )
-    driver.wait_for_xpath(f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]')
-    driver.click_xpath(f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]')
+    page.locator(add_members_button_xpath).first.click()
+    page.locator(remove_members_button_xpath).first.click()
 
-    # check for button to add and remove users as shift members
-    driver.wait_for_xpath(add_members_button_xpath)
-    driver.click_xpath(add_members_button_xpath)
-    driver.wait_for_xpath(remove_members_button_xpath)
-    driver.click_xpath(remove_members_button_xpath)
+    expect(
+        page.locator(f'//*[@data-testid="shift-member-chip-{user.id}"]').first
+    ).to_be_hidden()
+    expect(
+        page.locator(f'//*[@data-testid="shift-member-chip-{view_only_user.id}"]').first
+    ).to_be_visible()
 
-    # check if user has been added and other user has been removed
-    driver.wait_for_xpath_to_disappear(
-        f'//*[@data-testid="shift-member-chip-{user.id}"]'
-    )
-    driver.wait_for_xpath(f'//*[@data-testid="shift-member-chip-{view_only_user.id}"]')
+    page.locator(select_members).first.click()
+    page.locator(
+        f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]'
+    ).first.click()
+    page.keyboard.press("Escape")
 
-    # check for the dropdown to remove users
-    driver.wait_for_xpath(select_members)
-    driver.click_xpath(select_members)
-    driver.wait_for_xpath(f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]')
-    driver.click_xpath(
-        f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]', scroll_parent=True
-    )
+    expect(page.locator(add_members_button_xpath).first).to_be_disabled()
 
-    # check that add button is disabled because no more user has been selected
-    button = driver.wait_for_xpath(add_members_button_xpath)
-    assert button.get_attribute("disabled"), "The add button should be disabled"
+    page.locator(remove_members_button_xpath).first.click()
 
-    # check for button to remove users
-    driver.wait_for_xpath(remove_members_button_xpath)
-    driver.click_xpath(remove_members_button_xpath)
+    expect(
+        page.locator(f'//*[@data-testid="shift-member-chip-{view_only_user.id}"]').first
+    ).to_be_visible()
 
-    # check if user has been removed
-    driver.wait_for_xpath(f'//*[@data-testid="shift-member-chip-{view_only_user.id}"]')
-
-    # check for leave shift button
     leave_button_xpath = '//*[@id="leave_button"]'
-    driver.wait_for_xpath(leave_button_xpath)
-    driver.click_xpath(leave_button_xpath)
+    page.locator(leave_button_xpath).first.click()
+    expect(page.locator(leave_button_xpath).first).to_be_hidden()
 
-    driver.wait_for_xpath_to_disappear(leave_button_xpath)
-
-    # check for join shift button
     join_button_xpath = '//*[@id="join_button"]'
-    driver.wait_for_xpath(join_button_xpath)
-    driver.click_xpath(join_button_xpath)
+    page.locator(join_button_xpath).first.click()
+    expect(page.locator(join_button_xpath).first).to_be_hidden()
 
-    driver.wait_for_xpath_to_disappear(join_button_xpath)
-    # check for delete shift button
+    page.goto(f"/become_user/{shift_user.id}")
+    page.goto("/shifts")
 
-    driver.get(f"/become_user/{shift_user.id}")
-
-    driver.get("/shifts")
-
-    # check the option to show all shifts
-    driver.wait_for_xpath(
-        '//*[contains(., "Show All Shifts")]/../span[contains(@class, "MuiSwitch-root")]',
-        timeout=30,
-    ).click()
-
-    # scroll to the top of the page
-    driver.execute_script("window.scrollTo(0, 0);")
-    time.sleep(1)
+    page.locator(
+        '//*[contains(., "Show All Shifts")]/../span[contains(@class, "MuiSwitch-root")]'
+    ).first.click()
 
     shift_on_calendar = (
         f'//*[@data-testid="event_shift_name" and contains(text(), "{name}")]/..'
     )
-    element = driver.wait_for_xpath(shift_on_calendar, timeout=30)
-    element.click()
+    page.locator(shift_on_calendar).first.click()
 
-    # check for join shift button
-    join_button_xpath = '//*[@id="join_button"]'
-    driver.wait_for_xpath(join_button_xpath)
-    driver.click_xpath(join_button_xpath)
+    page.locator(join_button_xpath).first.click()
+    expect(page.locator(join_button_xpath).first).to_be_hidden()
 
-    driver.wait_for_xpath_to_disappear(join_button_xpath)
+    expect(
+        page.locator(f'//*[@data-testid="shift-member-chip-{shift_user.id}"]').first
+    ).to_be_visible()
 
-    # check if user has been added
-    driver.wait_for_xpath(f'//*[@data-testid="shift-member-chip-{shift_user.id}"]')
-
-    # check for button to ask for replacement
     ask_for_replacement_button_xpath = '//*[@id="ask-for-replacement-button"]'
-    driver.wait_for_xpath(ask_for_replacement_button_xpath)
-    driver.click_xpath(ask_for_replacement_button_xpath)
-
-    driver.wait_for_xpath_to_disappear(ask_for_replacement_button_xpath)
+    page.locator(ask_for_replacement_button_xpath).first.click()
+    expect(page.locator(ask_for_replacement_button_xpath).first).to_be_hidden()
 
     # change to another user
-    driver.get(f"/become_user/{shift_admin.id}")
+    page.goto(f"/become_user/{shift_admin.id}")
+    page.goto("/")
 
-    driver.get("/")
-
-    # look for the replacement request notification
-    notification_bell = '//*[@data-testid="notificationsBadge"]'
-    driver.wait_for_xpath(notification_bell)
-    driver.click_xpath(notification_bell)
+    page.locator('//*[@data-testid="notificationsBadge"]').first.click()
 
     notification_xpath = (
         f'//ul/div/a/p[contains(text(),"needs a replacement for shift: {name}")]'
     )
-    driver.wait_for_xpath(notification_xpath)
-    driver.click_xpath(notification_xpath, timeout=10)
+    page.locator(notification_xpath).first.click()
 
-    driver.wait_for_xpath(
-        '//*[contains(., "Show All Shifts")]/../span[contains(@class, "MuiSwitch-root")]',
-        timeout=30,
-    ).click()
+    page.locator(
+        '//*[contains(., "Show All Shifts")]/../span[contains(@class, "MuiSwitch-root")]'
+    ).first.click()
 
-    # check for API shift
-    driver.wait_for_xpath(
-        shift_on_calendar,
-        timeout=30,
-    )
-
-    driver.click_xpath(shift_on_calendar)
+    expect(page.locator(shift_on_calendar).first).to_be_visible(timeout=30000)
+    page.locator(shift_on_calendar).first.click()
 
 
 def test_shift_summary(
@@ -274,17 +196,14 @@ def test_shift_summary(
     upload_data_token,
     view_only_token,
     ztf_camera,
-    driver,
+    page,
 ):
-    # add a shift to the group, with a start day one day before today, and an end day one day after today
     shift_name_1 = str(uuid.uuid4())
-    start_date = "2018-01-15T12:00:00"
-    end_date = "2018-01-17T12:00:00"
     request_data = {
         "name": shift_name_1,
         "group_id": public_group.id,
-        "start_date": start_date,
-        "end_date": end_date,
+        "start_date": "2018-01-15T12:00:00",
+        "end_date": "2018-01-17T12:00:00",
         "description": "Shift during GCN",
         "shift_admins": [super_admin_user.id],
     }
@@ -292,7 +211,6 @@ def test_shift_summary(
     status, data = api("POST", "shifts", data=request_data, token=super_admin_token)
     assert status == 200
     assert data["status"] == "success"
-
     shift_id = data["data"]["id"]
 
     status, data = api(
@@ -307,9 +225,7 @@ def test_shift_summary(
     assert status == 200
     assert data["status"] == "success"
 
-    # try to get the event first to see if it's already in the DB
     status, data = api("GET", "gcn_event/2018-01-16T00:36:53", token=super_admin_token)
-
     if status == 404:
         datafile = (
             f"{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
@@ -322,7 +238,6 @@ def test_shift_summary(
         assert status == 200
         assert data["status"] == "success"
 
-        # wait for event to load
         for n_times in range(26):
             status, data = api(
                 "GET", "gcn_event/2018-01-16T00:36:53", token=super_admin_token
@@ -335,7 +250,6 @@ def test_shift_summary(
         assert status == 200
         assert data["status"] == "success"
 
-    # wait for the localization to load
     skymap = "214.74000_28.14000_11.19000"
     params = {"include2DMap": True}
     for n_times_2 in range(26):
@@ -345,27 +259,20 @@ def test_shift_summary(
             token=super_admin_token,
             params=params,
         )
-
         if data["status"] == "success":
             data = data["data"]
             assert data["dateobs"] == "2018-01-16T00:36:53"
             assert data["localization_name"] == "214.74000_28.14000_11.19000"
             assert np.isclose(np.sum(data["flat_2d"]), 1)
             break
-        else:
-            time.sleep(2)
+        time.sleep(2)
     assert n_times_2 < 25
 
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
         "sources",
-        data={
-            "id": obj_id,
-            "ra": 229.9620403,
-            "dec": 34.8442757,
-            "redshift": 3,
-        },
+        data={"id": obj_id, "ra": 229.9620403, "dec": 34.8442757, "redshift": 3},
         token=upload_data_token,
     )
     assert status == 200
@@ -394,33 +301,17 @@ def test_shift_summary(
     status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
     assert status == 200
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-    # go to the shift page
-    driver.get(f"/shifts/{shift_id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/shifts/{shift_id}")
 
-    driver.wait_for_xpath(
-        '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]',
-        timeout=30,
-    )
+    expect(
+        page.locator(
+            '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]'
+        ).first
+    ).to_be_visible(timeout=30000)
 
-    item_list = driver.wait_for_xpath(
-        '//*[@id="gcn_list_item_2018-01-16T00:36:53"]', timeout=30
-    )
+    page.locator('//*[@id="gcn_list_item_2018-01-16T00:36:53"]').first.click()
 
-    # scroll to the element and click it
-    # sometimes the element moves out of the view, so we try a few times
-    n_retries = 0
-    while n_retries < 5:
-        try:
-            driver.scroll_to_element_and_click(item_list)
-        except Exception:
-            time.sleep(1)
-            n_retries += 1
-            continue
-        break
-
-    assert (
-        n_retries < 5
-    )  # failed to click on the GCN event to open it (to see the list of sources)
-
-    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]", timeout=30)
+    expect(
+        page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
+    ).to_be_visible(timeout=30000)

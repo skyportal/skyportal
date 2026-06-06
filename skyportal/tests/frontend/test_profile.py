@@ -3,161 +3,137 @@ import uuid
 
 import numpy as np
 import pytest
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
+from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
 from skyportal.tests import api
 
 
-def test_token_acls_options_rendering1(driver, user):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+def test_token_acls_options_rendering1(page, user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
     for i in range(6):
-        driver.wait_for_xpath(f'//*[@data-testid="acls[{i}]"]')
-    driver.wait_for_xpath_to_disappear('//*[@data-testid="acls[6]"]')
+        expect(page.locator(f'//*[@data-testid="acls[{i}]"]').first).to_be_visible()
+    expect(page.locator('//*[@data-testid="acls[6]"]').first).to_be_hidden()
 
 
-def test_token_acls_options_rendering2(driver, super_admin_user):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get("/profile")
+def test_token_acls_options_rendering2(page, super_admin_user):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/profile")
     for i in range(6):
-        driver.wait_for_xpath(f'//*[@data-testid="acls[{i}]"]')
+        expect(page.locator(f'//*[@data-testid="acls[{i}]"]').first).to_be_visible()
 
 
-def test_add_and_see_realname_in_user_profile(driver, user):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
-    # give it enough time to load the current profile
-    time.sleep(2)
+def test_add_and_see_realname_in_user_profile(page, user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
+    time.sleep(2)  # give it enough time to load the current profile
 
-    first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
     first_name = str(uuid.uuid4())
-    first_name_entry.send_keys(first_name)
-    last_name_entry = driver.wait_for_xpath('//input[@name="lastName"]')
+    page.locator('//input[@name="firstName"]').first.fill(first_name)
     last_name = str(uuid.uuid4())
-    last_name_entry.send_keys(last_name)
+    page.locator('//input[@name="lastName"]').first.fill(last_name)
 
-    driver.scroll_to_element_and_click(
-        driver.find_element(By.XPATH, '//*[@id="updateProfileButton"]')
-    )
+    page.locator('//*[@id="updateProfileButton"]').first.click()
 
-    # now that we added the name, let's see if it's displayed correctly
-    driver.wait_for_xpath(
-        '//*[@id="userRealname"][contains(@style, "visibility: visible")]'
-    )
+    expect(
+        page.locator(
+            '//*[@id="userRealname"][contains(@style, "visibility: visible")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//*[@id="userRealname"][contains(text(), "{first_name}") and contains(text(), "{last_name}")]'
+        ).first
+    ).to_be_visible()
 
-    driver.wait_for_xpath(
-        f'//*[@id="userRealname"][contains(text(), "{first_name}") and contains(text(), "{last_name}")]'
-    )
 
-
-def test_add_and_see_affiliations_in_user_profile(driver, user):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
-
-    # give some time to load the current profile
+def test_add_and_see_affiliations_in_user_profile(page, user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
     time.sleep(1)
 
-    affiliations_entry = driver.wait_for_xpath('//input[@name="affiliations"]')
-    driver.scroll_to_element_and_click(affiliations_entry)
+    affiliations_entry = page.locator('//input[@name="affiliations"]').first
     affiliation_1 = str(uuid.uuid4())
-    affiliations_entry.send_keys(affiliation_1)
-    affiliations_entry.send_keys(Keys.ENTER)
-
+    affiliations_entry.fill(affiliation_1)
+    affiliations_entry.press("Enter")
     affiliation_2 = str(uuid.uuid4())
-    affiliations_entry.send_keys(affiliation_2)
-    affiliations_entry.send_keys(Keys.ENTER)
+    affiliations_entry.fill(affiliation_2)
+    affiliations_entry.press("Enter")
 
-    driver.scroll_to_element_and_click(
-        driver.find_element(By.XPATH, '//*[@id="updateProfileButton"]')
-    )
+    page.locator('//*[@id="updateProfileButton"]').first.click()
 
-    # now that we added the affiliations, let's see if they are displayed correctly
-    driver.wait_for_xpath(
-        '//*[@id="userAffiliations"][contains(@style, "visibility: visible")]'
-    )
-    driver.wait_for_xpath(
-        f'//*[@id="userAffiliations"]/em[contains(text(), "{affiliation_1}") and contains(text(), "{affiliation_2}")]'
-    )
+    expect(
+        page.locator(
+            '//*[@id="userAffiliations"][contains(@style, "visibility: visible")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//*[@id="userAffiliations"]/em[contains(text(), "{affiliation_1}") and contains(text(), "{affiliation_2}")]'
+        ).first
+    ).to_be_visible()
 
 
-def test_add_data_to_user_profile(driver, user):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
-
-    # give some time to load the current profile
+def test_add_data_to_user_profile(page, user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
     time.sleep(1)
 
-    first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
-    driver.scroll_to_element_and_click(first_name_entry)
     first_name = str(uuid.uuid4())
-    first_name_entry.send_keys(first_name)
-    last_name_entry = driver.wait_for_xpath('//input[@name="lastName"]')
-    driver.scroll_to_element_and_click(last_name_entry)
+    page.locator('//input[@name="firstName"]').first.fill(first_name)
     last_name = str(uuid.uuid4())
-    last_name_entry.send_keys(last_name)
+    page.locator('//input[@name="lastName"]').first.fill(last_name)
 
-    affiliations_entry = driver.wait_for_xpath('//input[@name="affiliations"]')
-    driver.scroll_to_element_and_click(affiliations_entry)
+    affiliations_entry = page.locator('//input[@name="affiliations"]').first
     affiliation = str(uuid.uuid4())
-    affiliations_entry.send_keys(affiliation)
-    affiliations_entry.send_keys(Keys.ENTER)
+    affiliations_entry.fill(affiliation)
+    affiliations_entry.press("Enter")
 
-    email_entry = driver.wait_for_xpath('//input[@name="email"]')
-    driver.scroll_to_element_and_click(email_entry)
     email = f"{str(uuid.uuid4())[:5]}@hotmail.com"
-    email_entry.clear()
-    email_entry.send_keys(email)
+    page.locator('//input[@name="email"]').first.fill(email)
 
-    phone_entry = driver.wait_for_xpath('//input[@name="phone"]')
     phone = "+12128675309"
-    driver.scroll_to_element_and_click(phone_entry)
-    phone_entry.send_keys(phone)
+    page.locator('//input[@name="phone"]').first.fill(phone)
 
-    driver.scroll_to_element_and_click(
-        driver.find_element(By.XPATH, '//*[@id="updateProfileButton"]')
+    page.locator('//*[@id="updateProfileButton"]').first.click()
+
+
+@pytest.mark.flaky(reruns=2)
+def test_insufficient_name_entry_in_profile(page, user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
+    time.sleep(1)
+
+    page.locator('//input[@name="firstName"]').first.fill("")
+    last_name = str(uuid.uuid4())
+    page.locator('//input[@name="lastName"]').first.fill(last_name)
+
+    page.locator('//*[@id="updateProfileButton"]').first.click()
+
+    expect(page.locator('//p[@id="firstName_id-helper-text"]').first).to_have_text(
+        "Required"
     )
 
 
 @pytest.mark.flaky(reruns=2)
-def test_insufficient_name_entry_in_profile(driver, user):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+def test_profile_dropdown(page, user):
+    test_add_data_to_user_profile(page, user)
 
-    # give some time to load the current profile
-    time.sleep(1)
+    page.locator("//span[contains(@data-testid, 'avatar')]").first.click()
 
-    first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
-    driver.scroll_to_element_and_click(first_name_entry)
-    first_name_entry.clear()
-    last_name_entry = driver.wait_for_xpath('//input[@name="lastName"]')
-    last_name = str(uuid.uuid4())
-    driver.scroll_to_element_and_click(last_name_entry)
-    last_name_entry.send_keys(last_name)
-
-    driver.click_xpath('//*[@id="updateProfileButton"]')
-
-    helper = driver.wait_for_xpath('//p[@id="firstName_id-helper-text"]')
-    assert helper.text == "Required"
+    expect(
+        page.locator("//p[contains(@data-testid, 'firstLastName')]").first
+    ).to_be_visible()
+    expect(
+        page.locator("//p[contains(@data-testid, 'username')]").first
+    ).to_be_visible()
+    expect(
+        page.locator("//a[contains(@data-testid, 'signOutButton')]").first
+    ).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=2)
-def test_profile_dropdown(driver, user):
-    test_add_data_to_user_profile(driver, user)
-
-    # click on profile dropdown
-    avatar_element = driver.wait_for_xpath("//span[contains(@data-testid, 'avatar')]")
-    driver.scroll_to_element_and_click(avatar_element)
-
-    # check dropdown contents
-    driver.wait_for_xpath("//p[contains(@data-testid, 'firstLastName')]")
-    driver.wait_for_xpath("//p[contains(@data-testid, 'username')]")
-    driver.wait_for_xpath("//a[contains(@data-testid, 'signOutButton')]")
-
-
-def add_classification_shortcut(driver, user, public_group, taxonomy_token):
+def add_classification_shortcut(page, user, public_group, taxonomy_token):
     status, _ = api(
         "POST",
         "taxonomy",
@@ -172,61 +148,52 @@ def add_classification_shortcut(driver, user, public_group, taxonomy_token):
         token=taxonomy_token,
     )
     assert status == 200
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
+    time.sleep(2)  # let the profile load and the taxonomies hydrate
 
-    # let the profile load and the taxonomies hydrate
-    time.sleep(2)
-
-    classifications_entry = driver.wait_for_xpath('//div[@id="classifications-select"]')
-    driver.scroll_to_element_and_click(classifications_entry)
-    agn_option = driver.wait_for_xpath('//li[@data-value="AGN"]')
-    driver.scroll_to_element_and_click(agn_option)
-    driver.wait_for_xpath('//span[contains(text(), "AGN")]')
-    am_cvn_option = driver.wait_for_xpath('//li[@data-value="AM CVn"]')
-    driver.scroll_to_element_and_click(am_cvn_option)
-    driver.wait_for_xpath('//span[contains(text(), "AM CVn")]')
-    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+    page.locator('//div[@id="classifications-select"]').first.click()
+    page.locator('//li[@data-value="AGN"]').first.click()
+    expect(page.locator('//span[contains(text(), "AGN")]').first).to_be_visible()
+    page.locator('//li[@data-value="AM CVn"]').first.click()
+    expect(page.locator('//span[contains(text(), "AM CVn")]').first).to_be_visible()
+    page.keyboard.press("Escape")
 
     shortcut_name = str(uuid.uuid4())
-    shortcut_name_entry = driver.wait_for_xpath('//input[@name="shortcutName"]')
-    driver.scroll_to_element_and_click(shortcut_name_entry)
-    shortcut_name_entry.send_keys(shortcut_name)
+    page.locator('//input[@name="shortcutName"]').first.fill(shortcut_name)
 
-    add_shortcut_button = driver.wait_for_xpath(
-        '//button[@data-testid="addShortcutButton"]'
-    )
-    driver.scroll_to_element_and_click(add_shortcut_button)
-
-    driver.wait_for_xpath(f'//span[contains(text(), "{shortcut_name}")]')
+    page.locator('//button[@data-testid="addShortcutButton"]').first.click()
+    expect(
+        page.locator(f'//span[contains(text(), "{shortcut_name}")]').first
+    ).to_be_visible()
     return shortcut_name
 
 
 @pytest.mark.flaky(reruns=2)
-def test_classification_shortcut(driver, user, public_group, taxonomy_token):
+def test_classification_shortcut(page, user, public_group, taxonomy_token):
     shortcut_name = add_classification_shortcut(
-        driver, user, public_group, taxonomy_token
+        page, user, public_group, taxonomy_token
     )
-    driver.get("/candidates")
-    shortcut_button = driver.wait_for_xpath(f'//button[@data-testid="{shortcut_name}"]')
-    driver.scroll_to_element_and_click(shortcut_button)
-    driver.wait_for_xpath('//span[contains(text(), "AGN")]')
-    driver.wait_for_xpath('//span[contains(text(), "AM CVn")]')
+    page.goto("/candidates")
+    page.locator(f'//button[@data-testid="{shortcut_name}"]').first.click()
+    expect(page.locator('//span[contains(text(), "AGN")]').first).to_be_visible()
+    expect(page.locator('//span[contains(text(), "AM CVn")]').first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_delete_classification_shortcut(driver, user, public_group, taxonomy_token):
+def test_delete_classification_shortcut(page, user, public_group, taxonomy_token):
     shortcut_name = add_classification_shortcut(
-        driver, user, public_group, taxonomy_token
+        page, user, public_group, taxonomy_token
     )
-    delete_icon = driver.wait_for_xpath('//*[contains(@class,"MuiChip-deleteIcon")]')
-    driver.scroll_to_element_and_click(delete_icon)
-    driver.wait_for_xpath_to_disappear(f'//span[contains(text(), "{shortcut_name}")]')
+    page.locator('//*[contains(@class,"MuiChip-deleteIcon")]').first.click()
+    expect(
+        page.locator(f'//span[contains(text(), "{shortcut_name}")]').first
+    ).to_be_hidden()
 
 
 @pytest.mark.skip(reason="Filtering on the origin has been disabled temporarily")
 def test_set_automatically_visible_photometry(
-    driver, user, upload_data_token, public_source, ztf_camera, public_group
+    page, user, upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
         "POST",
@@ -251,30 +218,21 @@ def test_set_automatically_visible_photometry(
 
     assert status == 200
     assert data["status"] == "success"
-    ids = data["data"]["ids"]
-    assert len(ids) == 3
+    assert len(data["data"]["ids"]) == 3
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
-    filter_select = driver.wait_for_xpath(
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
+    page.locator(
         '//div[@id="filterSelectAutomaticallyVisiblePhotometry"]'
-    )
-    driver.scroll_to_element_and_click(filter_select)
-    massh_option = driver.wait_for_xpath('//li[@data-value="2massh"]')
-    driver.scroll_to_element_and_click(massh_option)
-    # remove focus from open select menu
-    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
+    ).first.click()
+    page.locator('//li[@data-value="2massh"]').first.click()
+    page.keyboard.press("Escape")
 
-    origin_select = driver.wait_for_xpath(
+    page.locator(
         '//div[@id="originSelectAutomaticallyVisiblePhotometry"]'
-    )
-    driver.scroll_to_element_and_click(origin_select)
-    muphoten_option = driver.wait_for_xpath('//li[@data-value="Muphoten"]')
-    muphoten_option.location_once_scrolled_into_view
-    muphoten_option.click()
-    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+    ).first.click()
+    page.locator('//li[@data-value="Muphoten"]').first.click()
+    page.keyboard.press("Escape")
 
     status, data = api("GET", "internal/profile", token=upload_data_token)
     assert status == 200
@@ -284,7 +242,7 @@ def test_set_automatically_visible_photometry(
 
 @pytest.mark.skip(reason="Filtering on the origin has been disabled temporarily")
 def test_photometry_buttons_form(
-    driver, user, upload_data_token, public_source, ztf_camera, public_group
+    page, user, upload_data_token, public_source, ztf_camera, public_group
 ):
     status, data = api(
         "POST",
@@ -309,43 +267,27 @@ def test_photometry_buttons_form(
 
     assert status == 200
     assert data["status"] == "success"
-    ids = data["data"]["ids"]
-    assert len(ids) == 3
+    assert len(data["data"]["ids"]) == 3
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
-    filter_select = driver.wait_for_xpath(
-        '//div[@id="filterSelectPhotometryButtonsForm"]'
-    )
-    driver.scroll_to_element_and_click(filter_select)
-    massh_option = driver.wait_for_xpath('//li[@data-value="2massh"]')
-    driver.scroll_to_element_and_click(massh_option)
-    # remove focus from open select menu
-    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
+    page.locator('//div[@id="filterSelectPhotometryButtonsForm"]').first.click()
+    page.locator('//li[@data-value="2massh"]').first.click()
+    page.keyboard.press("Escape")
 
-    origin_select = driver.wait_for_xpath(
-        '//div[@id="originSelectPhotometryButtonsForm"]'
-    )
-    driver.scroll_to_element_and_click(origin_select)
-    muphoten_option = driver.wait_for_xpath('//li[@data-value="Muphoten"]')
-    muphoten_option.location_once_scrolled_into_view
-    muphoten_option.click()
-    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+    page.locator('//div[@id="originSelectPhotometryButtonsForm"]').first.click()
+    page.locator('//li[@data-value="Muphoten"]').first.click()
+    page.keyboard.press("Escape")
 
     photometry_button_name = str(uuid.uuid4())
-    photometry_button_name_entry = driver.wait_for_xpath(
-        '//input[@name="photometryButtonName"]'
+    page.locator('//input[@name="photometryButtonName"]').first.fill(
+        photometry_button_name
     )
-    driver.scroll_to_element_and_click(photometry_button_name_entry)
-    photometry_button_name_entry.send_keys(photometry_button_name)
 
-    add_photometry_button_button = driver.wait_for_xpath(
-        '//button[@id="addPhotometryButtonButton"]'
-    )
-    driver.scroll_to_element_and_click(add_photometry_button_button)
-    driver.wait_for_xpath(f'//span[contains(text(), "{photometry_button_name}")]')
+    page.locator('//button[@id="addPhotometryButtonButton"]').first.click()
+    expect(
+        page.locator(f'//span[contains(text(), "{photometry_button_name}")]').first
+    ).to_be_visible()
 
     status, data = api("GET", "internal/profile", token=upload_data_token)
     assert status == 200

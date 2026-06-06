@@ -4,8 +4,7 @@ import uuid
 
 import pytest
 import requests
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
+from playwright.sync_api import expect
 
 from baselayer.app.config import load_config
 from skyportal.tests import api
@@ -24,55 +23,36 @@ else:
     tach_isonline = True
 
 
-def get_summary(driver, user, group, showSources, showGalaxies, showObservations):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/gcn_events/2019-08-14T21:10:39")
+def get_summary(page, user, group, showSources, showGalaxies, showObservations):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/gcn_events/2019-08-14T21:10:39")
 
-    summary_button = driver.wait_for_xpath_to_be_clickable(
-        '//button[@name="gcn_summary"]'
-    )
-    driver.scroll_to_element_and_click(summary_button)
+    page.locator('//button[@name="gcn_summary"]').first.click()
 
-    group_select = '//*[@aria-labelledby="group-select"]'
-    driver.wait_for_xpath(group_select)
-    driver.click_xpath(group_select)
-    group_select_option = f'//li[contains(., "{group.name}")]'
-    driver.wait_for_xpath(group_select_option)
-    driver.click_xpath(group_select_option)
+    page.locator('//*[@aria-labelledby="group-select"]').first.click()
+    page.locator(f'//li[contains(., "{group.name}")]').first.click()
 
     if showSources is True:
-        show_sources = '//*[@label="Show Sources"]'
-        driver.wait_for_xpath(show_sources)
-        driver.click_xpath(show_sources)
+        page.locator('//*[@label="Show Sources"]').first.click()
     if showGalaxies is True:
-        show_galaxies = '//*[@label="Show Galaxies"]'
-        driver.wait_for_xpath(show_galaxies)
-        driver.click_xpath(show_galaxies)
+        page.locator('//*[@label="Show Galaxies"]').first.click()
     if showObservations is True:
-        show_observations = '//*[@label="Show Observations"]'
-        driver.wait_for_xpath(show_observations)
-        driver.click_xpath(show_observations)
+        page.locator('//*[@label="Show Observations"]').first.click()
 
-    get_summary_button = '//button[contains(.,"Get Summary")]'
-    element = driver.wait_for_xpath(get_summary_button)
-    element.send_keys(Keys.END)
-    driver.click_xpath(get_summary_button)
+    page.locator('//button[contains(.,"Get Summary")]').first.click()
 
-    text_area = '//textarea[@id="text"]'
-    driver.wait_for_xpath(text_area, timeout=60)
-    driver.wait_for_xpath('//textarea[contains(.,"TITLE: GCN SUMMARY")]', 60)
+    expect(page.locator('//textarea[@id="text"]').first).to_be_visible(timeout=60000)
+    expect(
+        page.locator('//textarea[contains(.,"TITLE: GCN SUMMARY")]').first
+    ).to_be_visible(timeout=60000)
 
-    download_button = '//button[contains(.,"Download")]'
-    driver.click_xpath(download_button)
+    with page.expect_download():
+        page.locator('//button[contains(.,"Download")]').first.click()
 
 
 @pytest.mark.flaky(reruns=3)
 @pytest.mark.skipif(not tach_isonline, reason="GCN TACH is not online")
-def test_gcn_tach(
-    driver,
-    super_admin_user,
-    super_admin_token,
-):
+def test_gcn_tach(page, super_admin_user, super_admin_token):
     datafile = f"{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
@@ -80,7 +60,6 @@ def test_gcn_tach(
 
     dateobs = "2018-01-16T00:36:53"
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-
     if status == 404:
         status, data = api(
             "POST", "gcn_event", data=event_data, token=super_admin_token
@@ -88,7 +67,6 @@ def test_gcn_tach(
         assert status == 200
         assert data["status"] == "success"
 
-    # wait for event to load
     for n_times in range(26):
         status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
         if data["status"] == "success":
@@ -96,27 +74,24 @@ def test_gcn_tach(
         time.sleep(2)
     assert n_times < 25
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/gcn_events/{dateobs}")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/gcn_events/{dateobs}")
 
-    right_panel_button = '//*[@data-testid="right-panel-button"]'
-    driver.wait_for_xpath(right_panel_button)
-    driver.click_xpath(right_panel_button)
+    page.locator('//*[@data-testid="right-panel-button"]').first.click()
 
-    update_aliases = driver.wait_for_xpath(
-        '//*[@data-testid="update-aliases"]', timeout=30
+    page.locator('//*[@data-testid="update-aliases"]').first.click()
+    expect(page.locator('//*[contains(., "GRB180116A")]').first).to_be_visible(
+        timeout=60000
     )
-    driver.scroll_to_element_and_click(update_aliases, scroll_parent=True)
-    driver.wait_for_xpath('//*[contains(., "GRB180116A")]', timeout=60)
-    assert (
-        len(driver.find_elements(By.XPATH, '//*[@name="gcn_triggers-aliases"]/*')) == 4
-    )
+    expect(page.locator('//*[@name="gcn_triggers-aliases"]/*')).to_have_count(4)
 
-    driver.wait_for_xpath('//a[contains(text(), "GRB 180116A: Fermi GBM Detection")]')
+    expect(
+        page.locator('//a[contains(text(), "GRB 180116A: Fermi GBM Detection")]').first
+    ).to_be_visible()
 
 
 def test_gcn_allocation_triggers(
-    driver,
+    page,
     public_group,
     super_admin_user,
     super_admin_token,
@@ -129,7 +104,6 @@ def test_gcn_allocation_triggers(
 
     dateobs = "2018-01-16T00:36:53"
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-
     if status == 404:
         status, data = api(
             "POST", "gcn_event", data=event_data, token=super_admin_token
@@ -216,44 +190,46 @@ def test_gcn_allocation_triggers(
     assert data["status"] == "success"
 
     # go to the page of the event
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/gcn_events/{dateobs}")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/gcn_events/{dateobs}")
 
     # find the trigger for the allocation
     chip_not_set = f'//div[@id="{instrument_name}_not_set"]'
-    driver.wait_for_xpath(chip_not_set)
-    assert len(driver.find_elements(By.XPATH, chip_not_set)) == 1
-    driver.click_xpath(chip_not_set)
+    expect(page.locator(chip_not_set)).to_have_count(1)
+    page.locator(chip_not_set).first.click()
 
     # check that the allocation trigger is not set
-    current_state = f'//div[@id="{allocation_id}_current"]/span[contains(., "Not set")]'
-    driver.wait_for_xpath(current_state)
+    expect(
+        page.locator(
+            f'//div[@id="{allocation_id}_current"]/span[contains(., "Not set")]'
+        ).first
+    ).to_be_visible()
 
     trigger_state = (
         f'//div[@id="{allocation_id}_triggered"]/span[contains(., "Triggered")]'
     )
-    driver.wait_for_xpath(trigger_state)
-    driver.click_xpath(trigger_state)
+    page.locator(trigger_state).first.click()
 
     # check that the allocation trigger is triggered
     chip_triggered = f'//div[@id="{instrument_name}_triggered"]'
-    driver.wait_for_xpath(chip_triggered)
-    driver.click_xpath(chip_triggered)
+    page.locator(chip_triggered).first.click()
 
-    new_current_state = (
-        f'//div[@id="{allocation_id}_current"]/span[contains(., "Triggered")]'
-    )
-    driver.wait_for_xpath(new_current_state)
+    expect(
+        page.locator(
+            f'//div[@id="{allocation_id}_current"]/span[contains(., "Triggered")]'
+        ).first
+    ).to_be_visible()
 
     # now switch to view only user
-    driver.get(f"/become_user/{view_only_user.id}")
-    driver.get(f"/gcn_events/{dateobs}")
+    page.goto(f"/become_user/{view_only_user.id}")
+    page.goto(f"/gcn_events/{dateobs}")
 
-    driver.wait_for_xpath(chip_triggered)
-    assert len(driver.find_elements(By.XPATH, chip_triggered)) == 1
-    driver.click_xpath(chip_triggered)
+    expect(page.locator(chip_triggered)).to_have_count(1)
+    page.locator(chip_triggered).first.click()
 
     # we should see an error message
-    driver.wait_for_xpath(
-        '//*[text()="You do not have permission to edit this GCN event allocation triggers"]'
-    )
+    expect(
+        page.locator(
+            '//*[text()="You do not have permission to edit this GCN event allocation triggers"]'
+        ).first
+    ).to_be_visible()

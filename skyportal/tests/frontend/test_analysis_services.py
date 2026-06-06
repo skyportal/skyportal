@@ -1,62 +1,45 @@
-import time
 import uuid
 
 import pytest
+from playwright.sync_api import expect
 
 
 @pytest.mark.flaky(reruns=2)
 def test_analysis_service_frontend(
-    super_admin_token, super_admin_user, analysis_service_token, view_only_user, driver
+    super_admin_token, super_admin_user, analysis_service_token, view_only_user, page
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
     # go to the analysis services page
-    driver.get("/services")
+    page.goto("/services")
 
     # add dropdown analysis
     analysis_name = str(uuid.uuid4())
     display_name = str(uuid.uuid4())
 
-    add_button = driver.wait_for_xpath('//button[@name="new_analysis_service"]')
-    add_button.click()
+    page.locator('//button[@name="new_analysis_service"]').first.click()
 
-    driver.wait_for_xpath('//*[@id="root_name"]').send_keys(analysis_name)
-    driver.wait_for_xpath('//*[@id="root_display_name"]').send_keys(display_name)
-    driver.wait_for_xpath('//*[@id="root_url"]').send_keys(
+    page.locator('//*[@id="root_name"]').first.fill(analysis_name)
+    page.locator('//*[@id="root_display_name"]').first.fill(display_name)
+    page.locator('//*[@id="root_url"]').first.fill(
         f"http://localhost:5000/analysis/{analysis_name}"
     )
 
-    n_retries = 0
-    while n_retries < 10:
-        try:
-            submit_button = driver.wait_for_xpath('//button[@type="submit"]')
-            # scroll down the MUI dialog to make the submit button clickable
-            driver.execute_script("arguments[0].scrollIntoView();", submit_button)
-            submit_button.click()
-            break
-        except Exception:
-            n_retries += 1
-            time.sleep(1)
-            continue
-
-    if n_retries == 10:
-        raise Exception("Failed to click submit button")
+    # Playwright auto-scrolls and retries actionability, so a single click is
+    # enough (no manual scrollIntoView / sleep-retry loop needed).
+    page.locator('//button[@type="submit"]').first.click()
 
     # check for analysis service
-    driver.wait_for_xpath(
-        f'//*[@role="gridcell"][contains(.,"{display_name}")]', timeout=20
-    )
+    expect(
+        page.locator(f'//*[@role="gridcell"][contains(.,"{display_name}")]').first
+    ).to_be_visible(timeout=20000)
 
     # check for user who can only view
-    driver.get(f"/become_user/{view_only_user.id}")
-
-    # go to the analysis services page
-    driver.get("/services")
-
-    # check for analysis service
-    driver.wait_for_xpath(
-        f'//*[@role="gridcell"][contains(.,"{display_name}")]', timeout=20
-    )
+    page.goto(f"/become_user/{view_only_user.id}")
+    page.goto("/services")
+    expect(
+        page.locator(f'//*[@role="gridcell"][contains(.,"{display_name}")]').first
+    ).to_be_visible(timeout=20000)
 
     # confirm that no submission without permission
-    driver.wait_for_xpath_to_disappear('//button[@name="new_analysis_service"]')
+    expect(page.locator('//button[@name="new_analysis_service"]')).to_have_count(0)
