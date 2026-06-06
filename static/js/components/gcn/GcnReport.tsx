@@ -368,7 +368,7 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
                       onChange={(e) => setLocalizationName(e.target.value)}
                       name="gcnReportLocalizationSelect"
                     >
-                      {gcnEvent.localizations?.map((localization: any) => (
+                      {gcnEvent?.localizations?.map((localization: any) => (
                         <MenuItem
                           value={localization?.localization_name}
                           key={localization?.localization_name}

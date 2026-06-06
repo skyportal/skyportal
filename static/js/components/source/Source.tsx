@@ -288,8 +288,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
   if (spectra) {
     spectra.forEach((spec: any) => {
       spec.annotations.forEach((annotation: any) => {
-        annotation.spectrum_observed_at = spec.observed_at;
-        spectrumAnnotations.push(annotation);
+        // `annotation` is frozen RTK Query cache data — build a new object with
+        // the extra field rather than mutating it (`Object is not extensible`).
+        spectrumAnnotations.push({
+          ...annotation,
+          spectrum_observed_at: spec.observed_at,
+        });
       });
     });
   }

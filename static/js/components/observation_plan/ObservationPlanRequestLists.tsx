@@ -120,7 +120,7 @@ const ObservationPlanRequestLists = ({
 
   useEffect(() => {
     const getLocalizations = async () => {
-      setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+      setSelectedLocalizationId(gcnEvent?.localizations?.[0]?.id);
     };
     getLocalizations();
     // Don't want to reset everytime the component rerenders and

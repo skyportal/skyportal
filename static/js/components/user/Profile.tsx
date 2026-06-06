@@ -30,7 +30,7 @@ const Profile = () => {
       &nbsp;
       <br />
       <div>
-        <TokenList tokens={(profile as any).tokens} />
+        <TokenList tokens={(profile as any)?.tokens} />
       </div>
     </div>
   );

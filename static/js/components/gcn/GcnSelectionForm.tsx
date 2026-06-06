@@ -202,7 +202,11 @@ const GcnEventSourcesPage = ({
         /* eslint-disable no-await-in-loop */
         try {
           const result = (await fetchSourcesTrigger(data).unwrap()) as any;
-          sourceAll.push(...result.sources);
+          // RTK Query returns frozen objects; copy them so we can attach the
+          // `gcn` status below without mutating read-only data.
+          sourceAll.push(
+            ...result.sources.map((source: any) => ({ ...source })),
+          );
           setDownloadProgressCurrent(sourceAll.length);
           setDownloadProgressTotal(sourcesState.totalMatches);
         } catch {

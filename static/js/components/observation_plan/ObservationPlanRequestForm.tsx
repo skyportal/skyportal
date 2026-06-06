@@ -365,7 +365,7 @@ const ObservationPlanRequestForm = ({
       );
       setSelectedAllocationId(sortedAllocationListApiObsplan[0]?.["id"]);
       setSelectedGroupIds([sortedAllocationListApiObsplan[0]?.["group_id"]]);
-      setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+      setSelectedLocalizationId(gcnEvent?.localizations?.[0]?.id);
     }
 
     // Don't want to reset everytime the component rerenders and
@@ -459,7 +459,7 @@ const ObservationPlanRequestForm = ({
           formData.field_ids = selectedFields;
         }
         const json = {
-          gcnevent_id: gcnEvent.id,
+          gcnevent_id: gcnEvent?.id,
           allocation_id: selectedAllocationId,
           localization_id: selectedLocalizationId,
           target_group_ids: selectedGroupIds,

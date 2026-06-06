@@ -295,7 +295,7 @@ const CommentList = ({
   let specComments: any = null;
 
   if (associatedResourceType === "object") {
-    comments = obj.comments;
+    comments = obj?.comments;
     if (
       includeCommentsOnAllResourceTypes &&
       Array.isArray(spectra) &&
@@ -317,7 +317,7 @@ const CommentList = ({
     if (gcnEventID === null) {
       throw new Error("Must specify a gcnEventID for comments on gcnEvent");
     }
-    comments = gcnEvent.comments;
+    comments = gcnEvent?.comments;
   } else if (associatedResourceType === "shift") {
     if (shiftID === null) {
       throw new Error("Must specify a shiftID for comments on shift");
@@ -329,7 +329,7 @@ const CommentList = ({
         "Must specify an earthquakeID for comments on earthquake",
       );
     }
-    comments = earthquake.comments;
+    comments = earthquake?.comments;
   } else {
     throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }

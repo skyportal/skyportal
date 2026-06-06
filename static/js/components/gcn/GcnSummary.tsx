@@ -453,7 +453,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
                       name="gcnSummaryLocalizationSelect"
                       className={classes.select}
                     >
-                      {gcnEvent.localizations?.map((localization: any) => (
+                      {gcnEvent?.localizations?.map((localization: any) => (
                         <MenuItem
                           value={localization.localization_name}
                           key={localization.localization_name}
@@ -576,7 +576,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
                   <div>
                     <GcnSummaryTable
                       dateobs={dateobs}
-                      summaries={gcnEvent.summaries}
+                      summaries={gcnEvent?.summaries}
                     />
                   </div>
                 </Paper>

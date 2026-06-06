@@ -53,16 +53,19 @@ const VegaPhotometryMemo = React.memo(
       range: wavelengths,
     };
 
-    if (period) {
-      values.forEach((datum) => {
-        datum.phase = (datum.mjd % period) / period;
-      });
-    }
+    // RTK Query data elements are frozen, so build new objects rather than
+    // mutating them in place when adding the folded `phase` field.
+    const plotValues = period
+      ? values.map((datum) => ({
+          ...datum,
+          phase: (datum.mjd % period) / period,
+        }))
+      : values;
 
     const plot = period ? (
-      <VegaFoldedPlot {...({ values, colorScale, style } as any)} />
+      <VegaFoldedPlot {...({ values: plotValues, colorScale, style } as any)} />
     ) : (
-      <VegaPlot {...({ values, colorScale, style } as any)} />
+      <VegaPlot {...({ values: plotValues, colorScale, style } as any)} />
     );
     return (
       <Suspense fallback={<CircularProgress color="secondary" />}>

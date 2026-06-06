@@ -27,9 +27,9 @@ const NonMemberGroupList = ({ groups }: NonMemberGroupListProps) => {
   const dispatch = useAppDispatch();
   const [requestGroupAdmission] = useRequestGroupAdmissionMutation();
   const [deleteAdmissionRequest] = useDeleteAdmissionRequestMutation();
-  const { id: currentUserID, groupAdmissionRequests } = useGetProfileQuery()
-    .data as any;
-  if (currentUserID === null) {
+  const { id: currentUserID, groupAdmissionRequests } =
+    (useGetProfileQuery().data as any) ?? {};
+  if (currentUserID === null || currentUserID === undefined) {
     return <CircularProgress color="secondary" />;
   }
   const pendingRequestGroupIDs = groupAdmissionRequests
