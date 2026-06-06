@@ -6,14 +6,18 @@ on:
       - main
       - test-docker
   pull_request:
-    # labeled: run when the 'docker' label is applied; synchronize: re-run on
-    # subsequent pushes to an already-labeled PR. The job's `if` gates on the
-    # label, so this only builds docker-labeled PRs.
-    types: [labeled, synchronize]
+    # Run on PRs that touch docker-related files. Using `paths` (rather than a
+    # label) avoids the GITHUB_TOKEN limitation where a labeler-applied label
+    # doesn't trigger workflows.
+    paths:
+      - Dockerfile
+      - docker.yaml
+      - docker-compose.yaml
+      - .dockerignore
+      - .github/workflows/test_docker_build.yaml
 
 jobs:
   test:
-    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'docker')
     name: Test Docker build
     runs-on: ubuntu-latest
     timeout-minutes: 30
