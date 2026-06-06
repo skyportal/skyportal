@@ -206,7 +206,9 @@ def test_user_expiration(page, user, super_admin_user):
     date_input.click()
     date_input.press_sequentially(datetime.datetime.now().strftime("%m%d%Y"))
 
-    page.locator('//*[text()="Submit"]').first.click()
+    # use the dialog's own submit button (the unscoped //*[text()="Submit"] can
+    # match a leftover/hidden Submit elsewhere on the page).
+    page.locator('//*[@data-testid="submitExpirationDateButton"]').first.click()
 
     # Check that user deactivated
     page.goto(f"/become_user/{user.id}")

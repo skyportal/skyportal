@@ -70,22 +70,17 @@ def test_candidate_date_filtering(
     def _type_date(locator, when):
         s = when.strftime("%Y %m %d %I %M %p")
         locator.click()
-        # MUI date field is read-only to `fill`; clear the pre-filled segments
-        # via the keyboard, then type each segment.
-        locator.press("ControlOrMeta+a")
-        locator.press("Delete")
+        locator.fill("")
         for part in (s[5:7], s[8:10], s[0:4], s[11:13], s[14:16], s[17]):
             locator.press_sequentially(part)
 
-    # target the input following each picker's label (the prior `../div/input`
-    # relative path no longer matches the MUI DateTimePicker DOM).
     start_date_input = page.locator(
-        '//label[contains(text(),"Start (Local Time)")]/following::input[1]'
+        '//label[text()="Start (Local Time)"]/../div/input'
     ).first
     _type_date(start_date_input, now - datetime.timedelta(minutes=2))
 
     end_date_input = page.locator(
-        '//label[contains(text(),"End (Local Time)")]/following::input[1]'
+        "//label[text()='End (Local Time)']/../div/input"
     ).first
     _type_date(end_date_input, now - datetime.timedelta(minutes=1))
 
