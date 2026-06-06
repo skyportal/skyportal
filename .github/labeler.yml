@@ -20,7 +20,13 @@ dependencies:
 docker:
   - changed-files:
       - any-glob-to-any-file:
-          ["Dockerfile", "docker.yaml", "docker-compose.yaml", ".dockerignore"]
+          [
+            "Dockerfile",
+            "docker.yaml",
+            "docker-compose.yaml",
+            ".dockerignore",
+            ".github/workflows/test_docker_build.yaml",
+          ]
 
 # Add 'documentation' label to any change to the doc directory
 documentation:
