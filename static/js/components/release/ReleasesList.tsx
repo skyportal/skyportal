@@ -5,8 +5,11 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import { deletePublicRelease } from "../../ducks/public_pages/public_release";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import {
+  useGetPublicReleasesQuery,
+  useDeletePublicReleaseMutation,
+} from "../../ducks/public_pages/public_release";
+import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 import ReleaseForm from "./ReleaseForm";
 
@@ -54,8 +57,9 @@ const useStyles = makeStyles()(() => ({
 
 const ReleasesList = () => {
   const { classes: styles } = useStyles();
-  const dispatch = useAppDispatch();
-  const releases = useAppSelector((state) => state["publicReleases"]);
+  const { data } = useGetPublicReleasesQuery();
+  const releases = data ?? [];
+  const [deletePublicRelease] = useDeletePublicReleaseMutation();
   const manageSourcesAccess = useAppSelector(
     (state) => state.profile,
   ).permissions?.includes("Manage sources");
@@ -64,7 +68,7 @@ const ReleasesList = () => {
   const [openReleaseForm, setOpenReleaseForm] = useState(false);
 
   const deleteRelease = (id: number) => {
-    dispatch(deletePublicRelease(id));
+    deletePublicRelease(id);
   };
 
   function handleViewEdit(release: any) {

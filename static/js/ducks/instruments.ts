@@ -1,105 +1,74 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Instruments: the shared instrument list, the per-instrument followup form
+ * params, the per-instrument observation-plan form params, and the
+ * GCN-event-scoped instrument list.
+ *
+ * RTK Query conversion of the old `FETCH_INSTRUMENTS` /
+ * `FETCH_INSTRUMENT_FORMS` / `FETCH_INSTRUMENT_OBSPLAN_FORMS` /
+ * `FETCH_GCNEVENT_INSTRUMENTS` duck. Each is now an injected endpoint.
+ *
+ * The old websocket handler refetched the instrument list and the followup
+ * form params on `REFRESH_INSTRUMENTS`; here we invalidate the matching tags so
+ * the active queries refetch.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+export type Instrument = Record<string, any>;
+export type InstrumentFormParams = Record<string, any>;
 
-const REFRESH_INSTRUMENTS = "skyportal/REFRESH_INSTRUMENTS";
+export const instrumentsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getInstruments: build.query<Instrument[], Record<string, any> | void>({
+      query: (filterParams) => ({
+        url: "api/instrument",
+        params: filterParams || {},
+      }),
+      providesTags: ["Instruments"],
+    }),
+    getInstrumentForms: build.query<InstrumentFormParams, void>({
+      query: () => ({
+        url: "api/internal/instrument_forms",
+        params: { apiType: "api_classname" },
+      }),
+      providesTags: ["InstrumentForms"],
+    }),
+    getInstrumentObsplanForms: build.query<InstrumentFormParams, void>({
+      query: () => ({
+        url: "api/internal/instrument_forms",
+        params: { apiType: "api_classname_obsplan" },
+      }),
+      providesTags: ["InstrumentObsplanForms"],
+    }),
+    getGcnEventInstruments: build.query<
+      Instrument[],
+      { dateobs: string; filterParams?: Record<string, any> | undefined }
+    >({
+      query: ({ dateobs, filterParams = {} }) => ({
+        url: "api/instrument",
+        params: {
+          ...filterParams,
+          localizationDateobs: dateobs,
+          includeGeoJSONSummary: true,
+          includeGeoJSON: false,
+        },
+      }),
+      providesTags: ["GcnEventInstruments"],
+    }),
+  }),
+});
 
-const FETCH_INSTRUMENTS = "skyportal/FETCH_INSTRUMENTS";
-const FETCH_INSTRUMENTS_OK = "skyportal/FETCH_INSTRUMENTS_OK";
+// Websocket: old handler refetched instruments + followup forms on
+// REFRESH_INSTRUMENTS.
+invalidateOnMessage("skyportal/REFRESH_INSTRUMENTS", () => [
+  "Instruments",
+  "InstrumentForms",
+]);
 
-const FETCH_INSTRUMENT_FORMS = "skyportal/FETCH_INSTRUMENT_FORMS";
-const FETCH_INSTRUMENT_FORMS_OK = "skyportal/FETCH_INSTRUMENT_FORMS_OK";
-
-const FETCH_INSTRUMENT_OBSPLAN_FORMS =
-  "skyportal/FETCH_INSTRUMENT_OBSPLAN_FORMS";
-const FETCH_INSTRUMENT_OBSPLAN_FORMS_OK =
-  "skyportal/FETCH_INSTRUMENT_OBSPLAN_FORMS_OK";
-
-const FETCH_GCNEVENT_INSTRUMENTS = "skyportal/FETCH_GCNEVENT_INSTRUMENTS";
-const FETCH_GCNEVENT_INSTRUMENTS_OK = "skyportal/FETCH_GCNEVENT_INSTRUMENTS_OK";
-
-export function fetchGcnEventInstruments(
-  dateobs: string,
-  filterParams: Record<string, any> = {},
-) {
-  filterParams["localizationDateobs"] = dateobs;
-  filterParams["includeGeoJSONSummary"] = true;
-  filterParams["includeGeoJSON"] = false;
-  return API.GET("/api/instrument", FETCH_GCNEVENT_INSTRUMENTS, filterParams);
-}
-
-export const fetchInstruments = (filterParams = {}) =>
-  API.GET("/api/instrument", FETCH_INSTRUMENTS, filterParams);
-
-export const fetchInstrumentForms = () =>
-  API.GET("/api/internal/instrument_forms", FETCH_INSTRUMENT_FORMS, {
-    apiType: "api_classname",
-  });
-
-export const fetchInstrumentObsplanForms = () =>
-  API.GET("/api/internal/instrument_forms", FETCH_INSTRUMENT_OBSPLAN_FORMS, {
-    apiType: "api_classname_obsplan",
-  });
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === REFRESH_INSTRUMENTS) {
-      dispatch(fetchInstruments());
-      dispatch(fetchInstrumentForms());
-    }
-  },
-);
-
-type InstrumentsState = Record<string, any>;
-
-interface InstrumentsAction {
-  type: string;
-  data?: any;
-}
-
-const reducer = (
-  state: InstrumentsState = {
-    instrumentList: [],
-    instrumentFormParams: {},
-    instrumentObsplanFormParams: {},
-    gcnEventInstruments: [],
-  },
-  action: InstrumentsAction,
-): InstrumentsState => {
-  switch (action.type) {
-    case FETCH_INSTRUMENTS_OK: {
-      const instruments = action.data;
-      return {
-        ...state,
-        instrumentList: instruments,
-      };
-    }
-    case FETCH_INSTRUMENT_FORMS_OK: {
-      const instrumentFormParams = action.data;
-      return {
-        ...state,
-        instrumentFormParams,
-      };
-    }
-    case FETCH_INSTRUMENT_OBSPLAN_FORMS_OK: {
-      const instrumentObsplanFormParams = action.data;
-      return {
-        ...state,
-        instrumentObsplanFormParams,
-      };
-    }
-    case FETCH_GCNEVENT_INSTRUMENTS_OK: {
-      return {
-        ...state,
-        gcnEventInstruments: action.data,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("instruments", reducer);
+export const {
+  useGetInstrumentsQuery,
+  useLazyGetInstrumentsQuery,
+  useGetInstrumentFormsQuery,
+  useGetInstrumentObsplanFormsQuery,
+  useGetGcnEventInstrumentsQuery,
+} = instrumentsApi;

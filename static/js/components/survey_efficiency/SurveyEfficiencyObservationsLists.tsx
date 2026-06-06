@@ -12,12 +12,13 @@ import { makeStyles } from "tss-react/mui";
 import { GridToolbarContainer } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
 import { TableProgressText } from "../ProgressIndicators";
-import * as surveyEfficiencyObservationsActions from "../../ducks/survey_efficiency_observations";
+import { useDeleteSurveyEfficiencyObservationsMutation } from "../../ducks/survey_efficiency_observations";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   observationplanRequestTable: {
@@ -43,8 +44,10 @@ const SurveyEfficiencyObservationsLists = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const [isDeleting, setIsDeleting] = useState<any>(null);
+  const [deleteSurveyEfficiencyObservations] =
+    useDeleteSurveyEfficiencyObservationsMutation();
 
   if (!survey_efficiency_analyses || survey_efficiency_analyses.length === 0) {
     return <p>No survey efficiency analyses for this event...</p>;
@@ -52,15 +55,13 @@ const SurveyEfficiencyObservationsLists = ({
 
   const handleDelete = async (id: any) => {
     setIsDeleting(id);
-    const result: any = await dispatch(
-      surveyEfficiencyObservationsActions.deleteSurveyEfficiencyObservations(
-        id,
-      ),
-    );
-    setIsDeleting(null);
-    if (result.status === "success") {
+    try {
+      await deleteSurveyEfficiencyObservations(id).unwrap();
       dispatch(showNotification("Survey efficiency successfully deleted."));
+    } catch {
+      // Error notification is handled by the base query.
     }
+    setIsDeleting(null);
   };
 
   const instLookUp = instrumentList.reduce((r: any, a: any) => {

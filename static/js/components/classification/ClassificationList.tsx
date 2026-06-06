@@ -19,6 +19,7 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
 import * as sourceActions from "../../ducks/source";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
+import { useGetConfigQuery } from "../../ducks/config";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(relativeTime);
@@ -83,9 +84,10 @@ const ClassificationList = () => {
   // Query migration; this component never fetched a group, so `groupUsers` was
   // only populated incidentally. Preserve the prior (commonly empty) behaviour.
   const groupUsers: any[] | undefined = undefined;
-  const classifications_classes = useAppSelector(
-    (state: any) => state.config.classificationsClasses,
-  );
+  const { data: config } = useGetConfigQuery();
+  const classifications_classes = config?.["classificationsClasses"] as
+    | Record<string, Record<string, string>>
+    | undefined;
   const currentGroupUser = (groupUsers as any[] | undefined)?.filter(
     (groupUser: any) => groupUser.user_id === userProfile.id,
   )[0];
@@ -237,13 +239,13 @@ const ClassificationList = () => {
                     alignItems: "center",
                   }}
                 >
-                  {origin && classifications_classes?.origin ? (
+                  {origin && classifications_classes?.["origin"] ? (
                     <span
                       style={{
                         fontWeight: "bold",
                         fontSize: "120%",
                         color:
-                          classifications_classes.origin[origin] ||
+                          classifications_classes["origin"][origin] ||
                           defaultColor(ml),
                         marginRight: "0.1em",
                       }}

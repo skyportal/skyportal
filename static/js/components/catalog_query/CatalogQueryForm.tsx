@@ -12,14 +12,14 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
   useGetAllocationsQuery,
   useGetAllocationsApiClassnameQuery,
 } from "../../ducks/allocations";
 
-import * as catalogQueryActions from "../../ducks/catalog_query";
+import { useSubmitCatalogQueryMutation } from "../../ducks/catalog_query";
 import GroupShareSelect from "../group/GroupShareSelect";
 
 dayjs.extend(relativeTime);
@@ -70,7 +70,8 @@ interface CatalogQueryFormProps {
 
 const CatalogQueryForm = ({ gcnevent }: CatalogQueryFormProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+
+  const [submitCatalogQuery] = useSubmitCatalogQueryMutation();
 
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationList = [] } = useGetAllocationsQuery();
@@ -167,7 +168,11 @@ const CatalogQueryForm = ({ gcnevent }: CatalogQueryFormProps) => {
     formData.payload = payload;
     formData.target_group_ids = selectedGroupIds;
 
-    await dispatch(catalogQueryActions.submitCatalogQuery(formData));
+    try {
+      await submitCatalogQuery(formData).unwrap();
+    } catch {
+      // error notification handled by the base query
+    }
 
     setIsSubmitting(false);
   };

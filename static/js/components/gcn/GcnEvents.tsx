@@ -33,6 +33,7 @@ import StyledDataGrid from "../StyledDataGrid";
 
 import { filterOutEmptyValues } from "../../API";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { useGetConfigQuery } from "../../ducks/config";
 import Spinner from "../Spinner";
 import GcnEventsFilterForm from "./GcnEventsFilterForm";
 import NewGcnEvent from "./NewGcnEvent";
@@ -129,9 +130,9 @@ const GcnEvents = () => {
   const dispatch = useAppDispatch();
   const gcnEvents = useAppSelector((state) => state["gcnEvents"]);
 
-  const gcn_tags_classes = useAppSelector(
-    (state) => (state as any).config.gcnTagsClasses,
-  );
+  const gcn_tags_classes = useGetConfigQuery().data?.["gcnTagsClasses"] as
+    | Record<string, string>
+    | undefined;
 
   const [openNew, setOpenNew] = useState(false);
   const [showAllLocalizations, setShowAllLocalizations] = useState<any>(false);

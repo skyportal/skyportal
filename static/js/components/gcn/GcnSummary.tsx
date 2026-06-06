@@ -29,8 +29,9 @@ import {
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { useGetGroupQuery } from "../../ducks/group";
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { fetchInstruments } from "../../ducks/instruments";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { postGcnEventSummary } from "../../ducks/gcnEvent";
+import { useGetConfigQuery } from "../../ducks/config";
 import Button from "../Button";
 import GcnSummaryTable from "./GcnSummaryTable";
 
@@ -146,7 +147,7 @@ interface GcnSummaryProps {
 const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
   const { classes } = useStyles();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
@@ -174,9 +175,10 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
   const [selectedAcknowledgement, setSelectedAcknowledgement] =
     useState<any>(null);
 
-  const gcnSummaryAcknowledgements = useAppSelector(
-    (state) => state["config"].gcnSummaryAcknowledgements,
-  );
+  const gcnSummaryAcknowledgements =
+    (useGetConfigQuery().data?.["gcnSummaryAcknowledgements"] as
+      | string[]
+      | undefined) ?? [];
 
   const acknowledgmentOptions = selectedAcknowledgement
     ? ["Clear selection", ...gcnSummaryAcknowledgements]
@@ -194,7 +196,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
     label: `${user.first_name} ${user.last_name}`,
   }));
 
-  let sortedInstrumentList = [...instrumentList];
+  let sortedInstrumentList: any[] = [...instrumentList];
   sortedInstrumentList.sort((i1: any, i2: any) => {
     if (i1.name > i2.name) {
       return 1;
@@ -210,12 +212,6 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
     ...instrument,
     label: instrument.name,
   }));
-
-  useEffect(() => {
-    if (instrumentList?.length === 0) {
-      dispatch(fetchInstruments());
-    }
-  }, []);
 
   useEffect(() => {
     const defaultStartDate = dayjs.utc(dateobs).format("YYYY-MM-DD HH:mm:ss");

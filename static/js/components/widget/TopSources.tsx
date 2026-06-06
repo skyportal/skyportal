@@ -19,6 +19,7 @@ import * as profileActions from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTopSourcesQuery } from "../../ducks/topSources";
 
 interface TopSourcesListProps {
   sources?: any[];
@@ -303,7 +304,7 @@ const TopSources = ({ classes }: TopSourcesProps) => {
     invertThumbnails,
   });
 
-  const { sourceViews } = useAppSelector((state) => state["topSources"]);
+  const { data: sourceViews } = useGetTopSourcesQuery();
   const prefs =
     useAppSelector((state) => (state.profile.preferences as any)?.topSources) ||
     defaultPrefs;
@@ -400,7 +401,7 @@ const TopSources = ({ classes }: TopSourcesProps) => {
           </div>
         </div>
         <TopSourcesList
-          sources={sourceViews}
+          sources={sourceViews || []}
           styles={sourceListStyles}
           displayTNS={topSourcesPrefs?.displayTNS !== false}
         />

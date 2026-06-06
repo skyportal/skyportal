@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
@@ -20,7 +20,10 @@ import {
   useGetObservationsQuery,
   useLazyGetObservationsQuery,
 } from "../../ducks/observations";
-import * as queuedObservationsActions from "../../ducks/queued_observations";
+import {
+  useGetQueuedObservationsQuery,
+  useLazyGetQueuedObservationsQuery,
+} from "../../ducks/queued_observations";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 interface ObservationListProps {
@@ -119,9 +122,6 @@ const QueuedObservationList = ({
 };
 
 const ObservationPage = () => {
-  const queued_observations = useAppSelector(
-    (state) => state["queued_observations"],
-  );
   const currentUser = useAppSelector((state) => state.profile);
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
@@ -139,25 +139,20 @@ const ObservationPage = () => {
   const { data: observations } = useGetObservationsQuery(fetchExecutedParams);
   const [fetchObservations] = useLazyGetObservationsQuery();
 
+  const { data: queuedObservations } =
+    useGetQueuedObservationsQuery(fetchQueuedParams);
+  const [fetchQueuedObservations] = useLazyGetQueuedObservationsQuery();
+
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
   const [tabIndex, setTabIndex] = React.useState(0);
 
-  useEffect(() => {
-    const params = {
-      ...fetchQueuedParams,
-      numPerPage: defaultNumPerPage,
-      pageNumber: 1,
-    };
-    dispatch(queuedObservationsActions.fetchQueuedObservations(params));
-  }, [dispatch]);
-
   if (observations == null) {
     return <p>No observations available...</p>;
   }
 
-  if (!queued_observations) {
+  if (queuedObservations == null) {
     return <p>No queued observations available...</p>;
   }
 
@@ -193,9 +188,8 @@ const ObservationPage = () => {
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future
+    // Save state for future (triggers the queued observations query refetch)
     setFetchQueuedParams(params);
-    await dispatch(queuedObservationsActions.fetchQueuedObservations(params));
   };
 
   const handleExecutedTableSorting = async (sortData: any) => {
@@ -216,7 +210,6 @@ const ObservationPage = () => {
       sortOrder: sortData.direction,
     };
     setFetchQueuedParams(params);
-    await dispatch(queuedObservationsActions.fetchQueuedObservations(params));
   };
 
   const handleExecutedTableChange = (action: string, tableState: any) => {
@@ -283,9 +276,8 @@ const ObservationPage = () => {
       params.endDate = filterData.endDate;
       params.instrumentName = filterData.instrumentName;
     }
-    // Save state for future
+    // Save state for future (triggers the queued observations query refetch)
     setFetchQueuedParams(params);
-    await dispatch(queuedObservationsActions.fetchQueuedObservations(params));
   };
 
   const handleExecutedFilterSubmit = async (formData: any) => {
@@ -354,18 +346,15 @@ const ObservationPage = () => {
   const handleQueuedDownload = async () => {
     const observationsAll: any[] = [];
 
-    if (queued_observations.queued_observations.totalMatches === 0) {
+    if (queuedObservations.totalMatches === 0) {
       dispatch(showNotification("No observations to download", "warning"));
     } else {
-      setDownloadProgressTotal(
-        queued_observations.queued_observations.totalMatches,
-      );
+      setDownloadProgressTotal(queuedObservations.totalMatches);
       for (
         let i = 1;
         i <=
         Math.ceil(
-          queued_observations.queued_observations.totalMatches /
-            fetchQueuedParams.numPerPage,
+          queuedObservations.totalMatches / fetchQueuedParams.numPerPage,
         );
         i += 1
       ) {
@@ -374,22 +363,16 @@ const ObservationPage = () => {
           pageNumber: i,
         };
 
-        const result: any = await dispatch(
-          queuedObservationsActions.fetchQueuedObservations(data),
-        );
-        if (result && result.data && result?.status === "success") {
-          observationsAll.push(...result.data.observations);
+        try {
+          const result: any = await fetchQueuedObservations(data).unwrap();
+          observationsAll.push(...result.observations);
           setDownloadProgressCurrent(observationsAll.length);
-          setDownloadProgressTotal(
-            queued_observations.queued_observations.totalMatches,
-          );
-        } else if (result && result?.status !== "success") {
+          setDownloadProgressTotal(queuedObservations.totalMatches);
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
-          if (
-            queued_observations.queued_observations.observations?.length === 0
-          ) {
+          if (queuedObservations.observations?.length === 0) {
             dispatch(
               showNotification(
                 "Failed to fetch some observations. Download cancelled.",
@@ -410,10 +393,7 @@ const ObservationPage = () => {
     }
     setDownloadProgressCurrent(0);
     setDownloadProgressTotal(0);
-    if (
-      observationsAll?.length ===
-      queued_observations.queued_observations.totalMatches?.length
-    ) {
+    if (observationsAll?.length === queuedObservations.totalMatches?.length) {
       dispatch(showNotification("Observations downloaded successfully"));
     }
     return observationsAll;
@@ -477,7 +457,7 @@ const ObservationPage = () => {
         <Grid size={12} style={{ paddingTop: 0 }}>
           <div className={classes.Container}>
             <QueuedObservationList
-              observations={queued_observations.queued_observations}
+              observations={queuedObservations}
               fetchParams={fetchQueuedParams}
               handleTableChange={handleQueuedTableChange}
               handleFilterSubmit={handleQueuedFilterSubmit}

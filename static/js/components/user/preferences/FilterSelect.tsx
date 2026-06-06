@@ -1,5 +1,5 @@
-import { useAppSelector } from "../../../types/hooks";
 import SelectWithChips from "../../SelectWithChips";
+import { useGetEnumTypesQuery } from "../../../ducks/enum_types";
 
 interface FilterSelectProps {
   onFilterSelectChange: (...args: any[]) => void;
@@ -12,12 +12,9 @@ const FilterSelect = ({
   initValue = [],
   parent,
 }: FilterSelectProps) => {
+  const { data: enum_types } = useGetEnumTypesQuery();
   let filtersEnums: string[] = [];
-  filtersEnums = filtersEnums.concat(
-    useAppSelector(
-      (state) => state["enum_types"].enum_types.ALLOWED_BANDPASSES,
-    ),
-  );
+  filtersEnums = filtersEnums.concat(enum_types?.["ALLOWED_BANDPASSES"] ?? []);
   filtersEnums.sort();
   filtersEnums.unshift("Clear selections");
 

@@ -28,7 +28,7 @@ import {
 } from "../SelectWithChips";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { fetchInstruments } from "../../ducks/instruments";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import {
   deleteGcnEventReport,
   fetchGcnEventReport,
@@ -144,7 +144,7 @@ interface GcnReportProps {
 const GcnReport = ({ dateobs }: GcnReportProps) => {
   const { classes } = useStyles();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
@@ -169,7 +169,7 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
     label: group?.name,
   }));
 
-  let sortedInstrumentList = [...instrumentList];
+  let sortedInstrumentList: any[] = [...instrumentList];
   sortedInstrumentList.sort((i1: any, i2: any) => {
     if (i1.name > i2.name) {
       return 1;
@@ -185,12 +185,6 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
     ...instrument,
     label: instrument?.name,
   }));
-
-  useEffect(() => {
-    if (instrumentList?.length === 0) {
-      dispatch(fetchInstruments());
-    }
-  }, []);
 
   useEffect(() => {
     const defaultStartDate = dayjs.utc(dateobs).format("YYYY-MM-DD HH:mm:ss");

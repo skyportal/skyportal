@@ -10,9 +10,12 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
-import * as queuedObservationActions from "../../ducks/queued_observations";
+import {
+  useLazyRequestAPIQueuesQuery,
+  useDeleteAPIQueueMutation,
+} from "../../ducks/queued_observations";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 
 dayjs.extend(utc);
@@ -49,7 +52,8 @@ const QueueAPIDisplay = () => {
     });
   const allGroups = useGetGroupsQuery().data?.all ?? null;
 
-  const dispatch = useAppDispatch();
+  const [requestAPIQueues] = useLazyRequestAPIQueuesQuery();
+  const [deleteAPIQueue] = useDeleteAPIQueueMutation();
 
   useEffect(() => {
     if (allocationListApiObsplan?.length > 0) {
@@ -60,13 +64,18 @@ const QueueAPIDisplay = () => {
   useEffect(() => {
     const getQueues = async () => {
       if (selectedAllocationId && allocationListApiObsplan?.length > 0) {
-        const response: any = await dispatch(
-          queuedObservationActions.requestAPIQueues(selectedAllocationId),
-        );
-        if (response?.data?.queue_names?.length > 0) {
-          setQueueList(response.data.queue_names);
-          setSelectedQueueName(response.data.queue_names[0]);
-        } else {
+        try {
+          const response: any = await requestAPIQueues({
+            id: selectedAllocationId,
+          }).unwrap();
+          if (response?.queue_names?.length > 0) {
+            setQueueList(response.queue_names);
+            setSelectedQueueName(response.queue_names[0]);
+          } else {
+            setQueueList(["None"]);
+            setSelectedQueueName("None");
+          }
+        } catch {
           setQueueList(["None"]);
           setSelectedQueueName("None");
         }
@@ -114,11 +123,14 @@ const QueueAPIDisplay = () => {
   });
 
   const handleDelete = async () => {
-    await dispatch(
-      queuedObservationActions.deleteAPIQueue(selectedAllocationId, {
-        queueName: selectedQueueName,
-      }),
-    );
+    try {
+      await deleteAPIQueue({
+        id: selectedAllocationId,
+        data: { queueName: selectedQueueName },
+      }).unwrap();
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const handleSelectedAllocationChange = async (e: any) => {

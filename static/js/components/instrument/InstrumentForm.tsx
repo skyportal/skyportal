@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -12,6 +13,7 @@ import {
   useModifyInstrumentMutation,
 } from "../../ducks/instrument";
 import { useGetFollowupApisQuery } from "../../ducks/followupApis";
+import { useGetEnumTypesQuery } from "../../ducks/enum_types";
 
 interface InstrumentFormProps {
   onClose: () => void;
@@ -22,10 +24,10 @@ const InstrumentForm = ({
   onClose,
   instrumentId = null,
 }: InstrumentFormProps) => {
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: followupApis } = useGetFollowupApisQuery();
-  const { enum_types } = useAppSelector((state) => state["enum_types"]);
+  const { data: enum_types } = useGetEnumTypesQuery();
   const [formData, setFormData] = useState<any>({});
   const dispatch = useAppDispatch();
   const [submitInstrument] = useSubmitInstrumentMutation();
@@ -91,7 +93,7 @@ const InstrumentForm = ({
 
   if (instrumentList.length === 0 || telescopeList.length === 0) {
     return <h3>No instruments available...</h3>;
-  } else if (enum_types.length === 0) {
+  } else if (enum_types == null) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -99,8 +101,8 @@ const InstrumentForm = ({
     );
   }
 
-  const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES].sort();
-  const filters = [...enum_types.ALLOWED_BANDPASSES].sort();
+  const api_classnames = [...enum_types["ALLOWED_API_CLASSNAMES"]].sort();
+  const filters = [...enum_types["ALLOWED_BANDPASSES"]].sort();
 
   const instrumentToEdit = instrumentId
     ? instrumentList.find((inst: any) => inst.id === instrumentId)
@@ -152,7 +154,7 @@ const InstrumentForm = ({
 
   const getDefaultConfigurationData = () => {
     const { specific_configuration, ...configuration } =
-      instrumentToEdit?.configuration_data || {};
+      instrumentToEdit?.["configuration_data"] || {};
     if (configuration && Object.keys(configuration).length > 0) {
       return configuration;
     }
@@ -208,21 +210,21 @@ const InstrumentForm = ({
         },
         uniqueItems: true,
         title: "Filter list",
-        default: instrumentToEdit?.filters || [],
+        default: instrumentToEdit?.["filters"] || [],
       },
       api_classname: {
         type: "string",
         enum: api_classnames,
         uniqueItems: true,
         title: "API Classname",
-        default: instrumentToEdit?.api_classname || undefined,
+        default: instrumentToEdit?.["api_classname"] || undefined,
       },
       api_classname_obsplan: {
         type: "string",
         enum: api_classnames,
         uniqueItems: true,
         title: "API Observation Plan Classname",
-        default: instrumentToEdit?.api_classname_obsplan || undefined,
+        default: instrumentToEdit?.["api_classname_obsplan"] || undefined,
       },
       field_data: {
         type: "string",
@@ -268,7 +270,7 @@ const InstrumentForm = ({
         title:
           "Sensitivity data i.e. {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}",
         default: JSON.stringify(
-          instrumentToEdit?.sensitivity_data || undefined,
+          instrumentToEdit?.["sensitivity_data"] || undefined,
         ),
       },
       configuration_data: {
@@ -287,8 +289,8 @@ const InstrumentForm = ({
                   .properties,
               },
               default:
-                instrumentToEdit?.configuration_data?.specific_configuration ||
-                {},
+                instrumentToEdit?.["configuration_data"]
+                  ?.specific_configuration || {},
             },
           }
         : {}),

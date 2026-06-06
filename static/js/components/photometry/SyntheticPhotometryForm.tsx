@@ -5,8 +5,9 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import * as spectraActions from "../../ducks/spectra";
+import { useGetEnumTypesQuery } from "../../ducks/enum_types";
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -32,7 +33,7 @@ const SyntheticPhotometryForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
-  const { enum_types } = useAppSelector((state) => state["enum_types"]);
+  const { data: enum_types } = useGetEnumTypesQuery();
 
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
@@ -41,7 +42,7 @@ const SyntheticPhotometryForm = ({
     groupIDToName[g.id] = g.name;
   });
 
-  const filters = [...enum_types.ALLOWED_BANDPASSES].sort();
+  const filters = [...(enum_types?.["ALLOWED_BANDPASSES"] ?? [])].sort();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     setSubmissionRequestInProcess(true);

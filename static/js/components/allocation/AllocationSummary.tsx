@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useState } from "react";
 
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
@@ -27,7 +27,7 @@ import { makeStyles } from "tss-react/mui";
 import { JSONTree } from "react-json-tree";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import { allocationTitle } from "./AllocationPage";
@@ -35,12 +35,13 @@ import withRouter from "../withRouter";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import * as SourceAction from "../../ducks/source";
 import {
   useGetAllocationQuery,
   useEditFollowupRequestCommentMutation,
 } from "../../ducks/allocation";
-import * as ObservationPlansAction from "../../ducks/observationPlans";
+import { useGetAllocationObservationPlansQuery } from "../../ducks/observationPlans";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 import ObservationPlanGlobe from "../observation_plan/ObservationPlanGlobe";
@@ -175,16 +176,9 @@ interface AllocationSummaryProps {
 }
 
 const AllocationSummary = ({ route }: AllocationSummaryProps) => {
-  const dispatch = useAppDispatch();
-  const { instrumentList } = useAppSelector(
-    (state) => (state as any).instruments,
-  );
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? null;
-  const {
-    observation_plan_requests,
-    totalMatches: totalMatchesObservationPlans,
-  } = useAppSelector((state) => (state as any).observation_plans);
 
   const [fetchAllocationParams, setFetchAllocationParams] = useState<any>({
     pageNumber: 1,
@@ -208,15 +202,13 @@ const AllocationSummary = ({ route }: AllocationSummaryProps) => {
       sortOrder: "desc",
     });
 
-  // Load the allocation and its observation plans if needed
-  useEffect(() => {
-    dispatch(
-      ObservationPlansAction.fetchAllocationObservationPlans(
-        route.id,
-        fetchObservationPlansParams,
-      ),
-    );
-  }, [route.id, dispatch]);
+  const {
+    observation_plan_requests,
+    totalMatches: totalMatchesObservationPlans,
+  } = useGetAllocationObservationPlansQuery({
+    id: route.id,
+    params: fetchObservationPlansParams,
+  }).data ?? { observation_plan_requests: undefined, totalMatches: undefined };
 
   if (
     !(
@@ -269,8 +261,8 @@ const AllocationSummary = ({ route }: AllocationSummaryProps) => {
 };
 
 interface AllocationObservationPlansTableProps {
-  observation_plan_requests: any[];
-  totalMatches: number;
+  observation_plan_requests?: any[] | undefined;
+  totalMatches?: number | undefined;
   fetchParams: any;
   setFetchParams: (...a: any[]) => void;
 }
@@ -281,24 +273,17 @@ const AllocationObservationPlansTable = ({
   fetchParams,
   setFetchParams,
 }: AllocationObservationPlansTableProps) => {
-  const dispatch = useAppDispatch();
   const { classes } = useStyles();
   const { classes: styles } = useStyles();
 
-  const handlePageChange = async (page: number, numPerPage: number) => {
+  const handlePageChange = (page: number, numPerPage: number) => {
     const params = {
       ...fetchParams,
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future
+    // Save state for future; the parent's query refetches when params change.
     setFetchParams(params);
-    await dispatch(
-      ObservationPlansAction.fetchAllocationObservationPlans(
-        observation_plan_requests[0].allocation_id,
-        params,
-      ),
-    );
   };
 
   const handlePaginationModelChange = (model: any) => {
@@ -385,7 +370,7 @@ const AllocationObservationPlansTable = ({
       <Box sx={{ width: "100%" }}>
         <StyledDataGrid
           autoHeight
-          rows={observation_plan_requests}
+          rows={observation_plan_requests || []}
           columns={columns}
           getRowId={(row: any) => row.id}
           paginationMode="server"

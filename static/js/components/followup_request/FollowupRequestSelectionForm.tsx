@@ -21,7 +21,10 @@ import {
   downloadFollowupSchedule,
   downloadAllocationReport,
 } from "../../ducks/followup_requests";
-import * as instrumentActions from "../../ducks/instruments";
+import {
+  useGetInstrumentsQuery,
+  useGetInstrumentFormsQuery,
+} from "../../ducks/instruments";
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import Button from "../Button";
 
@@ -69,9 +72,8 @@ const FollowupRequestSelectionForm = ({
   const dispatch = useAppDispatch();
 
   const { data: telescopeList = [] } = useGetTelescopesQuery();
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
   const { data: allocationListApiClassname = [] } =
     useGetAllocationsApiClassnameQuery();
   const { users: allUsers } = useAppSelector((state) => state["users"]);
@@ -94,22 +96,13 @@ const FollowupRequestSelectionForm = ({
   const [includeStandards, setIncludeStandards] = useState(false);
 
   useEffect(() => {
-    const getInstruments = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result: any = await dispatch(instrumentActions.fetchInstruments());
-
-      const { data } = result;
-      setSelectedInstrumentId(data[0]?.id);
-    };
-
-    getInstruments();
+    if (instrumentList.length > 0) {
+      setSelectedInstrumentId(instrumentList[0]?.["id"]);
+    }
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
-  }, [dispatch, setSelectedInstrumentId]);
+  }, [instrumentList, setSelectedInstrumentId]);
 
   if (!Array.isArray(followupRequestList)) {
     return <p>Waiting for followup requests to load...</p>;
@@ -323,7 +316,7 @@ const FollowupRequestSelectionForm = ({
                   } / ${instrument.name}`,
                 })),
                 title: "Instrument",
-                default: filteredInstrumentList[0]?.id || null,
+                default: filteredInstrumentList[0]?.["id"] || null,
               },
             },
           },

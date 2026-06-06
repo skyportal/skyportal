@@ -26,7 +26,9 @@ import {
   useLazyGetSharingServicesQuery,
   useAddSharingServiceSubmissionMutation,
 } from "../../ducks/sharingServices";
-import * as streamsActions from "../../ducks/streams";
+import { useGetStreamsQuery } from "../../ducks/streams";
+import { useGetConfigQuery } from "../../ducks/config";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
 
@@ -49,10 +51,10 @@ const SharingServicesDialog = ({
     useAddSharingServiceSubmissionMutation();
   const { users: allUsers } = useAppSelector((state) => state["users"]);
   const currentUser = useAppSelector((state) => state.profile);
-  const streams = useAppSelector((state) => state["streams"]);
-  const allowedInstrumentsForSharing = useAppSelector(
-    (state) => state["config"].allowedInstrumentsForSharing,
-  );
+  const { data: streams } = useGetStreamsQuery();
+  const allowedInstrumentsForSharing = useGetConfigQuery().data?.[
+    "allowedInstrumentsForSharing"
+  ] as string[] | undefined;
   const isNoAffiliation = !currentUser?.affiliations?.length;
 
   const { sharingServicesList, loading } = useAppSelector(
@@ -69,9 +71,8 @@ const SharingServicesDialog = ({
   const [sendToHermes, setSendToHermes] = useState(false);
   // request in process
   const [SharingRequestInProcess, setSharingRequestInProcess] = useState(false);
-  const [dataFetched, setDataFetched] = useState(false);
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
 
   const selectedSharingService = sharingServicesList?.find(
@@ -104,17 +105,6 @@ const SharingServicesDialog = ({
     sharingServicesList,
     selectedSharingServiceId,
   ]);
-
-  useEffect(() => {
-    const fetchData = () => {
-      dispatch(streamsActions.fetchStreams());
-    };
-    if (!dataFetched && !streams?.length) {
-      fetchData();
-      setDataFetched(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataFetched, dispatch]);
 
   useEffect(() => {
     if (

@@ -48,7 +48,9 @@ import {
   useAddSharingServiceCoauthorMutation,
   useDeleteSharingServiceCoauthorMutation,
 } from "../../ducks/sharingServices";
-import * as streamsActions from "../../ducks/streams";
+import { useGetStreamsQuery } from "../../ducks/streams";
+import { useGetConfigQuery } from "../../ducks/config";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
 
@@ -653,21 +655,17 @@ const SharingServicesPage = () => {
   const allGroups = useGetGroupsQuery().data?.all ?? [];
   const { users: allUsers } = useAppSelector((state) => state["users"]);
   const { data: sharingServicesList = [] } = useGetSharingServicesQuery();
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const allowedInstrumentsForSharing = useAppSelector(
-    (state) => (state as any).config.allowedInstrumentsForSharing,
-  );
-  const streams = useAppSelector((state) => state["streams"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const allowedInstrumentsForSharing = useGetConfigQuery().data?.[
+    "allowedInstrumentsForSharing"
+  ] as string[] | undefined;
+  const { data: streams } = useGetStreamsQuery();
 
   const allowedInstruments = instrumentList.filter((instrument: any) =>
     (allowedInstrumentsForSharing || []).includes(
       instrument.name?.toLowerCase(),
     ),
   );
-
-  useEffect(() => {
-    dispatch(streamsActions.fetchStreams());
-  }, [dispatch]);
 
   const sharingServicesListLookup: Record<string, any> = {};
   if (sharingServicesList) {
@@ -976,7 +974,7 @@ const SharingServicesPage = () => {
           default:
             sharingServiceToManage?.instruments?.map((i: any) => i.id) || [],
         },
-        ...(streams?.length > 0 && {
+        ...((streams?.length ?? 0) > 0 && {
           stream_ids: {
             type: "array",
             title: "Streams to restrict photometry to (optional)",

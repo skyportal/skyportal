@@ -9,9 +9,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { useSubmitAnalysisServiceMutation } from "../../ducks/analysis_services";
+import { useGetEnumTypesQuery } from "../../ducks/enum_types";
 
 dayjs.extend(utc);
 
@@ -20,7 +21,7 @@ interface NewAnalysisServiceProps {
 }
 
 const NewAnalysisService = ({ onClose = null }: NewAnalysisServiceProps) => {
-  const { enum_types } = useAppSelector((state) => state["enum_types"]);
+  const { data: enum_types } = useGetEnumTypesQuery();
 
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
@@ -42,7 +43,7 @@ const NewAnalysisService = ({ onClose = null }: NewAnalysisServiceProps) => {
     }
   };
 
-  if (enum_types.length === 0) {
+  if (enum_types == null) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -91,30 +92,30 @@ const NewAnalysisService = ({ onClose = null }: NewAnalysisServiceProps) => {
         type: "array",
         items: {
           type: "string",
-          enum: enum_types.ANALYSIS_INPUT_TYPES,
+          enum: enum_types["ANALYSIS_INPUT_TYPES"],
         },
         uniqueItems: true,
         title: "Input data types",
       },
       analysis_type: {
         type: "string",
-        oneOf: enum_types.ANALYSIS_TYPES.map((analysis_type: string) => ({
+        oneOf: enum_types["ANALYSIS_TYPES"].map((analysis_type: string) => ({
           enum: [analysis_type],
           title: analysis_type,
         })),
         title: "Analysis Type",
-        default: enum_types.ANALYSIS_TYPES[0],
+        default: enum_types["ANALYSIS_TYPES"][0],
       },
       authentication_type: {
         type: "string",
-        oneOf: enum_types.AUTHENTICATION_TYPES.map(
+        oneOf: enum_types["AUTHENTICATION_TYPES"].map(
           (authentication_type: string) => ({
             enum: [authentication_type],
             title: authentication_type,
           }),
         ),
         title: "Authentication Type",
-        default: enum_types.AUTHENTICATION_TYPES[0],
+        default: enum_types["AUTHENTICATION_TYPES"][0],
       },
       timeout: {
         type: "number",

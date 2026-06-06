@@ -16,6 +16,7 @@ import emoji from "emoji-dictionary";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import UserAvatar from "../user/UserAvatar";
 import * as profileActions from "../../ducks/profile";
+import { useGetNewsFeedQuery } from "../../ducks/newsFeed";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -200,7 +201,7 @@ interface NewsFeedProps {
 
 const NewsFeed = ({ classes }: NewsFeedProps) => {
   const { classes: styles } = useStyles();
-  const { items } = useAppSelector((state) => state["newsFeed"]);
+  const { data: items } = useGetNewsFeedQuery();
   const rawNewsFeedPrefs: any =
     useAppSelector((state) => state.profile.preferences?.["newsFeed"]) ||
     defaultPrefs;

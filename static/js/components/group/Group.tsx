@@ -21,10 +21,10 @@ import Button from "../Button";
 import GroupUsers from "./GroupUsers";
 import GroupFiltersStreams from "./GroupFiltersStreams";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import { useGetGroupQuery } from "../../ducks/group";
 import { useDeleteGroupMutation } from "../../ducks/groups";
-import * as streamsActions from "../../ducks/streams";
+import { useGetStreamsQuery } from "../../ducks/streams";
 
 const useStyles = makeStyles()((theme) => ({
   padding_bottom: {
@@ -68,7 +68,6 @@ const useStyles = makeStyles()((theme) => ({
 
 const Group = () => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const [deleteGroup] = useDeleteGroupMutation();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -96,6 +95,7 @@ const Group = () => {
     skip: !id,
   });
   const currentUser = useAppSelector((state) => (state as any).profile);
+  const { error: streamsError } = useGetStreamsQuery();
 
   useEffect(() => {
     if (groupError) {
@@ -104,14 +104,12 @@ const Group = () => {
   }, [groupError]);
 
   useEffect(() => {
-    const fetchStreams = async () => {
-      const data: any = await dispatch(streamsActions.fetchStreams());
-      if (data.status === "error") {
-        setGroupLoadError(data.message);
-      }
-    };
-    fetchStreams();
-  }, [currentUser, dispatch]);
+    if (streamsError) {
+      setGroupLoadError(
+        (streamsError as any)?.error ?? "Failed to load streams",
+      );
+    }
+  }, [streamsError]);
 
   const handleDeleteGroup = async () => {
     try {

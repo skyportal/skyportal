@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
@@ -10,11 +10,11 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import FilterPlugins from "./FilterPlugins";
 
 import { useGetGroupQuery } from "../../ducks/group";
-import * as filterActions from "../../ducks/filter";
+import { useGetFilterQuery } from "../../ducks/filter";
 import { useGetStreamQuery } from "../../ducks/stream";
 
 const useStyles = makeStyles()((theme) => ({
@@ -70,28 +70,17 @@ const Filter = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const [filterLoadError, setFilterLoadError] = useState("");
-
   const { fid } = useParams();
-  const loadedId = useAppSelector((state) => state["filter"].id);
 
-  useEffect(() => {
-    const fetchFilter = async () => {
-      if (!fid) {
-        return;
-      }
-      const data = (await dispatch(filterActions.fetchFilter(fid))) as any;
-      if (data.status === "error") {
-        setFilterLoadError(data.message);
-      }
-    };
-    if (loadedId !== fid) {
-      fetchFilter();
-    }
-  }, [fid, loadedId, dispatch]);
+  const { data: filter, error: filterError } = useGetFilterQuery(fid ?? "", {
+    skip: !fid,
+  }) as any;
+  const filterLoadError = filterError
+    ? ((filterError as any)?.error ?? "Failed to load filter")
+    : "";
 
-  const group_id = useAppSelector((state) => state["filter"].group_id);
-  const stream_id = useAppSelector((state) => state["filter"].stream_id);
+  const group_id = filter?.group_id;
+  const stream_id = filter?.stream_id;
 
   const { data: group, error: groupError } = useGetGroupQuery(group_id, {
     skip: !group_id,
@@ -110,14 +99,12 @@ const Filter = () => {
     skip: !stream_id,
   });
 
-  const filter = useAppSelector((state) => state["filter"]);
-
   if (filterLoadError) {
     return <div>{filterLoadError}</div>;
   }
 
   // renders
-  if (!filter) {
+  if (filter == null) {
     return (
       <div>
         <CircularProgress color="secondary" />

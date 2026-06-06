@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import Paper from "@mui/material/Paper";
@@ -46,8 +46,12 @@ import {
 } from "../../ducks/groups";
 import { usePatchUserMutation } from "../../ducks/users";
 import { useGetUsersManagementQuery } from "../../ducks/users_management";
-import * as streamsActions from "../../ducks/streams";
-import * as invitationsActions from "../../ducks/invitations";
+import { useGetConfigQuery } from "../../ducks/config";
+import {
+  useGetStreamsQuery,
+  useAddStreamUserMutation,
+  useDeleteStreamUserMutation,
+} from "../../ducks/streams";
 import {
   useGetAclsQuery,
   useAddUserAclsMutation,
@@ -95,7 +99,7 @@ const UserManagement = () => {
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
-  const { invitationsEnabled } = useAppSelector((state) => state["config"]);
+  const { invitationsEnabled } = useGetConfigQuery().data ?? {};
   const currentUser = useAppSelector((state) => state.profile);
   // fetchParams drive the (server-side) pagination/filter/sort query. They live
   // in component state and are passed to the RTK Query hook below, which
@@ -112,7 +116,9 @@ const UserManagement = () => {
   const users = usersManagementData?.users;
   const totalMatches = usersManagementData?.totalMatches ?? 0;
   const [tableFilterList, setTableFilterList] = useState<string[]>([]);
-  const streams = useAppSelector((state) => state["streams"]);
+  const { data: streams } = useGetStreamsQuery();
+  const [addStreamUser] = useAddStreamUserMutation();
+  const [deleteStreamUser] = useDeleteStreamUserMutation();
   let allGroups = useGetGroupsQuery().data?.all ?? null;
   const [addGroupUser] = useAddGroupUserMutation();
   const [deleteGroupUser] = useDeleteGroupUserMutation();
@@ -138,7 +144,6 @@ const UserManagement = () => {
     setRemoveExpirationConfirmDialogOpen,
   ] = useState(false);
   const [clickedUser, setClickedUser] = useState<any>(null);
-  const [dataFetched, setDataFetched] = useState(false);
 
   const {
     handleSubmit,
@@ -150,17 +155,6 @@ const UserManagement = () => {
   } = useForm();
 
   const filter = createFilterOptions();
-
-  useEffect(() => {
-    const fetchData = () => {
-      dispatch(streamsActions.fetchStreams());
-      dispatch(invitationsActions.fetchInvitations());
-    };
-    if (!dataFetched) {
-      fetchData();
-      setDataFetched(true);
-    }
-  }, [dataFetched, dispatch]);
 
   const handleFilterSubmit = async (formData: any) => {
     Object.keys(formData).forEach(
@@ -255,7 +249,7 @@ const UserManagement = () => {
   if (
     !currentUser?.username?.length ||
     !allGroups?.length ||
-    streams === null ||
+    streams == null ||
     !acls?.length ||
     !roles?.length
   ) {
@@ -317,16 +311,15 @@ const UserManagement = () => {
 
   const handleAddUserToStreams = async (formData: any) => {
     const streamIDs = formData.streams?.map((g: any) => g.id);
-    const promises = streamIDs?.map((sid: any) =>
-      dispatch(
-        streamsActions.addStreamUser({
-          user_id: clickedUser.id,
-          stream_id: sid,
-        }),
-      ),
-    );
-    const results: any[] = await Promise.all(promises);
-    if (results.every((result: any) => result.status === "success")) {
+    try {
+      await Promise.all(
+        (streamIDs ?? []).map((sid: any) =>
+          addStreamUser({
+            user_id: clickedUser.id,
+            stream_id: sid,
+          }).unwrap(),
+        ),
+      );
       dispatch(
         showNotification("User successfully added to specified stream(s)."),
       );
@@ -334,6 +327,8 @@ const UserManagement = () => {
       setAddUserStreamsDialogOpen(false);
       await refetchUsersManagement();
       setClickedUser(null);
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
@@ -399,12 +394,12 @@ const UserManagement = () => {
     user_id: any,
     stream_id: any,
   ) => {
-    const result: any = await dispatch(
-      streamsActions.deleteStreamUser({ user_id, stream_id }),
-    );
-    if (result.status === "success") {
+    try {
+      await deleteStreamUser({ user_id, stream_id }).unwrap();
       dispatch(showNotification("Stream access successfully revoked."));
       await refetchUsersManagement();
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 

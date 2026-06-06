@@ -13,10 +13,9 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import DynamicTagDisplay from "./DynamicTagDisplay";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import * as profileActions from "../../ducks/profile";
-import * as objectTagsActions from "../../ducks/objectTags";
 import { useGetRecentSourcesQuery } from "../../ducks/recentSources";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
@@ -411,7 +410,6 @@ interface RecentSourcesProps {
 }
 
 const RecentSources = ({ classes }: RecentSourcesProps) => {
-  const dispatch = useAppDispatch();
   const invertThumbnails = useAppSelector(
     (state) => state.profile.preferences?.["invertThumbnails"],
   ) as boolean | undefined;
@@ -422,9 +420,6 @@ const RecentSources = ({ classes }: RecentSourcesProps) => {
     (useAppSelector(
       (state) => state.profile.preferences?.["recentSources"],
     ) as any) || defaultPrefs;
-  useEffect(() => {
-    dispatch(objectTagsActions.fetchTagOptions());
-  }, [dispatch]);
 
   const recentSourcesPrefs = prefs
     ? { ...defaultPrefs, ...prefs }

@@ -14,6 +14,11 @@ import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import {
+  useGetInstrumentsQuery,
+  useGetInstrumentFormsQuery,
+} from "../../ducks/instruments";
+import { useGetDefaultFollowupRequestsQuery } from "../../ducks/default_followup_requests";
 import FollowupRequestListsBase from "./FollowupRequestLists";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
@@ -66,12 +71,10 @@ const defaultNumPerPage = 10;
 
 const FollowupRequestPage = () => {
   const { data: telescopeList = [] } = useGetTelescopesQuery();
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
-  const { defaultFollowupRequestList } = useAppSelector(
-    (state) => state["default_followup_requests"],
-  ) as any;
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
+  const { data: defaultFollowupRequestList } =
+    useGetDefaultFollowupRequestsQuery();
   const currentUser = useAppSelector((state) => state.profile);
   const { classes } = useStyles() as any;
   const dispatch = useAppDispatch();
@@ -308,7 +311,7 @@ const FollowupRequestPage = () => {
         <Grid size={12} style={{ paddingTop: 0 }}>
           <Paper elevation={1}>
             <DefaultFollowupRequestList
-              default_followup_requests={defaultFollowupRequestList}
+              default_followup_requests={defaultFollowupRequestList || []}
               deletePermission={permission}
             />
           </Paper>

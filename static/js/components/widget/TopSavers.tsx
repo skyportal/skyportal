@@ -21,6 +21,7 @@ import Button from "../Button";
 import UserAvatar from "../user/UserAvatar";
 import * as profileActions from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
+import { useGetTopSaversQuery } from "../../ducks/topSavers";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 interface TopSaversSearchProps {
@@ -225,7 +226,7 @@ const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
 const TopSavers = ({ classes }: TopSaversProps) => {
   const dispatch = useAppDispatch();
   const { classes: styles } = useStyles();
-  const { savers } = useAppSelector((state) => state["topSavers"]);
+  const { data: savers } = useGetTopSaversQuery();
 
   const storedPrefs = useAppSelector(
     (state) => (state.profile.preferences as any)?.topSavers,
@@ -320,7 +321,7 @@ const TopSavers = ({ classes }: TopSaversProps) => {
             />
           </div>
         </div>
-        <TopSaversList savers={savers} styles={styles} />
+        <TopSaversList savers={savers || []} styles={styles} />
       </div>
     </Paper>
   );

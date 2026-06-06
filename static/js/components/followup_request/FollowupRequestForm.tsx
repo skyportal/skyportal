@@ -23,7 +23,6 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
-import * as instrumentsActions from "../../ducks/instruments";
 import * as sourceActions from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
@@ -117,15 +116,6 @@ const FollowupRequestForm = ({
     setSelectedAllocationId,
     setSelectedGroupIds,
   ]);
-
-  useEffect(() => {
-    if (
-      !instrumentFormParams ||
-      Object.keys(instrumentFormParams).length === 0
-    ) {
-      dispatch(instrumentsActions.fetchInstrumentForms());
-    }
-  }, [dispatch, instrumentFormParams]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first

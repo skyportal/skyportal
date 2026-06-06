@@ -47,7 +47,7 @@ import * as candidateActions from "./ducks/candidate/candidate";
 import * as candidatesActions from "./ducks/candidate/candidates";
 import * as observationsActions from "./ducks/observations";
 import * as catalogQueriesActions from "./ducks/catalog_query";
-import * as surveyEfficiencyObservationsActions from "./ducks/survey_efficiency_observations";
+import "./ducks/survey_efficiency_observations";
 import * as surveyEfficiencyObservationPlansActions from "./ducks/survey_efficiency_observation_plans";
 import * as localizationActions from "./ducks/localization";
 import * as shiftsActions from "./ducks/shifts";
@@ -82,9 +82,11 @@ export default function hydrate(
         );
       }
       if (ducks_to_hydrate.includes("config")) {
-        dispatch(configActions.fetchConfig()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("config"));
-        });
+        dispatch(configActions.configApi.endpoints.getConfig.initiate()).then(
+          () => {
+            dispatch(hydrationActions.finishedHydrating("config"));
+          },
+        );
       }
       if (ducks_to_hydrate.includes("profile")) {
         dispatch(profileActions.fetchUserProfile()).then(() => {
@@ -107,30 +109,40 @@ export default function hydrate(
       }
     }
     // dashboard data, always refreshed
-    dispatch(newsFeedActions.fetchNewsFeed());
-    dispatch(topSourcesActions.fetchTopSources());
-    dispatch(topSaversActions.fetchTopSavers());
+    dispatch(newsFeedActions.newsFeedApi.endpoints.getNewsFeed.initiate());
+    dispatch(
+      topSourcesActions.topSourcesApi.endpoints.getTopSources.initiate(),
+    );
+    dispatch(topSaversActions.topSaversApi.endpoints.getTopSavers.initiate());
     dispatch(
       recentSourcesActions.recentSourcesApi.endpoints.getRecentSources.initiate(),
     );
-    dispatch(sourceCountsActions.fetchSourceCounts());
+    dispatch(
+      sourceCountsActions.sourceCountsApi.endpoints.getSourceCounts.initiate(),
+    );
     dispatch(
       recentGcnEventsActions.recentGcnEventsApi.endpoints.getRecentGcnEvents.initiate(),
     );
     if (!dashboardOnly) {
       // other data
       if (ducks_to_hydrate.includes("streams")) {
-        dispatch(streamsActions.fetchStreams()).then(() => {
+        dispatch(
+          streamsActions.streamsApi.endpoints.getStreams.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("streams"));
         });
       }
       if (ducks_to_hydrate.includes("enumTypes")) {
-        dispatch(enumTypesActions.fetchEnumTypes()).then(() => {
+        dispatch(
+          enumTypesActions.enumTypesApi.endpoints.getEnumTypes.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("enumTypes"));
         });
       }
       if (ducks_to_hydrate.includes("instruments")) {
-        dispatch(instrumentsActions.fetchInstruments()).then(() => {
+        dispatch(
+          instrumentsActions.instrumentsApi.endpoints.getInstruments.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("instruments"));
         });
       }
@@ -156,7 +168,9 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("instrumentForms")) {
-        dispatch(instrumentsActions.fetchInstrumentForms()).then(() => {
+        dispatch(
+          instrumentsActions.instrumentsApi.endpoints.getInstrumentForms.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("instrumentForms"));
         });
       }
@@ -213,7 +227,7 @@ export default function hydrate(
       }
       if (ducks_to_hydrate.includes("defaultFollowupRequests")) {
         dispatch(
-          defaultFollowupRequestsActions.fetchDefaultFollowupRequests(),
+          defaultFollowupRequestsActions.defaultFollowupRequestsApi.endpoints.getDefaultFollowupRequests.initiate(),
         ).then(() => {
           dispatch(
             hydrationActions.finishedHydrating("defaultFollowupRequests"),
@@ -260,7 +274,9 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("objectTags")) {
-        dispatch(objTagActions.fetchTagOptions()).then(() => {
+        dispatch(
+          objTagActions.objectTagsApi.endpoints.getTagOptions.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("objectTags"));
         });
       }

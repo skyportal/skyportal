@@ -8,6 +8,7 @@ import DragHandleIcon from "@mui/icons-material/DragHandle";
 import { useAppSelector } from "../../types/hooks";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import * as profileActions from "../../ducks/profile";
+import { useGetSourceCountsQuery } from "../../ducks/sourceCounts";
 
 const useStyles = makeStyles()(() => ({
   counter: {
@@ -36,9 +37,7 @@ interface SourceCountsProps {
 
 const SourceCounts = ({ classes, sinceDaysAgo }: SourceCountsProps) => {
   const { classes: styles } = useStyles();
-  const sourceCounts = useAppSelector(
-    (state) => (state as any).sourceCounts?.sourceCounts,
-  );
+  const { data: sourceCounts } = useGetSourceCountsQuery();
   const userPrefs = useAppSelector(
     (state) => (state.profile.preferences as any).sourceCounts,
   );

@@ -21,6 +21,7 @@ import { allowedClasses } from "../classification/ClassificationForm";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
+import { useGetConfigQuery } from "../../ducks/config";
 import {
   useGetSpatialCatalogsQuery,
   useGetSpatialCatalogQuery,
@@ -164,9 +165,9 @@ const SourceTableFilterForm = ({
     setByMe(event.target.checked);
   };
 
-  const maxNumDaysUsingLocalization = useAppSelector(
-    (state) => (state as any).config.maxNumDaysUsingLocalization,
-  );
+  const maxNumDaysUsingLocalization = useGetConfigQuery().data?.[
+    "maxNumDaysUsingLocalization"
+  ] as number | undefined;
   const gcnEvents = useAppSelector((state) => (state as any).gcnEvents);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState<any>(null);
 

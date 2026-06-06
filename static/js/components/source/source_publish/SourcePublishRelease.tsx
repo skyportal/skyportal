@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Link from "@mui/material/Link";
-import { useAppSelector, useAppDispatch } from "../../../types/hooks";
-import { fetchPublicReleases } from "../../../ducks/public_pages/public_release";
+import { useAppSelector } from "../../../types/hooks";
+import { useGetPublicReleasesQuery } from "../../../ducks/public_pages/public_release";
 import ReleasesList from "../../release/ReleasesList";
 
 const useStyles = makeStyles()(() => ({
@@ -45,17 +44,12 @@ const SourcePublishRelease = ({
   setOptions,
 }: SourcePublishReleaseProps) => {
   const { classes: styles } = useStyles();
-  const dispatch = useAppDispatch();
-  const [loading, setLoading] = useState(true);
-  const releases = useAppSelector((state) => state["publicReleases"]) as any[];
+  const { data: releasesData, isLoading: loading } =
+    useGetPublicReleasesQuery();
+  const releases = (releasesData ?? []) as any[];
   const manageSourcesAccess = useAppSelector(
     (state) => state.profile,
   ).permissions?.includes("Manage sources");
-
-  useEffect(() => {
-    setLoading(true);
-    (dispatch(fetchPublicReleases()) as any).then(() => setLoading(false));
-  }, [dispatch]);
 
   const formSchema = {
     type: "object",

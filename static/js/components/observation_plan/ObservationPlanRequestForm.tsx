@@ -29,8 +29,11 @@ import Button from "../Button";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 import * as gcnEventActions from "../../ducks/gcnEvent";
 import { useLazyGetInstrumentSkymapQuery } from "../../ducks/instrument";
-import * as instrumentsActions from "../../ducks/instruments";
-import { planWithSameNameExists } from "../../ducks/observationPlans";
+import {
+  useGetInstrumentsQuery,
+  useGetInstrumentObsplanFormsQuery,
+} from "../../ducks/instruments";
+import { useLazyGetPlanWithSameNameExistsQuery } from "../../ducks/observationPlans";
 import { useGetLocalizationQuery } from "../../ducks/localization";
 import GroupShareSelect from "../group/GroupShareSelect";
 import LocalizationPlot from "../localization/LocalizationPlot";
@@ -219,6 +222,7 @@ const ObservationPlanRequestForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [fetchInstrumentSkymap] = useLazyGetInstrumentSkymapQuery();
+  const [fetchPlanWithSameNameExists] = useLazyGetPlanWithSameNameExistsQuery();
 
   const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
   const { data: telescopeList = [] } = useGetTelescopesQuery();
@@ -264,14 +268,10 @@ const ObservationPlanRequestForm = ({
     useState(defaultAirmassTime);
 
   const [fetchingLocalization, setFetchingLocalization] = useState(false);
-  const [
-    fetchingInstrumentObsplanFormParams,
-    setFetchingInstrumentObsplanFormParams,
-  ] = useState(false);
 
-  const { instrumentList, instrumentObsplanFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentObsplanFormParams = {} } =
+    useGetInstrumentObsplanFormsQuery();
 
   const groupLookUp: Record<string, any> = {};
 
@@ -359,16 +359,6 @@ const ObservationPlanRequestForm = ({
       setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
     }
 
-    if (
-      Object.keys(instrumentObsplanFormParams).length === 0 &&
-      !fetchingInstrumentObsplanFormParams
-    ) {
-      setFetchingInstrumentObsplanFormParams(true);
-      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(() => {
-        setFetchingInstrumentObsplanFormParams(false);
-      });
-    }
-
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -444,30 +434,33 @@ const ObservationPlanRequestForm = ({
       return;
     }
     // if there is already a plan with the same name in the DB, show an error
-    dispatch(planWithSameNameExists(formData.queue_name)).then(
-      (response: any) => {
-        if (response.status === "success" && response.data.exists === true) {
-          dispatch(
-            showNotification(
-              "An observation plan with the same name already exists. Use another name",
-              "warning",
-            ),
-          );
-        } else {
-          if (selectedFields.length > 0) {
-            formData.field_ids = selectedFields;
-          }
-          const json = {
-            gcnevent_id: gcnEvent.id,
-            allocation_id: selectedAllocationId,
-            localization_id: selectedLocalizationId,
-            target_group_ids: selectedGroupIds,
-            payload: formData,
-          };
-          setPlanQueues([...planQueues, json]);
+    try {
+      const response = await fetchPlanWithSameNameExists(
+        formData.queue_name,
+      ).unwrap();
+      if (response.exists === true) {
+        dispatch(
+          showNotification(
+            "An observation plan with the same name already exists. Use another name",
+            "warning",
+          ),
+        );
+      } else {
+        if (selectedFields.length > 0) {
+          formData.field_ids = selectedFields;
         }
-      },
-    );
+        const json = {
+          gcnevent_id: gcnEvent.id,
+          allocation_id: selectedAllocationId,
+          localization_id: selectedLocalizationId,
+          target_group_ids: selectedGroupIds,
+          payload: formData,
+        };
+        setPlanQueues([...planQueues, json]);
+      }
+    } catch {
+      // notification handled by baseQuery
+    }
   };
 
   const handleSubmit = async () => {
@@ -490,7 +483,7 @@ const ObservationPlanRequestForm = ({
     const instrument = instrumentList.find(
       (inst: any) => inst.id === instrumentId,
     );
-    const instrumentsFilters = instrument?.filters;
+    const instrumentsFilters = instrument?.["filters"];
     if (
       instrumentsFilters &&
       formData.filters !== undefined &&

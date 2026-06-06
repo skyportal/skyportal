@@ -239,6 +239,15 @@ export const TAG_TYPES = [
   "ObjectTags",
   "RecurringAPIs",
   "Reminder",
+  "ObjTagOption",
+  "ObjTag",
+  "SourceTag",
+  "SourceView",
+  "Filters",
+  "Localizations",
+  "InstrumentForms",
+  "InstrumentObsplanForms",
+  "GcnEventInstruments",
 ] as const;
 
 export const skyportalApi = createApi({

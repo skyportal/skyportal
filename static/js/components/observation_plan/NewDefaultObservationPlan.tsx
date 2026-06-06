@@ -1,6 +1,6 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -23,7 +23,10 @@ import PlanPropertiesSelect from "./PlanPropertiesSelect";
 
 import { useSubmitDefaultObservationPlanMutation } from "../../ducks/default_observation_plans";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
-import * as instrumentsActions from "../../ducks/instruments";
+import {
+  useGetInstrumentsQuery,
+  useGetInstrumentObsplanFormsQuery,
+} from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
 
 const conversions: Record<string, any> = {
@@ -73,14 +76,10 @@ const NewDefaultObservationPlan = ({
   const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
-  const [
-    fetchingInstrumentObsplanFormParams,
-    setFetchingInstrumentObsplanFormParams,
-  ] = useState(false);
 
-  const { instrumentList, instrumentObsplanFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentObsplanFormParams = {} } =
+    useGetInstrumentObsplanFormsQuery();
 
   useEffect(() => {
     if (allocationListApiObsplan?.length > 0 && !selectedAllocationId) {
@@ -89,22 +88,6 @@ const NewDefaultObservationPlan = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allocationListApiObsplan]);
-
-  useEffect(() => {
-    if (
-      Object.keys(instrumentObsplanFormParams).length === 0 &&
-      !fetchingInstrumentObsplanFormParams
-    ) {
-      setFetchingInstrumentObsplanFormParams(true);
-      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(() => {
-        setFetchingInstrumentObsplanFormParams(false);
-      });
-    }
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first

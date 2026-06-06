@@ -8,7 +8,7 @@ import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
-import * as queuedObservationActions from "../../ducks/queued_observations";
+import { useLazyRequestAPIQueuedObservationsQuery } from "../../ducks/observations";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 
 dayjs.extend(utc);
@@ -29,6 +29,8 @@ const NewAPIQueuedObservation = ({
   const allGroups = useGetGroupsQuery().data?.all ?? null;
 
   const dispatch = useAppDispatch();
+  const [requestAPIQueuedObservations] =
+    useLazyRequestAPIQueuedObservationsQuery();
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
@@ -73,13 +75,11 @@ const NewAPIQueuedObservation = ({
       startDate: formData.start_date.replace("+00:00", "").replace(".000Z", ""),
       endDate: formData.end_date.replace("+00:00", "").replace(".000Z", ""),
     };
-    const result: any = await dispatch(
-      queuedObservationActions.requestAPIQueuedObservations(
-        formData.allocation_id,
+    try {
+      await requestAPIQueuedObservations({
+        id: formData.allocation_id,
         data,
-      ),
-    );
-    if (result.status === "success") {
+      }).unwrap();
       dispatch(
         showNotification(
           "Requested API Queued Observation, the list will update shortly.",
@@ -88,6 +88,8 @@ const NewAPIQueuedObservation = ({
       if (typeof onClose === "function") {
         onClose();
       }
+    } catch {
+      // error notification handled by the base query
     }
   };
 

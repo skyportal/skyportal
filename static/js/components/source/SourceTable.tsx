@@ -70,7 +70,7 @@ import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../../ducks/source";
 import * as sourcesActions from "../../ducks/sources";
 import { useGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
-import * as objectTagsActions from "../../ducks/objectTags";
+import { useGetTagOptionsQuery } from "../../ducks/objectTags";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
@@ -633,7 +633,7 @@ const SourceTable = ({
     },
     { skip: !includeGcnStatus || !gcnEvent?.dateobs || !sources },
   );
-  const tagOptions = useAppSelector((state) => (state as any).objectTags || []);
+  const { data: tagOptions = [] } = useGetTagOptionsQuery();
 
   // Columns hidden by default, keyed by DataGrid field. Mirrors the previous
   // defaultDisplayedColumns list (which only enumerated visible labels).
@@ -661,10 +661,6 @@ const SourceTable = ({
       return acc;
     }, {});
   });
-
-  useEffect(() => {
-    dispatch(objectTagsActions.fetchTagOptions());
-  }, [dispatch]);
 
   useEffect(() => {
     if (sources) {

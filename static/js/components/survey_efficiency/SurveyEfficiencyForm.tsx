@@ -14,11 +14,11 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
-import * as surveyEfficiencyObservationsActions from "../../ducks/survey_efficiency_observations";
+import { useSubmitSurveyEfficiencyObservationsMutation } from "../../ducks/survey_efficiency_observations";
 import * as surveyEfficiencyObservationPlansActions from "../../ducks/survey_efficiency_observation_plans";
-import * as instrumentsActions from "../../ducks/instruments";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useGetAllocationsQuery } from "../../ducks/allocations";
 import GroupShareSelect from "../group/GroupShareSelect";
 
@@ -70,6 +70,8 @@ const SurveyEfficiencyForm = ({
 }: SurveyEfficiencyFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [submitSurveyEfficiencyObservations] =
+    useSubmitSurveyEfficiencyObservationsMutation();
 
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationList = [] } = useGetAllocationsQuery();
@@ -81,7 +83,7 @@ const SurveyEfficiencyForm = ({
     useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
   const instrumentsWithSensitivities = (instrumentList || []).filter(
     (i: any) => i.sensitivity_data,
@@ -125,31 +127,20 @@ const SurveyEfficiencyForm = ({
   });
 
   useEffect(() => {
-    const getInstruments = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the instruments list can
-      // update
-
-      const result: any = await dispatch(instrumentsActions.fetchInstruments());
-
-      const { data } = result;
-      const newInstrumentsWithSensitivities = data.filter(
-        (i: any) => i.sensitivity_data,
-      );
-      setSelectedInstrumentId(newInstrumentsWithSensitivities[0]?.id);
-      setSelectedLocalizationId(gcnevent.localizations?.[0]?.["id"]);
-    };
-    if (!instrumentList || instrumentList.length === 0) {
-      getInstruments();
-    } else {
-      setSelectedInstrumentId(instrumentsWithSensitivities[0]?.id);
+    if (instrumentList && instrumentList.length > 0) {
+      setSelectedInstrumentId(instrumentsWithSensitivities[0]?.["id"]);
       setSelectedLocalizationId(gcnevent?.localizations?.[0]?.["id"]);
     }
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedInstrumentId, setSelectedLocalizationId, gcnevent]);
+  }, [
+    instrumentList,
+    setSelectedInstrumentId,
+    setSelectedLocalizationId,
+    gcnevent,
+  ]);
 
   if (
     !allGroups ||
@@ -211,12 +202,14 @@ const SurveyEfficiencyForm = ({
     );
 
     if (!observationplanRequest) {
-      await dispatch(
-        surveyEfficiencyObservationsActions.submitSurveyEfficiencyObservations(
-          selectedInstrumentId,
-          formData,
-        ),
-      );
+      try {
+        await submitSurveyEfficiencyObservations({
+          id: selectedInstrumentId,
+          data: formData,
+        }).unwrap();
+      } catch {
+        // Error notification is handled by the base query.
+      }
     } else {
       await dispatch(
         surveyEfficiencyObservationPlansActions.submitSurveyEfficiencyObservationPlan(

@@ -8,12 +8,14 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import { makeStyles } from "tss-react/mui";
-import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
+import { useSubmitDefaultFollowupRequestMutation } from "../../ducks/default_followup_requests";
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
-import * as instrumentsActions from "../../ducks/instruments";
+import {
+  useGetInstrumentsQuery,
+  useGetInstrumentFormsQuery,
+} from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -40,32 +42,19 @@ const useStyles = makeStyles()(() => ({
 
 const NewDefaultFollowupRequest = () => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
 
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiClassname = [] } =
     useGetAllocationsApiClassnameQuery();
+  const [submitDefaultFollowupRequest] =
+    useSubmitDefaultFollowupRequestMutation();
 
   const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
 
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state: any) => state.instruments,
-  );
-
-  useEffect(() => {
-    if (
-      !instrumentFormParams ||
-      Object.keys(instrumentFormParams).length === 0
-    ) {
-      dispatch(instrumentsActions.fetchInstrumentForms());
-    }
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
 
   const filteredAllocationListApiClassname = allocationListApiClassname.filter(
     (allocation: any) =>
@@ -82,7 +71,7 @@ const NewDefaultFollowupRequest = () => {
         filteredAllocationListApiClassname[0]?.["group_id"],
       ]);
     }
-  }, [allocationListApiClassname, instrumentFormParams, dispatch]);
+  }, [allocationListApiClassname, instrumentFormParams]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
@@ -148,9 +137,11 @@ const NewDefaultFollowupRequest = () => {
       default_followup_name,
       source_filter,
     };
-    await dispatch(
-      defaultFollowupRequestsActions.submitDefaultFollowupRequest(json),
-    );
+    try {
+      await submitDefaultFollowupRequest(json).unwrap();
+    } catch {
+      // notification handled by baseQuery
+    }
   };
 
   const instrumentFormParam =
