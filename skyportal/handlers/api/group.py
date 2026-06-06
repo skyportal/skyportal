@@ -70,15 +70,7 @@ class GroupHandler(BaseHandler):
                       - type: object
                         properties:
                           data:
-                            allOf:
-                              - $ref: '#/components/schemas/Group'
-                              - type: object
-                                properties:
-                                  users:
-                                    type: array
-                                    items:
-                                      $ref: '#/components/schemas/User'
-                                    description: List of group users
+                            $ref: '#/components/schemas/Group'
             400:
               content:
                 application/json:

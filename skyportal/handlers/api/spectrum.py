@@ -492,6 +492,23 @@ class SpectrumHandler(BaseHandler):
               description: |
                 Arrow-parseable date string (e.g. 2020-01-01). If provided,
                 only return sources that have comments after this time.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Spectrum'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
         # original_file_string (the raw uploaded file, TOAST-stored, avg ~36 kB
@@ -1472,15 +1489,7 @@ class ObjSpectraHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            obj_id:
-                              type: string
-                              description: The ID of the requested Obj
-                            spectra:
-                              type: array
-                              items:
-                                $ref: '#/components/schemas/Spectrum'
+                          $ref: '#/components/schemas/Spectrum'
           400:
             content:
               application/json:
@@ -1689,15 +1698,9 @@ class SpectrumRangeHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            obj_id:
-                              type: string
-                              description: The ID of the requested Obj
-                            spectra:
-                              type: array
-                              items:
-                                $ref: '#/components/schemas/Spectrum'
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/Spectrum'
           400:
             content:
               application/json:

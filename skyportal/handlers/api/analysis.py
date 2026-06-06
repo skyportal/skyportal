@@ -1546,7 +1546,7 @@ class AnalysisProductsHandler(BaseHandler):
                 type: object
                 properties:
                   download:
-                    type: bool
+                    type: boolean
                     description: |
                         Download the results as a file
                   plot_kwargs:
@@ -1558,11 +1558,20 @@ class AnalysisProductsHandler(BaseHandler):
                         if new plots are to be generated (e.g. with corner plots)
         responses:
           200:
-            description: Requested analysis file
+            description: |
+              Requested analysis product. For product_type=corner returns a PNG
+              image; for product_type=plots returns binary plot data; for
+              product_type=results returns either a JSON file download or a
+              JSON-wrapped result payload.
             content:
               application/json:
                 schema:
-                  type: object
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
           400:
             content:
               application/json:

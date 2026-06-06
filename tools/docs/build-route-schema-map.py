@@ -19,6 +19,12 @@ Resolution rules (in order):
 * Anything else → skip.
 
 Output is sorted alphabetically by ``"<METHOD> <path>"`` key for stable diffs.
+
+In addition to the ``ROUTE_SCHEMA_MAP`` constant, the emitted module
+exports a ``RouteData<P>`` helper type that resolves a route key to the
+typed shape of its response ``data`` field (scalar vs array picked from
+the entry's ``list`` flag), so call sites get exact response typing
+straight from the spec.
 """
 
 from __future__ import annotations
@@ -157,7 +163,22 @@ export type SchemaName = keyof components["schemas"];
 export const ROUTE_SCHEMA_MAP = {
 """
 
-FOOTER = "} satisfies Record<string, { schema: SchemaName; list: boolean }>;\n"
+FOOTER = """} satisfies Record<string, { schema: SchemaName; list: boolean }>;
+
+type RouteKey = keyof typeof ROUTE_SCHEMA_MAP;
+
+/**
+ * Resolve a route key to the typed shape of its response `data` field.
+ * The map's `list` flag picks scalar-vs-array automatically.
+ *
+ * @example
+ *   const data: RouteData<"GET /api/allocation"> = ...; // Allocation[]
+ */
+export type RouteData<P extends RouteKey> =
+  (typeof ROUTE_SCHEMA_MAP)[P]["list"] extends true
+    ? components["schemas"][(typeof ROUTE_SCHEMA_MAP)[P]["schema"]][]
+    : components["schemas"][(typeof ROUTE_SCHEMA_MAP)[P]["schema"]];
+"""
 
 
 def render(entries: list[tuple[str, str, bool]]) -> str:

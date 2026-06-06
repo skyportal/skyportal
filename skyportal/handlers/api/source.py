@@ -3225,9 +3225,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
+                schema: Success
         """
 
         data = self.get_json()

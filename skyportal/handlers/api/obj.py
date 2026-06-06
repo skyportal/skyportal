@@ -192,14 +192,19 @@ class ObjPositionHandler(BaseHandler):
             content:
               application/json:
                 schema:
-                  type: object
-                  properties:
-                    ra:
-                      type: number
-                      description: Right ascension of the object
-                    dec:
-                      type: number
-                      description: Declination of the object
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            ra:
+                              type: number
+                              description: Right ascension of the object
+                            dec:
+                              type: number
+                              description: Declination of the object
           400:
             content:
               application/json:

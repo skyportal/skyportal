@@ -408,6 +408,23 @@ class MMADetectorSpectrumHandler(BaseHandler):
                   type: integer
               description: |
                 If provided, filter only spectra saved to one of these group IDs.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/MMADetectorSpectrum'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
         if spectrum_id is not None:
@@ -796,6 +813,23 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                   type: integer
               description: |
                 If provided, filter only time_interval saved to one of these group IDs.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/MMADetectorTimeInterval'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
         if time_interval_id is not None:
             with self.Session() as session:

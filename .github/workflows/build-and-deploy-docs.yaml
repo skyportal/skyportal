@@ -104,6 +104,14 @@ jobs:
             exit 1
           )
 
+      - name: Regenerate route schema map and check for drift
+        run: |
+          make routemap
+          git diff --exit-code static/js/types/routeSchemaMap.ts || (
+            echo "::error::static/js/types/routeSchemaMap.ts is out of date — run 'make routemap' and commit."
+            exit 1
+          )
+
       - name: Deploy docs
         if: github.ref == 'refs/heads/main'
         uses: JamesIves/github-pages-deploy-action@v4
