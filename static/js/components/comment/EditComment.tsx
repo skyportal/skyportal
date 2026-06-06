@@ -9,7 +9,7 @@ import Button from "../Button";
 import CommentEntry from "./CommentEntry";
 
 import * as sourceActions from "../../ducks/source";
-import * as gcnEventActions from "../../ducks/gcnEvent";
+import { useEditCommentOnGcnEventMutation } from "../../ducks/gcnEvent";
 import { useEditCommentOnShiftMutation } from "../../ducks/shifts";
 
 interface EditCommentProps {
@@ -37,6 +37,7 @@ const EditComment = ({
 }: EditCommentProps) => {
   const dispatch = useAppDispatch();
   const [editCommentOnShiftMutation] = useEditCommentOnShiftMutation();
+  const [editCommentOnGcnEventMutation] = useEditCommentOnGcnEventMutation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const closeDialog = () => {
@@ -62,7 +63,11 @@ const EditComment = ({
   };
 
   const editCommentOnGcnEvent = (gcnID: any, commentID: any, formData: any) => {
-    dispatch(gcnEventActions.editCommentOnGcnEvent(commentID, gcnID, formData));
+    editCommentOnGcnEventMutation({
+      commentID,
+      gcnEventID: gcnID,
+      formData,
+    });
   };
 
   const editCommentOnShift = (shift_id: any, commentID: any, formData: any) => {

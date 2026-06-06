@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { useAppDispatch } from "../../types/hooks";
-import * as Actions from "../../ducks/gcnEvent";
+import { useDeleteObservationPlanFieldsMutation } from "../../ducks/gcnEvent";
 import { useGetLocalizationQuery } from "../../ducks/localization";
 import { GET } from "../../API";
 import Button from "../Button";
@@ -44,6 +44,8 @@ const ObservationPlanGlobe = ({
   retrieveLocalization = false,
 }: ObservationPlanGlobeProps) => {
   const dispatch = useAppDispatch();
+  const [deleteObservationPlanFields] =
+    useDeleteObservationPlanFieldsMutation();
   const displayOptions = [
     "localization",
     "sources",
@@ -95,12 +97,10 @@ const ObservationPlanGlobe = ({
   if (!obsList) return <CircularProgress />;
 
   const handleDeleteObservationPlanFields = async (selectedIds: any) => {
-    await dispatch(
-      Actions.deleteObservationPlanFields(
-        observationplanRequest.id,
-        selectedIds,
-      ),
-    );
+    await deleteObservationPlanFields({
+      id: observationplanRequest.id as number,
+      fieldIds: selectedIds,
+    });
   };
 
   return (

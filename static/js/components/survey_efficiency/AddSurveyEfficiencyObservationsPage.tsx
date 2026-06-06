@@ -1,24 +1,33 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Grid from "@mui/material/Grid";
 import Paper from "@mui/material/Paper";
+import { skipToken } from "@reduxjs/toolkit/query";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 import SurveyEfficiencyForm from "./SurveyEfficiencyForm";
 import SurveyEfficiencyObservationsLists from "./SurveyEfficiencyObservationsLists";
 
-import { fetchGcnEventSurveyEfficiency } from "../../ducks/gcnEvent";
+import {
+  useGetGcnEventQuery,
+  useGetGcnEventSurveyEfficiencyQuery,
+} from "../../ducks/gcnEvent";
 
-const AddSurveyEfficiencyObservationsPage = () => {
-  const dispatch = useAppDispatch();
+interface AddSurveyEfficiencyObservationsPageProps {
+  dateobs: string;
+}
+
+const AddSurveyEfficiencyObservationsPage = ({
+  dateobs,
+}: AddSurveyEfficiencyObservationsPageProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [fetchingSurveyEfficiency, setFetchingSurveyEfficiency] =
-    useState(false);
 
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]) as any;
+  const { data: gcnEvent } = useGetGcnEventQuery(dateobs ?? skipToken);
+  const { data: surveyEfficiency } = useGetGcnEventSurveyEfficiencyQuery(
+    gcnEvent?.id != null ? { gcnID: gcnEvent["id"] } : skipToken,
+  );
 
   const openDialog = () => {
     setDialogOpen(true);
@@ -28,22 +37,7 @@ const AddSurveyEfficiencyObservationsPage = () => {
     setDialogOpen(false);
   };
 
-  useEffect(() => {
-    if (
-      gcnEvent?.id &&
-      !gcnEvent?.survey_efficiency &&
-      !fetchingSurveyEfficiency
-    ) {
-      setFetchingSurveyEfficiency(true);
-      dispatch(fetchGcnEventSurveyEfficiency({ gcnID: gcnEvent?.id })).then(
-        () => {
-          setFetchingSurveyEfficiency(false);
-        },
-      );
-    }
-  }, [dispatch, gcnEvent]);
-
-  const surveyEfficiencyAnalysisList = gcnEvent?.survey_efficiency || [];
+  const surveyEfficiencyAnalysisList = surveyEfficiency || [];
 
   return (
     <>
@@ -51,7 +45,7 @@ const AddSurveyEfficiencyObservationsPage = () => {
         secondary
         size="small"
         onClick={openDialog}
-        data-testid={`addSimSurveyButton_${gcnEvent.id}`}
+        data-testid={`addSimSurveyButton_${gcnEvent?.id}`}
       >
         SimSurvey Analysis
       </Button>
@@ -71,7 +65,7 @@ const AddSurveyEfficiencyObservationsPage = () => {
             </Grid>
             <Grid size={{ xs: 12, lg: 4 }}>
               <Paper style={{ padding: "1em" }}>
-                <SurveyEfficiencyForm gcnevent={gcnEvent} />
+                <SurveyEfficiencyForm gcnevent={gcnEvent as any} />
               </Paper>
             </Grid>
           </Grid>

@@ -15,7 +15,7 @@ import Tooltip from "@mui/material/Tooltip";
 import ReactJson from "react-json-view";
 
 import * as sourceActions from "../../ducks/source";
-import * as gcnEventActions from "../../ducks/gcnEvent";
+import { useLazyGetCommentOnGcnEventTextAttachmentQuery } from "../../ducks/gcnEvent";
 import { useLazyGetCommentOnShiftAttachmentQuery } from "../../ducks/shifts";
 import { useLazyGetCommentOnEarthquakeTextAttachmentQuery } from "../../ducks/earthquake";
 
@@ -196,20 +196,18 @@ const CommentAttachmentPreview = ({
     getEarthquakeCommentAttachment,
     { data: earthquakeCommentAttachment },
   ] = useLazyGetCommentOnEarthquakeTextAttachmentQuery();
+  const [getGcnEventCommentAttachment, { data: gcnEventCommentAttachment }] =
+    useLazyGetCommentOnGcnEventTextAttachmentQuery();
 
-  function resourceType(state: any): any {
-    let type = "";
-    if (associatedResourceType === "gcn_event") {
-      type = state.gcnEvent.commentAttachment;
-    } else {
-      type = state.source.commentAttachment;
-    }
-    return type;
-  }
-
-  const reduxCommentAttachment = useAppSelector((state) => resourceType(state));
-  let commentAttachment = reduxCommentAttachment;
-  if (associatedResourceType === "shift") {
+  // The source comment attachment still lives in the (un-migrated) source
+  // redux slice; the gcn_event one now comes from the RTK Query lazy hook.
+  const sourceCommentAttachment = useAppSelector(
+    (state: any) => state.source.commentAttachment,
+  );
+  let commentAttachment = sourceCommentAttachment;
+  if (associatedResourceType === "gcn_event") {
+    commentAttachment = gcnEventCommentAttachment;
+  } else if (associatedResourceType === "shift") {
     commentAttachment = shiftCommentAttachment;
   } else if (associatedResourceType === "earthquake") {
     commentAttachment = earthquakeCommentAttachment;
@@ -253,12 +251,10 @@ const CommentAttachmentPreview = ({
           ),
         );
       } else if (associatedResourceType === "gcn_event") {
-        dispatch(
-          gcnEventActions.getCommentOnGcnEventTextAttachment(
-            gcnEventID,
-            commentId,
-          ),
-        );
+        getGcnEventCommentAttachment({
+          gcnEventID: gcnEventID!,
+          commentID: commentId,
+        });
       } else if (associatedResourceType === "earthquake") {
         getEarthquakeCommentAttachment({
           earthquakeID: earthquakeID!,

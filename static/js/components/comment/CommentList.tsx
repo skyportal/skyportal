@@ -17,7 +17,10 @@ import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as sourceActions from "../../ducks/source";
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 import { useGetCandidateQuery } from "../../ducks/candidate/candidate";
-import * as gcnEventActions from "../../ducks/gcnEvent";
+import {
+  useGetGcnEventQuery,
+  useAddCommentOnGcnEventMutation,
+} from "../../ducks/gcnEvent";
 import {
   useAddCommentOnShiftMutation,
   useGetShiftQuery,
@@ -172,6 +175,7 @@ interface CommentListProps {
   isCandidate?: boolean;
   objID?: string | null;
   gcnEventID?: number | null;
+  gcnEventDateobs?: string | null;
   earthquakeID?: string | null;
   earthquakeEventID?: string | null;
   associatedResourceType?: string;
@@ -187,6 +191,7 @@ const CommentList = ({
   objID = null,
   spectrumID = null,
   gcnEventID = null,
+  gcnEventDateobs = null,
   earthquakeID = null,
   earthquakeEventID = null,
   shiftID = null,
@@ -220,7 +225,10 @@ const CommentList = ({
     { id: resolvedObjID as string },
     { skip: !resolvedObjID },
   );
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
+  const { data: gcnEvent } = useGetGcnEventQuery(
+    gcnEventDateobs ?? skipToken,
+  ) as { data: any };
+  const [addCommentOnGcnEvent] = useAddCommentOnGcnEventMutation();
   const { data: earthquake } = useGetEarthquakeQuery(
     earthquakeEventID ?? skipToken,
   ) as { data: any };
@@ -263,12 +271,10 @@ const CommentList = ({
   };
 
   const addGcnEventComment = (formData: any) => {
-    dispatch(
-      gcnEventActions.addCommentOnGcnEvent({
-        gcnevent_id: gcnEventID,
-        ...formData,
-      }),
-    );
+    addCommentOnGcnEvent({
+      gcnevent_id: gcnEventID,
+      ...formData,
+    });
   };
 
   const addEarthquakeComment = (formData: any) => {

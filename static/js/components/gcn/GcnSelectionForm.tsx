@@ -25,10 +25,13 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
 
+import { skipToken } from "@reduxjs/toolkit/query";
+
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetGcnEventQuery } from "../../ducks/gcnEvent";
 
 import {
   useGetGalaxyCatalogsQuery,
@@ -376,7 +379,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     displayOptions.map((x) => [x, x === "localization"]),
   );
 
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]) as any;
+  const { data: gcnEvent } = useGetGcnEventQuery(dateobs ?? skipToken) as {
+    data: any;
+  };
   const groups = (useGetGroupsQuery().data?.userAccessible ?? []) as any[];
   const galaxyCatalogs = (useGetGalaxyCatalogsQuery().data ?? []) as any[];
   const [selectedFields, setSelectedFields] = useState<any[]>([]);
@@ -1144,8 +1149,8 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                   <Suspense fallback={<CircularProgress />}>
                     <GcnReport dateobs={dateobs} />
                   </Suspense>
-                  <AddSurveyEfficiencyObservationsPage />
-                  <AddCatalogQueryPage />
+                  <AddSurveyEfficiencyObservationsPage dateobs={dateobs} />
+                  <AddCatalogQueryPage dateobs={dateobs} />
                   {isSubmittingTreasureMap === selectedInstrumentId ? (
                     <CircularProgress />
                   ) : (

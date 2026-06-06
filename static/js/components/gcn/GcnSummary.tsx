@@ -26,11 +26,16 @@ import {
   SelectSingleLabelWithChips,
 } from "../SelectWithChips";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { skipToken } from "@reduxjs/toolkit/query";
+
+import { useAppDispatch } from "../../types/hooks";
 import { useGetGroupQuery } from "../../ducks/group";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
-import { postGcnEventSummary } from "../../ducks/gcnEvent";
+import {
+  useGetGcnEventQuery,
+  usePostGcnEventSummaryMutation,
+} from "../../ducks/gcnEvent";
 import { useGetConfigQuery } from "../../ducks/config";
 import Button from "../Button";
 import GcnSummaryTable from "./GcnSummaryTable";
@@ -156,7 +161,10 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
     skip: !selectedGroup?.id,
   });
   const users = selectedGroupData?.["users"];
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
+  const { data: gcnEvent } = useGetGcnEventQuery(dateobs ?? skipToken) as {
+    data: any;
+  };
+  const [postGcnEventSummary] = usePostGcnEventSummaryMutation();
   const [nb, setNb] = useState("");
   const [title, setTitle] = useState("Gcn Summary");
   const [subject, setSubject] = useState(`Follow-up on GCN Event ...`);
@@ -356,18 +364,17 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
       if (params.instrumentIds?.length === 0) {
         delete params.instrumentIds;
       }
-      dispatch(postGcnEventSummary({ dateobs, params })).then(
-        (response: any) => {
-          if (response.status === "success") {
-            dispatch(
-              showNotification("Summary is being generated, please wait"),
-            );
-          } else {
-            dispatch(showNotification("Error generating summary", "error"));
-          }
+      postGcnEventSummary({ dateobs, params })
+        .unwrap()
+        .then(() => {
+          dispatch(showNotification("Summary is being generated, please wait"));
+        })
+        .catch(() => {
+          dispatch(showNotification("Error generating summary", "error"));
+        })
+        .finally(() => {
           setLoading(false);
-        },
-      );
+        });
     }
   };
 

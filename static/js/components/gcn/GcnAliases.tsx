@@ -11,7 +11,7 @@ import AddGcnAlias from "./AddGcnAlias";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
-import * as gcnEventActions from "../../ducks/gcnEvent";
+import { useDeleteGcnAliasMutation } from "../../ducks/gcnEvent";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -57,6 +57,7 @@ const GcnAliases = ({ gcnEvent, show_title = false }: GcnAliasesProps) => {
   const { classes: styles } = useStyles();
 
   const dispatch = useAppDispatch();
+  const [deleteGcnAlias] = useDeleteGcnAliasMutation();
 
   const { data: userProfile } = useGetProfileQuery();
 
@@ -72,16 +73,18 @@ const GcnAliases = ({ gcnEvent, show_title = false }: GcnAliasesProps) => {
   };
 
   const deleteAlias = () => {
-    dispatch(
-      gcnEventActions.deleteGcnAlias(gcnEvent.dateobs, {
-        alias: aliasToDelete,
-      }),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    deleteGcnAlias({
+      dateobs: gcnEvent.dateobs as string,
+      params: { alias: aliasToDelete },
+    })
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("GCN Event Alias deleted"));
         closeDialog();
-      }
-    });
+      })
+      .catch(() => {
+        // error notification handled by baseQuery
+      });
   };
 
   const permission =

@@ -6,8 +6,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Box from "@mui/material/Box";
 
-import { useAppDispatch } from "../../types/hooks";
-import * as Actions from "../../ducks/gcnEvent";
+import { useCreateObservationPlanRequestObservingRunMutation } from "../../ducks/gcnEvent";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
 
@@ -21,7 +20,8 @@ const AddRunFromObservationPlanPage = ({
   observationplanRequest,
 }: AddRunFromObservationPlanPageProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const dispatch = useAppDispatch();
+  const [createObservationPlanRequestObservingRun] =
+    useCreateObservationPlanRequestObservingRunMutation();
 
   const allGroups = useGetGroupsQuery().data?.all ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
@@ -40,9 +40,7 @@ const AddRunFromObservationPlanPage = ({
   const handleCreateObservingRun = async (id: number, groupIds: number[]) => {
     setIsCreatingObservingRun(id);
     const params = { groupIds };
-    await dispatch(
-      Actions.createObservationPlanRequestObservingRun(id, params),
-    );
+    await createObservationPlanRequestObservingRun({ id, params });
     setIsCreatingObservingRun(null);
     closeDialog();
   };

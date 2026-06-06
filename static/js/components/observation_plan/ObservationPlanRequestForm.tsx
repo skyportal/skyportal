@@ -23,12 +23,17 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { skipToken } from "@reduxjs/toolkit/query";
+
+import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import Button from "../Button";
 
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
-import * as gcnEventActions from "../../ducks/gcnEvent";
+import {
+  useGetGcnEventQuery,
+  useSubmitObservationPlanRequestMutation,
+} from "../../ducks/gcnEvent";
 import { useLazyGetInstrumentSkymapQuery } from "../../ducks/instrument";
 import {
   useGetInstrumentsQuery,
@@ -225,7 +230,11 @@ const ObservationPlanRequestForm = ({
   const [fetchInstrumentSkymap] = useLazyGetInstrumentSkymapQuery();
   const [fetchPlanWithSameNameExists] = useLazyGetPlanWithSameNameExistsQuery();
 
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
+  const { data: gcnEvent } = useGetGcnEventQuery(dateobs ?? skipToken) as {
+    data: any;
+  };
+  const [submitObservationPlanRequest] =
+    useSubmitObservationPlanRequestMutation();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiObsplan = [] } =
     useGetAllocationsApiObsplanQuery();
@@ -472,7 +481,7 @@ const ObservationPlanRequestForm = ({
         observation_plans: planQueues,
         combine_plans: multiPlansChecked,
       };
-      await dispatch(gcnEventActions.submitObservationPlanRequest(json));
+      await submitObservationPlanRequest(json);
       setPlanQueues([]);
     }
     setIsSubmitting(false);

@@ -34,7 +34,7 @@ import * as objTagActions from "./ducks/objectTags";
 // registered as reducers, to avoid conflicts with redux-state-sync
 import * as sourceActions from "./ducks/source";
 import * as gcnTagsActions from "./ducks/gcnTags";
-import * as gcnEventActions from "./ducks/gcnEvent";
+import "./ducks/gcnEvent";
 import "./ducks/gcnEvents";
 import * as weatherActions from "./ducks/weather";
 import * as spatialCatalogsActions from "./ducks/spatialCatalogs";

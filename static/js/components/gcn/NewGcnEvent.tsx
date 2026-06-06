@@ -4,7 +4,7 @@ import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
-import { submitGcnEvent } from "../../ducks/gcnEvent";
+import { useSubmitGcnEventMutation } from "../../ducks/gcnEvent";
 import { useGetGcnTagsQuery } from "../../ducks/gcnTags";
 
 interface NewGcnEventProps {
@@ -13,6 +13,7 @@ interface NewGcnEventProps {
 
 const NewGcnEvent = ({ handleClose = null }: NewGcnEventProps) => {
   const dispatch = useAppDispatch();
+  const [submitGcnEvent] = useSubmitGcnEventMutation();
   const { data: gcnTagsData } = useGetGcnTagsQuery();
   const gcnTags = [...((gcnTagsData as any) || [])].sort();
 
@@ -38,10 +39,12 @@ const NewGcnEvent = ({ handleClose = null }: NewGcnEventProps) => {
         polygon: formData.polygon,
       };
     }
-    const result = (await dispatch(submitGcnEvent(formData))) as any;
-    if (result.status === "success") {
+    try {
+      await submitGcnEvent(formData).unwrap();
       dispatch(showNotification("GCN Event saved"));
       handleClose?.(); // Call handleClose if it's provided
+    } catch {
+      // error notification handled by baseQuery
     }
   };
 
