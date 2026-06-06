@@ -45,9 +45,19 @@ def test_upload_observations(page, super_admin_user, super_admin_token):
     # close the upload dialog so the executed-observations table is interactable
     page.keyboard.press("Escape")
 
-    # the executed-observations DataGrid has a quick filter; find the uploaded obs
+    # The executed-observations DataGrid has a quick filter. The upload + ingest
+    # can lag (especially under load) and the grid discards the filter value while
+    # it (re)loads, so re-apply the filter until the uploaded obs row appears
+    # rather than checking once and racing the ingest.
     search = page.locator(".MuiDataGrid-root").get_by_placeholder("Search…").first
-    search.fill("84434604")
-    expect(page.locator('//*[text()="84434604"]').first).to_be_visible()
+    cell = page.locator('//*[text()="84434604"]').first
+    for _ in range(15):
+        search.fill("84434604")
+        try:
+            expect(cell).to_be_visible(timeout=3000)
+            break
+        except AssertionError:
+            page.wait_for_timeout(2000)
+    expect(cell).to_be_visible(timeout=5000)
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
