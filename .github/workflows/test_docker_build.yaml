@@ -6,11 +6,16 @@ on:
       - main
       - test-docker
   pull_request:
-    types: [labeled]
+    # Run on PRs that touch docker-related files.
+    paths:
+      - Dockerfile
+      - docker.yaml
+      - docker-compose.yaml
+      - .dockerignore
+      - .github/workflows/test_docker_build.yaml
 
 jobs:
   test:
-    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'docker')
     name: Test Docker build
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -29,36 +34,9 @@ jobs:
         run: |
           docker compose build
 
-      - name: Start database
-        run: docker compose up -d db
-
-      - name: Initialize the database schema
-        # The image CMD `make run_production` starts the app in production mode,
-        # which by design does NOT create tables -- it expects an already-set-up
-        # (migrated) database. On this fresh CI database the app workers would
-        # otherwise crash-loop in refresh_enums() ("type \"spectrumtypes\" does
-        # not exist") and never write .tokens.yaml. So create the schema once,
-        # in a one-off container, before the web service starts.
-        #
-        # This is non-destructive: initial_setup.py calls baselayer's
-        # create_tables() -> metadata.create_all(), which is checkfirst=True --
-        # it only adds missing tables and never drops data. It does not touch
-        # db_init / drop_tables, so the same command is a safe no-op against an
-        # existing, populated database. This only runs in CI; the image and
-        # production startup are unchanged.
-        run: |
-          # Wait until postgres accepts connections.
-          for i in $(seq 1 30); do
-            if docker compose exec -T db pg_isready -U skyportal >/dev/null 2>&1; then
-              break
-            fi
-            sleep 2
-          done
-          docker compose run --rm --no-deps web bash -c \
-            'source .venv/bin/activate && PYTHONPATH=. python skyportal/initial_setup.py --config=config.yaml'
-
-      - name: Start web service
-        run: docker compose up -d web
+      - name: Start containers
+        # compose orders this: db (healthcheck) -> db-init (schema) -> web.
+        run: docker compose up -d
 
       - name: Wait for web service to be healthy
         # The old `sleep 30 + ps grep` only proved the container hadn't crashed,
