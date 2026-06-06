@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
@@ -27,12 +27,12 @@ import {
 } from "@mui/x-data-grid";
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
 import { filterOutEmptyValues } from "../../API";
-import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 import { useGetConfigQuery } from "../../ducks/config";
 import Spinner from "../Spinner";
 import GcnEventsFilterForm from "./GcnEventsFilterForm";
@@ -128,7 +128,6 @@ const defaultNumPerPage = 10;
 const GcnEvents = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const gcnEvents = useAppSelector((state) => state["gcnEvents"]);
 
   const gcn_tags_classes = useGetConfigQuery().data?.["gcnTagsClasses"] as
     | Record<string, string>
@@ -148,9 +147,7 @@ const GcnEvents = () => {
     numPerPage: defaultNumPerPage,
   });
 
-  useEffect(() => {
-    dispatch(gcnEventsActions.fetchGcnEvents());
-  }, [dispatch]);
+  const { data: gcnEvents } = useGetGcnEventsQuery(fetchParams);
 
   if (!gcnEvents) {
     return <p>No gcnEvents available...</p>;
@@ -180,7 +177,6 @@ const GcnEvents = () => {
     }
     // Save state for future
     setFetchParams(params);
-    await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
   const handleTableFilter = async (
@@ -206,7 +202,6 @@ const GcnEvents = () => {
     }
     // Save state for future
     setFetchParams(params);
-    await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
   const handleTableSorting = async (sortData: any) => {
@@ -217,7 +212,6 @@ const GcnEvents = () => {
       sortOrder: sortData.direction,
     };
     setFetchParams(params);
-    await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
   const handleFilterSubmit = async (formData: any) => {
@@ -238,7 +232,6 @@ const GcnEvents = () => {
       partialdateobs: text,
     };
     setFetchParams(params);
-    await dispatch(gcnEventsActions.fetchGcnEvents(params));
   };
 
   const handlePaginationModelChange = (model: any) => {

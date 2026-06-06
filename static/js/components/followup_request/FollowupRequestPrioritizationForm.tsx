@@ -7,13 +7,13 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
 import { makeStyles } from "tss-react/mui";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
   useGetFollowupRequestsQuery,
   usePrioritizeFollowupRequestsMutation,
 } from "../../ducks/followup_requests";
-import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 
 const useStyles = makeStyles()(() => ({
   select: {
@@ -36,8 +36,7 @@ const FollowupRequestPrioritizationForm = ({
   fetchParams,
 }: FollowupRequestPrioritizationFormProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
-  const gcnEvents = useAppSelector((state) => state["gcnEvents"]) as any;
+  const { data: gcnEvents } = useGetGcnEventsQuery() as { data: any };
 
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { instrumentList, instrumentFormParams } = useAppSelector(
@@ -55,20 +54,14 @@ const FollowupRequestPrioritizationForm = ({
     useState<any>(null);
 
   useEffect(() => {
-    const getGcnEvents = async () => {
-      // Wait for the GCN Events to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result: any = await dispatch(gcnEventsActions.fetchGcnEvents());
-      const { data } = result;
-      setSelectedGcnEventId(data?.events[0]?.id);
-    };
-    getGcnEvents();
-
+    // Wait for the GCN Events to load before setting the new default form
+    // fields, so that the allocations list can update.
+    if (gcnEvents?.events?.[0]?.id) {
+      setSelectedGcnEventId(gcnEvents.events[0].id);
+    }
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
-  }, [dispatch, setSelectedGcnEventId]);
+  }, [gcnEvents, setSelectedGcnEventId]);
 
   if (!Array.isArray(followupRequestList)) {
     return <p>Waiting for followup requests to load...</p>;

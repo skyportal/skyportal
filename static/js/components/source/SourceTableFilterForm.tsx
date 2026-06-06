@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Paper from "@mui/material/Paper";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import Checkbox from "@mui/material/Checkbox";
@@ -18,8 +18,8 @@ import Button from "../Button";
 
 import { allowedClasses } from "../classification/ClassificationForm";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { useGetConfigQuery } from "../../ducks/config";
 import {
@@ -168,7 +168,7 @@ const SourceTableFilterForm = ({
   const maxNumDaysUsingLocalization = useGetConfigQuery().data?.[
     "maxNumDaysUsingLocalization"
   ] as number | undefined;
-  const gcnEvents = useAppSelector((state) => (state as any).gcnEvents);
+  const { data: gcnEvents } = useGetGcnEventsQuery() as { data: any };
   const [selectedGcnEventId, setSelectedGcnEventId] = useState<any>(null);
 
   const { data: spatialCatalogs } = useGetSpatialCatalogsQuery();
@@ -178,13 +178,6 @@ const SourceTableFilterForm = ({
     selectedSpatialCatalogId,
     { skip: !selectedSpatialCatalogId },
   );
-
-  useEffect(() => {
-    if (gcnEvents?.length > 0 || !gcnEvents) {
-      dispatch(gcnEventsActions.fetchGcnEvents());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const { handleSubmit, register, control, reset, getValues } = useForm();
 

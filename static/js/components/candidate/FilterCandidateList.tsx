@@ -28,7 +28,7 @@ import utc from "dayjs/plugin/utc";
 
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 import * as candidatesActions from "../../ducks/candidate/candidates";
-import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import CandidatesPreferences from "./CandidatesPreferences";
@@ -272,7 +272,12 @@ const FilterCandidateList = ({
     selectedScanningProfile?.classificationsWith === false ? false : true,
   );
 
-  const gcnEvents = useAppSelector((state) => (state as any).gcnEvents);
+  const [gcnEventsParams, setGcnEventsParams] = useState<Record<string, any>>(
+    {},
+  );
+  const { data: gcnEvents } = useGetGcnEventsQuery(gcnEventsParams) as {
+    data: any;
+  };
 
   const gcnEventsLookUp: Record<string, any> = {};
 
@@ -290,11 +295,6 @@ const FilterCandidateList = ({
 
   const [annotationSortingKeyOptions, setAnnotationSortingKeyOptions] =
     useState<any[]>([]);
-
-  useEffect(() => {
-    dispatch(gcnEventsActions.fetchGcnEvents());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const {
     handleSubmit,
@@ -962,11 +962,7 @@ const FilterCandidateList = ({
                               value !== "") ||
                             (event?.type === "click" && value === "")
                           ) {
-                            dispatch(
-                              gcnEventsActions.fetchGcnEvents({
-                                partialdateobs: value,
-                              }),
-                            );
+                            setGcnEventsParams({ partialdateobs: value });
                           }
                         }}
                         onChange={(_event, newValue: any) => {

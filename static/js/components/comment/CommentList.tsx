@@ -16,6 +16,7 @@ import { skipToken } from "@reduxjs/toolkit/query";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as sourceActions from "../../ducks/source";
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
+import { useGetCandidateQuery } from "../../ducks/candidate/candidate";
 import * as gcnEventActions from "../../ducks/gcnEvent";
 import {
   useAddCommentOnShiftMutation,
@@ -210,7 +211,9 @@ const CommentList = ({
 
   const dispatch = useAppDispatch();
   const source = useAppSelector((state) => state["source"]);
-  const candidate = useAppSelector((state) => state["candidate"]);
+  const { data: candidate } = useGetCandidateQuery(
+    isCandidate && objID ? objID : skipToken,
+  );
   const obj = isCandidate ? candidate : source;
   const resolvedObjID = objID ?? obj?.id ?? null;
   const { data: spectra } = useFetchSourceSpectraQuery(

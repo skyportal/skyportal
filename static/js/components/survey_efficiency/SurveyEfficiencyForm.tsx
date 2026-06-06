@@ -17,7 +17,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useSubmitSurveyEfficiencyObservationsMutation } from "../../ducks/survey_efficiency_observations";
-import * as surveyEfficiencyObservationPlansActions from "../../ducks/survey_efficiency_observation_plans";
+import { useSubmitSurveyEfficiencyObservationPlanMutation } from "../../ducks/survey_efficiency_observation_plans";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useGetAllocationsQuery } from "../../ducks/allocations";
 import GroupShareSelect from "../group/GroupShareSelect";
@@ -72,6 +72,8 @@ const SurveyEfficiencyForm = ({
   const dispatch = useAppDispatch();
   const [submitSurveyEfficiencyObservations] =
     useSubmitSurveyEfficiencyObservationsMutation();
+  const [submitSurveyEfficiencyObservationPlan] =
+    useSubmitSurveyEfficiencyObservationPlanMutation();
 
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationList = [] } = useGetAllocationsQuery();
@@ -211,12 +213,14 @@ const SurveyEfficiencyForm = ({
         // Error notification is handled by the base query.
       }
     } else {
-      await dispatch(
-        surveyEfficiencyObservationPlansActions.submitSurveyEfficiencyObservationPlan(
-          observationplanRequest.id!,
-          formData,
-        ),
-      );
+      try {
+        await submitSurveyEfficiencyObservationPlan({
+          id: observationplanRequest.id!,
+          data: formData,
+        }).unwrap();
+      } catch {
+        // Error notification is handled by the base query.
+      }
     }
 
     setIsSubmitting(false);

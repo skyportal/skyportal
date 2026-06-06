@@ -9,7 +9,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
 import { useAppDispatch } from "../../types/hooks";
-import * as gcnEventsActions from "../../ducks/gcnEvents";
+import {
+  useAddGcnEventUserMutation,
+  useDeleteGcnEventUserMutation,
+} from "../../ducks/gcnEvents";
 import { userLabel } from "../../utils/format";
 
 const useStyles = makeStyles()(() => ({
@@ -60,16 +63,21 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }: GcnAdvocatesProps) => {
 
   const dispatch = useAppDispatch();
   const { data: userProfile } = useGetProfileQuery();
+  const [addGcnEventUser] = useAddGcnEventUserMutation();
+  const [deleteGcnEventUser] = useDeleteGcnEventUserMutation();
 
   const addUser = async () => {
     if (!gcnEvent.dateobs) {
       return;
     }
-    const result: any = await dispatch(
-      gcnEventsActions.addGcnEventUser(userProfile!.id, gcnEvent.dateobs),
-    );
-    if (result.status === "success") {
+    try {
+      await addGcnEventUser({
+        userID: userProfile!.id,
+        gcnEventDateobs: gcnEvent.dateobs,
+      }).unwrap();
       dispatch(showNotification("GCN Event User successfully added."));
+    } catch {
+      // Error notification is handled by the base query.
     }
   };
 
@@ -77,11 +85,14 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }: GcnAdvocatesProps) => {
     if (!gcnEvent.dateobs) {
       return;
     }
-    const result: any = await dispatch(
-      gcnEventsActions.deleteGcnEventUser(id, gcnEvent.dateobs),
-    );
-    if (result.status === "success") {
+    try {
+      await deleteGcnEventUser({
+        userID: id,
+        gcnEventDateobs: gcnEvent.dateobs,
+      }).unwrap();
       dispatch(showNotification("GCN Event User successfully deleted."));
+    } catch {
+      // Error notification is handled by the base query.
     }
   };
 
