@@ -19,9 +19,12 @@ import { makeStyles } from "tss-react/mui";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
-import * as profileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTopSaversQuery } from "../../ducks/topSavers";
 
 interface TopSaversSearchProps {
   savers?: any[];
@@ -223,13 +226,12 @@ const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
 };
 
 const TopSavers = ({ classes }: TopSaversProps) => {
-  const dispatch = useAppDispatch();
   const { classes: styles } = useStyles();
-  const { savers } = useAppSelector((state) => state["topSavers"]);
+  const { data: savers } = useGetTopSaversQuery();
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
-  const storedPrefs = useAppSelector(
-    (state) => (state.profile.preferences as any)?.topSavers,
-  );
+  const storedPrefs = (profile?.preferences as any)?.topSavers;
   const topSaversPrefs = { ...defaultPrefs, ...storedPrefs };
 
   const [currentTimespan, setCurrentTimespan] = useState(
@@ -251,9 +253,7 @@ const TopSavers = ({ classes }: TopSaversProps) => {
     setCurrentTimespan(newTimespan);
     topSaversPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
 
-    dispatch(
-      profileActions.updateUserPreferences({ topSavers: topSaversPrefs }),
-    );
+    updateUserPreferences({ topSavers: topSaversPrefs });
   };
 
   return (
@@ -316,11 +316,11 @@ const TopSavers = ({ classes }: TopSaversProps) => {
               }}
               stateBranchName="topSavers"
               title="Top Scanners Preferences"
-              onSubmit={profileActions.updateUserPreferences}
+              onSubmit={updateUserPreferences}
             />
           </div>
         </div>
-        <TopSaversList savers={savers} styles={styles} />
+        <TopSaversList savers={savers || []} styles={styles} />
       </div>
     </Paper>
   );

@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState } from "react";
 import Card from "@mui/material/Card";
 import { makeStyles } from "tss-react/mui";
@@ -6,7 +7,6 @@ import CardHeader from "@mui/material/CardHeader";
 import CardMedia from "@mui/material/CardMedia";
 import CardActionArea from "@mui/material/CardActionArea";
 import Box from "@mui/material/Box";
-import { useAppSelector } from "../../types/hooks";
 
 const useStyles = makeStyles<{
   size: string;
@@ -111,9 +111,8 @@ const Thumbnail = ({
   const [status, setStatus] = useState(defaultState(src));
   const [retry, setRetry] = useState(0);
   const [imgSrc, setImgSrc] = useState<string | null>(isFetched ? null : src);
-  const invertThumbnails = useAppSelector(
-    (state: any) => state.profile.preferences.invertThumbnails,
-  );
+  const invertThumbnails =
+    useGetProfileQuery().data?.preferences?.["invertThumbnails"];
   const { classes } = useStyles({
     size,
     minSize,

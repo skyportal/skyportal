@@ -18,8 +18,8 @@ import {
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import { patchGcnEventReport } from "../../ducks/gcnEvent";
+import { useAppDispatch } from "../../types/hooks";
+import { usePatchGcnEventReportMutation } from "../../ducks/gcnEvent";
 
 const GridActionsCellItemAny = GridActionsCellItem as any;
 
@@ -65,10 +65,13 @@ function EditSourceToolbar(props: EditSourceToolbarProps) {
   );
 }
 
-export default function GcnReportEdit() {
-  const dispatch = useAppDispatch();
+interface GcnReportEditProps {
+  report: any;
+}
 
-  const { report } = useAppSelector((state) => state["gcnEvent"]);
+export default function GcnReportEdit({ report }: GcnReportEditProps) {
+  const dispatch = useAppDispatch();
+  const [patchGcnEventReport] = usePatchGcnEventReportMutation();
 
   const [sourceRows, setSourceRows] = React.useState<any[]>([]);
   const [sourceRowModesModel, setSourceRowModesModel] = React.useState<any>({});
@@ -143,22 +146,21 @@ export default function GcnReportEdit() {
       sourceRows.find((sourceRow) => sourceRow?.obj_id === source?.id),
     );
     // TODO: update observations (not needed for now as they can't be edited)
-    dispatch(
-      patchGcnEventReport({
-        dateobs: report?.dateobs,
-        reportID: report?.id,
-        formData: {
-          ...report,
-          data,
-        },
-      }),
-    ).then((response: any) => {
-      if (response.status === "success") {
+    patchGcnEventReport({
+      dateobs: report?.dateobs,
+      reportID: report?.id,
+      formData: {
+        ...report,
+        data,
+      },
+    })
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("Report updated"));
-      } else {
+      })
+      .catch(() => {
         dispatch(showNotification("Error updating report", "error"));
-      }
-    });
+      });
   };
   const handleRowEditStop = (params: any, event: any) => {
     if (params.reason === GridRowEditStopReasons.rowFocusOut) {
@@ -466,25 +468,24 @@ export default function GcnReportEdit() {
 
   const handlePublishedChange = (event: any) => {
     const published = event.target.checked;
-    dispatch(
-      patchGcnEventReport({
-        dateobs: report?.dateobs,
-        reportID: report?.id,
-        formData: {
-          published,
-        },
-      }),
-    ).then((response: any) => {
-      if (response.status === "success") {
+    patchGcnEventReport({
+      dateobs: report?.dateobs,
+      reportID: report?.id,
+      formData: {
+        published,
+      },
+    })
+      .unwrap()
+      .then(() => {
         if (published) {
           dispatch(showNotification("Report published"));
         } else {
           dispatch(showNotification("Report unpublished"));
         }
-      } else {
+      })
+      .catch(() => {
         dispatch(showNotification("Error updating report", "error"));
-      }
-    });
+      });
   };
 
   let data;

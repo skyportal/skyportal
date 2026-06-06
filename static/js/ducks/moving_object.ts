@@ -1,15 +1,42 @@
-import * as API from "../API";
+/**
+ * Moving object follow-up observation plan.
+ *
+ * RTK Query conversion of the old `POST_MOVING_OBJECT_OBSPLAN` duck. The single
+ * POST mutation submits the observation-plan request for a named moving object
+ * and returns the generated plan rows. There is no associated query/reducer or
+ * websocket message, so nothing is provided/invalidated.
+ */
+import { skyportalApi } from "../api/skyportalApi";
 
-const POST_MOVING_OBJECT_OBSPLAN = "skyportal/POST_MOVING_OBJECT_OBSPLAN";
+export interface MovingObjectObsPlanRow {
+  id: number | string;
+  start_time: string;
+  field_id: number | string;
+  band: string;
+  airmass: number;
+  moon_distance: number;
+  sun_altitude: number;
+  [key: string]: unknown;
+}
 
-export const postMovingObjectObsPlan = (
-  name: string,
-  data: Record<string, any>,
-) =>
-  API.POST(
-    `/api/moving_object/${name}/followup`,
-    POST_MOVING_OBJECT_OBSPLAN,
-    data,
-  );
+interface PostMovingObjectObsPlanArg {
+  name: string;
+  data: Record<string, unknown>;
+}
 
-// For now we do not need a message handler or a reducer for this action
+export const movingObjectApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    postMovingObjectObsPlan: build.mutation<
+      MovingObjectObsPlanRow[],
+      PostMovingObjectObsPlanArg
+    >({
+      query: ({ name, data }) => ({
+        url: `api/moving_object/${name}/followup`,
+        method: "POST",
+        body: data,
+      }),
+    }),
+  }),
+});
+
+export const { usePostMovingObjectObsPlanMutation } = movingObjectApi;

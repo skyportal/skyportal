@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import SourceTable from "../source/SourceTable";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as sourcesActions from "../../ducks/sources";
+import { useFetchFavoriteSourcesQuery } from "../../ducks/sources";
 
 const useStyles = makeStyles()((theme) => ({
   chip: {
@@ -25,27 +24,19 @@ const useStyles = makeStyles()((theme) => ({
 
 const FavoritesPage = () => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
+  const [queryParams, setQueryParams] = useState<any>({});
 
-  useEffect(() => {
-    dispatch(sourcesActions.fetchFavoriteSources());
-  }, [dispatch]);
-
-  const sourcesState = useAppSelector(
-    (state) => state["sources"].favorites,
-  ) as any;
+  const { data: sourcesState } = useFetchFavoriteSourcesQuery(queryParams);
 
   const handleSourcesTableSorting = (sortData: any, filterData: any) => {
-    dispatch(
-      sourcesActions.fetchFavoriteSources({
-        ...filterData,
-        pageNumber: 1,
-        numPerPage: sourcesRowsPerPage,
-        sortBy: sortData.name,
-        sortOrder: sortData.direction,
-      }),
-    );
+    setQueryParams({
+      ...filterData,
+      pageNumber: 1,
+      numPerPage: sourcesRowsPerPage,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    });
   };
 
   const handleSourcesTablePagination = (
@@ -64,14 +55,14 @@ const FavoritesPage = () => {
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
-    dispatch(sourcesActions.fetchFavoriteSources(data));
+    setQueryParams(data);
   };
 
   if (sourcesState == null) {
     return <CircularProgress />;
   }
 
-  if (sourcesState.sources.length === 0) {
+  if (!sourcesState.sources || sourcesState.sources.length === 0) {
     return (
       <div className={classes.source}>
         <Typography variant="h4" gutterBottom align="center">

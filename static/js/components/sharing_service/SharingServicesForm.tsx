@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState } from "react";
 import validator from "@rjsf/validator-ajv8";
 import { withTheme } from "@rjsf/core";
@@ -20,11 +21,19 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";
 import FormValidationError from "../FormValidationError";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as sharingServicesActions from "../../ducks/sharingServices";
-import * as streamsActions from "../../ducks/streams";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import {
+  useAddSharingServiceSubmissionMutation,
+  useGetSharingServicesQuery,
+  useLazyGetSharingServicesQuery,
+} from "../../ducks/sharingServices";
+import { useGetStreamsQuery } from "../../ducks/streams";
+import { useGetConfigQuery } from "../../ducks/config";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
+import { useGetUsersQuery } from "../../ducks/users";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme as any);
 
@@ -40,17 +49,22 @@ const SharingServicesDialog = ({
   setDialogOpen,
 }: SharingServicesDialogProps) => {
   const dispatch = useAppDispatch();
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
-  const currentUser = useAppSelector((state) => state.profile);
-  const streams = useAppSelector((state) => state["streams"]);
-  const allowedInstrumentsForSharing = useAppSelector(
-    (state) => state["config"].allowedInstrumentsForSharing,
-  );
+  const [triggerFetchSharingServices] = useLazyGetSharingServicesQuery();
+  const [addSharingServiceSubmission] =
+    useAddSharingServiceSubmissionMutation();
+  const allUsers = useGetUsersQuery().data?.users ?? [];
+  const { data: currentUser } = useGetProfileQuery();
+  const { data: streams } = useGetStreamsQuery();
+  const allowedInstrumentsForSharing = useGetConfigQuery().data?.[
+    "allowedInstrumentsForSharing"
+  ] as string[] | undefined;
   const isNoAffiliation = !currentUser?.affiliations?.length;
 
-  const { sharingServicesList, loading } = useAppSelector(
-    (state) => state["sharingServices"],
-  );
+  const { data: sharingServicesList = [], isLoading: loading } =
+    useGetSharingServicesQuery() as {
+      data: any[];
+      isLoading: boolean;
+    };
   const [selectedSharingServiceId, setselectedSharingServiceId] =
     useState<any>(null);
   const [defaultSharersString, setdefaultSharersString] = useState<any>(null);
@@ -62,10 +76,9 @@ const SharingServicesDialog = ({
   const [sendToHermes, setSendToHermes] = useState(false);
   // request in process
   const [SharingRequestInProcess, setSharingRequestInProcess] = useState(false);
-  const [dataFetched, setDataFetched] = useState(false);
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
 
   const selectedSharingService = sharingServicesList?.find(
     (b: any) => b.id === selectedSharingServiceId,
@@ -84,29 +97,19 @@ const SharingServicesDialog = ({
 
   useEffect(() => {
     const getSharingServices = async () => {
-      const result: any = await dispatch(
-        sharingServicesActions.fetchSharingServices(),
-      );
-      const { data } = result;
-      setselectedSharingServiceId(data[0]?.id);
+      const data: any = await triggerFetchSharingServices().unwrap();
+      setselectedSharingServiceId(data?.[0]?.id);
     };
     if (!sharingServicesList) {
       getSharingServices();
     } else if (sharingServicesList?.length > 0 && !selectedSharingServiceId) {
       setselectedSharingServiceId(sharingServicesList[0]?.id);
     }
-  }, [dispatch, sharingServicesList, selectedSharingServiceId]);
-
-  useEffect(() => {
-    const fetchData = () => {
-      dispatch(streamsActions.fetchStreams());
-    };
-    if (!dataFetched && !streams?.length) {
-      fetchData();
-      setDataFetched(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataFetched, dispatch]);
+  }, [
+    triggerFetchSharingServices,
+    sharingServicesList,
+    selectedSharingServiceId,
+  ]);
 
   useEffect(() => {
     if (
@@ -207,13 +210,13 @@ const SharingServicesDialog = ({
       delete payload.remarks;
     }
 
-    const result: any = await dispatch(
-      sharingServicesActions.addSharingServiceSubmission(payload),
-    );
-    setSharingRequestInProcess(false);
-    if (result.status === "success") {
+    try {
+      await addSharingServiceSubmission(payload).unwrap();
       dispatch(showNotification("Successfully queued for submission."));
+    } catch {
+      // error notification handled by the API layer
     }
+    setSharingRequestInProcess(false);
     setDialogOpen(false);
   };
 
@@ -306,7 +309,7 @@ const SharingServicesDialog = ({
           `${
             telescopeList.find(
               (telescope: any) => telescope.id === instrument.telescope_id,
-            )?.name
+            )?.["name"]
           } / ${instrument.name}`,
       ),
     },

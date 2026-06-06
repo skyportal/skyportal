@@ -1,3 +1,5 @@
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 
 import Checkbox from "@mui/material/Checkbox";
@@ -21,15 +23,24 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { skipToken } from "@reduxjs/toolkit/query";
+
+import { useAppDispatch } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import Button from "../Button";
 
-import * as allocationActions from "../../ducks/allocations";
-import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as instrumentActions from "../../ducks/instrument";
-import * as instrumentsActions from "../../ducks/instruments";
-import { planWithSameNameExists } from "../../ducks/observationPlans";
-import * as localizationActions from "../../ducks/localization";
+import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
+import {
+  useGetGcnEventQuery,
+  useSubmitObservationPlanRequestMutation,
+} from "../../ducks/gcnEvent";
+import { useLazyGetInstrumentSkymapQuery } from "../../ducks/instrument";
+import {
+  useGetInstrumentsQuery,
+  useGetInstrumentObsplanFormsQuery,
+} from "../../ducks/instruments";
+import { useLazyGetPlanWithSameNameExistsQuery } from "../../ducks/observationPlans";
+import { useGetLocalizationQuery } from "../../ducks/localization";
 import GroupShareSelect from "../group/GroupShareSelect";
 import LocalizationPlot from "../localization/LocalizationPlot";
 
@@ -216,23 +227,41 @@ const ObservationPlanRequestForm = ({
 }: ObservationPlanRequestFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [fetchInstrumentSkymap] = useLazyGetInstrumentSkymapQuery();
+  const [fetchPlanWithSameNameExists] = useLazyGetPlanWithSameNameExistsQuery();
 
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationListApiObsplan } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const { useAMPM } = useAppSelector(
-    (state) => state.profile.preferences ?? {},
-  ) as { useAMPM?: boolean };
+  const { data: gcnEvent } = useGetGcnEventQuery(dateobs ?? skipToken) as {
+    data: any;
+  };
+  const [submitObservationPlanRequest] =
+    useSubmitObservationPlanRequestMutation();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: allocationListApiObsplan = [] } =
+    useGetAllocationsApiObsplanQuery();
+  const { useAMPM } =
+    useGetProfileQuery().data?.preferences ?? ({} as { useAMPM?: boolean });
 
-  const { obsplanLoc } = useAppSelector((state) => state["localization"]);
-
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
   const [selectedLocalizationId, setSelectedLocalizationId] =
     useState<any>(null);
+
+  const selectedLocalizationName = gcnEvent?.localizations?.find(
+    (loc: any) => loc.id === selectedLocalizationId,
+  )?.localization_name;
+  const { data: obsplanLoc } = useGetLocalizationQuery(
+    {
+      dateobs: gcnEvent?.dateobs,
+      localization_name: selectedLocalizationName,
+    },
+    {
+      skip:
+        !gcnEvent?.dateobs ||
+        !selectedLocalizationName ||
+        !(gcnEvent?.localizations?.length > 0),
+    },
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [planQueues, setPlanQueues] = useState<any[]>([]);
   const [skymapInstrument, setSkymapInstrument] = useState<any>(null);
@@ -248,18 +277,10 @@ const ObservationPlanRequestForm = ({
     useState(defaultAirmassTime);
 
   const [fetchingLocalization, setFetchingLocalization] = useState(false);
-  const [
-    fetchingInstrumentObsplanFormParams,
-    setFetchingInstrumentObsplanFormParams,
-  ] = useState(false);
-  const [
-    fetchingAllocationListApiObsplan,
-    setFetchingAllocationListApiObsplan,
-  ] = useState(false);
 
-  const { instrumentList, instrumentObsplanFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentObsplanFormParams = {} } =
+    useGetInstrumentObsplanFormsQuery();
 
   const groupLookUp: Record<string, any> = {};
 
@@ -293,17 +314,22 @@ const ObservationPlanRequestForm = ({
 
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
+      if (!obsplanLoc) return;
       setFetchingLocalization(true);
-      dispatch(
-        instrumentActions.fetchInstrumentSkymap(
-          instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
-          obsplanLoc,
-          airmassTime.toJSON(),
-        ),
-      ).then((response: any) => {
-        setSkymapInstrument(response.data);
-        setFetchingLocalization(false);
-      });
+      fetchInstrumentSkymap({
+        id: instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]
+          ?.id,
+        localization: obsplanLoc,
+        airmassTime: airmassTime.toJSON(),
+      })
+        .unwrap()
+        .then((response: any) => {
+          setSkymapInstrument(response);
+        })
+        .catch(() => {})
+        .finally(() => {
+          setFetchingLocalization(false);
+        });
     };
     if (
       gcnEvent &&
@@ -332,72 +358,14 @@ const ObservationPlanRequestForm = ({
   const [grid, setGrid] = useState("primary & secondary");
 
   useEffect(() => {
-    if (gcnEvent?.localizations?.length > 0 && selectedLocalizationId) {
-      dispatch(
-        localizationActions.fetchLocalization(
-          gcnEvent?.dateobs,
-          gcnEvent?.localizations.find(
-            (loc: any) => loc.id === selectedLocalizationId,
-          )?.localization_name,
-          "obsplan",
-        ),
+    if (allocationListApiObsplan?.length > 0 && !selectedAllocationId) {
+      const sortedAllocationListApiObsplan = [...allocationListApiObsplan];
+      sortedAllocationListApiObsplan.sort(
+        (a, b) => a["instrument_id"] - b["instrument_id"],
       );
-    }
-  }, [selectedLocalizationId]);
-
-  useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      if (
-        !allocationListApiObsplan ||
-        (allocationListApiObsplan?.length === 0 &&
-          !fetchingAllocationListApiObsplan)
-      ) {
-        setFetchingAllocationListApiObsplan(true);
-        dispatch(allocationActions.fetchAllocationsApiObsplan()).then(
-          (response: any) => {
-            if (response.status !== "success") {
-              showNotification(
-                "Error fetching allocations, please try refreshing the page",
-                "error",
-              );
-              return;
-            }
-            const { data } = response;
-            data.sort((a: any, b: any) => a.instrument_id - b.instrument_id);
-            setSelectedAllocationId(data[0]?.id);
-            setSelectedGroupIds([data[0]?.group_id]);
-            setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
-            setFetchingAllocationListApiObsplan(false);
-          },
-        );
-      } else if (
-        allocationListApiObsplan?.length > 0 &&
-        !selectedAllocationId
-      ) {
-        const sortedAllocationListApiObsplan = [...allocationListApiObsplan];
-        sortedAllocationListApiObsplan.sort(
-          (a, b) => a.instrument_id - b.instrument_id,
-        );
-        setSelectedAllocationId(sortedAllocationListApiObsplan[0]?.id);
-        setSelectedGroupIds([sortedAllocationListApiObsplan[0]?.group_id]);
-        setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
-      }
-    };
-
-    getAllocations();
-
-    if (
-      Object.keys(instrumentObsplanFormParams).length === 0 &&
-      !fetchingInstrumentObsplanFormParams
-    ) {
-      setFetchingInstrumentObsplanFormParams(true);
-      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(() => {
-        setFetchingInstrumentObsplanFormParams(false);
-      });
+      setSelectedAllocationId(sortedAllocationListApiObsplan[0]?.["id"]);
+      setSelectedGroupIds([sortedAllocationListApiObsplan[0]?.["group_id"]]);
+      setSelectedLocalizationId(gcnEvent?.localizations?.[0]?.id);
     }
 
     // Don't want to reset everytime the component rerenders and
@@ -475,30 +443,33 @@ const ObservationPlanRequestForm = ({
       return;
     }
     // if there is already a plan with the same name in the DB, show an error
-    dispatch(planWithSameNameExists(formData.queue_name)).then(
-      (response: any) => {
-        if (response.status === "success" && response.data.exists === true) {
-          dispatch(
-            showNotification(
-              "An observation plan with the same name already exists. Use another name",
-              "warning",
-            ),
-          );
-        } else {
-          if (selectedFields.length > 0) {
-            formData.field_ids = selectedFields;
-          }
-          const json = {
-            gcnevent_id: gcnEvent.id,
-            allocation_id: selectedAllocationId,
-            localization_id: selectedLocalizationId,
-            target_group_ids: selectedGroupIds,
-            payload: formData,
-          };
-          setPlanQueues([...planQueues, json]);
+    try {
+      const response = await fetchPlanWithSameNameExists(
+        formData.queue_name,
+      ).unwrap();
+      if (response.exists === true) {
+        dispatch(
+          showNotification(
+            "An observation plan with the same name already exists. Use another name",
+            "warning",
+          ),
+        );
+      } else {
+        if (selectedFields.length > 0) {
+          formData.field_ids = selectedFields;
         }
-      },
-    );
+        const json = {
+          gcnevent_id: gcnEvent?.id,
+          allocation_id: selectedAllocationId,
+          localization_id: selectedLocalizationId,
+          target_group_ids: selectedGroupIds,
+          payload: formData,
+        };
+        setPlanQueues([...planQueues, json]);
+      }
+    } catch {
+      // notification handled by baseQuery
+    }
   };
 
   const handleSubmit = async () => {
@@ -510,7 +481,7 @@ const ObservationPlanRequestForm = ({
         observation_plans: planQueues,
         combine_plans: multiPlansChecked,
       };
-      await dispatch(gcnEventActions.submitObservationPlanRequest(json));
+      await submitObservationPlanRequest(json);
       setPlanQueues([]);
     }
     setIsSubmitting(false);
@@ -521,7 +492,7 @@ const ObservationPlanRequestForm = ({
     const instrument = instrumentList.find(
       (inst: any) => inst.id === instrumentId,
     );
-    const instrumentsFilters = instrument?.filters;
+    const instrumentsFilters = instrument?.["filters"];
     if (
       instrumentsFilters &&
       formData.filters !== undefined &&

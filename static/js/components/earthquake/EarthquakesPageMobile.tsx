@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -7,7 +8,7 @@ import Grid from "@mui/material/Grid";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import { useAppSelector } from "../../types/hooks";
+import { useGetEarthquakesQuery } from "../../ducks/earthquake";
 import NewEarthquake from "./NewEarthquake";
 
 const useStyles = makeStyles()((theme) => ({
@@ -88,10 +89,9 @@ const EarthquakeList = ({ earthquakes }: EarthquakeListProps) => {
 };
 
 const EarthquakePage = () => {
-  const { earthquakeList } = useAppSelector(
-    (state) => state["earthquakes"],
-  ) as any;
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: earthquakes } = useGetEarthquakesQuery();
+  const earthquakeList = (earthquakes as any)?.events;
+  const { data: currentUser } = useGetProfileQuery();
 
   const { classes } = useStyles();
   return (
@@ -104,7 +104,7 @@ const EarthquakePage = () => {
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("Manage allocations") && (
+      {currentUser?.permissions?.includes("Manage allocations") && (
         <Grid size={{ md: 6, sm: 12 }}>
           <Paper>
             <div className={classes.paperContent}>

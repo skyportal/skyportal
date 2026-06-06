@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { skipToken } from "@reduxjs/toolkit/query";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
@@ -18,13 +19,14 @@ import Tooltip from "@mui/material/Tooltip";
 import ReactJson from "react-json-view";
 
 import Box from "@mui/material/Box";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+
 import StyledDataGridBase from "../StyledDataGrid";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
-import * as sharingServicesActions from "../../ducks/sharingServices";
+import { useGetSharingServiceSubmissionsQuery } from "../../ducks/sharingServices";
 import { userLabel } from "../../utils/format";
+import { useGetUsersQuery } from "../../ducks/users";
 
 // StyledDataGrid is a .jsx component whose propTypes make `sx` look required to
 // tsc; cast to any so call sites don't need to pass it.
@@ -49,38 +51,25 @@ function getStatusColors(status: string) {
 }
 
 const SharingServiceSubmissionsPage = () => {
-  const dispatch = useAppDispatch();
-
   const { id } = useParams<{ id: string }>();
 
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
-  const submissions = useAppSelector(
-    (state) => state["sharingServices"].submissions,
-  );
-
-  const sharingServiceSubmissions =
-    submissions && id && submissions[id] ? submissions[id]?.submissions : [];
+  const allUsers = useGetUsersQuery().data?.users ?? [];
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(100);
-  const [loading, setLoading] = useState(false);
   const [showTNSPayload, setShowTNSPayload] = useState<any>(null);
 
-  useEffect(() => {
-    if (id && !loading) {
-      setLoading(true);
-      const params = {
-        sharing_service_id: id,
-        pageNumber: page,
-        numPerPage: rowsPerPage,
-      };
-      dispatch(
-        sharingServicesActions.fetchSharingServiceSubmissions(params),
-      ).then(() => {
-        setLoading(false);
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, page, rowsPerPage, id]);
+  const { data: submissionsData, isFetching: loading } =
+    useGetSharingServiceSubmissionsQuery(
+      id
+        ? {
+            sharing_service_id: id,
+            pageNumber: page,
+            numPerPage: rowsPerPage,
+          }
+        : skipToken,
+    );
+
+  const sharingServiceSubmissions = submissionsData?.submissions ?? [];
 
   const handlePaginationModelChange = (model: any) => {
     setPage(model.page + 1);
@@ -301,7 +290,7 @@ const SharingServiceSubmissionsPage = () => {
             columns={columns}
             getRowId={(row: any) => row.id}
             paginationMode="server"
-            rowCount={(id && submissions[id]?.totalMatches) || 0}
+            rowCount={submissionsData?.totalMatches || 0}
             paginationModel={{
               page: page - 1,
               pageSize: rowsPerPage,

@@ -1,10 +1,12 @@
 import CloseIcon from "@mui/icons-material/Close";
 import Button from "../Button";
 
-import { useAppDispatch } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
-import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftsActions from "../../ducks/shifts";
+import {
+  useDeleteCommentMutation,
+  useDeleteCommentOnSpectrumMutation,
+} from "../../ducks/source";
+import { useDeleteCommentOnGcnEventMutation } from "../../ducks/gcnEvent";
+import { useDeleteCommentOnShiftMutation } from "../../ducks/shifts";
 
 interface DeleteCommentProps {
   associatedResourceType?: string;
@@ -25,35 +27,44 @@ const DeleteComment = ({
   hoverID = null,
   shiftID = null,
 }: DeleteCommentProps) => {
-  const dispatch = useAppDispatch();
+  const [deleteCommentMutation] = useDeleteCommentMutation();
+  const [deleteCommentOnSpectrumMutation] =
+    useDeleteCommentOnSpectrumMutation();
+  const [deleteCommentOnShiftMutation] = useDeleteCommentOnShiftMutation();
+  const [deleteCommentOnGcnEventMutation] =
+    useDeleteCommentOnGcnEventMutation();
   const deleteCommentOnObject = (
     sourceID: string | null,
     commentID: string | number | null,
   ) => {
-    dispatch(sourceActions.deleteComment(sourceID!, commentID!));
+    deleteCommentMutation({ sourceID: sourceID!, commentID: commentID! });
   };
 
   const deleteCommentOnSpectrum = (
     commentSpectrumID: string | null,
     commentID: string | number | null,
   ) => {
-    dispatch(
-      sourceActions.deleteCommentOnSpectrum(commentSpectrumID!, commentID!),
-    );
+    deleteCommentOnSpectrumMutation({
+      spectrumID: commentSpectrumID!,
+      commentID: commentID!,
+    });
   };
 
   const deleteCommentOnGcnEvent = (
     gcnID: string | number | null,
     commentID: string | number | null,
   ) => {
-    dispatch(gcnEventActions.deleteCommentOnGcnEvent(gcnID, commentID));
+    deleteCommentOnGcnEventMutation({
+      gcnEventID: gcnID!,
+      commentID: commentID!,
+    });
   };
 
   const deleteCommentOnShift = (
     shift_id: number | null,
     commentID: string | number | null,
   ) => {
-    dispatch(shiftsActions.deleteCommentOnShift(shift_id!, commentID!));
+    deleteCommentOnShiftMutation({ shiftID: shift_id!, commentID: commentID! });
   };
 
   const deleteComment = (resourceType: string) => {

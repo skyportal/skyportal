@@ -22,7 +22,11 @@ import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 import WatcherButton from "./WatcherButton";
 
-import * as Actions from "../../ducks/source";
+import {
+  useDeleteFollowupRequestMutation,
+  useEditFollowupRequestMutation,
+  useLazyGetPhotometryRequestQuery,
+} from "../../ducks/source";
 
 import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
 
@@ -88,6 +92,9 @@ const FollowupRequestLists = ({
 }: FollowupRequestListsProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [deleteFollowupRequestMutation] = useDeleteFollowupRequestMutation();
+  const [editFollowupRequestMutation] = useEditFollowupRequestMutation();
+  const [getPhotometryRequest] = useLazyGetPhotometryRequestQuery();
 
   const [isDeleting, setIsDeleting] = useState<any>(null);
   const [isGetting, setIsGetting] = useState<any>(null);
@@ -103,7 +110,7 @@ const FollowupRequestLists = ({
     if (serverSide) {
       params.refreshRequests = true;
     }
-    await dispatch(Actions.deleteFollowupRequest(id, params));
+    await deleteFollowupRequestMutation({ id, params });
     setIsDeleting(null);
   };
 
@@ -113,22 +120,23 @@ const FollowupRequestLists = ({
     if (serverSide) {
       params.refreshRequests = true;
     }
-    dispatch(Actions.getPhotometryRequest(id, params)).then((response: any) => {
+    try {
+      const data: any = await getPhotometryRequest({ id, params }).unwrap();
       setIsGetting(null);
-      if (response.status === "success") {
-        if (response.data.request_status?.includes("rejected")) {
-          dispatch(showNotification("Request has been rejected.", "warning"));
-        } else {
-          dispatch(
-            showNotification(
-              "Request successfully submitted, please wait for it to be processed.",
-              "info",
-            ),
-          );
-        }
-        setHasRetrieved([...hasRetrieved, id]);
+      if (data?.request_status?.includes("rejected")) {
+        dispatch(showNotification("Request has been rejected.", "warning"));
+      } else {
+        dispatch(
+          showNotification(
+            "Request successfully submitted, please wait for it to be processed.",
+            "info",
+          ),
+        );
       }
-    });
+      setHasRetrieved([...hasRetrieved, id]);
+    } catch {
+      setIsGetting(null);
+    }
   };
 
   const handleSubmit = async (followupRequest: any) => {
@@ -141,7 +149,10 @@ const FollowupRequestLists = ({
     if (serverSide) {
       json.refreshRequests = true;
     }
-    await dispatch(Actions.editFollowupRequest(json, followupRequest.id));
+    await editFollowupRequestMutation({
+      params: json,
+      requestID: followupRequest.id,
+    });
     setIsSubmitting(null);
   };
 

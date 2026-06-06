@@ -11,7 +11,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
-import * as gcnEventActions from "../../ducks/gcnEvent";
+import { usePostGcnAliasMutation } from "../../ducks/gcnEvent";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -34,6 +34,7 @@ interface AddGcnAliasProps {
 const AddGcnAlias = ({ gcnEvent }: AddGcnAliasProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [postGcnAlias] = usePostGcnAliasMutation();
   const [alias, setAlias] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -50,14 +51,17 @@ const AddGcnAlias = ({ gcnEvent }: AddGcnAliasProps) => {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    const result: any = await dispatch(
-      gcnEventActions.postGcnAlias(gcnEvent.dateobs, { alias }),
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await postGcnAlias({
+        dateobs: gcnEvent.dateobs as string,
+        params: { alias },
+      }).unwrap();
       dispatch(showNotification("GCN Event Alias successfully added."));
       setDialogOpen(false);
+    } catch {
+      // error notification handled by baseQuery
     }
+    setIsSubmitting(false);
   };
 
   return (

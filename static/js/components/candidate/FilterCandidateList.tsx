@@ -26,9 +26,15 @@ import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as candidatesActions from "../../ducks/candidate/candidates";
-import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { useAppDispatch } from "../../types/hooks";
+import {
+  useGetAnnotationsInfoQuery,
+  setFilterFormData,
+  setCandidatesAnnotationSortOptions,
+} from "../../ducks/candidate/candidates";
+import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "../FormValidationError";
 import { allowedClasses } from "../classification/ClassificationForm";
@@ -190,6 +196,7 @@ interface FilterCandidateListProps {
   numPerPage: number;
   annotationFilterList?: string | null;
   setSortOrder: (...a: any[]) => void;
+  setSearchParams: (params: Record<string, any>) => void;
 }
 
 const FilterCandidateList = ({
@@ -199,17 +206,16 @@ const FilterCandidateList = ({
   numPerPage,
   annotationFilterList = null,
   setSortOrder,
+  setSearchParams,
 }: FilterCandidateListProps) => {
   const { classes } = useStyles() as { classes: any };
 
-  const availableAnnotationsInfo = useAppSelector(
-    (state) => (state as any).candidates.annotationsInfo,
-  );
+  const { data: availableAnnotationsInfo } =
+    useGetAnnotationsInfoQuery(undefined);
   const dispatch = useAppDispatch();
+  const { data: userProfile } = useGetProfileQuery();
 
-  const { scanningProfiles, useAMPM } = useAppSelector(
-    (state) => (state as any).profile.preferences,
-  );
+  const { scanningProfiles, useAMPM } = (userProfile?.preferences ?? {}) as any;
 
   const defaultScanningProfile = scanningProfiles?.find(
     (profile: any) => profile.default,
@@ -252,7 +258,7 @@ const FilterCandidateList = ({
   }
 
   // Get unique classification names, in alphabetical order
-  const { taxonomyList } = useAppSelector((state) => (state as any).taxonomies);
+  const { data: taxonomyList } = useGetTaxonomiesQuery();
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   let classifications: any[] = [];
   latestTaxonomyList?.forEach((taxonomy: any) => {
@@ -271,7 +277,12 @@ const FilterCandidateList = ({
     selectedScanningProfile?.classificationsWith === false ? false : true,
   );
 
-  const gcnEvents = useAppSelector((state) => (state as any).gcnEvents);
+  const [gcnEventsParams, setGcnEventsParams] = useState<Record<string, any>>(
+    {},
+  );
+  const { data: gcnEvents } = useGetGcnEventsQuery(gcnEventsParams) as {
+    data: any;
+  };
 
   const gcnEventsLookUp: Record<string, any> = {};
 
@@ -289,11 +300,6 @@ const FilterCandidateList = ({
 
   const [annotationSortingKeyOptions, setAnnotationSortingKeyOptions] =
     useState<any[]>([]);
-
-  useEffect(() => {
-    dispatch(gcnEventsActions.fetchGcnEvents());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const {
     handleSubmit,
@@ -401,7 +407,7 @@ const FilterCandidateList = ({
   // Set initial form values in the redux state
   useEffect(() => {
     dispatch(
-      candidatesActions.setFilterFormData({
+      setFilterFormData({
         // savedStatus: "all",
         startDate: defaultStartDate.toISOString(),
       }),
@@ -509,9 +515,7 @@ const FilterCandidateList = ({
       data.sortByAnnotationOrder = formData.sortingOrder;
     } else {
       // Clear annotation sort params, if a default sort is not defined
-      await dispatch(
-        candidatesActions.setCandidatesAnnotationSortOptions(null),
-      );
+      await dispatch(setCandidatesAnnotationSortOptions(null));
       setSortOrder(null);
     }
 
@@ -527,7 +531,7 @@ const FilterCandidateList = ({
     if (data.sortByAnnotationOrigin) {
       setSortOrder(data.sortByAnnotationOrder);
       await dispatch(
-        candidatesActions.setCandidatesAnnotationSortOptions({
+        setCandidatesAnnotationSortOptions({
           key: data.sortByAnnotationKey,
           origin: data.sortByAnnotationOrigin,
           order: data.sortByAnnotationOrder,
@@ -536,16 +540,15 @@ const FilterCandidateList = ({
     }
 
     // Save form-specific data, formatted for the API query
-    await dispatch(candidatesActions.setFilterFormData(data));
+    await dispatch(setFilterFormData(data));
 
-    await dispatch(
-      candidatesActions.fetchCandidates({
-        pageNumber: 1,
-        numPerPage,
-        ...fetchParams,
-      }),
-    );
-    setQueryInProgress(false);
+    // Trigger a new search (resets to page 1). The query result drives the
+    // loading state in the parent CandidateList.
+    setSearchParams({
+      pageNumber: 1,
+      numPerPage,
+      ...fetchParams,
+    });
   };
 
   return (
@@ -961,11 +964,7 @@ const FilterCandidateList = ({
                               value !== "") ||
                             (event?.type === "click" && value === "")
                           ) {
-                            dispatch(
-                              gcnEventsActions.fetchGcnEvents({
-                                partialdateobs: value,
-                              }),
-                            );
+                            setGcnEventsParams({ partialdateobs: value });
                           }
                         }}
                         onChange={(_event, newValue: any) => {

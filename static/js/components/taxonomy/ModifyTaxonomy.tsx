@@ -1,11 +1,15 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import { fetchTaxonomies, modifyTaxonomy } from "../../ducks/taxonomies";
+import { useAppDispatch } from "../../types/hooks";
+import {
+  useGetTaxonomiesQuery,
+  useModifyTaxonomyMutation,
+} from "../../ducks/taxonomies";
 
 import GroupShareSelect from "../group/GroupShareSelect";
 
@@ -40,10 +44,11 @@ const ModifyTaxonomy = ({
 }: ModifyTaxonomyProps) => {
   const { classes } = useStyles();
 
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const { data: taxonomyList } = useGetTaxonomiesQuery();
+  const [modifyTaxonomy] = useModifyTaxonomyMutation();
   const dispatch = useAppDispatch();
 
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
@@ -51,13 +56,14 @@ const ModifyTaxonomy = ({
       formData.group_ids = selectedGroupIds;
     }
 
-    const result: any = await dispatch(modifyTaxonomy(taxonomy_id, formData));
-    if (result.status === "success") {
+    try {
+      await modifyTaxonomy({ id: taxonomy_id, params: formData }).unwrap();
       dispatch(showNotification("Taxonomy saved"));
-      dispatch(fetchTaxonomies());
       if (typeof onClose === "function") {
         onClose();
       }
+    } catch {
+      // error notification handled by the base query
     }
   };
 

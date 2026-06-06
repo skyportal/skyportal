@@ -19,10 +19,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import TextLoop from "react-text-loop";
 import { Controller, useForm } from "react-hook-form";
 import { add, dot, dotMultiply, quantileSeq, transpose } from "mathjs";
-import { useAppDispatch, useAppSelector } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
 
-import * as photometryActions from "../ducks/photometry";
+import { useFetchSourcePhotometryQuery } from "../ducks/photometry";
 
 const useStyles = makeStyles()((theme) => ({
   copyb: {
@@ -226,8 +226,9 @@ const Periodogram = () => {
   const { handleSubmit, control, register } = useForm();
   const { id } = useParams();
   const dispatch = useAppDispatch();
-  const photometry = useAppSelector(
-    (state) => state["photometry"][id as string],
+  const { data: photometry } = useFetchSourcePhotometryQuery(
+    { id: id as string },
+    { skip: !id },
   );
   const [bestp, setBestp] = useState<any>(null);
   const [run, setRun] = useState(false);
@@ -362,9 +363,6 @@ const Periodogram = () => {
   }
 
   useEffect(() => {
-    if (!photometry && id) {
-      dispatch(photometryActions.fetchSourcePhotometry(id));
-    }
     if (photometry && !establishedfilters) {
       const insts = [...new Set(photometry.map((x: any) => x.instrument_name))];
       const filts = [...new Set(photometry.map((x: any) => x.filter))];
@@ -418,7 +416,7 @@ const Periodogram = () => {
         }
       }
     }
-    if (run) {
+    if (run && photometry) {
       const data = photometry.filter(
         (x: any) =>
           x.filter === params.filter &&

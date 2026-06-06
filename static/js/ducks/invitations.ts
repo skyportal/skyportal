@@ -1,55 +1,81 @@
-import store from "../store";
-import * as API from "../API";
+/**
+ * User invitations (the admin "Pending Invitations" table and invite flows).
+ *
+ * RTK Query conversion of the old `FETCH_INVITATIONS` duck. The query accepts
+ * the filter/pagination parameters as its argument (the old duck stashed the
+ * results in an `invitations` slice; consumers now own the `fetchParams` state
+ * and pass it in). The backend's `GET /api/invitations` returns
+ * `{ invitations, totalMatches }`.
+ *
+ * Invite/update/delete are mutations that invalidate the `Invitations` tag so
+ * the active list query refetches. This duck has no websocket refresh.
+ */
+import { skyportalApi } from "../api/skyportalApi";
 
-const INVITE_USER = "skyportal/INVITE_USER";
+export interface InvitationsParams {
+  pageNumber?: number | undefined;
+  numPerPage?: number | undefined;
+  email?: string | undefined;
+  group?: string | undefined;
+  stream?: string | undefined;
+  invitedBy?: string | undefined;
+  [key: string]: string | number | boolean | undefined;
+}
 
-const FETCH_INVITATIONS = "skyportal/FETCH_INVITATIONS";
-const FETCH_INVITATIONS_OK = "skyportal/FETCH_INVITATIONS_OK";
-
-const UPDATE_INVITATION = "skyportal/UPDATE_INVITATION";
-
-const DELETE_INVITATION = "skyportal/DELETE_INVITATION";
-
-export const inviteUser = (data: any) =>
-  API.POST("/api/invitations", INVITE_USER, data);
-
-export const fetchInvitations = (filterParams: Record<string, any> = {}) => {
-  return API.GET("/api/invitations", FETCH_INVITATIONS, filterParams);
-};
-
-export const updateInvitation = (invitationID: number | string, payload: any) =>
-  API.PATCH(`/api/invitations/${invitationID}`, UPDATE_INVITATION, payload);
-
-export const deleteInvitation = (invitationID: number | string) =>
-  API.DELETE(`/api/invitations/${invitationID}`, DELETE_INVITATION);
-
-interface InvitationsState {
+export interface InvitationsResult {
   invitations: any[];
   totalMatches: number;
 }
 
-interface InvitationsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-function reducer(
-  state: InvitationsState = { invitations: [], totalMatches: 0 },
-  action: InvitationsAction,
-): InvitationsState {
-  switch (action.type) {
-    case FETCH_INVITATIONS_OK: {
-      const { invitations, totalMatches } = action.data;
-      return {
-        ...state,
-        invitations,
-        totalMatches,
-      };
+const buildQueryString = (params: InvitationsParams): string => {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      search.append(key, String(value));
     }
-    default:
-      return state;
-  }
-}
+  });
+  const qs = search.toString();
+  return qs ? `?${qs}` : "";
+};
 
-store.injectReducer("invitations", reducer);
+export const invitationsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getInvitations: build.query<InvitationsResult, InvitationsParams | void>({
+      query: (params) => `api/invitations${buildQueryString(params ?? {})}`,
+      providesTags: ["Invitations"],
+    }),
+    inviteUser: build.mutation<unknown, any>({
+      query: (data) => ({
+        url: "api/invitations",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Invitations"],
+    }),
+    updateInvitation: build.mutation<
+      unknown,
+      { invitationID: number | string; payload: any }
+    >({
+      query: ({ invitationID, payload }) => ({
+        url: `api/invitations/${invitationID}`,
+        method: "PATCH",
+        body: payload,
+      }),
+      invalidatesTags: ["Invitations"],
+    }),
+    deleteInvitation: build.mutation<unknown, number | string>({
+      query: (invitationID) => ({
+        url: `api/invitations/${invitationID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Invitations"],
+    }),
+  }),
+});
+
+export const {
+  useGetInvitationsQuery,
+  useInviteUserMutation,
+  useUpdateInvitationMutation,
+  useDeleteInvitationMutation,
+} = invitationsApi;

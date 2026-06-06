@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -11,9 +12,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as allocationActions from "../../ducks/allocations";
-import * as instrumentLogActions from "../../ducks/instrument_log";
+import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
+import { useLazyFetchInstrumentLogExternalQuery } from "../../ducks/instrument_log";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -55,12 +55,11 @@ interface InstrumentLogFormProps {
 
 const InstrumentLogForm = ({ instrument }: InstrumentLogFormProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [fetchInstrumentLogExternal] = useLazyFetchInstrumentLogExternalQuery();
 
-  const allGroups = useAppSelector((state) => state.groups.all);
-  const { allocationListApiClassname } = useAppSelector(
-    (state) => state["allocations"],
-  );
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
+  const { data: allocationListApiClassname = [] } =
+    useGetAllocationsApiClassnameQuery({ instrument_id: instrument.id });
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -71,26 +70,10 @@ const InstrumentLogForm = ({ instrument }: InstrumentLogFormProps) => {
   const defaultEndDate = dayjs.utc().format("YYYY-MM-DD HH:mm:ss");
 
   useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const params = { instrument_id: instrument.id };
-      const result: any = await dispatch(
-        allocationActions.fetchAllocationsApiClassname(params),
-      );
-
-      const { data } = result;
-      setSelectedAllocationId(data[0]?.id);
-    };
-
-    getAllocations();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedAllocationId]);
+    if (allocationListApiClassname?.length > 0) {
+      setSelectedAllocationId(allocationListApiClassname[0]?.["id"]);
+    }
+  }, [allocationListApiClassname]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
@@ -121,12 +104,14 @@ const InstrumentLogForm = ({ instrument }: InstrumentLogFormProps) => {
       .replace("+00:00", "")
       .replace(".000Z", "");
 
-    await dispatch(
-      instrumentLogActions.fetchInstrumentLogExternal(
-        selectedAllocationId,
-        formData,
-      ),
-    );
+    try {
+      await fetchInstrumentLogExternal({
+        id: selectedAllocationId,
+        params: formData,
+      }).unwrap();
+    } catch {
+      // error notification handled centrally by the base query
+    }
 
     setIsSubmitting(false);
   };

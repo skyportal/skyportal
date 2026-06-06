@@ -1,69 +1,45 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Default observation plans.
+ *
+ * RTK Query conversion of the old `FETCH_DEFAULT_OBSERVATION_PLANS` duck.
+ * Websocket-driven invalidation refetches the plan list; mutations submit/delete
+ * a default observation plan.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-
-const REFRESH_DEFAULT_OBSERVATION_PLANS =
-  "skyportal/REFRESH_DEFAULT_OBSERVATION_PLANS";
-
-const DELETE_DEFAULT_OBSERVATION_PLAN =
-  "skyportal/DELETE_DEFAULT_OBSERVATION_PLAN";
-
-const FETCH_DEFAULT_OBSERVATION_PLANS =
-  "skyportal/FETCH_DEFAULT_OBSERVATION_PLANS";
-const FETCH_DEFAULT_OBSERVATION_PLANS_OK =
-  "skyportal/FETCH_DEFAULT_OBSERVATION_PLANS_OK";
-
-const SUBMIT_DEFAULT_OBSERVATION_PLAN =
-  "skyportal/SUBMIT_DEFAULT_OBSERVATION_PLAN";
-
-export function deleteDefaultObservationPlan(id: number | string) {
-  return API.DELETE(
-    `/api/default_observation_plan/${id}`,
-    DELETE_DEFAULT_OBSERVATION_PLAN,
-  );
-}
-
-export const fetchDefaultObservationPlans = () =>
-  API.GET("/api/default_observation_plan", FETCH_DEFAULT_OBSERVATION_PLANS);
-
-export const submitDefaultObservationPlan = (default_plan: any) =>
-  API.POST(
-    `/api/default_observation_plan`,
-    SUBMIT_DEFAULT_OBSERVATION_PLAN,
-    default_plan,
-  );
-
-// Websocket message handler
-messageHandler.add((actionType: string, _payload: any, dispatch: any) => {
-  if (actionType === REFRESH_DEFAULT_OBSERVATION_PLANS) {
-    dispatch(fetchDefaultObservationPlans());
-  }
+export const defaultObservationPlansApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getDefaultObservationPlans: build.query<any[], void>({
+      query: () => "api/default_observation_plan",
+      providesTags: ["DefaultObservationPlan"],
+    }),
+    submitDefaultObservationPlan: build.mutation<unknown, any>({
+      query: (default_plan) => ({
+        url: "api/default_observation_plan",
+        method: "POST",
+        body: default_plan,
+      }),
+      invalidatesTags: ["DefaultObservationPlan"],
+    }),
+    deleteDefaultObservationPlan: build.mutation<unknown, number | string>({
+      query: (id) => ({
+        url: `api/default_observation_plan/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["DefaultObservationPlan"],
+    }),
+  }),
 });
 
-interface DefaultObservationPlansAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
+// Websocket: the old handler refetched the full list on
+// REFRESH_DEFAULT_OBSERVATION_PLANS.
+invalidateOnMessage("skyportal/REFRESH_DEFAULT_OBSERVATION_PLANS", () => [
+  "DefaultObservationPlan",
+]);
 
-const reducer = (
-  state: Record<string, any> = {
-    defaultObservationPlanList: [],
-  },
-  action: DefaultObservationPlansAction,
-) => {
-  switch (action.type) {
-    case FETCH_DEFAULT_OBSERVATION_PLANS_OK: {
-      const default_observation_plans = action.data;
-      return {
-        ...state,
-        defaultObservationPlanList: default_observation_plans,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("default_observation_plans", reducer);
+export const {
+  useGetDefaultObservationPlansQuery,
+  useSubmitDefaultObservationPlanMutation,
+  useDeleteDefaultObservationPlanMutation,
+} = defaultObservationPlansApi;

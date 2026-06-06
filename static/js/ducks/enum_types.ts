@@ -1,47 +1,27 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Enum types (allowed bandpasses, API classnames, analysis types, etc.).
+ *
+ * RTK Query conversion of the old `FETCH_ENUM_TYPES` duck. The endpoint is
+ * injected into the central `skyportalApi`. The backend returns a map of enum
+ * names to their allowed values. The old websocket handler refetched on a
+ * FETCH_ENUM_TYPES message; here we invalidate the "EnumTypes" tag so the active
+ * query refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
+export type EnumTypes = Record<string, any>;
 
-const FETCH_ENUM_TYPES = "skyportal/FETCH_ENUM_TYPES";
-const FETCH_ENUM_TYPES_OK = "skyportal/FETCH_ENUM_TYPES_OK";
-
-export function fetchEnumTypes() {
-  return API.GET(`/api/enum_types`, FETCH_ENUM_TYPES);
-}
-
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === FETCH_ENUM_TYPES) {
-    dispatch(fetchEnumTypes());
-  }
+export const enumTypesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getEnumTypes: build.query<EnumTypes, void>({
+      query: () => "api/enum_types",
+      providesTags: ["EnumTypes"],
+    }),
+  }),
 });
 
-interface EnumTypesState {
-  enum_types: any;
-}
+// Websocket: old handler refetched enum types on FETCH_ENUM_TYPES.
+invalidateOnMessage("skyportal/FETCH_ENUM_TYPES", () => ["EnumTypes"]);
 
-interface EnumTypesAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-const reducer = (
-  state: EnumTypesState = { enum_types: [] },
-  action: EnumTypesAction,
-): EnumTypesState => {
-  switch (action.type) {
-    case FETCH_ENUM_TYPES_OK: {
-      const enum_types = action.data;
-      return {
-        ...state,
-        enum_types,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("enum_types", reducer);
+export const { useGetEnumTypesQuery } = enumTypesApi;

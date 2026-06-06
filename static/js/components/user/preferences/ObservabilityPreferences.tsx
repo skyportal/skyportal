@@ -1,15 +1,18 @@
-import * as profileActions from "../../../ducks/profile";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
+import { useGetTelescopesQuery } from "../../../ducks/telescopes";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import SelectWithChips from "../../SelectWithChips";
 
 const ObservabilityPreferences = () => {
-  const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const { telescopeList } = useAppSelector(
-    (state) => state["telescopes"],
-  ) as any;
+  const { data: profileData } = useGetProfileQuery();
+  const profile = (profileData?.preferences ?? {}) as any;
+  const { data: telescopeListData = [] } = useGetTelescopesQuery();
+  const telescopeList = [...telescopeListData];
 
-  const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   const telescopeNametoID: Record<string, any> = { "Clear selections": "-1" };
   const telescopeIDToName: Record<string, any> = { "-1": "Clear selections" };
@@ -22,7 +25,7 @@ const ObservabilityPreferences = () => {
             (telescopeName: string) => telescopeNametoID[telescopeName],
           ),
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   telescopeList?.sort((a: any, b: any) => (a.name < b.name ? -1 : 1));

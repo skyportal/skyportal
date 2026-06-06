@@ -16,13 +16,16 @@ import {
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
-import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
+import { useDeleteDefaultFollowupRequestMutation } from "../../ducks/default_followup_requests";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -48,13 +51,11 @@ const DefaultFollowupRequestList = ({
 }: DefaultFollowupRequestListProps) => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
-  const { instrumentList } = useAppSelector(
-    (state) => (state as any).instruments,
-  );
-  const { telescopeList } = useAppSelector(
-    (state) => (state as any).telescopes,
-  );
-  const groups = useAppSelector((state) => (state as any).groups.all);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const groups = useGetGroupsQuery().data?.all ?? null;
+  const [deleteDefaultFollowupRequestMutation] =
+    useDeleteDefaultFollowupRequestMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -79,16 +80,13 @@ const DefaultFollowupRequestList = ({
     useState<any>(null);
 
   const deleteDefaultFollowupRequest = () => {
-    dispatch(
-      defaultFollowupRequestsActions.deleteDefaultFollowupRequest(
-        defaultFollowupRequestToDelete,
-      ),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    deleteDefaultFollowupRequestMutation(defaultFollowupRequestToDelete)
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("Default follow-up request deleted"));
         closeDeleteDialog();
-      }
-    });
+      })
+      .catch(() => {});
   };
 
   const renderInstrumentName = (params: any) => {
@@ -100,7 +98,7 @@ const DefaultFollowupRequestList = ({
     return (
       <div>
         <Link to={`/allocation/${allocation.id}`} role="link">
-          {instrument ? instrument.name : ""}
+          {instrument ? instrument["name"] : ""}
         </Link>
       </div>
     );
@@ -112,14 +110,14 @@ const DefaultFollowupRequestList = ({
     const instrument = instrumentList?.filter(
       (i: any) => i.id === instrument_id,
     )[0];
-    const telescope_id = instrument?.telescope_id;
+    const telescope_id = instrument?.["telescope_id"];
     const telescope = telescopeList?.filter(
       (t: any) => t.id === telescope_id,
     )[0];
     return (
       <div>
         <Link to={`/allocation/${allocation.id}`} role="link">
-          {telescope ? telescope.nickname : ""}
+          {telescope ? telescope["nickname"] : ""}
         </Link>
       </div>
     );

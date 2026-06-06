@@ -21,13 +21,12 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { useAppDispatch } from "../../types/hooks";
 import StyledDataGridBase from "../StyledDataGrid";
 import QuickFilter from "../QuickFilter";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 
-import * as sourceActions from "../../ducks/source";
-import * as spectraActions from "../../ducks/spectra";
+import { useDeleteAnnotationMutation as useDeleteSourceAnnotationMutation } from "../../ducks/source";
+import { useDeleteAnnotationMutation } from "../../ducks/spectra";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -69,7 +68,8 @@ const AnnotationsTable = ({
   canExpand = true,
 }: AnnotationsTableProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [deleteSourceAnnotation] = useDeleteSourceAnnotationMutation();
+  const [deleteSpectrumAnnotation] = useDeleteAnnotationMutation();
 
   const [openAnnotations, setOpenAnnotations] = useState(false);
   const [isRemoving, setIsRemoving] = useState<any>(null);
@@ -81,11 +81,23 @@ const AnnotationsTable = ({
   ) => {
     setIsRemoving(annotation_id);
     if (type === "source") {
-      await dispatch(sourceActions.deleteAnnotation(id, annotation_id));
+      try {
+        await deleteSourceAnnotation({
+          sourceID: id,
+          annotationID: annotation_id,
+        }).unwrap();
+      } catch {
+        // error notification handled by the baseQuery
+      }
     } else if (type === "spectrum") {
-      await dispatch(
-        spectraActions.deleteAnnotation(spectrum_id, annotation_id),
-      );
+      try {
+        await deleteSpectrumAnnotation({
+          id: spectrum_id,
+          annotationID: annotation_id,
+        }).unwrap();
+      } catch {
+        // error notification handled by the baseQuery
+      }
     }
     setIsRemoving(null);
   };
@@ -124,10 +136,12 @@ const AnnotationsTable = ({
     [canExpand],
   );
 
-  // Curate data
-  annotations?.push(...spectrumAnnotations);
+  // Curate data. Combine source + spectrum annotations into a NEW array — the
+  // `annotations` prop is now frozen RTK Query cache data, so mutating it with
+  // `.push(...)` throws `TypeError: "length" is read-only`.
+  const allAnnotations = [...(annotations ?? []), ...spectrumAnnotations];
   const tableData: any[] = [];
-  annotations?.forEach((annotation: any) => {
+  allAnnotations.forEach((annotation: any) => {
     const {
       id,
       obj_id,

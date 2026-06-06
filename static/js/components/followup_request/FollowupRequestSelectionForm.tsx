@@ -14,10 +14,20 @@ import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as followupRequestActions from "../../ducks/followup_requests";
-import * as instrumentActions from "../../ducks/instruments";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import {
+  useGetFollowupRequestsQuery,
+  downloadFollowupSchedule,
+  downloadAllocationReport,
+} from "../../ducks/followup_requests";
+import {
+  useGetInstrumentsQuery,
+  useGetInstrumentFormsQuery,
+} from "../../ducks/instruments";
+import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import Button from "../Button";
+import { useGetUsersQuery } from "../../ducks/users";
 
 dayjs.extend(utc);
 
@@ -62,17 +72,15 @@ const FollowupRequestSelectionForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
-  const { allocationListApiClassname } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
-  const { followupRequestList } = useAppSelector(
-    (state) => state["followup_requests"],
-  );
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
+  const { data: allocationListApiClassname = [] } =
+    useGetAllocationsApiClassnameQuery();
+  const allUsers = useGetUsersQuery().data?.users ?? [];
+  const { data: followupRequestsData } =
+    useGetFollowupRequestsQuery(fetchParams);
+  const followupRequestList = followupRequestsData?.followup_requests;
 
   const defaultStartDate = dayjs()
     .subtract(1, "day")
@@ -89,22 +97,13 @@ const FollowupRequestSelectionForm = ({
   const [includeStandards, setIncludeStandards] = useState(false);
 
   useEffect(() => {
-    const getInstruments = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result: any = await dispatch(instrumentActions.fetchInstruments());
-
-      const { data } = result;
-      setSelectedInstrumentId(data[0]?.id);
-    };
-
-    getInstruments();
+    if (instrumentList.length > 0) {
+      setSelectedInstrumentId(instrumentList[0]?.["id"]);
+    }
 
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
-  }, [dispatch, setSelectedInstrumentId]);
+  }, [instrumentList, setSelectedInstrumentId]);
 
   if (!Array.isArray(followupRequestList)) {
     return <p>Waiting for followup requests to load...</p>;
@@ -215,7 +214,7 @@ const FollowupRequestSelectionForm = ({
 
     setIsSubmittingFilter(true);
     setSelectedInstrumentId(formData.instrumentID);
-    await dispatch(followupRequestActions.fetchFollowupRequests(formData));
+    // Updating fetchParams re-keys the followup-requests query, which refetches.
     setFetchParams(formData);
     setIsSubmittingFilter(false);
   };
@@ -224,7 +223,7 @@ const FollowupRequestSelectionForm = ({
     event.preventDefault(); // prevent the default form submission
     // we download the content here and then if status is 200 save it
     dispatch(
-      followupRequestActions.downloadFollowupSchedule(
+      downloadFollowupSchedule(
         selectedInstrumentId,
         selectedFormat,
         includeStandards,
@@ -234,9 +233,7 @@ const FollowupRequestSelectionForm = ({
 
   function handleDownloadAnalysis(event: any) {
     event.preventDefault(); // prevent the default form submission
-    dispatch(
-      followupRequestActions.downloadAllocationReport(selectedInstrumentId),
-    );
+    dispatch(downloadAllocationReport(selectedInstrumentId));
   }
 
   function validateFilter(formData: any, errors: any) {
@@ -316,11 +313,11 @@ const FollowupRequestSelectionForm = ({
                     telescopeList.find(
                       (telescope: any) =>
                         telescope.id === instrument.telescope_id,
-                    )?.name
+                    )?.["name"]
                   } / ${instrument.name}`,
                 })),
                 title: "Instrument",
-                default: filteredInstrumentList[0]?.id || null,
+                default: filteredInstrumentList[0]?.["id"] || null,
               },
             },
           },
@@ -341,7 +338,7 @@ const FollowupRequestSelectionForm = ({
                   }),
                 ),
                 title: "Allocation",
-                default: filteredAllocationListApiClassname[0]?.id || null,
+                default: filteredAllocationListApiClassname[0]?.["id"] || null,
               },
             },
           },

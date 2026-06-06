@@ -1,35 +1,26 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Recent sources widget data.
+ *
+ * RTK Query conversion of the old `FETCH_RECENT_SOURCES` duck. The endpoint is
+ * injected into the central `skyportalApi`. The old websocket handler refetched
+ * recent sources on a FETCH_RECENT_SOURCES message; here we invalidate the
+ * "RecentSource" tag so the active query refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
+export type RecentSource = Record<string, any>;
 
-const FETCH_RECENT_SOURCES = "skyportal/FETCH_RECENT_SOURCES";
-const FETCH_RECENT_SOURCES_OK = "skyportal/FETCH_RECENT_SOURCES_OK";
-
-export const fetchRecentSources = () =>
-  API.GET("/api/internal/recent_sources", FETCH_RECENT_SOURCES);
-
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === FETCH_RECENT_SOURCES) {
-    dispatch(fetchRecentSources());
-  }
+export const recentSourcesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getRecentSources: build.query<RecentSource[], void>({
+      query: () => "api/internal/recent_sources",
+      providesTags: ["RecentSource"],
+    }),
+  }),
 });
 
-const reducer = (
-  state: Record<string, any> = { recentSources: undefined },
-  action: { type: string; data?: any },
-): Record<string, any> => {
-  switch (action.type) {
-    case FETCH_RECENT_SOURCES_OK: {
-      const recentSources = action.data;
-      return {
-        recentSources,
-      };
-    }
-    default:
-      return state;
-  }
-};
+// Websocket: old handler refetched recent sources on FETCH_RECENT_SOURCES.
+invalidateOnMessage("skyportal/FETCH_RECENT_SOURCES", () => ["RecentSource"]);
 
-store.injectReducer("recentSources", reducer);
+export const { useGetRecentSourcesQuery } = recentSourcesApi;

@@ -25,7 +25,7 @@ import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyTaxonomy from "./ModifyTaxonomy";
 import NewTaxonomy from "./NewTaxonomy";
-import * as taxonomyActions from "../../ducks/taxonomies";
+import { useDeleteTaxonomyMutation } from "../../ducks/taxonomies";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -83,6 +83,7 @@ const TaxonomyTable = ({
   const { classes } = useStyles();
 
   const dispatch = useAppDispatch();
+  const [deleteTaxonomyMutation] = useDeleteTaxonomyMutation();
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
   const [sortModel, setSortModel] = useState<any[]>([]);
@@ -127,15 +128,14 @@ const TaxonomyTable = ({
     setTaxonomyToViewEditDelete(null);
   };
 
-  const deleteTaxonomy = () => {
-    dispatch(taxonomyActions.deleteTaxonomy(taxonomyToViewEditDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Taxonomy deleted"));
-          closeDeleteDialog();
-        }
-      },
-    );
+  const deleteTaxonomy = async () => {
+    try {
+      await deleteTaxonomyMutation(taxonomyToViewEditDelete).unwrap();
+      dispatch(showNotification("Taxonomy deleted"));
+      closeDeleteDialog();
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const renderName = (params: any) => {

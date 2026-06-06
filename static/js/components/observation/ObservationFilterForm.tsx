@@ -6,8 +6,9 @@ import Typography from "@mui/material/Typography";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { Controller, useForm } from "react-hook-form";
-import { useAppSelector } from "../../types/hooks";
+
 import Button from "../Button";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()((theme) => ({
   paperDiv: {
@@ -98,7 +99,7 @@ const ObservationFilterForm = ({
 }: ObservationFilterFormProps) => {
   const { classes } = useStyles();
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const sortedInstrumentList = [...instrumentList];
   sortedInstrumentList.sort((i1: any, i2: any) => {
     if (i1.name > i2.name) {

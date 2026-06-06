@@ -3,7 +3,7 @@ import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import { fetchGalaxies, uploadGalaxies } from "../../ducks/galaxies";
+import { useUploadGalaxiesMutation } from "../../ducks/galaxies";
 
 interface NewGalaxyProps {
   handleClose?: (() => void) | null;
@@ -11,6 +11,7 @@ interface NewGalaxyProps {
 
 const NewGalaxy = ({ handleClose = null }: NewGalaxyProps) => {
   const dispatch = useAppDispatch();
+  const [uploadGalaxies] = useUploadGalaxiesMutation();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     const parsed = dataUriToBuffer(formData.file);
@@ -19,13 +20,16 @@ const NewGalaxy = ({ handleClose = null }: NewGalaxyProps) => {
       catalogData: ascii,
       catalogName: formData.catalogName,
     };
-    const result: any = await dispatch(uploadGalaxies(payload));
-    if (result.status === "success") {
+    try {
+      await uploadGalaxies(payload).unwrap();
       if (handleClose) {
         handleClose();
       }
       dispatch(showNotification("Galaxy saved"));
-      dispatch(fetchGalaxies());
+      // The upload invalidates the Galaxies tag, which refetches the active
+      // galaxy queries automatically.
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 

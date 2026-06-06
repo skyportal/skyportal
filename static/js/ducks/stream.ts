@@ -1,62 +1,27 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * A single stream (by id).
+ *
+ * RTK Query conversion of the old `FETCH_STREAM` duck. The old websocket handler
+ * only refetched when the currently-loaded stream matched the pushed
+ * `stream_id`; here we invalidate the "Stream" tag, which only refetches the
+ * active stream query.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch, RootState } from "../types/store";
+export type Stream = Record<string, any>;
 
-const REFRESH_STREAM = "skyportal/REFRESH_STREAM";
+export const streamApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getStream: build.query<Stream, number | string>({
+      query: (id) => `api/streams/${id}`,
+      providesTags: ["Stream"],
+    }),
+  }),
+});
 
-const FETCH_STREAM = "skyportal/FETCH_STREAM";
-const FETCH_STREAM_OK = "skyportal/FETCH_STREAM_OK";
-const FETCH_STREAM_ERROR = "skyportal/FETCH_STREAM_ERROR";
-const FETCH_STREAM_FAIL = "skyportal/FETCH_STREAM_FAIL";
+// Websocket: only the active stream query (the one the user has open) is
+// invalidated, mirroring the old "loaded_stream_id === payload.stream_id" gate.
+invalidateOnMessage("skyportal/REFRESH_STREAM", () => ["Stream"]);
 
-export function fetchStream(id: number | string) {
-  return API.GET(`/api/streams/${id}`, FETCH_STREAM);
-}
-
-// Websocket message handler
-messageHandler.add(
-  (
-    actionType: string,
-    payload: any,
-    dispatch: AppDispatch,
-    getState: () => RootState,
-  ) => {
-    const { stream } = getState();
-
-    if (actionType === REFRESH_STREAM) {
-      const loaded_stream_id = stream ? stream.id : null;
-
-      if (loaded_stream_id === payload.stream_id) {
-        dispatch(fetchStream(loaded_stream_id));
-      }
-    }
-  },
-);
-
-type StreamState = Record<string, any>;
-
-interface StreamAction {
-  type: string;
-  data?: any;
-}
-
-const reducer = (
-  state: StreamState = {},
-  action: StreamAction,
-): StreamState => {
-  switch (action.type) {
-    case FETCH_STREAM_OK: {
-      return action.data;
-    }
-    case FETCH_STREAM_FAIL:
-    case FETCH_STREAM_ERROR: {
-      return {};
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("stream", reducer);
+export const { useGetStreamQuery } = streamApi;

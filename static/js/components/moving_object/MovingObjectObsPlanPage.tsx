@@ -17,8 +17,9 @@ import DialogContent from "@mui/material/DialogContent";
 import CircularProgress from "@mui/material/CircularProgress";
 import { MyObjectFieldTemplate } from "../gcn/GcnSelectionForm";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as movingObjectActions from "../../ducks/moving_object";
+import { useAppDispatch } from "../../types/hooks";
+import { usePostMovingObjectObsPlanMutation } from "../../ducks/moving_object";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -58,10 +59,11 @@ const PlaceHolder = () => {
 
 const MovingObjectObsPlanPage = () => {
   const { classes } = useStyles();
-  const instruments = useAppSelector(
-    (state) => state["instruments"].instrumentList,
-  );
+  const { data: instruments = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
   const dispatch = useAppDispatch();
+  const [postMovingObjectObsPlan] = usePostMovingObjectObsPlanMutation();
 
   const [instrumentOptions, setInstrumentOptions] = useState<any[]>([]);
   const [formData, setFormData] = useState<any>({});
@@ -89,35 +91,28 @@ const MovingObjectObsPlanPage = () => {
     setInstrumentOptions(valid_instruments);
   }, [instruments]);
 
-  function onFormSubmit(params: any) {
+  async function onFormSubmit(params: any) {
     setLoading(true);
     let name = params.formData.name.replace(/\s/g, "");
     let data = Object.fromEntries(
       Object.entries(params.formData).filter(([_, v]) => v != null),
     );
-    dispatch(movingObjectActions.postMovingObjectObsPlan(name, data)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          if (result.data.length === 0) {
-            dispatch(
-              showNotification(
-                "No fields found for the given criteria",
-                "warning",
-              ),
-            );
-          } else {
-            dispatch(
-              showNotification(
-                "Observation plan generated successfully",
-                "info",
-              ),
-            );
-            setPlanData(result.data);
-          }
-        }
-        setLoading(false);
-      },
-    );
+    try {
+      const result = await postMovingObjectObsPlan({ name, data }).unwrap();
+      if (result.length === 0) {
+        dispatch(
+          showNotification("No fields found for the given criteria", "warning"),
+        );
+      } else {
+        dispatch(
+          showNotification("Observation plan generated successfully", "info"),
+        );
+        setPlanData(result);
+      }
+    } catch {
+      // error notification is handled by the base query
+    }
+    setLoading(false);
   }
 
   const formSchema = {

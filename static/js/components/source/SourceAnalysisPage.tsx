@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-import { useAppDispatch } from "../../types/hooks";
 import { Link } from "react-router-dom";
 
 import dayjs from "dayjs";
@@ -18,7 +16,10 @@ import Typography from "@mui/material/Typography";
 import Button from "../Button";
 import withRouter from "../withRouter";
 
-import * as sourceActions from "../../ducks/source";
+import {
+  useGetAnalysisQuery,
+  useGetAnalysisResultsQuery,
+} from "../../ducks/source";
 
 dayjs.extend(calendar);
 
@@ -87,27 +88,16 @@ interface SourceAnalysisPageProps {
 
 const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
 
-  const [analysis, setAnalysis] = useState<any>(null);
-  const [analysisResults, setAnalysisResults] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchAnalysis = async (objID: string, analysisId: number) => {
-      const response: any = await dispatch(
-        sourceActions.fetchAnalysis(analysisId, "obj", { objID }),
-      );
-      setAnalysis(response.data);
-    };
-    const fetchAnalysisResults = async (analysisId: number) => {
-      const response_results: any = await dispatch(
-        sourceActions.fetchAnalysisResults(analysisId, "obj"),
-      );
-      setAnalysisResults(response_results.data);
-    };
-    fetchAnalysis(route.obj_id, route.analysis_id);
-    fetchAnalysisResults(route.analysis_id);
-  }, [dispatch, setAnalysis, setAnalysisResults, route]);
+  const { data: analysis } = useGetAnalysisQuery({
+    analysis_id: route.analysis_id,
+    analysis_resource_type: "obj",
+    params: { objID: route.obj_id },
+  });
+  const { data: analysisResults } = useGetAnalysisResultsQuery({
+    analysis_id: route.analysis_id,
+    analysis_resource_type: "obj",
+  });
 
   let chip_color: any = "warning";
   if (analysis?.status === "completed") {

@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
 
 import Accordion from "@mui/material/Accordion";
@@ -18,8 +17,11 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import { makeStyles } from "tss-react/mui";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
+import { useAppDispatch } from "../../types/hooks";
+import {
+  useGetAnalysesQuery,
+  useDeleteAnalysisMutation,
+} from "../../ducks/source";
 
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
@@ -64,13 +66,11 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const analyses = useAppSelector((state) => (state as any).source.analyses);
-  useEffect(() => {
-    const fetchAnalysesList = async (objID: string) => {
-      dispatch(sourceActions.fetchAnalyses("obj", { objID }));
-    };
-    fetchAnalysesList(obj_id);
-  }, [dispatch, obj_id]);
+  const { data: analyses } = useGetAnalysesQuery({
+    analysis_resource_type: "obj",
+    params: { objID: obj_id },
+  });
+  const [deleteAnalysisMutation] = useDeleteAnalysisMutation();
 
   // filter out the results, to only show the analyses for this object
   let analysesList: any[] = [];
@@ -86,7 +86,7 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
 
   const deleteAnalysis = async (analysisID: any) => {
     dispatch(showNotification(`Deleting Analysis (${analysisID}).`));
-    dispatch(sourceActions.deleteAnalysis(analysisID));
+    deleteAnalysisMutation({ analysis_id: analysisID });
   };
 
   const renderDedicatedPage = (params: any) => {

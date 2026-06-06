@@ -12,10 +12,11 @@ import EditIcon from "@mui/icons-material/Edit";
 import IconButton from "@mui/material/IconButton";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
-import * as photActions from "../../ducks/photometry";
+import { useUpdatePhotometryMutation } from "../../ducks/photometry";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   Select: {
@@ -54,10 +55,11 @@ interface UpdatePhotometryProps {
 const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
   const { classes } = useStyles() as any;
   const dispatch = useAppDispatch();
+  const [updatePhotometry] = useUpdatePhotometryMutation();
 
-  const { instrumentList } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
 
   const [state, setState] = useState<any>({
     mjd: phot.mjd,
@@ -186,16 +188,17 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       setIsSubmitting(false);
       return;
     }
-    const result: any = await dispatch(
-      photActions.updatePhotometry(phot.id, {
-        ...newState,
-      }),
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await updatePhotometry({
+        id: phot.id,
+        photometry: { ...newState },
+      }).unwrap();
       dispatch(showNotification("Photometry successfully updated."));
       setDialogOpen(false);
+    } catch {
+      // error notification handled by the baseQuery
     }
+    setIsSubmitting(false);
   };
 
   return (

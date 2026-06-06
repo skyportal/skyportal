@@ -1,70 +1,85 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * User notifications (the bell/notifications popover).
+ *
+ * RTK Query conversion of the old `FETCH_NOTIFICATIONS` duck. The endpoints are
+ * injected into the central `skyportalApi`. The list query provides the
+ * "UserNotifications" tag; the mutations (mark read/unread, delete, delete all)
+ * invalidate it so the list refetches.
+ *
+ * The old websocket handler refetched notifications on a FETCH_NOTIFICATIONS
+ * message; here we invalidate the "UserNotifications" tag so the active query
+ * refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-
-const FETCH_NOTIFICATIONS = "skyportal/FETCH_NOTIFICATIONS";
-const FETCH_NOTIFICATIONS_OK = "skyportal/FETCH_NOTIFICATIONS_OK";
-
-const UPDATE_NOTIFICATION = "skyportal/UPDATE_NOTIFICATION";
-const UPDATE_ALL_NOTIFICATIONS = "skyportal/UPDATE_ALL_NOTIFICATIONS";
-
-const DELETE_NOTIFICATION = "skyportal/DELETE_NOTIFICATION";
-const DELETE_ALL_NOTIFICATIONS = "skyportal/DELETE_ALL_NOTIFICATIONS";
-
-const TEST_NOTIFICATIONS = "skyportal/TEST_NOTIFICATIONS";
-
-export const testNotifications = (data: any) =>
-  API.POST("/api/internal/notifications_test", TEST_NOTIFICATIONS, data);
-
-export const fetchNotifications = () =>
-  API.GET("/api/internal/notifications", FETCH_NOTIFICATIONS);
-
-export const updateNotification = ({
-  notificationID,
-  data,
-}: {
-  notificationID: number | string;
-  data: any;
-}) =>
-  API.PATCH(
-    `/api/internal/notifications/${notificationID}`,
-    UPDATE_NOTIFICATION,
-    data,
-  );
-
-export const updateAllNotifications = (data: any) =>
-  API.PATCH("/api/internal/notifications/all", UPDATE_ALL_NOTIFICATIONS, data);
-
-export const deleteAllNotifications = () =>
-  API.DELETE("/api/internal/notifications/all", DELETE_ALL_NOTIFICATIONS);
-
-export const deleteNotification = (notificationID: number | string) =>
-  API.DELETE(
-    `/api/internal/notifications/${notificationID}`,
-    DELETE_NOTIFICATION,
-  );
-
-// Websocket message handler
-messageHandler.add((actionType: string, _payload: any, dispatch: any) => {
-  if (actionType === FETCH_NOTIFICATIONS) {
-    dispatch(fetchNotifications());
-  }
-});
-
-interface UserNotificationsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
+export interface UserNotification {
+  id: number;
+  text: string;
+  url?: string | null;
+  viewed: boolean;
+  [key: string]: unknown;
 }
 
-const reducer = (state: any = null, action: UserNotificationsAction) => {
-  switch (action.type) {
-    case FETCH_NOTIFICATIONS_OK:
-      return action.data;
-    default:
-      return state;
-  }
-};
+export const userNotificationsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getNotifications: build.query<UserNotification[], void>({
+      query: () => "api/internal/notifications",
+      providesTags: ["UserNotifications"],
+    }),
+    testNotifications: build.mutation<unknown, Record<string, unknown>>({
+      query: (data) => ({
+        url: "api/internal/notifications_test",
+        method: "POST",
+        body: data,
+      }),
+    }),
+    updateNotification: build.mutation<
+      unknown,
+      { notificationID: number | string; data: Record<string, unknown> }
+    >({
+      query: ({ notificationID, data }) => ({
+        url: `api/internal/notifications/${notificationID}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["UserNotifications"],
+    }),
+    updateAllNotifications: build.mutation<unknown, Record<string, unknown>>({
+      query: (data) => ({
+        url: "api/internal/notifications/all",
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["UserNotifications"],
+    }),
+    deleteNotification: build.mutation<unknown, number | string>({
+      query: (notificationID) => ({
+        url: `api/internal/notifications/${notificationID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["UserNotifications"],
+    }),
+    deleteAllNotifications: build.mutation<unknown, void>({
+      query: () => ({
+        url: "api/internal/notifications/all",
+        method: "DELETE",
+      }),
+      invalidatesTags: ["UserNotifications"],
+    }),
+  }),
+});
 
-store.injectReducer("userNotifications", reducer);
+// Websocket: old handler refetched notifications on FETCH_NOTIFICATIONS.
+invalidateOnMessage("skyportal/FETCH_NOTIFICATIONS", () => [
+  "UserNotifications",
+]);
+
+export const {
+  useGetNotificationsQuery,
+  useTestNotificationsMutation,
+  useUpdateNotificationMutation,
+  useUpdateAllNotificationsMutation,
+  useDeleteNotificationMutation,
+  useDeleteAllNotificationsMutation,
+} = userNotificationsApi;

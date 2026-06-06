@@ -5,7 +5,7 @@ import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { makeStyles } from "tss-react/mui";
 
-import { useAppSelector } from "../../types/hooks";
+import { useGetMMADetectorsQuery } from "../../ducks/mmadetector";
 import StyledDataGrid from "../StyledDataGrid";
 
 const useStyles = makeStyles()(() => ({
@@ -51,9 +51,7 @@ const EarthquakeMeasurementLists = ({
 }: EarthquakeMeasurementListsProps) => {
   const { classes } = useStyles();
 
-  const { mmadetectorList } = useAppSelector(
-    (state) => (state as any).mmadetectors,
-  );
+  const { data: mmadetectorList } = useGetMMADetectorsQuery();
 
   if (!mmadetectorList || mmadetectorList.length === 0) {
     return <p>Need mmadetectors to make measurements...</p>;

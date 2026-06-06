@@ -1,46 +1,29 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Observing runs (the "observingRunList" listing).
+ *
+ * RTK Query conversion of the old `FETCH_OBSERVING_RUNS` duck. The endpoint is
+ * injected into the central `skyportalApi`. The backend returns the array of
+ * observing runs that consumers used to read from `state.observingRuns
+ * .observingRunList`.
+ *
+ * The websocket `FETCH_OBSERVING_RUNS` message is bridged to cache invalidation
+ * via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+export type ObservingRun = Record<string, any>;
 
-const FETCH_OBSERVING_RUNS = "skyportal/FETCH_OBSERVING_RUNS";
-const FETCH_OBSERVING_RUNS_OK = "skyportal/FETCH_OBSERVING_RUNS_OK";
+export const observingRunsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getObservingRuns: build.query<ObservingRun[], void>({
+      query: () => "api/observing_run",
+      providesTags: ["ObservingRun"],
+    }),
+  }),
+});
 
-export const fetchObservingRuns = () =>
-  API.GET("/api/observing_run", FETCH_OBSERVING_RUNS);
+// Websocket: old handler refetched observing runs on FETCH_OBSERVING_RUNS.
+invalidateOnMessage("skyportal/FETCH_OBSERVING_RUNS", () => ["ObservingRun"]);
 
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === FETCH_OBSERVING_RUNS) {
-      dispatch(fetchObservingRuns());
-    }
-  },
-);
-
-type ObservingRunsState = Record<string, any>;
-
-interface ObservingRunsAction {
-  type: string;
-  data?: any;
-}
-
-const reducer = (
-  state: ObservingRunsState = { observingRunList: [] },
-  action: ObservingRunsAction,
-): ObservingRunsState => {
-  switch (action.type) {
-    case FETCH_OBSERVING_RUNS_OK: {
-      const observingRunList = action.data;
-      return {
-        ...state,
-        observingRunList,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("observingRuns", reducer);
+export const { useGetObservingRunsQuery } = observingRunsApi;

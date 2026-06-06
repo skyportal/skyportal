@@ -4,8 +4,10 @@ import { makeStyles } from "tss-react/mui";
 import TextField from "@mui/material/TextField";
 import Button from "../../Button";
 import UserPreferencesHeader from "./UserPreferencesHeader";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 import ClassificationSelect from "../../classification/ClassificationSelect";
 import DeletableChips from "../../DeletableChips";
 
@@ -20,14 +22,15 @@ const useStyles = makeStyles()(() => ({
 
 const ClassificationsShortcutForm = () => {
   const { classes } = useStyles();
-  const profile = useAppSelector((state) => state.profile.preferences) as any;
+  const { data: profileData } = useGetProfileQuery();
+  const profile = (profileData?.preferences ?? {}) as any;
   const {
     handleSubmit,
     register,
     reset,
     formState: { errors },
   } = useForm();
-  const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   const [selectedClassifications, setSelectedClassifications] = useState<
     string[]
@@ -40,7 +43,7 @@ const ClassificationsShortcutForm = () => {
         [formValues.shortcutName]: selectedClassifications,
       },
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
     setSelectedClassifications([]);
     reset({ shortcutName: "" });
   };
@@ -53,7 +56,7 @@ const ClassificationsShortcutForm = () => {
         ),
       ),
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   return (

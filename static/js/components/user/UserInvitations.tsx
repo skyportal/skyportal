@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import Paper from "@mui/material/Paper";
@@ -39,11 +40,17 @@ import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
 import FormValidationError from "../FormValidationError";
-import * as invitationsActions from "../../ducks/invitations";
-import * as streamsActions from "../../ducks/streams";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import {
+  useGetInvitationsQuery,
+  useInviteUserMutation,
+  useUpdateInvitationMutation,
+  useDeleteInvitationMutation,
+} from "../../ducks/invitations";
+import { useGetStreamsQuery } from "../../ducks/streams";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Spinner from "../Spinner";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(utc);
 
@@ -77,20 +84,23 @@ const defaultNumPerPage = 25;
 const UserInvitations = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const streams = useAppSelector((state) => state["streams"]);
-  let { all: allGroups } = useAppSelector((state) => state.groups);
+  const { data: streams } = useGetStreamsQuery();
+  let allGroups = useGetGroupsQuery().data?.all ?? null;
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
   });
   const [tableFilterList, setTableFilterList] = useState<string[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
-  const { invitations, totalMatches } = useAppSelector(
-    (state) => state["invitations"],
-  );
+  const { data: invitationsData } = useGetInvitationsQuery(fetchParams);
+  const invitations = invitationsData?.invitations;
+  const totalMatches = invitationsData?.totalMatches ?? 0;
+  const [inviteUser] = useInviteUserMutation();
+  const [updateInvitation] = useUpdateInvitationMutation();
+  const [deleteInvitation] = useDeleteInvitationMutation();
   const [csvData, setCsvData] = useState("");
   const [addInvitationGroupsDialogOpen, setAddInvitationGroupsDialogOpen] =
     useState(false);
@@ -102,7 +112,6 @@ const UserInvitations = () => {
     setEditUserExpirationDateDialogOpen,
   ] = useState(false);
   const [clickedInvitation, setClickedInvitation] = useState<any>(null);
-  const [dataFetched, setDataFetched] = useState(false);
   const [deleteInvitationDialogOpen, setDeleteInvitationDialogOpen] =
     useState(false);
 
@@ -115,18 +124,7 @@ const UserInvitations = () => {
     formState: { errors },
   } = useForm();
 
-  useEffect(() => {
-    const fetchData = () => {
-      dispatch(streamsActions.fetchStreams());
-      dispatch(invitationsActions.fetchInvitations());
-    };
-    if (!dataFetched) {
-      fetchData();
-      setDataFetched(true);
-    }
-  }, [dataFetched, dispatch]);
-
-  if (!allGroups?.length || streams === null) {
+  if (!allGroups?.length || streams == null) {
     return (
       <Box
         display={queryInProgress ? "block" : "none"}
@@ -139,13 +137,13 @@ const UserInvitations = () => {
 
   if (
     !(
-      currentUser.permissions?.includes("System admin") ||
-      currentUser.permissions?.includes("Manage users")
+      currentUser?.permissions?.includes("System admin") ||
+      currentUser?.permissions?.includes("Manage users")
     )
   ) {
     return <div>Access denied: Insufficient permissions.</div>;
   }
-  allGroups = allGroups?.filter((group) => !group.single_user_group);
+  allGroups = allGroups?.filter((group) => !group["single_user_group"]);
 
   const validateInvitationGroups = () => {
     const formState = getValues();
@@ -164,12 +162,14 @@ const UserInvitations = () => {
     const groupIDs = invitation.groups
       ?.filter((group: any) => group.id !== groupID)
       ?.map((g: any) => g.id);
-    const result: any = await dispatch(
-      invitationsActions.updateInvitation(invitation.id, { groupIDs }),
-    );
-    if (result.status === "success") {
+    try {
+      await updateInvitation({
+        invitationID: invitation.id,
+        payload: { groupIDs },
+      }).unwrap();
       dispatch(showNotification("Invitation successfully updated."));
-      dispatch(invitationsActions.fetchInvitations(fetchParams));
+    } catch {
+      // error notification handled by the base query
     }
   };
 
@@ -180,12 +180,14 @@ const UserInvitations = () => {
     const streamIDs = invitation.streams
       ?.filter((stream: any) => stream.id !== streamID)
       ?.map((s: any) => s.id);
-    const result: any = await dispatch(
-      invitationsActions.updateInvitation(invitation.id, { streamIDs }),
-    );
-    if (result.status === "success") {
+    try {
+      await updateInvitation({
+        invitationID: invitation.id,
+        payload: { streamIDs },
+      }).unwrap();
       dispatch(showNotification("Invitation successfully updated."));
-      dispatch(invitationsActions.fetchInvitations(fetchParams));
+    } catch {
+      // error notification handled by the base query
     }
   };
 
@@ -195,17 +197,17 @@ const UserInvitations = () => {
       ...formData.invitationGroups?.map((g: any) => g.id),
     ]);
 
-    const result: any = await dispatch(
-      invitationsActions.updateInvitation(clickedInvitation.id, {
-        groupIDs: [...groupIDs],
-      }),
-    );
-    if (result.status === "success") {
+    try {
+      await updateInvitation({
+        invitationID: clickedInvitation.id,
+        payload: { groupIDs: [...groupIDs] },
+      }).unwrap();
       dispatch(showNotification("Invitation successfully updated."));
-      dispatch(invitationsActions.fetchInvitations(fetchParams));
       reset({ invitationGroups: [] });
       setAddInvitationGroupsDialogOpen(false);
       setClickedInvitation(null);
+    } catch {
+      // error notification handled by the base query
     }
   };
 
@@ -215,42 +217,41 @@ const UserInvitations = () => {
       ...formData.invitationStreams?.map((s: any) => s.id),
     ]);
 
-    const result: any = await dispatch(
-      invitationsActions.updateInvitation(clickedInvitation.id, {
-        streamIDs: [...streamIDs],
-      }),
-    );
-    if (result.status === "success") {
+    try {
+      await updateInvitation({
+        invitationID: clickedInvitation.id,
+        payload: { streamIDs: [...streamIDs] },
+      }).unwrap();
       dispatch(showNotification("Invitation successfully updated."));
-      dispatch(invitationsActions.fetchInvitations(fetchParams));
       reset({ invitationStreams: [] });
       setAddInvitationStreamsDialogOpen(false);
       setClickedInvitation(null);
+    } catch {
+      // error notification handled by the base query
     }
   };
 
   const handleUpdateInvitationRole = async (formData: any) => {
-    const result: any = await dispatch(
-      invitationsActions.updateInvitation(clickedInvitation.id, {
-        role: formData.invitationRole,
-      }),
-    );
-    if (result.status === "success") {
+    try {
+      await updateInvitation({
+        invitationID: clickedInvitation.id,
+        payload: { role: formData.invitationRole },
+      }).unwrap();
       dispatch(showNotification("Invitation successfully updated."));
-      dispatch(invitationsActions.fetchInvitations(fetchParams));
       reset({ invitationRole: "" });
       setUpdateRoleDialogOpen(false);
       setClickedInvitation(null);
+    } catch {
+      // error notification handled by the base query
     }
   };
 
   const handleDeleteInvitation = async (invitationID: any) => {
-    const result: any = await dispatch(
-      invitationsActions.deleteInvitation(invitationID),
-    );
-    if (result.status === "success") {
+    try {
+      await deleteInvitation(invitationID).unwrap();
       dispatch(showNotification("Invitation successfully deleted."));
-      dispatch(invitationsActions.fetchInvitations(fetchParams));
+    } catch {
+      // error notification handled by the base query
     }
   };
 
@@ -271,21 +272,20 @@ const UserInvitations = () => {
       row[4]?.trim(),
     ]);
     const promises = rows.map((row: any) =>
-      dispatch(
-        invitationsActions.inviteUser({
-          userEmail: row[0],
-          streamIDs: row[1],
-          groupIDs: row[2],
-          groupAdmin: row[3],
-          userExpirationDate: row[4],
-        }),
-      ),
+      inviteUser({
+        userEmail: row[0],
+        streamIDs: row[1],
+        groupIDs: row[2],
+        groupAdmin: row[3],
+        userExpirationDate: row[4],
+      }).unwrap(),
     );
-    const results: any[] = await Promise.all(promises);
-    if (results.every((result: any) => result.status === "success")) {
+    try {
+      await Promise.all(promises);
       dispatch(showNotification("User(s) invitation(s) successfully created."));
-      dispatch(invitationsActions.fetchInvitations(fetchParams));
       setCsvData("");
+    } catch {
+      // error notification handled by the base query
     }
   };
 
@@ -299,17 +299,19 @@ const UserInvitations = () => {
       );
       return;
     }
-    const result: any = await dispatch(
-      invitationsActions.updateInvitation(clickedInvitation.id, {
-        userExpirationDate: dayjs.utc(formData.date).toISOString(),
-      }),
-    );
-    if (result.status === "success") {
+    try {
+      await updateInvitation({
+        invitationID: clickedInvitation.id,
+        payload: {
+          userExpirationDate: dayjs.utc(formData.date).toISOString(),
+        },
+      }).unwrap();
       dispatch(showNotification("User expiration date successfully updated."));
       reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
-      dispatch(invitationsActions.fetchInvitations(fetchParams));
       setClickedInvitation(null);
+    } catch {
+      // error notification handled by the base query
     }
   };
 
@@ -473,7 +475,7 @@ const UserInvitations = () => {
     </div>
   );
 
-  const handleFilterSubmit = async (formData: any) => {
+  const handleFilterSubmit = (formData: any) => {
     setQueryInProgress(true);
     Object.keys(formData).forEach(
       (key) => !formData[key] && delete formData[key],
@@ -487,7 +489,6 @@ const UserInvitations = () => {
       ...formData,
     };
     setFetchParams(params);
-    await dispatch(invitationsActions.fetchInvitations(params));
     setQueryInProgress(false);
     setFilterOpen(false);
   };
@@ -504,12 +505,11 @@ const UserInvitations = () => {
     handleFilterSubmit(data);
   };
 
-  const handlePageChange = async (page: number, numPerPage: number) => {
+  const handlePageChange = (page: number, numPerPage: number) => {
     setQueryInProgress(true);
     const params = { ...fetchParams, numPerPage, pageNumber: page + 1 };
     // Save state for future
     setFetchParams(params);
-    await dispatch(invitationsActions.fetchInvitations(params));
     setQueryInProgress(false);
   };
 

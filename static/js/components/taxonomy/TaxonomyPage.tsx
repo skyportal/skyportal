@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useState } from "react";
 import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
 import { makeStyles } from "tss-react/mui";
@@ -7,8 +8,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import TaxonomyTableComponent from "./TaxonomyTable";
 import Spinner from "../Spinner";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as taxonomyActions from "../../ducks/taxonomies";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 
 const TaxonomyTable = TaxonomyTableComponent as any;
 
@@ -87,65 +87,42 @@ export function taxonomyInfo(taxonomy: any) {
 }
 
 const TaxonomyList = () => {
-  const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
-  const taxonomiesState = useAppSelector((state) => state["taxonomies"]);
+  const { data: taxonomyList, refetch } = useGetTaxonomiesQuery();
 
-  const currentUser = useAppSelector((state) => state.profile);
-  const permission = currentUser.permissions?.includes("System admin");
+  const { data: currentUser } = useGetProfileQuery();
+  const permission = currentUser?.permissions?.includes("System admin");
 
-  const [rowsPerPage, setRowsPerPage] = useState(100);
-
-  useEffect(() => {
-    dispatch(taxonomyActions.fetchTaxonomies());
-  }, [dispatch]);
+  const [, setRowsPerPage] = useState(100);
 
   const handleTaxonomyTablePagination = (
-    pageNumber: number,
+    _pageNumber: number,
     numPerPage: number,
-    sortData: any,
-    filterData: any,
   ) => {
     setRowsPerPage(numPerPage);
-    const data: any = {
-      ...filterData,
-      pageNumber,
-      numPerPage,
-    };
-    if (sortData && Object.keys(sortData).length > 0) {
-      data.sortBy = sortData.name;
-      data.sortOrder = sortData.direction;
-    }
-    dispatch((taxonomyActions.fetchTaxonomies as any)(data));
+    refetch();
   };
 
-  const handleTaxonomyTableSorting = (sortData: any, filterData: any) => {
-    const data = {
-      ...filterData,
-      pageNumber: 1,
-      rowsPerPage,
-      sortBy: sortData.name,
-      sortOrder: sortData.direction,
-    };
-    dispatch((taxonomyActions.fetchTaxonomies as any)(data));
+  const handleTaxonomyTableSorting = () => {
+    refetch();
   };
 
-  if (!taxonomiesState.taxonomyList) {
+  if (taxonomyList == null) {
     return <Spinner />;
   }
 
   return (
     <div className={classes.paper}>
       <Typography variant="h6" display="inline" />
-      {taxonomiesState.taxonomyList && (
+      {taxonomyList && (
         <TaxonomyTable
-          taxonomies={taxonomiesState.taxonomyList}
+          taxonomies={taxonomyList}
           deletePermission={permission}
           paginateCallback={handleTaxonomyTablePagination}
-          totalMatches={taxonomiesState.totalMatches}
-          pageNumber={taxonomiesState.pageNumber}
-          numPerPage={taxonomiesState.numPerPage}
+          totalMatches={undefined}
+          pageNumber={undefined}
+          numPerPage={undefined}
           sortingCallback={handleTaxonomyTableSorting}
         />
       )}

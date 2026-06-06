@@ -7,9 +7,17 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
 import { makeStyles } from "tss-react/mui";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as followupRequestActions from "../../ducks/followup_requests";
-import * as gcnEventsActions from "../../ducks/gcnEvents";
+
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import {
+  useGetFollowupRequestsQuery,
+  usePrioritizeFollowupRequestsMutation,
+} from "../../ducks/followup_requests";
+import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
+import {
+  useGetInstrumentFormsQuery,
+  useGetInstrumentsQuery,
+} from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   select: {
@@ -24,18 +32,25 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const FollowupRequestPrioritizationForm = () => {
-  const { classes } = useStyles();
-  const dispatch = useAppDispatch();
-  const gcnEvents = useAppSelector((state) => state["gcnEvents"]) as any;
+interface FollowupRequestPrioritizationFormProps {
+  fetchParams?: Record<string, any> | undefined;
+}
 
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
-  const { followupRequestList } = useAppSelector(
-    (state) => state["followup_requests"],
-  ) as any;
+const FollowupRequestPrioritizationForm = ({
+  fetchParams,
+}: FollowupRequestPrioritizationFormProps) => {
+  const { classes } = useStyles();
+  const { data: gcnEvents } = useGetGcnEventsQuery() as { data: any };
+
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
+  const [prioritizeFollowupRequests] = usePrioritizeFollowupRequestsMutation();
+  const { data: followupRequestsData } =
+    useGetFollowupRequestsQuery(fetchParams);
+  const followupRequestList = followupRequestsData?.followup_requests;
 
   const [isSubmittingPrioritization, setIsSubmittingPrioritization] =
     useState(false);
@@ -44,20 +59,14 @@ const FollowupRequestPrioritizationForm = () => {
     useState<any>(null);
 
   useEffect(() => {
-    const getGcnEvents = async () => {
-      // Wait for the GCN Events to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result: any = await dispatch(gcnEventsActions.fetchGcnEvents());
-      const { data } = result;
-      setSelectedGcnEventId(data?.events[0]?.id);
-    };
-    getGcnEvents();
-
+    // Wait for the GCN Events to load before setting the new default form
+    // fields, so that the allocations list can update.
+    if (gcnEvents?.events?.[0]?.id) {
+      setSelectedGcnEventId(gcnEvents.events[0].id);
+    }
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
-  }, [dispatch, setSelectedGcnEventId]);
+  }, [gcnEvents, setSelectedGcnEventId]);
 
   if (!Array.isArray(followupRequestList)) {
     return <p>Waiting for followup requests to load...</p>;
@@ -136,7 +145,11 @@ const FollowupRequestPrioritizationForm = () => {
         formData.requestIds.push(request.id);
       },
     );
-    await dispatch(followupRequestActions.prioritizeFollowupRequests(formData));
+    try {
+      await prioritizeFollowupRequests(formData).unwrap();
+    } catch {
+      // error notification handled by the base query
+    }
     setIsSubmittingPrioritization(false);
   };
 

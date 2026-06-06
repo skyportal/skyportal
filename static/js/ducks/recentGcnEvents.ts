@@ -1,37 +1,27 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Recent GCN events for the home-page widget.
+ *
+ * RTK Query conversion of the old `FETCH_RECENT_GCNEVENTS` duck. The old
+ * websocket handler refetched on a REFRESH_RECENT_GCNEVENTS message; here we
+ * invalidate the "RecentGcnEvent" tag so the active query refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
+export type RecentGcnEvent = Record<string, any>;
 
-const REFRESH_RECENT_GCNEVENTS = "skyportal/REFRESH_RECENT_GCNEVENTS";
-
-const FETCH_RECENT_GCNEVENTS = "skyportal/FETCH_RECENT_GCNEVENTS";
-const FETCH_RECENT_GCNEVENTS_OK = "skyportal/FETCH_RECENT_GCNEVENTS_OK";
-
-export const fetchRecentGcnEvents = () =>
-  API.GET("/api/internal/recent_gcn_events", FETCH_RECENT_GCNEVENTS);
-
-// Websocket message handler
-messageHandler.add((actionType: string, _payload: any, dispatch: any) => {
-  if (actionType === REFRESH_RECENT_GCNEVENTS) {
-    dispatch(fetchRecentGcnEvents());
-  }
+export const recentGcnEventsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getRecentGcnEvents: build.query<RecentGcnEvent[], void>({
+      query: () => "api/internal/recent_gcn_events",
+      providesTags: ["RecentGcnEvent"],
+    }),
+  }),
 });
 
-interface RecentGcnEventsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
+// Websocket: old handler refetched on REFRESH_RECENT_GCNEVENTS.
+invalidateOnMessage("skyportal/REFRESH_RECENT_GCNEVENTS", () => [
+  "RecentGcnEvent",
+]);
 
-const reducer = (state: any = null, action: RecentGcnEventsAction) => {
-  switch (action.type) {
-    case FETCH_RECENT_GCNEVENTS_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("recentGcnEvents", reducer);
+export const { useGetRecentGcnEventsQuery } = recentGcnEventsApi;

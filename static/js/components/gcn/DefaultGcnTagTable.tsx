@@ -6,7 +6,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 import { useAppDispatch } from "../../types/hooks";
-import * as defaultGcnTagsActions from "../../ducks/default_gcn_tags";
+import { useDeleteDefaultGcnTagMutation } from "../../ducks/default_gcn_tags";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
@@ -17,6 +17,7 @@ interface DefaultGcnTagTableProps {
 
 const DefaultGcnTagTable = ({ default_gcn_tags }: DefaultGcnTagTableProps) => {
   const dispatch = useAppDispatch();
+  const [deleteDefaultGcnTagMutation] = useDeleteDefaultGcnTagMutation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [defaultGcnTagToDelete, setDefaultGcnTagToDelete] = useState<any>(null);
@@ -29,15 +30,14 @@ const DefaultGcnTagTable = ({ default_gcn_tags }: DefaultGcnTagTableProps) => {
     setDefaultGcnTagToDelete(null);
   };
 
-  const deleteDefaultGcnTag = () => {
-    dispatch(
-      defaultGcnTagsActions.deleteDefaultGcnTag(defaultGcnTagToDelete),
-    ).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification("DefaultGcnTag deleted"));
-        closeDialog();
-      }
-    });
+  const deleteDefaultGcnTag = async () => {
+    try {
+      await deleteDefaultGcnTagMutation(defaultGcnTagToDelete).unwrap();
+      dispatch(showNotification("DefaultGcnTag deleted"));
+      closeDialog();
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const columns: any[] = [

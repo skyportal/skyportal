@@ -6,7 +6,6 @@ import { geoMollweide } from "d3-geo-projection";
 import * as d3 from "d3";
 import d3GeoZoom from "../../d3GeoZoom";
 
-import { useAppSelector } from "../../types/hooks";
 import { moonGeoJSON, sunGeoJSON } from "../../utils";
 
 const useStyles = makeStyles()(() => ({
@@ -58,20 +57,8 @@ const LocalizationPlot = ({
   setSelectedFields = () => {},
   selectedObservations = [],
   setSelectedObservations = () => {},
-  type = null,
   projection = "orthographic",
 }: LocalizationPlotProps) => {
-  const { analysisLoc } = useAppSelector((state) => state["localization"]);
-  const { obsplanLoc } = useAppSelector((state) => state["localization"]);
-
-  if (!localization) {
-    if (type === "obsplan") {
-      localization = obsplanLoc;
-    } else if (type === "analysis") {
-      localization = analysisLoc;
-    }
-  }
-
   if (
     !localization?.id ||
     !localization?.dateobs ||
@@ -430,21 +417,25 @@ const GeoJSONGlobePlot = ({
       if (data.instrument?.fields && data.options.instrument) {
         const filterColor = filtersToColor(data.instrument?.filters);
 
-        data.instrument.fields.sort((a: any, b: any) => {
-          if (a.field_id < b.field_id) {
-            return 1;
-          }
-          if (a.field_id > b.field_id) {
-            return -1;
-          }
-          return 0;
-        });
+        // `data.instrument.fields` is frozen RTK Query data, so copy before
+        // sorting in place.
+        const sortedFields = [...data.instrument.fields].sort(
+          (a: any, b: any) => {
+            if (a.field_id < b.field_id) {
+              return 1;
+            }
+            if (a.field_id > b.field_id) {
+              return -1;
+            }
+            return 0;
+          },
+        );
 
-        const has_ref = data.instrument.fields.some(
+        const has_ref = sortedFields.some(
           (f: any) => (f.reference_filters || []).length > 0,
         );
 
-        data.instrument.fields.forEach((f: any) => {
+        sortedFields.forEach((f: any) => {
           const { field_id } = f;
           const { features } = f.contour_summary;
           const selected = selectedFields.includes(Number(f.field_id));

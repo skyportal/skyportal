@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useMemo, useState } from "react";
 
 import Plotly from "plotly.js-basic-dist";
@@ -32,8 +33,13 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 
-import { addAnnotation } from "../../ducks/source";
-import * as photometryActions from "../../ducks/photometry";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useAddAnnotationMutation } from "../../ducks/source";
+import {
+  photometryApi,
+  useFetchSourcePhotometryQuery,
+  useLazyFetchSourcePhotometryQuery,
+} from "../../ducks/photometry";
 
 import {
   BASE_LAYOUT,
@@ -42,6 +48,7 @@ import {
   mjdnow,
   rgba,
 } from "../../utils";
+import { useGetConfigQuery } from "../../ducks/config";
 
 // convert any unit to days
 const periodUnitDividers: Record<string, number> = {
@@ -136,9 +143,8 @@ const PeriodAnnotationDialog = ({
   period,
 }: PeriodAnnotationDialogProps) => {
   const dispatch = useAppDispatch();
-  const groups = useAppSelector(
-    (state) => (state as any).groups.userAccessible,
-  );
+  const [addAnnotation] = useAddAnnotationMutation();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const periodUnits = Object.keys(periodUnitDividers);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -193,14 +199,15 @@ const PeriodAnnotationDialog = ({
       },
       groups: formData.groupIDs,
     };
-    dispatch(addAnnotation(obj_id, periodData)).then((result: any) => {
-      if (result.status === "success") {
+    addAnnotation({ sourceID: obj_id, formData: periodData })
+      .unwrap()
+      .then(() => {
         setDialogOpen(false);
         dispatch(showNotification("Period saved as annotation"));
-      } else {
+      })
+      .catch(() => {
         dispatch(showNotification("Failed to save period as annotation"));
-      }
-    });
+      });
   };
 
   return (
@@ -260,11 +267,25 @@ const PhotometryPlot = ({
   showExtinctionCorrection = false,
 }: PhotometryPlotProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
 
-  const profile = useAppSelector((state) => state.profile);
-  const config = useAppSelector((state) => state["config"]);
-  const photometry = useAppSelector((state) => (state as any).photometry);
+  const { data: profile } = useGetProfileQuery();
+  const { data: config } = useGetConfigQuery() as { data: any };
+  const [fetchPhotometryTrigger] = useLazyFetchSourcePhotometryQuery();
+
+  // Params for the main object's photometry query. Duplicate sources are fetched
+  // lazily with just `{ magsys }` (mirroring the old duplicate fetch).
+  const mainPhotParams = useMemo<any>(() => {
+    const params: any = { magsys };
+    if (showExtinctionCorrection) {
+      params.includeExtinction = true;
+    }
+    return params;
+  }, [magsys, showExtinctionCorrection]);
+
+  const { data: mainPhotometry } = useFetchSourcePhotometryQuery(
+    { id: obj_id, params: mainPhotParams },
+    { skip: !obj_id },
+  );
 
   const duplicateOptions = useMemo(() => {
     const allDuplicates = [...(duplicates || []), ...(associated_objs || [])];
@@ -280,6 +301,28 @@ const PhotometryPlot = ({
   }, [duplicates, associated_objs]);
   const [selectedDuplicates, setSelectedDuplicates] = useState<any[]>(
     associated_objs?.map((a) => a.obj_id) || [],
+  );
+
+  // Read any cached photometry for the selected duplicate sources (fetched
+  // lazily below) without re-subscribing per id.
+  const duplicatesPhotometryById = useAppSelector((state) => {
+    const result: Record<string, any> = {};
+    selectedDuplicates.forEach((dup) => {
+      result[dup] = photometryApi.endpoints.fetchSourcePhotometry.select({
+        id: dup,
+        params: { magsys },
+      })(state as any).data;
+    });
+    return result;
+  });
+
+  // Combined map of obj_id -> photometry array, mirroring the old store slice.
+  const photometry = useMemo<Record<string, any>>(
+    () => ({
+      [obj_id]: mainPhotometry,
+      ...duplicatesPhotometryById,
+    }),
+    [obj_id, mainPhotometry, duplicatesPhotometryById],
   );
 
   const [data, setData] = useState<any>(null);
@@ -1094,15 +1137,15 @@ const PhotometryPlot = ({
   }, [config]);
 
   useEffect(() => {
-    // grab the photometry for the selected duplicates from the store
+    // grab the photometry for the selected duplicates from the cache
     if (selectedDuplicates.length > 0) {
       selectedDuplicates.forEach((dup) => {
         if (!photometry[dup]) {
-          dispatch(photometryActions.fetchSourcePhotometry(dup, { magsys }));
+          fetchPhotometryTrigger({ id: dup, params: { magsys } });
         }
       });
     }
-  }, [dispatch, selectedDuplicates, magsys, photometry]);
+  }, [fetchPhotometryTrigger, selectedDuplicates, magsys, photometry]);
 
   useEffect(() => {
     if (profile?.id && defaultVisibleFilters === null) {
@@ -1218,16 +1261,8 @@ const PhotometryPlot = ({
     showOnlyValidated,
   ]);
 
-  // Refetch photometry with extinction data when toggle changes
-  useEffect(() => {
-    if (obj_id && initialized) {
-      const params: any = { magsys };
-      if (showExtinctionCorrection) {
-        params.includeExtinction = true;
-      }
-      dispatch(photometryActions.fetchSourcePhotometry(obj_id, params));
-    }
-  }, [showExtinctionCorrection, obj_id, magsys, dispatch, initialized]);
+  // The main object's photometry (including extinction toggle and magsys) is
+  // fetched declaratively via useFetchSourcePhotometryQuery above.
 
   useEffect(() => {
     if (initialized && filter2color) {

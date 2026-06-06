@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -7,8 +8,9 @@ import { showNotification } from "baselayer/components/Notifications";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import { submitPhotometry } from "../../ducks/photometry";
+import { useAppDispatch } from "../../types/hooks";
+import { useSubmitPhotometryMutation } from "../../ducks/photometry";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const dateType = (date: any) => {
   let type = "unknown";
@@ -49,9 +51,12 @@ interface NewPhotometryFormProps {
 
 const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
   const dispatch = useAppDispatch();
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const [submitPhotometry] = useSubmitPhotometryMutation();
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const [selectedFormData, setSelectedFormData] = useState<any>({
     group_ids: [groups[0]?.id],
@@ -322,7 +327,7 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
     return errors;
   };
 
-  const submit = (data: any) => {
+  const submit = async (data: any) => {
     const {
       group_ids,
       obsdate,
@@ -394,13 +399,12 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
       payload.origin = origin;
     }
 
-    dispatch(submitPhotometry(payload)).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Photometry added successfully"));
-      } else {
-        dispatch(showNotification("Error adding photometry"));
-      }
-    });
+    try {
+      await submitPhotometry(payload).unwrap();
+      dispatch(showNotification("Photometry added successfully"));
+    } catch {
+      dispatch(showNotification("Error adding photometry"));
+    }
   };
 
   return (

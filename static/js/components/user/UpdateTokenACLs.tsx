@@ -13,7 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
 import { useAppDispatch } from "../../types/hooks";
-import * as ProfileActions from "../../ducks/profile";
+import { useUpdateTokenMutation } from "../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -39,6 +39,7 @@ const UpdateTokenACLs = ({
 }: UpdateTokenACLsProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [updateToken] = useUpdateTokenMutation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,14 +53,14 @@ const UpdateTokenACLs = ({
     data.acls = selectedACLs;
 
     setIsSubmitting(true);
-    const result: any = await dispatch(
-      ProfileActions.updateToken(tokenId, data),
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await updateToken({ tokenID: tokenId, form_data: data }).unwrap();
       dispatch(showNotification("ACLs successfully updated."));
       setDialogOpen(false);
+    } catch {
+      // error notification handled by the API layer
     }
+    setIsSubmitting(false);
   };
 
   return (

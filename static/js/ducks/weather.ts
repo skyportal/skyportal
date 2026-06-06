@@ -1,42 +1,29 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Weather widget data.
+ *
+ * RTK Query conversion of the old `FETCH_WEATHER` duck. The optional
+ * `telescope_id` arg selects the telescope to report weather for. The old
+ * websocket handler refetched weather on a FETCH_WEATHER message; here we
+ * invalidate the "Weather" tag so the active query (whatever telescope) refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
+export type Weather = Record<string, any>;
 
-const FETCH_WEATHER = "skyportal/FETCH_WEATHER";
-const FETCH_WEATHER_OK = "skyportal/FETCH_WEATHER_OK";
-
-export function fetchWeather(telescope_id: number | string | null = null) {
-  if (telescope_id) {
-    return API.GET(`/api/weather?telescope_id=${telescope_id}`, FETCH_WEATHER);
-  }
-  return API.GET(`/api/weather`, FETCH_WEATHER);
-}
-
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === FETCH_WEATHER) {
-    dispatch(fetchWeather());
-  }
+export const weatherApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getWeather: build.query<Weather, number | string | null | void>({
+      query: (telescope_id) =>
+        telescope_id
+          ? `api/weather?telescope_id=${telescope_id}`
+          : "api/weather",
+      providesTags: ["Weather"],
+    }),
+  }),
 });
 
-interface WeatherAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
+// Websocket: old handler refetched weather on FETCH_WEATHER.
+invalidateOnMessage("skyportal/FETCH_WEATHER", () => ["Weather"]);
 
-const reducer = (
-  state: Record<string, any> = { weather: undefined },
-  action: WeatherAction,
-): Record<string, any> => {
-  switch (action.type) {
-    case FETCH_WEATHER_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("weather", reducer);
+export const { useGetWeatherQuery } = weatherApi;

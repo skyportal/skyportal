@@ -16,7 +16,7 @@ import {
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import * as defaultSurveyEfficienciesActions from "../../ducks/default_survey_efficiencies";
+import { useDeleteDefaultSurveyEfficiencyMutation } from "../../ducks/default_survey_efficiencies";
 import StyledDataGrid from "../StyledDataGrid";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
@@ -54,6 +54,8 @@ const DefaultSurveyEfficiencyTable = ({
   const { classes } = useStyles();
 
   const dispatch = useAppDispatch();
+  const [deleteDefaultSurveyEfficiencyMutation] =
+    useDeleteDefaultSurveyEfficiencyMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -78,16 +80,15 @@ const DefaultSurveyEfficiencyTable = ({
   };
 
   const deleteDefaultSurveyEfficiency = () => {
-    dispatch(
-      defaultSurveyEfficienciesActions.deleteDefaultSurveyEfficiency(
-        defaultSurveyEfficiencyToDelete,
-      ),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    deleteDefaultSurveyEfficiencyMutation(defaultSurveyEfficiencyToDelete)
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("Default survey efficiency deleted"));
         closeDeleteDialog();
-      }
-    });
+      })
+      .catch(() => {
+        // error notification handled by the base query
+      });
   };
 
   const handleSortModelChange = (model: any) => {

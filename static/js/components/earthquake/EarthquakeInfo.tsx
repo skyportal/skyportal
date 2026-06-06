@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
@@ -16,9 +16,8 @@ import {
   GridToolbarColumnsButton,
 } from "@mui/x-data-grid";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { filterOutEmptyValues } from "../../API";
-import * as earthquakeActions from "../../ducks/earthquake";
+import { useGetEarthquakesQuery } from "../../ducks/earthquake";
 import StyledDataGrid from "../StyledDataGrid";
 import Spinner from "../Spinner";
 import EarthquakesFilterForm from "./EarthquakesFilterForm";
@@ -50,8 +49,6 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const Earthquake = () => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
-  const earthquakes = useAppSelector((state) => (state as any).earthquakes);
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortModel, setSortModel] = useState<any[]>([]);
@@ -61,15 +58,13 @@ const Earthquake = () => {
     numPerPage: defaultNumPerPage,
   });
 
-  useEffect(() => {
-    dispatch(earthquakeActions.fetchEarthquakes());
-  }, [dispatch]);
+  const { data: earthquakes } = useGetEarthquakesQuery(fetchParams);
 
-  if (!earthquakes) return <Spinner />;
+  if (earthquakes == null) return <Spinner />;
 
   const { events, totalMatches } = earthquakes;
 
-  const handlePageChange = async (
+  const handlePageChange = (
     pageNumber: number,
     numPerPage: number,
     sortData: any,
@@ -85,10 +80,9 @@ const Earthquake = () => {
     }
     // Save state for future
     setFetchParams(params);
-    await dispatch(earthquakeActions.fetchEarthquakes(params));
   };
 
-  const handleTableFilter = async (
+  const handleTableFilter = (
     pageNumber: number,
     numPerPage: number,
     filterData: any,
@@ -106,10 +100,9 @@ const Earthquake = () => {
     }
     // Save state for future
     setFetchParams(params);
-    await dispatch(earthquakeActions.fetchEarthquakes(params));
   };
 
-  const handleTableSorting = async (sortData: any) => {
+  const handleTableSorting = (sortData: any) => {
     const params = {
       ...fetchParams,
       pageNumber: 1,
@@ -117,7 +110,6 @@ const Earthquake = () => {
       sortOrder: sortData.direction,
     };
     setFetchParams(params);
-    await dispatch(earthquakeActions.fetchEarthquakes(params));
   };
 
   const handleFilterSubmit = async (formData: any) => {

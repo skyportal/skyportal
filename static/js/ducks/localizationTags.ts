@@ -1,42 +1,42 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Localization tags (the set of tag strings attached to localizations).
+ *
+ * RTK Query conversion of the old `FETCH_LOCALIZATION_TAGS` duck. The endpoint
+ * is injected into the central `skyportalApi`; the websocket refresh message is
+ * bridged to cache invalidation via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+export type LocalizationTags = string[];
 
-const FETCH_LOCALIZATION_TAGS = "skyportal/FETCH_LOCALIZATION_TAGS";
-const FETCH_LOCALIZATION_TAGS_OK = "skyportal/FETCH_LOCALIZATION_TAGS_OK";
-
-export const fetchLocalizationTags = (filterParams = {}) =>
-  API.GET("/api/localization/tags", FETCH_LOCALIZATION_TAGS, filterParams);
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === FETCH_LOCALIZATION_TAGS) {
-      dispatch(fetchLocalizationTags());
-    }
-  },
-);
-
-type LocalizationTagsState = any;
-
-interface LocalizationTagsAction {
-  type: string;
-  data?: any;
+export interface LocalizationTagsArg {
+  [key: string]: unknown;
 }
 
-const reducer = (
-  state: LocalizationTagsState = null,
-  action: LocalizationTagsAction,
-): LocalizationTagsState => {
-  switch (action.type) {
-    case FETCH_LOCALIZATION_TAGS_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-};
+export const localizationTagsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getLocalizationTags: build.query<
+      LocalizationTags,
+      LocalizationTagsArg | void
+    >({
+      query: (filterParams) => {
+        const params = new URLSearchParams(
+          (filterParams as Record<string, string>) || {},
+        ).toString();
+        return params
+          ? `api/localization/tags?${params}`
+          : "api/localization/tags";
+      },
+      providesTags: ["LocalizationTag"],
+    }),
+  }),
+});
 
-store.injectReducer("localizationTags", reducer);
+export const { useGetLocalizationTagsQuery } = localizationTagsApi;
+
+// Websocket-driven invalidation: refresh the localization tags on the
+// corresponding refresh message.
+invalidateOnMessage("skyportal/FETCH_LOCALIZATION_TAGS", () => [
+  "LocalizationTag",
+]);

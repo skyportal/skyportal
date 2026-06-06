@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../ducks/groups";
 import { useState, useMemo, useEffect } from "react";
 
 import Dialog from "@mui/material/Dialog";
@@ -8,9 +9,12 @@ import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
-import * as objectTagsActions from "../ducks/objectTags";
+import {
+  useAddObjectTagMutation,
+  useDeleteObjectTagMutation,
+} from "../ducks/objectTags";
 
 interface TagShape {
   id: number;
@@ -39,11 +43,17 @@ const EditTagGroups = ({
   onClose,
 }: EditTagGroupsProps) => {
   const dispatch = useAppDispatch();
+  const [addObjectTag] = useAddObjectTagMutation();
+  const [deleteObjectTag] = useDeleteObjectTagMutation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
-  const userGroups = useAppSelector((state) => state.groups.userAccessible);
+  const { data: groupsData } = useGetGroupsQuery();
+  const userGroups = useMemo(
+    () => groupsData?.userAccessible ?? [],
+    [groupsData],
+  );
   const userGroupIds = useMemo(
     () => new Set(userGroups?.map((g) => g.id) || []),
     [userGroups],
@@ -124,56 +134,48 @@ const EditTagGroups = ({
 
     try {
       if (groupsToAdd.length > 0) {
-        const addResult: any = await dispatch(
-          objectTagsActions.addObjectTag({
-            obj_id: source.id,
-            objtagoption_id: tag!.objtagoption_id,
-            group_ids: groupsToAdd,
-          }),
-        );
-        if (addResult.status !== "success") {
-          throw new Error(addResult.message || "Failed to add groups");
-        }
+        await addObjectTag({
+          obj_id: source.id,
+          objtagoption_id: tag!.objtagoption_id,
+          group_ids: groupsToAdd,
+        }).unwrap();
       }
 
       if (groupsToRemove.length > 0) {
-        const deleteResult: any = await dispatch(
-          objectTagsActions.deleteObjectTag({
-            id: tag!.id,
-            group_ids: groupsToRemove,
-          }),
-        );
-        if (deleteResult.status !== "success") {
-          throw new Error(deleteResult.message || "Failed to remove groups");
-        }
+        await deleteObjectTag({
+          id: tag!.id,
+          group_ids: groupsToRemove,
+        }).unwrap();
       }
 
       dispatch(showNotification("Tag groups updated successfully"));
       handleClose();
     } catch (error: any) {
-      dispatch(showNotification(error.message, "error"));
+      dispatch(
+        showNotification(
+          error?.message || "Failed to update tag groups",
+          "error",
+        ),
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     setIsDeleting(true);
 
-    dispatch(objectTagsActions.deleteObjectTag({ id: tag!.id })).then(
-      (result: any) => {
-        setIsDeleting(false);
-
-        if (result.status === "success") {
-          dispatch(showNotification("Tag removed from source"));
-          handleClose();
-        } else {
-          dispatch(
-            showNotification(result.message || "Failed to delete tag", "error"),
-          );
-        }
-      },
-    );
+    try {
+      await deleteObjectTag({ id: tag!.id }).unwrap();
+      dispatch(showNotification("Tag removed from source"));
+      handleClose();
+    } catch (error: any) {
+      dispatch(
+        showNotification(error?.message || "Failed to delete tag", "error"),
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (!tag) return null;

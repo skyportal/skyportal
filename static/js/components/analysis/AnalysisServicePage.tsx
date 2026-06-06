@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useMemo, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
@@ -20,13 +21,16 @@ import ReactJson from "react-json-view";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewAnalysisService from "./NewAnalysisService";
 
-import * as analysisServicesActions from "../../ducks/analysis_services";
+import {
+  useGetAnalysisServicesQuery,
+  useDeleteAnalysisServiceMutation,
+} from "../../ducks/analysis_services";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -102,6 +106,7 @@ const AnalysisServiceList = ({
   deletePermission,
 }: AnalysisServiceListProps) => {
   const dispatch = useAppDispatch();
+  const [deleteAnalysisServiceMutation] = useDeleteAnalysisServiceMutation();
   const { classes } = useStyles();
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -134,16 +139,15 @@ const AnalysisServiceList = ({
   };
 
   const deleteAnalysisService = () => {
-    dispatch(
-      analysisServicesActions.deleteAnalysisService(
-        analysisServiceToViewDelete,
-      ),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    deleteAnalysisServiceMutation(analysisServiceToViewDelete)
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("AnalysisService deleted"));
         closeDeleteDialog();
-      }
-    });
+      })
+      .catch(() => {
+        // error notification is handled by the base query
+      });
   };
 
   const renderContact = (params: any) => {
@@ -360,24 +364,14 @@ const AnalysisServiceList = ({
 };
 
 const AnalysisServicePage = () => {
-  const { analysisServiceList } = useAppSelector(
-    (state) => (state as any).analysis_services,
-  );
+  const { data: analysisServiceList } = useGetAnalysisServicesQuery();
 
-  const currentUser = useAppSelector((state) => state.profile);
-  const dispatch = useAppDispatch();
+  const { data: currentUser } = useGetProfileQuery();
 
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage Analysis Services");
-
-  useEffect(() => {
-    const getAnalysisServices = async () => {
-      await dispatch(analysisServicesActions.fetchAnalysisServices());
-    };
-
-    getAnalysisServices();
-  }, []);
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage Analysis Services") ||
+    false;
 
   return (
     <Grid container spacing={3}>

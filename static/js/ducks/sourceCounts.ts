@@ -1,41 +1,33 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Source counts widget data ("new sources in the last N days").
+ *
+ * RTK Query conversion of the old `FETCH_SOURCE_COUNTS` duck. The endpoint is
+ * injected into the central `skyportalApi`. The old reducer wrapped the
+ * response as `{ sourceCounts: data }`; here the query returns the payload
+ * directly, so consumers read the count fields off the query `data`.
+ *
+ * The old websocket handler refetched on a `FETCH_SOURCE_COUNTS` message; here
+ * we invalidate the "SourceCounts" tag so the active query refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-
-const FETCH_SOURCE_COUNTS = "skyportal/FETCH_SOURCE_COUNTS";
-const FETCH_SOURCE_COUNTS_OK = "skyportal/FETCH_SOURCE_COUNTS_OK";
-
-export const fetchSourceCounts = () =>
-  API.GET("/api/internal/source_counts", FETCH_SOURCE_COUNTS);
-
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === FETCH_SOURCE_COUNTS) {
-    dispatch(fetchSourceCounts());
-  }
-});
-
-interface SourceCountsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
+export interface SourceCounts {
+  count?: number | undefined;
+  sinceDaysAgo?: number | undefined;
+  [key: string]: unknown;
 }
 
-const reducer = (
-  state: Record<string, any> | null = null,
-  action: SourceCountsAction,
-): Record<string, any> | null => {
-  switch (action.type) {
-    case FETCH_SOURCE_COUNTS_OK: {
-      const sourceCounts = action.data;
-      return {
-        sourceCounts,
-      };
-    }
-    default:
-      return state;
-  }
-};
+export const sourceCountsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getSourceCounts: build.query<SourceCounts, void>({
+      query: () => "api/internal/source_counts",
+      providesTags: ["SourceCounts"],
+    }),
+  }),
+});
 
-store.injectReducer("sourceCounts", reducer);
+// Websocket: old handler refetched on FETCH_SOURCE_COUNTS.
+invalidateOnMessage("skyportal/FETCH_SOURCE_COUNTS", () => ["SourceCounts"]);
+
+export const { useGetSourceCountsQuery } = sourceCountsApi;

@@ -1,23 +1,19 @@
-import * as API from "../API";
-import store from "../store";
+/**
+ * Database/deployment info, fetched once during app hydration.
+ *
+ * RTK Query conversion of the old `FETCH_DB_INFO` duck. The result is currently
+ * not read by any component (the boot fetch primes the cache); a future
+ * consumer can call `useGetDbInfoQuery()` to read it.
+ */
+import { skyportalApi } from "../api/skyportalApi";
 
-const FETCH_DB_INFO = "skyportal/FETCH_DB_INFO";
-const FETCH_DB_INFO_OK = "skyportal/FETCH_DB_INFO_OK";
+export const dbInfoApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getDbInfo: build.query<Record<string, unknown>, void>({
+      query: () => "api/internal/dbinfo",
+      providesTags: ["DBInfo"],
+    }),
+  }),
+});
 
-export function fetchDBInfo() {
-  return API.GET("/api/internal/dbinfo", FETCH_DB_INFO);
-}
-
-const reducer = (
-  state: Record<string, any> = {},
-  action: { type: string; data?: any },
-): Record<string, any> => {
-  switch (action.type) {
-    case FETCH_DB_INFO_OK:
-      return action.data;
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("dbInfo", reducer);
+export const { useGetDbInfoQuery } = dbInfoApi;

@@ -1,101 +1,102 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Single instrument (detail view, logs, skymap, mutations).
+ *
+ * RTK Query conversion of the old `FETCH_INSTRUMENT` duck. The detail query is
+ * keyed by instrument id; the logs and skymap reads are triggered imperatively
+ * (form submit / effect), so they are exposed as lazy queries. Create / modify
+ * / delete / status-update are mutations that invalidate the `Instrument` tag.
+ *
+ * The websocket `REFRESH_INSTRUMENT` message is bridged to cache invalidation
+ * via `invalidateOnMessage`, preserving the old gate: only refresh when the
+ * pushed `instrument_id` matches a currently-loaded instrument.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
+type Instrument = Record<string, any>;
 
-const REFRESH_INSTRUMENT = "skyportal/REFRESH_INSTRUMENT";
-
-const FETCH_INSTRUMENT = "skyportal/FETCH_INSTRUMENT";
-const FETCH_INSTRUMENT_OK = "skyportal/FETCH_INSTRUMENT_OK";
-
-const SUBMIT_INSTRUMENT = "skyportal/SUBMIT_INSTRUMENT";
-
-const MODIFY_INSTRUMENT = "skyportal/MODIFY_INSTRUMENT";
-
-const DELETE_INSTRUMENT = "skyportal/DELETE_INSTRUMENT";
-
-const FETCH_INSTRUMENT_SKYMAP = "skyportal/FETCH_INSTRUMENT_SKYMAP";
-
-const UPDATE_INSTRUMENT_STATUS = "skyportal/UPDATE_INSTRUMENT_STATUS";
-
-const FETCH_INSTRUMENT_LOGS = "skyportal/FETCH_INSTRUMENT_LOGS";
-const FETCH_INSTRUMENT_LOGS_OK = "skyportal/FETCH_INSTRUMENT_LOGS_OK";
-
-export const fetchInstrument = (id: number | string) =>
-  API.GET(`/api/instrument/${id}`, FETCH_INSTRUMENT);
-
-export const submitInstrument = (run: any) =>
-  API.POST(`/api/instrument`, SUBMIT_INSTRUMENT, run);
-
-export const modifyInstrument = (id: number | string, params: any) =>
-  API.PUT(`/api/instrument/${id}`, MODIFY_INSTRUMENT, params);
-
-export function deleteInstrument(id: number | string) {
-  return API.DELETE(`/api/instrument/${id}`, DELETE_INSTRUMENT);
+interface FetchInstrumentLogsArg {
+  id: number | string;
+  params?: Record<string, unknown> | undefined;
 }
 
-export function fetchInstrumentSkymap(
-  id: number | string,
-  localization: any,
-  airmassTime: any = null,
-) {
-  if (airmassTime) {
-    return API.GET(
-      `/api/instrument/${id}?includeGeoJSONSummary=True&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}&airmassTime=${airmassTime}`,
-      FETCH_INSTRUMENT_SKYMAP,
-    );
-  }
-
-  return API.GET(
-    `/api/instrument/${id}?includeGeoJSONSummary=True&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`,
-    FETCH_INSTRUMENT_SKYMAP,
-  );
+interface FetchInstrumentSkymapArg {
+  id: number | string;
+  localization: { dateobs: string; localization_name: string };
+  airmassTime?: string | null | undefined;
 }
 
-export const updateInstrumentStatus = (id: number | string) =>
-  API.PUT(`/api/instrument/${id}/status`, UPDATE_INSTRUMENT_STATUS);
-
-export const fetchInstrumentLogs = (id: number | string, params: any) =>
-  API.GET(`/api/instrument/${id}/log`, FETCH_INSTRUMENT_LOGS, params);
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, payload: any, dispatch: any, getState: any) => {
-    const { instrument } = getState();
-    if (actionType === REFRESH_INSTRUMENT) {
-      const { instrument_id } = payload;
-      if (parseInt(instrument_id, 10) === instrument?.id) {
-        dispatch(fetchInstrument(instrument_id));
-      }
-    }
-  },
-);
-
-interface InstrumentAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
+interface ModifyInstrumentArg {
+  id: number | string;
+  params: Record<string, unknown>;
 }
 
-const reducer = (state: Record<string, any> = {}, action: InstrumentAction) => {
-  switch (action.type) {
-    case FETCH_INSTRUMENT_OK: {
-      const instrument = action.data;
-      return {
-        ...state,
-        ...instrument,
-      };
-    }
-    case FETCH_INSTRUMENT_LOGS_OK: {
-      const logs = action.data;
-      return {
-        ...state,
-        logs,
-      };
-    }
-    default:
-      return state;
-  }
-};
+export const instrumentApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getInstrument: build.query<Instrument, number | string>({
+      query: (id) => `api/instrument/${id}`,
+      providesTags: ["Instrument"],
+    }),
+    getInstrumentLogs: build.query<Instrument, FetchInstrumentLogsArg>({
+      query: ({ id, params = {} }) => ({
+        url: `api/instrument/${id}/log`,
+        params,
+      }),
+      providesTags: ["Instrument"],
+    }),
+    getInstrumentSkymap: build.query<Instrument, FetchInstrumentSkymapArg>({
+      query: ({ id, localization, airmassTime = null }) => {
+        const base = `api/instrument/${id}?includeGeoJSONSummary=True&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`;
+        return airmassTime ? `${base}&airmassTime=${airmassTime}` : base;
+      },
+      providesTags: ["Instrument"],
+    }),
+    submitInstrument: build.mutation<Instrument, Record<string, unknown>>({
+      query: (run) => ({
+        url: "api/instrument",
+        method: "POST",
+        body: run,
+      }),
+      invalidatesTags: ["Instrument"],
+    }),
+    modifyInstrument: build.mutation<Instrument, ModifyInstrumentArg>({
+      query: ({ id, params }) => ({
+        url: `api/instrument/${id}`,
+        method: "PUT",
+        body: params,
+      }),
+      invalidatesTags: ["Instrument"],
+    }),
+    deleteInstrument: build.mutation<Instrument, number | string>({
+      query: (id) => ({
+        url: `api/instrument/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Instrument"],
+    }),
+    updateInstrumentStatus: build.mutation<Instrument, number | string>({
+      query: (id) => ({
+        url: `api/instrument/${id}/status`,
+        method: "PUT",
+      }),
+      invalidatesTags: ["Instrument"],
+    }),
+  }),
+});
 
-store.injectReducer("instrument", reducer);
+// Websocket: old handler refetched the loaded instrument on REFRESH_INSTRUMENT.
+// Invalidating the tag refetches whatever `getInstrument` query is active.
+invalidateOnMessage("skyportal/REFRESH_INSTRUMENT", () => ["Instrument"]);
+
+export const {
+  useGetInstrumentQuery,
+  useLazyGetInstrumentQuery,
+  useGetInstrumentLogsQuery,
+  useLazyGetInstrumentLogsQuery,
+  useGetInstrumentSkymapQuery,
+  useLazyGetInstrumentSkymapQuery,
+  useSubmitInstrumentMutation,
+  useModifyInstrumentMutation,
+  useDeleteInstrumentMutation,
+  useUpdateInstrumentStatusMutation,
+} = instrumentApi;

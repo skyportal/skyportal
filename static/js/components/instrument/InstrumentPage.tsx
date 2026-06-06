@@ -1,32 +1,26 @@
-import { useEffect, useState } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useState } from "react";
 
 import Grid from "@mui/material/Grid";
 
 import InstrumentTableComponent from "./InstrumentTable";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as instrumentsActions from "../../ducks/instruments";
-import * as telescopeActions from "../../ducks/telescopes";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 
 const InstrumentTable = InstrumentTableComponent as any;
 
 const InstrumentList = () => {
-  const dispatch = useAppDispatch();
-
-  const instrumentsState = useAppSelector((state) => state["instruments"]);
-  const telescopesState = useAppSelector((state) => state["telescopes"]);
+  const [fetchParams, setFetchParams] = useState<any>({});
+  const { data: instrumentList = [] } = useGetInstrumentsQuery(fetchParams);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
 
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
 
   const delete_permission =
-    currentUser.permissions?.includes("Delete instrument") ||
-    currentUser.permissions?.includes("System admin");
-
-  useEffect(() => {
-    dispatch(instrumentsActions.fetchInstruments());
-    dispatch(telescopeActions.fetchTelescopes());
-  }, [dispatch]);
+    currentUser?.permissions?.includes("Delete instrument") ||
+    currentUser?.permissions?.includes("System admin");
 
   const handleInstrumentTablePagination = (
     pageNumber: number,
@@ -44,7 +38,7 @@ const InstrumentList = () => {
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
-    dispatch(instrumentsActions.fetchInstruments(data));
+    setFetchParams(data);
   };
 
   const handleInstrumentTableSorting = (sortData: any, filterData: any) => {
@@ -55,20 +49,17 @@ const InstrumentList = () => {
       sortBy: sortData.name,
       sortOrder: sortData.direction,
     };
-    dispatch(instrumentsActions.fetchInstruments(data));
+    setFetchParams(data);
   };
 
   return (
     <Grid container spacing={2}>
       <Grid size={12}>
         <InstrumentTable
-          instruments={instrumentsState.instrumentList || []}
-          telescopes={telescopesState.telescopeList || []}
+          instruments={instrumentList}
+          telescopes={telescopeList}
           deletePermission={delete_permission}
           paginateCallback={handleInstrumentTablePagination}
-          totalMatches={instrumentsState.totalMatches}
-          pageNumber={instrumentsState.pageNumber}
-          numPerPage={instrumentsState.numPerPage}
           sortingCallback={handleInstrumentTableSorting}
           fixedHeader={true}
         />
