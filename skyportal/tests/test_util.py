@@ -89,6 +89,13 @@ def page():
 
 @pytest.fixture(scope="function", autouse=True)
 def reset_state(request):
+    # Roll back at setup as well as teardown: if a previous test's fixture
+    # teardown left the shared DBSession in a failed-flush (PendingRollbackError)
+    # state, recover here so a single isolation glitch can't cascade into every
+    # subsequent test. A rollback only discards uncommitted state -- fixtures
+    # commit their own data -- so this is safe.
+    models.DBSession().rollback()
+
     def teardown():
         models.DBSession().rollback()
 

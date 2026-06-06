@@ -4456,10 +4456,10 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "playwright", specifier = ">=1.55" },
+    { name = "playwright", specifier = "==1.58.0" },
     { name = "pre-commit" },
     { name = "pytest", specifier = ">=9.0.3,<10.0.0" },
-    { name = "pytest-playwright", specifier = ">=0.7.1" },
+    { name = "pytest-playwright", specifier = "==0.7.2" },
     { name = "pytest-randomly", specifier = "==4.0.1" },
     { name = "pytest-rerunfailures", specifier = ">=14.0" },
 ]

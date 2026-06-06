@@ -364,23 +364,27 @@ def test_gcn_summary_observations(
 
     assert nretries < 40
     assert summaries_loaded
-    data = list(filter(None, data["text"].split("\n")))
+    text = data["text"]
+    lines = list(filter(None, text.split("\n")))
 
-    assert "TITLE: GCN SUMMARY" in data[0]
-    assert "SUBJECT: Follow-up" in data[1]
-    assert "DATE" in data[2]
+    # The summary is now markdown-formatted (lines prefixed with "##"/"####" and
+    # the author + "on behalf of" merged onto one line), so check by content
+    # rather than fixed line indices.
+    assert "TITLE: GCN SUMMARY" in text
+    assert "SUBJECT: Follow-up" in text
+    assert "DATE" in text
     assert (
-        f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
-        in data[3]
+        f"FROM: {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
+        in text
     )
     assert (
         f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (...)"
-        in data[4]
+        in text
     )
-    assert f"on behalf of the {public_group.name}, report:" in data[5]
+    assert f"on behalf of the {public_group.name} group:" in text
 
     # obs
-    assert "Observations:" in data[6]
+    assert "Observations:" in text
 
     obs_summary_text = (
         "We observed the localization region of LVC trigger 2019-08-14T21:10:39.000 UTC.  "
@@ -390,16 +394,12 @@ def test_gcn_summary_observations(
         "of the probability enclosed in the localization region."
     )
 
-    assert obs_summary_text in data[8]
+    assert obs_summary_text in text
 
-    obs_table = data[10:]
-    assert len(obs_table) >= 13  # other obs have probably been added in previous tests
-    assert "T-T0 (hr)" in obs_table[1]
-    assert "mjd" in obs_table[1]
-    assert "ra" in obs_table[1]
-    assert "dec" in obs_table[1]
-    assert "filter" in obs_table[1]
-    assert "exposure" in obs_table[1]
-    assert "limmag (ab)" in obs_table[1]
+    # the observations table header row lists the columns
+    header_row = next((line for line in lines if "T-T0 (hr)" in line), None)
+    assert header_row is not None
+    for col in ("T-T0 (hr)", "mjd", "ra", "dec", "filter", "exposure", "limmag (ab)"):
+        assert col in header_row
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)

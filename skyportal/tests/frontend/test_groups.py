@@ -41,6 +41,9 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
     page.locator('//input[@name="description"]').first.fill(group_description)
     page.locator('//div[@id="groupAdminsSelect"]').first.click()
     page.locator(f'//li[contains(text(),"{user.username}")]').first.click()
+    # close the (multiple) admins select so its menu overlay stops covering the
+    # Create Group button
+    page.keyboard.press("Escape")
     page.locator('//button[contains(.,"Create Group")]').first.click()
     expect(page.locator(f'//a[contains(.,"{test_proj_name}")]').first).to_be_visible()
     # check for group description
@@ -69,6 +72,9 @@ def test_add_new_group_explicit_self_admin(page, super_admin_user, user):
     page.locator('//input[@name="name"]').first.fill(test_proj_name)
     page.locator('//div[@id="groupAdminsSelect"]').first.click()
     page.locator(f'//li[contains(text(),"{user.username}")]').first.click()
+    # close the (multiple) admins select so its menu overlay stops covering the
+    # Create Group button
+    page.keyboard.press("Escape")
     page.locator('//button[contains(.,"Create Group")]').first.click()
     expect(page.locator(f'//a[contains(.,"{test_proj_name}")]').first).to_be_visible()
 

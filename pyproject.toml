@@ -103,8 +103,8 @@ dev = [
     "pytest>=9.0.3,<10.0.0",
     "pytest-randomly==4.0.1",
     "pytest-rerunfailures>=14.0",
-    "playwright>=1.55",
-    "pytest-playwright>=0.7.1",
+    "playwright==1.58.0",
+    "pytest-playwright==0.7.2",
 ]
 docs = [
     "sphinx>=9.1.0; python_version >= '3.12'",
