@@ -1,5 +1,5 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { makeStyles } from "tss-react/mui";
-import { useAppSelector } from "../../types/hooks";
 import NewDefaultGcnTag from "./NewDefaultGcnTag";
 import DefaultGcnTagTable from "./DefaultGcnTagTable";
 
@@ -21,11 +21,11 @@ const useStyles = makeStyles()((theme) => ({
 
 const DefaultGcnTags = () => {
   const { data: defaultGcnTagList } = useGetDefaultGcnTagsQuery();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
 
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage GCNs");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage GCNs");
 
   const tableProps: any = {
     default_gcn_tags: defaultGcnTagList,
@@ -35,12 +35,12 @@ const DefaultGcnTags = () => {
 };
 
 const DefaultGcnTagPage = () => {
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { classes } = useStyles();
 
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage GCNs");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage GCNs");
 
   return (
     <div className={classes.root}>

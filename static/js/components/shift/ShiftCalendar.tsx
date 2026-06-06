@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState, useEffect, useMemo } from "react";
 import { Calendar, momentLocalizer, Views } from "react-big-calendar";
@@ -12,7 +13,6 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import { makeStyles } from "tss-react/mui";
-import { useAppSelector } from "../../types/hooks";
 import GroupsSelect from "../group/GroupsSelect";
 import { getLastDayOfMonthTwoMonthsAgo } from "./ShiftPage";
 import type { ShiftSummaryArgs } from "./ShiftSummary";
@@ -112,7 +112,7 @@ function MyCalendar({
   setPreSelectedRange,
 }: MyCalendarProps) {
   const { classes } = useStyles();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { data: groupsData } = useGetGroupsQuery();
   const groups = useMemo(() => groupsData?.userAccessible ?? [], [groupsData]);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>();
@@ -137,7 +137,7 @@ function MyCalendar({
 
   if (!showAllShifts) {
     shifts = shifts.filter((event) =>
-      (event.shift_users_ids || []).includes(currentUser.id),
+      (event.shift_users_ids || []).includes(currentUser?.id),
     );
   }
   if (sortByGroups) {
@@ -209,7 +209,7 @@ function MyCalendar({
       };
     }
     const currentUserInShift = (event.shift_users_ids || []).includes(
-      currentUser.id,
+      currentUser?.id,
     );
     const style: any = {
       background:

@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Chip from "@mui/material/Chip";
@@ -94,7 +95,7 @@ const GcnEventAllocationTriggers = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { data: allocationListApiObsplan = [] } =
     useGetAllocationsApiObsplanQuery();
   const { data: allocationList = [] } = useGetAllocationsQuery();
@@ -104,8 +105,8 @@ const GcnEventAllocationTriggers = ({
   const [selectedInstrument, setSelectedInstrument] = useState<any>(null);
 
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage allocations");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage allocations");
 
   const instNameLookUp: Record<string, any> = {};
   instrumentList?.forEach((instrumentObj: any) => {

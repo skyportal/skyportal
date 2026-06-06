@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 
@@ -228,9 +229,8 @@ const ObservationPlanRequestForm = ({
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiObsplan = [] } =
     useGetAllocationsApiObsplanQuery();
-  const { useAMPM } = useAppSelector(
-    (state) => state.profile.preferences ?? {},
-  ) as { useAMPM?: boolean };
+  const { useAMPM } =
+    useGetProfileQuery().data?.preferences ?? ({} as { useAMPM?: boolean });
 
   const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);

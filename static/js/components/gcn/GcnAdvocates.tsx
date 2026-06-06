@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import Chip from "@mui/material/Chip";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -7,7 +8,7 @@ import Tooltip from "@mui/material/Tooltip";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
 import { userLabel } from "../../utils/format";
 
@@ -58,14 +59,14 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }: GcnAdvocatesProps) => {
   const { classes: styles } = useStyles();
 
   const dispatch = useAppDispatch();
-  const userProfile = useAppSelector((state) => state.profile);
+  const { data: userProfile } = useGetProfileQuery();
 
   const addUser = async () => {
     if (!gcnEvent.dateobs) {
       return;
     }
     const result: any = await dispatch(
-      gcnEventsActions.addGcnEventUser(userProfile.id, gcnEvent.dateobs),
+      gcnEventsActions.addGcnEventUser(userProfile!.id, gcnEvent.dateobs),
     );
     if (result.status === "success") {
       dispatch(showNotification("GCN Event User successfully added."));

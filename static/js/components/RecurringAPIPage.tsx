@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../ducks/profile";
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
@@ -14,7 +15,7 @@ import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
 } from "@mui/x-data-grid";
-import { useAppSelector, useAppDispatch } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
 import StyledDataGrid from "./StyledDataGrid";
 
@@ -42,7 +43,7 @@ const RecurringAPIPage = () => {
   const [deleteRecurringAPIMutation] = useDeleteRecurringAPIMutation();
   const [openNewForm, setOpenNewForm] = useState(false);
 
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
@@ -51,8 +52,8 @@ const RecurringAPIPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage Recurring APIs");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage Recurring APIs");
 
   const openDialog = (id: any) => {
     setDialogOpen(true);

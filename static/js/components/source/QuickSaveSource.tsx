@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 
@@ -20,7 +21,7 @@ const QuickSaveButton = ({
   alreadySavedGroups = [],
 }: QuickSaveButtonProps) => {
   const dispatch = useAppDispatch();
-  const profile = useAppSelector((state) => state.profile);
+  const { data: profile } = useGetProfileQuery();
   const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
   const { hydratedList } = useAppSelector((state) => state["hydration"]);
 

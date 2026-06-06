@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import React, { useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
@@ -12,7 +13,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
   useGetInstrumentsQuery,
@@ -75,13 +76,14 @@ const FollowupRequestPage = () => {
   const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
   const { data: defaultFollowupRequestList } =
     useGetDefaultFollowupRequestsQuery();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { classes } = useStyles() as any;
   const dispatch = useAppDispatch();
 
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage allocations");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage allocations") ||
+    false;
 
   const defaultStartDate = dayjs()
     .subtract(1, "day")

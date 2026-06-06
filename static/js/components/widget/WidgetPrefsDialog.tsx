@@ -14,7 +14,6 @@ import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
 import Autocomplete from "@mui/material/Autocomplete";
 import Button from "../Button";
-import { useAppDispatch } from "../../types/hooks";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -43,7 +42,6 @@ const WidgetPrefsDialog = ({
   stateBranchName,
 }: WidgetPrefsDialogProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
@@ -70,7 +68,7 @@ const WidgetPrefsDialog = ({
 
   const formSubmit = (formData: any) => {
     const payload = { [stateBranchName]: formData };
-    dispatch(onSubmit(payload));
+    onSubmit(payload);
     setOpen(false);
   };
 

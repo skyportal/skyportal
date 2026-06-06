@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import React, { Suspense, useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
@@ -161,10 +162,10 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
   const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
   const dispatch = useAppDispatch();
   const [postLocalizationFromNotice] = usePostLocalizationFromNoticeMutation();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage GCNs");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage GCNs");
 
   const [leftPanelVisible, setLeftPanelVisible] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(false);

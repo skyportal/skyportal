@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
@@ -49,7 +50,7 @@ import {
 import { useGetStreamsQuery } from "../../ducks/streams";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Spinner from "../Spinner";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(utc);
 
@@ -87,7 +88,7 @@ const UserInvitations = () => {
   let allGroups = useGetGroupsQuery().data?.all ?? null;
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
@@ -136,8 +137,8 @@ const UserInvitations = () => {
 
   if (
     !(
-      currentUser.permissions?.includes("System admin") ||
-      currentUser.permissions?.includes("Manage users")
+      currentUser?.permissions?.includes("System admin") ||
+      currentUser?.permissions?.includes("Manage users")
     )
   ) {
     return <div>Access denied: Insufficient permissions.</div>;

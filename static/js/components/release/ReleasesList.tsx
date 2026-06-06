@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import EditIcon from "@mui/icons-material/Edit";
@@ -9,7 +10,6 @@ import {
   useGetPublicReleasesQuery,
   useDeletePublicReleaseMutation,
 } from "../../ducks/public_pages/public_release";
-import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 import ReleaseForm from "./ReleaseForm";
 
@@ -60,9 +60,8 @@ const ReleasesList = () => {
   const { data } = useGetPublicReleasesQuery();
   const releases = data ?? [];
   const [deletePublicRelease] = useDeletePublicReleaseMutation();
-  const manageSourcesAccess = useAppSelector(
-    (state) => state.profile,
-  ).permissions?.includes("Manage sources");
+  const manageSourcesAccess =
+    useGetProfileQuery().data?.permissions?.includes("Manage sources");
   const [releaseToEdit, setReleaseToEdit] = useState<any>({});
   const [openReleaseList, setOpenReleaseList] = useState(!manageSourcesAccess);
   const [openReleaseForm, setOpenReleaseForm] = useState(false);

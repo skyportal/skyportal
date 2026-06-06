@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
@@ -275,7 +276,7 @@ const SpatialCatalogPage = () => {
     { skip: !selectedSpatialCatalogId },
   );
 
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { classes } = useStyles();
 
   const { handleSubmit, control, reset, getValues } = useForm();
@@ -294,7 +295,8 @@ const SpatialCatalogPage = () => {
     return <p>No Spatial Catalogs available...</p>;
   }
 
-  const permission = currentUser.permissions?.includes("System admin");
+  const permission =
+    currentUser?.permissions?.includes("System admin") ?? false;
 
   return (
     <Grid container spacing={3}>
@@ -371,7 +373,7 @@ const SpatialCatalogPage = () => {
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("System admin") && (
+      {currentUser?.permissions?.includes("System admin") && (
         <Grid size={{ md: 6, sm: 12 }}>
           <Paper>
             <div className={classes.paperContent}>

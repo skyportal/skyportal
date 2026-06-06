@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -637,7 +638,7 @@ const NewSharingServiceCoauthor = ({
 
 const SharingServicesPage = () => {
   const dispatch = useAppDispatch();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const managePermission =
     currentUser?.permissions?.includes("Manage sharing services") ||
     currentUser?.permissions?.includes("System admin");

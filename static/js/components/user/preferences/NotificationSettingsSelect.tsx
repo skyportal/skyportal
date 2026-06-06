@@ -17,8 +17,10 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Slider from "@mui/material/Slider";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 
 const useStyles = makeStyles()((theme) => ({
   typography: {
@@ -106,8 +108,9 @@ const NotificationSettingsSelect = ({
 }: NotificationSettingsSelectProps) => {
   const { classes } = useStyles();
   const [open, setOpen] = useState(false);
-  const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const dispatch = useAppDispatch();
+  const { data: profileData } = useGetProfileQuery();
+  const profile = (profileData?.preferences ?? {}) as any;
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const [valueSMS, setValueSMS] = useState<any>();
   const [invertedSMS, setInvertedSMS] = useState(false);
   const [valuePhone, setValuePhone] = useState<any>();
@@ -216,7 +219,7 @@ const NotificationSettingsSelect = ({
         };
       }
 
-      dispatch(profileActions.updateUserPreferences(prefs));
+      updateUserPreferences(prefs);
     }
   };
 
@@ -242,7 +245,7 @@ const NotificationSettingsSelect = ({
         };
         setValueSMS(valueSMS.reverse());
         setInvertedSMS(!invertedSMS);
-        dispatch(profileActions.updateUserPreferences(prefs));
+        updateUserPreferences(prefs);
       } else if (type === "phone") {
         const prefs = {
           notifications: {
@@ -255,7 +258,7 @@ const NotificationSettingsSelect = ({
         };
         setValuePhone(valuePhone.reverse());
         setInvertedPhone(!invertedPhone);
-        dispatch(profileActions.updateUserPreferences(prefs));
+        updateUserPreferences(prefs);
       } else if (type === "whatsapp") {
         const prefs = {
           notifications: {
@@ -268,7 +271,7 @@ const NotificationSettingsSelect = ({
         };
         setValueWhatsapp(valueWhatsapp.reverse());
         setInvertedWhatsapp(!invertedWhatsapp);
-        dispatch(profileActions.updateUserPreferences(prefs));
+        updateUserPreferences(prefs);
       }
     }
   };
@@ -329,7 +332,7 @@ const NotificationSettingsSelect = ({
         },
       };
 
-      dispatch(profileActions.updateUserPreferences(prefs));
+      updateUserPreferences(prefs);
     }
   };
 

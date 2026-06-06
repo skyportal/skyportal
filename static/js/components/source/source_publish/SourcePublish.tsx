@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../../ducks/profile";
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Tooltip from "@mui/material/Tooltip";
@@ -7,7 +8,6 @@ import DialogContent from "@mui/material/DialogContent";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useAppSelector } from "../../../types/hooks";
 import { useGeneratePublicSourcePageMutation } from "../../../ducks/public_pages/public_source_page";
 import Button from "../../Button";
 import SourcePublishOptions from "./SourcePublishOptions";
@@ -45,9 +45,9 @@ interface SourcePublishProps {
 const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
   const { classes: styles } = useStyles();
   const [generatePublicSourcePage] = useGeneratePublicSourcePageMutation();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const manageSourcesAccess =
-    currentUser.permissions?.includes("Manage sources");
+    currentUser?.permissions?.includes("Manage sources");
   const displayOptions =
     manageSourcesAccess &&
     (isElements.summary ||

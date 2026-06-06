@@ -1,9 +1,10 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
@@ -26,9 +27,8 @@ const NonMemberGroupList = ({ groups }: NonMemberGroupListProps) => {
   const dispatch = useAppDispatch();
   const [requestGroupAdmission] = useRequestGroupAdmissionMutation();
   const [deleteAdmissionRequest] = useDeleteAdmissionRequestMutation();
-  const { id: currentUserID, groupAdmissionRequests } = useAppSelector(
-    (state) => state.profile,
-  ) as any;
+  const { id: currentUserID, groupAdmissionRequests } = useGetProfileQuery()
+    .data as any;
   if (currentUserID === null) {
     return <CircularProgress color="secondary" />;
   }

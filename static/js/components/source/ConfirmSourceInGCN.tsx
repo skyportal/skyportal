@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import Paper from "@mui/material/Paper";
 import { makeStyles, withStyles } from "tss-react/mui";
@@ -16,7 +17,6 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 
-import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
 import {
@@ -136,7 +136,7 @@ const ConfirmSourceInGCN = ({
   sources_id_list,
 }: ConfirmSourceInGCNProps) => {
   const { classes } = useStyles() as any;
-  const { permissions } = useAppSelector((state) => state.profile);
+  const { permissions } = useGetProfileQuery().data ?? {};
   const [open, setOpen] = useState(false);
 
   const { control, getValues, register, reset } = useForm();
@@ -252,7 +252,7 @@ const ConfirmSourceInGCN = ({
     }
   };
 
-  return permissions.includes("Manage GCNs") ? (
+  return permissions?.includes("Manage GCNs") ? (
     <div>
       <IconButton
         aria-label="open"

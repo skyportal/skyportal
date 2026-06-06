@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useMemo, useState } from "react";
 
 import Plotly from "plotly.js-basic-dist";
@@ -261,7 +262,7 @@ const PhotometryPlot = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const profile = useAppSelector((state) => state.profile);
+  const { data: profile } = useGetProfileQuery();
   const config = useAppSelector((state) => state["config"]);
   const photometry = useAppSelector((state) => (state as any).photometry);
 

@@ -6,8 +6,11 @@ import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 
 import { makeStyles } from "tss-react/mui";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as profileActions from "../../../ducks/profile";
+import { useAppSelector } from "../../../types/hooks";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 
 const useStyles = makeStyles()((theme) => ({
@@ -25,8 +28,9 @@ const SlackPreferences = () => {
   const slack_preamble = useAppSelector(
     (state) => (state["config"] as any).slackPreamble,
   );
-  const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const dispatch = useAppDispatch();
+  const { data: profileData } = useGetProfileQuery();
+  const profile = (profileData?.preferences ?? {}) as any;
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const [slackurl, setSlackurl] = useState<string | undefined>(
     profile.slack_integration?.url,
   );
@@ -44,7 +48,7 @@ const SlackPreferences = () => {
           url: slackurl,
         },
       };
-      dispatch(profileActions.updateUserPreferences(prefs));
+      updateUserPreferences(prefs);
     } else {
       setSlackurlerror(true);
     }
@@ -57,7 +61,7 @@ const SlackPreferences = () => {
       },
     };
 
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   return (

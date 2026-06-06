@@ -2,8 +2,10 @@ import { makeStyles } from "tss-react/mui";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";
 import UserPreferencesHeader from "./UserPreferencesHeader";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   form: {
@@ -13,9 +15,10 @@ const useStyles = makeStyles()(() => ({
 
 const SetAutomaticallyVisiblePhotometry = () => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const { data: profile } = useGetProfileQuery();
   const { automaticallyVisibleFilters, automaticallyVisibleOrigins } =
-    useAppSelector((state) => state.profile.preferences) as any;
+    (profile?.preferences ?? {}) as any;
   const onFilterSelectChange = (event: any) => {
     const prefs = {
       automaticallyVisibleFilters: event.target.value.includes(
@@ -24,7 +27,7 @@ const SetAutomaticallyVisiblePhotometry = () => {
         ? []
         : event.target.value,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
   const onOriginSelectChange = (event: any) => {
     const prefs = {
@@ -34,7 +37,7 @@ const SetAutomaticallyVisiblePhotometry = () => {
         ? []
         : event.target.value,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
   const parent = "AutomaticallyVisiblePhotometry";
   return (

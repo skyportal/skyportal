@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import React, { useState } from "react";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
@@ -24,7 +25,7 @@ import {
   useGetQueuedObservationsQuery,
   useLazyGetQueuedObservationsQuery,
 } from "../../ducks/queued_observations";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 
 interface ObservationListProps {
   observations?: any;
@@ -122,7 +123,7 @@ const QueuedObservationList = ({
 };
 
 const ObservationPage = () => {
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
@@ -405,7 +406,7 @@ const ObservationPage = () => {
         <Tabs value={tabIndex} onChange={handleChangeTab} centered>
           <Tab label="Executed Observations" />
           <Tab label="Queued Observations" />
-          {currentUser.permissions?.includes("System admin") && (
+          {currentUser?.permissions?.includes("System admin") && (
             <Tab label="Queue Interactions" />
           )}
         </Tabs>
@@ -466,7 +467,7 @@ const ObservationPage = () => {
           </div>
         </Grid>
       )}
-      {tabIndex === 2 && currentUser.permissions?.includes("System admin") && (
+      {tabIndex === 2 && currentUser?.permissions?.includes("System admin") && (
         <Grid container size={12} spacing={1} style={{ paddingTop: 0 }}>
           <Grid size={{ xs: 12, lg: 6 }}>
             <Paper style={{ padding: "1rem" }}>

@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import Paper from "@mui/material/Paper";
 import { makeStyles, withStyles } from "tss-react/mui";
@@ -14,7 +15,6 @@ import Typography from "@mui/material/Typography";
 import { grey } from "@mui/material/colors";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 
-import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
 import {
@@ -116,7 +116,7 @@ const PhotometryValidation = ({
   magsys = "ab",
 }: PhotometryValidationProps) => {
   const { classes } = useStyles() as any;
-  const { permissions } = useAppSelector((state) => state.profile);
+  const { permissions } = useGetProfileQuery().data ?? {};
   const [open, setOpen] = useState(false);
 
   const [submitPhotometryValidation] = useSubmitPhotometryValidationMutation();
@@ -202,7 +202,7 @@ const PhotometryValidation = ({
     }
   };
 
-  return permissions.includes("Manage sources") ? (
+  return permissions?.includes("Manage sources") ? (
     <div>
       <IconButton
         aria-label="open"

@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState } from "react";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
@@ -47,12 +48,12 @@ const ClassificationRow = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const groupUsers = useAppSelector(
     (state) => (state as any).group?.group_users,
   );
   const currentGroupUser = groupUsers?.filter(
-    (groupUser: any) => groupUser.user_id === currentUser.id,
+    (groupUser: any) => groupUser.user_id === currentUser?.id,
   )[0];
 
   useEffect(() => {
@@ -125,13 +126,13 @@ const ClassificationRow = ({
   classification["votes"]?.forEach((s: any) => {
     if (s.vote === 1) {
       upvoterIds.push(s.id);
-      if (s.voter_id === currentUser.id) {
+      if (s.voter_id === currentUser?.id) {
         upvoteValue = 0;
         upvoteColor = "success";
       }
     } else if (s.vote === -1) {
       downvoterIds.push(s.id);
-      if (s.voter_id === currentUser.id) {
+      if (s.voter_id === currentUser?.id) {
         downvoteValue = 0;
         downvoteColor = "error";
       }
@@ -147,10 +148,10 @@ const ClassificationRow = ({
   };
 
   const permission =
-    currentUser.permissions.includes("System admin") ||
-    currentUser.permissions.includes("Manage groups") ||
+    currentUser?.permissions.includes("System admin") ||
+    currentUser?.permissions.includes("Manage groups") ||
     isGroupAdmin ||
-    currentUser.username === classification["author_name"];
+    currentUser?.username === classification["author_name"];
 
   const clsProb = classification["probability"]
     ? classification["probability"]

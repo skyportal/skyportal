@@ -64,8 +64,11 @@ import {
 } from "../../ducks/roles";
 import Spinner from "../Spinner";
 
-import * as ProfileActions from "../../ducks/profile";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import {
+  useGetProfileQuery,
+  useUpdateBasicUserInfoMutation,
+} from "../../ducks/profile";
+import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(utc);
 
@@ -96,11 +99,12 @@ const UserManagement = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [patchUser] = usePatchUserMutation();
+  const [updateBasicUserInfo] = useUpdateBasicUserInfoMutation();
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const { invitationsEnabled } = useGetConfigQuery().data ?? {};
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   // fetchParams drive the (server-side) pagination/filter/sort query. They live
   // in component state and are passed to the RTK Query hook below, which
   // refetches whenever they change.
@@ -349,14 +353,17 @@ const UserManagement = () => {
   };
 
   const handleAddUserAffiliations = async (formData: any) => {
-    const result: any = await dispatch(
-      ProfileActions.updateBasicUserInfo(formData, clickedUser.id),
-    );
-    if (result.status === "success") {
+    try {
+      await updateBasicUserInfo({
+        formData,
+        user_id: clickedUser.id,
+      }).unwrap();
       dispatch(showNotification("Successfully updated user's affiliations."));
       setAddUserAffiliationsDialogOpen(false);
       await refetchUsersManagement();
       setClickedUser(null);
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
@@ -422,12 +429,12 @@ const UserManagement = () => {
         (value: any) => value !== affiliation,
       ),
     };
-    const result: any = await dispatch(
-      ProfileActions.updateBasicUserInfo(data, user.id),
-    );
-    if (result.status === "success") {
+    try {
+      await updateBasicUserInfo({ formData: data, user_id: user.id }).unwrap();
       dispatch(showNotification("Successfully deleted user's affiliation."));
       await refetchUsersManagement();
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 

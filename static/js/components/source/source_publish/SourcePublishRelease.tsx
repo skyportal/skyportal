@@ -1,9 +1,9 @@
+import { useGetProfileQuery } from "../../../ducks/profile";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Link from "@mui/material/Link";
-import { useAppSelector } from "../../../types/hooks";
 import { useGetPublicReleasesQuery } from "../../../ducks/public_pages/public_release";
 import ReleasesList from "../../release/ReleasesList";
 
@@ -47,9 +47,8 @@ const SourcePublishRelease = ({
   const { data: releasesData, isLoading: loading } =
     useGetPublicReleasesQuery();
   const releases = (releasesData ?? []) as any[];
-  const manageSourcesAccess = useAppSelector(
-    (state) => state.profile,
-  ).permissions?.includes("Manage sources");
+  const manageSourcesAccess =
+    useGetProfileQuery().data?.permissions?.includes("Manage sources");
 
   const formSchema = {
     type: "object",

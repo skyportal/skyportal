@@ -29,6 +29,7 @@ import utc from "dayjs/plugin/utc";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 import * as candidatesActions from "../../ducks/candidate/candidates";
 import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "../FormValidationError";
@@ -207,10 +208,9 @@ const FilterCandidateList = ({
     (state) => (state as any).candidates.annotationsInfo,
   );
   const dispatch = useAppDispatch();
+  const { data: userProfile } = useGetProfileQuery();
 
-  const { scanningProfiles, useAMPM } = useAppSelector(
-    (state) => (state as any).profile.preferences,
-  );
+  const { scanningProfiles, useAMPM } = (userProfile?.preferences ?? {}) as any;
 
   const defaultScanningProfile = scanningProfiles?.find(
     (profile: any) => profile.default,

@@ -9,13 +9,16 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
+import { useAppDispatch } from "../../../types/hooks";
 import Button from "../../Button";
 
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import ClassificationSelect from "../../classification/ClassificationSelect";
 import NotificationSettingsSelect from "./NotificationSettingsSelect";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 import { useGetAllocationsApiClassnameQuery } from "../../../ducks/allocations";
 import NotificationGcnEvent from "./NotificationGcnEvent";
 import { SelectLabelWithChips } from "../../SelectWithChips";
@@ -71,11 +74,13 @@ const useStyles = makeStyles()((theme) => ({
 
 const NotificationPreferences = () => {
   const { classes } = useStyles();
-  const profile = useAppSelector((state) => state.profile.preferences) as any;
+  const { data: profileData } = useGetProfileQuery();
+  const profile = (profileData?.preferences ?? {}) as any;
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const { data: allocationListApiClassname = [] } =
     useGetAllocationsApiClassnameQuery();
   const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const { handleSubmit } = useForm();
   const [selectedClassifications, setSelectedClassifications] = useState<any[]>(
     profile?.notifications?.sources?.classifications || [],
@@ -240,7 +245,7 @@ const NotificationPreferences = () => {
       };
     }
 
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const onSubmitSources = () => {
@@ -255,7 +260,7 @@ const NotificationPreferences = () => {
         },
       },
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
     setSelectedClassifications([...new Set(selectedClassifications)]);
     setSelectedGroups([...new Set(selectedGroups)]);
     dispatch(showNotification("Sources classifications updated"));

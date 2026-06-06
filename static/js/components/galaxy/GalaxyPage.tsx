@@ -1,5 +1,6 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -126,8 +127,8 @@ const GalaxyList = () => {
   const { classes } = useStyles();
   const { classes: textClasses } = textStyles();
 
-  const currentUser = useAppSelector((state) => state.profile);
-  const permission = currentUser.permissions?.includes("System admin");
+  const { data: currentUser } = useGetProfileQuery();
+  const permission = currentUser?.permissions?.includes("System admin");
 
   const { data: catalogs } = useGetGalaxyCatalogsQuery();
   const [deleteCatalogMutation] = useDeleteCatalogMutation();

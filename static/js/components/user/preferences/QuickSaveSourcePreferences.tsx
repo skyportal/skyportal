@@ -5,8 +5,10 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   allocationSelect: {
@@ -19,7 +21,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const QuickSaveSourcePreferences = () => {
-  const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const { classes } = useStyles();
 
   const { data: groupsData } = useGetGroupsQuery();
@@ -27,7 +29,7 @@ const QuickSaveSourcePreferences = () => {
     () => groupsData?.userAccessible ?? [],
     [groupsData],
   );
-  const profile = useAppSelector((state) => state.profile);
+  const { data: profile } = useGetProfileQuery();
 
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
@@ -43,7 +45,7 @@ const QuickSaveSourcePreferences = () => {
     const prefs = {
       quicksave_group_ids: groupIds,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   return (

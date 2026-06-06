@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import React, { useEffect, useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
@@ -79,7 +80,7 @@ const ClassificationList = () => {
   const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
   const source = useAppSelector((state: any) => state.source);
   const obj = source;
-  const userProfile = useAppSelector((state) => state.profile);
+  const { data: userProfile } = useGetProfileQuery();
   // `state.group` (the ambient single-group slice) was removed during the RTK
   // Query migration; this component never fetched a group, so `groupUsers` was
   // only populated incidentally. Preserve the prior (commonly empty) behaviour.
@@ -89,15 +90,14 @@ const ClassificationList = () => {
     | Record<string, Record<string, string>>
     | undefined;
   const currentGroupUser = (groupUsers as any[] | undefined)?.filter(
-    (groupUser: any) => groupUser.user_id === userProfile.id,
+    (groupUser: any) => groupUser.user_id === userProfile?.id,
   )[0];
-  // const acls = useAppSelector((state) => state.profile.acls);
+  // const acls = useGetProfileQuery().data?.acls;
   let { classifications } = obj;
   const [hideML, setHideML] = useState(false);
 
-  const { hideMLClassifications } = useAppSelector(
-    (state: any) => state.profile.preferences,
-  );
+  const hideMLClassifications =
+    useGetProfileQuery().data?.preferences?.["hideMLClassifications"];
 
   useEffect(() => {
     setHideML(hideMLClassifications);
@@ -187,10 +187,10 @@ const ClassificationList = () => {
         taxname = "Unknown taxonomy";
       }
       const permission =
-        userProfile.permissions.includes("System admin") ||
-        userProfile.permissions.includes("Manage groups") ||
+        userProfile?.permissions.includes("System admin") ||
+        userProfile?.permissions.includes("Manage groups") ||
         isGroupAdmin ||
-        userProfile.username === author_name;
+        userProfile?.username === author_name;
       return (
         <React.Fragment key={`classification_${id}`}>
           <ListItem className={styles.classification}>

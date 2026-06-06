@@ -1,10 +1,10 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 
-import { useAppSelector } from "../../types/hooks";
 import UserAvatar, { isAllKoreanCharacters } from "./UserAvatar";
 
 interface UserContactInfoProps {
@@ -54,7 +54,7 @@ const getUserAffiliations = (affiliations: string[]) => (
 );
 
 const UserProfileInfo = () => {
-  const profile = useAppSelector((state) => state.profile) as any;
+  const profile = useGetProfileQuery().data as any;
 
   return (
     <Card>

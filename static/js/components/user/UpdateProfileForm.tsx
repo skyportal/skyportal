@@ -20,10 +20,13 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 
-import * as ProfileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateBasicUserInfoMutation,
+} from "../../ducks/profile";
 import { useTestNotificationsMutation } from "../../ducks/userNotifications";
 
 import UIPreferences from "./preferences/UIPreferences";
@@ -45,12 +48,13 @@ const useStyles = makeStyles()(() => ({
 
 const UpdateProfileForm = () => {
   const { classes } = useStyles();
-  const profile = useAppSelector((state) => state.profile) as any;
+  const { data: profile } = useGetProfileQuery();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingEmailTest, setIsSubmittingEmailTest] = useState(false);
   const [isSubmittingSMSTest, setIsSubmittingSMSTest] = useState(false);
 
   const dispatch = useAppDispatch();
+  const [updateBasicUserInfo] = useUpdateBasicUserInfoMutation();
   const [testNotifications] = useTestNotificationsMutation();
   const {
     handleSubmit,
@@ -70,14 +74,14 @@ const UpdateProfileForm = () => {
 
   useEffect(() => {
     reset({
-      username: profile.username,
-      firstName: profile.first_name,
-      lastName: profile.last_name,
-      affiliations: profile.affiliations,
-      email: profile.contact_email,
-      phone: profile.contact_phone,
-      bio: profile.bio,
-      is_bot: profile.is_bot,
+      username: profile?.username,
+      firstName: profile?.first_name,
+      lastName: profile?.last_name,
+      affiliations: profile?.affiliations,
+      email: profile?.contact_email,
+      phone: profile?.contact_phone,
+      bio: profile?.bio,
+      is_bot: profile?.is_bot,
     });
   }, [reset, profile]);
 
@@ -93,11 +97,11 @@ const UpdateProfileForm = () => {
       bio: initialValues.bio,
       is_bot: initialValues.is_bot,
     };
-    const result: any = await dispatch(
-      ProfileActions.updateBasicUserInfo(basicinfo),
-    );
-    if (result.status === "success") {
+    try {
+      await updateBasicUserInfo({ formData: basicinfo }).unwrap();
       dispatch(showNotification("Profile data saved"));
+    } catch {
+      // error notification handled by the API layer
     }
     setIsSubmitting(false);
   };
@@ -214,7 +218,9 @@ const UpdateProfileForm = () => {
                         multiple
                         onChange={(_e, data) => onChange(data)}
                         value={value}
-                        options={profile?.affiliations?.map((aff: any) => aff)}
+                        options={
+                          profile?.affiliations?.map((aff: any) => aff) ?? []
+                        }
                         filterOptions={(options, params) => {
                           const filtered = filter(options, params);
 

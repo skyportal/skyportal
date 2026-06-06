@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
@@ -7,7 +8,6 @@ import CircularProgress from "@mui/material/CircularProgress";
 import TaxonomyTableComponent from "./TaxonomyTable";
 import Spinner from "../Spinner";
 
-import { useAppSelector } from "../../types/hooks";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 
 const TaxonomyTable = TaxonomyTableComponent as any;
@@ -91,8 +91,8 @@ const TaxonomyList = () => {
 
   const { data: taxonomyList, refetch } = useGetTaxonomiesQuery();
 
-  const currentUser = useAppSelector((state) => state.profile);
-  const permission = currentUser.permissions?.includes("System admin");
+  const { data: currentUser } = useGetProfileQuery();
+  const permission = currentUser?.permissions?.includes("System admin");
 
   const [, setRowsPerPage] = useState(100);
 

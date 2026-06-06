@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState } from "react";
 import validator from "@rjsf/validator-ajv8";
 import { withTheme } from "@rjsf/core";
@@ -50,7 +51,7 @@ const SharingServicesDialog = ({
   const [addSharingServiceSubmission] =
     useAddSharingServiceSubmissionMutation();
   const { users: allUsers } = useAppSelector((state) => state["users"]);
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { data: streams } = useGetStreamsQuery();
   const allowedInstrumentsForSharing = useGetConfigQuery().data?.[
     "allowedInstrumentsForSharing"

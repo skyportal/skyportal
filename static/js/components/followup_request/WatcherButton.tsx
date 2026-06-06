@@ -1,10 +1,10 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 
 import IconButton from "@mui/material/IconButton";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import Tooltip from "@mui/material/Tooltip";
-import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
 import {
@@ -122,7 +122,7 @@ const WatcherButton = ({
   textMode,
   serverSide = false,
 }: WatcherButtonProps) => {
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
 
   if (!followupRequest) {
     return null;
@@ -131,7 +131,7 @@ const WatcherButton = ({
   followupRequest.watchers?.forEach((s) => {
     watcherIds.push(s.user_id);
   });
-  if (watcherIds.includes(currentUser.id)) {
+  if (watcherIds.includes(currentUser?.id)) {
     return UnwatchButton(followupRequest.id, textMode, serverSide);
   }
 

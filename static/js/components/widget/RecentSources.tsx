@@ -13,9 +13,11 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import DynamicTagDisplay from "./DynamicTagDisplay";
 
-import { useAppSelector } from "../../types/hooks";
 import { dec_to_dms, ra_to_hours } from "../../units";
-import * as profileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 import { useGetRecentSourcesQuery } from "../../ducks/recentSources";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
@@ -410,16 +412,16 @@ interface RecentSourcesProps {
 }
 
 const RecentSources = ({ classes }: RecentSourcesProps) => {
-  const invertThumbnails = useAppSelector(
-    (state) => state.profile.preferences?.["invertThumbnails"],
-  ) as boolean | undefined;
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const invertThumbnails = profile?.preferences?.["invertThumbnails"] as
+    | boolean
+    | undefined;
   const { classes: styles } = useSourceListStyles({ invertThumbnails });
 
   const { data: recentSources } = useGetRecentSourcesQuery();
   const prefs =
-    (useAppSelector(
-      (state) => state.profile.preferences?.["recentSources"],
-    ) as any) || defaultPrefs;
+    (profile?.preferences?.["recentSources"] as any) || defaultPrefs;
 
   const recentSourcesPrefs = prefs
     ? { ...defaultPrefs, ...prefs }
@@ -438,7 +440,7 @@ const RecentSources = ({ classes }: RecentSourcesProps) => {
               initialValues={recentSourcesPrefs}
               stateBranchName="recentSources"
               title="Recent Sources Preferences"
-              onSubmit={profileActions.updateUserPreferences}
+              onSubmit={updateUserPreferences}
             />
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../../ducks/profile";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -11,7 +12,6 @@ import {
   useDeletePublicSourcePageMutation,
   useFetchPublicSourcePagesQuery,
 } from "../../../ducks/public_pages/public_source_page";
-import { useAppSelector } from "../../../types/hooks";
 
 const useStyles = makeStyles()(() => ({
   versionHistory: {
@@ -59,9 +59,8 @@ interface SourcePublishHistoryProps {
 
 const SourcePublishHistory = ({ sourceId }: SourcePublishHistoryProps) => {
   const { classes: styles } = useStyles();
-  const manageSourcesAccess = useAppSelector(
-    (state) => state.profile,
-  ).permissions?.includes("Manage sources");
+  const manageSourcesAccess =
+    useGetProfileQuery().data?.permissions?.includes("Manage sources");
   const { data: versions = [], isLoading: loading } =
     useFetchPublicSourcePagesQuery(sourceId) as {
       data: any[];

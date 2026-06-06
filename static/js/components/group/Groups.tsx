@@ -1,8 +1,8 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useAppSelector } from "../../types/hooks";
 import GroupManagement from "./GroupManagement";
 import GroupList from "./GroupList";
 import NewGroupForm from "./NewGroupForm";
@@ -24,7 +24,7 @@ const useStyles = makeStyles()(() => ({
 
 const Groups = () => {
   const { classes } = useStyles();
-  const { permissions } = useAppSelector((state) => state.profile);
+  const { permissions } = useGetProfileQuery().data ?? {};
   const { data: groupsData } = useGetGroupsQuery();
   const userGroups = groupsData?.user ?? [];
   const allGroups = groupsData?.all ?? null;
@@ -52,7 +52,7 @@ const Groups = () => {
         </>
       )}
       <NewGroupForm />
-      {permissions.includes("System admin") && <GroupManagement />}
+      {permissions?.includes("System admin") && <GroupManagement />}
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { Suspense, useState } from "react";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
@@ -14,7 +15,6 @@ import HoursBelowAirmassPlot from "../templates/HoursBelowAirmassPlot";
 import ObservabilityPreferences from "../user/preferences/ObservabilityPreferences";
 import AirmassPlot, { Ephemeris } from "../plot/AirmassPlot";
 import withRouter from "../withRouter";
-import { useAppSelector } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetEphemeridesQuery } from "../../ducks/ephemeris";
 
@@ -46,9 +46,9 @@ interface ObservabilityPageProps {
 
 const ObservabilityPage = ({ route }: ObservabilityPageProps) => {
   const { data: telescopeList = [] } = useGetTelescopesQuery();
-  const preferences = useAppSelector(
-    (state) => state.profile.preferences?.["observabilityTelescopes"],
-  ) as any;
+  const preferences = useGetProfileQuery().data?.preferences?.[
+    "observabilityTelescopes"
+  ] as any;
   const { classes } = useStyles();
   const [page, setPage] = useState(1);
 

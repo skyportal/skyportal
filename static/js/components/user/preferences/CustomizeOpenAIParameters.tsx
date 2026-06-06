@@ -9,8 +9,11 @@ import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import DialogTitle from "@mui/material/DialogTitle";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as profileActions from "../../../ducks/profile";
+import { useAppSelector } from "../../../types/hooks";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   tooltip: {
@@ -20,16 +23,16 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const CustomizeOpenAIParameters = () => {
-  const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const [aiopen, setAIOpen] = useState(false);
   const { classes } = useStyles();
 
   const site_openai_summary_parameters = useAppSelector(
     (state) => state["config"].openai_summary_parameters,
   );
-  const user_openai_summary_parameters = useAppSelector(
-    (state) => (state.profile.preferences as any).summary.OpenAI,
-  );
+  const { data: profile } = useGetProfileQuery();
+  const user_openai_summary_parameters = (profile?.preferences as any)?.summary
+    ?.OpenAI;
 
   const default_openai_summary_parameters = {
     ...site_openai_summary_parameters,
@@ -48,12 +51,12 @@ const CustomizeOpenAIParameters = () => {
     const prefs = {
       summary: {
         OpenAI: {
-          active: user_openai_summary_parameters.active,
+          active: user_openai_summary_parameters?.active,
           ...formData,
         },
       },
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
     handleAIClose();
   };
 

@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
@@ -215,19 +216,15 @@ const CommentList = ({
   const { data: earthquake } = useGetEarthquakeQuery(
     earthquakeEventID ?? skipToken,
   ) as { data: any };
-  const userProfile = useAppSelector((state) => state.profile);
-  const permissions = useAppSelector((state) => state.profile.permissions);
+  const { data: userProfile } = useGetProfileQuery();
+  const permissions = useGetProfileQuery().data?.permissions;
   const [addCommentOnShift] = useAddCommentOnShiftMutation();
   const { data: currentShift } = useGetShiftQuery(shiftID ?? skipToken) as {
     data: any;
   };
   const [addCommentOnEarthquake] = useAddCommentOnEarthquakeMutation();
-  const { showBotComments } = useAppSelector(
-    (state) => state.profile.preferences as any,
-  );
-  const userColorTheme = useAppSelector(
-    (state) => (state.profile.preferences as any).theme,
-  );
+  const { showBotComments } = useGetProfileQuery().data?.preferences as any;
+  const userColorTheme = (useGetProfileQuery().data?.preferences as any)?.theme;
 
   const [includeBots, setIncludeBots] = useState(false);
 
@@ -417,23 +414,23 @@ const CommentList = ({
           }
         />
       </div>
-      {permissions.indexOf("Comment") >= 0 &&
+      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         objID &&
         (associatedResourceType === "object" ||
           associatedResourceType === "spectra") && (
           <CommentEntry addComment={addComment} />
         )}
-      {permissions.indexOf("Comment") >= 0 &&
+      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         gcnEventID &&
         associatedResourceType === "gcn_event" && (
           <CommentEntry addComment={addGcnEventComment} />
         )}
-      {permissions.indexOf("Comment") >= 0 &&
+      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         shiftID &&
         associatedResourceType === "shift" && (
           <CommentEntry addComment={addShiftComment} />
         )}
-      {permissions.indexOf("Comment") >= 0 &&
+      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         earthquakeID &&
         associatedResourceType === "earthquake" && (
           <CommentEntry addComment={addEarthquakeComment} />

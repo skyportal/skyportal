@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../ducks/profile";
 import { useGetGroupsQuery } from "../ducks/groups";
 import { useEffect, useMemo, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../types/hooks";
@@ -83,7 +84,7 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
     analysisServiceList.find((item: any) => item.name === name),
   );
   const allGroups = useGetGroupsQuery().data?.all ?? null;
-  const prefs: any = useAppSelector((state) => state.profile.preferences);
+  const prefs: any = useGetProfileQuery().data?.preferences;
   const config = useAppSelector((state) => state["config"]);
 
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =

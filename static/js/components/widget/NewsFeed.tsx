@@ -1,6 +1,5 @@
 import ReactMarkdown from "react-markdown";
 import { Link } from "react-router-dom";
-import { useAppSelector } from "../../types/hooks";
 
 import Avatar from "@mui/material/Avatar";
 import Paper from "@mui/material/Paper";
@@ -15,7 +14,10 @@ import emoji from "emoji-dictionary";
 
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import UserAvatar from "../user/UserAvatar";
-import * as profileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 import { useGetNewsFeedQuery } from "../../ducks/newsFeed";
 
 dayjs.extend(relativeTime);
@@ -202,9 +204,10 @@ interface NewsFeedProps {
 const NewsFeed = ({ classes }: NewsFeedProps) => {
   const { classes: styles } = useStyles();
   const { data: items } = useGetNewsFeedQuery();
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const rawNewsFeedPrefs: any =
-    useAppSelector((state) => state.profile.preferences?.["newsFeed"]) ||
-    defaultPrefs;
+    profile?.preferences?.["newsFeed"] || defaultPrefs;
   const newsFeedPrefs = {
     ...rawNewsFeedPrefs,
     categories: {
@@ -226,7 +229,7 @@ const NewsFeed = ({ classes }: NewsFeedProps) => {
               initialValues={newsFeedPrefs}
               stateBranchName="newsFeed"
               title="News Feed Preferences"
-              onSubmit={profileActions.updateUserPreferences}
+              onSubmit={updateUserPreferences}
             />
           </div>
         </div>

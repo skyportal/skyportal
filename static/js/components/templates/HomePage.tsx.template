@@ -9,8 +9,11 @@ import CachedIcon from "@mui/icons-material/Cached";
 import Tooltip from "@mui/material/Tooltip";
 import convertLength from "convert-css-length";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as profileActions from "../../ducks/profile";
+import { useAppSelector } from "../../types/hooks";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 
 {# Only process widgets that are set to show on the homepage, or those that don't have a show property #}
 {%- set visible_widgets = {} -%}
@@ -67,7 +70,7 @@ const defaultLayouts: any = {
 
 const HomePage = () => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   // Taken from configs
   const rem = "{{ app.homepage_grid.row_height|default("9.375rem")}}";
@@ -77,17 +80,18 @@ const HomePage = () => {
   const convert = convertLength(rootFont);
   const gridRowHeight = parseFloat(convert(rem, "px"));
   const groups = useAppSelector((state) => (state as any).groups.user);
-  const profile = useAppSelector((state) => (state as any).profile);
-  const currentLayouts = profile?.preferences?.layouts ?? defaultLayouts;
+  const { data: profile } = useGetProfileQuery();
+  const currentLayouts =
+    (profile?.preferences as any)?.layouts ?? defaultLayouts;
 
   const layoutChangeHandler = (_: any, allLayouts: any) => {
     const prefs = { layouts: allLayouts };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const resetLayouts = () => {
     const prefs = { layouts: defaultLayouts };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   return profile?.username && (

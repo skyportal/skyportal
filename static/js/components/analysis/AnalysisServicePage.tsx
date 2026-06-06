@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useMemo, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
@@ -19,7 +20,7 @@ import ReactJson from "react-json-view";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
@@ -363,11 +364,12 @@ const AnalysisServiceList = ({
 const AnalysisServicePage = () => {
   const { data: analysisServiceList } = useGetAnalysisServicesQuery();
 
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
 
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage Analysis Services");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage Analysis Services") ||
+    false;
 
   return (
     <Grid container spacing={3}>

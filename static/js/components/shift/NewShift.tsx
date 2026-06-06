@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import Form from "@rjsf/mui";
@@ -29,13 +30,13 @@ interface NewShiftProps {
 const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
   const dispatch = useAppDispatch();
   const [submitShift] = useSubmitShiftMutation();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const now = dayjs();
   const { users } = useAppSelector((state) => state["users"]);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({
-    shift_admins: [currentUser.id],
+    shift_admins: [currentUser?.id],
     localTime: "local",
     start_date: format(now),
     end_date: format(now.add(1, "day")),
@@ -63,16 +64,16 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
     setAvailableUsers(
       users.filter(
         (user: any) =>
-          user.id === currentUser.id ||
+          user.id === currentUser?.id ||
           (user.groups?.some((g: any) => g.id === formData["group_id"]) &&
             !user.is_bot),
       ),
     );
     setFormData((prevFormData) => ({
       ...prevFormData,
-      shift_admins: [currentUser.id],
+      shift_admins: [currentUser?.id],
     }));
-  }, [users, formData["group_id"], currentUser.id]);
+  }, [users, formData["group_id"], currentUser?.id]);
 
   if (!groups || groups?.length === 0) {
     return <CircularProgress />;

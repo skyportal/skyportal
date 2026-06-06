@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -21,7 +22,7 @@ import {
 } from "../../ducks/shifts";
 import { userLabel } from "../../utils/format";
 import Typography from "@mui/material/Typography";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 
 const formatUTC = (date: Date) =>
   date.toLocaleString("en-US", {
@@ -211,7 +212,7 @@ interface ShiftManagementProps {
 }
 
 const ShiftManagement = ({ shiftToManage }: ShiftManagementProps) => {
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const dispatch = useAppDispatch();
   const [addShiftUser] = useAddShiftUserMutation();
   const [deleteShiftUser] = useDeleteShiftUserMutation();
@@ -229,7 +230,7 @@ const ShiftManagement = ({ shiftToManage }: ShiftManagementProps) => {
   const joinShift = async (shift: any) => {
     try {
       await addShiftUser({
-        userID: currentUser.id,
+        userID: currentUser!.id,
         admin: false,
         shiftID: shift.id,
       }).unwrap();
@@ -242,7 +243,7 @@ const ShiftManagement = ({ shiftToManage }: ShiftManagementProps) => {
   const leaveShift = async (shift: any) => {
     try {
       await deleteShiftUser({
-        userID: currentUser.id,
+        userID: currentUser!.id,
         shiftID: shift.id,
       }).unwrap();
       dispatch(showNotification(`left shift: ${shift.name}`));
@@ -254,13 +255,13 @@ const ShiftManagement = ({ shiftToManage }: ShiftManagementProps) => {
   const admins = shiftToManage.shift_users.filter((su: any) => su.admin);
   const members = shiftToManage.shift_users.filter((su: any) => !su.admin);
   const participating = shiftToManage.shift_users.some(
-    (su: any) => su.user_id === currentUser.id,
+    (su: any) => su.user_id === currentUser?.id,
   );
 
   let currentUserIsAdminOfShift = false;
   if (
     shiftToManage.shift_users.some(
-      (u: any) => u.user_id === currentUser.id && u.admin,
+      (u: any) => u.user_id === currentUser?.id && u.admin,
     )
   ) {
     currentUserIsAdminOfShift = true;

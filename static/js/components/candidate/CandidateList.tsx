@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
@@ -752,9 +753,7 @@ const CandidateList = () => {
     selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null,
   );
 
-  const { scanningProfiles } = useAppSelector(
-    (state) => state.profile.preferences as any,
-  );
+  const { scanningProfiles } = useGetProfileQuery().data?.preferences as any;
 
   const defaultScanningProfile = scanningProfiles?.find(
     (profile: any) => profile.default,

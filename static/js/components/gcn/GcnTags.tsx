@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -65,7 +66,7 @@ const GcnTags = ({
   const dispatch = useAppDispatch();
   const [deleteGcnTag] = useDeleteGcnTagMutation();
 
-  const userProfile = useAppSelector((state) => state.profile);
+  const { data: userProfile } = useGetProfileQuery();
 
   const gcn_tags_classes = useAppSelector(
     (state) => state["config"].gcnTagsClasses,
@@ -126,8 +127,8 @@ const GcnTags = ({
   const localizationTagsUnique = [...new Set(localizationTags)];
 
   const permission =
-    userProfile.permissions.includes("System admin") ||
-    userProfile.permissions.includes("Manage GCNs");
+    userProfile?.permissions.includes("System admin") ||
+    userProfile?.permissions.includes("Manage GCNs");
 
   return (
     <div className={styles.root}>

@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../ducks/profile";
 import React from "react";
 import { Link } from "react-router-dom";
 
@@ -11,7 +12,6 @@ import Typography from "@mui/material/Typography";
 
 import IconButton from "@mui/material/IconButton";
 import Divider from "@mui/material/Divider";
-import { useAppSelector } from "../types/hooks";
 import Button from "./Button";
 import UserAvatar from "./user/UserAvatar";
 
@@ -46,7 +46,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const ProfileDropdown = () => {
-  const profile = useAppSelector((state) => state.profile) as any;
+  const profile = useGetProfileQuery().data as any;
 
   const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = React.useState<any>(null);

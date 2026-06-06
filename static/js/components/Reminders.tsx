@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../ducks/profile";
 import { useMemo, useState } from "react";
 import { withStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -21,7 +22,7 @@ import utc from "dayjs/plugin/utc";
 import { skipToken } from "@reduxjs/toolkit/query";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
 import StyledDataGrid from "./StyledDataGrid";
 import QuickFilter from "./QuickFilter";
@@ -174,12 +175,12 @@ const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
   // in the future, we'll want to show all reminders for the resource
   // show the users in the reminders list (datatable)
   // and allow to choose users to add to the reminders to in the NewReminder dialog
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { data: reminders } = useGetRemindersQuery(
     resourceId && resourceType ? { resourceId, resourceType } : skipToken,
   );
   const remindersList = (reminders ?? []).filter(
-    (r: any) => r.user_id === currentUser.id,
+    (r: any) => r.user_id === currentUser?.id,
   );
 
   // Memoized so the toolbar (the "new reminder" button and quick-filter search

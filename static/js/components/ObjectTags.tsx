@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../ducks/profile";
 import { useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -19,7 +20,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 import GroupShareSelect from "./group/GroupShareSelect";
 import EditTagGroups from "./EditTagGroups";
-import { useAppDispatch, useAppSelector } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import {
   useGetTagOptionsQuery,
   useCreateTagOptionMutation,
@@ -99,11 +100,11 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
   const { data: tagOptions = [] } = useGetTagOptionsQuery();
   const [createTagOption] = useCreateTagOptionMutation();
   const [addObjectTag] = useAddObjectTagMutation();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage sources");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage sources");
 
   const { control, setValue, getValues } = useForm();
 

@@ -1,5 +1,6 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { lazy, Suspense, useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import { makeStyles } from "tss-react/mui";
@@ -119,7 +120,7 @@ const TelescopePage = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { data: telescopeList = [], isFetching: loading } =
     useGetTelescopesQuery();
   const [deleteTelescopeMutation] = useDeleteTelescopeMutation();
@@ -143,8 +144,9 @@ const TelescopePage = () => {
   }, [currentTelescopes]);
 
   const permission =
-    currentUser.permissions?.includes("Delete telescope") ||
-    currentUser.permissions?.includes("System admin");
+    currentUser?.permissions?.includes("Delete telescope") ||
+    currentUser?.permissions?.includes("System admin") ||
+    false;
 
   const deleteTelescope = async () => {
     try {

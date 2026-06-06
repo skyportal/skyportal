@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
@@ -221,7 +222,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const dispatch = useAppDispatch();
   const { classes } = useSourceStyles() as { classes: any };
 
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const groups = ((useGetGroupsQuery().data?.all ?? null) || []).filter(
     (g: any) => !g.single_user_group,
   );

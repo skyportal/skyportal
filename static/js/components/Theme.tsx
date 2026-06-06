@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../ducks/profile";
 import React from "react";
 
 import {
@@ -7,7 +8,6 @@ import {
 } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { grey } from "@mui/material/colors";
-import { useAppSelector } from "../types/hooks";
 
 interface ThemeProps {
   disableTransitions?: boolean;
@@ -15,9 +15,7 @@ interface ThemeProps {
 }
 
 const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
-  const theme = useAppSelector(
-    (state) => (state.profile.preferences as any).theme,
-  );
+  const theme = (useGetProfileQuery().data?.preferences as any)?.theme;
   const dark = theme === "dark";
 
   const greyTheme = createTheme({

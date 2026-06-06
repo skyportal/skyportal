@@ -1,4 +1,4 @@
-import { useAppSelector } from "../../types/hooks";
+import { useGetProfileQuery } from "../../ducks/profile";
 import Button from "../Button";
 
 interface ClassificationShortcutButtonsProps {
@@ -12,9 +12,8 @@ const ClassificationShortcutButtons = ({
   setSelectedClassifications,
   inDialog = false,
 }: ClassificationShortcutButtonsProps) => {
-  const { classificationShortcuts } = useAppSelector(
-    (state) => state.profile.preferences,
-  ) as any;
+  const { classificationShortcuts } = useGetProfileQuery().data
+    ?.preferences as any;
   if (!classificationShortcuts) return null;
 
   const handleClassificationShortcutClick = (

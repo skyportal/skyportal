@@ -1,4 +1,5 @@
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useAppDispatch } from "../../types/hooks";
 import { useState } from "react";
 import {
   useAddShiftUserMutation,
@@ -45,7 +46,7 @@ function ShiftUsersSelect({
   usersType = "members",
 }: ShiftUsersSelectProps) {
   const dispatch = useAppDispatch();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const [addShiftUser] = useAddShiftUserMutation();
   const [deleteShiftUser] = useDeleteShiftUserMutation();
   const [updateShiftUser] = useUpdateShiftUserMutation();
@@ -55,7 +56,7 @@ function ShiftUsersSelect({
   // We use only the first shift to populate the users list
   const users = getShiftGroupUsersFiltered(shiftsToManage[0]);
   // If the current user is not in the list, we add him to the users list
-  if (!users.some((user: any) => user.id === currentUser.id))
+  if (!users.some((user: any) => user.id === currentUser?.id))
     users.push(currentUser);
 
   function userInShift(userId: any, asAdmin = false) {

@@ -89,7 +89,9 @@ export default function hydrate(
         );
       }
       if (ducks_to_hydrate.includes("profile")) {
-        dispatch(profileActions.fetchUserProfile()).then(() => {
+        dispatch(
+          profileActions.profileApi.endpoints.getProfile.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("profile"));
         });
       }

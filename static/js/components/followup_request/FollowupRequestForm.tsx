@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 
@@ -20,7 +21,7 @@ import Chip from "@mui/material/Chip";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import * as sourceActions from "../../ducks/source";
@@ -67,9 +68,8 @@ const FollowupRequestForm = ({
   const { data: allocationListApiClassname = [] } =
     useGetAllocationsApiClassnameQuery();
   const allGroups = useGetGroupsQuery().data?.all ?? null;
-  const defaultAllocationId = useAppSelector(
-    (state) => (state.profile.preferences as any).followupDefault,
-  );
+  const defaultAllocationId = (useGetProfileQuery().data?.preferences as any)
+    ?.followupDefault;
   const [selectedAllocationId, setSelectedAllocationId] =
     useState(defaultAllocationId);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);

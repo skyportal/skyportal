@@ -15,10 +15,12 @@ import DynamicTagDisplay from "./DynamicTagDisplay";
 import Button from "../Button";
 
 import { dec_to_dms, ra_to_hours } from "../../units";
-import * as profileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { useGetTopSourcesQuery } from "../../ducks/topSources";
 
 interface TopSourcesListProps {
@@ -295,19 +297,16 @@ const TopSourcesList = ({
 
 const TopSources = ({ classes }: TopSourcesProps) => {
   const { classes: styles } = useStyles();
-  const dispatch = useAppDispatch();
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
-  const invertThumbnails = useAppSelector(
-    (state) => (state.profile.preferences as any)?.invertThumbnails,
-  );
+  const invertThumbnails = (profile?.preferences as any)?.invertThumbnails;
   const { classes: sourceListStyles } = useSourceListStyles({
     invertThumbnails,
   });
 
   const { data: sourceViews } = useGetTopSourcesQuery();
-  const prefs =
-    useAppSelector((state) => (state.profile.preferences as any)?.topSources) ||
-    defaultPrefs;
+  const prefs = (profile?.preferences as any)?.topSources || defaultPrefs;
 
   const topSourcesPrefs = prefs ? { ...defaultPrefs, ...prefs } : defaultPrefs;
 
@@ -330,9 +329,7 @@ const TopSources = ({ classes }: TopSourcesProps) => {
     setCurrentTimespan(newTimespan);
     topSourcesPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
 
-    dispatch(
-      profileActions.updateUserPreferences({ topSources: topSourcesPrefs }),
-    );
+    updateUserPreferences({ topSources: topSourcesPrefs });
   };
 
   return (
@@ -396,7 +393,7 @@ const TopSources = ({ classes }: TopSourcesProps) => {
               }}
               stateBranchName="topSources"
               title="Top Sources Preferences"
-              onSubmit={profileActions.updateUserPreferences}
+              onSubmit={updateUserPreferences}
             />
           </div>
         </div>

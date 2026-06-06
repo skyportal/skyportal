@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import React, { useState } from "react";
 import Grid from "@mui/material/Grid";
@@ -109,20 +110,23 @@ const AllocationPage = () => {
     useGetDefaultSurveyEfficienciesQuery();
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const { data: telescopeList = [] } = useGetTelescopesQuery();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
 
   const [, setRowsPerPage] = useState(100);
 
   const permissionAllocation =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage allocations");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage allocations") ||
+    false;
   const permissionDefaultSurveyEfficiency =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage allocations") ||
-    currentUser.permissions?.includes("Manage observation plans");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage allocations") ||
+    currentUser?.permissions?.includes("Manage observation plans") ||
+    false;
   const permissionDefaultObservationPlan =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage observation plans");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage observation plans") ||
+    false;
 
   const handleDefaultObservationPlanTablePagination = (
     _pageNumber: number,

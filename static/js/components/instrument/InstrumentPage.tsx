@@ -1,9 +1,9 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 
 import Grid from "@mui/material/Grid";
 
 import InstrumentTableComponent from "./InstrumentTable";
-import { useAppSelector } from "../../types/hooks";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 
@@ -16,11 +16,11 @@ const InstrumentList = () => {
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
 
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
 
   const delete_permission =
-    currentUser.permissions?.includes("Delete instrument") ||
-    currentUser.permissions?.includes("System admin");
+    currentUser?.permissions?.includes("Delete instrument") ||
+    currentUser?.permissions?.includes("System admin");
 
   const handleInstrumentTablePagination = (
     pageNumber: number,

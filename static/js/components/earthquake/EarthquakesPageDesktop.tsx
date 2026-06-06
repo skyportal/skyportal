@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { lazy, Suspense, useState } from "react";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
@@ -7,7 +8,6 @@ import CircularProgress from "@mui/material/CircularProgress";
 import NewEarthquake from "./NewEarthquake";
 import EarthquakeInfo from "./EarthquakeInfo";
 import Spinner from "../Spinner";
-import { useAppSelector } from "../../types/hooks";
 import { useGetEarthquakesQuery } from "../../ducks/earthquake";
 // lazy import the EarthquakeMap component
 const EarthquakeMap = lazy(() => import("./EarthquakeMap"));
@@ -36,7 +36,7 @@ const useStyles = makeStyles()(() => ({
 
 const EarthquakePage = () => {
   const { classes } = useStyles();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { data: earthquakes } = useGetEarthquakesQuery();
   const [currentEarthquakeMenu, setCurrentEarthquakeMenu] =
     useState("Earthquake List");
@@ -72,7 +72,7 @@ const EarthquakePage = () => {
             >
               Earthquake List
             </Button>
-            {currentUser.permissions?.includes("Manage allocations") && (
+            {currentUser?.permissions?.includes("Manage allocations") && (
               <Button
                 onClick={() => setSelectedMenu("New Earthquake")}
                 className={isMenuSelected("New Earthquake")}
@@ -85,7 +85,7 @@ const EarthquakePage = () => {
             {currentEarthquakeMenu === "Earthquake List" ? (
               <EarthquakeInfo />
             ) : (
-              currentUser.permissions?.includes("Manage allocations") && (
+              currentUser?.permissions?.includes("Manage allocations") && (
                 <NewEarthquake />
               )
             )}

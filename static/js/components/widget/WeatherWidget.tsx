@@ -14,10 +14,12 @@ import IconButton from "@mui/material/IconButton";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Button from "../Button";
 
-import * as profileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 import { useGetWeatherQuery } from "../../ducks/weather";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -153,10 +155,9 @@ interface WeatherWidgetProps {
 const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
   const { classes: styles } = useStyles();
 
-  const dispatch = useAppDispatch();
-  const userPrefs = useAppSelector(
-    (state: any) => state.profile.preferences.weather,
-  );
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const userPrefs = (profile?.preferences as any)?.weather;
   const { data: telescopeListData = [] } = useGetTelescopesQuery();
   const telescopeList = [...telescopeListData].sort((a: any, b: any) => {
     const nameA = a.name.toUpperCase();
@@ -202,7 +203,7 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
     const prefs = {
       weather: { telescopeID },
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
     setAnchorEl(null);
   };
 

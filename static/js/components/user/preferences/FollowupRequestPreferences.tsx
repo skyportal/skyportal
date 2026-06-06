@@ -3,10 +3,13 @@ import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { makeStyles } from "tss-react/mui";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
+import { useAppSelector } from "../../../types/hooks";
 import { useGetTelescopesQuery } from "../../../ducks/telescopes";
 import { useGetAllocationsApiClassnameQuery } from "../../../ducks/allocations";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 
 const useStyles = makeStyles()(() => ({
@@ -26,16 +29,15 @@ const FollowupRequestPreferences = () => {
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
   );
-  const defaultAllocationId = useAppSelector(
-    (state) => state.profile.preferences?.["followupDefault"],
-  );
+  const { data: profile } = useGetProfileQuery();
+  const defaultAllocationId = profile?.preferences?.["followupDefault"];
   // set the default allocation to be -1 if nothing is in the user preferences
   const [selectedAllocationId, setSelectedAllocationId] = useState(
     defaultAllocationId || -1,
   );
 
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   useEffect(() => {
     if (defaultAllocationId) {
@@ -54,7 +56,7 @@ const FollowupRequestPreferences = () => {
       followupDefault: event.target.value === -1 ? null : event.target.value,
     };
     setSelectedAllocationId(event.target.value);
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   if (

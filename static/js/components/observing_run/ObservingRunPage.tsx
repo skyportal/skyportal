@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -208,11 +209,11 @@ const ObservingRunList = ({
 
 const ObservingRunPage = () => {
   const { data: observingRunList = [] } = useGetObservingRunsQuery();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
 
   const managePermission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage observing runs");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage observing runs");
 
   return (
     <Grid container spacing={3}>

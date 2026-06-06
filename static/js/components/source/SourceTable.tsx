@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import React, {
   Suspense,
   useEffect,
@@ -172,12 +173,12 @@ const useStyles = makeStyles()((theme) => ({
 const RenderShowClassification = React.memo(({ source }: { source: any }) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const groupUsers = useAppSelector(
     (state) => (state as any).group?.group_users,
   );
   const currentGroupUser = groupUsers?.filter(
-    (groupUser: any) => groupUser.user_id === currentUser.id,
+    (groupUser: any) => groupUser.user_id === currentUser?.id,
   )[0];
 
   useEffect(() => {
@@ -246,7 +247,7 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
 
   source.classifications?.forEach((classification: any) => {
     classification.votes?.forEach((s: any) => {
-      if (s.voter_id === currentUser.id) {
+      if (s.voter_id === currentUser?.id) {
         if (s.vote === 1) {
           upvoterIds.push(classification.id);
         } else if (s.vote === -1) {
@@ -265,8 +266,8 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
   }
 
   const permission =
-    currentUser.permissions.includes("System admin") ||
-    currentUser.permissions.includes("Manage groups") ||
+    currentUser?.permissions.includes("System admin") ||
+    currentUser?.permissions.includes("Manage groups") ||
     isGroupAdmin;
 
   return (
@@ -339,12 +340,12 @@ const RenderShowLabelling = React.memo(({ source }: { source: any }) => {
   const { control } = useForm();
   const [checked, setChecked] = useState(false);
 
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
 
   const labellerUsernames = source.labellers
     ? source.labellers.map((s: any) => s.username)
     : [];
-  const defaultChecked = labellerUsernames.includes(currentUser.username);
+  const defaultChecked = labellerUsernames.includes(currentUser?.username);
 
   useEffect(() => {
     setChecked(defaultChecked);
