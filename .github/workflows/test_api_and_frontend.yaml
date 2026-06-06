@@ -184,9 +184,9 @@ jobs:
           import os
 
           EXTRA = {
-              "frontend_pt1": ["sn_analysis_service", "openai_analysis_service", "observation_plan_queue", "facility_queue"],
-              "frontend_pt2": ["sn_analysis_service", "openai_analysis_service", "notification_queue"],
-              "frontend_pt3": ["sn_analysis_service", "observation_plan_queue", "facility_queue", "notification_queue"],
+              "frontend_pt1": ["sn_analysis_service", "openai_analysis_service", "observation_plan_queue"],
+              "frontend_pt2": ["sn_analysis_service", "openai_analysis_service"],
+              "frontend_pt3": ["sn_analysis_service", "openai_analysis_service", "observation_plan_queue", "facility_queue", "notification_queue"],
               "frontend_pt4": ["sn_analysis_service", "openai_analysis_service", "observation_plan_queue", "facility_queue", "notification_queue"],
               "frontend_pt5": ["sn_analysis_service", "openai_analysis_service"],
               "frontend_pt6": ["observation_plan_queue", "facility_queue", "notification_queue"],

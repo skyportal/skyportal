@@ -7,7 +7,7 @@ import pytest
 from playwright.sync_api import expect
 
 from skyportal.tests import api
-from skyportal.tests.frontend.gcn_observations_and_followup.test_reminders import (
+from skyportal.tests.frontend.observations_and_instruments.test_reminders import (
     post_and_verify_reminder,
 )
 
