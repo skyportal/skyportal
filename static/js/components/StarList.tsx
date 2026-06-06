@@ -10,8 +10,9 @@ import Tooltip from "@mui/material/Tooltip";
 import FormControl from "@mui/material/FormControl";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import { useAppDispatch, useAppSelector } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import { GET } from "../API";
+import { useGetObservingRunQuery } from "../ducks/observingRun";
 
 interface StarListItem {
   str: string;
@@ -156,10 +157,18 @@ const StarList = ({ sourceId }: StarListProps) => {
   );
 };
 
-export const ObservingRunStarList = () => {
+export const ObservingRunStarList = ({
+  observingRunId,
+}: {
+  observingRunId?: number | string;
+}) => {
   const dispatch = useAppDispatch();
   const [starList, setStarList] = useState<StarListItem[] | null>(null);
-  const { assignments } = useAppSelector((state) => state["observingRun"]);
+  const { data: observingRun } = useGetObservingRunQuery(
+    observingRunId as number | string,
+    { skip: observingRunId == null },
+  ) as { data: any };
+  const assignments = observingRun?.assignments ?? [];
   const [facility, setFacility] = useState("Keck");
 
   useEffect(() => {
@@ -198,9 +207,11 @@ export const ObservingRunStarList = () => {
 
       setStarList(starlistInfo);
     };
-    fetchStarList();
+    if (assignments.length > 0) {
+      fetchStarList();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, facility]);
+  }, [dispatch, facility, observingRun?.id, assignments.length]);
   return (
     <StarListBody
       starList={starList}

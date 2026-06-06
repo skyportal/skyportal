@@ -12,9 +12,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { useAppDispatch } from "../../types/hooks";
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
-import * as instrumentLogActions from "../../ducks/instrument_log";
+import { useLazyFetchInstrumentLogExternalQuery } from "../../ducks/instrument_log";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -56,7 +55,7 @@ interface InstrumentLogFormProps {
 
 const InstrumentLogForm = ({ instrument }: InstrumentLogFormProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [fetchInstrumentLogExternal] = useLazyFetchInstrumentLogExternalQuery();
 
   const allGroups = useGetGroupsQuery().data?.all ?? null;
   const { data: allocationListApiClassname = [] } =
@@ -105,12 +104,14 @@ const InstrumentLogForm = ({ instrument }: InstrumentLogFormProps) => {
       .replace("+00:00", "")
       .replace(".000Z", "");
 
-    await dispatch(
-      instrumentLogActions.fetchInstrumentLogExternal(
-        selectedAllocationId,
-        formData,
-      ),
-    );
+    try {
+      await fetchInstrumentLogExternal({
+        id: selectedAllocationId,
+        params: formData,
+      }).unwrap();
+    } catch {
+      // error notification handled centrally by the base query
+    }
 
     setIsSubmitting(false);
   };

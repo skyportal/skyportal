@@ -24,6 +24,7 @@ import StyledDataGrid from "../StyledDataGrid";
 
 import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
 import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -52,9 +53,7 @@ const DefaultFollowupRequestList = ({
   const { instrumentList } = useAppSelector(
     (state) => (state as any).instruments,
   );
-  const { telescopeList } = useAppSelector(
-    (state) => (state as any).telescopes,
-  );
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? null;
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
@@ -120,7 +119,7 @@ const DefaultFollowupRequestList = ({
     return (
       <div>
         <Link to={`/allocation/${allocation.id}`} role="link">
-          {telescope ? telescope.nickname : ""}
+          {telescope ? telescope["nickname"] : ""}
         </Link>
       </div>
     );

@@ -34,7 +34,7 @@ import Button from "../Button";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as filterActions from "../../ducks/filter";
-import * as groupActions from "../../ducks/group";
+import { groupApi } from "../../ducks/group";
 import * as streamsActions from "../../ducks/streams";
 
 interface GroupFiltersStreamsProps {
@@ -101,7 +101,7 @@ const GroupFiltersStreams = ({
     );
     if (result.status === "success") {
       dispatch(showNotification("Added filter to group"));
-      dispatch(groupActions.fetchGroup(group.id));
+      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
       handleAddFilterDialogClose();
     }
   };
@@ -116,7 +116,7 @@ const GroupFiltersStreams = ({
     );
     if (result.status === "success") {
       dispatch(showNotification("Added stream to group"));
-      dispatch(groupActions.fetchGroup(group.id));
+      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
       setAddStreamOpen(false);
     }
   };
@@ -182,7 +182,11 @@ const GroupFiltersStreams = ({
                                       ),
                                     );
                                   }
-                                  dispatch(groupActions.fetchGroup(group.id));
+                                  dispatch(
+                                    groupApi.util.invalidateTags([
+                                      { type: "Group", id: group.id },
+                                    ]),
+                                  );
                                 }}
                                 size="large"
                               >

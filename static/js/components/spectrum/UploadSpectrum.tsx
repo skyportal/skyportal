@@ -31,6 +31,7 @@ import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as spectraActions from "../../ducks/spectra";
 import { fetchSource } from "../../ducks/source";
 import { useGetUsersQuery } from "../../ducks/users";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { userLabel } from "../../utils/format";
 import Paper from "../Paper";
 import Spinner from "../Spinner";
@@ -83,9 +84,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
   const instrumentList = useAppSelector(
     (state) => state["instruments"].instrumentList,
   );
-  const telescopes = useAppSelector(
-    (state) => state["telescopes"].telescopeList,
-  );
+  const { data: telescopes = [] } = useGetTelescopesQuery();
   const source = useAppSelector((state) => state["source"]);
   const [persistentFormData, setPersistentFormData] = useState<any>({});
   const [formKey, setFormKey] = useState<any>(null);
@@ -495,8 +494,9 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
       "ui:enumNames": instruments.map(
         (instrument: any) =>
           `${
-            telescopes.find((t: any) => t.id === instrument.telescope_id)
-              ?.nickname
+            telescopes.find((t: any) => t.id === instrument.telescope_id)?.[
+              "nickname"
+            ]
           } / ${instrument.name}`,
       ),
       "ui:disabled": !instruments?.length,

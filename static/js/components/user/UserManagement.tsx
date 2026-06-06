@@ -53,7 +53,11 @@ import {
   useAddUserAclsMutation,
   useDeleteUserAclMutation,
 } from "../../ducks/acls";
-import * as rolesActions from "../../ducks/roles";
+import {
+  useGetRolesQuery,
+  useAddUserRolesMutation,
+  useDeleteUserRoleMutation,
+} from "../../ducks/roles";
 import Spinner from "../Spinner";
 
 import * as ProfileActions from "../../ducks/profile";
@@ -115,7 +119,9 @@ const UserManagement = () => {
   const { data: acls } = useGetAclsQuery();
   const [addUserAcls] = useAddUserAclsMutation();
   const [deleteUserAcl] = useDeleteUserAclMutation();
-  const roles = useAppSelector((state) => state["roles"]);
+  const { data: roles } = useGetRolesQuery();
+  const [addUserRoles] = useAddUserRolesMutation();
+  const [deleteUserRole] = useDeleteUserRoleMutation();
   const [addUserGroupsDialogOpen, setAddUserGroupsDialogOpen] = useState(false);
   const [addUserRolesDialogOpen, setAddUserRolesDialogOpen] = useState(false);
   const [addUserACLsDialogOpen, setAddUserACLsDialogOpen] = useState(false);
@@ -148,7 +154,6 @@ const UserManagement = () => {
   useEffect(() => {
     const fetchData = () => {
       dispatch(streamsActions.fetchStreams());
-      dispatch(rolesActions.fetchRoles());
       dispatch(invitationsActions.fetchInvitations());
     };
     if (!dataFetched) {
@@ -361,13 +366,11 @@ const UserManagement = () => {
   };
 
   const handleAddUserRoles = async (formData: any) => {
-    const result: any = await dispatch(
-      rolesActions.addUserRoles({
+    try {
+      await addUserRoles({
         userID: clickedUser.id,
         roleIds: formData.roles?.map((role: any) => role.id),
-      }),
-    );
-    if (result.status === "success") {
+      }).unwrap();
       dispatch(
         showNotification("User successfully granted specified role(s)."),
       );
@@ -375,6 +378,8 @@ const UserManagement = () => {
       setAddUserRolesDialogOpen(false);
       await refetchUsersManagement();
       setClickedUser(null);
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
@@ -432,12 +437,12 @@ const UserManagement = () => {
   };
 
   const handleClickDeleteUserRole = async (userID: any, role: any) => {
-    const result: any = await dispatch(
-      rolesActions.deleteUserRole({ userID, role }),
-    );
-    if (result.status === "success") {
+    try {
+      await deleteUserRole({ userID, role }).unwrap();
       dispatch(showNotification("User role successfully removed."));
       await refetchUsersManagement();
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 

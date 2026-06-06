@@ -1,10 +1,9 @@
-import { useEffect } from "react";
 import { makeStyles } from "tss-react/mui";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import NewDefaultGcnTag from "./NewDefaultGcnTag";
 import DefaultGcnTagTable from "./DefaultGcnTagTable";
 
-import * as defaultGcnTagsActions from "../../ducks/default_gcn_tags";
+import { useGetDefaultGcnTagsQuery } from "../../ducks/default_gcn_tags";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -21,21 +20,15 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const DefaultGcnTags = () => {
-  const dispatch = useAppDispatch();
-
-  const default_gcn_tags = useAppSelector((state) => state["default_gcn_tags"]);
+  const { data: defaultGcnTagList } = useGetDefaultGcnTagsQuery();
   const currentUser = useAppSelector((state) => state.profile);
 
   const permission =
     currentUser.permissions?.includes("System admin") ||
     currentUser.permissions?.includes("Manage GCNs");
 
-  useEffect(() => {
-    dispatch(defaultGcnTagsActions.fetchDefaultGcnTags());
-  }, [dispatch]);
-
   const tableProps: any = {
-    default_gcn_tags: default_gcn_tags.defaultGcnTagList,
+    default_gcn_tags: defaultGcnTagList,
     deletePermission: permission,
   };
   return <DefaultGcnTagTable {...tableProps} />;

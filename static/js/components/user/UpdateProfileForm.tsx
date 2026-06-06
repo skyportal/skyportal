@@ -24,7 +24,7 @@ import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
 import * as ProfileActions from "../../ducks/profile";
-import * as userNotificationsActions from "../../ducks/userNotifications";
+import { useTestNotificationsMutation } from "../../ducks/userNotifications";
 
 import UIPreferences from "./preferences/UIPreferences";
 import NotificationPreferences from "./preferences/NotificationPreferences";
@@ -51,6 +51,7 @@ const UpdateProfileForm = () => {
   const [isSubmittingSMSTest, setIsSubmittingSMSTest] = useState(false);
 
   const dispatch = useAppDispatch();
+  const [testNotifications] = useTestNotificationsMutation();
   const {
     handleSubmit,
     register,
@@ -104,14 +105,14 @@ const UpdateProfileForm = () => {
   const handleEmailTest = async () => {
     setIsSubmittingEmailTest(true);
     const data = { notification_type: "email" };
-    await dispatch(userNotificationsActions.testNotifications(data));
+    await testNotifications(data);
     setIsSubmittingEmailTest(false);
   };
 
   const handleSMSTest = async () => {
     setIsSubmittingSMSTest(true);
     const data = { notification_type: "SMS" };
-    await dispatch(userNotificationsActions.testNotifications(data));
+    await testNotifications(data);
     setIsSubmittingSMSTest(false);
   };
 

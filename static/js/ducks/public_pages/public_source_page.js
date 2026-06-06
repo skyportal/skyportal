@@ -1,49 +1,54 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Public source pages (version history for a source's public page).
+ *
+ * RTK Query conversion of the old `FETCH_PUBLIC_SOURCE_PAGES` duck. The list is
+ * fetched per source id; generating and deleting a public page are mutations
+ * that invalidate the list tag so it refetches.
+ *
+ * The websocket `REFRESH_PUBLIC_SOURCE_PAGES` message is bridged to cache
+ * invalidation via `invalidateOnMessage`, preserving the old gate that only
+ * refreshed when the pushed source matches the currently-loaded source.
+ */
+import { skyportalApi } from "../../api/skyportalApi";
+import { invalidateOnMessage } from "../../api/wsInvalidation";
 
-import * as API from "../../API";
-import store from "../../store";
-
-const FETCH_PUBLIC_SOURCE_PAGES = "skyportal/FETCH_PUBLIC_SOURCE_PAGES";
-const FETCH_PUBLIC_SOURCE_PAGES_OK = "skyportal/FETCH_PUBLIC_SOURCE_PAGES_OK";
-const GENERATE_PUBLIC_SOURCE_PAGE = "skyportal/GENERATE_PUBLIC_SOURCE_PAGE";
-const DELETE_PUBLIC_SOURCE_PAGE = "skyportal/DELETE_PUBLIC_SOURCE_PAGE";
-
-const REFRESH_PUBLIC_SOURCE_PAGES = "skyportal/REFRESH_PUBLIC_SOURCE_PAGES";
-
-export const generatePublicSourcePage = (sourceId, payload) =>
-  API.POST(
-    `/api/public_pages/source/${sourceId}`,
-    GENERATE_PUBLIC_SOURCE_PAGE,
-    payload,
-  );
-
-export const fetchPublicSourcePages = (sourceId) => {
-  return API.GET(
-    `/api/public_pages/source/${sourceId}`,
-    FETCH_PUBLIC_SOURCE_PAGES,
-  );
-};
-
-export const deletePublicSourcePage = (pageId) =>
-  API.DELETE(`/api/public_pages/source/${pageId}`, DELETE_PUBLIC_SOURCE_PAGE);
-
-messageHandler.add((actionType, payload, dispatch, getState) => {
-  if (actionType === REFRESH_PUBLIC_SOURCE_PAGES) {
-    const { source_id } = payload;
-    if (getState().source?.id === source_id) {
-      dispatch(fetchPublicSourcePages(source_id));
-    }
-  }
+export const publicSourcePageApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    fetchPublicSourcePages: build.query({
+      query: (sourceId) => `api/public_pages/source/${sourceId}`,
+      providesTags: ["FetchPublicSourcePages"],
+    }),
+    generatePublicSourcePage: build.mutation({
+      query: ({ sourceId, payload }) => ({
+        url: `api/public_pages/source/${sourceId}`,
+        method: "POST",
+        body: payload,
+      }),
+      invalidatesTags: ["FetchPublicSourcePages"],
+    }),
+    deletePublicSourcePage: build.mutation({
+      query: (pageId) => ({
+        url: `api/public_pages/source/${pageId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["FetchPublicSourcePages"],
+    }),
+  }),
 });
 
-const reducer = (state = [], action) => {
-  switch (action.type) {
-    case FETCH_PUBLIC_SOURCE_PAGES_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-};
+// Websocket: old handler refetched pages only for the currently-loaded source.
+invalidateOnMessage(
+  "skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
+  (payload, getState) => {
+    const { source_id } = payload;
+    return getState().source?.id === source_id
+      ? ["FetchPublicSourcePages"]
+      : null;
+  },
+);
 
-store.injectReducer("publicSourceVersions", reducer);
+export const {
+  useFetchPublicSourcePagesQuery,
+  useGeneratePublicSourcePageMutation,
+  useDeletePublicSourcePageMutation,
+} = publicSourcePageApi;

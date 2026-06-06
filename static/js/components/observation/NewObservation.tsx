@@ -3,6 +3,7 @@ import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useUploadObservationsMutation } from "../../ducks/observations";
 
 interface NewObservationProps {
@@ -11,7 +12,7 @@ interface NewObservationProps {
 
 const NewObservation = ({ onClose = null }: NewObservationProps) => {
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const dispatch = useAppDispatch();
   const [uploadObservations] = useUploadObservationsMutation();
 
@@ -49,7 +50,7 @@ const NewObservation = ({ onClose = null }: NewObservationProps) => {
           title: `${
             telescopeList.find(
               (telescope: any) => telescope.id === instrument.telescope_id,
-            )?.name
+            )?.["name"]
           } / ${instrument.name}`,
         })),
         title: "Instrument",

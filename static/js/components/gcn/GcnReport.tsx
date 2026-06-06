@@ -27,7 +27,6 @@ import {
   SelectSingleLabelWithChips,
 } from "../SelectWithChips";
 
-import { fetchGroup } from "../../ducks/group";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { fetchInstruments } from "../../ducks/instruments";
 import {
@@ -202,12 +201,6 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
     setStartDate(defaultStartDate);
     setEndDate(defaultEndDate);
   }, [dateobs]);
-
-  useEffect(() => {
-    if (selectedGroup?.id) {
-      dispatch(fetchGroup(selectedGroup?.id));
-    }
-  }, [dispatch, selectedGroup]);
 
   useEffect(() => {
     if (gcnEvent?.localizations?.length > 0) {

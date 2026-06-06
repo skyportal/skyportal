@@ -23,7 +23,10 @@ import Popover from "@mui/material/Popover";
 import Chip from "@mui/material/Chip";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Button from "../Button";
-import { modifyAllocation, submitAllocation } from "../../ducks/allocation";
+import {
+  useModifyAllocationMutation,
+  useSubmitAllocationMutation,
+} from "../../ducks/allocation";
 import {
   allocationsApi,
   useGetAllocationsQuery,
@@ -229,6 +232,8 @@ const AllocationForm = ({
   allocationId = null,
 }: AllocationFormProps) => {
   const dispatch = useAppDispatch();
+  const [submitAllocation] = useSubmitAllocationMutation();
+  const [modifyAllocation] = useModifyAllocationMutation();
   const { data: allocationList = [] } = useGetAllocationsQuery();
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
@@ -297,17 +302,19 @@ const AllocationForm = ({
       selectedGroupIds.length > 0
         ? { ...formData, default_share_group_ids: selectedGroupIds }
         : formData;
-    const result: any = await dispatch(
-      allocationId == null
-        ? submitAllocation(submittedFormData)
-        : modifyAllocation(allocationId, submittedFormData),
-    );
-    if (result.status === "success") {
+    try {
+      await (
+        allocationId == null
+          ? submitAllocation(submittedFormData)
+          : modifyAllocation({ id: allocationId, payload: submittedFormData })
+      ).unwrap();
       dispatch(showNotification("Allocation saved"));
       dispatch(allocationsApi.util.invalidateTags(["Allocation"]));
       if (typeof onClose === "function") {
         onClose();
       }
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 

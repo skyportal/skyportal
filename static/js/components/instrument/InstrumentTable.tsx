@@ -24,7 +24,7 @@ import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
-import * as instrumentActions from "../../ducks/instrument";
+import { useDeleteInstrumentMutation } from "../../ducks/instrument";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -85,6 +85,7 @@ const InstrumentTable = ({
 }: InstrumentTableProps) => {
   const { classes } = useStyles() as any;
   const dispatch = useAppDispatch();
+  const [deleteInstrumentMutation] = useDeleteInstrumentMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -119,15 +120,14 @@ const InstrumentTable = ({
     setInstrumentToEditDelete(null);
   };
 
-  const deleteInstrument = () => {
-    dispatch(instrumentActions.deleteInstrument(instrumentToEditDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Instrument deleted"));
-          closeDeleteDialog();
-        }
-      },
-    );
+  const deleteInstrument = async () => {
+    try {
+      await deleteInstrumentMutation(instrumentToEditDelete).unwrap();
+      dispatch(showNotification("Instrument deleted"));
+      closeDeleteDialog();
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);

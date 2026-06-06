@@ -13,6 +13,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
   useGetAllocationsQuery,
   useGetAllocationsApiClassnameQuery,
@@ -71,7 +72,7 @@ const CatalogQueryForm = ({ gcnevent }: CatalogQueryFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationList = [] } = useGetAllocationsQuery();
 
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];

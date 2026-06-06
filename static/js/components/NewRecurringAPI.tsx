@@ -7,15 +7,13 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { useAppDispatch, useAppSelector } from "../types/hooks";
-import {
-  fetchRecurringAPIs,
-  submitRecurringAPI,
-} from "../ducks/recurring_apis";
+import { useSubmitRecurringAPIMutation } from "../ducks/recurring_apis";
 
 dayjs.extend(utc);
 
 const NewRecurringAPI = () => {
   const dispatch = useAppDispatch();
+  const [submitRecurringAPI] = useSubmitRecurringAPIMutation();
   const defaultDate = dayjs()
     .add(1, "day")
     .utc()
@@ -28,12 +26,12 @@ const NewRecurringAPI = () => {
     formData.next_call = formData.next_call
       .replace("+00:00", "")
       .replace(".000Z", "");
-    dispatch(submitRecurringAPI(formData)).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification("RecurringAPI saved"));
-        dispatch(fetchRecurringAPIs());
-      }
-    });
+    try {
+      await submitRecurringAPI(formData).unwrap();
+      dispatch(showNotification("RecurringAPI saved"));
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const analysisServiceFormSchema = {

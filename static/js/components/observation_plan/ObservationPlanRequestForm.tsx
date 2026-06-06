@@ -23,11 +23,12 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import Button from "../Button";
 
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as instrumentActions from "../../ducks/instrument";
+import { useLazyGetInstrumentSkymapQuery } from "../../ducks/instrument";
 import * as instrumentsActions from "../../ducks/instruments";
 import { planWithSameNameExists } from "../../ducks/observationPlans";
 import { useGetLocalizationQuery } from "../../ducks/localization";
@@ -217,9 +218,10 @@ const ObservationPlanRequestForm = ({
 }: ObservationPlanRequestFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [fetchInstrumentSkymap] = useLazyGetInstrumentSkymapQuery();
 
   const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiObsplan = [] } =
     useGetAllocationsApiObsplanQuery();
   const { useAMPM } = useAppSelector(
@@ -303,17 +305,22 @@ const ObservationPlanRequestForm = ({
 
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
+      if (!obsplanLoc) return;
       setFetchingLocalization(true);
-      dispatch(
-        instrumentActions.fetchInstrumentSkymap(
-          instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
-          obsplanLoc,
-          airmassTime.toJSON(),
-        ),
-      ).then((response: any) => {
-        setSkymapInstrument(response.data);
-        setFetchingLocalization(false);
-      });
+      fetchInstrumentSkymap({
+        id: instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]
+          ?.id,
+        localization: obsplanLoc,
+        airmassTime: airmassTime.toJSON(),
+      })
+        .unwrap()
+        .then((response: any) => {
+          setSkymapInstrument(response);
+        })
+        .catch(() => {})
+        .finally(() => {
+          setFetchingLocalization(false);
+        });
     };
     if (
       gcnEvent &&

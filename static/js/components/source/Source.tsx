@@ -1,5 +1,6 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
+import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import React, {
   useEffect,
   useState,
@@ -232,9 +233,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
   );
-  const { observingRunList } = useAppSelector(
-    (state) => state["observingRuns"],
-  );
+  const { data: observingRunList = [] } = useGetObservingRunsQuery();
   const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =

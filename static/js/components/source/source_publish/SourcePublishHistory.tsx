@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -9,10 +8,10 @@ import Tooltip from "@mui/material/Tooltip";
 import InfoIcon from "@mui/icons-material/InfoOutlined";
 import moment from "moment";
 import {
-  deletePublicSourcePage,
-  fetchPublicSourcePages,
+  useDeletePublicSourcePageMutation,
+  useFetchPublicSourcePagesQuery,
 } from "../../../ducks/public_pages/public_source_page";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
+import { useAppSelector } from "../../../types/hooks";
 
 const useStyles = makeStyles()(() => ({
   versionHistory: {
@@ -56,27 +55,22 @@ const useStyles = makeStyles()(() => ({
 
 interface SourcePublishHistoryProps {
   sourceId: string;
-  versions: any[];
 }
 
-const SourcePublishHistory = ({
-  sourceId,
-  versions,
-}: SourcePublishHistoryProps) => {
+const SourcePublishHistory = ({ sourceId }: SourcePublishHistoryProps) => {
   const { classes: styles } = useStyles();
-  const dispatch = useAppDispatch();
-  const [loading, setLoading] = useState(true);
   const manageSourcesAccess = useAppSelector(
     (state) => state.profile,
   ).permissions?.includes("Manage sources");
-
-  useEffect(() => {
-    setLoading(true);
-    dispatch(fetchPublicSourcePages(sourceId)).then(() => setLoading(false));
-  }, [dispatch, sourceId]);
+  const { data: versions = [], isLoading: loading } =
+    useFetchPublicSourcePagesQuery(sourceId) as {
+      data: any[];
+      isLoading: boolean;
+    };
+  const [deletePublicSourcePage] = useDeletePublicSourcePageMutation();
 
   const deleteVersion = (id: number) => {
-    dispatch(deletePublicSourcePage(id));
+    deletePublicSourcePage(id);
   };
 
   return (

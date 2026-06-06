@@ -13,7 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 import FilterPlugins from "./FilterPlugins";
 
-import * as groupActions from "../../ducks/group";
+import { useGetGroupQuery } from "../../ducks/group";
 import * as filterActions from "../../ducks/filter";
 import { useGetStreamQuery } from "../../ducks/stream";
 
@@ -71,7 +71,6 @@ const Filter = () => {
   const dispatch = useAppDispatch();
 
   const [filterLoadError, setFilterLoadError] = useState("");
-  const [groupLoadError, setGroupLoadError] = useState("");
 
   const { fid } = useParams();
   const loadedId = useAppSelector((state) => state["filter"].id);
@@ -94,25 +93,24 @@ const Filter = () => {
   const group_id = useAppSelector((state) => state["filter"].group_id);
   const stream_id = useAppSelector((state) => state["filter"].stream_id);
 
+  const { data: group, error: groupError } = useGetGroupQuery(group_id, {
+    skip: !group_id,
+  }) as any;
+
   useEffect(() => {
-    const fetchGroup = async () => {
-      const data = (await dispatch(groupActions.fetchGroup(group_id))) as any;
-      if (data.status === "error") {
-        setGroupLoadError(data.message);
-        if (groupLoadError.length > 1) {
-          dispatch(showNotification(groupLoadError, "error"));
-        }
+    if (groupError) {
+      const message = (groupError as any)?.error ?? "Failed to load group";
+      if (message.length > 1) {
+        dispatch(showNotification(message, "error"));
       }
-    };
-    if (group_id) fetchGroup();
-  }, [group_id, dispatch, groupLoadError]);
+    }
+  }, [groupError, dispatch]);
 
   const { data: stream } = useGetStreamQuery(stream_id ?? "", {
     skip: !stream_id,
   });
 
   const filter = useAppSelector((state) => state["filter"]);
-  const group = useAppSelector((state) => state["group"]) as any;
 
   if (filterLoadError) {
     return <div>{filterLoadError}</div>;

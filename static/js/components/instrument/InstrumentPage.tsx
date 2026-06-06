@@ -5,7 +5,7 @@ import Grid from "@mui/material/Grid";
 import InstrumentTableComponent from "./InstrumentTable";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as instrumentsActions from "../../ducks/instruments";
-import * as telescopeActions from "../../ducks/telescopes";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 
 const InstrumentTable = InstrumentTableComponent as any;
 
@@ -13,7 +13,7 @@ const InstrumentList = () => {
   const dispatch = useAppDispatch();
 
   const instrumentsState = useAppSelector((state) => state["instruments"]);
-  const telescopesState = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
 
@@ -25,7 +25,6 @@ const InstrumentList = () => {
 
   useEffect(() => {
     dispatch(instrumentsActions.fetchInstruments());
-    dispatch(telescopeActions.fetchTelescopes());
   }, [dispatch]);
 
   const handleInstrumentTablePagination = (
@@ -63,7 +62,7 @@ const InstrumentList = () => {
       <Grid size={12}>
         <InstrumentTable
           instruments={instrumentsState.instrumentList || []}
-          telescopes={telescopesState.telescopeList || []}
+          telescopes={telescopeList}
           deletePermission={delete_permission}
           paginateCallback={handleInstrumentTablePagination}
           totalMatches={instrumentsState.totalMatches}

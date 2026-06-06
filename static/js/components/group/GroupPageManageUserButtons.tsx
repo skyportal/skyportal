@@ -14,7 +14,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
 import { useAppDispatch } from "../../types/hooks";
-import * as groupActions from "../../ducks/group";
+import { groupApi } from "../../ducks/group";
 import {
   useDeleteGroupUserMutation,
   useUpdateGroupUserMutation,
@@ -86,7 +86,7 @@ const ManageUserButtons = ({
           "User admin status for this group successfully updated.",
         ),
       );
-      dispatch(groupActions.fetchGroup(loadedId));
+      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
     } catch {
       // error notification handled by the API layer
     }
@@ -106,7 +106,7 @@ const ManageUserButtons = ({
           "User's save access status for this group successfully updated.",
         ),
       );
-      dispatch(groupActions.fetchGroup(loadedId));
+      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
     } catch {
       // error notification handled by the API layer
     }

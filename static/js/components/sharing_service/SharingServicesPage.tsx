@@ -35,7 +35,19 @@ import Button from "../Button";
 import StyledDataGridBase from "../StyledDataGrid";
 import TransferList from "../TransferList";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import * as sharingServicesActions from "../../ducks/sharingServices";
+import {
+  useGetSharingServicesQuery,
+  useAddSharingServiceMutation,
+  useEditSharingServiceMutation,
+  useDeleteSharingServiceMutation,
+  useAddSharingServiceGroupMutation,
+  useEditSharingServiceGroupMutation,
+  useDeleteSharingServiceGroupMutation,
+  useAddSharingServiceGroupAutoPublishersMutation,
+  useDeleteSharingServiceGroupAutoPublishersMutation,
+  useAddSharingServiceCoauthorMutation,
+  useDeleteSharingServiceCoauthorMutation,
+} from "../../ducks/sharingServices";
 import * as streamsActions from "../../ducks/streams";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
@@ -60,6 +72,12 @@ const SharingServiceGroup = ({
   usersLookup,
 }: SharingServiceGroupProps) => {
   const dispatch = useAppDispatch();
+  const [editSharingServiceGroup] = useEditSharingServiceGroupMutation();
+  const [addSharingServiceGroupAutoPublishers] =
+    useAddSharingServiceGroupAutoPublishersMutation();
+  const [deleteSharingServiceGroupAutoPublishers] =
+    useDeleteSharingServiceGroupAutoPublishersMutation();
+  const [deleteSharingServiceGroup] = useDeleteSharingServiceGroupMutation();
   const [open, setOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -143,33 +161,30 @@ const SharingServiceGroup = ({
       autoPublishHermes !== sharingServiceGroup.auto_share_to_hermes ||
       autoPublishAllowBots !== sharingServiceGroup.auto_sharing_allow_bots
     ) {
-      await dispatch(
-        sharingServicesActions.editSharingServiceGroup(
-          sharingServiceGroup.sharing_service_id,
-          sharingServiceGroup.group_id,
-          {
+      try {
+        await editSharingServiceGroup({
+          sharing_service_id: sharingServiceGroup.sharing_service_id,
+          group_id: sharingServiceGroup.group_id,
+          data: {
             owner,
             auto_share_to_tns: autoPublishTns,
             auto_share_to_hermes: autoPublishHermes,
             auto_sharing_allow_bots: autoPublishAllowBots,
           },
-        ),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          dispatch(
-            showNotification(
-              `Successfully updated group ${sharingServiceGroup.group_id}`,
-            ),
-          );
-        } else {
-          dispatch(
-            showNotification(
-              `Failed to update group ${sharingServiceGroup.group_id}`,
-              "error",
-            ),
-          );
-        }
-      });
+        }).unwrap();
+        dispatch(
+          showNotification(
+            `Successfully updated group ${sharingServiceGroup.group_id}`,
+          ),
+        );
+      } catch {
+        dispatch(
+          showNotification(
+            `Failed to update group ${sharingServiceGroup.group_id}`,
+            "error",
+          ),
+        );
+      }
     }
 
     // next we need to update the auto publishers
@@ -188,66 +203,55 @@ const SharingServiceGroup = ({
 
     // ADD
     if (toAdd?.length > 0) {
-      await dispatch(
-        sharingServicesActions.addSharingServiceGroupAutoPublishers(
-          sharingServiceGroup.sharing_service_id,
-          sharingServiceGroup.group_id,
-          toAdd,
-        ),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification(`Successfully added auto publishers`));
-        } else {
-          dispatch(showNotification(`Failed to add auto publishers`, "error"));
-        }
-      });
+      try {
+        await addSharingServiceGroupAutoPublishers({
+          sharing_service_id: sharingServiceGroup.sharing_service_id,
+          group_id: sharingServiceGroup.group_id,
+          user_ids: toAdd,
+        }).unwrap();
+        dispatch(showNotification(`Successfully added auto publishers`));
+      } catch {
+        dispatch(showNotification(`Failed to add auto publishers`, "error"));
+      }
     }
 
     // REMOVE
     if (toRemove?.length > 0) {
-      await dispatch(
-        sharingServicesActions.deleteSharingServiceGroupAutoPublishers(
-          sharingServiceGroup.sharing_service_id,
-          sharingServiceGroup.group_id,
-          toRemove,
-        ),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification(`Successfully removed auto publishers`));
-        } else {
-          dispatch(
-            showNotification(`Failed to remove auto publishers`, "error"),
-          );
-        }
-      });
+      try {
+        await deleteSharingServiceGroupAutoPublishers({
+          sharing_service_id: sharingServiceGroup.sharing_service_id,
+          group_id: sharingServiceGroup.group_id,
+          user_ids: toRemove,
+        }).unwrap();
+        dispatch(showNotification(`Successfully removed auto publishers`));
+      } catch {
+        dispatch(showNotification(`Failed to remove auto publishers`, "error"));
+      }
     }
     setUpdating(false);
     setOpen(false);
   };
 
-  const deleteGroup = () => {
-    dispatch(
-      sharingServicesActions.deleteSharingServiceGroup(
-        sharingServiceGroup.sharing_service_id,
-        sharingServiceGroup.group_id,
-      ),
-    ).then((response: any) => {
-      if (response.status === "success") {
-        dispatch(
-          showNotification(
-            `Group access to sharing service removed successfully`,
-          ),
-        );
-        setOpen(false);
-      } else {
-        dispatch(
-          showNotification(
-            `Failed to remove group access to sharing service`,
-            "error",
-          ),
-        );
-      }
-    });
+  const deleteGroup = async () => {
+    try {
+      await deleteSharingServiceGroup({
+        sharing_service_id: sharingServiceGroup.sharing_service_id,
+        group_id: sharingServiceGroup.group_id,
+      }).unwrap();
+      dispatch(
+        showNotification(
+          `Group access to sharing service removed successfully`,
+        ),
+      );
+      setOpen(false);
+    } catch {
+      dispatch(
+        showNotification(
+          `Failed to remove group access to sharing service`,
+          "error",
+        ),
+      );
+    }
   };
 
   return (
@@ -392,6 +396,7 @@ const NewSharingServiceGroup = ({
   const [group, setGroup] = useState<any>(null);
   const [owner, setOwner] = useState(false);
   const dispatch = useAppDispatch();
+  const [addSharingServiceGroup] = useAddSharingServiceGroupMutation();
   const [loading, setLoading] = useState(false);
 
   const groupOptions = Object.values(groupsLookup).filter(
@@ -401,25 +406,25 @@ const NewSharingServiceGroup = ({
       ),
   );
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     setLoading(true);
-    dispatch(
-      sharingServicesActions.addSharingServiceGroup(sharingService.id, {
-        group_id: group,
-        owner,
-        auto_share_to_tns: false,
-        auto_share_to_hermes: false,
-        auto_sharing_allow_bots: false,
-      }),
-    ).then((response: any) => {
-      if (response.status === "success") {
-        dispatch(showNotification(`Successfully added group`));
-      } else {
-        dispatch(showNotification(`Failed to add group`, "error"));
-      }
-      setLoading(false);
-      setOpen(false);
-    });
+    try {
+      await addSharingServiceGroup({
+        sharing_service_id: sharingService.id,
+        data: {
+          group_id: group,
+          owner,
+          auto_share_to_tns: false,
+          auto_share_to_hermes: false,
+          auto_sharing_allow_bots: false,
+        },
+      }).unwrap();
+      dispatch(showNotification(`Successfully added group`));
+    } catch {
+      dispatch(showNotification(`Failed to add group`, "error"));
+    }
+    setLoading(false);
+    setOpen(false);
   };
 
   return (
@@ -491,23 +496,22 @@ const SharingServiceCoauthor = ({
   usersLookup,
 }: SharingServiceCoauthorProps) => {
   const dispatch = useAppDispatch();
+  const [deleteSharingServiceCoauthor] =
+    useDeleteSharingServiceCoauthorMutation();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const user = usersLookup[sharing_service_coauthor.user_id];
 
-  const deleteCoauthor = () => {
-    dispatch(
-      sharingServicesActions.deleteSharingServiceCoauthor(
+  const deleteCoauthor = async () => {
+    try {
+      await deleteSharingServiceCoauthor({
         sharing_service_id,
-        user.id,
-      ),
-    ).then((response: any) => {
-      if (response.status === "success") {
-        dispatch(showNotification(`Successfully removed user`));
-      } else {
-        dispatch(showNotification(`Failed to remove user`, "error"));
-      }
-      setDeleteOpen(false);
-    });
+        user_id: user.id,
+      }).unwrap();
+      dispatch(showNotification(`Successfully removed user`));
+    } catch {
+      dispatch(showNotification(`Failed to remove user`, "error"));
+    }
+    setDeleteOpen(false);
   };
 
   const label = (
@@ -542,6 +546,7 @@ const NewSharingServiceCoauthor = ({
   usersLookup,
 }: NewSharingServiceCoauthorProps) => {
   const dispatch = useAppDispatch();
+  const [addSharingServiceCoauthor] = useAddSharingServiceCoauthorMutation();
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -553,19 +558,19 @@ const NewSharingServiceCoauthor = ({
       ),
   );
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     setLoading(true);
-    dispatch(
-      sharingServicesActions.addSharingServiceCoauthor(sharingService.id, user),
-    ).then((response: any) => {
-      if (response.status === "success") {
-        dispatch(showNotification(`Successfully added user`));
-      } else {
-        dispatch(showNotification(`Failed to add user`, "error"));
-      }
-      setLoading(false);
-      setOpen(false);
-    });
+    try {
+      await addSharingServiceCoauthor({
+        sharing_service_id: sharingService.id,
+        user_id: user,
+      }).unwrap();
+      dispatch(showNotification(`Successfully added user`));
+    } catch {
+      dispatch(showNotification(`Failed to add user`, "error"));
+    }
+    setLoading(false);
+    setOpen(false);
   };
 
   return (
@@ -640,12 +645,14 @@ const SharingServicesPage = () => {
   const [enablePublishToHermes, setEnablePublishToHermes] = useState(true);
   const [sharingServiceToManage, setSharingServiceToManage] = useState<any>({});
 
+  const [addSharingService] = useAddSharingServiceMutation();
+  const [editSharingService] = useEditSharingServiceMutation();
+  const [deleteSharingServiceMutation] = useDeleteSharingServiceMutation();
+
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const allGroups = useGetGroupsQuery().data?.all ?? [];
   const { users: allUsers } = useAppSelector((state) => state["users"]);
-  const { sharingServicesList } = useAppSelector(
-    (state) => state["sharingServices"],
-  );
+  const { data: sharingServicesList = [] } = useGetSharingServicesQuery();
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const allowedInstrumentsForSharing = useAppSelector(
     (state) => (state as any).config.allowedInstrumentsForSharing,
@@ -660,7 +667,6 @@ const SharingServicesPage = () => {
 
   useEffect(() => {
     dispatch(streamsActions.fetchStreams());
-    dispatch(sharingServicesActions.fetchSharingServices());
   }, [dispatch]);
 
   const sharingServicesListLookup: Record<string, any> = {};
@@ -693,7 +699,7 @@ const SharingServicesPage = () => {
     });
   }
 
-  const submitSharingService = () => {
+  const submitSharingService = async () => {
     const isEdit = Boolean(sharingServiceToManage?.id);
     const {
       name,
@@ -735,45 +741,41 @@ const SharingServicesPage = () => {
       enable_sharing_with_hermes: enablePublishToHermes,
     };
 
-    const submitBot = isEdit
-      ? sharingServicesActions.editSharingService(
-          sharingServiceToManage.id,
+    try {
+      if (isEdit) {
+        await editSharingService({
+          id: sharingServiceToManage.id,
           data,
-        )
-      : sharingServicesActions.addSharingService(data);
-
-    dispatch(submitBot).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(
-          showNotification(
-            `Sharing service ${isEdit ? "edited" : "added"} successfully.`,
-          ),
-        );
-        setManageDialogOpen(false);
-        setSharingServiceToManage({});
+        }).unwrap();
       } else {
-        dispatch(
-          showNotification(
-            `Error ${isEdit ? "editing" : "adding"} sharingService.`,
-            "error",
-          ),
-        );
+        await addSharingService(data).unwrap();
       }
-    });
+      dispatch(
+        showNotification(
+          `Sharing service ${isEdit ? "edited" : "added"} successfully.`,
+        ),
+      );
+      setManageDialogOpen(false);
+      setSharingServiceToManage({});
+    } catch {
+      dispatch(
+        showNotification(
+          `Error ${isEdit ? "editing" : "adding"} sharingService.`,
+          "error",
+        ),
+      );
+    }
   };
 
-  const deleteSharingService = () => {
-    dispatch(
-      sharingServicesActions.deleteSharingService(sharingServiceToManage.id),
-    ).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Sharing service deleted successfully."));
-        setDeleteDialogOpen(false);
-        setSharingServiceToManage({});
-      } else {
-        dispatch(showNotification("Error deleting sharingService.", "error"));
-      }
-    });
+  const deleteSharingService = async () => {
+    try {
+      await deleteSharingServiceMutation(sharingServiceToManage.id).unwrap();
+      dispatch(showNotification("Sharing service deleted successfully."));
+      setDeleteDialogOpen(false);
+      setSharingServiceToManage({});
+    } catch {
+      dispatch(showNotification("Error deleting sharingService.", "error"));
+    }
   };
 
   const validate = (errors: any) => {

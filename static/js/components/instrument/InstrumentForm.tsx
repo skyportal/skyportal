@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
-import { submitInstrument } from "../../ducks/instrument";
-import { modifyInstrument } from "../../ducks/instrument";
+import {
+  useSubmitInstrumentMutation,
+  useModifyInstrumentMutation,
+} from "../../ducks/instrument";
 import { useGetFollowupApisQuery } from "../../ducks/followupApis";
 
 interface InstrumentFormProps {
@@ -20,11 +23,13 @@ const InstrumentForm = ({
   instrumentId = null,
 }: InstrumentFormProps) => {
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: followupApis } = useGetFollowupApisQuery();
   const { enum_types } = useAppSelector((state) => state["enum_types"]);
   const [formData, setFormData] = useState<any>({});
   const dispatch = useAppDispatch();
+  const [submitInstrument] = useSubmitInstrumentMutation();
+  const [modifyInstrument] = useModifyInstrumentMutation();
 
   const handleSubmit = async () => {
     const dataToSubmit: any = { ...formData };
@@ -68,14 +73,19 @@ const InstrumentForm = ({
       delete dataToSubmit.specific_configuration;
     }
 
-    const result: any = await dispatch(
-      instrumentId
-        ? modifyInstrument(instrumentId, dataToSubmit)
-        : submitInstrument(dataToSubmit),
-    );
-    if (result.status === "success") {
+    try {
+      if (instrumentId) {
+        await modifyInstrument({
+          id: instrumentId,
+          params: dataToSubmit,
+        }).unwrap();
+      } else {
+        await submitInstrument(dataToSubmit).unwrap();
+      }
       dispatch(showNotification("Instrument saved"));
       onClose();
+    } catch {
+      // error notification handled by the base query
     }
   };
 

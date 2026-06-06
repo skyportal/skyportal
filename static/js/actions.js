@@ -52,7 +52,7 @@ import * as surveyEfficiencyObservationPlansActions from "./ducks/survey_efficie
 import * as localizationActions from "./ducks/localization";
 import * as shiftsActions from "./ducks/shifts";
 import * as remindersActions from "./ducks/reminders";
-import * as groupActions from "./ducks/group";
+import "./ducks/group";
 import * as instrumentActions from "./ducks/instrument";
 
 // this is used to keep track of what has been hydrated yet or not
@@ -142,7 +142,9 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("telescopes")) {
-        dispatch(telescopesActions.fetchTelescopes()).then(() => {
+        dispatch(
+          telescopesActions.telescopesApi.endpoints.getTelescopes.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("telescopes"));
         });
       }
@@ -166,7 +168,9 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("sharingServices")) {
-        dispatch(sharingServicesActions.fetchSharingServices()).then(() => {
+        dispatch(
+          sharingServicesActions.sharingServicesApi.endpoints.getSharingServices.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("sharingServices"));
         });
       }
@@ -185,7 +189,9 @@ export default function hydrate(
         });
       }
       if (ducks_to_hydrate.includes("observingRuns")) {
-        dispatch(observingRunsActions.fetchObservingRuns()).then(() => {
+        dispatch(
+          observingRunsActions.observingRunsApi.endpoints.getObservingRuns.initiate(),
+        ).then(() => {
           dispatch(hydrationActions.finishedHydrating("observingRuns"));
         });
       }

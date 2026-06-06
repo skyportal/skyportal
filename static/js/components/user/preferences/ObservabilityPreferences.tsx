@@ -1,13 +1,13 @@
 import * as profileActions from "../../../ducks/profile";
 import { useAppDispatch, useAppSelector } from "../../../types/hooks";
+import { useGetTelescopesQuery } from "../../../ducks/telescopes";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import SelectWithChips from "../../SelectWithChips";
 
 const ObservabilityPreferences = () => {
   const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const { telescopeList } = useAppSelector(
-    (state) => state["telescopes"],
-  ) as any;
+  const { data: telescopeListData = [] } = useGetTelescopesQuery();
+  const telescopeList = [...telescopeListData];
 
   const dispatch = useAppDispatch();
 

@@ -11,7 +11,7 @@ import {
   useUpdateAdmissionRequestStatusMutation,
 } from "../../ducks/groupAdmissionRequests";
 import { useAddGroupUserMutation } from "../../ducks/groups";
-import * as groupActions from "../../ducks/group";
+import { groupApi } from "../../ducks/group";
 
 const renderUserInfo = (value: any) => {
   let userInfoString = value.username;
@@ -63,7 +63,7 @@ const GroupAdmissionRequestsManagement = ({
         status: "accepted",
       }).unwrap();
       dispatch(showNotification("Successfully admitted user to group."));
-      dispatch(groupActions.fetchGroup(groupID));
+      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: groupID }]));
     } catch {
       // error notification handled by the base query
     }

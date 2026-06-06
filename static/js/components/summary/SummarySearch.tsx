@@ -8,7 +8,6 @@ import Box from "@mui/material/Box";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import emoji from "emoji-dictionary";
-import { showNotification } from "baselayer/components/Notifications";
 
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -19,11 +18,11 @@ import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import { allowedClasses } from "../classification/ClassificationForm";
 import Button from "../Button";
 
-import * as summaryActions from "../../ducks/summary";
+import { useFetchSummaryQueryMutation } from "../../ducks/summary";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 
 const useStyles = makeStyles()((theme) => ({
@@ -76,7 +75,7 @@ const SummarySearch = () => {
   const summary_sources_classes = useAppSelector(
     (state) => state["config"].summary_sourcesClasses,
   ) as any;
-  const dispatch = useAppDispatch();
+  const [fetchSummaryQuery] = useFetchSummaryQueryMutation();
   const [queryResult, setQueryResult] = useState<any>(null);
   const [runningQuery, setRunningQuery] = useState(false);
   const [formData, setFormData] = useState<any>({});
@@ -96,16 +95,17 @@ const SummarySearch = () => {
   const handleSubmit = () => {
     setRunningQuery(true);
     setQueryResult(null);
-    dispatch(summaryActions.fetchSummaryQuery(formData)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          setQueryResult(response.data);
-        } else {
-          dispatch(showNotification("Error querying summaries", "error"));
-        }
+    fetchSummaryQuery(formData)
+      .unwrap()
+      .then((data: any) => {
+        setQueryResult(data);
+      })
+      .catch(() => {
+        // The base query already surfaces an error notification.
+      })
+      .finally(() => {
         setRunningQuery(false);
-      },
-    );
+      });
   };
 
   const emojiSupport = (textComment: any) =>

@@ -27,7 +27,7 @@ import {
 } from "../SelectWithChips";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import { fetchGroup } from "../../ducks/group";
+import { useGetGroupQuery } from "../../ducks/group";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { fetchInstruments } from "../../ducks/instruments";
 import { postGcnEventSummary } from "../../ducks/gcnEvent";
@@ -146,12 +146,15 @@ interface GcnSummaryProps {
 const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
   const { classes } = useStyles();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
-  const users = useAppSelector((state) => state["group"]?.users);
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
+  const { data: selectedGroupData } = useGetGroupQuery(selectedGroup?.id, {
+    skip: !selectedGroup?.id,
+  });
+  const users = selectedGroupData?.["users"];
   const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
   const [nb, setNb] = useState("");
   const [title, setTitle] = useState("Gcn Summary");
@@ -224,12 +227,6 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
     setEndDate(defaultEndDate);
     setSubject(`Follow-up on GCN Event ${dateobs}`);
   }, [dateobs]);
-
-  useEffect(() => {
-    if (selectedGroup?.id) {
-      dispatch(fetchGroup(selectedGroup?.id));
-    }
-  }, [dispatch, selectedGroup]);
 
   useEffect(() => {
     if (gcnEvent?.localizations?.length > 0) {

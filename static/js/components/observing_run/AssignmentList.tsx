@@ -16,6 +16,7 @@ import ModifyAssignment from "./ModifyAssignment";
 import StyledDataGrid from "../StyledDataGrid";
 import * as Actions from "../../ducks/source";
 import { useGetUsersQuery } from "../../ducks/users";
+import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 
 const useStyles = makeStyles()(() => ({
   assignmentManage: {
@@ -41,9 +42,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
 
   const { data: usersData } = useGetUsersQuery();
   const allUsers = usersData?.users ?? [];
-  const { observingRunList } = useAppSelector(
-    (state) => state["observingRuns"],
-  ) as any;
+  const { data: observingRunList = [] } = useGetObservingRunsQuery();
   const { instrumentList } = useAppSelector(
     (state) => state["instruments"],
   ) as any;
@@ -143,7 +142,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       valueGetter: (_value: any, row: any) => {
         const run = runForRow(row);
         const instrument = instrumentList?.filter(
-          (i: any) => i.id === run?.instrument_id,
+          (i: any) => i.id === run?.["instrument_id"],
         )[0];
         return instrument?.name || "Loading...";
       },
@@ -155,7 +154,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       minWidth: 120,
       sortable: false,
       valueGetter: (_value: any, row: any) =>
-        runForRow(row)?.calendar_date || "Loading...",
+        runForRow(row)?.["calendar_date"] || "Loading...",
     },
     {
       field: "pi",
@@ -164,7 +163,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       minWidth: 120,
       sortable: false,
       valueGetter: (_value: any, row: any) =>
-        runForRow(row)?.pi || "Loading...",
+        runForRow(row)?.["pi"] || "Loading...",
     },
     {
       field: "priority",

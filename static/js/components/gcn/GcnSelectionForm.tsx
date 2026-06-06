@@ -1,4 +1,5 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import React, { Suspense, useEffect, useState } from "react";
 
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -33,7 +34,7 @@ import {
   useGetGalaxyCatalogsQuery,
   useLazyGetGcnEventGalaxiesQuery,
 } from "../../ducks/galaxies";
-import * as instrumentActions from "../../ducks/instrument";
+import { useLazyGetInstrumentSkymapQuery } from "../../ducks/instrument";
 import {
   useLazyGetGcnEventObservationsQuery,
   useSubmitObservationsTreasureMapMutation,
@@ -355,6 +356,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   const theme = useTheme();
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [fetchInstrumentSkymap] = useLazyGetInstrumentSkymapQuery();
   const [selectedLocalizationName, setSelectedLocalizationName] = useState<
     string | null
   >(null);
@@ -440,9 +442,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     endDate: defaultEndDate,
   });
 
-  const { telescopeList } = useAppSelector(
-    (state) => state["telescopes"],
-  ) as any;
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { instrumentList } = useAppSelector(
     (state) => state["instruments"],
   ) as any;
@@ -638,12 +638,13 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
 
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
-      dispatch(
-        instrumentActions.fetchInstrumentSkymap(
-          instLookUp[selectedInstrumentId]?.id,
-          locLookUp[selectedLocalizationId],
-        ),
-      ).then((response: any) => setSkymapInstrument(response.data));
+      fetchInstrumentSkymap({
+        id: instLookUp[selectedInstrumentId]?.id,
+        localization: locLookUp[selectedLocalizationId],
+      })
+        .unwrap()
+        .then((response: any) => setSkymapInstrument(response))
+        .catch(() => {});
     };
     if (
       instLookUp[selectedInstrumentId] &&

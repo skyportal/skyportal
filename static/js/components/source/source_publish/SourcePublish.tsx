@@ -7,8 +7,8 @@ import DialogContent from "@mui/material/DialogContent";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as publicSourcePageActions from "../../../ducks/public_pages/public_source_page";
+import { useAppSelector } from "../../../types/hooks";
+import { useGeneratePublicSourcePageMutation } from "../../../ducks/public_pages/public_source_page";
 import Button from "../../Button";
 import SourcePublishOptions from "./SourcePublishOptions";
 import SourcePublishHistory from "./SourcePublishHistory";
@@ -43,8 +43,8 @@ interface SourcePublishProps {
 }
 
 const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
-  const dispatch = useAppDispatch();
   const { classes: styles } = useStyles();
+  const [generatePublicSourcePage] = useGeneratePublicSourcePageMutation();
   const currentUser = useAppSelector((state) => state.profile);
   const manageSourcesAccess =
     currentUser.permissions?.includes("Manage sources");
@@ -75,26 +75,24 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
     groups: [],
     streams: [],
   });
-  const versions = useAppSelector((state) => state["publicSourceVersions"]);
-
-  const publish = () => {
+  const publish = async () => {
     if (manageSourcesAccess) {
       setPublishButton({ text: "loading", color: "" });
-      dispatch(
-        publicSourcePageActions.generatePublicSourcePage(sourceId, {
-          options,
-          release_id: sourceReleaseId,
-        }),
-      ).then((data: any) => {
-        if (data.status === "error") {
-          setPublishButton({ text: "Error", color: "red" });
-        } else {
-          setPublishButton({ text: "Done", color: "green" });
-        }
-        setTimeout(() => {
-          setPublishButton({ text: "Publish", color: "" });
-        }, 2000);
-      });
+      try {
+        await generatePublicSourcePage({
+          sourceId,
+          payload: {
+            options,
+            release_id: sourceReleaseId,
+          },
+        }).unwrap();
+        setPublishButton({ text: "Done", color: "green" });
+      } catch {
+        setPublishButton({ text: "Error", color: "red" });
+      }
+      setTimeout(() => {
+        setPublishButton({ text: "Publish", color: "" });
+      }, 2000);
     }
   };
 
@@ -211,7 +209,7 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
               {sourcePublishHistoryOpen ? <ExpandLess /> : <ExpandMore />}
             </Button>
             {sourcePublishHistoryOpen && (
-              <SourcePublishHistory sourceId={sourceId} versions={versions} />
+              <SourcePublishHistory sourceId={sourceId} />
             )}
           </div>
         </DialogContent>

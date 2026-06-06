@@ -3,8 +3,8 @@ import React, { Suspense, useEffect, useMemo, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Switch from "@mui/material/Switch";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as photometryMinimalActions from "../../ducks/photometry_minimal";
+import { useAppSelector } from "../../types/hooks";
+import { useGetSourcePhotometryMinimalQuery } from "../../ducks/photometry_minimal";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
@@ -98,10 +98,7 @@ interface VegaPhotometryProps {
 
 const VegaPhotometry = (props: VegaPhotometryProps) => {
   const { sourceId, annotations = [], folded = false, style = {} } = props;
-  const dispatch = useAppDispatch();
-  const photometry = useAppSelector(
-    (state) => (state as any).photometry_minimal[sourceId],
-  );
+  const { data: photometry } = useGetSourcePhotometryMinimalQuery(sourceId);
   const config = useAppSelector((state) => state["config"]);
   const [filters, setFilters] = useState<string[] | null>(null);
   const [wavelengths, setWavelengths] = useState<string[] | null>(null);
@@ -112,7 +109,7 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
   const [showMatches, setShowMatches] = useState(true);
   const [hasMatches, setHasMatches] = useState(false);
   const photDisplayData = useMemo(() => {
-    if (photometry === null || photometry === undefined) {
+    if (photometry == null) {
       return null;
     }
     return photometry.filter((datum: any) => {
@@ -143,44 +140,36 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
   }, [annotations, folded]);
 
   useEffect(() => {
-    async function fetchPhotometry() {
-      if (photometry === null || photometry === undefined) {
-        await dispatch(
-          photometryMinimalActions.fetchSourcePhotometryMinimal(sourceId),
-        );
-        return;
-      }
-      if (
-        filters === null &&
-        wavelengths === null &&
-        (config as any)?.bandpassesColors
-      ) {
-        const filter2color = (config as any)?.bandpassesColors || {};
-        const newFilters = [
-          ...new Set<string>(photometry.map((datum: any) => datum.filter)),
-        ];
-        const newWavelengths: any[] = newFilters.map(
-          (filter) => filter2color[filter] || [0, 0, 0],
-        );
-        newWavelengths.forEach((color, i) => {
-          newWavelengths[i] = `#${color
-            .map((c: number) => c.toString(16).padStart(2, "0"))
-            .join("")}`;
-        });
-        setFilters(newFilters);
-        setWavelengths(newWavelengths);
-        setHasForcedPhotometry(
-          photometry.some((datum: any) =>
-            ["fp", "alert_fp"].includes(datum.origin),
-          ),
-        );
-        setHasMatches(
-          photometry.some((datum: any) => datum.obj_id !== sourceId),
-        );
-      }
+    if (photometry == null) {
+      return;
     }
-    fetchPhotometry();
-  }, [sourceId, photometry, config, dispatch]);
+    if (
+      filters === null &&
+      wavelengths === null &&
+      (config as any)?.bandpassesColors
+    ) {
+      const filter2color = (config as any)?.bandpassesColors || {};
+      const newFilters = [
+        ...new Set<string>(photometry.map((datum: any) => datum.filter)),
+      ];
+      const newWavelengths: any[] = newFilters.map(
+        (filter) => filter2color[filter] || [0, 0, 0],
+      );
+      newWavelengths.forEach((color, i) => {
+        newWavelengths[i] = `#${color
+          .map((c: number) => c.toString(16).padStart(2, "0"))
+          .join("")}`;
+      });
+      setFilters(newFilters);
+      setWavelengths(newWavelengths);
+      setHasForcedPhotometry(
+        photometry.some((datum: any) =>
+          ["fp", "alert_fp"].includes(datum.origin),
+        ),
+      );
+      setHasMatches(photometry.some((datum: any) => datum.obj_id !== sourceId));
+    }
+  }, [sourceId, photometry, config, filters, wavelengths]);
 
   if (folded && !period) return "No period found.";
 

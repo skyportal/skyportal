@@ -13,6 +13,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import FollowupRequestListsBase from "./FollowupRequestLists";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
@@ -64,7 +65,7 @@ const FollowupRequestLists = FollowupRequestListsBase as any;
 const defaultNumPerPage = 10;
 
 const FollowupRequestPage = () => {
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
   ) as any;

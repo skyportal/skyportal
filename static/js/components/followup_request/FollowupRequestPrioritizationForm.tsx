@@ -8,6 +8,7 @@ import MenuItem from "@mui/material/MenuItem";
 import CircularProgress from "@mui/material/CircularProgress";
 import { makeStyles } from "tss-react/mui";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
   useGetFollowupRequestsQuery,
   usePrioritizeFollowupRequestsMutation,
@@ -38,7 +39,7 @@ const FollowupRequestPrioritizationForm = ({
   const dispatch = useAppDispatch();
   const gcnEvents = useAppSelector((state) => state["gcnEvents"]) as any;
 
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
   ) as any;

@@ -79,11 +79,14 @@ const ClassificationList = () => {
   const source = useAppSelector((state: any) => state.source);
   const obj = source;
   const userProfile = useAppSelector((state) => state.profile);
-  const groupUsers = useAppSelector((state: any) => state.group?.group_users);
+  // `state.group` (the ambient single-group slice) was removed during the RTK
+  // Query migration; this component never fetched a group, so `groupUsers` was
+  // only populated incidentally. Preserve the prior (commonly empty) behaviour.
+  const groupUsers: any[] | undefined = undefined;
   const classifications_classes = useAppSelector(
     (state: any) => state.config.classificationsClasses,
   );
-  const currentGroupUser = groupUsers?.filter(
+  const currentGroupUser = (groupUsers as any[] | undefined)?.filter(
     (groupUser: any) => groupUser.user_id === userProfile.id,
   )[0];
   // const acls = useAppSelector((state) => state.profile.acls);

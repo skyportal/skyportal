@@ -1,4 +1,5 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { Controller, useForm } from "react-hook-form";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -77,7 +78,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
   const { classes } = useStyles();
 
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? [];
 
   const { handleSubmit, getValues, reset, register, control } = useForm();

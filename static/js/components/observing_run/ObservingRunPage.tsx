@@ -20,7 +20,9 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import duration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
-import * as observingRunActions from "../../ducks/observingRun";
+import { useDeleteObservingRunMutation } from "../../ducks/observingRun";
+import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Button from "../Button";
@@ -73,8 +75,9 @@ const ObservingRunList = ({
 }: ObservingRunListProps) => {
   const dispatch = useAppDispatch();
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? [];
+  const [deleteObservingRunMutation] = useDeleteObservingRunMutation();
   const [observingRunToEdit, setObservingRunToEdit] = useState<number | null>(
     null,
   );
@@ -105,18 +108,17 @@ const ObservingRunList = ({
     observingRunsToShow = [...observingRuns];
   }
 
-  const deleteObservingRun = () => {
+  const deleteObservingRun = async () => {
     if (observingRunToDelete === null) {
       return;
     }
-    dispatch(observingRunActions.deleteObservingRun(observingRunToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Observing run deleted"));
-          setObservingRunToDelete(null);
-        }
-      },
-    );
+    try {
+      await deleteObservingRunMutation(observingRunToDelete).unwrap();
+      dispatch(showNotification("Observing run deleted"));
+      setObservingRunToDelete(null);
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   return (
@@ -205,9 +207,7 @@ const ObservingRunList = ({
 };
 
 const ObservingRunPage = () => {
-  const { observingRunList } = useAppSelector(
-    (state) => state["observingRuns"],
-  );
+  const { data: observingRunList = [] } = useGetObservingRunsQuery();
   const currentUser = useAppSelector((state) => state.profile);
 
   const managePermission =

@@ -34,8 +34,12 @@ import { allocationTitle } from "./AllocationPage";
 import withRouter from "../withRouter";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import * as SourceAction from "../../ducks/source";
-import * as Action from "../../ducks/allocation";
+import {
+  useGetAllocationQuery,
+  useEditFollowupRequestCommentMutation,
+} from "../../ducks/allocation";
 import * as ObservationPlansAction from "../../ducks/observationPlans";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
@@ -175,13 +179,8 @@ const AllocationSummary = ({ route }: AllocationSummaryProps) => {
   const { instrumentList } = useAppSelector(
     (state) => (state as any).instruments,
   );
-  const { telescopeList } = useAppSelector(
-    (state) => (state as any).telescopes,
-  );
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? null;
-  const { allocation, totalMatches: totalMatchesAllocations } = useAppSelector(
-    (state) => (state as any).allocation,
-  );
   const {
     observation_plan_requests,
     totalMatches: totalMatchesObservationPlans,
@@ -194,6 +193,13 @@ const AllocationSummary = ({ route }: AllocationSummaryProps) => {
     sortOrder: "desc",
   });
 
+  const { data: allocationData } = useGetAllocationQuery({
+    id: route.id,
+    params: fetchAllocationParams,
+  });
+  const allocation = allocationData?.allocation;
+  const totalMatchesAllocations = allocationData?.totalMatches ?? 0;
+
   const [fetchObservationPlansParams, setFetchObservationPlansParams] =
     useState<any>({
       pageNumber: 1,
@@ -201,11 +207,6 @@ const AllocationSummary = ({ route }: AllocationSummaryProps) => {
       sortBy: "created_at",
       sortOrder: "desc",
     });
-
-  // Load the allocation and its follow-up requests if needed
-  useEffect(() => {
-    dispatch(Action.fetchAllocation(route.id, fetchAllocationParams));
-  }, [route.id, dispatch]);
 
   // Load the allocation and its observation plans if needed
   useEffect(() => {
@@ -221,7 +222,7 @@ const AllocationSummary = ({ route }: AllocationSummaryProps) => {
     !(
       allocation &&
       "id" in allocation &&
-      allocation.id === parseInt(route.id, 10)
+      allocation["id"] === parseInt(route.id, 10)
     )
   ) {
     // Don't need to do this for assignments -- we can just let the page be blank for a short time
@@ -414,23 +415,22 @@ const AllocationSummaryTable = ({
   fetchParams,
   setFetchParams,
 }: AllocationSummaryTableProps) => {
-  const dispatch = useAppDispatch();
   const { classes: styles } = useStyles();
+  const [editFollowupRequestComment] = useEditFollowupRequestCommentMutation();
   const { requests } = allocation;
 
   const [dialogOpen, setDialogOpen] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [commentContent, setCommentContent] = useState("");
 
-  const handlePageChange = async (page: number, numPerPage: number) => {
+  const handlePageChange = (page: number, numPerPage: number) => {
     const params = {
       ...fetchParams,
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future
+    // Save state for future; the query refetches when params change.
     setFetchParams(params);
-    await dispatch(Action.fetchAllocation(allocation.id, params));
   };
 
   const handlePaginationModelChange = (model: any) => {
@@ -458,7 +458,14 @@ const AllocationSummaryTable = ({
     const json = {
       comment: commentContent,
     };
-    dispatch(Action.editFollowupRequestComment(json, dialogOpen));
+    try {
+      await editFollowupRequestComment({
+        id: dialogOpen,
+        params: json,
+      }).unwrap();
+    } catch {
+      // error notification handled by the baseQuery
+    }
     setDialogOpen(null);
     setIsSubmitting(false);
   };

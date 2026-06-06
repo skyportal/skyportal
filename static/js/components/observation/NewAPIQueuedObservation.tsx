@@ -7,6 +7,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import * as queuedObservationActions from "../../ducks/queued_observations";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 
@@ -20,7 +21,7 @@ const NewAPIQueuedObservation = ({
   onClose = null,
 }: NewAPIQueuedObservationProps) => {
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiObsplan = [] } =
     useGetAllocationsApiObsplanQuery({
       apiImplements: "queued",

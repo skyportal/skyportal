@@ -7,6 +7,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useRequestAPIObservationsMutation } from "../../ducks/observations";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 
@@ -18,7 +19,7 @@ interface NewAPIObservationProps {
 
 const NewAPIObservation = ({ onClose = null }: NewAPIObservationProps) => {
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiObsplan = [] } =
     useGetAllocationsApiObsplanQuery({
       apiImplements: "retrieve",

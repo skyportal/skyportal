@@ -15,6 +15,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
   useGetFollowupRequestsQuery,
   downloadFollowupSchedule,
@@ -67,7 +68,7 @@ const FollowupRequestSelectionForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { instrumentList, instrumentFormParams } = useAppSelector(
     (state) => state["instruments"],
   );
@@ -318,7 +319,7 @@ const FollowupRequestSelectionForm = ({
                     telescopeList.find(
                       (telescope: any) =>
                         telescope.id === instrument.telescope_id,
-                    )?.name
+                    )?.["name"]
                   } / ${instrument.name}`,
                 })),
                 title: "Instrument",

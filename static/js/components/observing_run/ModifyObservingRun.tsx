@@ -8,8 +8,9 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { modifyObservingRun } from "../../ducks/observingRun";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useModifyObservingRunMutation } from "../../ducks/observingRun";
+import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
+import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(utc);
 
@@ -22,21 +23,20 @@ const ModifyObservingRun = ({
   run_id,
   onClose = null,
 }: ModifyObservingRunProps) => {
-  const { observingRunList } = useAppSelector(
-    (state) => state["observingRuns"],
-  );
+  const { data: observingRunList = [] } = useGetObservingRunsQuery();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const dispatch = useAppDispatch();
+  const [modifyObservingRun] = useModifyObservingRunMutation();
 
   const formData = useMemo(() => {
     const run = observingRunList.find((r: any) => r?.id === run_id);
     if (!run) return null;
     return {
-      pi: run.pi,
-      calendar_date: dayjs(`${run.run_end_utc}Z`).utc().format("YYYY-MM-DD"),
-      duration: run.duration,
-      observers: run.observers,
-      group_id: run.group_id ?? -1,
+      pi: run["pi"],
+      calendar_date: dayjs(`${run["run_end_utc"]}Z`).utc().format("YYYY-MM-DD"),
+      duration: run["duration"],
+      observers: run["observers"],
+      group_id: run["group_id"] ?? -1,
     };
   }, [run_id, observingRunList]);
 
@@ -47,10 +47,12 @@ const ModifyObservingRun = ({
     if (payload.group_id === -1) {
       delete payload.group_id;
     }
-    const result: any = await dispatch(modifyObservingRun(run_id, payload));
-    if (result.status === "success") {
+    try {
+      await modifyObservingRun({ id: run_id, run: payload }).unwrap();
       dispatch(showNotification("Observing run updated"));
       if (onClose) onClose();
+    } catch {
+      // error notification handled by the base query
     }
   };
 

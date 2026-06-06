@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { withStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -18,6 +18,7 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { skipToken } from "@reduxjs/toolkit/query";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppSelector, useAppDispatch } from "../types/hooks";
@@ -25,7 +26,11 @@ import Button from "./Button";
 import StyledDataGrid from "./StyledDataGrid";
 import QuickFilter from "./QuickFilter";
 
-import * as Actions from "../ducks/reminders";
+import {
+  useGetRemindersQuery,
+  useSubmitReminderMutation,
+  useDeleteReminderMutation,
+} from "../ducks/reminders";
 
 dayjs.extend(utc);
 
@@ -70,25 +75,27 @@ const NewReminder = ({
   handleClose,
 }: NewReminderProps) => {
   const dispatch = useAppDispatch();
+  const [submitReminder] = useSubmitReminderMutation();
   const defaultDate = dayjs()
     .add(1, "day")
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
 
-  const handleSubmit = ({ formData }: { formData: any }) => {
+  const handleSubmit = async ({ formData }: { formData: any }) => {
     formData.next_reminder = formData.next_reminder
       .replace("+00:00", "")
       .replace(".000Z", "");
-    dispatch(Actions.submitReminder(resourceId, resourceType, formData)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Reminder created"));
-          handleClose();
-        } else {
-          dispatch(showNotification("Error creating reminder", "error"));
-        }
-      },
-    );
+    try {
+      await submitReminder({
+        resourceId,
+        resourceType,
+        data: formData,
+      }).unwrap();
+      dispatch(showNotification("Reminder created"));
+      handleClose();
+    } catch {
+      dispatch(showNotification("Error creating reminder", "error"));
+    }
   };
 
   function validate(formData: any, errors: any) {
@@ -162,27 +169,18 @@ interface RemindersProps {
 const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
+  const [deleteReminderMutation] = useDeleteReminderMutation();
   // for now, we'll just show the reminders of the current user.
   // in the future, we'll want to show all reminders for the resource
   // show the users in the reminders list (datatable)
   // and allow to choose users to add to the reminders to in the NewReminder dialog
   const currentUser = useAppSelector((state) => state.profile);
-  const reminders = useAppSelector((state) => (state as any).reminders);
-  const remindersList = reminders.remindersList.filter(
+  const { data: reminders } = useGetRemindersQuery(
+    resourceId && resourceType ? { resourceId, resourceType } : skipToken,
+  );
+  const remindersList = (reminders ?? []).filter(
     (r: any) => r.user_id === currentUser.id,
   );
-
-  useEffect(() => {
-    if (
-      resourceId &&
-      resourceType &&
-      (!reminders?.remindersList?.length ||
-        resourceId !== reminders.resourceId ||
-        resourceType !== reminders.resourceType)
-    ) {
-      dispatch(Actions.fetchReminders(resourceId, resourceType));
-    }
-  }, [resourceType, resourceId]);
 
   // Memoized so the toolbar (the "new reminder" button and quick-filter search
   // box) keeps a stable identity across the re-render that happens when the
@@ -211,24 +209,19 @@ const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
   );
 
   if (!resourceType || !resourceId) return <CircularProgress />;
-  if (
-    !reminders ||
-    reminders.resourceType !== resourceType ||
-    reminders.resourceId !== resourceId
-  )
-    return null;
+  if (reminders == null) return null;
 
-  const deleteReminder = (reminderId: any) => {
-    dispatch(Actions.deleteReminder(resourceId, resourceType, reminderId)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Reminder deleted"));
-          dispatch(Actions.fetchReminders(resourceId, resourceType));
-        } else {
-          dispatch(showNotification("Error deleting reminder", "error"));
-        }
-      },
-    );
+  const deleteReminder = async (reminderId: any) => {
+    try {
+      await deleteReminderMutation({
+        resourceId,
+        resourceType,
+        reminderID: reminderId,
+      }).unwrap();
+      dispatch(showNotification("Reminder deleted"));
+    } catch {
+      dispatch(showNotification("Error deleting reminder", "error"));
+    }
   };
 
   const columns: any[] = [

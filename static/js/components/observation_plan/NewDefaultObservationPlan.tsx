@@ -1,6 +1,7 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -66,7 +67,7 @@ const NewDefaultObservationPlan = ({
   const [selectedPlanProperties, setSelectedPlanProperties] = useState<any[]>(
     [],
   );
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiObsplan = [] } =
     useGetAllocationsApiObsplanQuery();
   const allGroups = useGetGroupsQuery().data?.all ?? null;

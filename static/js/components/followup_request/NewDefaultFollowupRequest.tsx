@@ -10,6 +10,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { makeStyles } from "tss-react/mui";
 import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import * as instrumentsActions from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
@@ -41,7 +42,7 @@ const NewDefaultFollowupRequest = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const { telescopeList } = useAppSelector((state: any) => state.telescopes);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiClassname = [] } =
     useGetAllocationsApiClassnameQuery();
 

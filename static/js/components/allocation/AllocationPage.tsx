@@ -9,6 +9,7 @@ import { useAppSelector } from "../../types/hooks";
 import { useGetDefaultSurveyEfficienciesQuery } from "../../ducks/default_survey_efficiencies";
 import { useGetDefaultObservationPlansQuery } from "../../ducks/default_observation_plans";
 import { useGetAllocationsQuery } from "../../ducks/allocations";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import Spinner from "../Spinner";
 import AllocationTableComponent from "./AllocationTable";
 import DefaultObservationPlanTableComponent from "../observation_plan/DefaultObservationPlanTable";
@@ -42,7 +43,7 @@ interface AllocationListProps {
 
 const AllocationList = ({ managePermission = false }: AllocationListProps) => {
   const instrumentsState = useAppSelector((state) => state["instruments"]);
-  const telescopesState = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? null;
   const [rowsPerPage, setRowsPerPage] = useState(100);
   const [allocationQueryParams, setAllocationQueryParams] =
@@ -87,7 +88,7 @@ const AllocationList = ({ managePermission = false }: AllocationListProps) => {
   return (
     <AllocationTable
       instruments={instrumentsState.instrumentList}
-      telescopes={telescopesState.telescopeList}
+      telescopes={telescopeList}
       groups={groups}
       allocations={allocationList}
       paginateCallback={handleAllocationTablePagination}
@@ -107,7 +108,7 @@ const AllocationPage = () => {
   const { data: defaultSurveyEfficiencyList } =
     useGetDefaultSurveyEfficienciesQuery();
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const currentUser = useAppSelector((state) => state.profile);
 
   const [, setRowsPerPage] = useState(100);

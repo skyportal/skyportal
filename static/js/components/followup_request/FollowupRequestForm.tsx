@@ -21,6 +21,7 @@ import Chip from "@mui/material/Chip";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import * as instrumentsActions from "../../ducks/instruments";
 import * as sourceActions from "../../ducks/source";
@@ -63,7 +64,7 @@ const FollowupRequestForm = ({
 }: FollowupRequestFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiClassname = [] } =
     useGetAllocationsApiClassnameQuery();
   const allGroups = useGetGroupsQuery().data?.all ?? null;

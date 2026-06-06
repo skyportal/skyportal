@@ -16,6 +16,7 @@ import Button from "../Button";
 
 import * as profileActions from "../../ducks/profile";
 import { useGetWeatherQuery } from "../../ducks/weather";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(relativeTime);
@@ -156,10 +157,8 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
   const userPrefs = useAppSelector(
     (state: any) => state.profile.preferences.weather,
   );
-  const telescopeList = useAppSelector(
-    (state: any) => state.telescopes.telescopeList,
-  );
-  telescopeList.sort((a: any, b: any) => {
+  const { data: telescopeListData = [] } = useGetTelescopesQuery();
+  const telescopeList = [...telescopeListData].sort((a: any, b: any) => {
     const nameA = a.name.toUpperCase();
     const nameB = b.name.toUpperCase();
     if (nameA < nameB) {

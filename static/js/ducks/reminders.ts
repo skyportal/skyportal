@@ -1,153 +1,112 @@
-import messageHandler from "baselayer/MessageHandler";
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch, RootState } from "../types/store";
+/**
+ * Reminders for a given resource (source, gcn_event, spectra, shift).
+ *
+ * RTK Query conversion of the old `FETCH_REMINDERS` duck. The query is keyed on
+ * the `(resourceType, resourceId)` pair and provides a `Reminder` tag scoped to
+ * that pair (`id: "${resourceType}-${resourceId}"`) so a websocket REFRESH only
+ * refetches the reminders for the matching resource. The mutations
+ * (submit/update/delete) invalidate that same scoped tag.
+ *
+ * The old websocket handlers gated a refetch on the currently-loaded resource
+ * matching the pushed id, for each resource type. Those are bridged to scoped
+ * cache invalidation via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-const FETCH_REMINDERS = "skyportal/FETCH_REMINDERS";
-const FETCH_REMINDERS_OK = "skyportal/FETCH_REMINDERS_OK";
+interface Reminder {
+  id: number;
+  user_id: number;
+  text: string;
+  next_reminder: string;
+  number_of_reminders: number;
+  reminder_delay: number;
+  [key: string]: unknown;
+}
 
-const SUBMIT_REMINDER = "skyportal/SUBMIT_REMINDER";
+interface RemindersArg {
+  resourceId: number | string;
+  resourceType: string;
+}
 
-const DELETE_REMINDER = "skyportal/DELETE_REMINDER";
+interface SubmitReminderArg extends RemindersArg {
+  data: Record<string, unknown>;
+}
 
-const UPDATE_REMINDER = "skyportal/UPDATE_REMINDER";
+interface UpdateReminderArg extends RemindersArg {
+  reminderID: number | string;
+  data: Record<string, unknown>;
+}
 
-export function fetchReminders(
-  resourceId: number | string,
-  resourceType: string,
-) {
-  return API.GET(
-    `/api/${resourceType}/${resourceId}/reminders`,
-    FETCH_REMINDERS,
+interface DeleteReminderArg extends RemindersArg {
+  reminderID: number | string;
+}
+
+const reminderTag = (resourceType: string, resourceId: number | string) => ({
+  type: "Reminder" as const,
+  id: `${resourceType}-${resourceId}`,
+});
+
+export const remindersApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getReminders: build.query<Reminder[], RemindersArg>({
+      query: ({ resourceId, resourceType }) =>
+        `api/${resourceType}/${resourceId}/reminders`,
+      transformResponse: (data: { reminders?: Reminder[] }) =>
+        data?.reminders ?? [],
+      providesTags: (_result, _error, { resourceId, resourceType }) => [
+        reminderTag(resourceType, resourceId),
+      ],
+    }),
+    submitReminder: build.mutation<unknown, SubmitReminderArg>({
+      query: ({ resourceId, resourceType, data }) => ({
+        url: `api/${resourceType}/${resourceId}/reminders`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: (_result, _error, { resourceId, resourceType }) => [
+        reminderTag(resourceType, resourceId),
+      ],
+    }),
+    updateReminder: build.mutation<unknown, UpdateReminderArg>({
+      query: ({ resourceId, resourceType, reminderID, data }) => ({
+        url: `api/${resourceType}/${resourceId}/reminders/${reminderID}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: (_result, _error, { resourceId, resourceType }) => [
+        reminderTag(resourceType, resourceId),
+      ],
+    }),
+    deleteReminder: build.mutation<unknown, DeleteReminderArg>({
+      query: ({ resourceId, resourceType, reminderID }) => ({
+        url: `api/${resourceType}/${resourceId}/reminders/${reminderID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _error, { resourceId, resourceType }) => [
+        reminderTag(resourceType, resourceId),
+      ],
+    }),
+  }),
+});
+
+// Websocket-driven invalidation. The old handlers refreshed the reminders for
+// the currently-loaded resource when a REFRESH for the matching id + type
+// arrived; here we invalidate the scoped tag so only that active query refetches.
+const registerReminderRefresh = (actionType: string, resourceType: string) => {
+  invalidateOnMessage(actionType, (payload) =>
+    payload?.id != null ? [reminderTag(resourceType, payload.id)] : null,
   );
-}
-
-export function submitReminder(
-  resourceId: number | string,
-  resourceType: string,
-  data: any,
-) {
-  return API.POST(
-    `/api/${resourceType}/${resourceId}/reminders`,
-    SUBMIT_REMINDER,
-    data,
-  );
-}
-
-export function updateReminder(
-  resourceId: number | string,
-  resourceType: string,
-  reminderID: number | string,
-  data: any,
-) {
-  return API.PATCH(
-    `/api/${resourceType}/${resourceId}/reminders/${reminderID}`,
-    UPDATE_REMINDER,
-    data,
-  );
-}
-
-export function deleteReminder(
-  resourceId: number | string,
-  resourceType: string,
-  reminderID: number | string,
-) {
-  return API.DELETE(
-    `/api/${resourceType}/${resourceId}/reminders/${reminderID}`,
-    DELETE_REMINDER,
-  );
-}
-
-// Websocket message handler
-messageHandler.add(
-  (
-    actionType: string,
-    payload: any,
-    dispatch: AppDispatch,
-    getState: () => RootState,
-  ) => {
-    const { reminders } = getState();
-    switch (actionType) {
-      case "skyportal/REFRESH_REMINDER_SOURCE": {
-        if (
-          reminders.resourceId === payload.id &&
-          reminders.resourceType === "source"
-        ) {
-          dispatch(
-            fetchReminders(reminders.resourceId, reminders.resourceType),
-          );
-        }
-        break;
-      }
-      case "skyportal/REFRESH_REMINDER_GCNEVENT": {
-        if (
-          reminders.resourceId === payload.id &&
-          reminders.resourceType === "gcn_event"
-        ) {
-          dispatch(
-            fetchReminders(reminders.resourceId, reminders.resourceType),
-          );
-        }
-        break;
-      }
-      case "skyportal/REFRESH_REMINDER_SOURCE_SPECTRA": {
-        if (
-          reminders.resourceId === payload.id &&
-          reminders.resourceType === "spectra"
-        ) {
-          dispatch(
-            fetchReminders(reminders.resourceId, reminders.resourceType),
-          );
-        }
-        break;
-      }
-      case "skyportal/REFRESH_REMINDER_SHIFT": {
-        if (
-          reminders.resourceId === payload.id &&
-          reminders.resourceType === "shift"
-        ) {
-          dispatch(
-            fetchReminders(reminders.resourceId, reminders.resourceType),
-          );
-        }
-        break;
-      }
-      default: {
-        // do nothing
-        break;
-      }
-    }
-  },
-);
-
-type RemindersState = Record<string, any>;
-
-interface RemindersAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-const reducer = (
-  state: RemindersState = {
-    resourceId: null,
-    resourceType: null,
-    remindersList: [],
-  },
-  action: RemindersAction,
-): RemindersState => {
-  switch (action.type) {
-    case FETCH_REMINDERS_OK: {
-      const { resourceId, resourceType, reminders } = action.data;
-      return {
-        resourceId,
-        resourceType,
-        remindersList: reminders,
-      };
-    }
-    default:
-      return state;
-  }
 };
 
-store.injectReducer("reminders", reducer);
+registerReminderRefresh("skyportal/REFRESH_REMINDER_SOURCE", "source");
+registerReminderRefresh("skyportal/REFRESH_REMINDER_GCNEVENT", "gcn_event");
+registerReminderRefresh("skyportal/REFRESH_REMINDER_SOURCE_SPECTRA", "spectra");
+registerReminderRefresh("skyportal/REFRESH_REMINDER_SHIFT", "shift");
+
+export const {
+  useGetRemindersQuery,
+  useSubmitReminderMutation,
+  useUpdateReminderMutation,
+  useDeleteReminderMutation,
+} = remindersApi;

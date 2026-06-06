@@ -13,6 +13,7 @@ import Button from "../Button";
 import FindGcnEvents from "../gcn/FindGcnEvents";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import * as skymapTriggerActions from "../../ducks/skymap_triggers";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 
@@ -50,7 +51,7 @@ const SkymapTriggerAPIDisplay = () => {
     useState<any>(null);
 
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiObsplan = [] } =
     useGetAllocationsApiObsplanQuery({
       apiImplements: "send_skymap",

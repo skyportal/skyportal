@@ -4,6 +4,7 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { makeStyles } from "tss-react/mui";
 import { useAppDispatch, useAppSelector } from "../../../types/hooks";
+import { useGetTelescopesQuery } from "../../../ducks/telescopes";
 import { useGetAllocationsApiClassnameQuery } from "../../../ducks/allocations";
 import * as profileActions from "../../../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
@@ -18,7 +19,7 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const FollowupRequestPreferences = () => {
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiClassname = [] } =
     useGetAllocationsApiClassnameQuery();
   const allGroups = useGetGroupsQuery().data?.all ?? null;

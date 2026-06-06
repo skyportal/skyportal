@@ -22,7 +22,7 @@ import GroupUsers from "./GroupUsers";
 import GroupFiltersStreams from "./GroupFiltersStreams";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as groupActions from "../../ducks/group";
+import { useGetGroupQuery } from "../../ducks/group";
 import { useDeleteGroupMutation } from "../../ducks/groups";
 import * as streamsActions from "../../ducks/streams";
 
@@ -92,22 +92,16 @@ const Group = () => {
 
   const { id } = useParams();
 
-  const group = useAppSelector((state) => (state as any).group);
+  const { data: group, error: groupError } = useGetGroupQuery(id as string, {
+    skip: !id,
+  });
   const currentUser = useAppSelector((state) => (state as any).profile);
-  const [dataFetched, setDataFetched] = useState(false);
 
   useEffect(() => {
-    const fetchGroup = async () => {
-      const result: any = await dispatch(groupActions.fetchGroup(id as string));
-      if (result.status === "error") {
-        setGroupLoadError(result.message);
-      }
-    };
-    if (!dataFetched) {
-      fetchGroup();
-      setDataFetched(true);
+    if (groupError) {
+      setGroupLoadError((groupError as any)?.error ?? "Failed to load group");
     }
-  }, [id, group, dataFetched, dispatch]);
+  }, [groupError]);
 
   useEffect(() => {
     const fetchStreams = async () => {
@@ -121,7 +115,7 @@ const Group = () => {
 
   const handleDeleteGroup = async () => {
     try {
-      await deleteGroup(group.id).unwrap();
+      await deleteGroup(group?.["id"]).unwrap();
       setConfirmDeleteOpen(false);
       navigate("/groups");
     } catch {
@@ -134,7 +128,7 @@ const Group = () => {
   }
 
   // renders
-  if (!group) {
+  if (group == null) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -143,7 +137,7 @@ const Group = () => {
   }
 
   const isAdmin = (aUser: any) => {
-    const currentGroupUser = group?.users?.filter(
+    const currentGroupUser = group?.["users"]?.filter(
       (group_user: any) => group_user.id === aUser.id,
     )[0];
     return (
@@ -156,11 +150,11 @@ const Group = () => {
   return (
     <div>
       <Typography variant="h5" style={{ paddingBottom: 10 }}>
-        Group:&nbsp;&nbsp;{group.name}
-        {group.nickname && ` (${group.nickname})`}
+        Group:&nbsp;&nbsp;{group["name"]}
+        {group["nickname"] && ` (${group["nickname"]})`}
       </Typography>
       <Typography variant="h6" data-testid="description">
-        {group.description && `${group.description}`}
+        {group["description"] && `${group["description"]}`}
       </Typography>
 
       <Accordion
@@ -176,7 +170,7 @@ const Group = () => {
           <Typography className={classes.heading}>Sources</Typography>
         </AccordionSummary>
         <AccordionDetails className={classes.accordion_details}>
-          <Link to={`/group_sources/${group.id}`} key={group.id}>
+          <Link to={`/group_sources/${group["id"]}`} key={group["id"]}>
             <Button secondary>Group sources</Button>
           </Link>
         </AccordionDetails>

@@ -15,6 +15,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import * as surveyEfficiencyObservationsActions from "../../ducks/survey_efficiency_observations";
 import * as surveyEfficiencyObservationPlansActions from "../../ducks/survey_efficiency_observation_plans";
 import * as instrumentsActions from "../../ducks/instruments";
@@ -70,7 +71,7 @@ const SurveyEfficiencyForm = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationList = [] } = useGetAllocationsQuery();
 
   const allGroups = useGetGroupsQuery().data?.all ?? null;

@@ -1,5 +1,5 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Paper from "@mui/material/Paper";
@@ -15,9 +15,10 @@ import Spinner from "../Spinner";
 
 import withRouter from "../withRouter";
 
-import * as telescopesAction from "../../ducks/telescopes";
+import { useGetTelescopeQuery } from "../../ducks/telescopes";
 import { useGetWeatherQuery } from "../../ducks/weather";
 import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
+import { Telescope } from "../../types/domain";
 
 const useStyles = makeStyles()((theme) => ({
   title: {
@@ -42,22 +43,19 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
   const { classes } = useStyles();
   const instrumentsState = useAppSelector((state) => state["instruments"]);
   const groups = useGetGroupsQuery().data?.all ?? [];
-  const [telescope, setTelescope] = useState<any>(null);
+  const { data: telescope, isError: telescopeError } = useGetTelescopeQuery(
+    route.id,
+  );
   const { data: weather } = useGetWeatherQuery(
-    telescope?.id ? parseInt(telescope.id, 10) : null,
-    { skip: !telescope?.id },
+    telescope?.["id"] ? parseInt(telescope["id"], 10) : null,
+    { skip: !telescope?.["id"] },
   );
 
-  // Load the instrument if needed
   useEffect(() => {
-    dispatch(telescopesAction.fetchTelescope(route.id)).then((result: any) => {
-      if (result.status === "success") {
-        setTelescope(result.data);
-      } else {
-        dispatch(showNotification("Error loading telescope data", "error"));
-      }
-    });
-  }, [route.id, dispatch]);
+    if (telescopeError) {
+      dispatch(showNotification("Error loading telescope data", "error"));
+    }
+  }, [telescopeError, dispatch]);
 
   if (!telescope) {
     return (
@@ -72,14 +70,14 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
       <Grid container spacing={2} className={(classes as any).source}>
         <Grid size={12}>
           <Typography variant="h5">
-            {telescope.name} ({telescope.nickname})
+            {telescope["name"]} ({telescope["nickname"]})
           </Typography>
         </Grid>
         <Grid
           size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 6 }}
           className={classes.displayInlineBlock}
         >
-          <SkyCam telescope={telescope} />
+          <SkyCam telescope={telescope as unknown as Telescope} />
         </Grid>
         <Grid
           size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 6 }}
@@ -90,7 +88,7 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
               Weather
             </Typography>
             {weather &&
-            weather["telescope_id"] === parseInt(telescope.id, 10) ? (
+            weather["telescope_id"] === parseInt(telescope["id"], 10) ? (
               <WeatherView weather={weather} />
             ) : (
               <Spinner />
@@ -98,9 +96,9 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
           </Paper>
         </Grid>
         <Grid size={12}>
-          {telescope.instruments ? (
+          {telescope["instruments"] ? (
             <InstrumentTable
-              instruments={telescope.instruments}
+              instruments={telescope["instruments"]}
               telescopeInfo={false}
             />
           ) : (
@@ -112,10 +110,10 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
           )}
         </Grid>
         <Grid size={12}>
-          {telescope.allocations ? (
+          {telescope["allocations"] ? (
             <AllocationTable
               instruments={instrumentsState.instrumentList}
-              allocations={telescope.allocations}
+              allocations={telescope["allocations"]}
               groups={groups}
               telescopeInfo={false}
             />
