@@ -1,135 +1,201 @@
+/**
+ * Candidates list (the scanning page).
+ *
+ * RTK Query conversion of the old `candidates` duck. This duck is a COMPOSITE of
+ * three different concerns, handled three different ways:
+ *
+ *  1. Server LIST with page accumulation (`getCandidates`). The scanning page
+ *     pages through `/api/candidates`. All pages of one filter/query share a
+ *     single cache entry (`serializeQueryArgs` drops `pageNumber`); `merge`
+ *     replaces the list on page 1 and appends on later pages, mirroring the old
+ *     `FETCH_CANDIDATES` / `FETCH_CANDIDATES_AND_APPEND` reducers.
+ *
+ *  2. Server cache (simple): `getAnnotationsInfo` (query) and
+ *     `generateSurveyThumbnail` (mutation).
+ *
+ *  3. Client UI state: `selectedAnnotationSortOptions` and `filterFormData` are
+ *     NOT server data. They are kept in a small retained reducer (still the
+ *     `candidates` slice) with two plain action creators. Consumers keep reading
+ *     them from `state.candidates.*`.
+ *
+ * WebSocket (`REFRESH_CANDIDATE`): on a push for a candidate currently in the
+ * active `getCandidates` cache entry, the single candidate is refetched via the
+ * already-migrated `candidateApi.getCandidate` query and merged into the list
+ * with `updateQueryData`, preserving the old "only if loaded" guard.
+ */
 import messageHandler from "baselayer/MessageHandler";
 
-import * as API from "../../API";
-import * as candidateActions from "./candidate";
+import { filterOutEmptyValues } from "../../API";
+import { skyportalApi } from "../../api/skyportalApi";
+import { candidateApi } from "./candidate";
 import store from "../../store";
-
-const FETCH_CANDIDATES = "skyportal/FETCH_CANDIDATES";
-const FETCH_CANDIDATES_OK = "skyportal/FETCH_CANDIDATES_OK";
-
-const FETCH_CANDIDATE_AND_MERGE = "skyportal/FETCH_CANDIDATE_AND_MERGE";
-const FETCH_CANDIDATE_AND_MERGE_OK = "skyportal/FETCH_CANDIDATE_AND_MERGE_OK";
-
-const FETCH_CANDIDATES_AND_APPEND = "skyportal/FETCH_CANDIDATES_AND_APPEND";
-const FETCH_CANDIDATES_AND_APPEND_OK =
-  "skyportal/FETCH_CANDIDATES_AND_APPEND_OK";
-
-const REFRESH_CANDIDATE = "skyportal/REFRESH_CANDIDATE";
 
 const SET_CANDIDATES_ANNOTATION_SORT_OPTIONS =
   "skyportal/SET_CANDIDATES_ANNOTATION_SORT_OPTIONS";
 
-const FETCH_ANNOTATIONS_INFO = "skyportal/FETCH_ANNOTATIONS_INFO";
-const FETCH_ANNOTATIONS_INFO_OK = "skyportal/FETCH_ANNOTATIONS_INFO_OK";
-
 const SET_CANDIDATES_FILTER_FORM_DATA =
   "skyportal/SET_CANDIDATES_FILTER_FORM_DATA";
 
-const GENERATE_PS1_THUMBNAIL = "skyportal/GENERATE_PS1_THUMBNAIL";
+const REFRESH_CANDIDATE = "skyportal/REFRESH_CANDIDATE";
 
-export const fetchCandidates = (filterParams = {}, append = false) => {
-  return API.GET(
-    "/api/candidates",
-    append === false ? FETCH_CANDIDATES : FETCH_CANDIDATES_AND_APPEND,
-    filterParams,
+/**
+ * Build the cache key for a `getCandidates` arg by dropping `pageNumber` (and
+ * `queryID`, which the backend assigns on the first page and is then echoed
+ * back on later pages), so all pages of one filter/query collapse onto a single
+ * cache entry. Returns a stable stringification of the remaining fields.
+ */
+const candidatesCacheKey = (arg) => {
+  const rest = { ...(arg || {}) };
+  delete rest.pageNumber;
+  delete rest.queryID;
+  return JSON.stringify(
+    Object.keys(rest)
+      .sort()
+      .reduce((acc, key) => {
+        acc[key] = rest[key];
+        return acc;
+      }, {}),
   );
 };
 
-export const generateSurveyThumbnail = (objID) =>
-  API.POST("/api/internal/survey_thumbnail", GENERATE_PS1_THUMBNAIL, { objID });
+// The arg of the currently-active `getCandidates` query, captured so the
+// websocket handler can target the exact cache entry with `updateQueryData`.
+let activeCandidatesArg = null;
+
+export const candidatesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getCandidates: build.query({
+      query: (filterParams = {}) => {
+        const filtered = filterOutEmptyValues(filterParams);
+        const queryString = new URLSearchParams(filtered).toString();
+        return `api/candidates?${queryString}`;
+      },
+      // All pages of one filter/query share a single cache entry.
+      serializeQueryArgs: ({ queryArgs }) => candidatesCacheKey(queryArgs),
+      merge: (currentCacheData, newData, { arg }) => {
+        const pageNumber = arg?.pageNumber ?? 1;
+        if (pageNumber === 1) {
+          currentCacheData.candidates = newData.candidates;
+        } else {
+          currentCacheData.candidates.push(...newData.candidates);
+        }
+        currentCacheData.pageNumber = newData.pageNumber;
+        currentCacheData.totalMatches = newData.totalMatches;
+        currentCacheData.queryID = newData.queryID;
+      },
+      // Refetch whenever the arg changes (page change or filter change).
+      forceRefetch: ({ currentArg, previousArg }) =>
+        JSON.stringify(currentArg) !== JSON.stringify(previousArg),
+      transformResponse: (data) => ({
+        candidates: data?.candidates ?? [],
+        pageNumber: data?.pageNumber ?? 1,
+        totalMatches: data?.totalMatches ?? 0,
+        queryID: data?.queryID ?? null,
+      }),
+      // Track the active arg for the websocket handler.
+      onQueryStarted: (arg) => {
+        activeCandidatesArg = arg;
+      },
+      providesTags: ["Candidate"],
+    }),
+    getAnnotationsInfo: build.query({
+      query: () => "api/internal/annotations_info",
+      providesTags: ["AnnotationsInfo"],
+    }),
+    generateSurveyThumbnail: build.mutation({
+      query: (objID) => ({
+        url: "api/internal/survey_thumbnail",
+        method: "POST",
+        body: { objID },
+      }),
+    }),
+  }),
+});
+
+export const {
+  useGetCandidatesQuery,
+  useGetAnnotationsInfoQuery,
+  useGenerateSurveyThumbnailMutation,
+} = candidatesApi;
+
+// ---------------------------------------------------------------------------
+// Client UI state (NOT server data): retained reducer + plain action creators.
+// ---------------------------------------------------------------------------
 
 export const setCandidatesAnnotationSortOptions = (item) => ({
   type: SET_CANDIDATES_ANNOTATION_SORT_OPTIONS,
   item,
 });
 
-export const fetchAnnotationsInfo = () =>
-  API.GET("/api/internal/annotations_info", FETCH_ANNOTATIONS_INFO);
-
 export const setFilterFormData = (formData) => ({
   type: SET_CANDIDATES_FILTER_FORM_DATA,
   formData,
 });
 
-// Websocket message handler
-messageHandler.add((actionType, payload, dispatch, getState) => {
-  if (actionType === REFRESH_CANDIDATE) {
-    const { candidates } = getState();
-    let done = false;
-    if (candidates.candidates !== null) {
-      candidates.candidates.forEach((candidate) => {
-        if (candidate.internal_key === payload.id && !done) {
-          dispatch(
-            candidateActions.fetchCandidate(
-              candidate.id,
-              FETCH_CANDIDATE_AND_MERGE,
-            ),
-          );
-          done = true;
-        }
-      });
-    }
-  }
-});
-
 const initialState = {
-  candidates: null,
-  pageNumber: 1,
-  totalMatches: 0,
   selectedAnnotationSortOptions: null,
-  annotationsInfo: null,
   filterFormData: null,
-  queryID: null,
 };
 
 const reducer = (state = initialState, action) => {
   switch (action.type) {
-    case FETCH_CANDIDATES_OK: {
-      const { candidates, pageNumber, totalMatches, queryID } = action.data;
-      return {
-        ...state,
-        candidates,
-        pageNumber,
-        totalMatches,
-        queryID,
-      };
-    }
-    case FETCH_CANDIDATE_AND_MERGE_OK: {
-      const candidates = state.candidates?.map((candidate) =>
-        candidate.id !== action.data.id ? candidate : action.data,
-      );
-      return { ...state, candidates };
-    }
-    case FETCH_CANDIDATES_AND_APPEND_OK: {
-      const { candidates, pageNumber, totalMatches, queryID } = action.data;
-      return {
-        ...state,
-        candidates: state.candidates.concat(candidates),
-        pageNumber,
-        totalMatches,
-        queryID,
-      };
-    }
-    case SET_CANDIDATES_ANNOTATION_SORT_OPTIONS: {
+    case SET_CANDIDATES_ANNOTATION_SORT_OPTIONS:
       return { ...state, selectedAnnotationSortOptions: action.item };
-    }
-    case FETCH_ANNOTATIONS_INFO_OK: {
-      const annotationsInfo = action.data;
-      return {
-        ...state,
-        annotationsInfo,
-      };
-    }
-    case SET_CANDIDATES_FILTER_FORM_DATA: {
-      const { formData } = action;
-      return {
-        ...state,
-        filterFormData: formData,
-      };
-    }
+    case SET_CANDIDATES_FILTER_FORM_DATA:
+      return { ...state, filterFormData: action.formData };
     default:
       return state;
   }
 };
 
 store.injectReducer("candidates", reducer);
+
+// ---------------------------------------------------------------------------
+// WebSocket: refresh a single candidate into the active list cache entry.
+// ---------------------------------------------------------------------------
+
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType !== REFRESH_CANDIDATE || activeCandidatesArg === null) {
+    return;
+  }
+  const cacheEntry = candidatesApi.endpoints.getCandidates.select(
+    activeCandidatesArg,
+  )(store.getState());
+  const loaded = cacheEntry?.data?.candidates;
+  if (!loaded) {
+    return;
+  }
+  // Preserve the old guard: only refresh if the candidate is in the loaded list.
+  const match = loaded.find((c) => c.internal_key === payload.id);
+  if (!match) {
+    return;
+  }
+  // Fetch the single candidate via the migrated candidate query, then merge it
+  // into the active list cache entry.
+  dispatch(
+    candidateApi.endpoints.getCandidate.initiate(match.id, {
+      subscribe: false,
+      forceRefetch: true,
+    }),
+  )
+    .unwrap()
+    .then((fresh) => {
+      dispatch(
+        candidatesApi.util.updateQueryData(
+          "getCandidates",
+          activeCandidatesArg,
+          (draft) => {
+            const idx = draft.candidates.findIndex((c) => c.id === fresh.id);
+            if (idx !== -1) {
+              draft.candidates[idx] = fresh;
+            }
+          },
+        ),
+      );
+    })
+    .catch(() => {
+      // Best-effort: if the refetch fails, fall back to invalidating the tag so
+      // the active list query refetches.
+      dispatch(skyportalApi.util.invalidateTags(["Candidate"]));
+    });
+});

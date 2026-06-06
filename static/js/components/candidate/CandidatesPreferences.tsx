@@ -12,7 +12,7 @@ import Slide from "@mui/material/Slide";
 import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useAppSelector } from "../../types/hooks";
+import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
 import Button from "../Button";
 
 import { allowedClasses } from "../classification/ClassificationForm";
@@ -49,9 +49,8 @@ const CandidatesPreferences = ({
   selectedScanningProfile = null,
   setSelectedScanningProfile,
 }: CandidatesPreferencesProps) => {
-  const availableAnnotationsInfo = useAppSelector(
-    (state) => state["candidates"].annotationsInfo,
-  );
+  const { data: availableAnnotationsInfo } =
+    useGetAnnotationsInfoQuery(undefined);
   const { classes } = useStyles();
 
   const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];

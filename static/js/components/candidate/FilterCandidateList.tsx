@@ -26,8 +26,12 @@ import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as candidatesActions from "../../ducks/candidate/candidates";
+import { useAppDispatch } from "../../types/hooks";
+import {
+  useGetAnnotationsInfoQuery,
+  setFilterFormData,
+  setCandidatesAnnotationSortOptions,
+} from "../../ducks/candidate/candidates";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
@@ -192,6 +196,7 @@ interface FilterCandidateListProps {
   numPerPage: number;
   annotationFilterList?: string | null;
   setSortOrder: (...a: any[]) => void;
+  setSearchParams: (params: Record<string, any>) => void;
 }
 
 const FilterCandidateList = ({
@@ -201,12 +206,12 @@ const FilterCandidateList = ({
   numPerPage,
   annotationFilterList = null,
   setSortOrder,
+  setSearchParams,
 }: FilterCandidateListProps) => {
   const { classes } = useStyles() as { classes: any };
 
-  const availableAnnotationsInfo = useAppSelector(
-    (state) => (state as any).candidates.annotationsInfo,
-  );
+  const { data: availableAnnotationsInfo } =
+    useGetAnnotationsInfoQuery(undefined);
   const dispatch = useAppDispatch();
   const { data: userProfile } = useGetProfileQuery();
 
@@ -402,7 +407,7 @@ const FilterCandidateList = ({
   // Set initial form values in the redux state
   useEffect(() => {
     dispatch(
-      candidatesActions.setFilterFormData({
+      setFilterFormData({
         // savedStatus: "all",
         startDate: defaultStartDate.toISOString(),
       }),
@@ -510,9 +515,7 @@ const FilterCandidateList = ({
       data.sortByAnnotationOrder = formData.sortingOrder;
     } else {
       // Clear annotation sort params, if a default sort is not defined
-      await dispatch(
-        candidatesActions.setCandidatesAnnotationSortOptions(null),
-      );
+      await dispatch(setCandidatesAnnotationSortOptions(null));
       setSortOrder(null);
     }
 
@@ -528,7 +531,7 @@ const FilterCandidateList = ({
     if (data.sortByAnnotationOrigin) {
       setSortOrder(data.sortByAnnotationOrder);
       await dispatch(
-        candidatesActions.setCandidatesAnnotationSortOptions({
+        setCandidatesAnnotationSortOptions({
           key: data.sortByAnnotationKey,
           origin: data.sortByAnnotationOrigin,
           order: data.sortByAnnotationOrder,
@@ -537,16 +540,15 @@ const FilterCandidateList = ({
     }
 
     // Save form-specific data, formatted for the API query
-    await dispatch(candidatesActions.setFilterFormData(data));
+    await dispatch(setFilterFormData(data));
 
-    await dispatch(
-      candidatesActions.fetchCandidates({
-        pageNumber: 1,
-        numPerPage,
-        ...fetchParams,
-      }),
-    );
-    setQueryInProgress(false);
+    // Trigger a new search (resets to page 1). The query result drives the
+    // loading state in the parent CandidateList.
+    setSearchParams({
+      pageNumber: 1,
+      numPerPage,
+      ...fetchParams,
+    });
   };
 
   return (
