@@ -6,9 +6,7 @@ on:
       - main
       - test-docker
   pull_request:
-    # Run on PRs that touch docker-related files. Using `paths` (rather than a
-    # label) avoids the GITHUB_TOKEN limitation where a labeler-applied label
-    # doesn't trigger workflows.
+    # Run on PRs that touch docker-related files.
     paths:
       - Dockerfile
       - docker.yaml
