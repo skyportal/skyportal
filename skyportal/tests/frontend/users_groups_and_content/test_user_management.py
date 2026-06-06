@@ -200,10 +200,15 @@ def test_user_expiration(page, user, super_admin_user):
 
     # Set expiration date to today
     page.locator(f"//*[@data-testid='editUserExpirationDate{user.id}']").first.click()
-    date = datetime.datetime.now().strftime("%m/%d/%Y")
-    page.locator("//input[@placeholder='MM/DD/YYYY']").first.fill(date)
+    # The MUI date field is read-only, so `fill` times out; type the MMDDYYYY
+    # digits into the segmented input instead (as the other date-picker tests do).
+    date_input = page.locator("//input[@placeholder='MM/DD/YYYY']").first
+    date_input.click()
+    date_input.press_sequentially(datetime.datetime.now().strftime("%m%d%Y"))
 
-    page.locator('//*[text()="Submit"]').first.click()
+    # use the dialog's own submit button (the unscoped //*[text()="Submit"] can
+    # match a leftover/hidden Submit elsewhere on the page).
+    page.locator('//*[@data-testid="submitExpirationDateButton"]').first.click()
 
     # Check that user deactivated
     page.goto(f"/become_user/{user.id}")

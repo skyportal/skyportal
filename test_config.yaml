@@ -79,6 +79,10 @@ services:
     - external_publishing_submission_queue
     - watch_list
     - ngsf_analysis_service
+    # No tests exercise these; skip them to free CPU/RAM on the CI runner.
+    - gcn_service
+    - pdl_service
+    - hermes_skyportal_sync
 test_server:
   port: 64502
   smtp_port: 64503

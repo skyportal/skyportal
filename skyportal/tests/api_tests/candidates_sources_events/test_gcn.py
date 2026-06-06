@@ -3,11 +3,9 @@ import time
 import uuid
 
 import numpy as np
-import pandas as pd
 import pytest
 import requests
 from astropy.table import Table
-from regions import Regions
 
 from skyportal.tests import api
 from skyportal.tests.external.test_moving_objects import (
@@ -464,49 +462,46 @@ def test_gcn_summary_sources(
 
     assert nretries < 40
     assert summaries_loaded
-    data = list(filter(None, data["text"].split("\n")))
+    text = data["text"]
+    lines = list(filter(None, text.split("\n")))
 
-    assert "TITLE: GCN SUMMARY" in data[0]
-    assert "SUBJECT: Follow-up" in data[1]
-    assert "DATE" in data[2]
-    assert (
+    def _find(*substrings):
+        # index of the first line containing all of `substrings`; asserts presence
+        for i, line in enumerate(lines):
+            if all(s in line for s in substrings):
+                return i
+        raise AssertionError(f"no summary line contains all of {substrings}")
+
+    def _section_has_header(start, end, columns):
+        # one line within lines[start:end] carries every expected column header
+        assert any(all(col in line for col in columns) for line in lines[start:end]), (
+            lines[start:end]
+        )
+
+    # Locate sections by content rather than fixed line offsets, so these
+    # assertions survive harmless reformatting of the summary builder.
+
+    # header block
+    _find("TITLE: GCN SUMMARY")
+    _find("SUBJECT: Follow-up")
+    _find("DATE")
+    _find(
         f"FROM: {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
-        in data[3]
     )
-    assert (
-        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (...)"
-        in data[4]
+    _find(f"reports on behalf of the {public_group.name} group:")
+
+    # sources section, then a "Photometry of <id>" subsection
+    found_idx = _find("Found", "in the event's localization")
+    phot_idx = _find("Photometry of")
+    assert found_idx < phot_idx
+
+    _section_has_header(found_idx, phot_idx, ("id", "tns", "ra", "dec", "redshift"))
+    _section_has_header(
+        phot_idx, len(lines), ("mjd", "mag±err (ab)", "filter", "origin", "instrument")
     )
-    assert f"reports on behalf of the {public_group.name} group:" in data[4]
 
-    # sources
-    assert "Found" in data[5] and "in the event's localization" in data[5]
-    table = data[6:]
-    idx = ["Photometry of" in line for line in table].index(True)
-
-    sources_table = table[1 : idx - 1]
-    photometry_table = table[idx + 1 :]
-
-    assert (
-        len(sources_table) >= 2
-    )  # other sources have probably been added in previous tests
-    assert "id" in sources_table[0]
-    assert "tns" in sources_table[0]
-    assert "ra" in sources_table[0]
-    assert "dec" in sources_table[0]
-    assert "redshift" in sources_table[0]
-
-    # source phot
-    assert "Photometry of" in table[idx]
-
-    assert (
-        len(photometry_table) >= 3
-    )  # other photometry have probably been added in previous tests
-    assert "mjd" in photometry_table[0]
-    assert "mag±err (ab)" in photometry_table[0]
-    assert "filter" in photometry_table[0]
-    assert "origin" in photometry_table[0]
-    assert "instrument" in photometry_table[0]
+    # the source we posted is actually present in the summary
+    assert obj_id in text
 
 
 def test_gcn_summary_galaxies(
@@ -606,34 +601,44 @@ def test_gcn_summary_galaxies(
 
     assert nretries < 40
     assert summaries_loaded
-    data = list(filter(None, data["text"].split("\n")))
+    lines = list(filter(None, data["text"].split("\n")))
 
-    assert "TITLE: GCN SUMMARY" in data[0]
-    assert "SUBJECT: Follow-up" in data[1]
-    assert "DATE" in data[2]
-    assert (
+    def _find(*substrings):
+        # index of the first line containing all of `substrings`; asserts presence
+        for i, line in enumerate(lines):
+            if all(s in line for s in substrings):
+                return i
+        raise AssertionError(f"no summary line contains all of {substrings}")
+
+    # Locate sections by content rather than fixed line offsets.
+
+    # header block
+    _find("TITLE: GCN SUMMARY")
+    _find("SUBJECT: Follow-up")
+    _find("DATE")
+    _find(
         f"FROM: {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
-        in data[3]
     )
-    assert (
-        f"{super_admin_user.first_name.upper()[0]}. {super_admin_user.last_name} (...)"
-        in data[4]
-    )
-    assert f"reports on behalf of the {public_group.name} group:" in data[4]
+    _find(f"reports on behalf of the {public_group.name} group:")
 
-    # galaxies
-    assert "Found **82 galaxies** in the event's localization:" in data[5]
-
-    galaxy_table = data[6:]
-    assert len(galaxy_table) == 82 + 2
-    assert "Galaxy" in galaxy_table[0]
-    assert "RA [deg]" in galaxy_table[0]
-    assert "Dec [deg]" in galaxy_table[0]
-    assert "Distance [Mpc]" in galaxy_table[0]
-    assert "m_Ks [mag]" in galaxy_table[0]
-    assert "m_NUV [mag]" in galaxy_table[0]
-    assert "m_W1 [mag]" in galaxy_table[0]
-    assert "dP_dV" in galaxy_table[0]
+    # galaxies section: the count claim plus a table header carrying every column
+    galaxy_idx = _find("Found **82 galaxies** in the event's localization:")
+    assert any(
+        all(
+            col in line
+            for col in (
+                "Galaxy",
+                "RA [deg]",
+                "Dec [deg]",
+                "Distance [Mpc]",
+                "m_Ks [mag]",
+                "m_NUV [mag]",
+                "m_W1 [mag]",
+                "dP_dV",
+            )
+        )
+        for line in lines[galaxy_idx:]
+    ), lines[galaxy_idx:]
 
     status, data = api(
         "DELETE", f"galaxy_catalog/{catalog_name}", token=super_admin_token

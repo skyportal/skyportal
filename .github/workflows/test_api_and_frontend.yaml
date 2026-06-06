@@ -52,6 +52,8 @@ jobs:
             "frontend_pt2",
             "frontend_pt3",
             "frontend_pt4",
+            "frontend_pt5",
+            "frontend_pt6",
             "external",
           ]
 
@@ -167,18 +169,51 @@ jobs:
       - name: Save dependency caches
         uses: ./.github/actions/cache-dependencies-save
 
-      # The frontend suite is split across four sibling folders (one matrix job
-      # each) to keep per-runner load down on the 2-vCPU runners:
-      # sources_and_observingruns_etc (pt1), gcn_observations_and_followup (pt2,
-      # the heavy GCN/observation/follow-up tests), users_groups_and_content (pt3,
-      # users/groups/account/admin), and sources_data_and_analysis (pt4, sources/
-      # data-products/analysis). New test files just go in the relevant folder.
+      # Per-folder microservice trim: each frontend folder only exercises a
+      # subset of the queues, so disable the unused ones to free CPU/RAM on the
+      # 2-vCPU runner. analysis services -> only data_products_and_analysis (pt6);
+      # observation_plan_queue/facility_queue -> only the GCN/follow-up (pt2) and
+      # observation (pt5) folders; notification_queue -> only the source- and
+      # notification-test folders (pt1, pt5). (gcn_service is off everywhere.)
+      - name: Trim unused microservices for this frontend subset
+        if: ${{ startsWith(matrix.test_subset, 'frontend_') }}
+        env:
+          TEST_SUBSET: ${{ matrix.test_subset }}
+        run: |
+          python3 - <<'PY'
+          import os
+
+          EXTRA = {
+              "frontend_pt1": ["sn_analysis_service", "openai_analysis_service", "observation_plan_queue"],
+              "frontend_pt2": ["sn_analysis_service", "openai_analysis_service"],
+              "frontend_pt3": ["sn_analysis_service", "openai_analysis_service", "observation_plan_queue", "facility_queue", "notification_queue"],
+              "frontend_pt4": ["sn_analysis_service", "openai_analysis_service", "observation_plan_queue", "facility_queue", "notification_queue"],
+              "frontend_pt5": ["sn_analysis_service", "openai_analysis_service"],
+              "frontend_pt6": ["observation_plan_queue", "facility_queue", "notification_queue"],
+          }
+          extra = EXTRA.get(os.environ["TEST_SUBSET"], [])
+          if extra:
+              with open("test_config.yaml") as f:
+                  lines = f.readlines()
+              out = []
+              for line in lines:
+                  out.append(line)
+                  if line.rstrip() == "  disabled:":
+                      out += [f"    - {s}\n" for s in extra]
+              with open("test_config.yaml", "w") as f:
+                  f.writelines(out)
+              print(f"Disabled for {os.environ['TEST_SUBSET']}: {extra}")
+          PY
+
+      # The frontend suite is split across six sibling folders (one matrix job
+      # each) to keep per-runner load down on the 2-vCPU runners. New test files
+      # just go in the relevant folder.
       - name: Run front-end tests part 1 (sources & observing runs)
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
         run: |
           source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/sources_and_observingruns_etc'
 
-      - name: Run front-end tests part 2 (GCN, observations & follow-up)
+      - name: Run front-end tests part 2 (GCN, observation plans & follow-up)
         if: ${{ matrix.test_subset == 'frontend_pt2' }}
         run: |
           source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/gcn_observations_and_followup'
@@ -188,10 +223,20 @@ jobs:
         run: |
           source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/users_groups_and_content'
 
-      - name: Run front-end tests part 4 (sources, data & analysis)
+      - name: Run front-end tests part 4 (sources, candidates & classification)
         if: ${{ matrix.test_subset == 'frontend_pt4' }}
         run: |
           source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/sources_data_and_analysis'
+
+      - name: Run front-end tests part 5 (observations & instruments)
+        if: ${{ matrix.test_subset == 'frontend_pt5' }}
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/observations_and_instruments'
+
+      - name: Run front-end tests part 6 (data products & analysis)
+        if: ${{ matrix.test_subset == 'frontend_pt6' }}
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/data_products_and_analysis'
 
       - name: Run API & utils tests part 1
         if: ${{ matrix.test_subset == 'api_and_utils_pt1' }}
