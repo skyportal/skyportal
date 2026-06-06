@@ -246,11 +246,43 @@ class SpatialCatalogHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            $ref: '#/components/schemas/SpatialCatalog'
+            400:
+              content:
+                application/json:
+                  schema: Error
         multiple:
           summary: Get all Spatial Catalogs
           description: Retrieve all SpatialCatalogs
           tags:
             - spatial catalogs
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/SpatialCatalog'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
         catalog_name = self.get_query_argument("catalog_name", None)

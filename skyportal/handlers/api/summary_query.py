@@ -196,12 +196,9 @@ class SummaryQueryHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            sources:
-                              type: array
-                              items:
-                                $ref: '#/components/schemas/Obj'
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/Obj'
           400:
             content:
               application/json:

@@ -965,7 +965,15 @@ class GcnEventTagsHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/GcnTag'
           400:
             content:
               application/json:
@@ -1122,7 +1130,15 @@ class GcnEventPropertiesHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/GcnProperty'
           400:
             content:
               application/json:
@@ -1324,15 +1340,7 @@ class GcnEventHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            gcnevent_id:
-                              type: integer
-                              description: New GcnEvent ID
-                            dateobs:
-                              type: string
-                            notice_id:
-                              type: integer
+                          $ref: '#/components/schemas/GcnEvent'
           400:
             content:
               application/json:
@@ -2960,7 +2968,15 @@ class LocalizationPropertiesHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/LocalizationProperty'
           400:
             content:
               application/json:
@@ -5568,11 +5584,7 @@ class DefaultGcnTagHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New default gcn tag ID
+                          $ref: '#/components/schemas/DefaultGcnTag'
         """
         data = self.get_json()
 

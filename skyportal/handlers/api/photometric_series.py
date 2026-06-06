@@ -888,7 +888,13 @@ class PhotometricSeriesHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SinglePhotometricSeries
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            $ref: '#/components/schemas/PhotometricSeries'
         multiple:
           summary: Retrieve multiple photometric series
           description: Retrieve all photometric series, based on various cuts.

@@ -1370,7 +1370,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @description Download the results as a file */
-                        download?: Record<string, never>;
+                        download?: boolean;
                         /**
                          * @description Extra parameters to pass to the plotting functions
                          *     if new plots are to be generated (e.g. with corner plots)
@@ -1382,13 +1382,20 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Requested analysis file */
+                /**
+                 * @description Requested analysis product. For product_type=corner returns a PNG
+                 *     image; for product_type=plots returns binary plot data; for
+                 *     product_type=results returns either a JSON file download or a
+                 *     JSON-wrapped result payload.
+                 */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": Record<string, never>;
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: Record<string, never>;
+                        };
                     };
                 };
                 400: {
@@ -3105,10 +3112,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New default gcn tag ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["DefaultGcnTag"];
                         };
                     };
                 };
@@ -5728,7 +5732,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: string[];
+                        };
                     };
                 };
                 400: {
@@ -6594,7 +6600,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["GcnTag"][];
+                        };
                     };
                 };
                 400: {
@@ -6726,7 +6734,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["GcnProperty"][];
+                        };
                     };
                 };
                 400: {
@@ -6955,12 +6965,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New GcnEvent ID */
-                                gcnevent_id?: number;
-                                dateobs?: string;
-                                notice_id?: number;
-                            };
+                            data?: components["schemas"]["GcnEvent"];
                         };
                     };
                 };
@@ -7194,16 +7199,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description the id of the confirmed_source_in_gcn */
-                                id?: number;
-                                /** @description the source_id of the source */
-                                obj_id?: string;
-                                /** @description dateobs of the GCN evn */
-                                dateobs?: string;
-                                /** @description Whether the source is confirmed (True) or rejected (False) */
-                                confirmed?: boolean;
-                            }[];
+                            data?: components["schemas"]["SourcesConfirmedInGCN"][];
                         };
                     };
                 };
@@ -8044,7 +8040,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["LocalizationProperty"][];
+                        };
                     };
                 };
                 400: {
@@ -8593,10 +8591,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Group"] & {
-                                /** @description List of group users */
-                                users?: components["schemas"]["User"][];
-                            };
+                            data?: components["schemas"]["Group"];
                         };
                     };
                 };
@@ -9142,7 +9137,26 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["MMADetectorSpectrum"][];
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
         };
         put?: never;
         /**
@@ -9337,7 +9351,26 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["MMADetectorTimeInterval"][];
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
         };
         put?: never;
         /**
@@ -11989,7 +12022,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["SingleObservationPlanRequest"];
+                        };
                     };
                 };
             };
@@ -13015,10 +13050,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description The id of the photomety_validation */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["PhotometryValidation"];
                         };
                     };
                 };
@@ -13101,10 +13133,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description The id of the modified photometry_validation */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["PhotometryValidation"];
                         };
                     };
                 };
@@ -13900,9 +13929,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                sources?: components["schemas"]["Obj"][];
-                            };
+                            data?: components["schemas"]["Obj"][];
                         };
                     };
                 };
@@ -15011,11 +15038,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description The ID of the requested Obj */
-                                obj_id?: string;
-                                spectra?: components["schemas"]["Spectrum"][];
-                            };
+                            data?: components["schemas"]["Spectrum"];
                         };
                     };
                 };
@@ -15623,10 +15646,12 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            origin?: string;
-                            color?: number;
-                            abs_mag?: number;
-                        }[];
+                            data?: {
+                                origin?: string;
+                                color?: number;
+                                abs_mag?: number;
+                            }[];
+                        };
                     };
                 };
                 400: {
@@ -15858,11 +15883,13 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            /** @description Right ascension of the object */
-                            ra?: number;
-                            /** @description Declination of the object */
-                            dec?: number;
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                /** @description Right ascension of the object */
+                                ra?: number;
+                                /** @description Declination of the object */
+                                dec?: number;
+                            };
                         };
                     };
                 };
@@ -17187,7 +17214,21 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                source_exists?: boolean;
+                                message?: string;
+                            };
+                        };
+                    };
+                };
+            };
         };
         put?: never;
         post?: never;
@@ -17223,7 +17264,21 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                source_exists?: boolean;
+                                message?: string;
+                            };
+                        };
+                    };
+                };
+            };
         };
         put?: never;
         post?: never;
@@ -17459,7 +17514,26 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["SpatialCatalog"];
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
         };
         put?: never;
         post?: never;
@@ -17520,7 +17594,26 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["SpatialCatalog"][];
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
         };
         put?: never;
         /**
@@ -17812,7 +17905,26 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["Spectrum"][];
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
         };
         put?: never;
         /**
@@ -18068,11 +18180,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description The ID of the requested Obj */
-                                obj_id?: string;
-                                spectra?: components["schemas"]["Spectrum"][];
-                            };
+                            data?: components["schemas"]["Spectrum"][];
                         };
                     };
                 };
@@ -18337,7 +18445,26 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["Spectrum"][];
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
         };
         put?: never;
         /**
@@ -18542,11 +18669,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description The ID of the requested Obj */
-                                obj_id?: string;
-                                spectra?: components["schemas"]["Spectrum"][];
-                            };
+                            data?: components["schemas"]["Spectrum"][];
                         };
                     };
                 };
@@ -21270,7 +21393,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["PublicSourcePage"][];
+                        };
                     };
                 };
                 400: {
@@ -21413,7 +21538,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["PublicRelease"][];
+                        };
                     };
                 };
                 400: {
