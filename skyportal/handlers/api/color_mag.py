@@ -201,16 +201,19 @@ class ObjColorMagHandler(BaseHandler):
                 schema:
                   allOf:
                     - $ref: '#/components/schemas/Success'
-                    - type: array
-                      items:
-                        type: object
-                        properties:
-                          origin:
-                            type: string
-                          color:
-                            type: number
-                          abs_mag:
-                            type: number
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              origin:
+                                type: string
+                              color:
+                                type: number
+                              abs_mag:
+                                type: number
 
           400:
             content:

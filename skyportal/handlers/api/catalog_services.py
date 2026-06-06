@@ -74,9 +74,7 @@ class CatalogQueryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
+                schema: Success
           400:
             content:
               application/json:

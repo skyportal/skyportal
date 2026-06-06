@@ -60,6 +60,11 @@ typegen: ## Generate TS types from the OpenAPI spec into static/js/types/api.ts
 	bun x openapi-typescript openapi.json -o static/js/types/api.ts
 	rm -f openapi.{yml,json}
 
+routemap: ## Regenerate static/js/types/routeSchemaMap.ts from openapi.json
+	@$(PYTHON) tools/docs/build-spec.py $(FLAGS)
+	$(PYTHON) tools/docs/build-route-schema-map.py
+	rm -f openapi.{yml,json}
+
 docs: ## Build the SkyPortal docs
 docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; uv run make -C doc html

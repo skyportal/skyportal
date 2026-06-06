@@ -38,11 +38,7 @@ class MMADetectorHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New mmadetector ID
+                          $ref: '#/components/schemas/MMADetector'
           400:
             content:
               application/json:
@@ -163,7 +159,13 @@ class MMADetectorHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetector'
           400:
             content:
               application/json:
@@ -273,11 +275,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New mmadetector spectrum ID
+                          $ref: '#/components/schemas/MMADetectorSpectrum'
           400:
             content:
               application/json:
@@ -410,6 +408,23 @@ class MMADetectorSpectrumHandler(BaseHandler):
                   type: integer
               description: |
                 If provided, filter only spectra saved to one of these group IDs.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/MMADetectorSpectrum'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
         if spectrum_id is not None:
@@ -504,7 +519,13 @@ class MMADetectorSpectrumHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetectorSpectrum'
           400:
             content:
               application/json:
@@ -792,6 +813,23 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                   type: integer
               description: |
                 If provided, filter only time_interval saved to one of these group IDs.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/MMADetectorTimeInterval'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
         if time_interval_id is not None:
             with self.Session() as session:
@@ -905,7 +943,13 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetectorTimeInterval'
           400:
             content:
               application/json:

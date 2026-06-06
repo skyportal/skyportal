@@ -226,7 +226,15 @@ class PublicReleaseHandler(BaseHandler):
             200:
               content:
                 application/json:
-                    schema: Success
+                    schema:
+                      allOf:
+                        - $ref: '#/components/schemas/Success'
+                        - type: object
+                          properties:
+                            data:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/PublicRelease'
             400:
               content:
                 application/json:

@@ -9,6 +9,7 @@ import time
 import traceback
 from json.decoder import JSONDecodeError
 
+import arrow
 import astropy
 import astropy.units as u
 import conesearch_alchemy as ca
@@ -578,13 +579,19 @@ async def get_source(
             source_info["gcn_crossmatch"].extend(
                 [gcn.dateobs for gcn in confirmed_in_gcn]
             )
-            source_info["gcn_crossmatch"] = list(set(source_info["gcn_crossmatch"]))
+
+        # Obj.gcn_crossmatch is an ARRAY(String) column, so its dateobs come
+        # back as strings, while confirmed_in_gcn contributes datetimes.
+        # Normalize both to naive datetimes (deduping across types) so the
+        # GcnEvent.dateobs timestamp IN-filter gets correctly-typed params --
+        # psycopg3 rejects a "timestamp = varchar" comparison.
+        crossmatch_dateobs = list(
+            {arrow.get(dateobs).naive for dateobs in source_info["gcn_crossmatch"]}
+        )
 
         source_info["gcn_crossmatch"] = (
             session.scalars(
-                GcnEvent.select(user).where(
-                    GcnEvent.dateobs.in_(source_info["gcn_crossmatch"])
-                )
+                GcnEvent.select(user).where(GcnEvent.dateobs.in_(crossmatch_dateobs))
             )
             .unique()
             .all()
@@ -704,29 +711,6 @@ async def get_source(
 
     source_info = recursive_to_dict(source_info)
     return source_info
-
-
-def create_annotations_query(
-    session,
-    annotations_filter_origin=None,
-    annotations_filter_before=None,
-    annotations_filter_after=None,
-):
-    annotations_query = Annotation.select(session.user_or_token)
-    if annotations_filter_origin is not None:
-        annotations_query = annotations_query.where(
-            Annotation.origin.in_(annotations_filter_origin)
-        )
-    if annotations_filter_before:
-        annotations_query = annotations_query.where(
-            Annotation.created_at <= annotations_filter_before
-        )
-    if annotations_filter_after:
-        annotations_query = annotations_query.where(
-            Annotation.created_at >= annotations_filter_after
-        )
-
-    return annotations_query
 
 
 def post_source(data, user_id, session, refresh_source=True):
@@ -2173,7 +2157,13 @@ class SourceHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Obj'
           400:
             content:
               application/json:
@@ -2925,11 +2915,7 @@ class SourceNotificationHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: string
-                              description: New SourceNotification ID
+                          $ref: '#/components/schemas/SourceNotification'
         """
         if not cfg["notifications.enabled"]:
             return self.error("Notifications are not enabled in current deployment.")
@@ -3239,9 +3225,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
+                schema: Success
         """
 
         data = self.get_json()

@@ -5,9 +5,8 @@ import uuid
 import pandas as pd
 import pytest
 import requests
+from playwright.sync_api import expect
 from regions import Regions
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.action_chains import ActionChains
 
 from baselayer.app.env import load_config
 from skyportal.tests import api
@@ -19,7 +18,9 @@ endpoint = cfg["app.sedm_endpoint"]
 sedm_isonline = False
 try:
     requests.get(endpoint, timeout=5)
-except requests.exceptions.ConnectTimeout:
+except requests.exceptions.RequestException:
+    # Any connection error (timeout, refused, or an unconfigured/None endpoint)
+    # just means the live SEDM service isn't reachable from the test runner.
     pass
 else:
     sedm_isonline = True
@@ -34,7 +35,7 @@ else:
 atlas_isonline = False
 try:
     requests.get(ATLAS_URL, timeout=5)
-except requests.exceptions.ConnectTimeout:
+except requests.exceptions.RequestException:
     pass
 else:
     atlas_isonline = True
@@ -279,7 +280,7 @@ def add_allocation_kait(instrument_id, group_id, token):
 
 
 def add_followup_request_using_frontend_and_verify_SEDMv2(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
     _, instrument_id, _, instrument_name = add_telescope_and_instrument(
@@ -287,76 +288,81 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
     )
     add_allocation_sedmv2(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
+    page.keyboard.press("Escape")
 
     # observation mode options
-    options = driver.wait_for_xpath('//div[@id="root_observation_choice"]')
-    driver.scroll_to_element_and_click(options)
+    options = page.locator('//div[@id="root_observation_choice"]').first
+    options.click()
 
     # click the IFU option
-    driver.click_xpath('//li[@data-value="4"]')
+    page.locator('//li[@data-value="4"]').first.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
-    driver.scroll_to_element_and_click(submit_button)
+    page.keyboard.press("Escape")
+    submit_button.click()
 
-    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
-    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
-    driver.click_xpath('//label/span[text()="exposure_time"]')
+    page.locator('//button[@data-testid="View Columns-iconButton"]').first.click()
+    page.locator('//label/span[text()="exposure_time"]').first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "IFU")]'
-    )
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
-    )
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "IFU")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_KAIT(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
     _, instrument_id, _, instrument_name = add_telescope_and_instrument(
@@ -364,67 +370,68 @@ def add_followup_request_using_frontend_and_verify_KAIT(
     )
     add_allocation_kait(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
+    page.keyboard.press("Escape")
 
     # U band option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-0"]', wait_clickable=False
-    )
+    page.locator('//input[@id="root_observation_choices-0"]').first.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
-    driver.scroll_to_element_and_click(submit_button)
+    page.keyboard.press("Escape")
+    submit_button.click()
 
-    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "U")]'
-    )
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "U")]'
+        ).first
+    ).to_be_visible()
     # it should fail, as we don't provide real allocation info
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "failed to submit")]"""
-    )
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "failed to submit")]"""
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_UVOTXRT(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
     _, instrument_id, _, instrument_name = add_telescope_and_instrument(
@@ -432,83 +439,90 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
     )
     add_allocation_uvotxrt(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
+    page.keyboard.press("Escape")
 
     # observation mode options
-    options = driver.wait_for_xpath('//div[@id="root_request_type"]')
-    driver.scroll_to_element_and_click(options)
+    options = page.locator('//div[@id="root_request_type"]').first
+    options.click()
 
     # click the XRT/UVOT ToO option
-    driver.click_xpath('//li[@data-value="1"]')
+    page.locator('//li[@data-value="1"]').first.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
+    page.keyboard.press("Escape")
 
-    driver.scroll_to_element_and_click(submit_button)
+    submit_button.click()
 
-    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_visible()
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
-    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
-    driver.click_xpath('//label/span[text()="exposure_time"]')
-    driver.click_xpath('//label/span[text()="obs_type"]')
-    driver.click_xpath('//label/span[text()="source_type"]')
+    page.locator('//button[@data-testid="View Columns-iconButton"]').first.click()
+    page.locator('//label/span[text()="exposure_time"]').first.click()
+    page.locator('//label/span[text()="obs_type"]').first.click()
+    page.locator('//label/span[text()="source_type"]').first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Light Curve")]'
-    )
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "4000")]"""
-    )
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Optical fast transient")]"""
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Light Curve")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "4000")]"""
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Optical fast transient")]"""
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_ZTF(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
     _, instrument_id, _, instrument_name = add_telescope_and_instrument(
@@ -516,72 +530,79 @@ def add_followup_request_using_frontend_and_verify_ZTF(
     )
     add_allocation_ztf(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
+    page.keyboard.press("Escape")
 
-    driver.scroll_to_element_and_click(submit_button)
+    submit_button.click()
 
-    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_visible()
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
-    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
-    driver.click_xpath('//label/span[text()="exposure_time"]')
-    driver.click_xpath('//label/span[text()="subprogram_name"]')
+    page.locator('//button[@data-testid="View Columns-iconButton"]').first.click()
+    page.locator('//label/span[text()="exposure_time"]').first.click()
+    page.locator('//label/span[text()="subprogram_name"]').first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "GRB")]'
-    )
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
-    )
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "g,r,i")]"""
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "GRB")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "g,r,i")]"""
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_Floyds(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
@@ -590,68 +611,71 @@ def add_followup_request_using_frontend_and_verify_Floyds(
     )
     add_allocation_lco(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
-    driver.scroll_to_element_and_click(submit_button, timeout=30)
+    submit_button.click()
 
-    driver.click_xpath(
-        f"//div[@data-testid='{instrument_name}-requests-header']", scroll_parent=True
-    )
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+        ).first
+    ).to_be_visible()
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
-    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
-    driver.click_xpath('//label/span[text()="exposure_time"]')
-    driver.click_xpath('//label/span[text()="minimum_lunar_distance"]')
+    page.locator('//button[@data-testid="View Columns-iconButton"]').first.click()
+    page.locator('//label/span[text()="exposure_time"]').first.click()
+    page.locator('//label/span[text()="minimum_lunar_distance"]').first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
-    )
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]'
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]'
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_MUSCAT(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
@@ -660,65 +684,70 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
     )
     add_allocation_lco(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
-    driver.scroll_to_element_and_click(submit_button, timeout=30)
+    submit_button.click()
 
-    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
-    )
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+        ).first
+    ).to_be_visible()
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
-    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
-    driver.click_xpath('//label/span[text()="exposure_time"]')
-    driver.click_xpath('//label/span[text()="minimum_lunar_distance"]')
+    page.locator('//button[@data-testid="View Columns-iconButton"]').first.click()
+    page.locator('//label/span[text()="exposure_time"]').first.click()
+    page.locator('//label/span[text()="minimum_lunar_distance"]').first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
-    )
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]'
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]'
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_ATLAS(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
@@ -727,62 +756,60 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
     )
     add_allocation_atlas(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     # the MUI accordion is not expanded, we need to scroll to it and click
-    header = driver.wait_for_xpath("//div[@id='forced-photometry-header']")
-    driver.scroll_to_element_and_click(
-        header,
-        scroll_parent=True,
-    )
+    header = page.locator("//div[@id='forced-photometry-header']").first
+    header.click()
 
     submit_button_xpath = (
         '//div[@data-testid="forced-photometry-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-forcedPhotometryAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
-    driver.scroll_to_element_and_click(submit_button, timeout=30)
+    submit_button.click()
 
-    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
     # submission should fail, as we don't provide real allocation info or endpoint
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "failed to submit")]'
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "failed to submit")]'
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_PS1(
-    driver, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
+    page, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
@@ -791,61 +818,59 @@ def add_followup_request_using_frontend_and_verify_PS1(
     )
     add_allocation_ps1(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_ZTFe028h94k.id}")
+    page.goto(f"/source/{public_ZTFe028h94k.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     # the MUI accordion is not expanded, we need to scroll to it and click
-    header = driver.wait_for_xpath("//div[@id='forced-photometry-header']")
-    driver.scroll_to_element_and_click(
-        header,
-        scroll_parent=True,
-    )
+    header = page.locator("//div[@id='forced-photometry-header']").first
+    header.click()
 
     submit_button_xpath = (
         '//div[@data-testid="forced-photometry-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-forcedPhotometryAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
-    driver.scroll_to_element_and_click(submit_button, timeout=30)
+    submit_button.click()
 
-    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_Spectral(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
@@ -854,76 +879,77 @@ def add_followup_request_using_frontend_and_verify_Spectral(
     )
     add_allocation_lco(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load, if any
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         pass
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), {instrument_name})][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
     # gp band option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-0"]', wait_clickable=False
-    )
+    page.locator('//input[@id="root_observation_choices-0"]').first.click()
 
     # Y option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-4"]', wait_clickable=False
-    )
+    page.locator('//input[@id="root_observation_choices-4"]').first.click()
 
-    driver.scroll_to_element_and_click(submit_button, timeout=30)
+    submit_button.click()
 
-    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+        ).first
+    ).to_be_visible()
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
-    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
-    driver.click_xpath('//label/span[text()="exposure_time"]')
-    driver.click_xpath('//label/span[text()="observation_choices"]')
+    page.locator('//button[@data-testid="View Columns-iconButton"]').first.click()
+    page.locator('//label/span[text()="exposure_time"]').first.click()
+    page.locator('//label/span[text()="observation_choices"]').first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
-    )
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]'
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]'
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_Sinistro(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
@@ -932,79 +958,78 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
     )
     add_allocation_lco(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), {instrument_name})][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
     # gp band option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-0"]', wait_clickable=False
-    )
+    page.locator('//input[@id="root_observation_choices-0"]').first.click()
 
     # Y option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-4"]', wait_clickable=False
-    )
+    page.locator('//input[@id="root_observation_choices-4"]').first.click()
 
-    driver.scroll_to_element_and_click(submit_button, timeout=30)
+    submit_button.click()
 
-    driver.click_xpath(
-        f"//div[@data-testid='{instrument_name}-requests-header']", scroll_parent=True
-    )
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+        ).first
+    ).to_be_visible()
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
-    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
+    page.locator('//button[@data-testid="View Columns-iconButton"]').first.click()
 
-    driver.click_xpath('//label/span[text()="exposure_time"]')
-    driver.click_xpath('//label/span[text()="observation_choices"]')
+    page.locator('//label/span[text()="exposure_time"]').first.click()
+    page.locator('//label/span[text()="observation_choices"]').first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}o_followupRequestsTable")]//div[contains(., "300")]'
-    )
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]'
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}o_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]'
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_SEDM(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
     _, instrument_id, _, instrument_name = add_telescope_and_instrument(
@@ -1012,83 +1037,86 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     )
     add_allocation_sedm(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
+    page.keyboard.press("Escape")
 
     # mode select
-    driver.click_xpath('//div[@id="root_observation_type"]', wait_clickable=False)
+    page.locator('//div[@id="root_observation_type"]').first.click()
 
     # mix n match option
-    driver.click_xpath("""//li[@data-value="5"]""")
+    page.locator("""//li[@data-value="5"]""").first.click()
 
     # u band option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-0"]', wait_clickable=False
-    )
+    page.locator('//input[@id="root_observation_choices-0"]').first.click()
 
     # ifu option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-4"]', wait_clickable=False
-    )
+    page.locator('//input[@id="root_observation_choices-4"]').first.click()
 
-    driver.scroll_to_element_and_click(submit_button)
+    submit_button.click()
 
-    # driver.click_xpath(f"//div[@data-testid='SEDM-requests-header']")
-    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
+    # page.locator(f"//*[@data-testid='SEDM-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
-    )
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]'
-    )
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]'
-    )
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_SPRAT(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
@@ -1097,76 +1125,76 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
     )
     add_allocation_lt(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
-    allocation = driver.wait_for_xpath(
+    allocation = page.locator(
         f'//li[contains(text(), {instrument_name})][contains(text(), "{public_group.name}")]'
-    )
-    driver.scroll_to_element_and_click(
-        allocation,
-        scroll_parent=True,
-    )
+    ).first
+    allocation.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
+    page.keyboard.press("Escape")
 
-    driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
+    page.locator('//input[@id="root_photometric"]').first.click()
 
-    driver.scroll_to_element_and_click(submit_button)
+    submit_button.click()
 
-    driver.click_xpath(
-        f"//div[@data-testid='{instrument_name}-requests-header']", timeout=30
-    )
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]',
-        timeout=20,
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+        ).first
+    ).to_be_visible()
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
-    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
-    driver.click_xpath('//label/span[text()="observation_type"]')
-    driver.click_xpath('//label/span[text()="exposure_time"]')
+    page.locator('//button[@data-testid="View Columns-iconButton"]').first.click()
+    page.locator('//label/span[text()="observation_type"]').first.click()
+    page.locator('//label/span[text()="exposure_time"]').first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]',
-        timeout=20,
-    )
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "blue")]',
-        timeout=20,
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "blue")]'
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_IOI(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
@@ -1175,78 +1203,76 @@ def add_followup_request_using_frontend_and_verify_IOI(
     )
     add_allocation_lt(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
     allocation = f"//li[contains(text(), {instrument_name})][contains(text(), '{public_group.name}')]"
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath(allocation),
-        scroll_parent=True,
-    )
+    page.locator(allocation).first.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
+    page.keyboard.press("Escape")
 
     # H band option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-0"]', wait_clickable=False
-    )
-    driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
+    page.locator('//input[@id="root_observation_choices-0"]').first.click()
+    page.locator('//input[@id="root_photometric"]').first.click()
 
-    driver.scroll_to_element_and_click(submit_button)
+    submit_button.click()
 
-    driver.click_xpath(
-        f"//div[@data-testid='{instrument_name}-requests-header']", timeout=30
-    )
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]',
-        timeout=20,
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+        ).first
+    ).to_be_visible()
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
-    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
-    driver.click_xpath('//label/span[text()="exposure_time"]')
-    driver.click_xpath('//label/span[text()="observation_choices"]')
+    page.locator('//button[@data-testid="View Columns-iconButton"]').first.click()
+    page.locator('//label/span[text()="exposure_time"]').first.click()
+    page.locator('//label/span[text()="observation_choices"]').first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]',
-        timeout=20,
-    )
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "H")]',
-        timeout=20,
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "H")]'
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_SLACK(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
     _, instrument_id, _, instrument_name = add_telescope_and_instrument(
@@ -1254,68 +1280,59 @@ def add_followup_request_using_frontend_and_verify_SLACK(
     )
     add_allocation_slack(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
     allocation = f"//li[contains(text(), {instrument_name})][contains(text(), '{public_group.name}')]"
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath(allocation),
-        scroll_parent=True,
-    )
+    page.locator(allocation).first.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
+    page.keyboard.press("Escape")
 
     # ZTF g-band option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-0"]', wait_clickable=False
-    )
+    page.locator('//input[@id="root_observation_choices-0"]').first.click()
 
-    driver.scroll_to_element_and_click(submit_button)
+    submit_button.click()
 
-    driver.click_xpath(
-        f"//div[@data-testid='{instrument_name}-requests-header']", timeout=30
-    )
+    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
     # we are not pointing to a real slack channel, so it should fail
-    driver.wait_for_xpath(
-        """//div[contains(text(), "failed to submit")]""",
-        timeout=20,
-    )
-    driver.wait_for_xpath(
-        """//div[contains(text(), "ztfg")]""",
-        timeout=20,
-    )
+    expect(
+        page.locator("""//div[contains(text(), "failed to submit")]""").first
+    ).to_be_visible()
+    expect(page.locator("""//div[contains(text(), "ztfg")]""").first).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 def add_followup_request_using_frontend_and_verify_IOO(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
 
@@ -1324,484 +1341,528 @@ def add_followup_request_using_frontend_and_verify_IOO(
     )
     add_allocation_lt(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/source/{public_source.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
-    driver.scroll_to_element_and_click(select_box)
+    ).first
+    select_box.click()
 
     allocation = f"//li[contains(text(), {instrument_name})][contains(text(), '{public_group.name}')]"
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath(allocation),
-        scroll_parent=True,
-    )
+    page.locator(allocation).first.click()
 
     # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
+    page.keyboard.press("Escape")
 
     # u band option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-0"]', wait_clickable=False
-    )
+    page.locator('//input[@id="root_observation_choices-0"]').first.click()
 
     # z option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-4"]', wait_clickable=False
-    )
+    page.locator('//input[@id="root_observation_choices-4"]').first.click()
 
-    driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
+    page.locator('//input[@id="root_photometric"]').first.click()
 
-    driver.scroll_to_element_and_click(submit_button)
+    submit_button.click()
 
-    driver.click_xpath("//div[@data-testid='IOO-requests-header']", timeout=30)
+    page.locator("//*[@data-testid='IOO-requests-header']").first.click()
 
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]""",
-        timeout=20,
-    )
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_visible()
 
     # look for the button to display more columns: data-testid="View Columns-iconButton"
-    driver.click_xpath('//button[@data-testid="View Columns-iconButton"]')
-    driver.click_xpath('//label/span[text()="exposure_time"]')
-    driver.click_xpath('//label/span[text()="observation_choices"]')
+    page.locator('//button[@data-testid="View Columns-iconButton"]').first.click()
+    page.locator('//label/span[text()="exposure_time"]').first.click()
+    page.locator('//label/span[text()="observation_choices"]').first.click()
 
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]',
-        timeout=20,
-    )
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,z")]""",
-        timeout=20,
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,z")]"""
+        ).first
+    ).to_be_visible()
 
     return instrument_id, instrument_name
 
 
 @pytest.mark.skipif(not swift_isonline, reason="UVOT/XRT server down")
 def test_submit_new_followup_request_UVOTXRT(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_UVOTXRT(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not kait_isonline, reason="KAIT server down")
 def test_submit_new_followup_request_KAIT(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_KAIT(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 #
 def test_submit_new_followup_request_SEDMv2(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_SEDMv2(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not ztf_isonline, reason="ZTF server down")
 def test_submit_new_followup_request_ZTF(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_ZTF(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 #
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_SEDM(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_SEDM(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_IOO(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_IOO(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_IOI(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_IOI(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_SPRAT(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_SPRAT(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 def test_submit_new_followup_request_SLACK(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_SLACK(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Sinistro(
-    driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
+    page, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_Sinistro(
-        driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
+        page, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Spectral(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_Spectral(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not atlas_isonline, reason="ATLAS server down")
 def test_submit_new_followup_request_ATLAS(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_ATLAS(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not ps1_isonline, reason="PS1 server down")
 def test_submit_new_followup_request_PS1(
-    driver, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
+    page, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_PS1(
-        driver, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
+        page, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_MUSCAT(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_MUSCAT(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Floyds(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_Floyds(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_edit_existing_followup_request(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_SEDM(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
-    edit_button = driver.wait_for_xpath(
-        '//button[contains(@data-testid, "editRequest")]'
-    )
-    driver.scroll_to_element_and_click(edit_button)
-    mode_select = driver.wait_for_xpath(
+    edit_button = page.locator('//button[contains(@data-testid, "editRequest")]').first
+    edit_button.click()
+    mode_select = page.locator(
         '//div[@role="dialog"]//div[@id="root_observation_type"]'
-    )
-    ActionChains(driver).move_to_element(mode_select).pause(1).click().perform()
+    ).first
+    mode_select.click()
 
-    mix_n_match_option = driver.wait_for_xpath("""//li[@data-value="2"]""")
-    driver.scroll_to_element_and_click(mix_n_match_option)
+    mix_n_match_option = page.locator("""//li[@data-value="2"]""").first
+    mix_n_match_option.click()
 
-    submit_button = driver.wait_for_xpath(
+    submit_button = page.locator(
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
-    )
+    ).first
 
-    driver.scroll_to_element_and_click(submit_button)
+    submit_button.click()
 
-    driver.click_xpath("//div[@data-testid='SEDM-requests-header']")
-    driver.wait_for_xpath(
-        '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "IFU")]'
-    )
-    driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]"""
-    )
-    driver.wait_for_xpath(
-        """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    page.locator("//*[@data-testid='SEDM-requests-header']").first.click()
+    expect(
+        page.locator(
+            '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "IFU")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]"""
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_visible()
 
 
 def test_delete_followup_request_SEDMv2(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     _, instrument_name = add_followup_request_using_frontend_and_verify_SEDMv2(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
-    driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
-    )
+    page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "IFU")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "IFU")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_hidden()
 
 
 @pytest.mark.skipif(not ztf_isonline, reason="ZTF server down")
 def test_delete_followup_request_ZTF(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     _, instrument_name = add_followup_request_using_frontend_and_verify_ZTF(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
-    driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
-    )
+    page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
-    driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "GRB")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "300")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "GRB")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "300")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            """//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_hidden()
 
 
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_delete_followup_request_SEDM(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     _, instrument_name = add_followup_request_using_frontend_and_verify_SEDM(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
-    delete_button = driver.wait_for_xpath(
+    delete_button = page.locator(
         '//button[contains(@data-testid, "deleteRequest")]'
-    )
-    driver.scroll_to_element_and_click(delete_button)
+    ).first
+    delete_button.click()
 
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_hidden()
 
 
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_IOO(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     _, instrument_name = add_followup_request_using_frontend_and_verify_IOO(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
-    driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
-    )
+    page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
-    driver.wait_for_xpath_to_disappear(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,z")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,z")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_hidden()
 
 
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_IOI(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     _, instrument_name = add_followup_request_using_frontend_and_verify_IOI(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
-    driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
-    )
+    page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
-    driver.wait_for_xpath_to_disappear(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "H")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "H")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_hidden()
 
 
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_delete_followup_request_SPRAT(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     _, instrument_name = add_followup_request_using_frontend_and_verify_SPRAT(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
-    driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
-    )
+    page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
-    driver.wait_for_xpath_to_disappear(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "blue")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "blue")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_hidden()
 
 
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Sinistro(
-    driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
+    page, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
 ):
     _, instrument_name = add_followup_request_using_frontend_and_verify_Sinistro(
-        driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
+        page, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
     )
 
-    driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
-    )
+    page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
-    driver.wait_for_xpath_to_disappear(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_hidden()
 
 
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Spectral(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     _, instrument_name = add_followup_request_using_frontend_and_verify_Spectral(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
-    driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
-    )
+    page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
-    driver.wait_for_xpath_to_disappear(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_hidden()
 
 
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_MUSCAT(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     _, instrument_name = add_followup_request_using_frontend_and_verify_MUSCAT(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
-    driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
-    )
+    page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
-    driver.wait_for_xpath_to_disappear(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_hidden()
 
 
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Floyds(
-    driver, super_admin_user, public_source, super_admin_token, public_group
+    page, super_admin_user, public_source, super_admin_token, public_group
 ):
     _, instrument_name = add_followup_request_using_frontend_and_verify_Floyds(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+        page, super_admin_user, public_source, super_admin_token, public_group
     )
 
-    driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
-    )
+    page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
-    driver.wait_for_xpath_to_disappear(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]"""
-    )
-    driver.wait_for_xpath_to_disappear(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]"""
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_hidden()
 
 
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_two_groups(
-    driver,
+    page,
     super_admin_user,
     public_source_two_groups,
     super_admin_token,
@@ -1814,87 +1875,87 @@ def test_submit_new_followup_request_two_groups(
     )
     add_allocation_sedm(instrument_id, public_group.id, super_admin_token)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
 
-    driver.get(f"/source/{public_source_two_groups.id}")
+    page.goto(f"/source/{public_source_two_groups.id}")
 
     # wait for plots to load
     try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
+        expect(
+            page.locator(
+                '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+        expect(
+            page.locator(
+                '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]'
+            ).first
+        ).to_be_visible()
+    except AssertionError:
         assert False
 
     submit_button_xpath = (
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
-    submit_button = driver.wait_for_xpath(submit_button_xpath)
+    submit_button = page.locator(submit_button_xpath).first
 
-    select_box = driver.wait_for_xpath(
+    select_box = page.locator(
         "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    )
+    ).first
     select_box.click()
 
     allocation = f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath(allocation),
-        scroll_parent=True,
-    )
+    page.locator(allocation).first.click()
 
     # Click somewhere definitely outside the select list to remove focus from select
-    driver.click_xpath("//header")
+    page.keyboard.press("Escape")
 
-    driver.click_xpath('//*[@id="selectGroups"]', wait_clickable=False)
+    page.locator('//*[@id="selectGroups"]').first.click()
 
     group1 = f'//*[@data-testid="group_{public_group.id}"]'
-    driver.click_xpath(group1, scroll_parent=True, wait_clickable=False)
+    page.locator(group1).first.click()
 
     group2 = f'//*[@data-testid="group_{public_group2.id}"]'
-    driver.click_xpath(group2, scroll_parent=True, wait_clickable=False)
+    page.locator(group2).first.click()
 
-    # Click somewhere definitely outside the select list to remove focus from select
-    # The manual ActionChains click seems to close the really long select list of groups
-    # and then the second click actually takes the focus away.
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
-    driver.click_xpath("//header")
+    # Close the really long select list of groups and take focus away from it.
+    page.keyboard.press("Escape")
+    page.keyboard.press("Escape")
 
     # mode select
-    driver.click_xpath('//div[@id="root_observation_type"]', wait_clickable=False)
+    page.locator('//div[@id="root_observation_type"]').first.click()
 
     # mix n match option
-    driver.click_xpath("""//li[@data-value="5"]""", scroll_parent=True)
+    page.locator("""//li[@data-value="5"]""").first.click()
 
     # u band option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-0"]', wait_clickable=False
-    )
+    page.locator('//input[@id="root_observation_choices-0"]').first.click()
 
     # ifu option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices-4"]', wait_clickable=False
-    )
-    driver.scroll_to_element_and_click(submit_button)
+    page.locator('//input[@id="root_observation_choices-4"]').first.click()
+    submit_button.click()
 
-    driver.click_xpath("//div[@data-testid='SEDM-requests-header']", timeout=30)
-    driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
-    )
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]"""
-    )
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]"""
-    )
-    driver.wait_for_xpath(
-        f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
-    )
+    page.locator("//*[@data-testid='SEDM-requests-header']").first.click()
+    expect(
+        page.locator(
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]"""
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]"""
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+        ).first
+    ).to_be_visible()
 
     filename = glob.glob(
         f"{os.path.dirname(__file__)}/../data/ZTF20abwdwoa_20200902_P60_v1.ascii"

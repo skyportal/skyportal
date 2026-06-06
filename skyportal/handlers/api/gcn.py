@@ -965,7 +965,15 @@ class GcnEventTagsHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/GcnTag'
           400:
             content:
               application/json:
@@ -992,14 +1000,13 @@ class GcnEventTagsHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      gcnevent_id:
-                        type: integer
-                        description: New GcnEvent Tag ID
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/GcnTag'
           400:
             content:
               application/json:
@@ -1123,7 +1130,15 @@ class GcnEventPropertiesHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/GcnProperty'
           400:
             content:
               application/json:
@@ -1319,14 +1334,13 @@ class GcnEventHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      gcnevent_id:
-                        type: integer
-                        description: New GcnEvent ID
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/GcnEvent'
           400:
             content:
               application/json:
@@ -1398,7 +1412,13 @@ class GcnEventHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: GcnEventHandlerGet
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            $ref: '#/components/schemas/GcnEvent'
             404:
               content:
                 application/json:
@@ -1521,7 +1541,20 @@ class GcnEventHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: GcnEventHandlerGet
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              events:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/GcnEvent'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:
@@ -2734,7 +2767,13 @@ class LocalizationHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: LocalizationHandlerGet
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Localization'
           400:
             content:
               application/json:
@@ -2929,7 +2968,15 @@ class LocalizationPropertiesHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/LocalizationProperty'
           400:
             content:
               application/json:
@@ -4864,8 +4911,10 @@ class LocalizationDownloadHandler(BaseHandler):
         responses:
           200:
             content:
-              application/json:
-                schema: LocalizationHandlerGet
+              application/fits:
+                schema:
+                  type: string
+                  format: binary
           400:
             content:
               application/json:
@@ -5535,11 +5584,7 @@ class DefaultGcnTagHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New default gcn tag ID
+                          $ref: '#/components/schemas/DefaultGcnTag'
         """
         data = self.get_json()
 

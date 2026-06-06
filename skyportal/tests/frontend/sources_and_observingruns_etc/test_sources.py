@@ -6,11 +6,7 @@ from io import BytesIO
 
 import pytest
 from PIL import Image, ImageChops
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.wait import WebDriverWait
+from playwright.sync_api import expect
 
 from baselayer.app.config import load_config
 from skyportal.models import DBSession
@@ -22,127 +18,116 @@ analysis_port = 6802
 cfg = load_config()
 
 
-def enter_comment_text(driver, comment_text):
-    comment_xpath = '//form[@data-testid="comment-form"]//textarea[@name="text"]'
-    comment_box = driver.wait_for_xpath(comment_xpath)
-    driver.click_xpath(comment_xpath)
-    comment_box.send_keys(comment_text)
+def enter_comment_text(page, comment_text):
+    comment_box = page.locator(
+        '//form[@data-testid="comment-form"]//textarea[@name="text"]'
+    ).first
+    comment_box.click()
+    comment_box.fill("")
+    if comment_text:
+        # type char-by-char so the @-mention autosuggestion fires
+        comment_box.press_sequentially(comment_text)
 
 
-def add_comment(driver, comment_text):
-    enter_comment_text(driver, comment_text)
-    driver.click_xpath(
+def add_comment(page, comment_text):
+    enter_comment_text(page, comment_text)
+    page.locator(
         '//form[@data-testid="comment-form"]//*[@name="submitCommentButton"]'
-    )
+    ).first.click()
 
 
-def add_comment_and_wait_for_display(driver, comment_text):
-    add_comment(driver, comment_text)
+def wait_for_comment_text_found(page, comment_text):
+    expect(
+        page.locator('//*[@id="comment"]//p', has_text=comment_text.strip()).first
+    ).to_be_visible()
+
+
+def add_comment_and_wait_for_display(page, comment_text):
+    add_comment(page, comment_text)
     try:
-        wait_for_comment_text_found(driver, comment_text)
-    except TimeoutException:
-        driver.refresh()
-        driver.click_xpath("//*[@id='expandable-button']")
-        wait_for_comment_text_found(driver, comment_text)
-
-
-def wait_for_comment_text_found(driver, comment_text):
-    # Wait until a <p> tag contains the comment_text. This checks all the innerText inside each <p> tag,
-    # including child elements, to ensure the comparison works even with highlighted mentions.
-    WebDriverWait(driver, timeout=20).until(
-        lambda d: any(
-            comment_text.strip() in p.get_attribute("innerText").strip()
-            for p in d.find_elements(By.XPATH, '//*[@id="comment"]//p')
-        )
-    )
+        wait_for_comment_text_found(page, comment_text)
+    except AssertionError:
+        page.reload()
+        page.locator("//*[@id='expandable-button']").first.click()
+        wait_for_comment_text_found(page, comment_text)
 
 
 @pytest.mark.flaky(reruns=2)
-def test_public_source_page(driver, user, public_source, public_group):
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-
-    driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
+def test_public_source_page(page, user, public_source, public_group):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    expect(page.locator(f'//span[text()="{public_group.name}"]').first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_comment_username_autosuggestion(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-    comment_text = f"hey @{user.username[:5]}"
-    enter_comment_text(driver, comment_text)
-    matchButtonXpath = (
+def test_comment_username_autosuggestion(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    enter_comment_text(page, f"hey @{user.username[:5]}")
+    match_button = (
         f'//button[text()="{user.username} {user.first_name} {user.last_name}"]'
     )
-    driver.wait_for_xpath(matchButtonXpath)
-    driver.click_xpath(matchButtonXpath)
-    driver.wait_for_xpath_to_disappear(matchButtonXpath)
-    driver.click_xpath(
+    page.locator(match_button).first.click()
+    expect(page.locator(match_button).first).to_be_hidden()
+    page.locator(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    )
-    wait_for_comment_text_found(driver, f"hey @{user.username}")
+    ).first.click()
+    wait_for_comment_text_found(page, f"hey @{user.username}")
 
 
 @pytest.mark.flaky(reruns=2)
-def test_comment_user_last_name_autosuggestion(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-    comment_text = f"hey @{user.last_name[:5]}"
-    enter_comment_text(driver, comment_text)
-    matchButtonXpath = (
+def test_comment_user_last_name_autosuggestion(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    enter_comment_text(page, f"hey @{user.last_name[:5]}")
+    match_button = (
         f'//button[text()="{user.username} {user.first_name} {user.last_name}"]'
     )
-    driver.wait_for_xpath(matchButtonXpath)
-    driver.click_xpath(matchButtonXpath)
-    driver.wait_for_xpath_to_disappear(matchButtonXpath)
-    driver.click_xpath(
+    page.locator(match_button).first.click()
+    expect(page.locator(match_button).first).to_be_hidden()
+    page.locator(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    )
-    wait_for_comment_text_found(driver, f"hey @{user.username}")
+    ).first.click()
+    wait_for_comment_text_found(page, f"hey @{user.username}")
 
 
 @pytest.mark.flaky(reruns=2)
-def test_comment_user_first_name_autosuggestion(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-    comment_text = f"hey @{user.first_name[:5]}"
-    enter_comment_text(driver, comment_text)
-    matchButtonXpath = (
+def test_comment_user_first_name_autosuggestion(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    enter_comment_text(page, f"hey @{user.first_name[:5]}")
+    match_button = (
         f'//button[text()="{user.username} {user.first_name} {user.last_name}"]'
     )
-    driver.wait_for_xpath(matchButtonXpath)
-    driver.click_xpath(matchButtonXpath)
-    driver.wait_for_xpath_to_disappear(matchButtonXpath)
-    driver.click_xpath(
+    page.locator(match_button).first.click()
+    expect(page.locator(match_button).first).to_be_hidden()
+    page.locator(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    )
-    wait_for_comment_text_found(driver, f"hey @{user.username}")
+    ).first.click()
+    wait_for_comment_text_found(page, f"hey @{user.username}")
 
 
 @pytest.mark.flaky(reruns=2)
-def test_public_source_page_null_z(driver, user, public_source, public_group):
+def test_public_source_page_null_z(page, user, public_source, public_group):
     public_source.redshift = None
     DBSession().add(public_source)
     DBSession().commit()
 
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-
-    driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    expect(page.locator(f'//span[text()="{public_group.name}"]').first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=3)
 def test_analysis_start(
-    driver, user, public_source, analysis_service_token, public_group
+    page, user, public_source, analysis_service_token, public_group
 ):
     name = str(uuid.uuid4())
-    optional_analysis_parameters = {}
-
     post_data = {
         "name": name,
         "display_name": "test analysis service name",
@@ -150,9 +135,8 @@ def test_analysis_start(
         "version": "1.0",
         "contact_name": "Vera Rubin",
         "contact_email": "vr@ls.st",
-        # this is the URL/port of the SN analysis service that will be running during testing
         "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
-        "optional_analysis_parameters": json.dumps(optional_analysis_parameters),
+        "optional_analysis_parameters": json.dumps({}),
         "authentication_type": "none",
         "analysis_type": "lightcurve_fitting",
         "input_data_types": ["photometry", "redshift"],
@@ -166,26 +150,29 @@ def test_analysis_start(
     assert status == 200
     assert data["status"] == "success"
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-    driver.wait_for_xpath('//*[text()="External Analysis"]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    expect(page.locator('//*[text()="External Analysis"]').first).to_be_visible()
 
-    driver.click_xpath('//div[@data-testid="analysisServiceSelect"]')
-    driver.click_xpath(
+    page.locator('//div[@data-testid="analysisServiceSelect"]').first.click()
+    # select this run's service (its name is a unique uuid) to populate the form
+    page.locator(f'//li[contains(., "{name}")]').first.click()
+    page.locator(
         '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
-    )
-    driver.wait_for_xpath(
-        f"//*[text()='Sending data to analysis service {name} to start the analysis.']"
-    )
+    ).first.click()
+    expect(
+        page.locator(
+            f"//*[text()='Sending data to analysis service {name} to start the analysis.']"
+        ).first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=3)
 def test_analysis_with_file_input_start(
-    driver, user, public_source, analysis_service_token, public_group
+    page, user, public_source, analysis_service_token, public_group
 ):
     name = str(uuid.uuid4())
-
     optional_analysis_parameters = {
         "image_data": {"type": "file", "required": "True", "description": "Image data"},
         "fluxcal_data": {"type": "file", "description": "Fluxcal data"},
@@ -193,14 +180,12 @@ def test_analysis_with_file_input_start(
         "centroid_Y": {"type": "number"},
         "spaxel_buffer": {"type": "number"},
     }
-
     post_data = {
         "name": name,
         "display_name": "Spectral_Cube_Analysis",
         "description": "Spectral_Cube_Analysis description",
         "version": "1.0",
         "contact_name": "Michael Coughlin",
-        # this is the URL/port of the Spectral_Cube_Analysis service that will be running during testing
         "url": "http://localhost:7003/analysis/spectral_cube_analysis",
         "optional_analysis_parameters": json.dumps(optional_analysis_parameters),
         "authentication_type": "none",
@@ -216,36 +201,33 @@ def test_analysis_with_file_input_start(
     assert status == 200
     assert data["status"] == "success"
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-    driver.wait_for_xpath('//*[text()="External Analysis"]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    expect(page.locator('//*[text()="External Analysis"]').first).to_be_visible()
 
-    driver.click_xpath('//div[@data-testid="analysisServiceSelect"]')
+    page.locator('//div[@data-testid="analysisServiceSelect"]').first.click()
+    page.locator(f'//li[text()="{name}"]').first.click()
 
-    # look for an element list with a text with the uuid name of the analysis service
-    driver.click_xpath(f'//li[text()="{name}"]', timeout=30)
-
-    # look for an input element with id root_image_data
-    image_data = driver.wait_for_xpath('//input[@id="root_image_data"]')
-
-    image_data.send_keys(
+    page.locator('//input[@id="root_image_data"]').first.set_input_files(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
             "../data",
             "spectral_cube_analysis.fits",
-        ),
+        )
     )
 
-    driver.click_xpath(
+    page.locator(
         '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
-    )
-    driver.wait_for_xpath(
-        f"//*[text()='Sending data to analysis service {name} to start the analysis.']"
-    )
+    ).first.click()
+    expect(
+        page.locator(
+            f"//*[text()='Sending data to analysis service {name} to start the analysis.']"
+        ).first
+    ).to_be_visible()
 
 
-def test_classifications(driver, user, taxonomy_token, public_group, public_source):
+def test_classifications(page, user, taxonomy_token, public_group, public_source):
     simple = {
         "class": "Cepheid",
         "tags": ["giant/supergiant", "instability strip", "standard candle"],
@@ -292,290 +274,180 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     )
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
-    # wait for plots to load
-    try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
-        pass
+    page.locator('//div[@id="root_taxonomy"]').first.click()
+    page.locator(f'//li[contains(., "{tax_name} ({tax_version})")]').first.click()
+    page.keyboard.press("Escape")
 
-    driver.click_xpath('//div[@id="root_taxonomy"]')
-    driver.click_xpath(
-        f'//*[text()="{tax_name} ({tax_version})"]',
-        wait_clickable=False,
-        scroll_parent=True,
-    )
+    page.locator('//*[@id="classification"]').first.click()
+    page.locator('//*[@id="classification"]').first.fill("Symmetrical")
+    page.locator('//div[contains(@id, "Symmetrical")]').first.click()
+    page.keyboard.press("Escape")
 
-    # Click somewhere outside to remove focus from taxonomy select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
+    page.locator('//*[@id="probability"]').first.fill("1")
 
-    driver.click_xpath('//*[@id="classification"]')
-    # type "Mult-mode" into the classification select text box
-    classification_textbox = driver.wait_for_xpath('//*[@id="classification"]')
-    classification_textbox.send_keys("Symmetrical")
-    driver.click_xpath('//div[contains(@id, "Symmetrical")]', scroll_parent=True)
-
-    # Click somewhere outside to remove focus from classification select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
-
-    probability_input = driver.wait_for_xpath('//*[@id="probability"]')
-    driver.scroll_to_element_and_click(probability_input, scroll_parent=True)
-    driver.wait_for_xpath('//*[@id="probability"]').send_keys("1")
-
-    driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
-    # Notification
-    driver.wait_for_xpath("//*[text()='Classification saved']")
-    # Scroll up to get top of classifications list component in view
-    classifications = driver.find_element(
-        By.XPATH, "//button[@id='classifications-header']"
-    )
-    driver.scroll_to_element(classifications)
+    page.locator("//*[text()='Submit']").first.click()
+    expect(page.locator("//*[text()='Classification saved']").first).to_be_visible()
 
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
-    driver.wait_for_xpath(del_button_xpath, timeout=20)
-    driver.scroll_to_element(driver.wait_for_xpath(del_button_xpath))
-
-    driver.click_xpath(del_button_xpath)
-    driver.click_xpath("//*[text()='Confirm']", wait_clickable=False)
-    driver.wait_for_xpath_to_disappear("//*[contains(text(), '(P=1)')]")
-    driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
-    driver.wait_for_xpath_to_disappear(
-        "//span[contains(@class, 'MuiButton-label') and text()='Symmetrical']"
-    )
+    page.locator(del_button_xpath).first.click()
+    page.locator("//*[text()='Confirm']").first.click()
+    expect(page.locator("//*[contains(text(), '(P=1)')]").first).to_be_hidden()
+    expect(page.locator(f"//i[text()='{tax_name}']").first).to_be_hidden()
+    expect(
+        page.locator(
+            "//span[contains(@class, 'MuiButton-label') and text()='Symmetrical']"
+        ).first
+    ).to_be_hidden()
 
     # ensure low probability classifications have a question mark on the label
+    page.locator('//div[@id="root_taxonomy"]').first.click()
+    page.locator(f'//li[contains(., "{tax_name} ({tax_version})")]').first.click()
+    page.keyboard.press("Escape")
 
-    driver.click_xpath('//div[@id="root_taxonomy"]')
-    driver.click_xpath(
-        f'//*[text()="{tax_name} ({tax_version})"]',
-        wait_clickable=False,
-        scroll_parent=True,
-    )
-    # Click somewhere outside to remove focus from taxonomy select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
+    page.locator('//*[@id="classification"]').first.click()
+    page.locator('//*[@id="classification"]').first.fill("Mult-mode")
+    page.locator('//div[contains(@id, "Mult-mode")]').first.click()
+    page.keyboard.press("Escape")
 
-    driver.click_xpath('//*[@id="classification"]')
-    # type "Mult-mode" into the classification select text box
-    classification_textbox = driver.wait_for_xpath('//*[@id="classification"]')
-    classification_textbox.send_keys("Mult-mode")
-    driver.click_xpath('//div[contains(@id, "Mult-mode")]', scroll_parent=True)
+    page.locator('//*[@id="probability"]').first.fill("0.02")
+    page.locator("//*[text()='Submit']").first.click()
+    expect(page.locator("//*[text()='Classification saved']").first).to_be_visible()
 
-    # Click somewhere outside to remove focus from classification select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
-
-    # empty the probability text box
-    probability_input = driver.wait_for_xpath('//*[@id="probability"]')
-    driver.scroll_to_element_and_click(probability_input, scroll_parent=True)
-    probability_input.send_keys(Keys.BACKSPACE)
-
-    driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02")
-    driver.click_xpath("//*[text()='Submit']", wait_clickable=False)
-    driver.wait_for_xpath("//*[text()='Classification saved']")
-
-    driver.wait_for_xpath(
-        "//span[text()='Mult-mode?']",
-    )
-    driver.wait_for_xpath(
-        "//span[text()='(P=0.02)']",
-    )
+    expect(page.locator("//span[text()='Mult-mode?']").first).to_be_visible()
+    expect(page.locator("//span[text()='(P=0.02)']").first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_comments(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
+def test_comments(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
     comment_text = str(uuid.uuid4())
-    add_comment_and_wait_for_display(driver, comment_text)
+    add_comment_and_wait_for_display(page, comment_text)
 
 
-def test_comment_groups_validation(driver, user, public_source, public_group):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
+def test_comment_groups_validation(page, user, public_source, public_group):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
-    # fist post a classification without specifying anything
-    # (publicly accessible if no group is selected should be the default)
     comment_text = str(uuid.uuid4())
-    enter_comment_text(driver, comment_text)
-    driver.click_xpath(
+    enter_comment_text(page, comment_text)
+    page.locator(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    )
-    try:
-        driver.wait_for_xpath(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]',
-            timeout=20,
-        )
-        driver.wait_for_xpath(
-            '//div[@data-testid="comments-accordion"]//span[text()="a few seconds ago"]'
-        )
-    except TimeoutException:
-        driver.refresh()
-        driver.wait_for_xpath(
+    ).first.click()
+    expect(
+        page.locator(
             f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
-        )
-        driver.wait_for_xpath(
-            '//div[@data-testid="comments-accordion"]//span[text()="a few seconds ago"]'
-        )
+        ).first
+    ).to_be_visible()
 
-    # then post a classification to a specific group
-    enter_comment_text(driver, "")
+    enter_comment_text(page, "")
     comment_text = str(uuid.uuid4())
-    enter_comment_text(driver, comment_text)
-    driver.click_xpath(
+    enter_comment_text(page, comment_text)
+    page.locator(
         "//div[@data-testid='comments-accordion']//*[text()='Customize Group Access (public if not specified)']"
-    )
-    group_checkbox_xpath = f"//div[@data-testid='comments-accordion']//*[@data-testid='commentGroupCheckBox{public_group.id}']"
-    driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
-    driver.click_xpath(
+    ).first.click()
+    page.locator(
+        f"//div[@data-testid='comments-accordion']//*[@data-testid='commentGroupCheckBox{public_group.id}']"
+    ).first.click()
+    page.locator(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
-    )
-    try:
-        driver.wait_for_xpath(
-            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]',
-            timeout=20,
-        )
-        driver.wait_for_xpath(
-            '//div[@data-testid="comments-accordion"]//span[text()="a few seconds ago"]'
-        )
-    except TimeoutException:
-        driver.refresh()
-        driver.wait_for_xpath(
+    ).first.click()
+    expect(
+        page.locator(
             f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
-        )
-        driver.wait_for_xpath(
-            '//div[@data-testid="comments-accordion"]//span[text()="a few seconds ago"]'
-        )
+        ).first
+    ).to_be_visible()
 
 
-def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
-    driver.get(f"/become_user/{view_only_user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-    driver.wait_for_xpath_to_disappear('//textarea[@name="text"]')
+def test_view_only_user_cannot_comment(page, view_only_user, public_source):
+    page.goto(f"/become_user/{view_only_user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    expect(page.locator('//textarea[@name="text"]').first).to_be_hidden()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_delete_comment(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
+def test_delete_comment(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
     comment_text = str(uuid.uuid4())
-    add_comment_and_wait_for_display(driver, comment_text)
-    comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-    comment_div = comment_text_p.find_element(By.XPATH, "../..")
+    add_comment_and_wait_for_display(page, comment_text)
+
+    comment_p = page.locator(f'//p[text()="{comment_text}"]').first
+    expect(comment_p).to_be_visible()
+    comment_div = comment_p.locator("xpath=../..")
     comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
-    delete_button = comment_div.find_element(
-        By.XPATH, f"//*[@name='deleteCommentButton{comment_id}']"
-    )
-    driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-    ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
-    driver.execute_script("arguments[0].click();", delete_button)
-    try:
-        driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
-    except TimeoutException:
-        driver.refresh()
-        try:
-            comment_text_div = driver.wait_for_xpath(
-                f'//div[./p[text()="{comment_text}"]]'
-            )
-        except TimeoutException:
-            return
-        else:
-            comment_div = comment_text_div.find_element(By.XPATH, "..")
-            comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
-            delete_button = comment_div.find_element(
-                By.XPATH, f"//*[@name='deleteCommentButton{comment_id}']"
-            )
-            driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-            ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
-            driver.execute_script("arguments[0].click();", delete_button)
-            driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
+    comment_div.hover()
+    page.locator(f'//*[@name="deleteCommentButton{comment_id}"]').first.click()
+    expect(comment_p).to_be_hidden()
 
 
 def test_regular_user_cannot_delete_unowned_comment(
-    driver, super_admin_user, user, public_source
+    page, super_admin_user, user, public_source
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
     comment_text = str(uuid.uuid4())
-    add_comment_and_wait_for_display(driver, comment_text)
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-    comment_div = comment_text_p.find_element(By.XPATH, "../..")
+    add_comment_and_wait_for_display(page, comment_text)
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    comment_p = page.locator(f'//p[text()="{comment_text}"]').first
+    expect(comment_p).to_be_visible()
+    comment_div = comment_p.locator("xpath=../..")
     comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
-    delete_button = comment_text_p.find_element(
-        By.XPATH,
-        f"ancestor::span[@id='comment']//*[@name='deleteCommentButton{comment_id}']",
-    )
-    driver.scroll_to_element(comment_text_p)
-    ActionChains(driver).move_to_element(comment_text_p).pause(0.1).perform()
-    assert not delete_button.is_displayed()
+    comment_div.hover()
+    expect(
+        page.locator(f'//*[@name="deleteCommentButton{comment_id}"]').first
+    ).to_be_hidden()
 
 
 def test_super_user_can_delete_unowned_comment(
-    driver, super_admin_user, user, public_source
+    page, super_admin_user, user, public_source
 ):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
     comment_text = str(uuid.uuid4())
-    add_comment_and_wait_for_display(driver, comment_text)
+    add_comment_and_wait_for_display(page, comment_text)
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/source/{public_source.id}")
 
-    comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-    comment_div = comment_text_p.find_element(By.XPATH, "../..")
+    comment_p = page.locator(f'//p[text()="{comment_text}"]').first
+    expect(comment_p).to_be_visible()
+    comment_div = comment_p.locator("xpath=../..")
     comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
-    delete_button = comment_text_p.find_element(
-        By.XPATH,
-        f"ancestor::span[@id='comment']//*[@name='deleteCommentButton{comment_id}']",
-    )
-
-    driver.scroll_to_element(comment_text_p)
-    ActionChains(driver).move_to_element(comment_div).pause(0.3).move_to_element(
-        delete_button
-    ).pause(0.1).click().perform()
-    driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
+    comment_div.hover()
+    page.locator(f'//*[@name="deleteCommentButton{comment_id}"]').first.click()
+    expect(comment_p).to_be_hidden()
 
 
-def test_show_starlist(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    button = driver.wait_for_xpath('//button[text()="Show Starlist"]')
-    button.click()
-    driver.wait_for_xpath("//pre[text()[contains(., '_k1')]]", timeout=45)
+def test_show_starlist(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    page.locator('//button[text()="Show Starlist"]').first.click()
+    expect(page.locator("//pre[text()[contains(., '_k1')]]").first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_centroid_plot(
-    driver, user, public_source, public_group, ztf_camera, upload_data_token
+    page, user, public_source, public_group, ztf_camera, upload_data_token
 ):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
 
-    driver.wait_for_xpath('//div[@id="no-centroid-plot"]')
+    expect(page.locator('//div[@id="no-centroid-plot"]').first).to_be_visible()
 
     discovery_ra = public_source.ra
     discovery_dec = public_source.dec
-    # Put in some actual photometry data first
     status, data = api(
         "POST",
         "photometry?refresh=true",
@@ -604,204 +476,191 @@ def test_centroid_plot(
     assert data["status"] == "success"
     assert len(data["data"]["ids"]) == 3
 
-    driver.wait_for_xpath('//div[@id="centroid-plot"]/div[@class="js-plotly-plot"]')
+    expect(
+        page.locator('//div[@id="centroid-plot"]/div[@class="js-plotly-plot"]').first
+    ).to_be_visible()
 
 
-def test_dropdown_facility_change(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
-    driver.get(f"/source/{public_source.id}")
-    driver.click_xpath('//*[text()="Show Starlist"]')
-    driver.wait_for_xpath("//pre[text()[contains(., 'raoffset')]]", timeout=45)
-    driver.click_xpath('//*[@id="mui-component-select-StarListSelectElement"]')
-    driver.click_xpath('//li[@data-value="P200"]')
-    driver.wait_for_xpath("//pre[text()[contains(., 'dist')]]", timeout=45)
+def test_dropdown_facility_change(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    page.locator('//*[text()="Show Starlist"]').first.click()
+    expect(page.locator("//pre[text()[contains(., 'raoffset')]]").first).to_be_visible()
+    page.locator('//*[@id="mui-component-select-StarListSelectElement"]').first.click()
+    page.locator('//li[@data-value="P200"]').first.click()
+    expect(page.locator("//pre[text()[contains(., 'dist')]]").first).to_be_visible()
 
 
-def test_source_notification(driver, user, public_group, public_source):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
+def test_source_notification(page, user, public_group, public_source):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
-    # Choose a group and click something outside/not covered by the multi-select
-    # popup to close it, and retry a few times in case the page loads slowly
-    n_retries = 0
-    while n_retries < 3:
-        try:
-            group_select = driver.wait_for_xpath("//div[@id='selectGroups']", timeout=1)
-            driver.scroll_to_element_and_click(group_select)
-            driver.click_xpath(
-                f'//div[@data-testid="group_{public_group.id}"]',
-                scroll_parent=True,
-            )
-            break
-        except Exception:
-            n_retries += 1
-            time.sleep(1)
-            continue
-
-    assert n_retries < 3
-
-    header = driver.wait_for_xpath("//header")
-    driver.scroll_to_element_and_click(header)
-    driver.click_xpath("//label[@data-testid='soft']")
-    driver.click_xpath("//button[@data-testid='sendNotificationButton']")
-    driver.wait_for_xpath("//*[text()='Notification queued up successfully']")
+    page.locator("//div[@id='selectGroups']").first.click()
+    page.locator(f'//div[@data-testid="group_{public_group.id}"]').first.click()
+    page.keyboard.press("Escape")
+    page.locator("//label[@data-testid='soft']").first.click()
+    page.locator("//button[@data-testid='sendNotificationButton']").first.click()
+    expect(
+        page.locator("//*[text()='Notification queued up successfully']").first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_unsave_from_group(
-    driver, user_two_groups, public_source_two_groups, public_group2
+    page, user_two_groups, public_source_two_groups, public_group2
 ):
     public_source = public_source_two_groups
-    driver.get(f"/become_user/{user_two_groups.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-    driver.click_xpath(f'//*[@data-testid="editGroups_{public_source.id}"]')
-    driver.click_xpath(
-        f'//*[@data-testid="unsaveGroupCheckbox_{public_group2.id}"]',
-        scroll_parent=True,
-    )
-    driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
-    driver.wait_for_xpath(
-        '//*[text()="Source groups updated successfully"]', timeout=10
-    )
-    driver.wait_for_xpath_to_disappear(
-        f'//div[@data-testid="groupChip_{public_group2.id}"]'
-    )
+    page.goto(f"/become_user/{user_two_groups.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    page.locator(f'//*[@data-testid="editGroups_{public_source.id}"]').first.click()
+    page.locator(
+        f'//*[@data-testid="unsaveGroupCheckbox_{public_group2.id}"]'
+    ).first.click()
+    page.locator(
+        f'//button[@name="editSourceGroupsButton_{public_source.id}"]'
+    ).first.click()
+    expect(
+        page.locator('//*[text()="Source groups updated successfully"]').first
+    ).to_be_visible()
+    expect(
+        page.locator(f'//div[@data-testid="groupChip_{public_group2.id}"]').first
+    ).to_be_hidden()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_request_group_to_save_then_save(
-    driver, user, user_two_groups, public_source, public_group2
+    page, user, user_two_groups, public_source, public_group2
 ):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-    driver.click_xpath(f'//*[@data-testid="editGroups_{public_source.id}"]')
-    driver.click_xpath(
-        f'//*[@data-testid="inviteGroupCheckbox_{public_group2.id}"]',
-        scroll_parent=True,
-    )
-    driver.click_xpath(
-        f'//button[@name="editSourceGroupsButton_{public_source.id}"]',
-        scroll_parent=True,
-    )
-    driver.wait_for_xpath(
-        '//*[text()="Source groups updated successfully"]', timeout=10
-    )
-    driver.get(f"/become_user/{user_two_groups.id}")
-    driver.get(f"/group_sources/{public_group2.id}")
-    driver.click_xpath(f'//button[@data-testid="saveSourceButton_{public_source.id}"]')
-    driver.wait_for_xpath_to_disappear(
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    page.locator(f'//*[@data-testid="editGroups_{public_source.id}"]').first.click()
+    page.locator(
+        f'//*[@data-testid="inviteGroupCheckbox_{public_group2.id}"]'
+    ).first.click()
+    page.locator(
+        f'//button[@name="editSourceGroupsButton_{public_source.id}"]'
+    ).first.click()
+    expect(
+        page.locator('//*[text()="Source groups updated successfully"]').first
+    ).to_be_visible()
+    page.goto(f"/become_user/{user_two_groups.id}")
+    page.goto(f"/group_sources/{public_group2.id}")
+    page.locator(
         f'//button[@data-testid="saveSourceButton_{public_source.id}"]'
-    )
-    driver.wait_for_xpath(f"//a[contains(@href, '/source/{public_source.id}')]")
+    ).first.click()
+    expect(
+        page.locator(
+            f'//button[@data-testid="saveSourceButton_{public_source.id}"]'
+        ).first
+    ).to_be_hidden()
+    expect(
+        page.locator(f"//a[contains(@href, '/source/{public_source.id}')]").first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_update_redshift_and_history(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-    driver.click_xpath("//*[@data-testid='updateRedshiftIconButton']")
-    input_field = driver.wait_for_xpath(
-        "//div[@data-testid='updateRedshiftTextfield']//input"
+def test_update_redshift_and_history(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    page.locator("//*[@data-testid='updateRedshiftIconButton']").first.click()
+    page.locator("//div[@data-testid='updateRedshiftTextfield']//input").first.fill(
+        "0.9999"
     )
-    input_field.send_keys("0.9999")
-    input_field = driver.wait_for_xpath(
+    page.locator(
         "//div[@data-testid='updateRedshiftErrorTextfield']//input"
-    )
-    input_field.send_keys("0.0001")
-    driver.click_xpath("//button[@data-testid='updateRedshiftSubmitButton']")
-    driver.wait_for_xpath("//*[text()='Source redshift successfully updated.']")
-    driver.wait_for_xpath("//body").click()  # Close dialog
-    driver.wait_for_xpath("//*[contains(., '0.9999')]")
-    driver.wait_for_xpath("//*[contains(., '0.0001')]")
+    ).first.fill("0.0001")
+    page.locator("//button[@data-testid='updateRedshiftSubmitButton']").first.click()
+    expect(
+        page.locator("//*[text()='Source redshift successfully updated.']").first
+    ).to_be_visible()
+    page.keyboard.press("Escape")  # Close dialog
+    expect(page.locator("//*[contains(., '0.9999')]").first).to_be_visible()
+    expect(page.locator("//*[contains(., '0.0001')]").first).to_be_visible()
 
-    driver.click_xpath(
-        "//*[@data-testid='redshiftHistoryIconButton']",
-        wait_clickable=False,
-    )
-    driver.wait_for_xpath("//th[text()='Set By']", timeout=10)
-    driver.wait_for_xpath("//td[text()='0.9999']")
-    driver.wait_for_xpath("//td[text()='0.0001']")
-    driver.wait_for_xpath(f"//td[text()='{user.username}']")
+    page.locator("//*[@data-testid='redshiftHistoryIconButton']").first.click()
+    expect(page.locator("//th[text()='Set By']").first).to_be_visible()
+    expect(page.locator("//td[text()='0.9999']").first).to_be_visible()
+    expect(page.locator("//td[text()='0.0001']").first).to_be_visible()
+    expect(page.locator(f"//td[text()='{user.username}']").first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_update_redshift_and_history_without_error(driver, user, public_source):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
-    driver.click_xpath("//*[@data-testid='updateRedshiftIconButton']")
-    input_field = driver.wait_for_xpath(
-        "//div[@data-testid='updateRedshiftTextfield']//input"
+def test_update_redshift_and_history_without_error(page, user, public_source):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
+    page.locator("//*[@data-testid='updateRedshiftIconButton']").first.click()
+    page.locator("//div[@data-testid='updateRedshiftTextfield']//input").first.fill(
+        "0.9998"
     )
-    input_field.send_keys("0.9998")
-    driver.click_xpath("//button[@data-testid='updateRedshiftSubmitButton']")
-    driver.wait_for_xpath("//*[text()='Source redshift successfully updated.']")
-    driver.wait_for_xpath("//body").click()  # Close dialog
-    driver.wait_for_xpath("//*[contains(., '0.9998')]")
+    page.locator("//button[@data-testid='updateRedshiftSubmitButton']").first.click()
+    expect(
+        page.locator("//*[text()='Source redshift successfully updated.']").first
+    ).to_be_visible()
+    page.keyboard.press("Escape")  # Close dialog
+    expect(page.locator("//*[contains(., '0.9998')]").first).to_be_visible()
 
-    driver.click_xpath(
-        "//*[@data-testid='redshiftHistoryIconButton']", wait_clickable=False
-    )
-    driver.wait_for_xpath("//th[text()='Set By']")
-    driver.wait_for_xpath("//td[text()='0.9998']")
-    driver.wait_for_xpath(f"//td[text()='{user.username}']")
+    page.locator("//*[@data-testid='redshiftHistoryIconButton']").first.click()
+    expect(page.locator("//th[text()='Set By']").first).to_be_visible()
+    expect(page.locator("//td[text()='0.9998']").first).to_be_visible()
+    expect(page.locator(f"//td[text()='{user.username}']").first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_obj_page_unsaved_source(public_obj, driver, user):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_obj.id}")
-
-    driver.wait_for_xpath_to_disappear('//div[contains(@data-testid, "groupChip")]')
-
-
-def test_show_photometry_table(public_source, driver, user):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-
-    photometry_table_button = driver.wait_for_xpath(
-        '//*[@data-testid="show-photometry-table-button"]'
-    )
-    driver.scroll_to_element_and_click(photometry_table_button)
-    driver.wait_for_xpath(f'//*[contains(text(), "Photometry of {public_source.id}")]')
-
-    driver.click_xpath('//*[@data-testid="close-photometry-table-button"]')
-    driver.wait_for_xpath_to_disappear(
-        '//*[@data-testid="close-photometry-table-button"]'
-    )
+def test_obj_page_unsaved_source(public_obj, page, user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_obj.id}")
+    expect(
+        page.locator('//div[contains(@data-testid, "groupChip")]').first
+    ).to_be_hidden()
 
 
-def test_hide_right_panel(public_source, driver, user):
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.click_xpath('//*[@data-testid="KeyboardArrowRightIcon"]')
-    driver.wait_for_xpath_to_disappear('//*[@class="MuiCollapse-entered"]')
-    driver.click_xpath('//*[@data-testid="KeyboardArrowLeftIcon"]')
-    driver.wait_for_xpath_to_disappear('//*[@class="MuiCollapse-hidden"]')
+def test_show_photometry_table(public_source, page, user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+
+    page.locator('//*[@data-testid="show-photometry-table-button"]').first.click()
+    expect(
+        page.locator(f'//*[contains(text(), "Photometry of {public_source.id}")]').first
+    ).to_be_visible()
+
+    page.locator('//*[@data-testid="close-photometry-table-button"]').first.click()
+    expect(
+        page.locator('//*[@data-testid="close-photometry-table-button"]').first
+    ).to_be_hidden()
 
 
-def test_javascript_sexagesimal_conversion(public_source, driver, user):
+def test_hide_right_panel(public_source, page, user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    page.locator('//*[@data-testid="KeyboardArrowRightIcon"]').first.click()
+    expect(page.locator('//*[@class="MuiCollapse-entered"]').first).to_be_hidden()
+    page.locator('//*[@data-testid="KeyboardArrowLeftIcon"]').first.click()
+    expect(page.locator('//*[@class="MuiCollapse-hidden"]').first).to_be_hidden()
+
+
+def test_javascript_sexagesimal_conversion(public_source, page, user):
     public_source.ra = 342.0708127
     public_source.dec = 56.1130711
     DBSession().commit()
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath('//*[contains(., "22:48:17.00")]')
-    driver.wait_for_xpath('//*[contains(., "+56:06:47.06")]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator('//*[contains(., "22:48:17.00")]').first).to_be_visible()
+    expect(page.locator('//*[contains(., "+56:06:47.06")]').first).to_be_visible()
     public_source.ra = 75.6377796
     public_source.dec = 15.606709
     DBSession().commit()
-    driver.refresh()
-    driver.wait_for_xpath('//*[contains(., "05:02:33.07")]')
-    driver.wait_for_xpath('//*[contains(., "+15:36:24.15")]')
+    page.reload()
+    expect(page.locator('//*[contains(., "05:02:33.07")]').first).to_be_visible()
+    expect(page.locator('//*[contains(., "+15:36:24.15")]').first).to_be_visible()
 
 
-def test_source_hr_diagram(driver, user, public_source, annotation_token):
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+def test_source_hr_diagram(page, user, public_source, annotation_token):
+    page.goto(f"/become_user/{user.id}")
 
     status, data = api(
         "POST",
@@ -809,64 +668,40 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
         data={
             "obj_id": public_source.id,
             "origin": "gaiadr3.gaia_source",
-            "data": {
-                "Mag_G": 11.3,
-                "Mag_Bp": 12.8,
-                "Mag_Rp": 11.0,
-                "Plx": 20,
-            },
+            "data": {"Mag_G": 11.3, "Mag_Bp": 12.8, "Mag_Rp": 11.0, "Plx": 20},
         },
         token=annotation_token,
     )
     assert status == 200
 
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//h6[text()="{public_source.id}"]')
+    page.goto(f"/source/{public_source.id}")
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
-    try:
-        # Look for Suspense fallback to show
-        loading_text = "Loading HR diagram..."
-        driver.wait_for_xpath(f'//div[text()="{loading_text}"]')
-        driver.wait_for_xpath_to_disappear(f'//div[text()="{loading_text}"]')
+    component_class_xpath = (
+        f"//div[contains(@data-testid, 'hr_diagram_{public_source.id}')]"
+    )
+    vegaplot_div = page.locator(component_class_xpath).first
+    expect(vegaplot_div).to_be_visible()
 
-    except TimeoutException:
-        # The plot may have loaded too quickly to catch the Suspense div
-        driver.wait_for_xpath_to_disappear(f'//div[text()="{loading_text}"]')
+    # Since Vega uses a <canvas>, compare an image of the plot to the baseline.
+    generated_plot = Image.open(BytesIO(vegaplot_div.screenshot()))
 
-    finally:
-        component_class_xpath = (
-            f"//div[contains(@data-testid, 'hr_diagram_{public_source.id}')]"
-        )
-        vegaplot_div = driver.wait_for_xpath(component_class_xpath)
-        assert vegaplot_div.is_displayed()
+    expected_plot_path = os.path.abspath("skyportal/tests/data/HR_diagram_expected.png")
+    # Regenerate the baseline (matches the legacy test's behavior).
+    generated_plot.save(expected_plot_path)
 
-        # Since Vega uses a <canvas> element, we can't examine individual
-        # components of the plot through the DOM, so just compare an image of
-        # the plot to the saved baseline
-        generated_plot_data = vegaplot_div.screenshot_as_png
-        generated_plot = Image.open(BytesIO(generated_plot_data))
+    if not os.path.exists(expected_plot_path):
+        pytest.fail("Missing HR diagram baseline image for comparison")
+    expected_plot = Image.open(expected_plot_path)
 
-        expected_plot_path = os.path.abspath(
-            "skyportal/tests/data/HR_diagram_expected.png"
-        )
-
-        # Use this commented line to save a new version of the expected plot
-        # if changes have been made to the component:
-        # temporarily generate the plot we will test against
-        generated_plot.save(expected_plot_path)
-
-        if not os.path.exists(expected_plot_path):
-            pytest.fail("Missing HR diagram baseline image for comparison")
-        expected_plot = Image.open(expected_plot_path)
-
-        difference = ImageChops.difference(
-            generated_plot.convert("RGB"), expected_plot.convert("RGB")
-        )
-        assert difference.getbbox() is None
+    difference = ImageChops.difference(
+        generated_plot.convert("RGB"), expected_plot.convert("RGB")
+    )
+    assert difference.getbbox() is None
 
 
 def test_duplicate_sources_render(
-    driver, public_source, public_group, upload_data_token, user, ztf_camera
+    page, public_source, public_group, upload_data_token, user, ztf_camera
 ):
     obj_id2 = str(uuid.uuid4())
     status, data = api(
@@ -900,8 +735,10 @@ def test_duplicate_sources_render(
     )
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath('//*[contains(text(), "Possible duplicate of:")]')
-    driver.click_xpath(f'//*[contains(text(), "{obj_id2}")]')
-    driver.wait_for_xpath(f'//*[contains(text(), "{obj_id2}")]', timeout=20)
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    expect(
+        page.locator('//*[contains(text(), "Possible duplicate of:")]').first
+    ).to_be_visible()
+    page.locator(f'//*[contains(text(), "{obj_id2}")]').first.click()
+    expect(page.locator(f'//*[contains(text(), "{obj_id2}")]').first).to_be_visible()

@@ -39,7 +39,13 @@ class PhotStatHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: PhotStat
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/PhotStat'
           400:
               content:
                 application/json:
@@ -98,7 +104,12 @@ class PhotStatHandler(BaseHandler):
             content:
               application/json:
                 schema:
-                  $ref: '#/components/schemas/Success'
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/PhotStat'
           400:
               content:
                 application/json:
@@ -149,7 +160,12 @@ class PhotStatHandler(BaseHandler):
             content:
               application/json:
                 schema:
-                  $ref: '#/components/schemas/Success'
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/PhotStat'
           400:
               content:
                 application/json:

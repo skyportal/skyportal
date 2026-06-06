@@ -710,7 +710,13 @@ class InstrumentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Instrument'
           400:
             content:
               application/json:
@@ -944,7 +950,13 @@ class InstrumentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -1451,7 +1463,13 @@ class InstrumentFieldHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:

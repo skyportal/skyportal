@@ -66,10 +66,6 @@ jobs:
         with:
           bun-version-file: package.json
 
-      - uses: browser-actions/setup-geckodriver@latest
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Write SkyPortal configs
         run: |
           cat << EOF > config.yaml
@@ -104,16 +100,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update -y
-
-          ### firefox installation
-          sudo snap remove firefox
-          sudo install -d -m 0755 /etc/apt/keyrings
-          wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
-          echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
-          printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
-          sudo apt update -y
-
-          sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
+          sudo apt install -y wget unzip nginx libcurl4-gnutls-dev libgnutls28-dev
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -123,7 +110,6 @@ jobs:
           echo bun $(bun --version)
           echo node $(node --version)
           nginx -v
-          firefox --version
 
       - name: Initialize SkyPortal
         run: |

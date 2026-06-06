@@ -200,7 +200,13 @@ class ThumbnailHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Thumbnail'
           400:
             content:
               application/json:
