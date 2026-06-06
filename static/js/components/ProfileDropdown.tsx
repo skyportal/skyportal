@@ -51,6 +51,13 @@ const ProfileDropdown = () => {
   const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = React.useState<any>(null);
 
+  // RTK Query `data` is undefined until the profile loads; this component is in
+  // the header on every page and accesses profile fields unguarded below, so
+  // render nothing until it's available (the old Redux slice was always defined).
+  if (!profile) {
+    return null;
+  }
+
   const handleClick = (event: any) => {
     setAnchorEl(event.currentTarget);
   };

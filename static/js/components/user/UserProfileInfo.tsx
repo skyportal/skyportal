@@ -56,6 +56,12 @@ const getUserAffiliations = (affiliations: string[]) => (
 const UserProfileInfo = () => {
   const profile = useGetProfileQuery().data as any;
 
+  // `data` is undefined until the profile loads; the JSX below reads profile
+  // fields unguarded, so render nothing until it's available.
+  if (!profile) {
+    return null;
+  }
+
   return (
     <Card>
       <CardContent>
