@@ -48,6 +48,7 @@ import {
   mjdnow,
   rgba,
 } from "../../utils";
+import { useGetConfigQuery } from "../../ducks/config";
 
 // convert any unit to days
 const periodUnitDividers: Record<string, number> = {
@@ -268,7 +269,7 @@ const PhotometryPlot = ({
   const { classes } = useStyles();
 
   const { data: profile } = useGetProfileQuery();
-  const config = useAppSelector((state) => state["config"]);
+  const { data: config } = useGetConfigQuery() as { data: any };
   const [fetchPhotometryTrigger] = useLazyFetchSourcePhotometryQuery();
 
   // Params for the main object's photometry query. Duplicate sources are fetched

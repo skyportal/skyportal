@@ -25,13 +25,14 @@ import { useDeleteObservingRunMutation } from "../../ducks/observingRun";
 import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import Paper from "../Paper";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { observingRunTitle } from "./AssignmentForm";
 import NewObservingRun from "./NewObservingRun";
 import ModifyObservingRun from "./ModifyObservingRun";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 dayjs.extend(duration);
@@ -75,7 +76,7 @@ const ObservingRunList = ({
   managePermission,
 }: ObservingRunListProps) => {
   const dispatch = useAppDispatch();
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? [];
   const [deleteObservingRunMutation] = useDeleteObservingRunMutation();

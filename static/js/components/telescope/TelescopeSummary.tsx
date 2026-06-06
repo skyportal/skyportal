@@ -6,7 +6,7 @@ import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import AllocationTable from "../allocation/AllocationTable";
 import InstrumentTable from "../instrument/InstrumentTable";
 import SkyCam from "../SkyCam";
@@ -19,6 +19,7 @@ import { useGetTelescopeQuery } from "../../ducks/telescopes";
 import { useGetWeatherQuery } from "../../ducks/weather";
 import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
 import { Telescope } from "../../types/domain";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()((theme) => ({
   title: {
@@ -41,7 +42,7 @@ interface TelescopeSummaryProps {
 const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
-  const instrumentsState = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const groups = useGetGroupsQuery().data?.all ?? [];
   const { data: telescope, isError: telescopeError } = useGetTelescopeQuery(
     route.id,
@@ -112,7 +113,7 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
         <Grid size={12}>
           {telescope["allocations"] ? (
             <AllocationTable
-              instruments={instrumentsState.instrumentList}
+              instruments={instrumentList}
               allocations={telescope["allocations"]}
               groups={groups}
               telescopeInfo={false}

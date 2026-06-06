@@ -10,13 +10,14 @@ import DialogContent from "@mui/material/DialogContent";
 import dayjs from "dayjs";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyAssignment from "./ModifyAssignment";
 import StyledDataGrid from "../StyledDataGrid";
 import { useDeleteAssignmentMutation } from "../../ducks/source";
 import { useGetUsersQuery } from "../../ducks/users";
 import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   assignmentManage: {
@@ -44,9 +45,9 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
   const { data: usersData } = useGetUsersQuery();
   const allUsers = usersData?.users ?? [];
   const { data: observingRunList = [] } = useGetObservingRunsQuery();
-  const { instrumentList } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
 
   const openEditDialog = (id: any) => {
     setEditDialogOpen(true);

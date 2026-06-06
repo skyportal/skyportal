@@ -32,7 +32,7 @@ import {
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 import AssignmentForm from "../observing_run/AssignmentForm";
@@ -52,6 +52,7 @@ import { dec_to_dms, ra_to_hours } from "../../units";
 import SkyCam from "../SkyCam";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Spinner from "../Spinner";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
 
@@ -222,9 +223,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
     data: any;
   };
   const [putObservingRunNotObserved] = usePutObservingRunNotObservedMutation();
-  const { instrumentList } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = (useGetGroupsQuery().data?.all ?? null) as any;
   const [dialog, setDialog] = useState(false);

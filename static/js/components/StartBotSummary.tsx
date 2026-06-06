@@ -1,7 +1,7 @@
 import { useGetProfileQuery } from "../ducks/profile";
 import { useGetGroupsQuery } from "../ducks/groups";
 import { useEffect, useMemo, useState } from "react";
-import { useAppSelector } from "../types/hooks";
+
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -23,6 +23,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { useGetAnalysisServicesQuery } from "../ducks/analysis_services";
 import { useStartAnalysisMutation } from "../ducks/source";
 import GroupShareSelect from "./group/GroupShareSelect";
+import { useGetConfigQuery } from "../ducks/config";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -85,7 +86,7 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   );
   const allGroups = useGetGroupsQuery().data?.all ?? null;
   const prefs: any = useGetProfileQuery().data?.preferences;
-  const config = useAppSelector((state) => state["config"]);
+  const { data: config } = useGetConfigQuery() as { data: any };
 
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
     useState<any>(null);

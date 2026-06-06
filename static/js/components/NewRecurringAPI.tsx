@@ -6,8 +6,9 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppDispatch, useAppSelector } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import { useSubmitRecurringAPIMutation } from "../ducks/recurring_apis";
+import { useGetConfigQuery } from "../ducks/config";
 
 dayjs.extend(utc);
 
@@ -18,9 +19,8 @@ const NewRecurringAPI = () => {
     .add(1, "day")
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
-  const allowedRecurringAPIMethods = useAppSelector(
-    (state) => state["config"].allowedRecurringAPIMethods,
-  );
+  const allowedRecurringAPIMethods = (useGetConfigQuery().data as any)
+    ?.allowedRecurringAPIMethods;
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     formData.next_call = formData.next_call

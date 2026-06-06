@@ -12,8 +12,9 @@ import TableRow from "@mui/material/TableRow";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { Link } from "react-router-dom";
 import Tooltip from "@mui/material/Tooltip";
-import { useAppSelector } from "../../types/hooks";
+
 import Button from "../Button";
+import { useGetUsersQuery } from "../../ducks/users";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -49,7 +50,7 @@ const ShowSummaryHistory = ({
   button = false,
 }: ShowSummaryHistoryProps) => {
   const { classes } = useStyles();
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
+  const allUsers = useGetUsersQuery().data?.users ?? [];
   const userIdToUsername: Record<number, string> = {};
 
   const [dialogOpen, setDialogOpen] = useState(false);

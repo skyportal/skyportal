@@ -3,8 +3,8 @@ import React, { Suspense, useEffect, useMemo, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Switch from "@mui/material/Switch";
 
-import { useAppSelector } from "../../types/hooks";
 import { useGetSourcePhotometryMinimalQuery } from "../../ducks/photometry_minimal";
+import { useGetConfigQuery } from "../../ducks/config";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
@@ -99,7 +99,7 @@ interface VegaPhotometryProps {
 const VegaPhotometry = (props: VegaPhotometryProps) => {
   const { sourceId, annotations = [], folded = false, style = {} } = props;
   const { data: photometry } = useGetSourcePhotometryMinimalQuery(sourceId);
-  const config = useAppSelector((state) => state["config"]);
+  const { data: config } = useGetConfigQuery() as { data: any };
   const [filters, setFilters] = useState<string[] | null>(null);
   const [wavelengths, setWavelengths] = useState<string[] | null>(null);
   const [period, setPeriod] = useState<number | null>(null);

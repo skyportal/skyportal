@@ -33,7 +33,6 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
-import { useAppSelector } from "../../types/hooks";
 import withRouter from "../withRouter";
 
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
@@ -96,6 +95,10 @@ import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
 import SharingServicesDialog from "../sharing_service/SharingServicesForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
+import {
+  useGetInstrumentFormsQuery,
+  useGetInstrumentsQuery,
+} from "../../ducks/instruments";
 
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
@@ -237,9 +240,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const [addHost] = useAddHostMutation();
   const [removeHostMutation] = useRemoveHostMutation();
 
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
   const { data: observingRunList = [] } = useGetObservingRunsQuery();
   const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 

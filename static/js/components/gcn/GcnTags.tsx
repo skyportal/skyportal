@@ -6,12 +6,13 @@ import { makeStyles } from "tss-react/mui";
 import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import AddGcnTag from "./AddGcnTag";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
 import { useDeleteGcnTagMutation } from "../../ducks/gcnTags";
+import { useGetConfigQuery } from "../../ducks/config";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -68,9 +69,7 @@ const GcnTags = ({
 
   const { data: userProfile } = useGetProfileQuery();
 
-  const gcn_tags_classes = useAppSelector(
-    (state) => state["config"].gcnTagsClasses,
-  );
+  const gcn_tags_classes = (useGetConfigQuery().data as any)?.gcnTagsClasses;
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<any>(null);

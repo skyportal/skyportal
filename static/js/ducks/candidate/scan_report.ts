@@ -10,6 +10,7 @@
  */
 import { skyportalApi } from "../../api/skyportalApi";
 import { invalidateOnMessage } from "../../api/wsInvalidation";
+import type { RootState } from "../../types/store";
 
 export const scanReportItemApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
@@ -37,7 +38,7 @@ invalidateOnMessage(
     const { report_id } = payload;
     const items = scanReportItemApi.endpoints.getScanReportItems.select(
       Number(report_id),
-    )(getState()).data;
+    )(getState() as RootState).data;
     if (
       items?.length &&
       Number(report_id) === Number(items[0].scan_report_id)

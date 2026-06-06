@@ -27,7 +27,7 @@ import Button from "../Button";
 
 import withRouter from "../withRouter";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import {
   useParseASCIISpectrumMutation,
   useUploadASCIISpectrumMutation,
@@ -38,6 +38,8 @@ import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { userLabel } from "../../utils/format";
 import Paper from "../Paper";
 import Spinner from "../Spinner";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useGetConfigQuery } from "../../ducks/config";
 
 dayjs.extend(utc);
 
@@ -86,9 +88,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
   const [uploadASCIISpectrum] = useUploadASCIISpectrumMutation();
   const { data: usersData } = useGetUsersQuery();
   const users = usersData?.users;
-  const instrumentList = useAppSelector(
-    (state) => state["instruments"].instrumentList,
-  );
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopes = [] } = useGetTelescopesQuery();
   const { data: source } = useGetSourceQuery(route.id);
   const [persistentFormData, setPersistentFormData] = useState<any>({});
@@ -96,13 +96,10 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
   const [header, setHeader] = useState<any[]>([]);
   const [data, setData] = useState<any[]>([]);
   const [headerHasComments, setHeaderHasComments] = useState(false);
-  const spectrumTypes = useAppSelector(
-    (state) => state["config"].allowedSpectrumTypes,
-  );
+  const spectrumTypes = (useGetConfigQuery().data as any)?.allowedSpectrumTypes;
 
-  const defaultSpectrumType = useAppSelector(
-    (state) => state["config"].defaultSpectrumType,
-  );
+  const defaultSpectrumType = (useGetConfigQuery().data as any)
+    ?.defaultSpectrumType;
   const [searchParams] = useSearchParams();
   const [uploadedFromURL, setUploadedFromURL] = useState(false);
   const [userEnumOptions, setUserEnumOptions] = useState<any>([]);

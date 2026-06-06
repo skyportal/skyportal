@@ -1,13 +1,14 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import { useAppSelector } from "../../types/hooks";
+
 import { sourcePublishOptionsSchema } from "../source/source_publish/SourcePublishOptions";
 import {
   useSubmitPublicReleaseMutation,
   useUpdatePublicReleaseMutation,
 } from "../../ducks/public_pages/public_release";
 import Button from "../Button";
+import { useGetStreamsQuery } from "../../ducks/streams";
 
 interface ReleaseFormProps {
   release: any;
@@ -22,7 +23,7 @@ const ReleaseForm = ({
 }: ReleaseFormProps) => {
   const [submitPublicRelease] = useSubmitPublicReleaseMutation();
   const [updatePublicRelease] = useUpdatePublicReleaseMutation();
-  const streams = useAppSelector((state) => state["streams"]);
+  const { data: streams = [] } = useGetStreamsQuery();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const sourceOptionsSchema = sourcePublishOptionsSchema(
     streams as any,

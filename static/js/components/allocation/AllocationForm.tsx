@@ -21,7 +21,7 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import Popover from "@mui/material/Popover";
 import Chip from "@mui/material/Chip";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import {
   useModifyAllocationMutation,
@@ -33,6 +33,12 @@ import {
 } from "../../ducks/allocations";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { userLabel } from "../../utils/format";
+import {
+  useGetInstrumentFormsQuery,
+  useGetInstrumentsQuery,
+} from "../../ducks/instruments";
+import { useGetConfigQuery } from "../../ducks/config";
+import { useGetUsersQuery } from "../../ducks/users";
 
 dayjs.extend(utc);
 
@@ -235,14 +241,12 @@ const AllocationForm = ({
   const [submitAllocation] = useSubmitAllocationMutation();
   const [modifyAllocation] = useModifyAllocationMutation();
   const { data: allocationList = [] } = useGetAllocationsQuery();
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
-  const allowedAllocationTypes = useAppSelector(
-    (state) => state["config"].allowedAllocationTypes,
-  );
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
+  const allowedAllocationTypes = (useGetConfigQuery().data as any)
+    ?.allowedAllocationTypes;
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
-  const { users } = useAppSelector((state) => state["users"]);
+  const users = useGetUsersQuery().data?.users ?? [];
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [instrumentOptions, setInstrumentOptions] = useState<any[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);

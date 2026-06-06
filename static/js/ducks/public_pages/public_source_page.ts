@@ -16,7 +16,12 @@ export const publicSourcePageApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     fetchPublicSourcePages: build.query({
       query: (sourceId) => `api/public_pages/source/${sourceId}`,
-      providesTags: ["FetchPublicSourcePages"],
+      // Tag per source id so a REFRESH_PUBLIC_SOURCE_PAGES message can invalidate
+      // exactly the matching source's query (replaces the old global
+      // `state.source.id === source_id` gate, which no longer exists).
+      providesTags: (_result, _error, sourceId) => [
+        { type: "FetchPublicSourcePages", id: sourceId },
+      ],
     }),
     generatePublicSourcePage: build.mutation({
       query: ({ sourceId, payload }) => ({
@@ -37,15 +42,10 @@ export const publicSourcePageApi = skyportalApi.injectEndpoints({
 });
 
 // Websocket: old handler refetched pages only for the currently-loaded source.
-invalidateOnMessage(
-  "skyportal/REFRESH_PUBLIC_SOURCE_PAGES",
-  (payload, getState) => {
-    const { source_id } = payload;
-    return getState().source?.id === source_id
-      ? ["FetchPublicSourcePages"]
-      : null;
-  },
-);
+invalidateOnMessage("skyportal/REFRESH_PUBLIC_SOURCE_PAGES", (payload) => {
+  const { source_id } = payload;
+  return [{ type: "FetchPublicSourcePages", id: source_id }];
+});
 
 export const {
   useFetchPublicSourcePagesQuery,

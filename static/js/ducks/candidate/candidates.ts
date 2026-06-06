@@ -44,14 +44,14 @@ const REFRESH_CANDIDATE = "skyportal/REFRESH_CANDIDATE";
  * back on later pages), so all pages of one filter/query collapse onto a single
  * cache entry. Returns a stable stringification of the remaining fields.
  */
-const candidatesCacheKey = (arg) => {
-  const rest = { ...(arg || {}) };
-  delete rest.pageNumber;
-  delete rest.queryID;
+const candidatesCacheKey = (arg: Record<string, any> | undefined) => {
+  const rest: Record<string, any> = { ...(arg || {}) };
+  delete rest["pageNumber"];
+  delete rest["queryID"];
   return JSON.stringify(
     Object.keys(rest)
       .sort()
-      .reduce((acc, key) => {
+      .reduce<Record<string, any>>((acc, key) => {
         acc[key] = rest[key];
         return acc;
       }, {}),
@@ -60,14 +60,16 @@ const candidatesCacheKey = (arg) => {
 
 // The arg of the currently-active `getCandidates` query, captured so the
 // websocket handler can target the exact cache entry with `updateQueryData`.
-let activeCandidatesArg = null;
+let activeCandidatesArg: any = null;
 
 export const candidatesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getCandidates: build.query({
       query: (filterParams = {}) => {
         const filtered = filterOutEmptyValues(filterParams);
-        const queryString = new URLSearchParams(filtered).toString();
+        const queryString = new URLSearchParams(
+          filtered as Record<string, string>,
+        ).toString();
         return `api/candidates?${queryString}`;
       },
       // All pages of one filter/query share a single cache entry.
@@ -122,12 +124,12 @@ export const {
 // Client UI state (NOT server data): retained reducer + plain action creators.
 // ---------------------------------------------------------------------------
 
-export const setCandidatesAnnotationSortOptions = (item) => ({
+export const setCandidatesAnnotationSortOptions = (item: any) => ({
   type: SET_CANDIDATES_ANNOTATION_SORT_OPTIONS,
   item,
 });
 
-export const setFilterFormData = (formData) => ({
+export const setFilterFormData = (formData: any) => ({
   type: SET_CANDIDATES_FILTER_FORM_DATA,
   formData,
 });
@@ -137,7 +139,7 @@ const initialState = {
   filterFormData: null,
 };
 
-const reducer = (state = initialState, action) => {
+const reducer = (state = initialState, action: any) => {
   switch (action.type) {
     case SET_CANDIDATES_ANNOTATION_SORT_OPTIONS:
       return { ...state, selectedAnnotationSortOptions: action.item };
@@ -154,7 +156,7 @@ store.injectReducer("candidates", reducer);
 // WebSocket: refresh a single candidate into the active list cache entry.
 // ---------------------------------------------------------------------------
 
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType: string, payload: any, dispatch: any) => {
   if (actionType !== REFRESH_CANDIDATE || activeCandidatesArg === null) {
     return;
   }
@@ -166,7 +168,7 @@ messageHandler.add((actionType, payload, dispatch) => {
     return;
   }
   // Preserve the old guard: only refresh if the candidate is in the loaded list.
-  const match = loaded.find((c) => c.internal_key === payload.id);
+  const match = loaded.find((c: any) => c.internal_key === payload.id);
   if (!match) {
     return;
   }
@@ -179,13 +181,15 @@ messageHandler.add((actionType, payload, dispatch) => {
     }),
   )
     .unwrap()
-    .then((fresh) => {
+    .then((fresh: any) => {
       dispatch(
         candidatesApi.util.updateQueryData(
           "getCandidates",
           activeCandidatesArg,
-          (draft) => {
-            const idx = draft.candidates.findIndex((c) => c.id === fresh.id);
+          (draft: any) => {
+            const idx = draft.candidates.findIndex(
+              (c: any) => c.id === fresh.id,
+            );
             if (idx !== -1) {
               draft.candidates[idx] = fresh;
             }

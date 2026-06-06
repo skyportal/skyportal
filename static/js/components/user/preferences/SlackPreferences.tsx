@@ -6,12 +6,13 @@ import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 
 import { makeStyles } from "tss-react/mui";
-import { useAppSelector } from "../../../types/hooks";
+
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
+import { useGetConfigQuery } from "../../../ducks/config";
 
 const useStyles = makeStyles()((theme) => ({
   textField: {
@@ -25,9 +26,7 @@ const useStyles = makeStyles()((theme) => ({
 
 const SlackPreferences = () => {
   const { classes } = useStyles();
-  const slack_preamble = useAppSelector(
-    (state) => (state["config"] as any).slackPreamble,
-  );
+  const slack_preamble = (useGetConfigQuery().data as any)?.slackPreamble;
   const { data: profileData } = useGetProfileQuery();
   const profile = (profileData?.preferences ?? {}) as any;
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();

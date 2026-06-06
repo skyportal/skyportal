@@ -31,7 +31,7 @@ import FormControl from "@mui/material/FormControl";
 import { GridToolbarContainer } from "@mui/x-data-grid";
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGridBase from "../StyledDataGrid";
 import TransferList from "../TransferList";
@@ -54,6 +54,7 @@ import { useGetConfigQuery } from "../../ducks/config";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
+import { useGetUsersQuery } from "../../ducks/users";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme as any);
 
@@ -654,7 +655,7 @@ const SharingServicesPage = () => {
 
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const allGroups = useGetGroupsQuery().data?.all ?? [];
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
+  const allUsers = useGetUsersQuery().data?.users ?? [];
   const { data: sharingServicesList = [] } = useGetSharingServicesQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const allowedInstrumentsForSharing = useGetConfigQuery().data?.[

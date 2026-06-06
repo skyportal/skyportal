@@ -18,7 +18,7 @@ import { JSONTree } from "react-json-tree";
 import { skipToken } from "@reduxjs/toolkit/query";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
@@ -36,6 +36,10 @@ import AddSurveyEfficiencyObservationPlanPage from "../survey_efficiency/AddSurv
 import AddRunFromObservationPlanPage from "./AddRunFromObservationPlanPage";
 import ObservationPlanGlobe from "./ObservationPlanGlobe";
 import ObservationPlanSummaryStatistics from "./ObservationPlanSummaryStatistics";
+import {
+  useGetInstrumentObsplanFormsQuery,
+  useGetInstrumentsQuery,
+} from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   actionButtons: {
@@ -93,9 +97,9 @@ const ObservationPlanRequestLists = ({
   const [isSending, setIsSending] = useState<any>(null);
   const [isRemoving, setIsRemoving] = useState<any>(null);
 
-  const { instrumentList, instrumentObsplanFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentObsplanFormParams = {} } =
+    useGetInstrumentObsplanFormsQuery();
 
   useEffect(() => {
     if (!gcnEvent) return;

@@ -2,16 +2,19 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useUploadObservationsMutation } from "../../ducks/observations";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 interface NewObservationProps {
   onClose?: (() => void) | null;
 }
 
 const NewObservation = ({ onClose = null }: NewObservationProps) => {
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const dispatch = useAppDispatch();
   const [uploadObservations] = useUploadObservationsMutation();

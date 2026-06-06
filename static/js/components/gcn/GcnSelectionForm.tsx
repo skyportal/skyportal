@@ -30,7 +30,7 @@ import { skipToken } from "@reduxjs/toolkit/query";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useGetGcnEventQuery } from "../../ducks/gcnEvent";
 
 import {
@@ -58,6 +58,7 @@ import ProgressIndicator from "../ProgressIndicators";
 
 import { useGetLocalizationQuery } from "../../ducks/localization";
 import Spinner from "../Spinner";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const GcnReport = React.lazy(() => import("./GcnReport"));
 const GcnSummary = React.lazy(() => import("./GcnSummary"));
@@ -282,6 +283,7 @@ const GcnEventSourcesPage = ({
         downloadCallback={handleSourcesDownload}
         includeGcnStatus
         sourceInGcnFilter={sourceFilteringState}
+        gcnEventDateobs={dateobs}
       />
       <Dialog open={downloadProgressTotal > 0} maxWidth="md">
         <DialogContent
@@ -450,9 +452,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   });
 
   const { data: telescopeList = [] } = useGetTelescopesQuery();
-  const { instrumentList } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
   const sortedInstrumentList = [...instrumentList];
   sortedInstrumentList.sort((i1: any, i2: any) =>
     i1.name.localeCompare(i2.name),

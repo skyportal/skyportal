@@ -12,7 +12,6 @@ import Button from "../Button";
 
 import FindGcnEvents from "../gcn/FindGcnEvents";
 
-import { useAppSelector } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
   useGetApiSkymapTriggersQuery,
@@ -20,6 +19,7 @@ import {
   useDeleteApiSkymapTriggerMutation,
 } from "../../ducks/skymap_triggers";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 
@@ -54,7 +54,7 @@ const SkymapTriggerAPIDisplay = () => {
   const [selectedLocalizationId, setSelectedLocalizationId] =
     useState<any>(null);
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: allocationListApiObsplan = [] } =
     useGetAllocationsApiObsplanQuery({

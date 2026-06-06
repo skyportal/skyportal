@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { makeStyles } from "tss-react/mui";
-import { useAppSelector } from "../../../types/hooks";
+
 import { useGetTelescopesQuery } from "../../../ducks/telescopes";
 import { useGetAllocationsApiClassnameQuery } from "../../../ducks/allocations";
 import {
@@ -11,6 +11,10 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
+import {
+  useGetInstrumentFormsQuery,
+  useGetInstrumentsQuery,
+} from "../../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   allocationSelect: {
@@ -26,9 +30,8 @@ const FollowupRequestPreferences = () => {
   const { data: allocationListApiClassname = [] } =
     useGetAllocationsApiClassnameQuery();
   const allGroups = useGetGroupsQuery().data?.all ?? null;
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
   const { data: profile } = useGetProfileQuery();
   const defaultAllocationId = profile?.preferences?.["followupDefault"];
   // set the default allocation to be -1 if nothing is in the user preferences

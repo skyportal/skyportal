@@ -1,6 +1,6 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
-import { useAppSelector } from "../../types/hooks";
+
 import { Link, useParams } from "react-router-dom";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Select from "@mui/material/Select";
@@ -27,6 +27,7 @@ import NewPhotometryForm from "./NewPhotometry";
 import GroupShareSelect from "../group/GroupShareSelect";
 import FormValidationError from "../FormValidationError";
 import { useUploadPhotometryMutation } from "../../ducks/source";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 // `font` is a deprecated HTML element not present in JSX.IntrinsicElements.
 const Font: any = "font";
@@ -53,7 +54,9 @@ export const HtmlTooltip = withStyles(Tooltip, (theme) => ({
 
 const UploadPhotometryForm = () => {
   const [uploadPhotometry] = useUploadPhotometryMutation();
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const userGroups = useGetGroupsQuery().data?.user ?? [];
   const [showPreview, setShowPreview] = useState(false);

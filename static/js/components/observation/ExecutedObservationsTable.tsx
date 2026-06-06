@@ -25,7 +25,7 @@ import {
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 import ObservationFilterForm from "./ObservationFilterForm";
@@ -36,6 +36,7 @@ import {
   useLazyCheckSourceQuery,
   useSaveSourceMutation,
 } from "../../ducks/source";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -94,7 +95,7 @@ const ExecutedObservationsTable = ({
   const [checkSource] = useLazyCheckSourceQuery();
   const [saveSource] = useSaveSourceMutation();
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
   const [open, setOpen] = useState(false);
   const [newDialogFromFileOpen, setNewDialogFromFileOpen] = useState(false);

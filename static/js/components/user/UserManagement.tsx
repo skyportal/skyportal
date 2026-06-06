@@ -103,7 +103,7 @@ const UserManagement = () => {
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
-  const { invitationsEnabled } = useGetConfigQuery().data ?? {};
+  const { invitationsEnabled } = (useGetConfigQuery().data as any) ?? {};
   const { data: currentUser } = useGetProfileQuery();
   // fetchParams drive the (server-side) pagination/filter/sort query. They live
   // in component state and are passed to the RTK Query hook below, which

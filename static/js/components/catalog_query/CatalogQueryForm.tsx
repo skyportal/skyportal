@@ -12,7 +12,6 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { useAppSelector } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
   useGetAllocationsQuery,
@@ -21,6 +20,7 @@ import {
 
 import { useSubmitCatalogQueryMutation } from "../../ducks/catalog_query";
 import GroupShareSelect from "../group/GroupShareSelect";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -82,7 +82,7 @@ const CatalogQueryForm = ({ gcnevent }: CatalogQueryFormProps) => {
     useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: allocationListApiClassname = [] } =
     useGetAllocationsApiClassnameQuery();
 

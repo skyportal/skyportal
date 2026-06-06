@@ -18,12 +18,13 @@ import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
-import { useAppSelector } from "../../types/hooks";
+
 import { allowedClasses } from "../classification/ClassificationForm";
 import Button from "../Button";
 
 import { useFetchSummaryQueryMutation } from "../../ducks/summary";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
+import { useGetConfigQuery } from "../../ducks/config";
 
 const useStyles = makeStyles()((theme) => ({
   chip: {
@@ -72,9 +73,8 @@ const useStyles = makeStyles()((theme) => ({
 
 const SummarySearch = () => {
   const { classes } = useStyles();
-  const summary_sources_classes = useAppSelector(
-    (state) => state["config"].summary_sourcesClasses,
-  ) as any;
+  const summary_sources_classes = (useGetConfigQuery().data as any)
+    ?.summary_sourcesClasses;
   const [fetchSummaryQuery] = useFetchSummaryQueryMutation();
   const [queryResult, setQueryResult] = useState<any>(null);
   const [runningQuery, setRunningQuery] = useState(false);

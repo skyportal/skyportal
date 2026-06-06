@@ -6,7 +6,6 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 
-import { useAppSelector } from "../../types/hooks";
 import { useGetDefaultSurveyEfficienciesQuery } from "../../ducks/default_survey_efficiencies";
 import { useGetDefaultObservationPlansQuery } from "../../ducks/default_observation_plans";
 import { useGetAllocationsQuery } from "../../ducks/allocations";
@@ -15,6 +14,7 @@ import Spinner from "../Spinner";
 import AllocationTableComponent from "./AllocationTable";
 import DefaultObservationPlanTableComponent from "../observation_plan/DefaultObservationPlanTable";
 import DefaultSurveyEfficiencyTableComponent from "../survey_efficiency/DefaultSurveyEfficiencyTable";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const AllocationTable = AllocationTableComponent as any;
 const DefaultObservationPlanTable = DefaultObservationPlanTableComponent as any;
@@ -43,7 +43,7 @@ interface AllocationListProps {
 }
 
 const AllocationList = ({ managePermission = false }: AllocationListProps) => {
-  const instrumentsState = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? null;
   const [rowsPerPage, setRowsPerPage] = useState(100);
@@ -88,7 +88,7 @@ const AllocationList = ({ managePermission = false }: AllocationListProps) => {
 
   return (
     <AllocationTable
-      instruments={instrumentsState.instrumentList}
+      instruments={instrumentList}
       telescopes={telescopeList}
       groups={groups}
       allocations={allocationList}
@@ -108,7 +108,7 @@ const AllocationPage = () => {
     useGetDefaultObservationPlansQuery();
   const { data: defaultSurveyEfficiencyList } =
     useGetDefaultSurveyEfficienciesQuery();
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: currentUser } = useGetProfileQuery();
 

@@ -9,11 +9,12 @@ import UninitializedDBMessage from "../UninitializedDBMessage";
 import SourceTable from "./SourceTable";
 import Spinner from "../Spinner";
 import ProgressIndicator from "../ProgressIndicators";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import {
   useFetchSourcesQuery,
   useLazyFetchSourcesQuery,
 } from "../../ducks/sources";
+import { useGetDbInfoQuery } from "../../ducks/dbInfo";
 
 const SourceList = () => {
   const dispatch = useAppDispatch();
@@ -21,9 +22,8 @@ const SourceList = () => {
   const [queryParams, setQueryParams] = useState<any>({});
   const { data: sourcesState } = useFetchSourcesQuery(queryParams);
   const [fetchSourcesTrigger] = useLazyFetchSourcesQuery();
-  const sourceTableEmpty = useAppSelector(
-    (state) => (state as any).dbInfo.source_table_empty,
-  );
+  const sourceTableEmpty = (useGetDbInfoQuery().data as any)
+    ?.source_table_empty;
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
   const [sorting, setSorting] = useState<any>(null);

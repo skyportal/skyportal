@@ -6,12 +6,14 @@ import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import { useAppSelector } from "../../types/hooks";
+
 import { useGetGroupsQuery } from "../../ducks/groups";
 import Button from "../Button";
 
 import UsernameTrie from "../../usernameTrie";
 import InstrumentTrie from "../../instrumentTrie";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useGetUsersQuery } from "../../ducks/users";
 
 const useStyles = makeStyles()(() => ({
   commentEntry: {
@@ -43,10 +45,10 @@ const CommentEntry = ({
   closeDialog = null,
 }: CommentEntryProps) => {
   const { classes: styles } = useStyles();
-  const users = useAppSelector((state) => state["users"]);
+  const users = useGetUsersQuery().data ?? { users: [] };
   const { data: groupsData } = useGetGroupsQuery();
   const groups = useMemo(() => groupsData?.userAccessible ?? [], [groupsData]);
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const [textValue, setTextValue] = useState("");
   const [textInputCursorIndex, setTextInputCursorIndex] = useState(0);
   const [autosuggestVisible, setAutosuggestVisible] = useState(false);

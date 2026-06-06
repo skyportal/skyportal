@@ -9,11 +9,11 @@ import CachedIcon from "@mui/icons-material/Cached";
 import Tooltip from "@mui/material/Tooltip";
 import convertLength from "convert-css-length";
 
-import { useAppSelector } from "../../types/hooks";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
 
 {# Only process widgets that are set to show on the homepage, or those that don't have a show property #}
 {%- set visible_widgets = {} -%}
@@ -79,7 +79,7 @@ const HomePage = () => {
   const rootFont = theme.typography.htmlFontSize;
   const convert = convertLength(rootFont);
   const gridRowHeight = parseFloat(convert(rem, "px"));
-  const groups = useAppSelector((state) => (state as any).groups.user);
+  const groups = useGetGroupsQuery().data?.user ?? [];
   const { data: profile } = useGetProfileQuery();
   const currentLayouts =
     (profile?.preferences as any)?.layouts ?? defaultLayouts;

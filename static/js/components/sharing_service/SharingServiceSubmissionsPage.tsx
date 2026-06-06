@@ -19,13 +19,14 @@ import Tooltip from "@mui/material/Tooltip";
 import ReactJson from "react-json-view";
 
 import Box from "@mui/material/Box";
-import { useAppSelector } from "../../types/hooks";
+
 import StyledDataGridBase from "../StyledDataGrid";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
 import { useGetSharingServiceSubmissionsQuery } from "../../ducks/sharingServices";
 import { userLabel } from "../../utils/format";
+import { useGetUsersQuery } from "../../ducks/users";
 
 // StyledDataGrid is a .jsx component whose propTypes make `sx` look required to
 // tsc; cast to any so call sites don't need to pass it.
@@ -52,7 +53,7 @@ function getStatusColors(status: string) {
 const SharingServiceSubmissionsPage = () => {
   const { id } = useParams<{ id: string }>();
 
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
+  const allUsers = useGetUsersQuery().data?.users ?? [];
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(100);
   const [showTNSPayload, setShowTNSPayload] = useState<any>(null);

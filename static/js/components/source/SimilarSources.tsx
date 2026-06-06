@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import Tooltip from "@mui/material/Tooltip";
 import { Link } from "react-router-dom";
 
-import { useAppSelector } from "../../types/hooks";
 import { useFetchSummaryQueryMutation } from "../../ducks/summary";
+import { useGetConfigQuery } from "../../ducks/config";
 
 interface SimilarSourcesProps {
   source: {
@@ -19,9 +19,7 @@ const SimilarSources = ({
   min_score = 0.9,
   k = 3,
 }: SimilarSourcesProps) => {
-  const usePinecone = useAppSelector(
-    (state) => (state["config"] as any).usePinecone,
-  );
+  const usePinecone = (useGetConfigQuery().data as any)?.usePinecone;
   const [fetchSummaryQuery] = useFetchSummaryQueryMutation();
   const [simSourceList, setSimSourceList] = useState<any[]>([]);
 

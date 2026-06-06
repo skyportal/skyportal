@@ -9,9 +9,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useSubmitShiftMutation } from "../../ducks/shifts";
 import { userLabel } from "../../utils/format";
+import { useGetUsersQuery } from "../../ducks/users";
 
 dayjs.extend(utc);
 
@@ -33,7 +34,7 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
   const { data: currentUser } = useGetProfileQuery();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const now = dayjs();
-  const { users } = useAppSelector((state) => state["users"]);
+  const users = useGetUsersQuery().data?.users ?? [];
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({
     shift_admins: [currentUser?.id],

@@ -5,13 +5,14 @@ import Chip from "@mui/material/Chip";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
-import { useAppSelector } from "../../../types/hooks";
+
 import Button from "../../Button";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
+import { useGetConfigQuery } from "../../../ducks/config";
 
 const useStyles = makeStyles()(() => ({
   submitButton: {
@@ -42,7 +43,7 @@ const useStyles = makeStyles()(() => ({
 const SpectroscopyButtonsForm = () => {
   const { classes } = useStyles();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
-  const colorPalette = useAppSelector((state) => state["config"].colorPalette);
+  const colorPalette = (useGetConfigQuery().data as any)?.colorPalette;
   const { data: profile } = useGetProfileQuery();
   const { spectroscopyButtons } = (profile?.preferences ?? {}) as any;
   const {

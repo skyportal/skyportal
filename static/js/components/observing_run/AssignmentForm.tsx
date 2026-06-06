@@ -11,10 +11,11 @@ import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useAppSelector } from "../../types/hooks";
+
 import { useSubmitAssignmentMutation } from "../../ducks/source";
 
 import Button from "../Button";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 
@@ -77,7 +78,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
   const [submitAssignment] = useSubmitAssignmentMutation();
   const { classes } = useStyles();
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? [];
 

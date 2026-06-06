@@ -21,17 +21,19 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";
 import FormValidationError from "../FormValidationError";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
-  useLazyGetSharingServicesQuery,
   useAddSharingServiceSubmissionMutation,
+  useGetSharingServicesQuery,
+  useLazyGetSharingServicesQuery,
 } from "../../ducks/sharingServices";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
+import { useGetUsersQuery } from "../../ducks/users";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme as any);
 
@@ -50,7 +52,7 @@ const SharingServicesDialog = ({
   const [triggerFetchSharingServices] = useLazyGetSharingServicesQuery();
   const [addSharingServiceSubmission] =
     useAddSharingServiceSubmissionMutation();
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
+  const allUsers = useGetUsersQuery().data?.users ?? [];
   const { data: currentUser } = useGetProfileQuery();
   const { data: streams } = useGetStreamsQuery();
   const allowedInstrumentsForSharing = useGetConfigQuery().data?.[
@@ -58,9 +60,11 @@ const SharingServicesDialog = ({
   ] as string[] | undefined;
   const isNoAffiliation = !currentUser?.affiliations?.length;
 
-  const { sharingServicesList, loading } = useAppSelector(
-    (state) => state["sharingServices"],
-  );
+  const { data: sharingServicesList = [], isLoading: loading } =
+    useGetSharingServicesQuery() as {
+      data: any[];
+      isLoading: boolean;
+    };
   const [selectedSharingServiceId, setselectedSharingServiceId] =
     useState<any>(null);
   const [defaultSharersString, setdefaultSharersString] = useState<any>(null);

@@ -82,6 +82,7 @@ import {
 } from "../../ducks/sources";
 import { photometryApi } from "../../ducks/photometry";
 import { useGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
+import { useGetGcnEventQuery } from "../../ducks/gcnEvent";
 import { useGetTagOptionsQuery } from "../../ducks/objectTags";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { getContrastColor } from "../ObjectTags";
@@ -187,9 +188,11 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
   const [deleteClassificationsMutation] = useDeleteClassificationsMutation();
   const [addClassificationVote] = useAddClassificationVoteMutation();
   const { data: currentUser } = useGetProfileQuery();
-  const groupUsers = useAppSelector(
-    (state) => (state as any).group?.group_users,
-  );
+  // The old global `group` slice (a single most-recently-fetched group) no
+  // longer exists: the group duck is now RTK Query keyed by id, and no specific
+  // group id is in scope here. As before, when no group is loaded the
+  // membership lookup resolves to undefined.
+  const groupUsers: any = undefined;
   const currentGroupUser = groupUsers?.filter(
     (groupUser: any) => groupUser.user_id === currentUser?.id,
   )[0];
@@ -603,6 +606,7 @@ interface SourceTableProps {
   downloadCallback?: ((...a: any[]) => any) | null;
   includeGcnStatus?: boolean;
   sourceInGcnFilter?: any;
+  gcnEventDateobs?: string | null;
   fixedHeader?: boolean;
 }
 
@@ -621,6 +625,7 @@ const SourceTable = ({
   downloadCallback = null,
   includeGcnStatus = false,
   sourceInGcnFilter = {},
+  gcnEventDateobs = null,
   fixedHeader = false,
 }: SourceTableProps) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
@@ -651,10 +656,12 @@ const SourceTable = ({
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
   const [loading, setLoading] = useState(false);
 
-  const gcnEvent = useAppSelector((state) => (state as any).gcnEvent);
+  const { data: gcnEvent } = useGetGcnEventQuery(gcnEventDateobs as string, {
+    skip: !gcnEventDateobs,
+  });
   const { data: sourcesingcn = [] } = useGetSourcesInGcnQuery(
     {
-      dateobs: gcnEvent?.dateobs,
+      dateobs: gcnEvent?.dateobs as string,
       localizationName: sourceInGcnFilter?.localizationName,
       sourcesIdList: sources?.map((s: any) => s.id),
     },
@@ -1117,7 +1124,7 @@ const SourceTable = ({
         >
           {statusIcon}
           <ConfirmSourceInGCN
-            dateobs={gcnEvent.dateobs}
+            dateobs={gcnEvent?.dateobs as string}
             localization_name={sourceInGcnFilter.localizationName}
             localization_cumprob={sourceInGcnFilter.localizationCumprob}
             source_id={source.id}

@@ -17,8 +17,9 @@ import DialogContent from "@mui/material/DialogContent";
 import CircularProgress from "@mui/material/CircularProgress";
 import { MyObjectFieldTemplate } from "../gcn/GcnSelectionForm";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { usePostMovingObjectObsPlanMutation } from "../../ducks/moving_object";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -58,9 +59,9 @@ const PlaceHolder = () => {
 
 const MovingObjectObsPlanPage = () => {
   const { classes } = useStyles();
-  const instruments = useAppSelector(
-    (state) => state["instruments"].instrumentList,
-  );
+  const { data: instruments = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
   const dispatch = useAppDispatch();
   const [postMovingObjectObsPlan] = usePostMovingObjectObsPlanMutation();
 

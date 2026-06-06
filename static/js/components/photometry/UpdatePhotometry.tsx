@@ -12,10 +12,11 @@ import EditIcon from "@mui/icons-material/Edit";
 import IconButton from "@mui/material/IconButton";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import { useUpdatePhotometryMutation } from "../../ducks/photometry";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   Select: {
@@ -56,9 +57,9 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
   const dispatch = useAppDispatch();
   const [updatePhotometry] = useUpdatePhotometryMutation();
 
-  const { instrumentList } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
 
   const [state, setState] = useState<any>({
     mjd: phot.mjd,

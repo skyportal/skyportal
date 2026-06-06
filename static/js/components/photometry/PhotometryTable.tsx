@@ -21,7 +21,6 @@ import {
   GridToolbarColumnsButton,
 } from "@mui/x-data-grid";
 
-import { useAppSelector } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
 import UpdatePhotometry from "./UpdatePhotometry";
 import PhotometryValidation from "./PhotometryValidation";
@@ -34,6 +33,7 @@ import {
   useDeletePhotometryMutation,
 } from "../../ducks/photometry";
 import { mjd_to_utc } from "../../units";
+import { useGetConfigQuery } from "../../ducks/config";
 
 const DEFAULT_HIDDEN_COLUMNS = [
   "instrument_id",
@@ -97,9 +97,7 @@ const PhotometryTable = ({
   setMagsys = null,
   t0 = null,
 }: PhotometryTableProps) => {
-  const { usePhotometryValidation } = useAppSelector(
-    (state) => state["config"],
-  ) as any;
+  const { usePhotometryValidation } = (useGetConfigQuery().data as any) ?? {};
 
   const { classes } = useStyles();
   const [deletePhotometry] = useDeletePhotometryMutation();

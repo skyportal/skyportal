@@ -21,7 +21,7 @@ import Button from "../Button";
 import GroupUsers from "./GroupUsers";
 import GroupFiltersStreams from "./GroupFiltersStreams";
 
-import { useAppSelector } from "../../types/hooks";
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupQuery } from "../../ducks/group";
 import { useDeleteGroupMutation } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
@@ -94,7 +94,7 @@ const Group = () => {
   const { data: group, error: groupError } = useGetGroupQuery(id as string, {
     skip: !id,
   });
-  const currentUser = useAppSelector((state) => (state as any).profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { error: streamsError } = useGetStreamsQuery();
 
   useEffect(() => {
@@ -176,7 +176,7 @@ const Group = () => {
       <br />
       <GroupUsers
         group={group}
-        currentUser={currentUser}
+        currentUser={currentUser as any}
         classes={classes}
         theme={theme}
         isAdmin={isAdmin}

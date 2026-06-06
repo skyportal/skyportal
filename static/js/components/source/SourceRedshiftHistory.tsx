@@ -10,7 +10,7 @@ import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 
-import { useAppSelector } from "../../types/hooks";
+import { useGetUsersQuery } from "../../ducks/users";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -39,7 +39,7 @@ const SourceRedshiftHistory = ({
   redshiftHistory = null,
 }: SourceRedshiftHistoryProps) => {
   const { classes } = useStyles();
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
+  const allUsers = useGetUsersQuery().data?.users ?? [];
   const userIdToUsername: Record<number, string> = {};
 
   const [dialogOpen, setDialogOpen] = useState(false);

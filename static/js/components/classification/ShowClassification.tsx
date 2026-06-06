@@ -9,7 +9,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
@@ -17,6 +17,7 @@ import {
   useAddClassificationVoteMutation,
   useDeleteClassificationMutation,
 } from "../../ducks/source";
+import { useGetConfigQuery } from "../../ducks/config";
 
 // preserve the legacy <font> tag (not a typed JSX intrinsic element)
 const Font: any = "font";
@@ -54,9 +55,11 @@ const ClassificationRow = ({
   const [deleteClassificationMutation] = useDeleteClassificationMutation();
 
   const { data: currentUser } = useGetProfileQuery();
-  const groupUsers = useAppSelector(
-    (state) => (state as any).group?.group_users,
-  );
+  // The old global `group` slice (a single most-recently-fetched group) no
+  // longer exists: the group duck is now RTK Query keyed by id, and no specific
+  // group id is in scope here. As before, when no group is loaded the
+  // membership lookup resolves to undefined.
+  const groupUsers: any = undefined;
   const currentGroupUser = groupUsers?.filter(
     (groupUser: any) => groupUser.user_id === currentUser?.id,
   )[0];
@@ -119,9 +122,8 @@ const ClassificationRow = ({
 
   const classification = classifications[0]!;
 
-  const classifications_classes = useAppSelector(
-    (state) => state["config"].classificationsClasses,
-  );
+  const classifications_classes = (useGetConfigQuery().data as any)
+    ?.classificationsClasses;
 
   const upvoterIds: any[] = [];
   const downvoterIds: any[] = [];

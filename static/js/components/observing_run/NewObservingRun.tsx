@@ -7,15 +7,18 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Paper from "../Paper";
 import { useSubmitObservingRunMutation } from "../../ducks/observingRun";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 
 const NewObservingRun = () => {
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const dispatch = useAppDispatch();

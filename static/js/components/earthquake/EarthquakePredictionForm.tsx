@@ -12,10 +12,11 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useSubmitPredictionMutation } from "../../ducks/earthquake";
 import * as mmadetectorActions from "../../ducks/mmadetector";
 import GroupShareSelect from "../group/GroupShareSelect";
+import { useGetMMADetectorsQuery } from "../../ducks/mmadetector";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -68,7 +69,7 @@ const EarthquakePredictionForm = ({
   const dispatch = useAppDispatch();
   const [submitPrediction] = useSubmitPredictionMutation();
 
-  const { mmadetectorList } = useAppSelector((state) => state["mmadetectors"]);
+  const { data: mmadetectorList = [] } = useGetMMADetectorsQuery();
   const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedMMADetectorId, setSelectedMMADetectorId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);

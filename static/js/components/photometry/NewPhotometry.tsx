@@ -8,8 +8,9 @@ import { showNotification } from "baselayer/components/Notifications";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useSubmitPhotometryMutation } from "../../ducks/photometry";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const dateType = (date: any) => {
   let type = "unknown";
@@ -51,7 +52,9 @@ interface NewPhotometryFormProps {
 const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
   const dispatch = useAppDispatch();
   const [submitPhotometry] = useSubmitPhotometryMutation();
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 

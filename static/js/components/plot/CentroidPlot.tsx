@@ -15,6 +15,7 @@ import CentroidPlotPlugins, {
   getCrossMatches,
   getCrossMatchesTraces,
 } from "./CentroidPlotPlugins";
+import { useGetConfigQuery } from "../../ducks/config";
 
 const Plot: any = createPlotlyComponent(Plotly);
 
@@ -332,7 +333,7 @@ const CentroidPlot = ({
   const ra = source?.ra ?? null;
   const dec = source?.dec ?? null;
   const { data: photometry } = useFetchSourcePhotometryQuery({ id: sourceId });
-  const config = useAppSelector((state) => state["config"]);
+  const { data: config } = useGetConfigQuery() as { data: any };
 
   // no crossMatches in the default SkyPortal, but can be added by SkyPortal-based
   // apps on top of the basic SkyPortal

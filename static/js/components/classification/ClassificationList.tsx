@@ -88,7 +88,7 @@ const ClassificationList = ({ obj }: ClassificationListProps) => {
   // Query migration; this component never fetched a group, so `groupUsers` was
   // only populated incidentally. Preserve the prior (commonly empty) behaviour.
   const groupUsers: any[] | undefined = undefined;
-  const { data: config } = useGetConfigQuery();
+  const { data: config } = useGetConfigQuery() as { data: any };
   const classifications_classes = config?.["classificationsClasses"] as
     | Record<string, Record<string, string>>
     | undefined;

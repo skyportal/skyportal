@@ -14,7 +14,7 @@ import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
   useGetFollowupRequestsQuery,
@@ -27,6 +27,7 @@ import {
 } from "../../ducks/instruments";
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import Button from "../Button";
+import { useGetUsersQuery } from "../../ducks/users";
 
 dayjs.extend(utc);
 
@@ -76,7 +77,7 @@ const FollowupRequestSelectionForm = ({
   const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
   const { data: allocationListApiClassname = [] } =
     useGetAllocationsApiClassnameQuery();
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
+  const allUsers = useGetUsersQuery().data?.users ?? [];
   const { data: followupRequestsData } =
     useGetFollowupRequestsQuery(fetchParams);
   const followupRequestList = followupRequestsData?.followup_requests;

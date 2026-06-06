@@ -8,7 +8,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import {
   usePutGcnTriggerMutation,
   useDeleteGcnTriggerMutation,
@@ -17,6 +17,7 @@ import {
   useGetAllocationsQuery,
   useGetAllocationsApiObsplanQuery,
 } from "../../ducks/allocations";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -105,7 +106,7 @@ const GcnEventAllocationTriggers = ({
     useGetAllocationsApiObsplanQuery();
   const { data: allocationList = [] } = useGetAllocationsQuery();
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
   const [selectedInstrument, setSelectedInstrument] = useState<any>(null);
 

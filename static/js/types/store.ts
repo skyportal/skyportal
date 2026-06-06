@@ -1,34 +1,42 @@
 /**
  * Redux store types.
  *
- * `RootState` types the slices that have been migrated/typed so far, and keeps
- * an index-signature fallback so the ~85 ducks that are not yet typed don't
- * break `useAppSelector`. As each duck is converted, add its slice here and
- * (eventually) the fallback can be removed for full coverage.
+ * `RootState` types only the slices that are STILL plain Redux. Every migrated
+ * duck now lives in the RTK Query cache (`skyportalApi`) and must be read via
+ * its generated hook/selector, NOT via `state.<slice>`. There is intentionally
+ * no index-signature fallback: a read of a migrated slice must be a type error.
  */
 import type { ThunkAction, ThunkDispatch } from "redux-thunk";
 import type { Store, UnknownAction } from "redux";
 
 import type { skyportalApi } from "../api/skyportalApi";
-import type { Profile, Group, SourceTag } from "./domain";
-
-export interface ObjectTagsState {
-  [index: number]: SourceTag;
-}
 
 export interface RootState {
-  profile: Profile;
-  groups: {
-    user: Group[];
-    userAccessible: Group[];
-    all: Group[];
-  };
-  objectTags: SourceTag[];
   // RTK Query cache slice. All endpoints injected by migrated ducks live here.
   skyportalApi: ReturnType<typeof skyportalApi.reducer>;
-  // Fallback for ducks not yet typed. Replace with concrete slice types as
-  // each duck is migrated; delete once every slice is typed.
-  [slice: string]: any;
+
+  // --- Slices that are still plain Redux (typed from their reducer state) ---
+  sidebar: { open: boolean };
+  logo: { rotateLogo: boolean };
+  classifications: {
+    taxonomy?: any;
+    scaleProbabilities?: any;
+    [key: string]: any;
+  };
+  hydration: { hydratedList: any[]; hydrated: boolean };
+  notifications: {
+    notes: {
+      id: number;
+      note: string;
+      type: string;
+      tag: string;
+    }[];
+  };
+  // Retained client-UI portion of the candidates duck.
+  candidates: {
+    selectedAnnotationSortOptions: any;
+    filterFormData: any;
+  };
 }
 
 /**
