@@ -6,7 +6,7 @@ import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import * as spectraActions from "../../ducks/spectra";
+import { useAddSyntheticPhotometryMutation } from "../../ducks/spectra";
 import { useGetEnumTypesQuery } from "../../ducks/enum_types";
 
 const useStyles = makeStyles()(() => ({
@@ -32,6 +32,7 @@ const SyntheticPhotometryForm = ({
 }: SyntheticPhotometryFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [addSyntheticPhotometry] = useAddSyntheticPhotometryMutation();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const { data: enum_types } = useGetEnumTypesQuery();
 
@@ -47,13 +48,16 @@ const SyntheticPhotometryForm = ({
   const handleSubmit = async ({ formData }: { formData: any }) => {
     setSubmissionRequestInProcess(true);
     // Get the classification without the context
-    const result: any = await dispatch(
-      spectraActions.addSyntheticPhotometry(spectrum_id, formData),
-    );
-    setSubmissionRequestInProcess(false);
-    if (result.status === "success") {
+    try {
+      await addSyntheticPhotometry({
+        id: spectrum_id,
+        formData,
+      }).unwrap();
       dispatch(showNotification("Synthetic photometry saved"));
+    } catch {
+      // error notification handled by the baseQuery
     }
+    setSubmissionRequestInProcess(false);
   };
 
   const formSchema = {

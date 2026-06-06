@@ -9,7 +9,7 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import { submitPhotometry } from "../../ducks/photometry";
+import { useSubmitPhotometryMutation } from "../../ducks/photometry";
 
 const dateType = (date: any) => {
   let type = "unknown";
@@ -50,6 +50,7 @@ interface NewPhotometryFormProps {
 
 const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
   const dispatch = useAppDispatch();
+  const [submitPhotometry] = useSubmitPhotometryMutation();
   const { instrumentList } = useAppSelector((state) => state["instruments"]);
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
@@ -323,7 +324,7 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
     return errors;
   };
 
-  const submit = (data: any) => {
+  const submit = async (data: any) => {
     const {
       group_ids,
       obsdate,
@@ -395,13 +396,12 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
       payload.origin = origin;
     }
 
-    dispatch(submitPhotometry(payload)).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Photometry added successfully"));
-      } else {
-        dispatch(showNotification("Error adding photometry"));
-      }
-    });
+    try {
+      await submitPhotometry(payload).unwrap();
+      dispatch(showNotification("Photometry added successfully"));
+    } catch {
+      dispatch(showNotification("Error adding photometry"));
+    }
   };
 
   return (

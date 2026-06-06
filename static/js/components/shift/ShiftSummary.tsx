@@ -14,10 +14,9 @@ import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import HelpOutlineOutlined from "@mui/icons-material/HelpOutlineOutlined";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { useGetShiftsSummaryQuery } from "../../ducks/shifts";
 import SourceTable from "../source/SourceTable";
-import * as sourcesActions from "../../ducks/sources";
+import { useFetchGcnEventSourcesQuery } from "../../ducks/sources";
 
 export interface ShiftSummaryArgs {
   shiftID?: number | string;
@@ -72,11 +71,14 @@ const ShiftSummary = ({
   setSummaryArgs,
 }: ShiftSummaryProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const [selectedGCN, setSelectedGCN] = useState<any>(null);
-  const sources = useAppSelector(
-    (state) => (state as any)?.sources?.gcnEventSources,
-  );
+  const [gcnSourcesArgs, setGcnSourcesArgs] = useState<{
+    dateobs: any;
+    filterParams?: any;
+  } | null>(null);
+  const { data: sources } = useFetchGcnEventSourcesQuery(gcnSourcesArgs!, {
+    skip: gcnSourcesArgs == null,
+  });
 
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
   // return a React json schema form where the user can select a start date and end date, and then click submit to get
@@ -207,15 +209,16 @@ const ShiftSummary = ({
 
   function displaySourcesInGCN(dateobs: any, gcnSources: any) {
     const handleSourcesTableSorting = (sortData: any, filterData: any) => {
-      dispatch(
-        sourcesActions.fetchGcnEventSources(dateobs, {
+      setGcnSourcesArgs({
+        dateobs,
+        filterParams: {
           ...filterData,
           pageNumber: 1,
           numPerPage: sourcesRowsPerPage,
           sortBy: sortData.name,
           sortOrder: sortData.direction,
-        }),
-      );
+        },
+      });
     };
 
     const handleSourcesTablePagination = (
@@ -234,7 +237,7 @@ const ShiftSummary = ({
         data.sortBy = sortData.name;
         data.sortOrder = sortData.direction;
       }
-      dispatch(sourcesActions.fetchGcnEventSources(dateobs, data));
+      setGcnSourcesArgs({ dateobs, filterParams: data });
     };
     return gcnSources ? (
       <SourceTable
@@ -266,14 +269,7 @@ const ShiftSummary = ({
                   setSelectedGCN(null);
                 } else {
                   setSelectedGCN(gcn.id);
-                  const data = {
-                    pageNumber: 1,
-                    numPerPage: 100,
-                  };
-                  (dispatch as any)(
-                    sourcesActions.fetchGcnEventSources(gcn.dateobs),
-                    data,
-                  );
+                  setGcnSourcesArgs({ dateobs: gcn.dateobs });
                 }
               }}
             >

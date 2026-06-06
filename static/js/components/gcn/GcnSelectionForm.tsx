@@ -39,7 +39,10 @@ import {
   useLazyGetGcnEventObservationsQuery,
   useSubmitObservationsTreasureMapMutation,
 } from "../../ducks/observations";
-import * as sourcesActions from "../../ducks/sources";
+import {
+  useFetchGcnEventSourcesQuery,
+  useLazyFetchSourcesQuery,
+} from "../../ducks/sources";
 import { useLazyGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
 
 import AddCatalogQueryPage from "../catalog_query/AddCatalogQueryPage";
@@ -115,6 +118,7 @@ interface GcnEventSourcesPageProps {
   sources?: Record<string, any> | null;
   localizationName: string;
   sourceFilteringState: Record<string, any>;
+  setGcnSourcesArgs: (args: { dateobs: any; filterParams?: any }) => void;
 }
 
 const GcnEventSourcesPage = ({
@@ -122,12 +126,11 @@ const GcnEventSourcesPage = ({
   sources = null,
   localizationName,
   sourceFilteringState,
+  setGcnSourcesArgs,
 }: GcnEventSourcesPageProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const sourcesState = useAppSelector(
-    (state) => state["sources"].gcnEventSources,
-  ) as any;
+  const sourcesState = sources as any;
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
   const [filtering, setFiltering] = useState<Record<string, any>>({
     ...sourceFilteringState,
@@ -138,6 +141,7 @@ const GcnEventSourcesPage = ({
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
   const [fetchSourcesInGcn] = useLazyGetSourcesInGcnQuery();
+  const [fetchSourcesTrigger] = useLazyFetchSourcesQuery();
 
   const handleSourcesTableSorting = (sortData: any, filterData: any) => {
     const data = {
@@ -149,7 +153,7 @@ const GcnEventSourcesPage = ({
       sortBy: sortData.name,
       sortOrder: sortData.direction,
     };
-    dispatch(sourcesActions.fetchGcnEventSources(dateobs, data));
+    setGcnSourcesArgs({ dateobs, filterParams: data });
     setFiltering(data);
   };
 
@@ -171,13 +175,13 @@ const GcnEventSourcesPage = ({
       data["sortBy"] = sortData.name;
       data["sortOrder"] = sortData.direction;
     }
-    dispatch(sourcesActions.fetchGcnEventSources(dateobs, data));
+    setGcnSourcesArgs({ dateobs, filterParams: data });
     setFiltering(data);
   };
 
   const handleSourcesDownload = async () => {
     const sourceAll: any[] = [];
-    if (sourcesState.totalMatches === 0) {
+    if (!sourcesState || sourcesState.totalMatches === 0) {
       dispatch(showNotification("No sources to download", "warning"));
     } else {
       setDownloadProgressTotal(sourcesState.totalMatches);
@@ -192,14 +196,12 @@ const GcnEventSourcesPage = ({
           numPerPage: sourcesState.numPerPage,
         };
         /* eslint-disable no-await-in-loop */
-        const result = (await dispatch(
-          sourcesActions.fetchSources(data),
-        )) as any;
-        if (result && result.data && result?.status === "success") {
-          sourceAll.push(...result.data.sources);
+        try {
+          const result = (await fetchSourcesTrigger(data).unwrap()) as any;
+          sourceAll.push(...result.sources);
           setDownloadProgressCurrent(sourceAll.length);
           setDownloadProgressTotal(sourcesState.totalMatches);
-        } else if (result && result?.status !== "success") {
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
@@ -224,7 +226,7 @@ const GcnEventSourcesPage = ({
     }
     setDownloadProgressCurrent(0);
     setDownloadProgressTotal(0);
-    if (sourceAll?.length === sourcesState.totalMatches?.length) {
+    if (sourceAll?.length === sourcesState.totalMatches) {
       dispatch(showNotification("Sources downloaded successfully"));
     }
 
@@ -451,8 +453,13 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     i1.name.localeCompare(i2.name),
   );
 
-  const gcnEventSources = useAppSelector(
-    (state) => state?.["sources"]?.gcnEventSources,
+  const [gcnSourcesArgs, setGcnSourcesArgs] = useState<{
+    dateobs: any;
+    filterParams?: any;
+  } | null>(null);
+  const { data: gcnEventSources } = useFetchGcnEventSourcesQuery(
+    gcnSourcesArgs!,
+    { skip: gcnSourcesArgs == null },
   ) as any;
   const [fetchGcnEventGalaxies, { data: gcnEventGalaxies }] =
     useLazyGetGcnEventGalaxiesQuery();
@@ -696,9 +703,10 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     }
 
     const fetchSources = async () => {
-      await dispatch(
-        sourcesActions.fetchGcnEventSources(gcnEvent?.dateobs, formData),
-      );
+      setGcnSourcesArgs({
+        dateobs: gcnEvent?.dateobs,
+        filterParams: formData,
+      });
       setSourceFilteringState(formData);
     };
 
@@ -1174,6 +1182,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                     sources={gcnEventSources}
                     localizationName={selectedLocalizationName}
                     sourceFilteringState={sourceFilteringState}
+                    setGcnSourcesArgs={setGcnSourcesArgs}
                   />
                 )}
               </div>

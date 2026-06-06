@@ -35,7 +35,11 @@ import Button from "../Button";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { addAnnotation } from "../../ducks/source";
-import * as photometryActions from "../../ducks/photometry";
+import {
+  photometryApi,
+  useFetchSourcePhotometryQuery,
+  useLazyFetchSourcePhotometryQuery,
+} from "../../ducks/photometry";
 
 import {
   BASE_LAYOUT,
@@ -260,11 +264,25 @@ const PhotometryPlot = ({
   showExtinctionCorrection = false,
 }: PhotometryPlotProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
 
   const { data: profile } = useGetProfileQuery();
   const config = useAppSelector((state) => state["config"]);
-  const photometry = useAppSelector((state) => (state as any).photometry);
+  const [fetchPhotometryTrigger] = useLazyFetchSourcePhotometryQuery();
+
+  // Params for the main object's photometry query. Duplicate sources are fetched
+  // lazily with just `{ magsys }` (mirroring the old duplicate fetch).
+  const mainPhotParams = useMemo<any>(() => {
+    const params: any = { magsys };
+    if (showExtinctionCorrection) {
+      params.includeExtinction = true;
+    }
+    return params;
+  }, [magsys, showExtinctionCorrection]);
+
+  const { data: mainPhotometry } = useFetchSourcePhotometryQuery(
+    { id: obj_id, params: mainPhotParams },
+    { skip: !obj_id },
+  );
 
   const duplicateOptions = useMemo(() => {
     const allDuplicates = [...(duplicates || []), ...(associated_objs || [])];
@@ -280,6 +298,28 @@ const PhotometryPlot = ({
   }, [duplicates, associated_objs]);
   const [selectedDuplicates, setSelectedDuplicates] = useState<any[]>(
     associated_objs?.map((a) => a.obj_id) || [],
+  );
+
+  // Read any cached photometry for the selected duplicate sources (fetched
+  // lazily below) without re-subscribing per id.
+  const duplicatesPhotometryById = useAppSelector((state) => {
+    const result: Record<string, any> = {};
+    selectedDuplicates.forEach((dup) => {
+      result[dup] = photometryApi.endpoints.fetchSourcePhotometry.select({
+        id: dup,
+        params: { magsys },
+      })(state as any).data;
+    });
+    return result;
+  });
+
+  // Combined map of obj_id -> photometry array, mirroring the old store slice.
+  const photometry = useMemo<Record<string, any>>(
+    () => ({
+      [obj_id]: mainPhotometry,
+      ...duplicatesPhotometryById,
+    }),
+    [obj_id, mainPhotometry, duplicatesPhotometryById],
   );
 
   const [data, setData] = useState<any>(null);
@@ -1094,15 +1134,15 @@ const PhotometryPlot = ({
   }, [config]);
 
   useEffect(() => {
-    // grab the photometry for the selected duplicates from the store
+    // grab the photometry for the selected duplicates from the cache
     if (selectedDuplicates.length > 0) {
       selectedDuplicates.forEach((dup) => {
         if (!photometry[dup]) {
-          dispatch(photometryActions.fetchSourcePhotometry(dup, { magsys }));
+          fetchPhotometryTrigger({ id: dup, params: { magsys } });
         }
       });
     }
-  }, [dispatch, selectedDuplicates, magsys, photometry]);
+  }, [fetchPhotometryTrigger, selectedDuplicates, magsys, photometry]);
 
   useEffect(() => {
     if (profile?.id && defaultVisibleFilters === null) {
@@ -1218,16 +1258,8 @@ const PhotometryPlot = ({
     showOnlyValidated,
   ]);
 
-  // Refetch photometry with extinction data when toggle changes
-  useEffect(() => {
-    if (obj_id && initialized) {
-      const params: any = { magsys };
-      if (showExtinctionCorrection) {
-        params.includeExtinction = true;
-      }
-      dispatch(photometryActions.fetchSourcePhotometry(obj_id, params));
-    }
-  }, [showExtinctionCorrection, obj_id, magsys, dispatch, initialized]);
+  // The main object's photometry (including extinction toggle and magsys) is
+  // fetched declaratively via useFetchSourcePhotometryQuery above.
 
   useEffect(() => {
     if (initialized && filter2color) {

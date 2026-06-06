@@ -7,6 +7,7 @@ import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import { PHOT_ZP, greatCircleDistance } from "../../utils";
 
 import CentroidPlotPlugins, {
@@ -326,7 +327,7 @@ const CentroidPlot = ({
   const { classes } = useStyles();
 
   const { id, ra, dec } = useAppSelector((state) => state["source"]);
-  const photometry = useAppSelector((state) => state["photometry"][sourceId]);
+  const { data: photometry } = useFetchSourcePhotometryQuery({ id: sourceId });
   const config = useAppSelector((state) => state["config"]);
 
   // no crossMatches in the default SkyPortal, but can be added by SkyPortal-based
@@ -350,13 +351,13 @@ const CentroidPlot = ({
 
   useEffect(() => {
     if (
-      photometry?.length > 0 &&
+      (photometry?.length ?? 0) > 0 &&
       !Number.isNaN(ra) &&
       !Number.isNaN(dec) &&
       filter2color
     ) {
       const { refRA, refDec, points, oneSigmaCircle, stdCircle } = prepareData(
-        photometry,
+        photometry ?? [],
         ra,
         dec,
       );

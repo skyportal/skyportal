@@ -1,6 +1,6 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useState } from "react";
+import { useAppDispatch } from "../../types/hooks";
 
 import Paper from "@mui/material/Paper";
 import { makeStyles } from "tss-react/mui";
@@ -16,7 +16,11 @@ import SourceTable from "../source/SourceTable";
 import withRouter from "../withRouter";
 import ProgressIndicator from "../ProgressIndicators";
 
-import * as sourcesActions from "../../ducks/sources";
+import {
+  useFetchSavedGroupSourcesQuery,
+  useFetchPendingGroupSourcesQuery,
+  useLazyFetchSavedGroupSourcesQuery,
+} from "../../ducks/sources";
 
 const useStyles = makeStyles()((theme) => ({
   chip: {
@@ -42,12 +46,6 @@ interface GroupSourcesProps {
 
 const GroupSources = ({ route }: GroupSourcesProps) => {
   const dispatch = useAppDispatch();
-  const savedSourcesState = useAppSelector(
-    (state) => state["sources"].savedGroupSources,
-  );
-  const pendingSourcesState = useAppSelector(
-    (state) => state["sources"].pendingGroupSources,
-  );
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const { classes } = useStyles();
   const [savedSourcesRowsPerPage, setSavedSourcesRowsPerPage] = useState(10);
@@ -58,32 +56,28 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
-  // Load the group sources
-  useEffect(() => {
-    const fetchData = async () => {
-      await dispatch(
-        sourcesActions.fetchSavedGroupSources({
-          group_ids: [route.id],
-          pageNumber: 1,
-          numPerPage: 10,
-        }),
-      );
-      await dispatch(
-        sourcesActions.fetchPendingGroupSources({
-          group_ids: [route.id],
-          pageNumber: 1,
-          numPerPage: 10,
-        }),
-      );
-    };
-    fetchData();
-  }, [route.id, dispatch]);
+  const [savedQueryParams, setSavedQueryParams] = useState<any>({
+    group_ids: [route.id],
+    pageNumber: 1,
+    numPerPage: 10,
+  });
+  const [pendingQueryParams, setPendingQueryParams] = useState<any>({
+    group_ids: [route.id],
+    pageNumber: 1,
+    numPerPage: 10,
+  });
+
+  const { data: savedSourcesState } =
+    useFetchSavedGroupSourcesQuery(savedQueryParams);
+  const { data: pendingSourcesState } =
+    useFetchPendingGroupSourcesQuery(pendingQueryParams);
+  const [fetchSavedGroupSourcesTrigger] = useLazyFetchSavedGroupSourcesQuery();
 
   if (
-    !savedSourcesState.sources ||
-    !pendingSourcesState.sources ||
-    savedSourcesState.group_id !== parseInt(route.id, 10) ||
-    pendingSourcesState?.group_id !== parseInt(route.id, 10)
+    !savedSourcesState?.sources ||
+    !pendingSourcesState?.sources ||
+    savedSourcesState["group_id"] !== parseInt(route.id, 10) ||
+    pendingSourcesState["group_id"] !== parseInt(route.id, 10)
   ) {
     return (
       <div>
@@ -95,23 +89,18 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
 
   const groupName = groups?.filter((g: any) => g.id === groupID)[0]?.name || "";
 
-  const handleSavedSourcesTableSorting = async (
-    sortData: any,
-    filterData: any,
-  ) => {
-    await dispatch(
-      sourcesActions.fetchSavedGroupSources({
-        ...filterData,
-        group_ids: [route.id],
-        pageNumber: 1,
-        numPerPage: savedSourcesRowsPerPage,
-        sortBy: sortData.name,
-        sortOrder: sortData.direction,
-      }),
-    );
+  const handleSavedSourcesTableSorting = (sortData: any, filterData: any) => {
+    setSavedQueryParams({
+      ...filterData,
+      group_ids: [route.id],
+      pageNumber: 1,
+      numPerPage: savedSourcesRowsPerPage,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    });
   };
 
-  const handleSavedSourcesTablePagination = async (
+  const handleSavedSourcesTablePagination = (
     pageNumber: number,
     numPerPage: number,
     sortData: any,
@@ -128,30 +117,25 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
-    await dispatch(sourcesActions.fetchSavedGroupSources(data));
+    setSavedQueryParams(data);
     setSorting(sortData);
     setFiltering(filterData);
   };
 
-  const handlePendingSourcesTableSorting = async (
-    sortData: any,
-    filterData: any,
-  ) => {
-    await dispatch(
-      sourcesActions.fetchPendingGroupSources({
-        ...filterData,
-        group_ids: [route.id],
-        pageNumber: 1,
-        numPerPage: pendingSourcesRowsPerPage,
-        sortBy: sortData.name,
-        sortOrder: sortData.direction,
-      }),
-    );
+  const handlePendingSourcesTableSorting = (sortData: any, filterData: any) => {
+    setPendingQueryParams({
+      ...filterData,
+      group_ids: [route.id],
+      pageNumber: 1,
+      numPerPage: pendingSourcesRowsPerPage,
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
+    });
     setSorting(sortData);
     setFiltering(filterData);
   };
 
-  const handlePendingSourcesTablePagination = async (
+  const handlePendingSourcesTablePagination = (
     pageNumber: number,
     numPerPage: number,
     sortData: any,
@@ -168,7 +152,7 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
-    await dispatch(sourcesActions.fetchPendingGroupSources(data));
+    setPendingQueryParams(data);
   };
 
   const handleSourcesDownload = async () => {
@@ -196,14 +180,13 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
           data.sortOrder = sorting.direction;
         }
         /* eslint-disable no-await-in-loop */
-        const result: any = await dispatch(
-          sourcesActions.fetchSavedGroupSources(data),
-        );
-        if (result && result.data && result?.status === "success") {
-          sourceAll.push(...result.data.sources);
+        try {
+          const result: any =
+            await fetchSavedGroupSourcesTrigger(data).unwrap();
+          sourceAll.push(...result.sources);
           setDownloadProgressCurrent(sourceAll.length);
           setDownloadProgressTotal(savedSourcesState.totalMatches);
-        } else if (result && result?.status !== "success") {
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
@@ -228,7 +211,7 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
     }
     setDownloadProgressCurrent(0);
     setDownloadProgressTotal(0);
-    if (sourceAll?.length === savedSourcesState.totalMatches?.length) {
+    if (sourceAll?.length === savedSourcesState.totalMatches) {
       dispatch(showNotification("Sources downloaded successfully"));
     }
     return sourceAll;

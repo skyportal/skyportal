@@ -28,7 +28,10 @@ import Button from "../Button";
 import withRouter from "../withRouter";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as spectraActions from "../../ducks/spectra";
+import {
+  useParseASCIISpectrumMutation,
+  useUploadASCIISpectrumMutation,
+} from "../../ducks/spectra";
 import { fetchSource } from "../../ducks/source";
 import { useGetUsersQuery } from "../../ducks/users";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
@@ -78,7 +81,9 @@ interface UploadSpectrumFormProps {
 const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
   const dispatch = useAppDispatch();
   const groups = useGetGroupsQuery().data?.all ?? null;
-  const { parsed } = useAppSelector((state) => state["spectra"]);
+  const [parsed, setParsed] = useState<any>(null);
+  const [parseASCIISpectrum] = useParseASCIISpectrumMutation();
+  const [uploadASCIISpectrum] = useUploadASCIISpectrumMutation();
   const { data: usersData } = useGetUsersQuery();
   const users = usersData?.users;
   const instrumentList = useAppSelector(
@@ -121,10 +126,10 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
       ?.split(",")
       .map((id) => parseInt(id, 10));
 
-  // on page load or refresh, block until state.spectra.parsed is reset
+  // on page load or refresh, reset the locally-parsed spectrum
   useEffect(() => {
     (async () => {
-      dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
+      setParsed(null);
 
       const sourceResult = await dispatch(fetchSource(route.id));
 
@@ -538,8 +543,8 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
     ],
   };
 
-  const parseAscii = ({ formData }: { formData: any }) => {
-    dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
+  const parseAscii = async ({ formData }: { formData: any }) => {
+    setParsed(null);
     const parsed_spectrum = dataUriToBuffer(formData.file);
     const ascii = new TextDecoder().decode(parsed_spectrum.buffer);
     const payload = {
@@ -549,7 +554,12 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
       fluxerr_column:
         formData?.has_fluxerr === "Yes" ? formData.fluxerr_column : null,
     };
-    dispatch(spectraActions.parseASCIISpectrum(payload));
+    try {
+      const result = await parseASCIISpectrum(payload).unwrap();
+      setParsed(result);
+    } catch {
+      // error notification handled by the baseQuery
+    }
   };
 
   const uploadSpectrum = async () => {
@@ -615,12 +625,10 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
           : null,
       group_ids: persistentFormData.group_ids,
     };
-    const result: any = await dispatch(
-      spectraActions.uploadASCIISpectrum(payload),
-    );
-    if (result.status === "success") {
+    try {
+      await uploadASCIISpectrum(payload).unwrap();
       dispatch(showNotification("Upload successful."));
-      dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
+      setParsed(null);
       setPersistentFormData({
         file: undefined,
         group_ids: source.groups?.map((group: any) => group.id),
@@ -636,6 +644,8 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
         reduced_by: undefined,
       });
       setFormKey(Date.now());
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 
@@ -699,7 +709,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
               (({ formData }: { formData: any }) => {
                 if (formData.file !== persistentFormData.file) {
                   setFormKey(Date.now());
-                  dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
+                  setParsed(null);
                   setUploadedFromURL(false);
                 }
                 setPersistentFormData(formData);

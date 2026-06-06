@@ -9,7 +9,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 import emoji from "emoji-dictionary";
 
-import { useAppSelector } from "../../types/hooks";
+import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 import UserAvatar from "../user/UserAvatar";
 
 import CommentAttachmentPreview from "./CommentAttachmentPreview";
@@ -52,7 +52,10 @@ const Comment = ({
   hoverID = null,
   shiftID = null,
 }: CommentProps) => {
-  const spectra = useAppSelector((state) => state["spectra"]);
+  const { data: spectra } = useFetchSourceSpectraQuery(
+    { id: objID as string },
+    { skip: !objID },
+  );
 
   const renderCommentText = () => {
     // Format the text to highlight mentions
@@ -66,12 +69,13 @@ const Comment = ({
     if (
       spectrum_id &&
       objID &&
-      objID in spectra &&
+      spectra &&
       associatedResourceType === "object"
     ) {
-      const spectrum = (spectra as any)[objID].find(
-        (spec: any) => spec.id === spectrum_id,
-      );
+      const spectrum = spectra.find((spec: any) => spec.id === spectrum_id);
+      if (!spectrum) {
+        return formattedText;
+      }
       const dayFraction =
         (parseFloat(spectrum.observed_at.substring(11, 13)) / 24) * 10;
       return `**Spectrum ${spectrum.observed_at.substring(

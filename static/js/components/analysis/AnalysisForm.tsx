@@ -12,7 +12,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
+import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import { useGetAnalysisServicesQuery } from "../../ducks/analysis_services";
 import * as sourceActions from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
@@ -55,7 +56,7 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const photometry = useAppSelector((state) => state["photometry"][obj_id]);
+  const { data: photometry } = useFetchSourcePhotometryQuery({ id: obj_id });
   const { data: analysisServiceListData } = useGetAnalysisServicesQuery();
   const analysisServiceList = useMemo(
     () => analysisServiceListData ?? [],

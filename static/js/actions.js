@@ -33,13 +33,11 @@ import * as objTagActions from "./ducks/objectTags";
 // we also import actions that won't be hydrated, to make sure they are
 // registered as reducers, to avoid conflicts with redux-state-sync
 import * as sourceActions from "./ducks/source";
-import * as sourcesActions from "./ducks/sources";
 import * as gcnTagsActions from "./ducks/gcnTags";
 import * as gcnEventActions from "./ducks/gcnEvent";
 import * as gcnEventsActions from "./ducks/gcnEvents";
 import * as weatherActions from "./ducks/weather";
 import * as spatialCatalogsActions from "./ducks/spatialCatalogs";
-import * as photometryActions from "./ducks/photometry";
 import * as photometryMinimalActions from "./ducks/photometry_minimal";
 import * as classificationsActions from "./ducks/classifications";
 import * as sourcesInGcnActions from "./ducks/sourcesingcn";

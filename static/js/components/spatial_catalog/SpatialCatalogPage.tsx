@@ -1,5 +1,5 @@
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -12,7 +12,7 @@ import MenuItem from "@mui/material/MenuItem";
 import { Controller, useForm } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
@@ -25,7 +25,13 @@ import {
   useGetSpatialCatalogQuery,
   useDeleteSpatialCatalogMutation,
 } from "../../ducks/spatialCatalogs";
-import * as sourcesActions from "../../ducks/sources";
+import { useFetchSpatialCatalogSourcesQuery } from "../../ducks/sources";
+
+interface SpatialCatalogSourcesArgs {
+  catalogName: string;
+  entryName: string;
+  filterParams?: any;
+}
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -75,67 +81,37 @@ const textStyles = makeStyles()(() => ({
 }));
 
 interface SpatialCatalogSourcesPageProps {
-  selectedSpatialCatalogId?: number | null;
-  selectedSpatialCatalogEntryId?: number | null;
-  spatialCatalogs: any[];
-  spatialCatalog?: any;
+  sourcesArgs: SpatialCatalogSourcesArgs | null;
+  setSourcesArgs: (args: SpatialCatalogSourcesArgs) => void;
 }
 
 const SpatialCatalogSourcesPage = ({
-  spatialCatalogs,
-  spatialCatalog = null,
-  selectedSpatialCatalogId = null,
-  selectedSpatialCatalogEntryId = null,
+  sourcesArgs,
+  setSourcesArgs,
 }: SpatialCatalogSourcesPageProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
-  const [spatialCatalogName, setSpatialCatalogName] = useState<any>(null);
-  const [spatialCatalogEntryName, setSpatialCatalogEntryName] =
-    useState<any>(null);
 
-  const spatialCatalogSources = useAppSelector(
-    (state) => (state as any)?.sources?.spatialCatalogSources,
+  const { data: spatialCatalogSources } = useFetchSpatialCatalogSourcesQuery(
+    sourcesArgs!,
+    { skip: sourcesArgs == null },
   );
 
-  const spatialCatalogsLookUp: Record<string, any> = {};
-
-  spatialCatalogs?.forEach((catalog: any) => {
-    spatialCatalogsLookUp[catalog.id] = catalog;
-  });
-
-  useEffect(() => {
-    if (selectedSpatialCatalogId) {
-      setSpatialCatalogName(
-        spatialCatalogsLookUp[selectedSpatialCatalogId]?.catalog_name,
-      );
-    }
-  }, [selectedSpatialCatalogId]);
-
-  useEffect(() => {
-    if (selectedSpatialCatalogEntryId) {
-      setSpatialCatalogEntryName(
-        spatialCatalog?.entries?.filter(
-          (l: any) => l.id === selectedSpatialCatalogEntryId,
-        )[0]?.entry_name,
-      );
-    }
-  }, [selectedSpatialCatalogEntryId]);
-
   const handleSourcesTableSorting = (sortData: any, filterData: any) => {
-    dispatch(
-      sourcesActions.fetchSpatialCatalogSources(
-        spatialCatalogName,
-        spatialCatalogEntryName,
-        {
-          ...filterData,
-          pageNumber: 1,
-          numPerPage: sourcesRowsPerPage,
-          sortBy: sortData.name,
-          sortOrder: sortData.direction,
-        },
-      ),
-    );
+    if (sourcesArgs == null) {
+      return;
+    }
+    setSourcesArgs({
+      catalogName: sourcesArgs.catalogName,
+      entryName: sourcesArgs.entryName,
+      filterParams: {
+        ...filterData,
+        pageNumber: 1,
+        numPerPage: sourcesRowsPerPage,
+        sortBy: sortData.name,
+        sortOrder: sortData.direction,
+      },
+    });
   };
 
   const handleSourcesTablePagination = (
@@ -144,6 +120,9 @@ const SpatialCatalogSourcesPage = ({
     sortData: any,
     filterData: any,
   ) => {
+    if (sourcesArgs == null) {
+      return;
+    }
     setSourcesRowsPerPage(numPerPage);
     const data: any = {
       ...filterData,
@@ -154,16 +133,17 @@ const SpatialCatalogSourcesPage = ({
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
-    dispatch(
-      sourcesActions.fetchSpatialCatalogSources(
-        spatialCatalogName,
-        spatialCatalogEntryName,
-        data,
-      ),
-    );
+    setSourcesArgs({
+      catalogName: sourcesArgs.catalogName,
+      entryName: sourcesArgs.entryName,
+      filterParams: data,
+    });
   };
 
-  if (!spatialCatalogSources || spatialCatalogSources?.sources?.length === 0) {
+  if (
+    !spatialCatalogSources?.sources ||
+    spatialCatalogSources.sources.length === 0
+  ) {
     return (
       <div className={(classes as any).noSources}>
         <Typography variant="h5">Entry sources</Typography>
@@ -268,8 +248,8 @@ const SpatialCatalogPage = () => {
   const { data: spatialCatalogs } = useGetSpatialCatalogsQuery();
   const [selectedSpatialCatalogId, setSelectedSpatialCatalogId] =
     useState<any>(null);
-  const [selectedSpatialCatalogEntryId, setSelectedSpatialCatalogEntryId] =
-    useState<any>(null);
+  const [sourcesArgs, setSourcesArgs] =
+    useState<SpatialCatalogSourcesArgs | null>(null);
 
   const { data: spatialCatalog } = useGetSpatialCatalogQuery(
     selectedSpatialCatalogId,
@@ -358,17 +338,13 @@ const SpatialCatalogPage = () => {
             <Typography variant="h5">List of Catalog Entries</Typography>
             <SpatialCatalogTable
               catalog={spatialCatalog}
-              setSelectedSpatialCatalogEntryId={
-                setSelectedSpatialCatalogEntryId
-              }
+              setSourcesArgs={setSourcesArgs}
             />
           </div>
           <div className={classes.paperContent}>
             <SpatialCatalogSourcesPage
-              spatialCatalogs={spatialCatalogs}
-              spatialCatalog={spatialCatalog}
-              selectedSpatialCatalogId={selectedSpatialCatalogId}
-              selectedSpatialCatalogEntryId={selectedSpatialCatalogEntryId}
+              sourcesArgs={sourcesArgs}
+              setSourcesArgs={setSourcesArgs}
             />
           </div>
         </Paper>

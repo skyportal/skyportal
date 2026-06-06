@@ -15,6 +15,7 @@ import { skipToken } from "@reduxjs/toolkit/query";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as sourceActions from "../../ducks/source";
+import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 import * as gcnEventActions from "../../ducks/gcnEvent";
 import {
   useAddCommentOnShiftMutation,
@@ -211,7 +212,11 @@ const CommentList = ({
   const source = useAppSelector((state) => state["source"]);
   const candidate = useAppSelector((state) => state["candidate"]);
   const obj = isCandidate ? candidate : source;
-  const spectra = useAppSelector((state) => state["spectra"]);
+  const resolvedObjID = objID ?? obj?.id ?? null;
+  const { data: spectra } = useFetchSourceSpectraQuery(
+    { id: resolvedObjID as string },
+    { skip: !resolvedObjID },
+  );
   const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
   const { data: earthquake } = useGetEarthquakeQuery(
     earthquakeEventID ?? skipToken,
@@ -284,12 +289,10 @@ const CommentList = ({
     comments = obj.comments;
     if (
       includeCommentsOnAllResourceTypes &&
-      typeof spectra === "object" &&
-      spectra !== null &&
-      objID != null &&
-      objID in spectra
+      Array.isArray(spectra) &&
+      objID != null
     ) {
-      specComments = spectra[objID]?.map((spec: any) => spec.comments)?.flat();
+      specComments = spectra?.map((spec: any) => spec.comments)?.flat();
     }
     if (comments !== null && specComments !== null) {
       comments = specComments.concat(comments);
@@ -299,9 +302,7 @@ const CommentList = ({
     if (spectrumID === null) {
       throw new Error("Must specify a spectrumID for comments on spectra");
     }
-    const spectrum = spectra[objID!].find(
-      (spec: any) => spec.id === spectrumID,
-    );
+    const spectrum = spectra?.find((spec: any) => spec.id === spectrumID);
     comments = spectrum?.comments;
   } else if (associatedResourceType === "gcn_event") {
     if (gcnEventID === null) {

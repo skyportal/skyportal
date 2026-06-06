@@ -69,7 +69,11 @@ import FavoritesButton from "../listing/FavoritesButton";
 import MultipleClassificationsForm from "../classification/MultipleClassificationsForm";
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import * as sourceActions from "../../ducks/source";
-import * as sourcesActions from "../../ducks/sources";
+import {
+  useLazyFetchPendingGroupSourcesQuery,
+  useLazyFetchSavedGroupSourcesQuery,
+} from "../../ducks/sources";
+import { photometryApi } from "../../ducks/photometry";
 import { useGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
 import { useGetTagOptionsQuery } from "../../ducks/objectTags";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
@@ -410,7 +414,15 @@ const SourceDetailPanel = React.memo(
     taxonomyList?: any[] | undefined;
   }) => {
     const { classes } = useStyles();
-    const photometry = useAppSelector((state) => state["photometry"]);
+    // Read any already-cached full photometry for this source without triggering
+    // a fetch (the folded plot only renders when photometry is already loaded,
+    // e.g. on the Source page).
+    const photometry = useAppSelector(
+      (state) =>
+        photometryApi.endpoints.fetchSourcePhotometry.select({
+          id: source.id,
+        })(state as any).data,
+    );
     const [openedOrigins, setOpenedOrigins] = useState<Record<string, any>>({});
 
     const annotations = source.annotations || [];
@@ -445,7 +457,7 @@ const SourceDetailPanel = React.memo(
             <VegaPhotometry sourceId={source.id} />
           </Grid>
           <Grid>
-            {photometry[source.id]?.length > 0 && (
+            {(photometry?.length ?? 0) > 0 && (
               <VegaPhotometry
                 sourceId={source.id}
                 annotations={annotations}
@@ -606,6 +618,9 @@ const SourceTable = ({
   // If groupID is not given, show all data available to user's accessible groups
 
   const dispatch = useAppDispatch();
+  const [fetchPendingGroupSourcesTrigger] =
+    useLazyFetchPendingGroupSourcesQuery();
+  const [fetchSavedGroupSourcesTrigger] = useLazyFetchSavedGroupSourcesQuery();
   const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const { classes } = useStyles() as { classes: any };
@@ -728,20 +743,16 @@ const SourceTable = ({
       sourceActions.acceptSaveRequest({ sourceID, groupID: groupID! }),
     );
     if (result.status === "success") {
-      dispatch(
-        sourcesActions.fetchPendingGroupSources({
-          group_ids: [groupID],
-          pageNumber: 1,
-          numPerPage: 10,
-        }),
-      );
-      dispatch(
-        sourcesActions.fetchSavedGroupSources({
-          group_ids: [groupID],
-          pageNumber: 1,
-          numPerPage: 10,
-        }),
-      );
+      fetchPendingGroupSourcesTrigger({
+        group_ids: [groupID],
+        pageNumber: 1,
+        numPerPage: 10,
+      });
+      fetchSavedGroupSourcesTrigger({
+        group_ids: [groupID],
+        pageNumber: 1,
+        numPerPage: 10,
+      });
     }
   };
 
@@ -750,13 +761,11 @@ const SourceTable = ({
       sourceActions.declineSaveRequest({ sourceID, groupID: groupID! }),
     );
     if (result.status === "success") {
-      dispatch(
-        sourcesActions.fetchPendingGroupSources({
-          group_ids: [groupID],
-          pageNumber: 1,
-          numPerPage: 10,
-        }),
-      );
+      fetchPendingGroupSourcesTrigger({
+        group_ids: [groupID],
+        pageNumber: 1,
+        numPerPage: 10,
+      });
     }
   };
 

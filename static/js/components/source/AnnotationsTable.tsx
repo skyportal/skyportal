@@ -27,7 +27,7 @@ import QuickFilter from "../QuickFilter";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 
 import * as sourceActions from "../../ducks/source";
-import * as spectraActions from "../../ducks/spectra";
+import { useDeleteAnnotationMutation } from "../../ducks/spectra";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -70,6 +70,7 @@ const AnnotationsTable = ({
 }: AnnotationsTableProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [deleteSpectrumAnnotation] = useDeleteAnnotationMutation();
 
   const [openAnnotations, setOpenAnnotations] = useState(false);
   const [isRemoving, setIsRemoving] = useState<any>(null);
@@ -83,9 +84,14 @@ const AnnotationsTable = ({
     if (type === "source") {
       await dispatch(sourceActions.deleteAnnotation(id, annotation_id));
     } else if (type === "spectrum") {
-      await dispatch(
-        spectraActions.deleteAnnotation(spectrum_id, annotation_id),
-      );
+      try {
+        await deleteSpectrumAnnotation({
+          id: spectrum_id,
+          annotationID: annotation_id,
+        }).unwrap();
+      } catch {
+        // error notification handled by the baseQuery
+      }
     }
     setIsRemoving(null);
   };

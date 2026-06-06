@@ -79,8 +79,7 @@ import Button from "../Button";
 
 import SourcePlugins from "./SourcePlugins";
 import ObjectTags from "../ObjectTags";
-import * as photometryActions from "../../ducks/photometry";
-import * as spectraActions from "../../ducks/spectra";
+import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 import * as sourceActions from "../../ducks/source";
 
 import PhotometryPlot from "../plot/PhotometryPlot";
@@ -226,7 +225,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const groups = ((useGetGroupsQuery().data?.all ?? null) || []).filter(
     (g: any) => !g.single_user_group,
   );
-  const spectra = useAppSelector((state) => state["spectra"])[source.id];
+  const { data: spectra } = useFetchSourceSpectraQuery({ id: source.id });
   const associatedGCNs = useAppSelector(
     (state) => (state as any).source.associatedGCNs,
   );
@@ -318,11 +317,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
     .sort((a: any, b: any) => new Date(b).getTime() - new Date(a).getTime());
 
   useEffect(() => {
-    dispatch(photometryActions.fetchSourcePhotometry(source.id, { magsys }));
-    dispatch(spectraActions.fetchSourceSpectra(source.id));
     dispatch(sourceActions.fetchPosition(source.id));
     dispatch(sourceActions.fetchAssociatedGCNs(source.id));
-  }, [source.id, magsys, dispatch]);
+  }, [source.id, dispatch]);
 
   const getZRound = (redshift_error: any) =>
     redshift_error ? ceil(abs(log10(redshift_error))) : 4;
@@ -1348,7 +1345,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     (!spectra || spectra?.length === 0) && (
                       <CircularProgress color="secondary" />
                     )}
-                  {source?.spectrum_exists && spectra?.length > 0 && (
+                  {source?.spectrum_exists && (spectra?.length ?? 0) > 0 && (
                     <Suspense
                       fallback={
                         <div>
@@ -1357,7 +1354,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       }
                     >
                       <SpectraPlot
-                        spectra={spectra}
+                        spectra={spectra ?? []}
                         redshift={source.redshift || 0}
                         plotStyle={{
                           height: rightPanelVisible ? "55vh" : "70vh",

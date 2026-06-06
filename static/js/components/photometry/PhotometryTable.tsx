@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import Slide from "@mui/material/Slide";
@@ -21,7 +21,7 @@ import {
   GridToolbarColumnsButton,
 } from "@mui/x-data-grid";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppSelector } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
 import UpdatePhotometry from "./UpdatePhotometry";
 import PhotometryValidation from "./PhotometryValidation";
@@ -29,7 +29,10 @@ import PhotometryMagsys from "./PhotometryMagsys";
 import PhotometryExtinction from "./PhotometryExtinction";
 import PhotometryDownload from "./PhotometryDownload";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import * as Actions from "../../ducks/photometry";
+import {
+  useFetchSourcePhotometryQuery,
+  useDeletePhotometryMutation,
+} from "../../ducks/photometry";
 import { mjd_to_utc } from "../../units";
 
 const DEFAULT_HIDDEN_COLUMNS = [
@@ -97,16 +100,30 @@ const PhotometryTable = ({
   const { usePhotometryValidation } = useAppSelector(
     (state) => state["config"],
   ) as any;
-  const photometry = useAppSelector((state) => state["photometry"]) as any;
 
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [deletePhotometry] = useDeletePhotometryMutation();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<any>(false);
   const [downloadOptionsOpen, setDownloadOptionsOpen] = useState(false);
   const [showExtinction, setShowExtinction] = useState(false);
 
-  const data = useMemo(() => photometry[obj_id] || [], [photometry, obj_id]);
+  const queryParams = useMemo<any>(() => {
+    const params: any = {};
+    if (showExtinction) {
+      params.includeExtinction = true;
+    }
+    if (magsys) {
+      params.magsys = magsys;
+    }
+    return params;
+  }, [showExtinction, magsys]);
+
+  const { data: photometryData } = useFetchSourcePhotometryQuery(
+    { id: obj_id, params: queryParams },
+    { skip: !obj_id || !open },
+  );
+  const data = useMemo(() => photometryData ?? [], [photometryData]);
 
   // DataGrid persists column visibility itself; seed it with the columns that
   // were hidden by default in the old table.
@@ -117,31 +134,15 @@ const PhotometryTable = ({
     }, {}),
   );
 
-  useEffect(() => {
-    if (obj_id && open) {
-      const params: any = {
-        includeOwnerInfo: true,
-        includeStreamInfo: true,
-        includeValidationInfo: true,
-      };
-
-      if (showExtinction) {
-        params.includeExtinction = true;
-      }
-
-      if (magsys) {
-        params.magsys = magsys;
-      }
-
-      dispatch(Actions.fetchSourcePhotometry(obj_id, params));
-    }
-  }, [showExtinction, obj_id, open, magsys, dispatch]);
-
   const handleDelete = async () => {
     if (!deleteDialogOpen) {
       return;
     }
-    await dispatch(Actions.deletePhotometry(deleteDialogOpen));
+    try {
+      await deletePhotometry(deleteDialogOpen).unwrap();
+    } catch {
+      // error notification handled by the baseQuery
+    }
     setDeleteDialogOpen(false);
   };
   const closeDeleteDialog = () => {
@@ -340,7 +341,7 @@ const PhotometryTable = ({
                   onClick={() => setDeleteDialogOpen(phot.id)}
                   size="small"
                   type="submit"
-                  data-testid={`deleteRequest_${photometry.id}`}
+                  data-testid={`deleteRequest_${phot.id}`}
                   {...({ primary: true } as any)}
                 >
                   <DeleteIcon />
@@ -360,7 +361,6 @@ const PhotometryTable = ({
     usePhotometryValidation,
     magsys,
     deleteDialogOpen,
-    photometry.id,
     classes.manage,
   ]);
 
@@ -395,7 +395,7 @@ const PhotometryTable = ({
   );
 
   let bodyContent = null;
-  if (!Object.keys(photometry).includes(obj_id)) {
+  if (photometryData == null) {
     bodyContent = (
       <div>
         <CircularProgress color="secondary" />
