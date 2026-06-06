@@ -190,10 +190,12 @@ def test_save_candidate_select_groups(
     # the menu item only responds to a native DOM click (matches the legacy
     # execute_script click); a normal click doesn't trigger its handler.
     menu_option.evaluate("el => el.click()")
-    expect(menu_option).to_be_hidden()
-    page.locator(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
-    ).first.click()
+    # "Select groups & save" opens a group-select dialog directly (the split-button
+    # menu stays open behind it by design -- it only closes on click-away). Wait
+    # for the dialog, then save; the filtered group (public_group) is pre-checked.
+    expect(
+        page.locator('//*[text()="Select one or more groups:"]').first
+    ).to_be_visible()
     page.locator(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
     ).first.click()
@@ -227,19 +229,20 @@ def test_save_candidate_no_groups_error_message(
     # the menu item only responds to a native DOM click (matches the legacy
     # execute_script click); a normal click doesn't trigger its handler.
     menu_option.evaluate("el => el.click()")
-    expect(menu_option).to_be_hidden()
+    # "Select groups & save" opens a group-select dialog directly. Uncheck the
+    # pre-selected group so none is selected, then saving must surface a
+    # validation error.
+    expect(
+        page.locator('//*[text()="Select one or more groups:"]').first
+    ).to_be_visible()
     page.locator(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
-    ).first.click()
-
-    page.locator(
-        f"//*[@data-testid='saveCandGroupCheckbox-{public_group.id}']"
+        f'//*[@data-testid="saveCandGroupCheckbox-{public_group.id}"]'
     ).first.click()
     page.locator(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
     ).first.click()
     expect(
-        page.locator('//div[contains(.,"Select at least one group")]').first
+        page.locator('//*[contains(.,"Select at least one group")]').first
     ).to_be_visible()
 
 

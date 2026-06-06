@@ -18,7 +18,7 @@ def test_upload_spectroscopy(
 
     page.locator('//input[@type="file"]').first.set_input_files(
         os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
             "data",
             filename,
         )

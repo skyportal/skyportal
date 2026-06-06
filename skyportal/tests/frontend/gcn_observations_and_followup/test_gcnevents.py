@@ -7,14 +7,14 @@ import pytest
 from playwright.sync_api import expect
 
 from skyportal.tests import api
-from skyportal.tests.frontend.test_reminders import (
+from skyportal.tests.frontend.gcn_observations_and_followup.test_reminders import (
     post_and_verify_reminder,
 )
 
 
 @pytest.mark.flaky(reruns=2)
 def test_gcn_IPN(super_admin_token):
-    skymap = f"{os.path.dirname(__file__)}/../data/GRB220617A_IPN_map_hpx.fits.gz"
+    skymap = f"{os.path.dirname(__file__)}/../../data/GRB220617A_IPN_map_hpx.fits.gz"
     dateobs = "2022-06-17T18:31:12"
     tags = ["IPN", "GRB"]
 
@@ -47,7 +47,9 @@ def test_gcn_IPN(super_admin_token):
 def test_gcnevents_object(
     page, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
-    datafile = f"{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    datafile = (
+        f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    )
     with open(datafile, "rb") as fid:
         payload = fid.read()
     event_data = {"xml": payload}
@@ -170,7 +172,7 @@ def test_gcnevents_object(
 
 
 def test_reminder_on_gcn(page, super_admin_user, super_admin_token):
-    datafile = f"{os.path.dirname(__file__)}/../../../data/GW190814.xml"
+    datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
     event_data = {"xml": payload}
@@ -218,7 +220,7 @@ def test_confirm_reject_source_in_gcn(
     ztf_camera,
     upload_data_token,
 ):
-    datafile = f"{os.path.dirname(__file__)}/../../../data/GW190814.xml"
+    datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
     event_data = {"xml": payload}

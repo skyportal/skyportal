@@ -59,7 +59,9 @@ def get_summary(page, user, group, showSources, showGalaxies, showObservations):
 @pytest.mark.flaky(reruns=3)
 @pytest.mark.skipif(not tach_isonline, reason="GCN TACH is not online")
 def test_gcn_tach(page, super_admin_user, super_admin_token):
-    datafile = f"{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    datafile = (
+        f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    )
     with open(datafile, "rb") as fid:
         payload = fid.read()
     event_data = {"xml": payload}
@@ -103,7 +105,9 @@ def test_gcn_allocation_triggers(
     super_admin_token,
     view_only_user,
 ):
-    datafile = f"{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    datafile = (
+        f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    )
     with open(datafile, "rb") as fid:
         payload = fid.read()
     event_data = {"xml": payload}
@@ -249,7 +253,7 @@ def test_filter_by_gcnevent(
     ztf_camera,
     upload_data_token,
 ):
-    datafile = f"{os.path.dirname(__file__)}/../../../data/GW190814.xml"
+    datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
     event_data = {"xml": payload}
@@ -376,7 +380,7 @@ def test_filter_by_gcnevent(
 def test_gcn_summary_observations(
     super_admin_user, super_admin_token, view_only_token, public_group
 ):
-    datafile = f"{os.path.dirname(__file__)}/../../../data/GW190814.xml"
+    datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
     event_data = {"xml": payload}
@@ -506,7 +510,7 @@ def test_gcn_summary_observations(
 
         assert n_retries < 10
 
-    datafile = f"{os.path.dirname(__file__)}/../../../data/sample_observation_gw.csv"
+    datafile = f"{os.path.dirname(__file__)}/../../../../data/sample_observation_gw.csv"
     data = {
         "telescopeName": telescope_name,
         "instrumentName": instrument_name,

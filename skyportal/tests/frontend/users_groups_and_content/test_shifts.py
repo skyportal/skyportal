@@ -252,7 +252,7 @@ def test_shift_summary(
     status, data = api("GET", "gcn_event/2018-01-16T00:36:53", token=super_admin_token)
     if status == 404:
         datafile = (
-            f"{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+            f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
         )
         with open(datafile, "rb") as fid:
             payload = fid.read()

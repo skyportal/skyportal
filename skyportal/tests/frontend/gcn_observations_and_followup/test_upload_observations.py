@@ -18,7 +18,9 @@ def test_upload_observations(page, super_admin_user, super_admin_token):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/observations/")
 
-    data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+    data_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
+    )
 
     def open_add_from_file():
         # Uploading is now behind an Add button -> "Add from File" menu item,

@@ -368,7 +368,9 @@ def test_new_gcn_event_triggers_notification(page, user, super_admin_token):
         page.locator('//*[contains(text(), "Gcn notice preferences updated")]').first
     ).to_be_visible()
 
-    datafile = f"{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    datafile = (
+        f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    )
     with open(datafile, "rb") as fid:
         payload = fid.read()
     data = {"xml": payload}

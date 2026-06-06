@@ -38,8 +38,8 @@ faster you can also run the test server separately:
 make run_testing   # fire up the server with `test_conf.yaml`
 
 pytest skyportal/tests/api  # test api
-pytest skyportal/tests/frontend/test_user.py  # run subset of frontend tests
-pytest skyportal/tests/frontend/test_user.py::test_user_profile_fetching  # run a single test
+pytest skyportal/tests/frontend/users_groups_and_content/test_user.py  # run subset of frontend tests
+pytest skyportal/tests/frontend/users_groups_and_content/test_user.py::test_user_profile_fetching  # run a single test
 ```
 
 On Linux, the tests can be run in "headless" mode (no browser display):
@@ -50,7 +50,7 @@ On Linux, the tests can be run in "headless" mode (no browser display):
 Or, as described above, launch the test server with `make run_testing`, and then call
 
 ```
-xvfb-run pytest skyportal/tests/frontend/test_user.py
+xvfb-run pytest skyportal/tests/frontend/users_groups_and_content/test_user.py
 ```
 
 It is not noticeably faster to run the test suite headlessly.

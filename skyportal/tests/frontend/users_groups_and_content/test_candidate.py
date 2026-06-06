@@ -6,7 +6,7 @@ from playwright.sync_api import expect
 
 from skyportal.tests import api
 
-from ...utils.naive_datetime import utcnow_naive
+from ....utils.naive_datetime import utcnow_naive
 
 
 # Passes in isolation; only times out under full-suite contention, so retry.

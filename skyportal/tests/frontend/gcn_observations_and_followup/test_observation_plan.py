@@ -17,7 +17,7 @@ from skyportal.tests.external.test_moving_objects import (
 def test_gcnevents_observations(
     page, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
-    datafile = f"{os.path.dirname(__file__)}/../data/GW190425_initial.xml"
+    datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
     event_data = {"xml": payload}
@@ -35,7 +35,9 @@ def test_gcnevents_observations(
         add_telescope_and_instrument("ZTF", super_admin_token, list(range(5)))
     )
 
-    datafile = f"{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv"
+    datafile = (
+        f"{os.path.dirname(__file__)}/../../../../data/sample_observation_data.csv"
+    )
     data = {
         "telescopeName": telescope_name,
         "instrumentName": instrument_name,
@@ -93,7 +95,7 @@ def test_gcnevents_observations(
 def test_observationplan_request(
     page, super_admin_user, super_admin_token, public_group
 ):
-    datafile = f"{os.path.dirname(__file__)}/../data/GW190425_initial.xml"
+    datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
     event_data = {"xml": payload}
@@ -228,7 +230,7 @@ def test_observationplan_request(
 
 @pytest.mark.flaky(reruns=2)
 def test_gcn_request(page, user, super_admin_token, public_group):
-    datafile = f"{os.path.dirname(__file__)}/../data/GW190425_initial.xml"
+    datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
     event_data = {"xml": payload}
@@ -246,7 +248,9 @@ def test_gcn_request(page, user, super_admin_token, public_group):
         add_telescope_and_instrument("ZTF", super_admin_token, list(range(5)))
     )
 
-    datafile = f"{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv"
+    datafile = (
+        f"{os.path.dirname(__file__)}/../../../../data/sample_observation_data.csv"
+    )
     data = {
         "telescopeName": telescope_name,
         "instrumentName": instrument_name,
