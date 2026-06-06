@@ -394,7 +394,9 @@ def test_gcn_summary_observations(
         "We observed the localization region of LVC trigger 2019-08-14T21:10:39" in text
     )
     assert "covering ztfr bands" in text
-    assert "of the probability enclosed in the localization region." in text
+    # The summary is markdown now, so this phrase is wrapped in bold (...region**.)
+    # rather than ending in a bare period -- match without the trailing punctuation.
+    assert "of the probability enclosed in the localization region" in text
 
     # the observations table header row lists the columns
     header_row = next((line for line in lines if "T-T0 (hr)" in line), None)

@@ -57,6 +57,14 @@ def test_openai_prefs(page, user, upload_data_token):
     # uncheck the toggle
     page.locator('[data-testid="OpenAI_toggle"]').first.click()
 
-    status, data = api("GET", "internal/profile", token=upload_data_token)
-    assert status == 200
-    assert not data["data"]["preferences"]["summary"]["OpenAI"]["active"]
+    # The toggle write is async too, so poll until it deactivates rather than
+    # racing the GET against the optimistic UI update.
+    active = True
+    for _ in range(20):
+        status, data = api("GET", "internal/profile", token=upload_data_token)
+        assert status == 200
+        active = data["data"]["preferences"]["summary"]["OpenAI"]["active"]
+        if not active:
+            break
+        time.sleep(0.5)
+    assert not active

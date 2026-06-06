@@ -324,66 +324,40 @@ def test_gcn_summary_observations(
     assert nretries < 25
     assert status == 200
     assert observations_loaded is True
-    # get the gcn event summary
-    params = {
-        "title": "gcn summary",
-        "subject": "follow-up",
-        "userIds": super_admin_user.id,
-        "groupId": public_group.id,
-        "startDate": "2019-08-13 08:18:05",
-        "endDate": "2019-08-19 08:18:05",
-        "localizationCumprob": 0.99,
-        "showSources": True,
-        "showGalaxies": False,
-        "showObservations": False,
-        "noText": False,
-    }
+    # generate the GCN summary (with observations) and read it back
+    text = get_summary(
+        page, super_admin_user, public_group, False, False, True, super_admin_token
+    )
 
-    get_summary(page, super_admin_user, public_group, False, False, True)
+    # The summary is markdown viewed in the Edit dialog now (no downloaded file),
+    # so assert on stable content substrings rather than fixed line indices.
+    assert "TITLE: GCN SUMMARY" in text
+    assert "SUBJECT: Follow-up" in text
+    assert "DATE" in text
+    assert (
+        f"FROM: {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
+        in text
+    )
+    assert f"on behalf of the {public_group.name} group:" in text
 
-    fpath = str(
-        os.path.abspath(
-            pjoin(cfg["paths.downloads_folder"], "Gcn Summary_2019-08-14T21 10 39.txt")
+    assert "Observations:" in text
+    assert (
+        "We observed the localization region of LVC trigger 2019-08-14T21:10:39.000 UTC"
+        in text
+    )
+    # the observations table header row lists the columns
+    assert all(
+        col in text
+        for col in (
+            "T-T0 (hr)",
+            "mjd",
+            "ra",
+            "dec",
+            "filter",
+            "exposure",
+            "limmag (ab)",
         )
     )
-    try_count = 1
-    while not os.path.exists(fpath) and try_count <= 5:
-        try_count += 1
-        time.sleep(1)
-    assert os.path.exists(fpath)
-
-    try:
-        with open(fpath) as f:
-            lines = f.read()
-        data = list(filter(None, lines.split("\n")))
-        assert "TITLE: GCN SUMMARY" in data[0]
-        assert "SUBJECT: Follow-up" in data[1]
-        assert "DATE" in data[2]
-        assert (
-            f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
-            in data[3]
-        )
-        assert f"on behalf of the {public_group.name}, report:" in data[4]
-
-        assert any("Observations:" in line for line in data)
-        assert any(
-            "We observed the localization region of LVC trigger 2019-08-14T21:10:39.000 UTC"
-            in line
-            for line in data
-        )
-        assert any(
-            "T-T0 (hr)" in line
-            and "mjd" in line
-            and "ra" in line
-            and "dec" in line
-            and "filter" in line
-            and "exposure" in line
-            and "limmag (ab)" in line
-            for line in data
-        )
-
-    finally:
-        os.remove(fpath)
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
 
@@ -479,65 +453,63 @@ def test_gcn_summary_galaxies(
     assert nretries < 40
     assert galaxies_loaded
 
-    # get the gcn event summary
-    params = {
-        "title": "gcn summary",
-        "subject": "follow-up",
-        "userIds": super_admin_user.id,
-        "groupId": public_group.id,
-        "startDate": "2019-08-13 08:18:05",
-        "endDate": "2019-08-19 08:18:05",
-        "localizationCumprob": 0.99,
-        "showSources": True,
-        "showGalaxies": False,
-        "showObservations": False,
-        "noText": False,
+    # The catalog row count being ready doesn't mean the galaxies are yet matchable
+    # within the localization (the probability cross-match lags), and the summary's
+    # galaxy table needs that. Wait until galaxies fall inside the localization with
+    # a probability -- same cumprob 0.95 and returnProbability the summary uses --
+    # before generating.
+    loc_params = {
+        "catalog_name": catalog_name,
+        "localizationDateobs": "2019-08-14T21:10:39",
+        "localizationName": "LALInference.v1.fits.gz",
+        "localizationCumprob": 0.95,
+        "returnProbability": True,
     }
+    nretries = 0
+    galaxies_in_localization = False
+    while nretries < 40:
+        status, data = api(
+            "GET", "galaxy_catalog", token=super_admin_token, params=loc_params
+        )
+        if status == 200 and len(data["data"]["galaxies"]) > 0:
+            galaxies_in_localization = True
+            break
+        nretries += 1
+        time.sleep(2)
+    assert galaxies_in_localization
 
-    get_summary(page, super_admin_user, public_group, False, True, False)
+    text = get_summary(
+        page, super_admin_user, public_group, False, True, False, super_admin_token
+    )
 
-    fpath = str(
-        os.path.abspath(
-            pjoin(cfg["paths.downloads_folder"], "Gcn Summary_2019-08-14T21 10 39.txt")
+    # Markdown summary read via the API now (no downloaded file); assert on stable
+    # content substrings rather than fixed line indices.
+    assert "TITLE: GCN SUMMARY" in text
+    assert "SUBJECT: Follow-up" in text
+    assert "DATE" in text
+    assert (
+        f"FROM: {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
+        in text
+    )
+    assert f"on behalf of the {public_group.name} group:" in text
+
+    # markdown bolds the count ("Found **54 galaxies** in the event's
+    # localization:"), so match the unformatted tail of the phrase
+    assert "in the event's localization" in text
+    # the galaxies table header row lists the columns
+    assert all(
+        col in text
+        for col in (
+            "Galaxy",
+            "RA",
+            "Dec",
+            "Distance",
+            "m_Ks",
+            "m_NUV",
+            "m_W1",
+            "dP_dV",
         )
     )
-    try_count = 1
-    while not os.path.exists(fpath) and try_count <= 5:
-        try_count += 1
-        time.sleep(1)
-    assert os.path.exists(fpath)
-
-    try:
-        with open(fpath) as f:
-            lines = f.read()
-        data = list(filter(None, lines.split("\n")))
-        assert "TITLE: GCN SUMMARY" in data[0]
-        assert "SUBJECT: Follow-up" in data[1]
-        assert "DATE" in data[2]
-        assert (
-            f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
-            in data[3]
-        )
-        assert f"on behalf of the {public_group.name}, report:" in data[4]
-
-        assert any(
-            "Found 54 galaxies in the event's localization:" in line for line in data
-        )
-
-        assert any(
-            "Galaxy" in line
-            and "RA" in line
-            and "Dec" in line
-            and "Distance" in line
-            and "m_Ks" in line
-            and "m_NUV" in line
-            and "m_W1" in line
-            and "dP_dV" in line
-            for line in data
-        )
-
-    finally:
-        os.remove(fpath)
 
     status, data = api(
         "DELETE", f"galaxy_catalog/{catalog_name}", token=super_admin_token
@@ -661,82 +633,69 @@ def test_gcn_summary_sources(
     assert status == 200
     assert data["status"] == "success"
 
-    # get the gcn event summary
-    params = {
-        "title": "gcn summary",
-        "subject": "follow-up",
-        "userIds": super_admin_user.id,
-        "groupId": public_group.id,
-        "startDate": "2019-08-13 08:18:05",
-        "endDate": "2019-08-19 08:18:05",
-        "localizationCumprob": 1.00,
-        "numberDetections": 1,
-        "showSources": True,
-        "showGalaxies": False,
-        "showObservations": False,
-        "noText": False,
-    }
-
-    get_summary(page, super_admin_user, public_group, True, False, False)
-
-    fpath = str(
-        os.path.abspath(
-            pjoin(cfg["paths.downloads_folder"], "Gcn Summary_2019-08-14T21 10 39.txt")
-        )
+    # generate the GCN summary (with sources) and read it back
+    text = get_summary(
+        page, super_admin_user, public_group, True, False, False, super_admin_token
     )
-    try_count = 1
-    while not os.path.exists(fpath) and try_count <= 5:
-        try_count += 1
-        time.sleep(1)
-    assert os.path.exists(fpath)
 
-    try:
-        with open(fpath) as f:
-            lines = f.read()
-        data = list(filter(None, lines.split("\n")))
-        assert "TITLE: GCN SUMMARY" in data[0]
-        assert "SUBJECT: Follow-up" in data[1]
-        assert "DATE" in data[2]
-        assert (
-            f"FROM:  {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
-            in data[3]
-        )
-        assert f"on behalf of the {public_group.name}, report:" in data[4]
+    # Markdown summary read via the API now (no downloaded file); assert on stable
+    # content substrings rather than fixed line indices.
+    assert "TITLE: GCN SUMMARY" in text
+    assert "SUBJECT: Follow-up" in text
+    assert "DATE" in text
+    assert (
+        f"FROM: {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
+        in text
+    )
+    assert f"on behalf of the {public_group.name} group:" in text
 
-        assert any(
-            "Found" in line and "in the event's localization" in line for line in data
-        )
+    assert "in the event's localization" in text
 
-        assert any(
-            "id" in line
-            and "tns" in line
-            and "ra" in line
-            and "dec" in line
-            and "redshift" in line
-            and "comment" in line
-            for line in data
-        )
+    # the sources table header row lists the columns
+    assert all(col in text for col in ("id", "tns", "ra", "dec", "redshift", "comment"))
 
-        # source phot
-        assert any("Photometry for source" in line for line in data)
-        assert any(
-            "mjd" in line and "mag±err (ab)" in line and "filter" in line
-            for line in data
-        )
-    finally:
-        os.remove(fpath)
+    # source photometry (the header is "Photometry of **<id>**:")
+    assert "Photometry of" in text
+    assert all(col in text for col in ("mjd", "mag±err (ab)", "filter"))
 
 
-def get_summary(page, user, group, showSources, showGalaxies, showObservations):
+def get_summary(
+    page,
+    user,
+    group,
+    showSources,
+    showGalaxies,
+    showObservations,
+    token,
+    localization_name="LALInference.v1.fits.gz",
+):
+    dateobs = "2019-08-14T21:10:39"
     page.goto(f"/become_user/{user.id}")
-    page.goto("/gcn_events/2019-08-14T21:10:39")
+    page.goto(f"/gcn_events/{dateobs}")
 
     page.locator('//button[@name="gcn_summary"]').first.click()
 
     page.locator('//*[@aria-labelledby="group-select"]').first.click()
-    page.locator(f'//li[contains(., "{group.name}")]').first.click()
-    # (the single-select closes on option click; no Escape, which would close
-    # the whole summary dialog)
+    group_option = page.locator(f'//li[contains(., "{group.name}")]').first
+    group_option.click()
+    # wait for the group dropdown to fully close (its overlay otherwise intercepts
+    # clicks on the fields below); no Escape, which would close the whole dialog
+    expect(group_option).to_be_hidden()
+
+    # Explicitly pick the localization the sources/galaxies/observations were
+    # prepared against; the form defaults to localizations[0], a different map of
+    # the event, so the summary's content query comes back empty. An overlapping
+    # Paper in the dialog intercepts a normal click on this Select, so open it via
+    # the mousedown event MUI listens on; the menu then portals to <body> (above
+    # the overlay) and its option is clickable normally.
+    loc_select = page.locator('//*[@aria-labelledby="localizationSelectLabel"]').first
+    loc_select.scroll_into_view_if_needed()
+    loc_select.dispatch_event("mousedown")
+    localization_option = page.locator(
+        f'//li[contains(text(), "{localization_name}")]'
+    ).first
+    localization_option.click()
+    expect(localization_option).to_be_hidden()
 
     if showSources is True:
         page.locator('//*[@label="Show Sources"]').first.click()
@@ -745,19 +704,38 @@ def get_summary(page, user, group, showSources, showGalaxies, showObservations):
     if showObservations is True:
         page.locator('//*[@label="Show Observations"]').first.click()
 
-    # The summary is now produced by a single "Generate" action (the separate
-    # "Retrieve" step is gone); the text then populates the textarea.
+    # The "Generate" action posts the summary request; the text is then produced
+    # asynchronously server-side. The old download-to-file + textarea#text flow is
+    # gone -- summaries now live in a paginated table that can't reliably surface
+    # our row once the shared event accumulates many summaries across the suite.
+    # So trigger generation via the UI, then read our summary back through the API
+    # (newest summary for our freshly-created, uniquely-named group).
     page.locator('//button[contains(.,"Generate")]').first.click()
 
-    expect(page.locator('//textarea[@id="text"]').first).to_be_visible(timeout=60000)
-    expect(
-        page.locator('//textarea[contains(.,"TITLE: GCN SUMMARY")]').first
-    ).to_be_visible(timeout=60000)
+    summary_id = None
+    for _ in range(40):
+        status, data = api("GET", f"gcn_event/{dateobs}", token=token)
+        if status == 200:
+            for s in data["data"]["summaries"]:  # sorted newest-first by the API
+                if s["group"]["id"] == group.id:
+                    summary_id = s["id"]
+                    break
+        if summary_id is not None:
+            break
+        time.sleep(2)
+    assert summary_id is not None, "GCN summary was not created by the Generate action"
 
-    with page.expect_download() as download_info:
-        page.locator('//button[contains(.,"Download")]').first.click()
-    download = download_info.value
-    download.save_as(pjoin(cfg["paths.downloads_folder"], download.suggested_filename))
+    summary_text = "pending"
+    for _ in range(40):
+        status, data = api(
+            "GET", f"gcn_event/{dateobs}/summary/{summary_id}", token=token
+        )
+        if status == 200 and data["data"]["text"] != "pending":
+            summary_text = data["data"]["text"]
+            break
+        time.sleep(5)
+    assert summary_text != "pending", "GCN summary text did not finish generating"
+    return summary_text
 
 
 def test_download_localization(super_admin_token):
