@@ -30,10 +30,13 @@ const config = (env, argv) => {
             chunks: "initial",
             priority: 10,
           },
+          // `chunks: "initial"` so MUI modules only reached by lazy routes
+          // (e.g. @mui/x-data-grid in Sources/Candidates pages) stay async
+          // instead of being pulled into the initial mui chunk.
           mui: {
             test: /[\\/]node_modules[\\/]@mui[\\/]/,
             name: "mui",
-            chunks: "all",
+            chunks: "initial",
             priority: 20,
           },
           d3: {
@@ -141,6 +144,14 @@ const config = (env, argv) => {
     plugins: [
       // Uncomment the following line to enable bundle size analysis
       // new BundleAnalyzerPlugin(),
+      // Drop moment's per-locale string files (es, fr, ja, ...) — SkyPortal only
+      // formats dates in English. Saves ~600 KB on pages that pull in moment
+      // (notably `ShiftCalendar` via react-big-calendar). Does NOT affect
+      // timezone math: that comes from `moment-timezone`, which is not a dep.
+      new rspack.IgnorePlugin({
+        resourceRegExp: /^\.\/locale$/,
+        contextRegExp: /moment$/,
+      }),
       new rspack.HtmlRspackPlugin({
         template: "./static/index_base.html",
         filename: "../index.html",
