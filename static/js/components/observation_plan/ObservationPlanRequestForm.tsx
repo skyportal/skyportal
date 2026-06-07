@@ -377,6 +377,10 @@ const ObservationPlanRequestForm = ({
   }, [
     dispatch,
     gcnEvent,
+    // The allocation list arrives asynchronously from RTK Query after mount;
+    // without it as a dependency the effect never re-runs and the allocation
+    // select stays empty.
+    allocationListApiObsplan,
     setSelectedAllocationId,
     setSelectedGroupIds,
     setSelectedLocalizationId,
@@ -702,8 +706,8 @@ const ObservationPlanRequestForm = ({
                 secondary
                 href={`/api/localization/${selectedLocalizationId}/airmass/${
                   instLookUp[
-                    allocationLookUp[selectedAllocationId].instrument_id
-                  ].telescope_id
+                    allocationLookUp[selectedAllocationId]?.instrument_id
+                  ]?.telescope_id
                 }`}
                 download={`airmassChartRequest-${selectedAllocationId}`}
                 size="small"
@@ -761,7 +765,7 @@ const ObservationPlanRequestForm = ({
                 className={classes.SelectItem}
               >
                 {`${
-                  telLookUp[instLookUp[allocation.instrument_id].telescope_id]
+                  telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]
                     ?.name
                 } / ${instLookUp[allocation.instrument_id]?.name} - ${
                   groupLookUp[allocation.group_id]?.name
@@ -802,7 +806,7 @@ const ObservationPlanRequestForm = ({
               schema={
                 (instrumentObsplanFormParams
                   ? instrumentObsplanFormParams[
-                      allocationLookUp[selectedAllocationId].instrument_id
+                      allocationLookUp[selectedAllocationId]?.instrument_id
                     ]?.formSchema
                   : {}) as any
               }
@@ -812,7 +816,7 @@ const ObservationPlanRequestForm = ({
               uiSchema={
                 instrumentObsplanFormParams
                   ? instrumentObsplanFormParams[
-                      allocationLookUp[selectedAllocationId].instrument_id
+                      allocationLookUp[selectedAllocationId]?.instrument_id
                     ]?.uiSchema
                   : {}
               }
@@ -843,7 +847,7 @@ const ObservationPlanRequestForm = ({
             <Chip
               key={plan.payload.queue_name}
               label={`${
-                instLookUp[allocationLookUp[plan.allocation_id].instrument_id]
+                instLookUp[allocationLookUp[plan.allocation_id]?.instrument_id]
                   ?.name
               }: ${plan.payload.queue_name}`}
               data-testid={`queueName_${plan.payload.queue_name}`}

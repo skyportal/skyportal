@@ -48,6 +48,10 @@ const candidatesCacheKey = (arg: Record<string, any> | undefined) => {
   const rest: Record<string, any> = { ...(arg || {}) };
   delete rest["pageNumber"];
   delete rest["queryID"];
+  // An explicit "Search" bumps `_searchNonce` to force a refetch even when the
+  // filter is unchanged (e.g. re-searching after rejecting a candidate). It must
+  // not affect the cache key, so all pages of one search still merge together.
+  delete rest["_searchNonce"];
   return JSON.stringify(
     Object.keys(rest)
       .sort()
@@ -66,7 +70,11 @@ export const candidatesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getCandidates: build.query({
       query: (filterParams = {}) => {
-        const filtered = filterOutEmptyValues(filterParams);
+        // `_searchNonce` only exists to force a refetch (see candidatesCacheKey);
+        // strip it from the outgoing request.
+        const cleaned = { ...filterParams };
+        delete cleaned["_searchNonce"];
+        const filtered = filterOutEmptyValues(cleaned);
         const queryString = new URLSearchParams(
           filtered as Record<string, string>,
         ).toString();

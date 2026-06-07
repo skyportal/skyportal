@@ -45,12 +45,21 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
       {
         query: (dateobs) =>
           `api/gcn_event/${dateobs}?excludeNoticeContent=true`,
-        providesTags: ["GcnEvent"],
+        // Broad "GcnEvent" tag (so mutations / other REFRESH_* events still
+        // refetch) plus a per-id tag keyed by dateobs, so REFRESH_GCN_EVENT only
+        // refetches the event a client is actually viewing.
+        providesTags: (_result, _error, dateobs) => [
+          "GcnEvent",
+          { type: "GcnEvent", id: dateobs },
+        ],
       },
     ),
     getGcnTach: build.query<{ circulars?: Record<string, string> }, string>({
       query: (dateobs) => `api/gcn_event/${dateobs}/tach`,
-      providesTags: ["GcnEvent"],
+      providesTags: (_result, _error, dateobs) => [
+        "GcnEvent",
+        { type: "GcnEvent", id: dateobs },
+      ],
     }),
     getGcnTrigger: build.query<
       any,
@@ -415,7 +424,16 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
 // construction, the ones for the currently-loaded event — so the conditional
 // "only if it matches the loaded event" guard is satisfied automatically.
 invalidateOnMessage("skyportal/FETCH_GCNEVENT", () => ["GcnEvent"]);
-invalidateOnMessage("skyportal/REFRESH_GCN_EVENT", () => ["GcnEvent"]);
+// REFRESH_GCN_EVENT is broadcast to every client carrying the changed event's
+// dateobs (which is exactly the getGcnEvent/getGcnTach query arg — no lookup
+// needed). Invalidate only that event's per-id tag so other clients viewing a
+// different event don't refetch their (heavy) event object. Restores the
+// pre-migration "only if it matches the loaded event's dateobs" gate.
+invalidateOnMessage("skyportal/REFRESH_GCN_EVENT", (payload) =>
+  payload?.gcnEvent_dateobs != null
+    ? [{ type: "GcnEvent", id: payload.gcnEvent_dateobs }]
+    : ["GcnEvent"],
+);
 invalidateOnMessage("skyportal/REFRESH_GCN_TRIGGERED", () => ["GcnEvent"]);
 invalidateOnMessage(
   "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",

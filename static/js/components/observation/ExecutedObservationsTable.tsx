@@ -33,7 +33,7 @@ import NewObservation from "./NewObservation";
 import NewAPIObservation from "./NewAPIObservation";
 
 import {
-  useLazyCheckSourceQuery,
+  useCheckSourceMutation,
   useSaveSourceMutation,
 } from "../../ducks/source";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
@@ -92,7 +92,7 @@ const ExecutedObservationsTable = ({
   const { classes } = useStyles();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const [checkSource] = useLazyCheckSourceQuery();
+  const [checkSource] = useCheckSourceMutation();
   const [saveSource] = useSaveSourceMutation();
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
