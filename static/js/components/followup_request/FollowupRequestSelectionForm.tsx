@@ -291,7 +291,12 @@ const FollowupRequestSelectionForm = ({
         type: "array",
         items: {
           type: "integer",
-          enum: allUsers?.map((user: any) => user.id) || [],
+          // Only emit `enum` when there are users: ajv8 (rjsf v6) rejects an
+          // empty `enum: []`, which fails the whole schema compile and prevents
+          // every dependent field from rendering.
+          ...(allUsers?.length
+            ? { enum: allUsers.map((user: any) => user.id) }
+            : {}),
         },
         uniqueItems: true,
         title: "Requester(s) (optional)",

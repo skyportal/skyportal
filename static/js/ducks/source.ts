@@ -17,7 +17,7 @@
  * the active (currently-loaded) source's queries refetch.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
 
 export const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
 export const REFRESH_SOURCE_POSITION = "skyportal/REFRESH_SOURCE_POSITION";
@@ -95,14 +95,26 @@ export const sourceApi = skyportalApi.injectEndpoints({
         ).toString();
         return `api/sources/${id}?${queryString}`;
       },
-      providesTags: ["Source"],
+      // Provides both the broad "Source" tag (so the existing mutations, which
+      // invalidate ["Source"], keep refetching) and a per-id tag so a websocket
+      // REFRESH for one source invalidates only that source's cache entry.
+      providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
     }),
     getSourcePosition: build.query<SourcePosition, number | string>({
       query: (id) => `api/sources/${id}/position`,
-      providesTags: ["Source"],
+      // Position has its own REFRESH_SOURCE_POSITION event, so it gets its own
+      // per-id tag (a REFRESH_SOURCE from e.g. a comment must NOT refetch it).
+      // The broad "Source" tag is kept so source mutations still refetch it.
+      providesTags: (_result, _error, id) => [
+        "Source",
+        { type: "SourcePosition", id },
+      ],
     }),
     getAssociatedGcns: build.query<AssociatedGcns, number | string>({
       query: (id) => `api/associated_gcns/${id}`,
+      // Broad tag only: matching the pre-migration behavior, associated GCNs are
+      // not refetched by the per-id REFRESH_SOURCE websocket (they refresh on
+      // source mutations via the "Source" tag).
       providesTags: ["Source"],
     }),
     getAnalyses: build.query<
@@ -152,7 +164,12 @@ export const sourceApi = skyportalApi.injectEndpoints({
         params,
       }),
     }),
-    checkSource: build.query<
+    // An imperative one-off existence check (used in submit handlers via
+    // `await checkSource(...).unwrap()`), so it's a mutation, not a lazy query:
+    // a lazy-query trigger's `.unwrap()` in a handler can reject on subscription
+    // teardown, which the callers' empty `catch` swallows — silently aborting
+    // the subsequent saveSource.
+    checkSource: build.mutation<
       any,
       { id: number | string; params: Record<string, any> }
     >({
@@ -160,7 +177,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
         const queryParams = params["nameOnly"]
           ? ""
           : `?ra=${params["ra"]}&dec=${params["dec"]}&radius=0.0003`;
-        return `api/source_exists/${id}${queryParams}`;
+        return {
+          url: `api/source_exists/${id}${queryParams}`,
+          method: "GET",
+        };
       },
     }),
     getPhotometryRequest: build.query<
@@ -626,12 +646,43 @@ export const sourceApi = skyportalApi.injectEndpoints({
 
 // Websocket-driven invalidation. The old handler conditionally re-fetched the
 // loaded source (and its sub-resources) when a REFRESH message matched the
-// loaded source's internal_key. With RTK Query, invalidating the `Source` tag
-// only refetches the *active* queries — which are, by construction, the ones for
-// the currently-loaded source — so the conditional "only if it matches the
-// loaded source" guard is satisfied automatically.
-invalidateOnMessage(REFRESH_SOURCE, () => ["Source"]);
-invalidateOnMessage(REFRESH_SOURCE_POSITION, () => ["Source"]);
+// loaded source's internal_key.
+//
+// REFRESH_SOURCE is broadcast to every connected client (`push_all`) carrying
+// the changed source's `internal_key` as `obj_key`. We translate that to the
+// obj id of the matching cached `getSource` entry and invalidate only that
+// source's per-id tag — so a change to one source no longer forces every other
+// client to refetch its own (heavy) source object. When no cached source
+// matches (this client isn't viewing that source), there is nothing to refetch,
+// which restores the original "only if it matches the loaded source" gate.
+invalidateOnMessage(REFRESH_SOURCE, (payload, getState) => {
+  const objKey = payload?.obj_key;
+  if (!objKey) {
+    return ["Source"];
+  }
+  const objId = findCachedQueryArg(
+    getState,
+    "getSource",
+    (data) => data?.internal_key === objKey,
+  ) as string | number | null;
+  return objId != null ? [{ type: "Source", id: objId }] : null;
+});
+// REFRESH_SOURCE_POSITION is likewise broadcast to all clients with the
+// changed source's internal_key; translate to the obj id and invalidate only
+// that source's position cache entry (its own tag, so the heavy source object
+// is not refetched on a position change).
+invalidateOnMessage(REFRESH_SOURCE_POSITION, (payload, getState) => {
+  const objKey = payload?.obj_key;
+  if (!objKey) {
+    return ["Source"];
+  }
+  const objId = findCachedQueryArg(
+    getState,
+    "getSource",
+    (data) => data?.internal_key === objKey,
+  ) as string | number | null;
+  return objId != null ? [{ type: "SourcePosition", id: objId }] : null;
+});
 invalidateOnMessage(REFRESH_OBJ_ANALYSES, () => ["Source"]);
 
 export const {
@@ -644,8 +695,7 @@ export const {
   useLazyGetAnalysisQuery,
   useGetAnalysisResultsQuery,
   useLazyGetAnalysisResultsQuery,
-  useCheckSourceQuery,
-  useLazyCheckSourceQuery,
+  useCheckSourceMutation,
   useGetPhotometryRequestQuery,
   useLazyGetPhotometryRequestQuery,
   useGetSourceFinderChartQuery,
