@@ -973,7 +973,7 @@ class GcnEventTagsHandler(BaseHandler):
                         data:
                           type: array
                           items:
-                            $ref: '#/components/schemas/GcnTag'
+                            type: string
           400:
             content:
               application/json:

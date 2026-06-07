@@ -28,6 +28,8 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { components } from "../types/api";
+import type { RouteData } from "../types/routeSchemaMap";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -104,13 +106,32 @@ interface DeleteAPIQueueArg {
 
 export const queuedObservationsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getQueuedObservations: build.query<any, FilterParams | void>({
+    getQueuedObservations: build.query<
+      {
+        observations: components["schemas"]["QueuedObservation"][];
+        totalMatches: number;
+        geojson?: object[] | null;
+        field_ids?: number[] | null;
+        probability?: number | null;
+        area?: number | null;
+        min_observations_per_field?: number | null;
+      },
+      FilterParams | void
+    >({
       query: (filterParams) =>
         buildQueryString(withQueuedObservationDefaults(filterParams ?? {})),
       providesTags: ["QueuedObservations", "Observation"],
     }),
     getGcnEventQueuedObservations: build.query<
-      any,
+      {
+        observations: components["schemas"]["QueuedObservation"][];
+        totalMatches: number;
+        geojson?: object[] | null;
+        field_ids?: number[] | null;
+        probability?: number | null;
+        area?: number | null;
+        min_observations_per_field?: number | null;
+      },
       FetchGcnEventQueuedObservationsArg
     >({
       query: ({ dateobs, filterParams }) =>
@@ -119,7 +140,10 @@ export const queuedObservationsApi = skyportalApi.injectEndpoints({
         ),
       providesTags: ["QueuedObservations", "Observation"],
     }),
-    requestAPIQueues: build.query<any, RequestAPIQueuesArg>({
+    requestAPIQueues: build.query<
+      RouteData<"GET /api/observation/external_api/{allocation_id}">,
+      RequestAPIQueuesArg
+    >({
       query: ({ id, data = { queuesOnly: true } }) => {
         const params = new URLSearchParams(
           Object.fromEntries(

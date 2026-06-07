@@ -1198,7 +1198,24 @@ class FollowupRequestHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfFollowupRequests
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              followup_requests:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/FollowupRequest'
+                              totalMatches:
+                                type: integer
+                              pageNumber:
+                                type: integer
+                              numPerPage:
+                                type: integer
             400:
               content:
                 application/json:

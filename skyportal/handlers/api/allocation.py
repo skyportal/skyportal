@@ -219,9 +219,20 @@ class AllocationHandler(BaseHandler):
               description: Page number for paginated query results. Defaults to 1
           responses:
             200:
-               content:
+              content:
                 application/json:
-                  schema: SingleAllocation
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              allocation:
+                                $ref: '#/components/schemas/Allocation'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:

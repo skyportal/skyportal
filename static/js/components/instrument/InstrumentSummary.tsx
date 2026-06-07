@@ -183,16 +183,16 @@ const InstrumentSummary = ({ route }: InstrumentSummaryProps) => {
               <AccordionDetails>
                 <div className={styles.columnItem}>
                   {loading && <CircularProgress color="secondary" />}
-                  {!loading && !instrument["log_exists"] && (
+                  {!loading && !(instrument as any)["log_exists"] && (
                     <div> No logs exist </div>
                   )}
                   {!loading &&
-                    instrument["log_exists"] &&
+                    (instrument as any)["log_exists"] &&
                     logs?.length === 0 && (
                       <div> No logs exist in the specified time range </div>
                     )}
                   {!loading &&
-                    instrument["log_exists"] &&
+                    (instrument as any)["log_exists"] &&
                     (logs?.length ?? 0) > 0 && (
                       <InstrumentLogsPlot instrument_logs={logs || []} />
                     )}

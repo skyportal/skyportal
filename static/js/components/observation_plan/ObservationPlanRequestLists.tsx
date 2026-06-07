@@ -380,8 +380,8 @@ const ObservationPlanRequestLists = ({
                   <StyledDataGrid
                     autoHeight
                     rows={(
-                      fetchedObservationPlan.observation_plans[0]
-                        .planned_observations || []
+                      fetchedObservationPlan.observation_plans?.[0]
+                        ?.planned_observations ?? []
                     ).map((row: any, i: number) => ({
                       ...row,
                       __rowid: row.id ?? i,

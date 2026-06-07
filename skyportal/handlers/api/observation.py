@@ -1082,7 +1082,39 @@ class ObservationHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfExecutedObservations
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              observations:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/ExecutedObservation'
+                              totalMatches:
+                                type: integer
+                              geojson:
+                                type: array
+                                items:
+                                  type: object
+                                nullable: true
+                              field_ids:
+                                type: array
+                                items:
+                                  type: integer
+                                nullable: true
+                              probability:
+                                type: number
+                                nullable: true
+                              area:
+                                type: number
+                                nullable: true
+                              min_observations_per_field:
+                                type: integer
+                                nullable: true
             400:
               content:
                 application/json:

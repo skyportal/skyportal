@@ -18,19 +18,11 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
 export const REFRESH_SOURCE_POSITION = "skyportal/REFRESH_SOURCE_POSITION";
 export const REFRESH_OBJ_ANALYSES = "skyportal/REFRESH_OBJ_ANALYSES";
-
-export interface Source {
-  id?: string | undefined;
-  internal_key?: string | undefined;
-  ra?: number | undefined;
-  dec?: number | undefined;
-  loadError?: string | undefined;
-  [key: string]: any;
-}
 
 export interface SourcePosition {
   ra?: number | undefined;
@@ -88,7 +80,10 @@ const sourceIncludeParams = {
 export const sourceApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     // ----- Main source + read-only sub-fetches -----
-    getSource: build.query<Source, number | string>({
+    getSource: build.query<
+      RouteData<"GET /api/sources/{obj_id}">,
+      number | string
+    >({
       query: (id) => {
         const queryString = new URLSearchParams(
           sourceIncludeParams as unknown as Record<string, string>,
@@ -106,7 +101,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
       providesTags: ["Source"],
     }),
     getAnalyses: build.query<
-      any,
+      RouteData<"GET /api/{analysis_resource_type}/analysis">,
       {
         analysis_resource_type?: string | undefined;
         params?: Record<string, any> | undefined;
@@ -119,7 +114,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
       providesTags: ["Source"],
     }),
     getAnalysis: build.query<
-      any,
+      RouteData<"GET /api/{analysis_resource_type}/analysis/{analysis_id}">,
       {
         analysis_id: number | string;
         analysis_resource_type?: string | undefined;
@@ -206,7 +201,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Source"],
     }),
     updateSource: build.mutation<
-      any,
+      RouteData<"PATCH /api/sources/{obj_id}">,
       { id: number | string; payload: Record<string, any> }
     >({
       query: ({ id, payload }) => ({
@@ -292,7 +287,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
     }),
 
     // ----- Comments -----
-    addComment: build.mutation<any, Record<string, any>>({
+    addComment: build.mutation<
+      RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
+      Record<string, any>
+    >({
       queryFn: async (formData, _api, _extra, baseQuery) => {
         const body = { ...formData };
         if (body["attachment"]) {
@@ -305,12 +303,14 @@ export const sourceApi = skyportalApi.injectEndpoints({
         if (result.error) {
           return { error: result.error };
         }
-        return { data: result.data };
+        return {
+          data: result.data as RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
+        };
       },
       invalidatesTags: ["Source"],
     }),
     editComment: build.mutation<
-      any,
+      RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
       { commentID: number | string; formData: Record<string, any> }
     >({
       queryFn: async ({ commentID, formData }, _api, _extra, baseQuery) => {
@@ -325,7 +325,9 @@ export const sourceApi = skyportalApi.injectEndpoints({
         if (result.error) {
           return { error: result.error };
         }
-        return { data: result.data };
+        return {
+          data: result.data as RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
+        };
       },
       invalidatesTags: ["Source"],
     }),
@@ -398,7 +400,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
     }),
 
     // ----- Follow-up requests -----
-    submitFollowupRequest: build.mutation<any, Record<string, any>>({
+    submitFollowupRequest: build.mutation<
+      RouteData<"POST /api/followup_request">,
+      Record<string, any>
+    >({
       query: (params) => {
         const { instrument_name, ...paramsToSubmit } = params;
         return {
@@ -410,7 +415,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Source"],
     }),
     editFollowupRequest: build.mutation<
-      any,
+      RouteData<"PUT /api/followup_request/{request_id}">,
       { params: Record<string, any>; requestID: number | string }
     >({
       query: ({ params, requestID }) => {
@@ -464,7 +469,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
     }),
 
     // ----- Notifications / sharing / photometry -----
-    sendAlert: build.mutation<any, Record<string, any>>({
+    sendAlert: build.mutation<
+      RouteData<"POST /api/source_notifications">,
+      Record<string, any>
+    >({
       query: (params) => ({
         url: "api/source_notifications",
         method: "POST",
@@ -499,14 +507,20 @@ export const sourceApi = skyportalApi.injectEndpoints({
     }),
 
     // ----- External-catalog annotations -----
-    fetchGaia: build.mutation<any, number | string>({
+    fetchGaia: build.mutation<
+      RouteData<"POST /api/sources/{obj_id}/annotations/gaia">,
+      number | string
+    >({
       query: (sourceID) => ({
         url: `api/sources/${sourceID}/annotations/gaia`,
         method: "POST",
       }),
       invalidatesTags: ["Source"],
     }),
-    fetchWise: build.mutation<any, number | string>({
+    fetchWise: build.mutation<
+      RouteData<"POST /api/sources/{obj_id}/annotations/irsa">,
+      number | string
+    >({
       query: (sourceID) => ({
         url: `api/sources/${sourceID}/annotations/irsa`,
         method: "POST",
@@ -514,7 +528,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Source"],
     }),
     fetchVizier: build.mutation<
-      any,
+      RouteData<"POST /api/sources/{obj_id}/annotations/vizier">,
       { sourceID: number | string; catalog?: string | undefined }
     >({
       query: ({ sourceID, catalog = "VII/290" }) => ({
@@ -531,7 +545,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Source"],
     }),
-    fetchPS1: build.mutation<any, number | string>({
+    fetchPS1: build.mutation<
+      RouteData<"POST /api/sources/{obj_id}/annotations/ps1">,
+      number | string
+    >({
       query: (sourceID) => ({
         url: `api/sources/${sourceID}/annotations/ps1`,
         method: "POST",
@@ -593,7 +610,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
 
     // ----- Analyses (start / delete) -----
     startAnalysis: build.mutation<
-      any,
+      RouteData<"POST /api/{analysis_resource_type}/{resource_id}/analysis/{analysis_service_id}">,
       {
         id: number | string;
         analysis_service_id: number | string;

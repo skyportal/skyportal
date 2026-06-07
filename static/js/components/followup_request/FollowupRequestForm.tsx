@@ -94,8 +94,8 @@ const FollowupRequestForm = ({
     });
 
     if (!selectedAllocationId) {
-      if (data[0]?.["default_share_group_ids"]?.length > 0) {
-        setSelectedGroupIds(data[0]?.["default_share_group_ids"]);
+      if ((data[0]?.["default_share_group_ids"]?.length ?? 0) > 0) {
+        setSelectedGroupIds(data[0]?.["default_share_group_ids"] ?? []);
       } else {
         setSelectedGroupIds([data[0]?.["group_id"]]);
       }

@@ -199,7 +199,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
     label: group.name,
   }));
 
-  const users_list = users?.map((user: any) => ({
+  const users_list = (users ?? []).map((user: any) => ({
     id: user.id,
     label: `${user.first_name} ${user.last_name}`,
   }));

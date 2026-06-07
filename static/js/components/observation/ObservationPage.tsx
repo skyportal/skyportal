@@ -293,14 +293,14 @@ const ObservationPage = () => {
 
   const handleExecutedDownload = async () => {
     const observationsAll: any[] = [];
-    if (observations.totalMatches === 0) {
+    const totalMatches = observations.totalMatches ?? 0;
+    if (totalMatches === 0) {
       dispatch(showNotification("No observations to download", "warning"));
     } else {
-      setDownloadProgressTotal(observations.totalMatches);
+      setDownloadProgressTotal(totalMatches);
       for (
         let i = 1;
-        i <=
-        Math.ceil(observations.totalMatches / fetchExecutedParams.numPerPage);
+        i <= Math.ceil(totalMatches / fetchExecutedParams.numPerPage);
         i += 1
       ) {
         const data = {
@@ -312,7 +312,7 @@ const ObservationPage = () => {
           const result: any = await fetchObservations(data).unwrap();
           observationsAll.push(...result.observations);
           setDownloadProgressCurrent(observationsAll.length);
-          setDownloadProgressTotal(observations.totalMatches);
+          setDownloadProgressTotal(totalMatches);
         } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
@@ -338,7 +338,7 @@ const ObservationPage = () => {
     }
     setDownloadProgressCurrent(0);
     setDownloadProgressTotal(0);
-    if (observationsAll?.length === observations.totalMatches?.length) {
+    if (observationsAll?.length === observations.totalMatches) {
       dispatch(showNotification("Observations downloaded successfully"));
     }
     return observationsAll;
@@ -394,7 +394,7 @@ const ObservationPage = () => {
     }
     setDownloadProgressCurrent(0);
     setDownloadProgressTotal(0);
-    if (observationsAll?.length === queuedObservations.totalMatches?.length) {
+    if (observationsAll?.length === queuedObservations.totalMatches) {
       dispatch(showNotification("Observations downloaded successfully"));
     }
     return observationsAll;

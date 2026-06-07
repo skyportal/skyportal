@@ -70,7 +70,7 @@ const SkymapTriggerAPIDisplay = () => {
     {
       skip: !selectedAllocationId || !(allocationListApiObsplan?.length > 0),
     },
-  );
+  ) as { data?: { trigger_names?: string[] } };
 
   useEffect(() => {
     if (allocationListApiObsplan?.length > 0) {

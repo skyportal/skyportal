@@ -960,7 +960,20 @@ class ObservationPlanRequestHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfObservationPlanRequests
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              requests:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/ObservationPlanRequest'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:

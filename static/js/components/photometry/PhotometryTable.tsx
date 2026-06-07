@@ -188,7 +188,7 @@ const PhotometryTable = ({
     }
 
     // Pick up any extra keys present in the data that we did not enumerate.
-    Object.keys(data[0]).forEach((key) => {
+    Object.keys(data[0] ?? {}).forEach((key) => {
       const extinctionColumns = ["extinction", "mag_corr", "flux_corr"];
       const excludedKeys = [
         "groups",

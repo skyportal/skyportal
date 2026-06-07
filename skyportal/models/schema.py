@@ -2434,6 +2434,88 @@ class SpatialCatalogASCIIFileHandlerPost(_Schema):
     catalogData = fields.Dict(metadata={"description": "Catalog data Ascii string"})
 
 
+class ObjAnalysisDetail(_Schema):
+    """Response shape of ``AnalysisHandler.get`` for ``analysis_resource_type='obj'``.
+
+    Mirrors the runtime dict produced by ``recursive_to_dict(ObjAnalysis)`` plus
+    the handler-injected service/plot/groups/filename/data fields. The base
+    ``ObjAnalysis`` fields flow through as ``additionalProperties``; this schema
+    types only what callers in the SPA consume directly.
+    """
+
+    id = fields.Integer(metadata={"description": "Unique identifier for the analysis."})
+    obj_id = fields.String(
+        metadata={"description": "ID of the Obj this analysis was run on."}
+    )
+    analysis_service_id = fields.Integer(
+        metadata={
+            "description": "ID of the AnalysisService used to produce this analysis."
+        }
+    )
+    analysis_service_name = fields.String(
+        metadata={
+            "description": "Display name of the AnalysisService, injected by the handler."
+        }
+    )
+    analysis_service_description = fields.String(
+        metadata={
+            "description": "Description of the AnalysisService, injected by the handler."
+        }
+    )
+    num_plots = fields.Integer(
+        metadata={
+            "description": (
+                "Number of plots in this analysis's data. Single-analysis "
+                "responses only."
+            )
+        }
+    )
+    groups = fields.List(
+        fields.Raw(metadata={"type": "object"}),
+        metadata={
+            "description": "Groups with access to this analysis.",
+            "type": "array",
+        },
+    )
+    filename = fields.String(
+        metadata={
+            "description": (
+                "Server-side filename for the analysis payload. Present only "
+                "when ``includeFilename=true``."
+            )
+        }
+    )
+    data = fields.Raw(
+        metadata={
+            "description": (
+                "Raw analysis payload (results/plots/inference_data). Present "
+                "only when ``includeAnalysisData=true`` on single-analysis "
+                "requests."
+            ),
+            "type": "object",
+        }
+    )
+    analysis_parameters = fields.Raw(
+        metadata={
+            "description": (
+                "Parameters passed to the analysis service (sensitive keys stripped)."
+            ),
+            "type": "object",
+        }
+    )
+    status = fields.String(
+        metadata={"description": "Current status of the analysis run."}
+    )
+    status_message = fields.String(
+        metadata={"description": "Human-readable status detail."}
+    )
+
+    class Meta:
+        # Base ObjAnalysis fields (created_at, last_activity, ...) flow through
+        # untyped; declared keys above are the contract callers rely on.
+        additional = ()
+
+
 def _is_typeless(node) -> bool:
     """True if a schema dict is missing the basic shape hints — neither type
     nor $ref nor composition keyword — and therefore renders as `unknown` in
@@ -2667,3 +2749,4 @@ SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
 SpectrumHead = SpectrumHead()
 GroupIDList = GroupIDList()
+ObjAnalysisDetail = ObjAnalysisDetail()

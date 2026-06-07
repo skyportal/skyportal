@@ -25,7 +25,9 @@ const GcnPropertiesSelect = ({
   comparators,
 }: GcnPropertiesSelectProps) => {
   const { data: gcnPropertiesData } = useGetGcnPropertiesQuery();
-  const gcnProperties = [...(gcnPropertiesData || [])].sort();
+  const gcnProperties = (
+    [...(gcnPropertiesData || [])] as unknown as string[]
+  ).sort();
   const { handleSubmit, control, reset, getValues } = useForm();
 
   const handleSubmitProperties = async () => {

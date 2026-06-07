@@ -289,8 +289,9 @@ const InstrumentForm = ({
                   .properties,
               },
               default:
-                instrumentToEdit?.["configuration_data"]
-                  ?.specific_configuration || {},
+                instrumentToEdit?.["configuration_data"]?.[
+                  "specific_configuration"
+                ] || {},
             },
           }
         : {}),

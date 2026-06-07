@@ -319,7 +319,10 @@ const ObservationPlanRequestForm = ({
       fetchInstrumentSkymap({
         id: instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]
           ?.id,
-        localization: obsplanLoc,
+        localization: obsplanLoc as {
+          dateobs: string;
+          localization_name: string;
+        },
         airmassTime: airmassTime.toJSON(),
       })
         .unwrap()
