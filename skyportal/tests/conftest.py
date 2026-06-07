@@ -2094,7 +2094,11 @@ def photometric_series_undetected(
     user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
 ):
     df = phot_series_maker(number=100, use_mags=False, format="pandas")
-    df["flux"] = np.random.normal(-50, 50, 100)
+    # Force all fluxes negative so no point's SNR can exceed the detection
+    # threshold (is_detected = any snr > threshold). The previous symmetric
+    # noise occasionally produced a high-SNR point, making this "undetected"
+    # series flakily come back detected.
+    df["flux"] = -np.abs(np.random.normal(-50, 50, 100))
 
     data = {
         "obj_id": public_source.id,
