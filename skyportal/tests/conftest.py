@@ -59,7 +59,13 @@ from skyportal.tests.fixtures import (
 )
 from skyportal.tests.test_util import page  # noqa: F401
 
+from ..models.obj import cfg as _obj_cfg
 from ..utils.naive_datetime import utcnow_naive
+
+# Models load config via load_env(), which omits test_config.yaml, so the
+# production PS1 URL leaks in. Empty it so in-process thumbnail builds skip the
+# real ps1images.stsci.edu call (it can hang ~18 min when STScI is unreachable).
+_obj_cfg["app"]["ps1_cutout_url"] = ""
 
 # Add a "test factory" User so that all factory-generated comments have a
 # proper author, if it doesn't already exist (the user may already be in
