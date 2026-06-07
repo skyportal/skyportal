@@ -29,7 +29,7 @@ def test_post_and_verify_recurring_api(
         token=super_admin_token,
     )
     assert status == 400
-    assert data["message"] == "payload must be a valid JSON string"
+    assert "payload must be a valid JSON string" in data["message"]
 
     request_data["payload"] = json.dumps(
         {

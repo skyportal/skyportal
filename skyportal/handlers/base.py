@@ -144,6 +144,13 @@ class BaseHandler(BaselayerHandler):
         super().success(*args, **kwargs, extra={"version": __version__})
 
     def error(self, message, *args, **kwargs):
+        # Prefix the handler class name so users (and logs) can tell which
+        # endpoint generated the error — addresses #1875. Bare messages like
+        # "Insufficient permissions" otherwise give the user no clue which of
+        # several concurrent requests failed. Skip if the caller already
+        # bracketed their own prefix.
+        if message and not str(message).startswith("["):
+            message = f"[{self.__class__.__name__}] {message}"
         super().error(message, *args, **kwargs, extra={"version": __version__})
 
     async def send_file(
