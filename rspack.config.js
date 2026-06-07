@@ -1,10 +1,7 @@
 const path = require("path");
 const rspack = require("@rspack/core");
 
-// Bundle treemap: `ANALYZE=1 bun run build` writes static/build/bundle-report.html.
-const BundleAnalyzerPlugin = process.env.ANALYZE
-  ? require("webpack-bundle-analyzer").BundleAnalyzerPlugin
-  : null;
+// const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
 const config = (env, argv) => {
   const isProduction = argv?.mode === "production";
@@ -142,17 +139,8 @@ const config = (env, argv) => {
       ],
     },
     plugins: [
-      ...(BundleAnalyzerPlugin
-        ? [
-            new BundleAnalyzerPlugin({
-              analyzerMode: "static",
-              reportFilename: "bundle-report.html",
-              openAnalyzer: false,
-              generateStatsFile: true,
-              statsFilename: "bundle-stats.json",
-            }),
-          ]
-        : []),
+      // Uncomment the following line to enable bundle size analysis
+      // new BundleAnalyzerPlugin(),
       new rspack.HtmlRspackPlugin({
         template: "./static/index_base.html",
         filename: "../index.html",
