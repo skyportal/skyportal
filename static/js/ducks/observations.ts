@@ -40,7 +40,11 @@ type FilterParams = Record<string, unknown>;
 const buildQueryString = (filterParams: FilterParams): string => {
   const params = new URLSearchParams(
     Object.fromEntries(
-      Object.entries(filterParams).map(([key, value]) => [key, String(value)]),
+      Object.entries(filterParams)
+        // Drop empty values: String(undefined) would send "instrumentName=undefined",
+        // which the backend tries to resolve as an instrument and 500s.
+        .filter(([, v]) => v !== undefined && v !== null && v !== "")
+        .map(([key, value]) => [key, String(value)]),
     ),
   ).toString();
   return params ? `api/observation?${params}` : "api/observation";

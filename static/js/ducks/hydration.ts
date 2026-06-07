@@ -3,36 +3,9 @@ import store from "../store";
 const FINISHED_HYDRATING = "skyportal/FINISHED_HYDRATING";
 const VERIFY_HYDRATION = "skyportal/VERIFY_HYDRATION";
 
-export const DUCKS_TO_HYDRATE = [
-  "groups",
-  "profile",
-  "dbInfo",
-  "sysInfo",
-  "config",
-  "users",
-  "taxonomy",
-  "enumTypes",
-  "streams",
-  "allocations",
-  "sharingServices",
-  "instrumentForms",
-  "observingRuns",
-  "analysisServices",
-  "instruments",
-  "earthquake",
-  "allocationsApiClassname",
-  "defaultFollowupRequests",
-  "defaultObservationPlans",
-  "mmadetector",
-  "defaultSurveyEfficiencies",
-  "telescopes",
-  "favorites",
-  "rejected",
-  "observationPlans",
-  "galaxyCatalogs",
-  "followupApis",
-  "objectTags",
-];
+// No eager boot prefetch: every page/shell component fetches its own data via
+// RTK Query hooks (deduped), so the old hydration burst is unnecessary.
+export const DUCKS_TO_HYDRATE = [];
 
 export const NUMBER_OF_DUCKS_TO_HYDRATE = DUCKS_TO_HYDRATE.length;
 

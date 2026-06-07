@@ -47,13 +47,18 @@ def test_upload_observations(page, super_admin_user, super_admin_token):
     # close the upload dialog so the executed-observations table is interactable
     page.keyboard.press("Escape")
 
-    # The executed-observations DataGrid has a quick filter. The upload + ingest
-    # can lag (especially under load) and the grid discards the filter value while
-    # it (re)loads, so re-apply the filter until the uploaded obs row appears
-    # rather than checking once and racing the ingest.
+    # The page's default query is a 10-year scan that times out under CI load.
+    # Scope it to a tight window around the uploaded obs (2022-01-19) via the
+    # filter dialog, re-applying each iteration since the upload + ingest can lag.
     search = page.locator(".MuiDataGrid-root").get_by_placeholder("Search…").first
     cell = page.locator('//*[text()="84434604"]').first
     for _ in range(15):
+        page.locator("//button[@data-testid='Filter Table-iconButton']").first.click()
+        page.locator('//input[@name="startDate"]').first.fill("2022-01-18T00:00:00")
+        page.locator('//input[@name="endDate"]').first.fill("2022-01-21T00:00:00")
+        page.locator("//button[text()='Submit']").first.click()
+        page.wait_for_timeout(800)
+        page.keyboard.press("Escape")  # close the filter dialog to reach the grid
         search.fill("84434604")
         try:
             expect(cell).to_be_visible(timeout=3000)
