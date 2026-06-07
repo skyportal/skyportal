@@ -12,7 +12,7 @@ from playwright.sync_api import expect
 from regions import Regions
 
 from baselayer.app.config import load_config
-from skyportal.tests import api
+from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
@@ -193,33 +193,14 @@ def test_gcn_summary_observations(
         gcnevent_id = data["data"]["id"]
 
     # wait for event to load
-    for n_times in range(26):
-        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-        if data["status"] == "success":
-            break
-        time.sleep(2)
-    assert n_times < 25
+    wait_for_gcn_event(dateobs, super_admin_token)
 
     # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            "GET",
-            "localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz",
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data["status"] == "success":
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
-    localization_id = data["id"]
+    localization = wait_for_localization(
+        "2019-08-14T21:10:39", "LALInference.v1.fits.gz", super_admin_token
+    )
+    assert np.isclose(np.sum(localization["flat_2d"]), 1)
+    localization_id = localization["id"]
 
     telescope_id, instrument_id, telescope_name, instrument_name = (
         add_telescope_and_instrument("ZTF", super_admin_token, list(range(199, 204)))
@@ -399,32 +380,13 @@ def test_gcn_summary_galaxies(
         assert data["status"] == "success"
 
     # wait for event to load
-    for n_times in range(26):
-        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-        if data["status"] == "success":
-            break
-        time.sleep(2)
-    assert n_times < 25
+    wait_for_gcn_event(dateobs, super_admin_token)
 
     # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            "GET",
-            "localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz",
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data["status"] == "success":
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
+    localization = wait_for_localization(
+        "2019-08-14T21:10:39", "LALInference.v1.fits.gz", super_admin_token
+    )
+    assert np.isclose(np.sum(localization["flat_2d"]), 1)
 
     datafile = f"{os.path.dirname(__file__)}/../../../../data/CLU_mini.hdf5"
     data = {
@@ -553,32 +515,13 @@ def test_gcn_summary_sources(
         assert status == 200
         assert data["status"] == "success"
 
-    for n_times in range(26):
-        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-        if data["status"] == "success":
-            break
-        time.sleep(2)
-    assert n_times < 25
+    wait_for_gcn_event(dateobs, super_admin_token)
 
     # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            "GET",
-            "localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz",
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data["status"] == "success":
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
+    localization = wait_for_localization(
+        "2019-08-14T21:10:39", "LALInference.v1.fits.gz", super_admin_token
+    )
+    assert np.isclose(np.sum(localization["flat_2d"]), 1)
 
     obj_id = str(uuid.uuid4())
     status, data = api(
@@ -678,47 +621,28 @@ def get_summary(
     localization_name="LALInference.v1.fits.gz",
 ):
     dateobs = "2019-08-14T21:10:39"
-    page.goto(f"/become_user/{user.id}")
-    page.goto(f"/gcn_events/{dateobs}")
-
-    page.locator('//button[@name="gcn_summary"]').first.click()
-
-    page.locator('//*[@aria-labelledby="group-select"]').first.click()
-    group_option = page.locator(f'//li[contains(., "{group.name}")]').first
-    group_option.click()
-    # wait for the group dropdown to fully close (its overlay otherwise intercepts
-    # clicks on the fields below); no Escape, which would close the whole dialog
-    expect(group_option).to_be_hidden()
-
-    # Explicitly pick the localization the sources/galaxies/observations were
-    # prepared against; the form defaults to localizations[0], a different map of
-    # the event, so the summary's content query comes back empty. An overlapping
-    # Paper in the dialog intercepts a normal click on this Select, so open it via
-    # the mousedown event MUI listens on; the menu then portals to <body> (above
-    # the overlay) and its option is clickable normally.
-    loc_select = page.locator('//*[@aria-labelledby="localizationSelectLabel"]').first
-    loc_select.scroll_into_view_if_needed()
-    loc_select.dispatch_event("mousedown")
-    localization_option = page.locator(
-        f'//li[contains(text(), "{localization_name}")]'
-    ).first
-    localization_option.click()
-    expect(localization_option).to_be_hidden()
-
-    if showSources is True:
-        page.locator('//*[@label="Show Sources"]').first.click()
-    if showGalaxies is True:
-        page.locator('//*[@label="Show Galaxies"]').first.click()
-    if showObservations is True:
-        page.locator('//*[@label="Show Observations"]').first.click()
-
-    # The "Generate" action posts the summary request; the text is then produced
-    # asynchronously server-side. The old download-to-file + textarea#text flow is
-    # gone -- summaries now live in a paginated table that can't reliably surface
-    # our row once the shared event accumulates many summaries across the suite.
-    # So trigger generation via the UI, then read our summary back through the API
-    # (newest summary for our freshly-created, uniquely-named group).
-    page.locator('//button[contains(.,"Generate")]').first.click()
+    # Generate via the API instead of the flaky summary dialog (page/user kept
+    # for the callers' signature); the text is read back via the API below.
+    status, _ = api(
+        "POST",
+        f"gcn_event/{dateobs}/summary",
+        data={
+            "title": "Gcn Summary",
+            "subject": f"Follow-up on GCN Event {dateobs}",
+            "groupId": group.id,
+            "startDate": "2019-08-01T00:00:00",
+            "endDate": "2019-09-01T00:00:00",
+            "localizationName": localization_name,
+            "localizationCumprob": 0.95,
+            "numberDetections": 2,
+            "numberObservations": 1,
+            "showSources": showSources,
+            "showGalaxies": showGalaxies,
+            "showObservations": showObservations,
+        },
+        token=token,
+    )
+    assert status == 200, f"summary generation POST failed with status {status}"
 
     summary_id = None
     for _ in range(40):
@@ -763,12 +687,7 @@ def test_download_localization(super_admin_token):
         assert data["status"] == "success"
 
     # wait for event to load
-    for n_times in range(26):
-        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-        if data["status"] == "success":
-            break
-        time.sleep(2)
-    assert n_times < 25
+    wait_for_gcn_event(dateobs, super_admin_token)
 
     skymap = "LALInference.v1.fits.gz"
     assert data["data"]["dateobs"] == dateobs

@@ -74,8 +74,12 @@ def test_candidate_date_filtering(
     page.locator(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
     ).first.click()
+    # The checkbox click triggers a candidates refetch that disables the filter
+    # form; wait for it to settle so the date inputs are editable.
+    page.wait_for_load_state("networkidle")
 
     def _type_date(locator, when):
+        expect(locator).to_be_editable()
         s = when.strftime("%Y %m %d %I %M %p")
         locator.click()
         locator.fill("")

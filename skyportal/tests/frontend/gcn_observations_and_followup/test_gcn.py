@@ -9,7 +9,7 @@ import requests
 from playwright.sync_api import expect
 
 from baselayer.app.config import load_config
-from skyportal.tests import api
+from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
@@ -75,12 +75,7 @@ def test_gcn_tach(page, super_admin_user, super_admin_token):
         assert status == 200
         assert data["status"] == "success"
 
-    for n_times in range(26):
-        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-        if data["status"] == "success":
-            break
-        time.sleep(2)
-    assert n_times < 25
+    wait_for_gcn_event(dateobs, super_admin_token)
 
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/gcn_events/{dateobs}")
@@ -119,12 +114,7 @@ def test_gcn_allocation_triggers(
         assert status == 200
         assert data["status"] == "success"
 
-    for n_times in range(26):
-        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-        if data["status"] == "success":
-            break
-        time.sleep(2)
-    assert n_times < 25
+    wait_for_gcn_event(dateobs, super_admin_token)
 
     name = str(uuid.uuid4())
     status, data = api(
@@ -267,34 +257,13 @@ def test_filter_by_gcnevent(
         assert data["status"] == "success"
 
     # wait for event to load
-    for n_times in range(26):
-        status, data = api(
-            "GET", "gcn_event/2019-08-14T21:10:39", token=super_admin_token
-        )
-        if data["status"] == "success":
-            break
-        time.sleep(2)
-    assert n_times < 25
+    wait_for_gcn_event("2019-08-14T21:10:39", super_admin_token)
 
     # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            "GET",
-            "localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz",
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data["status"] == "success":
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
+    localization = wait_for_localization(
+        "2019-08-14T21:10:39", "LALInference.v1.fits.gz", super_admin_token
+    )
+    assert np.isclose(np.sum(localization["flat_2d"]), 1)
 
     obj_id = str(uuid.uuid4())
     status, data = api(
@@ -398,33 +367,14 @@ def test_gcn_summary_observations(
         gcnevent_id = data["data"]["id"]
 
     # wait for event to load
-    for n_times in range(26):
-        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-        if data["status"] == "success":
-            break
-        time.sleep(2)
-    assert n_times < 25
+    wait_for_gcn_event(dateobs, super_admin_token)
 
     # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            "GET",
-            "localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz",
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data["status"] == "success":
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
-    localization_id = data["id"]
+    localization = wait_for_localization(
+        "2019-08-14T21:10:39", "LALInference.v1.fits.gz", super_admin_token
+    )
+    assert np.isclose(np.sum(localization["flat_2d"]), 1)
+    localization_id = localization["id"]
 
     telescope_id, instrument_id, telescope_name, instrument_name = (
         add_telescope_and_instrument("ZTF", super_admin_token, list(range(199, 204)))

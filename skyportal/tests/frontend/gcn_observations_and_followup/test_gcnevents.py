@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from playwright.sync_api import expect
 
-from skyportal.tests import api
+from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
 from skyportal.tests.frontend.observations_and_instruments.test_reminders import (
     post_and_verify_reminder,
 )
@@ -187,13 +187,7 @@ def test_reminder_on_gcn(page, super_admin_user, super_admin_token):
         assert data["status"] == "success"
 
     # wait for event to load
-    for n_times in range(26):
-        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-        if data["status"] == "success":
-            break
-        time.sleep(2)
-    assert n_times < 25
-    gcn_event_id = data["data"]["id"]
+    gcn_event_id = wait_for_gcn_event(dateobs, super_admin_token)["id"]
 
     endpoint = f"gcn_event/{gcn_event_id}/reminders"
     post_and_verify_reminder(endpoint, super_admin_token)
@@ -233,32 +227,13 @@ def test_confirm_reject_source_in_gcn(
         assert data["status"] == "success"
 
     # wait for event to load
-    for n_times in range(26):
-        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-        if data["status"] == "success":
-            break
-        time.sleep(2)
-    assert n_times < 25
+    wait_for_gcn_event(dateobs, super_admin_token)
 
     # wait for the localization to load
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            "GET",
-            "localization/2019-08-14T21:10:39/name/LALInference.v1.fits.gz",
-            token=super_admin_token,
-            params=params,
-        )
-
-        if data["status"] == "success":
-            data = data["data"]
-            assert data["dateobs"] == "2019-08-14T21:10:39"
-            assert data["localization_name"] == "LALInference.v1.fits.gz"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        else:
-            time.sleep(2)
-    assert n_times_2 < 25
+    localization = wait_for_localization(
+        "2019-08-14T21:10:39", "LALInference.v1.fits.gz", super_admin_token
+    )
+    assert np.isclose(np.sum(localization["flat_2d"]), 1)
 
     obj_id = str(uuid.uuid4())
     status, data = api(
