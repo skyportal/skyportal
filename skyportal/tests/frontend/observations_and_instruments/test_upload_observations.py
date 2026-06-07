@@ -1,8 +1,10 @@
 import os
+import time
 
 import pytest
 from playwright.sync_api import expect
 
+from skyportal.tests import api
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
@@ -46,6 +48,18 @@ def test_upload_observations(page, super_admin_user, super_admin_token):
 
     # close the upload dialog so the executed-observations table is interactable
     page.keyboard.press("Escape")
+
+    # Wait for ingest to finish via the API before driving the UI, so the test
+    # isn't racing a lagging ingest in the grid.
+    for _ in range(30):
+        status, data = api(
+            "GET",
+            "observation?startDate=2022-01-18T00:00:00&endDate=2022-01-21T00:00:00",
+            token=super_admin_token,
+        )
+        if status == 200 and (data.get("data") or {}).get("totalMatches", 0) > 0:
+            break
+        time.sleep(2)
 
     # The page's default query is a 10-year scan that times out under CI load.
     # Scope it to a tight window around the uploaded obs (2022-01-19) via the

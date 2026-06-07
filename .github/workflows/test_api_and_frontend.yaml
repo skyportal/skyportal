@@ -166,6 +166,15 @@ jobs:
           # take >60s and return a 504. Give the upstream more headroom.
           sed -i 's/proxy_read_timeout 60s/proxy_read_timeout 120s/g' baselayer/services/nginx/nginx.conf.template
 
+      - name: Build the test frontend bundle in production mode
+        run: |
+          # The rspack service builds a dev bundle in debug mode (which the test
+          # harness uses): ~4-5x larger and slower to parse+execute, which makes
+          # the Playwright frontend tests far more prone to timing races. Build
+          # production like the Docker image does (keep --watch so the supervisor
+          # service stays up).
+          sed -i 's/"npx", "rspack", "--watch"/"npx", "rspack", "--mode=production", "--watch"/' baselayer/services/rspack/rspack.py
+
       - name: Save dependency caches
         uses: ./.github/actions/cache-dependencies-save
 
