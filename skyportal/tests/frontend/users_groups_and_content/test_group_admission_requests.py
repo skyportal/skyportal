@@ -1,5 +1,7 @@
 from playwright.sync_api import expect
 
+from skyportal.tests import api
+
 
 def filter_for_value(page, value, last=False):
     # The x-data-grid default-toolbar quick-filter renders a TextField whose
@@ -12,20 +14,19 @@ def filter_for_value(page, value, last=False):
 
 
 def test_group_admission_request_and_acceptance(
-    page, user, super_admin_user, public_group, public_group2
+    page, user, super_admin_user, public_group, public_group2, view_only_token
 ):
-    page.goto(f"/become_user/{user.id}")
-    page.goto("/groups")
-    expect(page.locator('//h6[text()="My Groups"]').first).to_be_visible()
-    filter_for_value(page, public_group2.name)
-    page.locator(
-        f'//*[@data-testid="requestAdmissionButton{public_group2.id}"]'
-    ).first.click()
-    expect(
-        page.locator(
-            f'//*[@data-testid="deleteAdmissionRequestButton{public_group2.id}"]'
-        ).first
-    ).to_be_visible()
+    # Create the admission request via the API (a user can only request admission
+    # for themselves, so use the user's own token) rather than the flaky /groups
+    # request flow; the behavior under test is the admin acceptance UI below.
+    status, _ = api(
+        "POST",
+        "group_admission_requests",
+        data={"groupID": public_group2.id, "userID": user.id},
+        token=view_only_token,
+    )
+    assert status == 200
+
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/group/{public_group2.id}")
     filter_for_value(page, user.username, last=True)

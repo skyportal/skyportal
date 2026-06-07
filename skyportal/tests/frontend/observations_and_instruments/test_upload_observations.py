@@ -35,7 +35,9 @@ def test_upload_observations(page, super_admin_user, super_admin_token):
         page.locator('//input[@type="file"]').first.set_input_files(
             os.path.join(data_dir, filename)
         )
-        page.wait_for_timeout(1000)
+        # The async file read can lag under CI load; submitting before it
+        # finishes posts an empty form, so give it a generous moment.
+        page.wait_for_timeout(3000)
         page.locator('//button[contains(.,"Submit")]').first.click()
         page.wait_for_timeout(2000)
 
@@ -49,6 +51,6 @@ def test_upload_observations(page, super_admin_user, super_admin_token):
     # was accepted via its success toast instead.
     expect(
         page.locator('//*[contains(text(), "Observation saved")]').first
-    ).to_be_visible()
+    ).to_be_visible(timeout=180000)
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)

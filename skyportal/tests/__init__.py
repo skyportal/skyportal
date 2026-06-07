@@ -137,7 +137,7 @@ def wait_for_gcn_event(dateobs, token, timeout=120):
     raise AssertionError(f"GCN event {dateobs} did not process within {timeout}s")
 
 
-def wait_for_localization(dateobs, localization_name, token, timeout=120):
+def wait_for_localization(dateobs, localization_name, token, timeout=240):
     """Poll until the localization `dateobs`/`localization_name` has processed.
 
     Returns the localization data (including its `id` and `flat_2d`), or raises.

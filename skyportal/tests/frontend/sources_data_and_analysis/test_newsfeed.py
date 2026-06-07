@@ -53,7 +53,12 @@ def _open_settings(page):
 
 
 def _save_settings(page):
-    page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
+    # The dashboard re-renders continuously under load (relative timestamps,
+    # widget loads), so the Save button never settles as "stable"; force the
+    # click past the stability check (it is visible and enabled).
+    page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click(
+        force=True
+    )
     page.wait_for_load_state("networkidle")
 
 

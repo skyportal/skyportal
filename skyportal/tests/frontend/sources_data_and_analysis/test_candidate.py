@@ -80,8 +80,11 @@ def test_candidate_date_filtering(
 
     def _type_date(locator, when):
         s = when.strftime("%Y %m %d %I %M %p")
+        # The MUI date field is readOnly, so .fill() can't be used -- it waits for
+        # an editable element and times out. Focus the first segment and type;
+        # the field accepts keyboard input and overwrites each segment.
         locator.click()
-        locator.fill("")
+        locator.press("Home")
         for part in (s[5:7], s[8:10], s[0:4], s[11:13], s[14:16], s[17]):
             locator.press_sequentially(part)
 
