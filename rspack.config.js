@@ -1,17 +1,16 @@
 const path = require("path");
 const rspack = require("@rspack/core");
 
-// const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+// Bundle treemap: `ANALYZE=1 bun run build` writes static/build/bundle-report.html.
+const BundleAnalyzerPlugin = process.env.ANALYZE
+  ? require("webpack-bundle-analyzer").BundleAnalyzerPlugin
+  : null;
 
 const config = (env, argv) => {
   const isProduction = argv?.mode === "production";
   return {
     entry: {
-      main: [
-        "core-js/stable",
-        "regenerator-runtime/runtime",
-        path.resolve(__dirname, "static/js/components/templates/Main.tsx"),
-      ],
+      main: path.resolve(__dirname, "static/js/components/templates/Main.tsx"),
     },
     output: {
       path: path.resolve(__dirname, "static/build"),
@@ -24,10 +23,14 @@ const config = (env, argv) => {
       splitChunks: {
         chunks: "all",
         cacheGroups: {
+          // `chunks: "initial"` keeps the big shared vendors chunk to only the
+          // libs reached on first paint. Modules used solely by lazy routes
+          // (mathjs, dygraphs, moment, react-big-calendar, @rjsf/*, etc.) stay
+          // in their own async chunks instead of being shipped on initial load.
           vendor: {
             test: /[\\/]node_modules[\\/]/,
             name: "vendors",
-            chunks: "all",
+            chunks: "initial",
             priority: 10,
           },
           mui: {
@@ -60,22 +63,15 @@ const config = (env, argv) => {
     },
     module: {
       rules: [
-        // Transform JS/TS with rspack's built-in Rust/SWC loader instead of
-        // babel-loader. SWC needs an explicit parser per syntax, so this is
-        // split into two rules (TS/TSX and JS/JSX). Type *checking* remains a
-        // separate `tsc --noEmit` step (npm run typecheck); SWC, like the old
-        // @babel/preset-typescript, only strips types during bundling.
+        // Transform JS/TS with rspack's built-in Rust/SWC loader. Type
+        // *checking* remains a separate `tsc --noEmit` step.
         //
-        // `jsc.target: "es5"` reproduces what @babel/preset-env emitted here:
-        // with no `targets`/browserslist configured, preset-env lowers all
-        // ES2015+ down to ES5. Matching that target is deliberate — it keeps
-        // runtime behavior identical (e.g. `const`/`let` lower to hoisted `var`,
-        // so code that reads a not-yet-initialized binding gets `undefined`
-        // instead of a TDZ ReferenceError). A more modern target would change
-        // that behavior and surface latent bugs. No `env` block is used: like
-        // preset-env's default `useBuiltIns: false`, polyfills come solely from
-        // the `core-js/stable` + `regenerator-runtime/runtime` entry imports,
-        // not per-file/usage injection.
+        // `jsc.target: "es2020"` covers all browsers from ~2020+ natively (async/await,
+        // optional chaining, nullish coalescing, Promise, etc.), so the entry no longer
+        // needs `core-js/stable` + `regenerator-runtime/runtime` polyfills. This also
+        // restores `const`/`let` TDZ semantics — if a binding is read before init it
+        // throws `ReferenceError` instead of returning `undefined` (the ES5 lowering
+        // hid these as latent bugs).
         {
           // TypeScript / TSX
           test: /\.tsx?$/,
@@ -86,7 +82,7 @@ const config = (env, argv) => {
             jsc: {
               parser: { syntax: "typescript", tsx: true },
               transform: { react: { runtime: "automatic" } },
-              target: "es5",
+              target: "es2020",
             },
           },
         },
@@ -100,7 +96,7 @@ const config = (env, argv) => {
             jsc: {
               parser: { syntax: "ecmascript", jsx: true },
               transform: { react: { runtime: "automatic" } },
-              target: "es5",
+              target: "es2020",
             },
           },
         },
@@ -146,8 +142,17 @@ const config = (env, argv) => {
       ],
     },
     plugins: [
-      // Uncomment the following line to enable bundle size analysis
-      // new BundleAnalyzerPlugin(),
+      ...(BundleAnalyzerPlugin
+        ? [
+            new BundleAnalyzerPlugin({
+              analyzerMode: "static",
+              reportFilename: "bundle-report.html",
+              openAnalyzer: false,
+              generateStatsFile: true,
+              statsFilename: "bundle-stats.json",
+            }),
+          ]
+        : []),
       new rspack.HtmlRspackPlugin({
         template: "./static/index_base.html",
         filename: "../index.html",
@@ -175,6 +180,9 @@ const config = (env, argv) => {
           __dirname,
           "node_modules/react-resizable/css",
         ),
+        // Some transitive deps still ship CJS lodash; alias to lodash-es so
+        // both versions dedupe and the ES tree-shakes properly.
+        lodash: "lodash-es",
       },
       extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
       // Needed for non-polyfilled node modules; we aim to remove this when possible
