@@ -63,6 +63,14 @@ def test_candidate_date_filtering(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
+    # The candidates page fires many queries on load; let them settle so the
+    # filter form is stable before we fill the date fields.
+    page.wait_for_load_state("networkidle")
+    expect(
+        page.locator(
+            f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+        ).first
+    ).to_be_visible()
     page.locator(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
     ).first.click()

@@ -196,9 +196,14 @@ def test_add_user_to_stream(
 def test_user_expiration(page, user, super_admin_user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
+    # Let the user table + its lazy-loaded data settle before filtering/editing.
+    page.wait_for_load_state("networkidle")
     filter_for_user(page, user.username)
 
     # Set expiration date to today
+    expect(
+        page.locator(f"//*[@data-testid='editUserExpirationDate{user.id}']").first
+    ).to_be_visible()
     page.locator(f"//*[@data-testid='editUserExpirationDate{user.id}']").first.click()
     # The MUI date field is read-only, so `fill` times out; type the MMDDYYYY
     # digits into the segmented input instead (as the other date-picker tests do).

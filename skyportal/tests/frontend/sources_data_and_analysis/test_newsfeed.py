@@ -53,6 +53,9 @@ def test_news_feed(page, user, public_group, upload_data_token, comment_token):
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/")
+    # Let the dashboard's widgets finish loading so the layout (and the settings
+    # popover anchored to it) stops shifting before we interact.
+    page.wait_for_load_state("networkidle")
     expect(page.locator('//span[text()="a few seconds ago"]').first).to_be_visible()
     expect(page.locator('//*[@id="newsFeedSettingsIcon"]').first).to_be_visible()
 
@@ -85,6 +88,9 @@ def test_news_feed_prefs_widget(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/")
+    # Let the dashboard's widgets finish loading so the layout (and the settings
+    # popover anchored to it) stops shifting before we interact.
+    page.wait_for_load_state("networkidle")
 
     expect(page.locator('//span[text()="a few seconds ago"]').first).to_be_visible()
     expect(page.locator('//*[@id="newsFeedSettingsIcon"]').first).to_be_visible()
