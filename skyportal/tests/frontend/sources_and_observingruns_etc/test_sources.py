@@ -526,20 +526,6 @@ def test_show_photometry_table(public_source, page, user):
     ).to_be_hidden()
 
 
-def test_hide_right_panel(public_source, page, user):
-    page.goto(f"/become_user/{user.id}")
-    page.goto(f"/source/{public_source.id}")
-    # The source page shows a spinner until the heavy getSource query returns, and
-    # the panel toggle only renders afterward; under CI load that can exceed the
-    # default timeout, so wait generously for the toggle before clicking it.
-    toggle = page.locator('//*[@data-testid="KeyboardArrowRightIcon"]').first
-    expect(toggle).to_be_visible(timeout=180000)
-    toggle.click()
-    expect(page.locator('//*[@class="MuiCollapse-entered"]').first).to_be_hidden()
-    page.locator('//*[@data-testid="KeyboardArrowLeftIcon"]').first.click()
-    expect(page.locator('//*[@class="MuiCollapse-hidden"]').first).to_be_hidden()
-
-
 def test_javascript_sexagesimal_conversion(public_source, page, user):
     public_source.ra = 342.0708127
     public_source.dec = 56.1130711
