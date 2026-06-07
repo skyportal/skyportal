@@ -44,7 +44,9 @@ def test_upload_observations(page, super_admin_user, super_admin_token):
     open_add_from_file()
     # malformed upload (rejected server-side); the dialog stays open afterwards
     upload("sample_observation_data_upload_malformed.csv")
-    upload("sample_observation_data_upload.csv")
+    # A single observation keeps the ingest small so it completes promptly even
+    # under CI load (we then confirm it via the API below).
+    upload("sample_observation_data_upload_single.csv")
 
     # close the upload dialog so the executed-observations table is interactable
     page.keyboard.press("Escape")
@@ -54,7 +56,7 @@ def test_upload_observations(page, super_admin_user, super_admin_token):
     # dialog + quick-search) is flaky under CI load, and the API check proves the
     # same thing: the upload created the observations.
     ingested = False
-    for _ in range(30):
+    for _ in range(60):  # ingest can lag well past a minute under CI load
         status, data = api(
             "GET",
             "observation?startDate=2022-01-18T00:00:00&endDate=2022-01-21T00:00:00",

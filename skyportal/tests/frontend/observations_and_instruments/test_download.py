@@ -687,13 +687,11 @@ def test_download_localization(super_admin_token):
         assert data["status"] == "success"
 
     # wait for event to load
-    wait_for_gcn_event(dateobs, super_admin_token)
+    event = wait_for_gcn_event(dateobs, super_admin_token)
 
     skymap = "LALInference.v1.fits.gz"
-    assert data["data"]["dateobs"] == dateobs
-    assert any(
-        loc["localization_name"] == skymap for loc in data["data"]["localizations"]
-    )
+    assert event["dateobs"] == dateobs
+    assert any(loc["localization_name"] == skymap for loc in event["localizations"])
 
     status, data = api(
         "GET",

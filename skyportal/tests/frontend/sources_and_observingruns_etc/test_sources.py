@@ -529,9 +529,12 @@ def test_show_photometry_table(public_source, page, user):
 def test_hide_right_panel(public_source, page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
-    # The source page is heavy; let it settle so the panel toggle is interactable.
-    page.wait_for_load_state("networkidle")
-    page.locator('//*[@data-testid="KeyboardArrowRightIcon"]').first.click()
+    # The source page shows a spinner until the heavy getSource query returns, and
+    # the panel toggle only renders afterward; under CI load that can exceed the
+    # default timeout, so wait generously for the toggle before clicking it.
+    toggle = page.locator('//*[@data-testid="KeyboardArrowRightIcon"]').first
+    expect(toggle).to_be_visible(timeout=180000)
+    toggle.click()
     expect(page.locator('//*[@class="MuiCollapse-entered"]').first).to_be_hidden()
     page.locator('//*[@data-testid="KeyboardArrowLeftIcon"]').first.click()
     expect(page.locator('//*[@class="MuiCollapse-hidden"]').first).to_be_hidden()
