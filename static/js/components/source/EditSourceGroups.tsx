@@ -65,7 +65,11 @@ const EditSourceGroups = ({
     source.currentGroupIds.includes(g.id),
   );
 
+  // Re-init the form only when the dialog opens; re-running reset() on every
+  // `groups`/`source` reference change (e.g. an RTK refetch) wipes the user's
+  // in-progress checkbox selections mid-edit, sending an empty save.
   useEffect(() => {
+    if (!dialogOpen) return;
     reset({
       inviteGroupIds: Array(
         groups?.filter((g) => !source.currentGroupIds.includes(g.id)).length,
@@ -74,7 +78,8 @@ const EditSourceGroups = ({
         groups?.filter((g) => source.currentGroupIds.includes(g.id)).length,
       ).fill(false),
     });
-  }, [reset, groups, source]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen]);
 
   const openDialog = () => {
     setDialogOpen(true);

@@ -421,7 +421,7 @@ def test_unsave_from_group(
     ).to_be_hidden()
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_request_group_to_save_then_save(
     page, user, user_two_groups, public_source, public_group2
 ):

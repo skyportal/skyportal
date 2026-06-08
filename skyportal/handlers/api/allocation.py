@@ -388,7 +388,7 @@ class AllocationHandler(BaseHandler):
             instrument_id = self.get_query_argument("instrument_id", None, type=int)
             if instrument_id is not None:
                 allocations = allocations.where(
-                    Allocation.instrument_id == instrument_id
+                    Allocation.instrument_id == int(instrument_id)
                 )
 
             apitype = self.get_query_argument("apiType", None)
@@ -777,7 +777,7 @@ class AllocationReportHandler(BaseHandler):
         with self.Session() as session:
             # get owned allocations
             stmt = Allocation.select(session.user_or_token)
-            stmt = stmt.where(Allocation.instrument_id == instrument_id)
+            stmt = stmt.where(Allocation.instrument_id == int(instrument_id))
             allocations = session.scalars(stmt).unique().all()
 
             if len(allocations) == 0:
