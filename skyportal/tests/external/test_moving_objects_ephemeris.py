@@ -1,8 +1,23 @@
 import astropy.units as u
+import pytest
+import requests
 
 from skyportal.models import DBSession
 from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
 from skyportal.utils.moving_objects import *
+from skyportal.utils.moving_objects import BASE_URL
+
+# Every test here queries the live JPL Horizons service. Skip the whole module
+# (rather than hang then fail) when it is unreachable from the runner.
+try:
+    requests.head(BASE_URL, timeout=5)
+    _jpl_online = True
+except requests.exceptions.RequestException:
+    _jpl_online = False
+
+pytestmark = pytest.mark.skipif(
+    not _jpl_online, reason="JPL Horizons (ssd.jpl.nasa.gov) unreachable"
+)
 
 
 def test_find_jplhorizon_obj():

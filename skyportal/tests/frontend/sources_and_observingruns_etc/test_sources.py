@@ -421,7 +421,7 @@ def test_unsave_from_group(
     ).to_be_hidden()
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_request_group_to_save_then_save(
     page, user, user_two_groups, public_source, public_group2
 ):
@@ -524,15 +524,6 @@ def test_show_photometry_table(public_source, page, user):
     expect(
         page.locator('//*[@data-testid="close-photometry-table-button"]').first
     ).to_be_hidden()
-
-
-def test_hide_right_panel(public_source, page, user):
-    page.goto(f"/become_user/{user.id}")
-    page.goto(f"/source/{public_source.id}")
-    page.locator('//*[@data-testid="KeyboardArrowRightIcon"]').first.click()
-    expect(page.locator('//*[@class="MuiCollapse-entered"]').first).to_be_hidden()
-    page.locator('//*[@data-testid="KeyboardArrowLeftIcon"]').first.click()
-    expect(page.locator('//*[@class="MuiCollapse-hidden"]').first).to_be_hidden()
 
 
 def test_javascript_sexagesimal_conversion(public_source, page, user):

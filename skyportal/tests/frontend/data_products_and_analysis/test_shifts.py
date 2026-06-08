@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from playwright.sync_api import expect
 
-from skyportal.tests import api
+from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
 
 
 def _retype(locator, value):
@@ -260,35 +260,16 @@ def test_shift_summary(
         assert status == 200
         assert data["status"] == "success"
 
-        for n_times in range(26):
-            status, data = api(
-                "GET", "gcn_event/2018-01-16T00:36:53", token=super_admin_token
-            )
-            if data["status"] == "success":
-                break
-            time.sleep(2)
-        assert n_times < 25
+        wait_for_gcn_event("2018-01-16T00:36:53", super_admin_token)
     else:
         assert status == 200
         assert data["status"] == "success"
 
     skymap = "214.74000_28.14000_11.19000"
-    params = {"include2DMap": True}
-    for n_times_2 in range(26):
-        status, data = api(
-            "GET",
-            f"localization/2018-01-16T00:36:53/name/{skymap}",
-            token=super_admin_token,
-            params=params,
-        )
-        if data["status"] == "success":
-            data = data["data"]
-            assert data["dateobs"] == "2018-01-16T00:36:53"
-            assert data["localization_name"] == "214.74000_28.14000_11.19000"
-            assert np.isclose(np.sum(data["flat_2d"]), 1)
-            break
-        time.sleep(2)
-    assert n_times_2 < 25
+    localization = wait_for_localization(
+        "2018-01-16T00:36:53", skymap, super_admin_token
+    )
+    assert np.isclose(np.sum(localization["flat_2d"]), 1)
 
     obj_id = str(uuid.uuid4())
     status, data = api(

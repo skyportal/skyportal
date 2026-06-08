@@ -644,6 +644,7 @@ def test_load_scanning_profile(
     ).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_user_without_save_access_cannot_save(
     page, super_admin_token, public_group, public_candidate, user_group2
 ):

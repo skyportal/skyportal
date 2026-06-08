@@ -65,7 +65,7 @@ def find_jplhorizon_obj(obj_name: str):
     """
     url = urllib.parse.urljoin(BASE_URL, f"/api/horizons_support.api")
     try:
-        response = requests.get(url, params={"sstr": obj_name})
+        response = requests.get(url, params={"sstr": obj_name}, timeout=60)
     except Exception as e:
         raise ValueError(f"Failed to query JPL Horizons API: {e}")
     if response.status_code != 200:
@@ -161,7 +161,7 @@ def get_ephemeris(
             "CSV_FORMAT": "'YES'",
         }
         try:
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=60)
         except Exception as e:
             raise ValueError(f"Failed to query JPL Horizons API: {e}")
         if response.status_code != 200:
