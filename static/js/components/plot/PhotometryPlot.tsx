@@ -30,6 +30,8 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
+import { shallowEqual } from "react-redux";
+
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 
@@ -314,7 +316,9 @@ const PhotometryPlot = ({
       })(state as any).data;
     });
     return result;
-  });
+    // shallowEqual: the selector builds a new object each call, so without an
+    // equality fn useSelector reports a change every render -> infinite re-render.
+  }, shallowEqual);
 
   // Combined map of obj_id -> photometry array, mirroring the old store slice.
   const photometry = useMemo<Record<string, any>>(

@@ -671,7 +671,7 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
     # plots, which can take far longer to render and time the test out under load.
 
     # the MUI accordion is not expanded, we need to scroll to it and click
-    header = page.locator("//div[@id='forced-photometry-header']").first
+    header = page.locator("//*[@id='forced-photometry-header']").first
     header.click()
 
     submit_button_xpath = (
@@ -693,10 +693,10 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
 
     page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
-    # submission should fail, as we don't provide real allocation info or endpoint
+    # the test_server replays a recorded ATLAS forced-photometry queue success
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "failed to submit")]'
+            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
         ).first
     ).to_be_visible()
 
@@ -721,7 +721,7 @@ def add_followup_request_using_frontend_and_verify_PS1(
     # plots, which can take far longer to render and time the test out under load.
 
     # the MUI accordion is not expanded, we need to scroll to it and click
-    header = page.locator("//div[@id='forced-photometry-header']").first
+    header = page.locator("//*[@id='forced-photometry-header']").first
     header.click()
 
     submit_button_xpath = (
@@ -987,7 +987,7 @@ def add_followup_request_using_frontend_and_verify_SLACK(
     # Click somewhere outside to remove focus from instrument select
     page.keyboard.press("Escape")
 
-    # ZTF g-band option
+    # select the first observation choice (the ztfr band)
     page.locator('//input[@id="root_observation_choices-0"]').first.click()
 
     submit_button.click()
@@ -998,7 +998,8 @@ def add_followup_request_using_frontend_and_verify_SLACK(
     expect(
         page.locator("""//div[contains(text(), "failed to submit")]""").first
     ).to_be_visible()
-    expect(page.locator("""//div[contains(text(), "ztfg")]""").first).to_be_visible()
+    # the first observation choice (index 0) is the ztfr band
+    expect(page.locator("""//div[contains(text(), "ztfr")]""").first).to_be_visible()
 
     return instrument_id, instrument_name
 
