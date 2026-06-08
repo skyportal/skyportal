@@ -79,6 +79,10 @@ services:
     - external_publishing_submission_queue
     - watch_list
     - ngsf_analysis_service
+    # Auto-fetches external survey images (sdss/ls/ps1) for every obj's
+    # thumbnails; tests create thumbnails directly, so it only adds external
+    # network load. The queue test calls fetch_obj() directly.
+    - thumbnail_queue
     # No tests exercise these; skip them to free CPU/RAM on the CI runner.
     - gcn_service
     - pdl_service
