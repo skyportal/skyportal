@@ -48,6 +48,7 @@ const candidatesCacheKey = (arg: Record<string, any> | undefined) => {
   const rest: Record<string, any> = { ...(arg || {}) };
   delete rest["pageNumber"];
   delete rest["queryID"];
+  delete rest["_searchNonce"];
   return JSON.stringify(
     Object.keys(rest)
       .sort()
@@ -66,7 +67,9 @@ export const candidatesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getCandidates: build.query({
       query: (filterParams = {}) => {
-        const filtered = filterOutEmptyValues(filterParams);
+        const cleaned = { ...filterParams };
+        delete cleaned["_searchNonce"];
+        const filtered = filterOutEmptyValues(cleaned);
         const queryString = new URLSearchParams(
           filtered as Record<string, string>,
         ).toString();

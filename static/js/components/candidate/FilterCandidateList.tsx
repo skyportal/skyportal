@@ -220,6 +220,7 @@ const FilterCandidateList = ({
   const defaultScanningProfile = scanningProfiles?.find(
     (profile: any) => profile.default,
   );
+  const [searchNonce, setSearchNonce] = useState(0);
   const [selectedScanningProfile, setSelectedScanningProfile] = useState<any>(
     defaultScanningProfile,
   );
@@ -542,12 +543,13 @@ const FilterCandidateList = ({
     // Save form-specific data, formatted for the API query
     dispatch(setFilterFormData(data));
 
-    // Trigger a new search (resets to page 1). The query result drives the
-    // loading state in the parent CandidateList.
+    const nextSearchNonce = searchNonce + 1;
+    setSearchNonce(nextSearchNonce);
     setSearchParams({
       pageNumber: 1,
       numPerPage,
       ...fetchParams,
+      _searchNonce: nextSearchNonce,
     });
   };
 
