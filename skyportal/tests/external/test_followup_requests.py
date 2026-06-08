@@ -1187,6 +1187,11 @@ def test_delete_followup_request_ZTF(
         page, super_admin_user, public_source, super_admin_token, public_group
     )
 
+    # The delete button is in the actions column, which the DataGrid virtualizes
+    # off-screen on ZTF's wide table; scroll the grid fully right to render it.
+    page.locator(
+        f"//div[contains(@data-testid, '{instrument_name}_followupRequestsTable')]//div[contains(@class, 'MuiDataGrid-virtualScroller')]"
+    ).first.evaluate("el => { el.scrollLeft = el.scrollWidth; }")
     page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
     expect(
