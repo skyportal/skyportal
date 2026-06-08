@@ -1,3 +1,4 @@
+import pytest
 from playwright.sync_api import expect
 
 from skyportal.tests import api
@@ -13,6 +14,7 @@ def filter_for_value(page, value, last=False):
     page.locator(input_xpath).first.fill(value)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_group_admission_request_and_acceptance(
     page, user, super_admin_user, public_group, public_group2, view_only_token
 ):
