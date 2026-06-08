@@ -50,6 +50,25 @@ def _disable_external_sends(monkeypatch):
     monkeypatch.setattr(source_notification_model, "TwilioClient", _NoopTwilioClient)
 
 
+@pytest.fixture(autouse=True)
+def _recover_session_after_test():
+    """Roll back the shared session after every permission test.
+
+    SkyPortal's tests share one module-level DBSession with no per-test
+    rollback, so a single fixture teardown that errors (e.g. an FK/StaleData
+    failure while deleting a row) poisons the session and cascades
+    PendingRollbackError into every following test. This finalizer runs last in
+    the teardown stack and rolls the session back, so a broken fixture errors
+    only its own test instead of taking down the whole shard -- giving clean,
+    per-fixture CI signal.
+    """
+    yield
+    try:
+        models.DBSession().rollback()
+    except Exception:
+        pass
+
+
 # Object fixture -> the model class it instantiates, verified at runtime rather
 # than guessed (e.g. ``public_source_object`` is a GroupObj and
 # ``public_candidate_object`` is a Candidate). Drives the coverage ratchet.
