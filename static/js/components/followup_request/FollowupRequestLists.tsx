@@ -11,15 +11,10 @@ import Box from "@mui/material/Box";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import DownloadIcon from "@mui/icons-material/Download";
 import { makeStyles } from "tss-react/mui";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import WatcherButton from "./WatcherButton";
 
 import {
@@ -622,8 +617,7 @@ const FollowupRequestLists = ({
   const makeToolbar = () =>
     function FollowupRequestToolbar() {
       return (
-        <GridToolbarContainer>
-          <GridToolbarColumnsButton />
+        <DataGridToolbar>
           {showDownload && (
             <Tooltip title="Download CSV">
               <IconButton
@@ -636,8 +630,7 @@ const FollowupRequestLists = ({
               </IconButton>
             </Tooltip>
           )}
-          <GridToolbarQuickFilter />
-        </GridToolbarContainer>
+        </DataGridToolbar>
       );
     };
 

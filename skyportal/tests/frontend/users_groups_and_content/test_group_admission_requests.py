@@ -29,9 +29,16 @@ def test_group_admission_request_and_acceptance(
 
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/group/{public_group2.id}")
-    filter_for_value(page, user.username, last=True)
+    # The group page is heavy; the admission-requests grid can render slowly under
+    # load. Wait for this user's accept button directly (it's the only request on a
+    # fresh group) instead of driving the grid's quick-filter, whose render timing
+    # vs. the Search box is racy and was the source of the CI flake.
+    accept_button = page.locator(
+        f'//*[@data-testid="acceptRequestButton{user.id}"]'
+    ).first
+    expect(accept_button).to_be_visible(timeout=180000)
     expect(page.locator('//div[text()="pending"]').first).to_be_visible()
-    page.locator(f'//*[@data-testid="acceptRequestButton{user.id}"]').first.click()
+    accept_button.click()
     expect(page.locator('//div[text()="accepted"]').first).to_be_visible()
     expect(page.locator(f'//a[text()="{user.username}"]').first).to_be_visible()
 

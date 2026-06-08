@@ -1,4 +1,18 @@
-import { DataGrid } from "@mui/x-data-grid";
+import {
+  DataGrid,
+  Toolbar,
+  ToolbarButton,
+  ColumnsPanelTrigger,
+  FilterPanelTrigger,
+  ExportCsv,
+  QuickFilter,
+  QuickFilterControl,
+} from "@mui/x-data-grid";
+import { TextField, Tooltip, InputAdornment } from "@mui/material";
+import ViewColumnIcon from "@mui/icons-material/ViewColumn";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import SearchIcon from "@mui/icons-material/Search";
 
 // Shared, theme-aware wrapper around MUI X DataGrid.
 //
@@ -54,6 +68,94 @@ const StyledDataGrid = ({ sx, ...props }: StyledDataGridProps) => (
     sx={[baseSx, ...(Array.isArray(sx) ? sx : [sx])]}
     {...props}
   />
+);
+
+// Shared v8 DataGrid toolbar. Replaces the deprecated GridToolbar* family
+// (GridToolbarContainer/GridToolbarColumnsButton/GridToolbarQuickFilter), which
+// MUI X v8 deprecates in favor of these composable primitives. Renders the
+// columns-panel trigger + a quick-filter search box; `children` are slotted
+// between for any table-specific buttons (download/export/etc.).
+export const DataGridToolbar = ({
+  children,
+  showColumns = true,
+  showQuickFilter = true,
+  showFilter = false,
+  showExport = false,
+  quickFilterTestId,
+}: {
+  children?: any;
+  showColumns?: boolean;
+  showQuickFilter?: boolean;
+  showFilter?: boolean;
+  showExport?: boolean;
+  quickFilterTestId?: string;
+}) => (
+  <Toolbar>
+    {showColumns && (
+      <Tooltip title="Columns">
+        <ColumnsPanelTrigger
+          render={
+            <ToolbarButton
+              aria-label="Columns"
+              data-testid="datagrid-columns-button"
+            />
+          }
+        >
+          <ViewColumnIcon fontSize="small" />
+        </ColumnsPanelTrigger>
+      </Tooltip>
+    )}
+    {showFilter && (
+      <Tooltip title="Filters">
+        <FilterPanelTrigger
+          render={
+            <ToolbarButton
+              aria-label="Filters"
+              data-testid="datagrid-filter-button"
+            />
+          }
+        >
+          <FilterListIcon fontSize="small" />
+        </FilterPanelTrigger>
+      </Tooltip>
+    )}
+    {showExport && (
+      <Tooltip title="Export CSV">
+        <ExportCsv
+          render={
+            <ToolbarButton
+              aria-label="Export CSV"
+              data-testid="datagrid-export-button"
+            />
+          }
+        >
+          <FileDownloadIcon fontSize="small" />
+        </ExportCsv>
+      </Tooltip>
+    )}
+    {children}
+    {showQuickFilter && (
+      <QuickFilter data-testid={quickFilterTestId}>
+        <QuickFilterControl
+          render={({ ref, ...controlProps }: any) => (
+            <TextField
+              {...controlProps}
+              inputRef={ref}
+              size="small"
+              placeholder="Search…"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          )}
+        />
+      </QuickFilter>
+    )}
+  </Toolbar>
 );
 
 export default StyledDataGrid;

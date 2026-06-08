@@ -37,11 +37,13 @@ interface ObservationPlanRequest {
 interface ObservationPlanGlobeProps {
   observationplanRequest: ObservationPlanRequest;
   retrieveLocalization?: boolean;
+  size?: number;
 }
 
 const ObservationPlanGlobe = ({
   observationplanRequest,
   retrieveLocalization = false,
+  size = 600,
 }: ObservationPlanGlobeProps) => {
   const dispatch = useAppDispatch();
   const [deleteObservationPlanFields] =
@@ -115,8 +117,8 @@ const ObservationPlanGlobe = ({
         localization={localization}
         observations={obsList}
         options={displayOptionsDefault}
-        height={600}
-        width={600}
+        height={size}
+        width={size}
         type="obsplan"
         projection="mollweide"
         selectedObservations={selectedObservations}

@@ -9,12 +9,11 @@ import Tooltip from "@mui/material/Tooltip";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import DownloadIcon from "@mui/icons-material/Download";
 import { makeStyles } from "tss-react/mui";
-import { GridToolbarContainer } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 import { TableProgressText } from "../ProgressIndicators";
 import { useDeleteSurveyEfficiencyObservationsMutation } from "../../ducks/survey_efficiency_observations";
@@ -287,7 +286,7 @@ const SurveyEfficiencyObservationsLists = ({
   ).length;
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
+    <DataGridToolbar showColumns={false} showQuickFilter={false}>
       <TableProgressText nbItems={runningCount} />
       <Tooltip title="Download CSV">
         <IconButton
@@ -299,7 +298,7 @@ const SurveyEfficiencyObservationsLists = ({
           <DownloadIcon />
         </IconButton>
       </Tooltip>
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

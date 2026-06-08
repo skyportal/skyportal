@@ -203,10 +203,6 @@ jobs:
           # Stamp Alembic HEAD
           PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml stamp head
 
-      - name: Pre-warm sncosmo bandpass cache
-        run: |
-          source .venv/bin/activate && PYTHONPATH=. python tools/warm_sncosmo_cache.py || true
-
       - name: Test loading demo data
         run: |
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"

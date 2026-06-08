@@ -13,15 +13,11 @@ import TextField from "@mui/material/TextField";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
 import { useDeleteInstrumentMutation } from "../../ducks/instrument";
@@ -399,8 +395,7 @@ const InstrumentTable = ({
 
   const CustomToolbar = function InstrumentTableToolbar() {
     return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
+      <DataGridToolbar showQuickFilter={false}>
         <TextField
           variant="standard"
           size="small"
@@ -419,7 +414,7 @@ const InstrumentTable = ({
         >
           <AddIcon />
         </IconButton>
-      </GridToolbarContainer>
+      </DataGridToolbar>
     );
   };
 

@@ -13,7 +13,6 @@ import Close from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import { grey } from "@mui/material/colors";
-import { GridToolbarContainer } from "@mui/x-data-grid";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -24,8 +23,7 @@ import { skipToken } from "@reduxjs/toolkit/query";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
-import StyledDataGrid from "./StyledDataGrid";
-import QuickFilter from "./QuickFilter";
+import StyledDataGrid, { DataGridToolbar } from "./StyledDataGrid";
 
 import {
   useGetRemindersQuery,
@@ -192,17 +190,17 @@ const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
     () =>
       function RemindersToolbar() {
         return (
-          <GridToolbarContainer>
+          <DataGridToolbar
+            showColumns={false}
+            quickFilterTestId="reminders-quick-filter"
+          >
             <IconButton
               name={`new_reminder_${resourceId}`}
               onClick={() => setOpen(true)}
             >
               <AddIcon />
             </IconButton>
-            <div data-testid="reminders-quick-filter">
-              <QuickFilter />
-            </div>
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
 

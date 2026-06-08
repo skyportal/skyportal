@@ -11,14 +11,10 @@ import DialogContent from "@mui/material/DialogContent";
 import Box from "@mui/material/Box";
 import InfoIcon from "@mui/icons-material/Info";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
 import { filterOutEmptyValues } from "../../API";
 import { useGetEarthquakesQuery } from "../../ducks/earthquake";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import Spinner from "../Spinner";
 import EarthquakesFilterForm from "./EarthquakesFilterForm";
 
@@ -178,8 +174,7 @@ const Earthquake = () => {
   ];
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
+    <DataGridToolbar showQuickFilter={false}>
       <Tooltip title="Filter Table">
         <IconButton
           size="small"
@@ -189,7 +184,7 @@ const Earthquake = () => {
           <FilterListIcon />
         </IconButton>
       </Tooltip>
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

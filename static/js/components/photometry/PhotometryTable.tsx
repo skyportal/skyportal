@@ -16,12 +16,8 @@ import Button from "@mui/material/Button";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import UpdatePhotometry from "./UpdatePhotometry";
 import PhotometryValidation from "./PhotometryValidation";
 import PhotometryMagsys from "./PhotometryMagsys";
@@ -366,8 +362,7 @@ const PhotometryTable = ({
     () =>
       function PhotometryTableToolbar() {
         return (
-          <GridToolbarContainer>
-            <GridToolbarColumnsButton />
+          <DataGridToolbar showQuickFilter={false}>
             <Button
               size="small"
               startIcon={<DownloadIcon />}
@@ -386,7 +381,7 @@ const PhotometryTable = ({
                 <CloseIcon />
               </IconButton>
             </Tooltip>
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
     [onClose],

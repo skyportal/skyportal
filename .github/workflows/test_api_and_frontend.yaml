@@ -48,13 +48,16 @@ jobs:
           [
             "api_and_utils_pt1",
             "api_and_utils_pt2",
+            "api_and_utils_pt3",
+            "api_and_utils_pt4",
             "frontend_pt1",
             "frontend_pt2",
             "frontend_pt3",
             "frontend_pt4",
             "frontend_pt5",
             "frontend_pt6",
-            "external",
+            "external_pt1",
+            "external_pt2",
           ]
 
     steps:
@@ -247,21 +250,37 @@ jobs:
         run: |
           source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/data_products_and_analysis'
 
-      - name: Run API & utils tests part 1
+      - name: Run API & utils tests part 1 (sources & candidates)
         if: ${{ matrix.test_subset == 'api_and_utils_pt1' }}
         run: |
-          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/api_tests/candidates_sources_events'
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/api_tests/sources_candidates'
 
-      - name: Run API & utils tests part 2
+      - name: Run API & utils tests part 2 (photometry & follow-up)
         if: ${{ matrix.test_subset == 'api_and_utils_pt2' }}
         run: |
-          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml '--ignore=skyportal/tests/api_tests/candidates_sources_events skyportal/tests/api_tests skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting'
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/api_tests/photometry_followup'
 
-      - name: Run external tests
-        if: ${{ matrix.test_subset == 'external' }}
+      - name: Run API & utils tests part 3 (groups, users & analysis)
+        if: ${{ matrix.test_subset == 'api_and_utils_pt3' }}
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/api_tests/groups_users_analysis'
+
+      - name: Run API & utils tests part 4 (spectra, utils & misc)
+        if: ${{ matrix.test_subset == 'api_and_utils_pt4' }}
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/api_tests/spectra_misc skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting'
+
+      - name: Run external tests part 1 (followup requests)
+        if: ${{ matrix.test_subset == 'external_pt1' }}
         continue-on-error: true
         run: |
-          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/external'
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/external/test_followup_requests.py'
+
+      - name: Run external tests part 2 (services & moving objects)
+        if: ${{ matrix.test_subset == 'external_pt2' }}
+        continue-on-error: true
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml '--ignore=skyportal/tests/external/test_followup_requests.py skyportal/tests/external'
 
       - name: Upload logs
         uses: actions/upload-artifact@v4

@@ -18,16 +18,11 @@ import Grow from "@mui/material/Grow";
 import Popper from "@mui/material/Popper";
 import MenuList from "@mui/material/MenuList";
 import MenuItem from "@mui/material/MenuItem";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ObservationFilterForm from "./ObservationFilterForm";
 import NewObservation from "./NewObservation";
 import NewAPIObservation from "./NewAPIObservation";
@@ -431,8 +426,7 @@ const ExecutedObservationsTable = ({
   };
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
+    <DataGridToolbar>
       <Tooltip title="Filter Table">
         <IconButton
           size="small"
@@ -462,8 +456,7 @@ const ExecutedObservationsTable = ({
           <DownloadIcon />
         </IconButton>
       </Tooltip>
-      <GridToolbarQuickFilter />
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (
