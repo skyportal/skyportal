@@ -543,6 +543,7 @@ const FilterCandidateList = ({
     // Save form-specific data, formatted for the API query
     dispatch(setFilterFormData(data));
 
+    // Trigger a new search in CandidateList when the search button is clicked and reset to page 1.
     const nextSearchNonce = searchNonce + 1;
     setSearchNonce(nextSearchNonce);
     setSearchParams({
