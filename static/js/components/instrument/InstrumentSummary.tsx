@@ -20,8 +20,12 @@ import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
 import JsonDashboard from "react-json-dashboard";
 import withRouter from "../withRouter";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as Action from "../../ducks/instrument";
+import { useAppDispatch } from "../../types/hooks";
+import {
+  useGetInstrumentQuery,
+  useLazyGetInstrumentLogsQuery,
+  useUpdateInstrumentStatusMutation,
+} from "../../ducks/instrument";
 import InstrumentLogForm from "./InstrumentLogForm";
 import InstrumentLogsPlot from "./InstrumentLogsPlot";
 
@@ -56,9 +60,12 @@ interface InstrumentSummaryProps {
 const InstrumentSummary = ({ route }: InstrumentSummaryProps) => {
   const dispatch = useAppDispatch();
   const { classes: styles } = useStyles() as any;
-  const instrument = useAppSelector((state) => (state as any).instrument);
+  const { data: instrument } = useGetInstrumentQuery(route.id);
+  const [fetchInstrumentLogs] = useLazyGetInstrumentLogsQuery();
+  const [updateInstrumentStatus] = useUpdateInstrumentStatusMutation();
 
   const [loading, setLoading] = useState(false);
+  const [logs, setLogs] = useState<any[] | undefined>(undefined);
 
   const defaultStartDate = dayjs
     .utc()
@@ -66,26 +73,35 @@ const InstrumentSummary = ({ route }: InstrumentSummaryProps) => {
     .format("YYYY-MM-DD HH:mm:ss");
   const defaultEndDate = dayjs.utc().format("YYYY-MM-DD HH:mm:ss");
 
-  // Load the instrument if needed
+  // Load the instrument logs on mount.
   useEffect(() => {
-    dispatch(Action.fetchInstrument(route.id));
-
     setLoading(true);
-    dispatch(
-      Action.fetchInstrumentLogs(route.id, {
+    fetchInstrumentLogs({
+      id: route.id,
+      params: {
         startDate: defaultStartDate,
         endDate: defaultEndDate,
-      }),
-    ).then((response: any) => {
-      if (response.status !== "success") {
+      },
+    })
+      .unwrap()
+      .then((response: any) => {
+        setLogs(response);
+      })
+      .catch(() => {
         dispatch(showNotification("Error fetching instrument logs", "error"));
-      }
-      setLoading(false);
-    });
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route.id, dispatch]);
 
   if (
-    !("id" in instrument && instrument.id === parseInt(route.id as any, 10))
+    !(
+      instrument != null &&
+      "id" in instrument &&
+      instrument["id"] === parseInt(route.id as any, 10)
+    )
   ) {
     // Don't need to do this for instruments -- we can just let the page be blank for a short time
     return (
@@ -97,14 +113,17 @@ const InstrumentSummary = ({ route }: InstrumentSummaryProps) => {
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     setLoading(true);
-    dispatch(Action.fetchInstrumentLogs(route.id, formData)).then(
-      (response: any) => {
-        if (response.status !== "success") {
-          dispatch(showNotification("Error fetching instrument logs", "error"));
-        }
+    fetchInstrumentLogs({ id: route.id, params: formData })
+      .unwrap()
+      .then((response: any) => {
+        setLogs(response);
+      })
+      .catch(() => {
+        dispatch(showNotification("Error fetching instrument logs", "error"));
+      })
+      .finally(() => {
         setLoading(false);
-      },
-    );
+      });
   };
 
   const InstrumentSummaryFormSchema = {
@@ -131,18 +150,15 @@ const InstrumentSummary = ({ route }: InstrumentSummaryProps) => {
       color="primary"
       aria-label="refresh"
       style={{ margin: 0, padding: 0 }}
-      onClick={() => {
-        dispatch(Action.updateInstrumentStatus(route.id)).then(
-          (response: any) => {
-            if (response.status === "success") {
-              dispatch(showNotification("Instrument status updated"));
-            } else {
-              dispatch(
-                showNotification("Error updating instrument status", "error"),
-              );
-            }
-          },
-        );
+      onClick={async () => {
+        try {
+          await updateInstrumentStatus(route.id).unwrap();
+          dispatch(showNotification("Instrument status updated"));
+        } catch {
+          dispatch(
+            showNotification("Error updating instrument status", "error"),
+          );
+        }
       }}
     >
       <RefreshIcon />
@@ -167,20 +183,18 @@ const InstrumentSummary = ({ route }: InstrumentSummaryProps) => {
               <AccordionDetails>
                 <div className={styles.columnItem}>
                   {loading && <CircularProgress color="secondary" />}
-                  {!loading && !instrument.log_exists && (
+                  {!loading && !instrument["log_exists"] && (
                     <div> No logs exist </div>
                   )}
                   {!loading &&
-                    instrument.log_exists &&
-                    instrument?.logs?.length === 0 && (
+                    instrument["log_exists"] &&
+                    logs?.length === 0 && (
                       <div> No logs exist in the specified time range </div>
                     )}
                   {!loading &&
-                    instrument.log_exists &&
-                    instrument?.logs?.length > 0 && (
-                      <InstrumentLogsPlot
-                        instrument_logs={instrument?.logs || []}
-                      />
+                    instrument["log_exists"] &&
+                    (logs?.length ?? 0) > 0 && (
+                      <InstrumentLogsPlot instrument_logs={logs || []} />
                     )}
                 </div>
                 <div>
@@ -205,15 +219,17 @@ const InstrumentSummary = ({ route }: InstrumentSummaryProps) => {
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <InstrumentLogForm instrument={instrument} />
+                <InstrumentLogForm
+                  instrument={instrument as { id: number; [key: string]: any }}
+                />
               </AccordionDetails>
             </Accordion>
           </div>
           <Paper elevation={3} style={{ marginTop: "1rem", padding: "1rem" }}>
             <JsonDashboard
-              title={`${instrument?.name || "Instrument"} Status`}
-              data={instrument?.status || {}}
-              lastUpdated={instrument?.last_status_update}
+              title={`${instrument?.["name"] || "Instrument"} Status`}
+              data={instrument?.["status"] || {}}
+              lastUpdated={instrument?.["last_status_update"]}
               refreshButton={refreshButton}
             />
           </Paper>

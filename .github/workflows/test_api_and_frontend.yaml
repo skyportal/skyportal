@@ -14,6 +14,11 @@ concurrency:
 
 env:
   FRONTEND_TEST_HEADLESS: "1"
+  # The 2-vCPU runner renders pages more slowly under load than a dev machine, so
+  # give Playwright's default action/expect wait more headroom (locally it stays
+  # at the 30s default). Resolves as soon as the element is ready, so this only
+  # affects the worst-case waits.
+  PLAYWRIGHT_DEFAULT_TIMEOUT_MS: "60000"
 
 jobs:
   test-api-and-frontend:
@@ -45,7 +50,10 @@ jobs:
             "api_and_utils_pt2",
             "frontend_pt1",
             "frontend_pt2",
-            "flaky",
+            "frontend_pt3",
+            "frontend_pt4",
+            "frontend_pt5",
+            "frontend_pt6",
             "external",
           ]
 
@@ -82,10 +90,6 @@ jobs:
         with:
           bun-version-file: package.json
 
-      - uses: browser-actions/setup-geckodriver@latest
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Write SkyPortal configs
         run: |
           cat << EOF > config.yaml
@@ -100,16 +104,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update -y
-
-          ### firefox installation
-          sudo snap remove firefox
-          sudo install -d -m 0755 /etc/apt/keyrings
-          wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
-          echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
-          printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
-          sudo apt update -y
-
-          sudo apt install -y wget unzip firefox libcurl4-gnutls-dev libgnutls28-dev nginx
+          sudo apt install -y wget unzip libcurl4-gnutls-dev libgnutls28-dev nginx
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
@@ -119,7 +114,6 @@ jobs:
           echo bun $(bun --version)
           echo node $(node --version)
           nginx -v
-          firefox --version
 
       - name: Initialize SkyPortal
         run: |
@@ -140,6 +134,11 @@ jobs:
 
           # Install dependencies, and initialize the database
           uv sync --inexact --group dev
+
+          # Install the Playwright-managed Firefox build (+ its system deps)
+          # used by the frontend `page` fixture.
+          .venv/bin/playwright install --with-deps firefox
+
           make db_init
 
           bun pm ls || true
@@ -160,18 +159,84 @@ jobs:
         run: |
           sed -i 's/duration = 3000/duration = 15000/g' baselayer/static/js/components/Notifications.jsx
 
+      - name: Patch nginx proxy_read_timeout for CI server load
+        run: |
+          # The CI runner has only 2 vCPUs shared by Postgres, the app processes,
+          # the microservices and Firefox, so heavy (but progressing) requests can
+          # take >60s and return a 504. Give the upstream more headroom.
+          sed -i 's/proxy_read_timeout 60s/proxy_read_timeout 120s/g' baselayer/services/nginx/nginx.conf.template
+
       - name: Save dependency caches
         uses: ./.github/actions/cache-dependencies-save
 
-      - name: Run front-end tests part 1
+      # Per-folder microservice trim: each frontend folder only exercises a
+      # subset of the queues, so disable the unused ones to free CPU/RAM on the
+      # 2-vCPU runner. analysis services -> only data_products_and_analysis (pt6);
+      # observation_plan_queue/facility_queue -> only the GCN/follow-up (pt2) and
+      # observation (pt5) folders; notification_queue -> only the source- and
+      # notification-test folders (pt1, pt5). (gcn_service is off everywhere.)
+      - name: Trim unused microservices for this frontend subset
+        if: ${{ startsWith(matrix.test_subset, 'frontend_') }}
+        env:
+          TEST_SUBSET: ${{ matrix.test_subset }}
+        run: |
+          python3 - <<'PY'
+          import os
+
+          EXTRA = {
+              "frontend_pt1": ["sn_analysis_service", "openai_analysis_service", "observation_plan_queue"],
+              "frontend_pt2": ["sn_analysis_service", "openai_analysis_service"],
+              "frontend_pt3": ["sn_analysis_service", "openai_analysis_service", "observation_plan_queue", "facility_queue", "notification_queue"],
+              "frontend_pt4": ["sn_analysis_service", "openai_analysis_service", "observation_plan_queue", "facility_queue", "notification_queue"],
+              "frontend_pt5": ["sn_analysis_service", "openai_analysis_service"],
+              "frontend_pt6": ["observation_plan_queue", "facility_queue", "notification_queue"],
+          }
+          extra = EXTRA.get(os.environ["TEST_SUBSET"], [])
+          if extra:
+              with open("test_config.yaml") as f:
+                  lines = f.readlines()
+              out = []
+              for line in lines:
+                  out.append(line)
+                  if line.rstrip() == "  disabled:":
+                      out += [f"    - {s}\n" for s in extra]
+              with open("test_config.yaml", "w") as f:
+                  f.writelines(out)
+              print(f"Disabled for {os.environ['TEST_SUBSET']}: {extra}")
+          PY
+
+      # The frontend suite is split across six sibling folders (one matrix job
+      # each) to keep per-runner load down on the 2-vCPU runners. New test files
+      # just go in the relevant folder.
+      - name: Run front-end tests part 1 (sources & observing runs)
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
         run: |
           source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/sources_and_observingruns_etc'
 
-      - name: Run front-end tests part 2
+      - name: Run front-end tests part 2 (GCN, observation plans & follow-up)
         if: ${{ matrix.test_subset == 'frontend_pt2' }}
         run: |
-          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml '--ignore=skyportal/tests/frontend/sources_and_observingruns_etc skyportal/tests/frontend'
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/gcn_observations_and_followup'
+
+      - name: Run front-end tests part 3 (users, groups & account)
+        if: ${{ matrix.test_subset == 'frontend_pt3' }}
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/users_groups_and_content'
+
+      - name: Run front-end tests part 4 (sources, candidates & classification)
+        if: ${{ matrix.test_subset == 'frontend_pt4' }}
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/sources_data_and_analysis'
+
+      - name: Run front-end tests part 5 (observations & instruments)
+        if: ${{ matrix.test_subset == 'frontend_pt5' }}
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/observations_and_instruments'
+
+      - name: Run front-end tests part 6 (data products & analysis)
+        if: ${{ matrix.test_subset == 'frontend_pt6' }}
+        run: |
+          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/frontend/data_products_and_analysis'
 
       - name: Run API & utils tests part 1
         if: ${{ matrix.test_subset == 'api_and_utils_pt1' }}
@@ -182,12 +247,6 @@ jobs:
         if: ${{ matrix.test_subset == 'api_and_utils_pt2' }}
         run: |
           source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml '--ignore=skyportal/tests/api_tests/candidates_sources_events skyportal/tests/api_tests skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting'
-
-      - name: Run flaky tests
-        if: ${{ matrix.test_subset == 'flaky' }}
-        continue-on-error: true
-        run: |
-          source .venv/bin/activate && PYTHONPATH=. python baselayer/tools/test_frontend.py --xml 'skyportal/tests/flaky'
 
       - name: Run external tests
         if: ${{ matrix.test_subset == 'external' }}

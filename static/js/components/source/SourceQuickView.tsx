@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useState } from "react";
+import { skipToken } from "@reduxjs/toolkit/query";
 import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
@@ -20,7 +20,8 @@ import Button from "../Button";
 
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import ShowClassification from "../classification/ShowClassification";
-import * as Action from "../../ducks/source";
+import { useGetSourceQuery } from "../../ducks/source";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 const dialogTitleStyles = (theme: any) => ({
@@ -153,7 +154,6 @@ interface SourceQuickViewProps {
 }
 
 const SourceQuickView = ({ sourceId, className }: SourceQuickViewProps) => {
-  const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
   const [open, setOpen] = useState(false);
@@ -165,28 +165,18 @@ const SourceQuickView = ({ sourceId, className }: SourceQuickViewProps) => {
     setOpen(false);
   };
 
-  const source = useAppSelector((state) => state["source"]);
-  const cachedSourceId = source ? source.id : null;
-  const isCached = sourceId === cachedSourceId;
+  // Only load detailed source info once the dialog is opened.
+  const { data: source } = useGetSourceQuery(open ? sourceId : skipToken);
+  const isCached = source?.id === sourceId;
 
-  useEffect(() => {
-    const fetchSource = async () => {
-      dispatch(Action.fetchSource(sourceId));
-    };
-
-    if (!isCached && open) {
-      fetchSource();
-    }
-  }, [dispatch, isCached, sourceId, open]);
-
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   // Only load more detailed source info once dialog is opened
   if (open) {
     return (
       <div
         className={className}
-        data-testid={`quickViewButton_${source.obj_id}`}
+        data-testid={`quickViewButton_${source?.["obj_id"]}`}
       >
         <Button
           primary
@@ -198,10 +188,10 @@ const SourceQuickView = ({ sourceId, className }: SourceQuickViewProps) => {
           QUICK VIEW
         </Button>
         <Dialog open={open} onClose={handleClose} maxWidth="md">
-          <DialogTitle onClose={handleClose}>{source.id}</DialogTitle>
+          <DialogTitle onClose={handleClose}>{source?.id}</DialogTitle>
           <DialogContent dividers>
             <DialogContentDiv
-              source={source}
+              source={source ?? {}}
               isCached={isCached}
               taxonomyList={taxonomyList}
             />
@@ -209,7 +199,7 @@ const SourceQuickView = ({ sourceId, className }: SourceQuickViewProps) => {
           <DialogActions>
             <div className={classes.sourceLinkButton}>
               <Link
-                to={`/source/${source.id}`}
+                to={`/source/${source?.id}`}
                 style={{ textDecoration: "none" }}
                 onClick={handleClose}
               >
@@ -230,7 +220,10 @@ const SourceQuickView = ({ sourceId, className }: SourceQuickViewProps) => {
   }
 
   return (
-    <div className={className} data-testid={`quickViewButton_${source.obj_id}`}>
+    <div
+      className={className}
+      data-testid={`quickViewButton_${source?.["obj_id"]}`}
+    >
       <Button primary size="small" onClick={handleClickOpen}>
         QUICK VIEW
       </Button>

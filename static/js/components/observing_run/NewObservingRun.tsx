@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Typography from "@mui/material/Typography";
@@ -6,25 +7,32 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Paper from "../Paper";
-import { submitObservingRun } from "../../ducks/observingRun";
+import { useSubmitObservingRunMutation } from "../../ducks/observingRun";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 
 const NewObservingRun = () => {
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const dispatch = useAppDispatch();
+  const [submitObservingRun] = useSubmitObservingRunMutation();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     if (formData.group_id === -1) {
       delete formData.group_id;
     }
-    const result: any = await dispatch(submitObservingRun(formData));
-    if (result.status === "success") {
+    try {
+      await submitObservingRun(formData).unwrap();
       dispatch(showNotification("Observing run saved"));
+    } catch {
+      // error notification handled by the base query
     }
   };
 
@@ -57,7 +65,7 @@ const NewObservingRun = () => {
           title: `${
             telescopeList.find(
               (telescope: any) => telescope.id === instrument.telescope_id,
-            )?.name
+            )?.["name"]
           } / ${instrument.name}`,
         })),
         title: "Instrument",

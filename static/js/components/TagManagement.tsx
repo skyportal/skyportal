@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -21,10 +21,15 @@ import {
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
 import StyledDataGrid from "./StyledDataGrid";
-import * as objectTagsActions from "../ducks/objectTags";
+import {
+  useGetTagOptionsQuery,
+  useCreateTagOptionMutation,
+  useUpdateTagOptionMutation,
+  useDeleteTagOptionMutation,
+} from "../ducks/objectTags";
 import { getContrastColor } from "./ObjectTags";
 
 const useStyles = makeStyles()((theme) => ({
@@ -81,11 +86,10 @@ const TagManagement = () => {
   const [tagToDelete, setTagToDelete] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const tagOptions = useAppSelector((state) => (state as any).objectTags || []);
-
-  useEffect(() => {
-    dispatch(objectTagsActions.fetchTagOptions());
-  }, [dispatch]);
+  const { data: tagOptions = [] } = useGetTagOptionsQuery();
+  const [createTagOption] = useCreateTagOptionMutation();
+  const [updateTagOption] = useUpdateTagOptionMutation();
+  const [deleteTagOption] = useDeleteTagOptionMutation();
 
   const handleEditClick = (tag: any) => {
     setEditingTag(tag);
@@ -109,21 +113,13 @@ const TagManagement = () => {
 
     setLoading(true);
     try {
-      const result: any = await dispatch(
-        objectTagsActions.createTagOption({
-          name: createForm.name,
-          color: createForm.color,
-        }),
-      );
-
-      if (result.status === "success") {
-        dispatch(showNotification("Tag created successfully"));
-        setCreateDialogOpen(false);
-        setCreateForm({ name: "", color: "#dddfe2" });
-        dispatch(objectTagsActions.fetchTagOptions());
-      } else {
-        dispatch(showNotification("Failed to create tag", "error"));
-      }
+      await createTagOption({
+        name: createForm.name,
+        color: createForm.color,
+      }).unwrap();
+      dispatch(showNotification("Tag created successfully"));
+      setCreateDialogOpen(false);
+      setCreateForm({ name: "", color: "#dddfe2" });
     } catch (error) {
       dispatch(showNotification("Failed to create tag", "error"));
     } finally {
@@ -139,22 +135,14 @@ const TagManagement = () => {
 
     setLoading(true);
     try {
-      const result: any = await dispatch(
-        objectTagsActions.updateTagOption({
-          id: editingTag.id,
-          name: editForm.name,
-          color: editForm.color,
-        }),
-      );
-
-      if (result.status === "success") {
-        dispatch(showNotification("Tag updated successfully"));
-        setEditDialogOpen(false);
-        setEditingTag(null);
-        dispatch(objectTagsActions.fetchTagOptions());
-      } else {
-        dispatch(showNotification("Failed to update tag", "error"));
-      }
+      await updateTagOption({
+        id: editingTag.id,
+        name: editForm.name,
+        color: editForm.color,
+      }).unwrap();
+      dispatch(showNotification("Tag updated successfully"));
+      setEditDialogOpen(false);
+      setEditingTag(null);
     } catch (error) {
       dispatch(showNotification("Failed to update tag", "error"));
     } finally {
@@ -170,17 +158,9 @@ const TagManagement = () => {
   const handleDeleteConfirm = async () => {
     setLoading(true);
     try {
-      const result: any = await dispatch(
-        objectTagsActions.deleteTagOption({ id: tagToDelete.id }),
-      );
-
-      if (result.status === "success") {
-        dispatch(showNotification("Tag deleted successfully"));
-        closeDeleteDialog();
-        dispatch(objectTagsActions.fetchTagOptions());
-      } else {
-        dispatch(showNotification("Failed to delete tag", "error"));
-      }
+      await deleteTagOption({ id: tagToDelete.id }).unwrap();
+      dispatch(showNotification("Tag deleted successfully"));
+      closeDeleteDialog();
     } catch (error) {
       dispatch(showNotification("Failed to delete tag", "error"));
     } finally {

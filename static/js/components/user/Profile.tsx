@@ -1,12 +1,14 @@
-import { useAppSelector } from "../../types/hooks";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import NewTokenForm from "./NewTokenForm";
 import TokenList from "./TokenList";
 import UpdateProfileForm from "./UpdateProfileForm";
 import UserProfileInfo from "./UserProfileInfo";
 
 const Profile = () => {
-  const profile = useAppSelector((state) => state.profile);
-  const groups = useAppSelector((state) => state.groups.user);
+  const { data: profile } = useGetProfileQuery();
+  const { data: groupsData } = useGetGroupsQuery();
+  const groups = groupsData?.user ?? [];
   return (
     <div>
       <div>
@@ -21,14 +23,14 @@ const Profile = () => {
       <br />
       <div>
         <NewTokenForm
-          availableAcls={profile.permissions}
+          availableAcls={profile?.permissions}
           {...({ groups } as any)}
         />
       </div>
       &nbsp;
       <br />
       <div>
-        <TokenList tokens={(profile as any).tokens} />
+        <TokenList tokens={(profile as any)?.tokens} />
       </div>
     </div>
   );

@@ -11,9 +11,13 @@ import SourceTableFilterForm from "../source/SourceTableFilterForm";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
-import { useAppDispatch } from "../../types/hooks";
 import { filterOutEmptyValues } from "../../API";
-import * as sourcesActions from "../../ducks/sources";
+
+interface SpatialCatalogSourcesArgs {
+  catalogName: string;
+  entryName: string;
+  filterParams?: any;
+}
 
 const useStyles = makeStyles()((theme) => ({
   container: {
@@ -33,18 +37,16 @@ const useStyles = makeStyles()((theme) => ({
 interface RetrieveSpatialCatalogSourcesProps {
   catalog?: any;
   entry?: any;
-  setSelectedSpatialCatalogEntryId: (...args: any[]) => void;
+  setSourcesArgs: (args: SpatialCatalogSourcesArgs) => void;
 }
 
 const RetrieveSpatialCatalogSources = ({
   entry = null,
   catalog = null,
-  setSelectedSpatialCatalogEntryId,
+  setSourcesArgs,
 }: RetrieveSpatialCatalogSourcesProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [queryInProgress, setQueryInProgress] = useState(false);
-
-  const dispatch = useAppDispatch();
 
   if (!entry?.entry_name) {
     return <div />;
@@ -80,13 +82,11 @@ const RetrieveSpatialCatalogSources = ({
       delete data.position;
     }
 
-    dispatch(
-      sourcesActions.fetchSpatialCatalogSources(
-        catalog.catalog_name,
-        entry.entry_name,
-        data,
-      ),
-    );
+    setSourcesArgs({
+      catalogName: catalog.catalog_name,
+      entryName: entry.entry_name,
+      filterParams: data,
+    });
 
     setQueryInProgress(false);
   };
@@ -96,7 +96,6 @@ const RetrieveSpatialCatalogSources = ({
       <Button
         primary
         onClick={() => {
-          setSelectedSpatialCatalogEntryId(entry.id);
           openDialog();
         }}
         size="small"
@@ -130,12 +129,12 @@ const RetrieveSpatialCatalogSources = ({
 
 interface SpatialCatalogTableProps {
   catalog?: any;
-  setSelectedSpatialCatalogEntryId: (...args: any[]) => void;
+  setSourcesArgs: (args: SpatialCatalogSourcesArgs) => void;
 }
 
 const SpatialCatalogTable = ({
   catalog = null,
-  setSelectedSpatialCatalogEntryId,
+  setSourcesArgs,
 }: SpatialCatalogTableProps) => {
   const { classes } = useStyles();
 
@@ -156,7 +155,7 @@ const SpatialCatalogTable = ({
         <RetrieveSpatialCatalogSources
           entry={entry}
           catalog={catalog}
-          setSelectedSpatialCatalogEntryId={setSelectedSpatialCatalogEntryId}
+          setSourcesArgs={setSourcesArgs}
         />
       </div>
     );

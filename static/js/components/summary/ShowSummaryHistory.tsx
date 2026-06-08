@@ -12,8 +12,9 @@ import TableRow from "@mui/material/TableRow";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { Link } from "react-router-dom";
 import Tooltip from "@mui/material/Tooltip";
-import { useAppSelector } from "../../types/hooks";
+
 import Button from "../Button";
+import { useGetUsersQuery } from "../../ducks/users";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -49,13 +50,14 @@ const ShowSummaryHistory = ({
   button = false,
 }: ShowSummaryHistoryProps) => {
   const { classes } = useStyles();
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
+  const allUsers = useGetUsersQuery().data?.users ?? [];
   const userIdToUsername: Record<number, string> = {};
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Sort history from newest to oldest
-  const sortedHistory = summaries?.sort((a, b) => {
+  // Sort history from newest to oldest.
+  // `summaries` is frozen RTK Query data, so copy before sorting in place.
+  const sortedHistory = [...(summaries ?? [])].sort((a, b) => {
     const dateA = new Date(a.set_at_utc as string);
     const dateB = new Date(b.set_at_utc as string);
     return dateB.getTime() - dateA.getTime();

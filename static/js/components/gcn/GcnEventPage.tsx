@@ -1,5 +1,7 @@
-import React, { Suspense, useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetProfileQuery } from "../../ducks/profile";
+import React, { Suspense, useState } from "react";
+import { skipToken } from "@reduxjs/toolkit/query";
+import { useAppDispatch } from "../../types/hooks";
 
 import Cancel from "@mui/icons-material/Cancel";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -23,7 +25,12 @@ import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
-import * as gcnEventActions from "../../ducks/gcnEvent";
+import {
+  useGetGcnEventQuery,
+  useGetGcnTachQuery,
+  usePostGcnTachMutation,
+  usePostGcnGraceDBMutation,
+} from "../../ducks/gcnEvent";
 
 import GcnSelectionForm from "./GcnSelectionForm";
 import Spinner from "../Spinner";
@@ -42,7 +49,7 @@ import GcnProperties from "./GcnProperties";
 import GcnTags from "./GcnTags";
 import Reminders from "../Reminders";
 
-import { postLocalizationFromNotice } from "../../ducks/localization";
+import { usePostLocalizationFromNoticeMutation } from "../../ducks/localization";
 import withRouter from "../withRouter";
 import Paper from "../Paper";
 
@@ -158,12 +165,27 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
   const theme = useTheme();
   const { classes: styles } = useStyles();
 
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
   const dispatch = useAppDispatch();
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: gcnEventData } = useGetGcnEventQuery(
+    route?.dateobs ?? skipToken,
+  ) as { data: any };
+  const { data: tachData } = useGetGcnTachQuery(
+    route?.dateobs ?? skipToken,
+  ) as {
+    data: any;
+  };
+  // Recompose the single `gcnEvent` object the old store slice exposed: the
+  // main event payload merged with the tach circulars sub-fetch.
+  const gcnEvent = gcnEventData
+    ? { ...gcnEventData, circulars: tachData?.circulars }
+    : gcnEventData;
+  const [postTach] = usePostGcnTachMutation();
+  const [postGraceDB] = usePostGcnGraceDBMutation();
+  const [postLocalizationFromNotice] = usePostLocalizationFromNoticeMutation();
+  const { data: currentUser } = useGetProfileQuery();
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage GCNs");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage GCNs");
 
   const [leftPanelVisible, setLeftPanelVisible] = useState(false);
   const [rightPanelVisible, setRightPanelVisible] = useState(false);
@@ -182,16 +204,6 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
     }
   };
 
-  useEffect(() => {
-    const fetchGcnEvent = async (dateobs: string) => {
-      await dispatch(gcnEventActions.fetchGcnEvent(dateobs));
-      await dispatch(gcnEventActions.fetchGcnTach(dateobs));
-    };
-    if (route?.dateobs !== gcnEvent?.dateobs && route?.dateobs) {
-      fetchGcnEvent(route?.dateobs);
-    }
-  }, [route, dispatch, gcnEvent]);
-
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   if (!gcnEvent) {
@@ -199,41 +211,37 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
   }
 
   const handleUpdateAliasesCirculars = () => {
-    dispatch(gcnEventActions.postGcnTach(gcnEvent.dateobs)).then(
-      (response: any) => {
-        if (response.status === "success") {
+    postTach(gcnEvent.dateobs)
+      .unwrap()
+      .then(() => {
+        dispatch(
+          showNotification(
+            "Aliases and Circulars update started. Please wait...",
+          ),
+        );
+        if (gcnEvent?.aliases?.length === 0) {
           dispatch(
             showNotification(
-              "Aliases and Circulars update started. Please wait...",
+              "This has never been done for this event before. It may take few minutes.",
+              "warning",
             ),
           );
-          if (gcnEvent?.aliases?.length === 0) {
-            dispatch(
-              showNotification(
-                "This has never been done for this event before. It may take few minutes.",
-                "warning",
-              ),
-            );
-          }
-        } else {
-          dispatch(showNotification("Error updating aliases", "error"));
         }
-      },
-    );
+      })
+      .catch(() => {
+        dispatch(showNotification("Error updating aliases", "error"));
+      });
   };
 
   const handleRetrieveGraceDB = () => {
-    dispatch(gcnEventActions.postGcnGraceDB(gcnEvent.dateobs)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(
-            showNotification("GraceDB retrieval started. Please wait..."),
-          );
-        } else {
-          dispatch(showNotification("Error retrieving GraceDB", "error"));
-        }
-      },
-    );
+    postGraceDB(gcnEvent.dateobs)
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("GraceDB retrieval started. Please wait..."));
+      })
+      .catch(() => {
+        dispatch(showNotification("Error retrieving GraceDB", "error"));
+      });
   };
 
   return (
@@ -422,6 +430,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                       <CommentList
                         associatedResourceType="gcn_event"
                         gcnEventID={gcnEvent.id}
+                        gcnEventDateobs={gcnEvent.dateobs}
                         maxHeightList="60vh"
                       />
                     </Suspense>
@@ -561,27 +570,26 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                                       "warning",
                                     ),
                                   );
-                                  dispatch(
-                                    postLocalizationFromNotice({
-                                      dateobs: gcn_notice.dateobs,
-                                      noticeID: gcn_notice.id,
-                                    }),
-                                  ).then((response: any) => {
-                                    if (response.status === "success") {
+                                  postLocalizationFromNotice({
+                                    dateobs: gcn_notice.dateobs,
+                                    noticeID: gcn_notice.id,
+                                  })
+                                    .unwrap()
+                                    .then(() => {
                                       dispatch(
                                         showNotification(
                                           `Localization successfully ingested from notice ${gcn_notice.id}. Please wait for the contour to be generated. Default observation plans will be created shortly.`,
                                         ),
                                       );
-                                    } else {
+                                    })
+                                    .catch(() => {
                                       dispatch(
                                         showNotification(
                                           `Error ingesting localization from notice ${gcn_notice.id}. It might not be available yet.`,
                                           "error",
                                         ),
                                       );
-                                    }
-                                  });
+                                    });
                                 }}
                                 data-testid="ingest-localization-from-notice"
                               >

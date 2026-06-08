@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 
 import Form from "@rjsf/mui";
@@ -8,12 +9,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import GroupShareSelect from "../group/GroupShareSelect";
-import {
-  fetchAnalysisServices,
-  submitAnalysisService,
-} from "../../ducks/analysis_services";
+import { useSubmitAnalysisServiceMutation } from "../../ducks/analysis_services";
+import { useGetEnumTypesQuery } from "../../ducks/enum_types";
 
 dayjs.extend(utc);
 
@@ -22,27 +21,29 @@ interface NewAnalysisServiceProps {
 }
 
 const NewAnalysisService = ({ onClose = null }: NewAnalysisServiceProps) => {
-  const { enum_types } = useAppSelector((state) => state["enum_types"]);
+  const { data: enum_types } = useGetEnumTypesQuery();
 
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
   const dispatch = useAppDispatch();
+  const [submitAnalysisService] = useSubmitAnalysisServiceMutation();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     if (selectedGroupIds.length > 0) {
       formData.group_ids = selectedGroupIds;
     }
-    const result: any = await dispatch(submitAnalysisService(formData));
-    if (result.status === "success") {
+    try {
+      await submitAnalysisService(formData).unwrap();
       dispatch(showNotification("AnalysisService saved"));
-      dispatch(fetchAnalysisServices());
       if (typeof onClose === "function") {
         onClose();
       }
+    } catch {
+      // error notification is handled by the base query
     }
   };
 
-  if (enum_types.length === 0) {
+  if (enum_types == null) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -91,30 +92,30 @@ const NewAnalysisService = ({ onClose = null }: NewAnalysisServiceProps) => {
         type: "array",
         items: {
           type: "string",
-          enum: enum_types.ANALYSIS_INPUT_TYPES,
+          enum: enum_types["ANALYSIS_INPUT_TYPES"],
         },
         uniqueItems: true,
         title: "Input data types",
       },
       analysis_type: {
         type: "string",
-        oneOf: enum_types.ANALYSIS_TYPES.map((analysis_type: string) => ({
+        oneOf: enum_types["ANALYSIS_TYPES"].map((analysis_type: string) => ({
           enum: [analysis_type],
           title: analysis_type,
         })),
         title: "Analysis Type",
-        default: enum_types.ANALYSIS_TYPES[0],
+        default: enum_types["ANALYSIS_TYPES"][0],
       },
       authentication_type: {
         type: "string",
-        oneOf: enum_types.AUTHENTICATION_TYPES.map(
+        oneOf: enum_types["AUTHENTICATION_TYPES"].map(
           (authentication_type: string) => ({
             enum: [authentication_type],
             title: authentication_type,
           }),
         ),
         title: "Authentication Type",
-        default: enum_types.AUTHENTICATION_TYPES[0],
+        default: enum_types["AUTHENTICATION_TYPES"][0],
       },
       timeout: {
         type: "number",

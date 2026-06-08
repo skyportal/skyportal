@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { makeStyles } from "tss-react/mui";
 
-import { useAppSelector } from "../../types/hooks";
+import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 dayjs.extend(utc);
@@ -95,8 +95,7 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
   const ra_hrs = ra_to_hours(ra, ":");
   const dec_hrs = dec_to_dms(dec, ":");
   // TODO: const thumbnail_timestamp = "TODO";
-  const photometry = useAppSelector((state) => state["photometry"]);
-  const objPhotometry = (photometry as any)?.[id];
+  const { data: objPhotometry } = useFetchSourcePhotometryQuery({ id });
 
   let isDetected = false;
   let magErr = Infinity;

@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../types/hooks";
+import { useGetProfileQuery } from "../ducks/profile";
+import { useGetGroupsQuery } from "../ducks/groups";
+import { useEffect, useMemo, useState } from "react";
+
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -18,9 +20,10 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import * as analysisServicesActions from "../ducks/analysis_services";
-import * as sourceActions from "../ducks/source";
+import { useGetAnalysisServicesQuery } from "../ducks/analysis_services";
+import { useStartAnalysisMutation } from "../ducks/source";
 import GroupShareSelect from "./group/GroupShareSelect";
+import { useGetConfigQuery } from "../ducks/config";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -66,11 +69,13 @@ interface StartBotSummaryProps {
 
 const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [startAnalysis] = useStartAnalysisMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { analysisServiceList } = useAppSelector(
-    (state) => state["analysis_services"],
+  const { data: analysisServiceListData } = useGetAnalysisServicesQuery();
+  const analysisServiceList = useMemo(
+    () => analysisServiceListData ?? [],
+    [analysisServiceListData],
   );
 
   const uniqueNames = [
@@ -79,9 +84,9 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   const uniqueAnalysisServiceList = uniqueNames.map((name) =>
     analysisServiceList.find((item: any) => item.name === name),
   );
-  const allGroups = useAppSelector((state) => state.groups.all);
-  const prefs: any = useAppSelector((state) => state.profile.preferences);
-  const config = useAppSelector((state) => state["config"]);
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
+  const prefs: any = useGetProfileQuery().data?.preferences;
+  const { data: config } = useGetConfigQuery() as { data: any };
 
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
     useState<any>(null);
@@ -101,20 +106,10 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   });
 
   useEffect(() => {
-    const getAnalysisServices = async () => {
-      let data = [];
-      if (!analysisServiceList || analysisServiceList.length === 0) {
-        const result: any = await dispatch(
-          analysisServicesActions.fetchAnalysisServices(),
-        );
-        data = result?.data || [];
-      } else {
-        data = analysisServiceList;
-      }
-      setSelectedAnalysisServiceId(data[0]?.id);
-    };
-    getAnalysisServices();
-  }, [dispatch, setSelectedAnalysisServiceId]);
+    if (selectedAnalysisServiceId == null && analysisServiceList.length > 0) {
+      setSelectedAnalysisServiceId(analysisServiceList[0]?.id);
+    }
+  }, [analysisServiceList, selectedAnalysisServiceId]);
 
   if (
     !allGroups ||
@@ -142,9 +137,11 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
     if (selectedGroupIds.length >= 0) {
       params.group_ids = selectedGroupIds;
     }
-    await dispatch(
-      sourceActions.startAnalysis(obj_id, selectedAnalysisServiceId, params),
-    );
+    await startAnalysis({
+      id: obj_id,
+      analysis_service_id: selectedAnalysisServiceId,
+      formData: params,
+    });
     setIsSubmitting(false);
     setDialogOpen(false);
   };

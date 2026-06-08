@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import React, {
   Suspense,
   useEffect,
@@ -67,10 +68,23 @@ import VegaPhotometry from "../plot/VegaPhotometry";
 import FavoritesButton from "../listing/FavoritesButton";
 import MultipleClassificationsForm from "../classification/MultipleClassificationsForm";
 import UpdateSourceSummary from "./UpdateSourceSummary";
-import * as sourceActions from "../../ducks/source";
-import * as sourcesActions from "../../ducks/sources";
-import * as sourcesingcnActions from "../../ducks/sourcesingcn";
-import * as objectTagsActions from "../../ducks/objectTags";
+import {
+  useDeleteClassificationsMutation,
+  useAddClassificationVoteMutation,
+  useAddSourceLabelsMutation,
+  useDeleteSourceLabelsMutation,
+  useAcceptSaveRequestMutation,
+  useDeclineSaveRequestMutation,
+} from "../../ducks/source";
+import {
+  useLazyFetchPendingGroupSourcesQuery,
+  useLazyFetchSavedGroupSourcesQuery,
+} from "../../ducks/sources";
+import { photometryApi } from "../../ducks/photometry";
+import { useGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
+import { useGetGcnEventQuery } from "../../ducks/gcnEvent";
+import { useGetTagOptionsQuery } from "../../ducks/objectTags";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
@@ -171,12 +185,16 @@ const useStyles = makeStyles()((theme) => ({
 const RenderShowClassification = React.memo(({ source }: { source: any }) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const currentUser = useAppSelector((state) => state.profile);
-  const groupUsers = useAppSelector(
-    (state) => (state as any).group?.group_users,
-  );
+  const [deleteClassificationsMutation] = useDeleteClassificationsMutation();
+  const [addClassificationVote] = useAddClassificationVoteMutation();
+  const { data: currentUser } = useGetProfileQuery();
+  // The old global `group` slice (a single most-recently-fetched group) no
+  // longer exists: the group duck is now RTK Query keyed by id, and no specific
+  // group id is in scope here. As before, when no group is loaded the
+  // membership lookup resolves to undefined.
+  const groupUsers: any = undefined;
   const currentGroupUser = groupUsers?.filter(
-    (groupUser: any) => groupUser.user_id === currentUser.id,
+    (groupUser: any) => groupUser.user_id === currentUser?.id,
   )[0];
 
   useEffect(() => {
@@ -195,7 +213,7 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
     window.localStorage.getItem("CURRENT_GROUP_ADMIN") as any,
   );
 
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [classificationSourceToDelete, setClassificationSourceToDelete] =
@@ -210,26 +228,25 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
   };
 
   const deleteClassifications = () => {
-    dispatch(
-      sourceActions.deleteClassifications(classificationSourceToDelete),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    deleteClassificationsMutation(classificationSourceToDelete)
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("Classification deleted"));
         closeDialog();
-      }
-    });
+      })
+      .catch(() => {
+        // error notification handled by the baseQuery
+      });
   };
 
   const addVotes = (vote: any) => {
     let success = true;
     source.classifications?.forEach((c: any) => {
-      dispatch(sourceActions.addClassificationVote(c.id, { vote })).then(
-        (result: any) => {
-          if (result.status !== "success") {
-            success = false;
-          }
-        },
-      );
+      addClassificationVote({ classification_id: c.id, data: { vote } })
+        .unwrap()
+        .catch(() => {
+          success = false;
+        });
     });
     if (success) {
       dispatch(showNotification("Votes registered"));
@@ -245,7 +262,7 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
 
   source.classifications?.forEach((classification: any) => {
     classification.votes?.forEach((s: any) => {
-      if (s.voter_id === currentUser.id) {
+      if (s.voter_id === currentUser?.id) {
         if (s.vote === 1) {
           upvoterIds.push(classification.id);
         } else if (s.vote === -1) {
@@ -264,8 +281,8 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
   }
 
   const permission =
-    currentUser.permissions.includes("System admin") ||
-    currentUser.permissions.includes("Manage groups") ||
+    currentUser?.permissions.includes("System admin") ||
+    currentUser?.permissions.includes("Manage groups") ||
     isGroupAdmin;
 
   return (
@@ -334,16 +351,17 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
 RenderShowClassification.displayName = "RenderShowClassification";
 
 const RenderShowLabelling = React.memo(({ source }: { source: any }) => {
-  const dispatch = useAppDispatch();
+  const [addSourceLabels] = useAddSourceLabelsMutation();
+  const [deleteSourceLabels] = useDeleteSourceLabelsMutation();
   const { control } = useForm();
   const [checked, setChecked] = useState(false);
 
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
 
   const labellerUsernames = source.labellers
     ? source.labellers.map((s: any) => s.username)
     : [];
-  const defaultChecked = labellerUsernames.includes(currentUser.username);
+  const defaultChecked = labellerUsernames.includes(currentUser?.username);
 
   useEffect(() => {
     setChecked(defaultChecked);
@@ -356,9 +374,9 @@ const RenderShowLabelling = React.memo(({ source }: { source: any }) => {
     });
 
     if (check === true) {
-      dispatch(sourceActions.addSourceLabels(source.id, { groupIds }));
+      addSourceLabels({ id: source.id, data: { groupIds } });
     } else {
-      dispatch(sourceActions.deleteSourceLabels(source.id, { groupIds }));
+      deleteSourceLabels({ id: source.id, data: { groupIds } });
     }
   };
 
@@ -408,7 +426,15 @@ const SourceDetailPanel = React.memo(
     taxonomyList?: any[] | undefined;
   }) => {
     const { classes } = useStyles();
-    const photometry = useAppSelector((state) => state["photometry"]);
+    // Read any already-cached full photometry for this source without triggering
+    // a fetch (the folded plot only renders when photometry is already loaded,
+    // e.g. on the Source page).
+    const photometry = useAppSelector(
+      (state) =>
+        photometryApi.endpoints.fetchSourcePhotometry.select({
+          id: source.id,
+        })(state as any).data,
+    );
     const [openedOrigins, setOpenedOrigins] = useState<Record<string, any>>({});
 
     const annotations = source.annotations || [];
@@ -443,7 +469,7 @@ const SourceDetailPanel = React.memo(
             <VegaPhotometry sourceId={source.id} />
           </Grid>
           <Grid>
-            {photometry[source.id]?.length > 0 && (
+            {(photometry?.length ?? 0) > 0 && (
               <VegaPhotometry
                 sourceId={source.id}
                 annotations={annotations}
@@ -580,6 +606,7 @@ interface SourceTableProps {
   downloadCallback?: ((...a: any[]) => any) | null;
   includeGcnStatus?: boolean;
   sourceInGcnFilter?: any;
+  gcnEventDateobs?: string | null;
   fixedHeader?: boolean;
 }
 
@@ -598,13 +625,19 @@ const SourceTable = ({
   downloadCallback = null,
   includeGcnStatus = false,
   sourceInGcnFilter = {},
+  gcnEventDateobs = null,
   fixedHeader = false,
 }: SourceTableProps) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
 
   const dispatch = useAppDispatch();
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const [acceptSaveRequest] = useAcceptSaveRequestMutation();
+  const [declineSaveRequest] = useDeclineSaveRequestMutation();
+  const [fetchPendingGroupSourcesTrigger] =
+    useLazyFetchPendingGroupSourcesQuery();
+  const [fetchSavedGroupSourcesTrigger] = useLazyFetchSavedGroupSourcesQuery();
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const { classes } = useStyles() as { classes: any };
 
@@ -623,11 +656,18 @@ const SourceTable = ({
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
   const [loading, setLoading] = useState(false);
 
-  const gcnEvent = useAppSelector((state) => (state as any).gcnEvent);
-  const sourcesingcn = useAppSelector(
-    (state) => (state as any).sourcesingcn.sourcesingcn,
+  const { data: gcnEvent } = useGetGcnEventQuery(gcnEventDateobs as string, {
+    skip: !gcnEventDateobs,
+  });
+  const { data: sourcesingcn = [] } = useGetSourcesInGcnQuery(
+    {
+      dateobs: gcnEvent?.dateobs as string,
+      localizationName: sourceInGcnFilter?.localizationName,
+      sourcesIdList: sources?.map((s: any) => s.id),
+    },
+    { skip: !includeGcnStatus || !gcnEvent?.dateobs || !sources },
   );
-  const tagOptions = useAppSelector((state) => (state as any).objectTags || []);
+  const { data: tagOptions = [] } = useGetTagOptionsQuery();
 
   // Columns hidden by default, keyed by DataGrid field. Mirrors the previous
   // defaultDisplayedColumns list (which only enumerated visible labels).
@@ -657,22 +697,9 @@ const SourceTable = ({
   });
 
   useEffect(() => {
-    dispatch(objectTagsActions.fetchTagOptions());
-  }, [dispatch]);
-
-  useEffect(() => {
     if (sources) {
       setLoading(false);
-      if (includeGcnStatus) {
-        dispatch(
-          sourcesingcnActions.fetchSourcesInGcn(gcnEvent.dateobs, {
-            localizationName: sourceInGcnFilter?.localizationName,
-            sourcesIdList: sources.map((s: any) => s.id),
-          }),
-        );
-      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sources]);
 
   useEffect(() => {
@@ -730,39 +757,33 @@ const SourceTable = ({
   };
 
   const handleSaveSource = async (sourceID: any) => {
-    const result: any = await dispatch(
-      sourceActions.acceptSaveRequest({ sourceID, groupID: groupID! }),
-    );
-    if (result.status === "success") {
-      dispatch(
-        sourcesActions.fetchPendingGroupSources({
-          group_ids: [groupID],
-          pageNumber: 1,
-          numPerPage: 10,
-        }),
-      );
-      dispatch(
-        sourcesActions.fetchSavedGroupSources({
-          group_ids: [groupID],
-          pageNumber: 1,
-          numPerPage: 10,
-        }),
-      );
+    try {
+      await acceptSaveRequest({ sourceID, groupID: groupID! }).unwrap();
+      fetchPendingGroupSourcesTrigger({
+        group_ids: [groupID],
+        pageNumber: 1,
+        numPerPage: 10,
+      });
+      fetchSavedGroupSourcesTrigger({
+        group_ids: [groupID],
+        pageNumber: 1,
+        numPerPage: 10,
+      });
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 
   const handleIgnoreSource = async (sourceID: any) => {
-    const result: any = await dispatch(
-      sourceActions.declineSaveRequest({ sourceID, groupID: groupID! }),
-    );
-    if (result.status === "success") {
-      dispatch(
-        sourcesActions.fetchPendingGroupSources({
-          group_ids: [groupID],
-          pageNumber: 1,
-          numPerPage: 10,
-        }),
-      );
+    try {
+      await declineSaveRequest({ sourceID, groupID: groupID! }).unwrap();
+      fetchPendingGroupSourcesTrigger({
+        group_ids: [groupID],
+        pageNumber: 1,
+        numPerPage: 10,
+      });
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 
@@ -797,7 +818,8 @@ const SourceTable = ({
       const group = source.groups.find((g: any) => g.id === groupID);
       return group?.saved_by?.username;
     }
-    const usernames = source.groups
+    // `source.groups` is frozen RTK Query data, so copy before sorting in place.
+    const usernames = [...source.groups]
       .sort((g1: any, g2: any) => (g1.saved_at < g2.saved_at ? -1 : 1))
       .map((g: any) => g.saved_by?.username);
     return usernames[usernames.length - 1];
@@ -1079,13 +1101,13 @@ const SourceTable = ({
       ) {
         statusIcon = <PriorityHigh color="primary" />;
       } else if (
-        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0].confirmed ===
-        true
+        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
+          ?.confirmed === true
       ) {
         statusIcon = <CheckIcon color={"green" as any} />;
       } else if (
-        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0].confirmed ===
-        false
+        sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
+          ?.confirmed === false
       ) {
         statusIcon = <ClearIcon color="secondary" />;
       } else {
@@ -1103,7 +1125,7 @@ const SourceTable = ({
         >
           {statusIcon}
           <ConfirmSourceInGCN
-            dateobs={gcnEvent.dateobs}
+            dateobs={gcnEvent?.dateobs as string}
             localization_name={sourceInGcnFilter.localizationName}
             localization_cumprob={sourceInGcnFilter.localizationCumprob}
             source_id={source.id}
@@ -1123,9 +1145,9 @@ const SourceTable = ({
       ) {
         statusExplanation = "";
       } else {
-        statusExplanation = sourcesingcn.filter(
-          (s: any) => s.obj_id === source.id,
-        )[0].explanation;
+        statusExplanation =
+          sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
+            ?.explanation ?? "";
       }
       return (
         <div
@@ -1146,8 +1168,9 @@ const SourceTable = ({
       const source = params.row;
       let notes = "";
       if (sourcesingcn.filter((s: any) => s.obj_id === source.id).length) {
-        notes = sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
-          .notes;
+        notes =
+          sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]?.notes ??
+          "";
       }
       return (
         <div

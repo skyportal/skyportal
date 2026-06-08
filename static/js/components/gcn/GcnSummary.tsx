@@ -26,11 +26,17 @@ import {
   SelectSingleLabelWithChips,
 } from "../SelectWithChips";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import { fetchGroup } from "../../ducks/group";
-import { fetchGroups } from "../../ducks/groups";
-import { fetchInstruments } from "../../ducks/instruments";
-import { postGcnEventSummary } from "../../ducks/gcnEvent";
+import { skipToken } from "@reduxjs/toolkit/query";
+
+import { useAppDispatch } from "../../types/hooks";
+import { useGetGroupQuery } from "../../ducks/group";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import {
+  useGetGcnEventQuery,
+  usePostGcnEventSummaryMutation,
+} from "../../ducks/gcnEvent";
+import { useGetConfigQuery } from "../../ducks/config";
 import Button from "../Button";
 import GcnSummaryTable from "./GcnSummaryTable";
 
@@ -145,14 +151,20 @@ interface GcnSummaryProps {
 
 const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
   const { classes } = useStyles();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
-  const users = useAppSelector((state) => state["group"]?.users);
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
+  const { data: selectedGroupData } = useGetGroupQuery(selectedGroup?.id, {
+    skip: !selectedGroup?.id,
+  });
+  const users = selectedGroupData?.["users"];
+  const { data: gcnEvent } = useGetGcnEventQuery(dateobs ?? skipToken) as {
+    data: any;
+  };
+  const [postGcnEventSummary] = usePostGcnEventSummaryMutation();
   const [nb, setNb] = useState("");
   const [title, setTitle] = useState("Gcn Summary");
   const [subject, setSubject] = useState(`Follow-up on GCN Event ...`);
@@ -171,9 +183,10 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
   const [selectedAcknowledgement, setSelectedAcknowledgement] =
     useState<any>(null);
 
-  const gcnSummaryAcknowledgements = useAppSelector(
-    (state) => state["config"].gcnSummaryAcknowledgements,
-  );
+  const gcnSummaryAcknowledgements =
+    (useGetConfigQuery().data?.["gcnSummaryAcknowledgements"] as
+      | string[]
+      | undefined) ?? [];
 
   const acknowledgmentOptions = selectedAcknowledgement
     ? ["Clear selection", ...gcnSummaryAcknowledgements]
@@ -191,7 +204,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
     label: `${user.first_name} ${user.last_name}`,
   }));
 
-  let sortedInstrumentList = [...instrumentList];
+  let sortedInstrumentList: any[] = [...instrumentList];
   sortedInstrumentList.sort((i1: any, i2: any) => {
     if (i1.name > i2.name) {
       return 1;
@@ -209,15 +222,6 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
   }));
 
   useEffect(() => {
-    if (instrumentList?.length === 0) {
-      dispatch(fetchInstruments());
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!groups && open) {
-      dispatch(fetchGroups());
-    }
     const defaultStartDate = dayjs.utc(dateobs).format("YYYY-MM-DD HH:mm:ss");
     const defaultEndDate = dayjs
       .utc(dateobs)
@@ -226,14 +230,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
     setStartDate(defaultStartDate);
     setEndDate(defaultEndDate);
     setSubject(`Follow-up on GCN Event ${dateobs}`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateobs, dispatch]);
-
-  useEffect(() => {
-    if (selectedGroup?.id) {
-      dispatch(fetchGroup(selectedGroup?.id));
-    }
-  }, [dispatch, selectedGroup]);
+  }, [dateobs]);
 
   useEffect(() => {
     if (gcnEvent?.localizations?.length > 0) {
@@ -367,18 +364,17 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
       if (params.instrumentIds?.length === 0) {
         delete params.instrumentIds;
       }
-      dispatch(postGcnEventSummary({ dateobs, params })).then(
-        (response: any) => {
-          if (response.status === "success") {
-            dispatch(
-              showNotification("Summary is being generated, please wait"),
-            );
-          } else {
-            dispatch(showNotification("Error generating summary", "error"));
-          }
+      postGcnEventSummary({ dateobs, params })
+        .unwrap()
+        .then(() => {
+          dispatch(showNotification("Summary is being generated, please wait"));
+        })
+        .catch(() => {
+          dispatch(showNotification("Error generating summary", "error"));
+        })
+        .finally(() => {
           setLoading(false);
-        },
-      );
+        });
     }
   };
 
@@ -457,7 +453,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
                       name="gcnSummaryLocalizationSelect"
                       className={classes.select}
                     >
-                      {gcnEvent.localizations?.map((localization: any) => (
+                      {gcnEvent?.localizations?.map((localization: any) => (
                         <MenuItem
                           value={localization.localization_name}
                           key={localization.localization_name}
@@ -580,7 +576,7 @@ const GcnSummary = ({ dateobs }: GcnSummaryProps) => {
                   <div>
                     <GcnSummaryTable
                       dateobs={dateobs}
-                      summaries={gcnEvent.summaries}
+                      summaries={gcnEvent?.summaries}
                     />
                   </div>
                 </Paper>

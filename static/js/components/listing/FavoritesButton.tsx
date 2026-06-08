@@ -1,29 +1,32 @@
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-
 import IconButton from "@mui/material/IconButton";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import Tooltip from "@mui/material/Tooltip";
 
-import * as Actions from "../../ducks/favorites";
+import {
+  useAddToFavoritesMutation,
+  useGetFavoritesQuery,
+  useRemoveFromFavoritesMutation,
+} from "../../ducks/favorites";
 
 interface FavoritesButtonProps {
   sourceID: string;
 }
 
 const FavoritesButton = ({ sourceID }: FavoritesButtonProps) => {
-  const dispatch = useAppDispatch();
-  const { favorites } = useAppSelector((state) => state["favorites"]);
+  const { data: favorites } = useGetFavoritesQuery();
+  const [addToFavorites] = useAddToFavoritesMutation();
+  const [removeFromFavorites] = useRemoveFromFavoritesMutation();
 
   if (!sourceID) return null;
 
-  const isCheck = favorites.includes(sourceID);
+  const isCheck = (favorites ?? []).includes(sourceID);
   const handleSubmit = () => {
-    dispatch(
-      isCheck
-        ? Actions.removeFromFavorites(sourceID)
-        : Actions.addToFavorites(sourceID),
-    );
+    if (isCheck) {
+      removeFromFavorites(sourceID);
+    } else {
+      addToFavorites(sourceID);
+    }
   };
   return (
     <Tooltip

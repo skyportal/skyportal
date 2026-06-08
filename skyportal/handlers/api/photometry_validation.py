@@ -73,11 +73,7 @@ class PhotometryValidationHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: The id of the photomety_validation
+                          $ref: '#/components/schemas/PhotometryValidation'
           400:
             content:
               application/json:
@@ -202,11 +198,7 @@ class PhotometryValidationHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: The id of the modified photometry_validation
+                          $ref: '#/components/schemas/PhotometryValidation'
           400:
             content:
               application/json:

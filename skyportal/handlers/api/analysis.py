@@ -632,11 +632,7 @@ class AnalysisServiceHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New AnalysisService ID
+                          $ref: '#/components/schemas/AnalysisService'
         """
         data = self.get_json()
 
@@ -916,7 +912,13 @@ class AnalysisServiceHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/AnalysisService'
           400:
             content:
               application/json:
@@ -1088,11 +1090,7 @@ class AnalysisHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            analysis_id:
-                              type: integer
-                              description: New analysis ID
+                          $ref: '#/components/schemas/ObjAnalysis'
         """
         try:
             data = self.get_json()
@@ -1548,7 +1546,7 @@ class AnalysisProductsHandler(BaseHandler):
                 type: object
                 properties:
                   download:
-                    type: bool
+                    type: boolean
                     description: |
                         Download the results as a file
                   plot_kwargs:
@@ -1560,11 +1558,20 @@ class AnalysisProductsHandler(BaseHandler):
                         if new plots are to be generated (e.g. with corner plots)
         responses:
           200:
-            description: Requested analysis file
+            description: |
+              Requested analysis product. For product_type=corner returns a PNG
+              image; for product_type=plots returns binary plot data; for
+              product_type=results returns either a JSON file download or a
+              JSON-wrapped result payload.
             content:
               application/json:
                 schema:
-                  type: object
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
           400:
             content:
               application/json:
@@ -1742,11 +1749,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            analysis_id:
-                              type: integer
-                              description: New analysis ID
+                          $ref: '#/components/schemas/ObjAnalysis'
         """
         # allowable resources now are [obj]. Can be extended in the future.
         if analysis_resource_type.lower() not in ["obj"]:
@@ -2008,9 +2011,8 @@ class DefaultAnalysisHandler(BaseHandler):
                                 - $ref: '#/components/schemas/Success'
                                 - type: object
                                   properties:
-                                    id:
-                                      type: integer
-                                      description: New default analysis ID
+                                    data:
+                                      $ref: '#/components/schemas/DefaultAnalysis'
             400:
                 content:
                     application/json:

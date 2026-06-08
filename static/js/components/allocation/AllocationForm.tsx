@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useRef, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -20,12 +21,24 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import Popover from "@mui/material/Popover";
 import Chip from "@mui/material/Chip";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import { modifyAllocation, submitAllocation } from "../../ducks/allocation";
-import { fetchAllocations } from "../../ducks/allocations";
+import {
+  useModifyAllocationMutation,
+  useSubmitAllocationMutation,
+} from "../../ducks/allocation";
+import {
+  allocationsApi,
+  useGetAllocationsQuery,
+} from "../../ducks/allocations";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { userLabel } from "../../utils/format";
+import {
+  useGetInstrumentFormsQuery,
+  useGetInstrumentsQuery,
+} from "../../ducks/instruments";
+import { useGetConfigQuery } from "../../ducks/config";
+import { useGetUsersQuery } from "../../ducks/users";
 
 dayjs.extend(utc);
 
@@ -225,15 +238,15 @@ const AllocationForm = ({
   allocationId = null,
 }: AllocationFormProps) => {
   const dispatch = useAppDispatch();
-  const { allocationList } = useAppSelector((state) => state["allocations"]);
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
-  const allowedAllocationTypes = useAppSelector(
-    (state) => state["config"].allowedAllocationTypes,
-  );
-  const groups = useAppSelector((state) => state.groups.userAccessible);
-  const { users } = useAppSelector((state) => state["users"]);
+  const [submitAllocation] = useSubmitAllocationMutation();
+  const [modifyAllocation] = useModifyAllocationMutation();
+  const { data: allocationList = [] } = useGetAllocationsQuery();
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
+  const allowedAllocationTypes = (useGetConfigQuery().data as any)
+    ?.allowedAllocationTypes;
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const users = useGetUsersQuery().data?.users ?? [];
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [instrumentOptions, setInstrumentOptions] = useState<any[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
@@ -283,7 +296,7 @@ const AllocationForm = ({
       );
       if (allocation) {
         setAllocationToEdit(allocation);
-        setSelectedGroupIds(allocation.default_share_group_ids || []);
+        setSelectedGroupIds(allocation["default_share_group_ids"] || []);
       }
     }
   }, [allocationId, allocationList]);
@@ -293,17 +306,19 @@ const AllocationForm = ({
       selectedGroupIds.length > 0
         ? { ...formData, default_share_group_ids: selectedGroupIds }
         : formData;
-    const result: any = await dispatch(
-      allocationId == null
-        ? submitAllocation(submittedFormData)
-        : modifyAllocation(allocationId, submittedFormData),
-    );
-    if (result.status === "success") {
+    try {
+      await (
+        allocationId == null
+          ? submitAllocation(submittedFormData)
+          : modifyAllocation({ id: allocationId, payload: submittedFormData })
+      ).unwrap();
       dispatch(showNotification("Allocation saved"));
-      dispatch(fetchAllocations());
+      dispatch(allocationsApi.util.invalidateTags(["Allocation"]));
       if (typeof onClose === "function") {
         onClose();
       }
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 

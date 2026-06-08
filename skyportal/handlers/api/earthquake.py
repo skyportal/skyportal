@@ -174,7 +174,15 @@ class EarthquakeStatusHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            type: string
           400:
             content:
               application/json:
@@ -207,14 +215,13 @@ class EarthquakeHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      gcnevent_id:
-                        type: integer
-                        description: New Earthquake ID
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakeEvent'
           400:
             content:
               application/json:
@@ -476,7 +483,13 @@ class EarthquakeHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -521,7 +534,13 @@ class EarthquakePredictionHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakePrediction'
         """
         with self.Session() as session:
             event = session.scalars(
@@ -667,7 +686,13 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakeMeasured'
         """
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
@@ -796,7 +821,13 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakeMeasured'
         """
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
@@ -867,7 +898,13 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
         """
         with self.Session() as session:
             event = session.scalars(

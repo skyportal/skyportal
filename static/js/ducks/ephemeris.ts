@@ -1,9 +1,25 @@
-import * as API from "../API";
+/**
+ * Telescope ephemerides.
+ *
+ * RTK Query conversion of the old `FETCH_EPHEMERIDES` duck. The endpoint is
+ * injected into the central `skyportalApi`. The query takes the list of
+ * telescope ids to fetch ephemerides for and returns the keyed-by-id object
+ * the consumers expect.
+ */
+import { skyportalApi } from "../api/skyportalApi";
 
-const FETCH_EPHEMERIDES = "skyportal/FETCH_EPHEMERIDES";
+export type Ephemerides = Record<string, unknown>;
 
-export function fetchEphemerides(telescopeIds: any) {
-  return API.GET(`/api/internal/ephemeris`, FETCH_EPHEMERIDES, {
-    telescopeIds,
-  });
-}
+export const ephemerisApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getEphemerides: build.query<Ephemerides, number[]>({
+      query: (telescopeIds) => ({
+        url: "api/internal/ephemeris",
+        params: { telescopeIds },
+      }),
+      providesTags: ["Ephemeris"],
+    }),
+  }),
+});
+
+export const { useGetEphemeridesQuery } = ephemerisApi;

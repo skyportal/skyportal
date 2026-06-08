@@ -1,11 +1,13 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as spectraActions from "../../ducks/spectra";
+import { useAppDispatch } from "../../types/hooks";
+import { useAddSyntheticPhotometryMutation } from "../../ducks/spectra";
+import { useGetEnumTypesQuery } from "../../ducks/enum_types";
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -30,8 +32,9 @@ const SyntheticPhotometryForm = ({
 }: SyntheticPhotometryFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
-  const { enum_types } = useAppSelector((state) => state["enum_types"]);
+  const [addSyntheticPhotometry] = useAddSyntheticPhotometryMutation();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const { data: enum_types } = useGetEnumTypesQuery();
 
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
@@ -40,18 +43,21 @@ const SyntheticPhotometryForm = ({
     groupIDToName[g.id] = g.name;
   });
 
-  const filters = [...enum_types.ALLOWED_BANDPASSES].sort();
+  const filters = [...(enum_types?.["ALLOWED_BANDPASSES"] ?? [])].sort();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     setSubmissionRequestInProcess(true);
     // Get the classification without the context
-    const result: any = await dispatch(
-      spectraActions.addSyntheticPhotometry(spectrum_id, formData),
-    );
-    setSubmissionRequestInProcess(false);
-    if (result.status === "success") {
+    try {
+      await addSyntheticPhotometry({
+        id: spectrum_id,
+        formData,
+      }).unwrap();
       dispatch(showNotification("Synthetic photometry saved"));
+    } catch {
+      // error notification handled by the baseQuery
     }
+    setSubmissionRequestInProcess(false);
   };
 
   const formSchema = {

@@ -22,7 +22,7 @@ import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import * as invitationsActions from "../../ducks/invitations";
+import { useInviteUserMutation } from "../../ducks/invitations";
 
 dayjs.extend(utc);
 
@@ -57,6 +57,7 @@ interface InviteNewGroupUserFormProps {
 
 const InviteNewGroupUserForm = ({ group_id }: InviteNewGroupUserFormProps) => {
   const dispatch = useAppDispatch();
+  const [inviteUser] = useInviteUserMutation();
   const [formState, setFormState] = useState<any>(defaultState);
   const [confirmDialogOpen, setConfirmDialogOpen] = React.useState(false);
   const { classes } = useStyles();
@@ -99,8 +100,8 @@ const InviteNewGroupUserForm = ({ group_id }: InviteNewGroupUserFormProps) => {
         .utc(formState.userExpirationDate)
         .toISOString();
     }
-    const result: any = await dispatch(invitationsActions.inviteUser(data));
-    if (result.status === "success") {
+    try {
+      await inviteUser(data).unwrap();
       dispatch(
         showNotification(
           `Invitation successfully sent to ${formState.newUserEmail}`,
@@ -110,6 +111,8 @@ const InviteNewGroupUserForm = ({ group_id }: InviteNewGroupUserFormProps) => {
         ...defaultState,
         role: formState.role,
       });
+    } catch {
+      // error notification handled by the base query
     }
   };
 

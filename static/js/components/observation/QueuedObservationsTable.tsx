@@ -17,10 +17,10 @@ import {
   GridToolbarQuickFilter,
 } from "@mui/x-data-grid";
 
-import { useAppSelector } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
 import ObservationFilterForm from "./ObservationFilterForm";
 import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -69,7 +69,7 @@ const QueuedObservationsTable = ({
 }: QueuedObservationsTableProps) => {
   const { classes } = useStyles();
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);

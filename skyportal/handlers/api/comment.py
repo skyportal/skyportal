@@ -492,11 +492,7 @@ class CommentHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            comment_id:
-                              type: integer
-                              description: New comment ID
+                          $ref: '#/components/schemas/Comment'
         """
         data = self.get_json()
 
@@ -917,7 +913,13 @@ class CommentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Comment'
           400:
             content:
               application/json:

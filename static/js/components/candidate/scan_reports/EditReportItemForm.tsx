@@ -10,7 +10,7 @@ import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../../types/hooks";
-import { updateScanReportItem } from "../../../ducks/candidate/scan_report";
+import { useUpdateScanReportItemMutation } from "../../../ducks/candidate/scan_report";
 
 interface EditReportItemFormProps {
   dialogOpen: boolean;
@@ -34,6 +34,7 @@ const EditReportItemForm = ({
   setItemToEdit,
 }: EditReportItemFormProps) => {
   const dispatch = useAppDispatch();
+  const [updateScanReportItem] = useUpdateScanReportItemMutation();
   const [loading, setLoading] = useState(false);
   const [saveOptions, setSaveOptions] = useState<any>({
     comment: itemToEdit?.data?.comment,
@@ -48,19 +49,21 @@ const EditReportItemForm = ({
     };
   };
 
-  const updateReportItem = () => {
+  const updateReportItem = async () => {
     setLoading(true);
-    dispatch(
-      updateScanReportItem(reportId, itemToEdit.id, { ...saveOptions }),
-    ).then((result: any) => {
+    try {
+      await updateScanReportItem({
+        reportId,
+        itemId: itemToEdit.id,
+        payload: { ...saveOptions },
+      }).unwrap();
+      dispatch(showNotification("Report item successfully updated"));
+      closeDialog();
+    } catch {
+      dispatch(showNotification("Failed to update report item", "error"));
+    } finally {
       setLoading(false);
-      if (result.status === "success") {
-        dispatch(showNotification("Report item successfully updated"));
-        closeDialog();
-      } else {
-        dispatch(showNotification("Failed to update report item", "error"));
-      }
-    });
+    }
   };
 
   const closeDialog = () => {

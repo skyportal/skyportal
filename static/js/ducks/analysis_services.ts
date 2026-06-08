@@ -1,83 +1,82 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Analysis services.
+ *
+ * RTK Query conversion of the old `FETCH_ANALYSIS_SERVICES_LIST` /
+ * `FETCH_ANALYSIS_SERVICE` duck. The list query feeds the analysis service
+ * pages and dropdowns; mutations submit/modify/delete a service. The websocket
+ * `REFRESH_ANALYSIS_SERVICES` message is bridged to cache invalidation via
+ * `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-
-const FETCH_ANALYSIS_SERVICES_LIST = "skyportal/FETCH_ANALYSIS_SERVICES_LIST";
-const FETCH_ANALYSIS_SERVICES_LIST_OK =
-  "skyportal/FETCH_ANALYSIS_SERVICES_LIST_OK";
-
-const REFRESH_ANALYSIS_SERVICES = "skyportal/REFRESH_ANALYSIS_SERVICES";
-
-const FETCH_ANALYSIS_SERVICE = "skyportal/FETCH_ANALYSIS_SERVICE";
-const FETCH_ANALYSIS_SERVICE_OK = "skyportal/FETCH_ANALYSIS_SERVICE_OK";
-
-const SUBMIT_ANALYSIS_SERVICE = "skyportal/SUBMIT_ANALYSIS_SERVICE";
-
-const MODIFY_ANALYSIS_SERVICE = "skyportal/MODIFY_ANALYSIS_SERVICE";
-
-const DELETE_ANALYSIS_SERVICE = "skyportal/DELETE_ANALYSIS_SERVICE";
-
-export const fetchAnalysisServices = (params: Record<string, any> = {}) =>
-  API.GET("/api/analysis_service", FETCH_ANALYSIS_SERVICES_LIST, params);
-
-export const fetchAnalysisService = (id: number | string) =>
-  API.GET(`/api/analysis_service/${id}`, FETCH_ANALYSIS_SERVICE);
-
-export const submitAnalysisService = (run: any) =>
-  API.POST(`/api/analysis_service`, SUBMIT_ANALYSIS_SERVICE, run);
-
-export const modifyAnalysisService = (id: number | string, params: any) =>
-  API.PUT(`/api/analysis_service/${id}`, MODIFY_ANALYSIS_SERVICE, params);
-
-export const deleteAnalysisService = (id: number | string) =>
-  API.DELETE(`/api/analysis_service/${id}`, DELETE_ANALYSIS_SERVICE);
-
-messageHandler.add((actionType: string, _payload: any, dispatch: any) => {
-  if (actionType === REFRESH_ANALYSIS_SERVICES) {
-    dispatch(fetchAnalysisServices());
-  }
-});
-
-interface AnalysisServiceAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
+export interface AnalysisService {
+  id: number;
+  name: string;
+  display_name?: string | undefined;
+  [key: string]: unknown;
 }
 
-const reducer_service = (
-  state: Record<string, any> = {},
-  action: AnalysisServiceAction,
-) => {
-  switch (action.type) {
-    case FETCH_ANALYSIS_SERVICE_OK: {
-      const analysis_service = action.data;
-      return {
-        ...state,
-        ...analysis_service,
-      };
-    }
-    default:
-      return state;
-  }
-};
+interface ModifyAnalysisServiceArg {
+  id: number | string;
+  params: Record<string, unknown>;
+}
 
-const reducer_services = (
-  state: Record<string, any> = { analysisServiceList: [] },
-  action: AnalysisServiceAction,
-) => {
-  switch (action.type) {
-    case FETCH_ANALYSIS_SERVICES_LIST_OK: {
-      const analysisServiceList = action.data;
-      return {
-        ...state,
-        analysisServiceList,
-      };
-    }
-    default:
-      return state;
-  }
-};
+export const analysisServicesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getAnalysisServices: build.query<
+      AnalysisService[],
+      Record<string, unknown> | void
+    >({
+      query: (params) => {
+        const queryString = new URLSearchParams(
+          (params as Record<string, string>) ?? {},
+        ).toString();
+        return queryString
+          ? `api/analysis_service?${queryString}`
+          : "api/analysis_service";
+      },
+      providesTags: ["AnalysisServices"],
+    }),
+    getAnalysisService: build.query<AnalysisService, number | string>({
+      query: (id) => `api/analysis_service/${id}`,
+      providesTags: ["AnalysisService"],
+    }),
+    submitAnalysisService: build.mutation<unknown, Record<string, unknown>>({
+      query: (run) => ({
+        url: "api/analysis_service",
+        method: "POST",
+        body: run,
+      }),
+      invalidatesTags: ["AnalysisServices"],
+    }),
+    modifyAnalysisService: build.mutation<unknown, ModifyAnalysisServiceArg>({
+      query: ({ id, params }) => ({
+        url: `api/analysis_service/${id}`,
+        method: "PUT",
+        body: params,
+      }),
+      invalidatesTags: ["AnalysisService", "AnalysisServices"],
+    }),
+    deleteAnalysisService: build.mutation<unknown, number | string>({
+      query: (id) => ({
+        url: `api/analysis_service/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["AnalysisService", "AnalysisServices"],
+    }),
+  }),
+});
 
-store.injectReducer("analysis_service", reducer_service);
-store.injectReducer("analysis_services", reducer_services);
+// Websocket: the old handler refetched the full list on REFRESH_ANALYSIS_SERVICES.
+invalidateOnMessage("skyportal/REFRESH_ANALYSIS_SERVICES", () => [
+  "AnalysisServices",
+]);
+
+export const {
+  useGetAnalysisServicesQuery,
+  useGetAnalysisServiceQuery,
+  useSubmitAnalysisServiceMutation,
+  useModifyAnalysisServiceMutation,
+  useDeleteAnalysisServiceMutation,
+} = analysisServicesApi;

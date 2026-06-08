@@ -1,3 +1,5 @@
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -7,9 +9,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import { submitShift } from "../../ducks/shifts";
+import { useAppDispatch } from "../../types/hooks";
+import { useSubmitShiftMutation } from "../../ducks/shifts";
 import { userLabel } from "../../utils/format";
+import { useGetUsersQuery } from "../../ducks/users";
 
 dayjs.extend(utc);
 
@@ -27,13 +30,14 @@ interface NewShiftProps {
 
 const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
   const dispatch = useAppDispatch();
-  const currentUser = useAppSelector((state) => state.profile);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const [submitShift] = useSubmitShiftMutation();
+  const { data: currentUser } = useGetProfileQuery();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const now = dayjs();
-  const { users } = useAppSelector((state) => state["users"]);
+  const users = useGetUsersQuery().data?.users ?? [];
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({
-    shift_admins: [currentUser.id],
+    shift_admins: [currentUser?.id],
     localTime: "local",
     start_date: format(now),
     end_date: format(now.add(1, "day")),
@@ -61,16 +65,16 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
     setAvailableUsers(
       users.filter(
         (user: any) =>
-          user.id === currentUser.id ||
+          user.id === currentUser?.id ||
           (user.groups?.some((g: any) => g.id === formData["group_id"]) &&
             !user.is_bot),
       ),
     );
     setFormData((prevFormData) => ({
       ...prevFormData,
-      shift_admins: [currentUser.id],
+      shift_admins: [currentUser?.id],
     }));
-  }, [users, formData["group_id"], currentUser.id]);
+  }, [users, formData["group_id"], currentUser?.id]);
 
   if (!groups || groups?.length === 0) {
     return <CircularProgress />;
@@ -163,9 +167,11 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
 
     // Dispatch all shifts
     for (const shift of shifts) {
-      const response: any = await dispatch(submitShift(shift));
-      if (response.status === "success") {
+      try {
+        await submitShift(shift).unwrap();
         dispatch(showNotification("Shift created successfully"));
+      } catch {
+        // error notification handled by the API layer
       }
     }
     setPreSelectedRange?.(null);

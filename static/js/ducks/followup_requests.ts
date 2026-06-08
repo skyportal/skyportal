@@ -1,52 +1,85 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Follow-up requests.
+ *
+ * RTK Query conversion of the old `FETCH_FOLLOWUP_REQUESTS` duck. The list is a
+ * paginated query keyed on the fetch params; mutations watch/unwatch a request
+ * and (re-)prioritize requests. The websocket `REFRESH_FOLLOWUP_REQUESTS`
+ * message is bridged to cache invalidation via `invalidateOnMessage`.
+ *
+ * The schedule/allocation-report downloads remain plain redux-thunks that stream
+ * a file to the browser (they are side-effecting blob fetches, not cacheable
+ * data, so they do not fit the query/mutation model).
+ */
 import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import { filterOutEmptyValues } from "../API";
 
-const FETCH_FOLLOWUP_REQUESTS = "skyportal/FETCH_FOLLOWUP_REQUESTS";
-const FETCH_FOLLOWUP_REQUESTS_OK = "skyportal/FETCH_FOLLOWUP_REQUESTS_OK";
-
-const PRIORITIZE_FOLLOWUP_REQUESTS = "skyportal/FETCH_FOLLOWUP_REQUESTS";
-
-const REFRESH_FOLLOWUP_REQUESTS = "skyportal/REFRESH_FOLLOWUP_REQUESTS";
-
-const ADD_TO_WATCH_LIST = "skyportal/ADD_TO_WATCH_LIST";
-const REMOVE_FROM_WATCH_LIST = "skyportal/REMOVE_FROM_WATCH_LIST";
-
-export const UPDATE_FOLLOWUP_FETCH_PARAMS =
-  "skyportal/UPDATE_FOLLOWUP_FETCH_PARAMS";
-
-export const addToWatchList = (id: number | string, params = {}) =>
-  API.POST(`/api/followup_request/watch/${id}`, ADD_TO_WATCH_LIST, params);
-
-export const removeFromWatchList = (id: number | string, params = {}) =>
-  API.DELETE(
-    `/api/followup_request/watch/${id}`,
-    REMOVE_FROM_WATCH_LIST,
-    params,
-  );
-
-export function fetchFollowupRequests(params: Record<string, any> = {}) {
-  if (!Object.keys(params).includes("numPerPage")) {
-    params["numPerPage"] = 10;
-  }
-  if (params?.["noRedux"] === true) {
-    return API.GET(
-      "/api/followup_request",
-      "skyportal/FETCH_FOLLOWUP_REQUESTS_NO_REDUX",
-      params,
-    );
-  }
-  return API.GET("/api/followup_request", FETCH_FOLLOWUP_REQUESTS, params);
+interface FollowupRequestsResult {
+  followup_requests: any[];
+  totalMatches: number;
+  [key: string]: unknown;
 }
 
-export const prioritizeFollowupRequests = (params = {}) =>
-  API.PUT(
-    "/api/followup_request/prioritization",
-    PRIORITIZE_FOLLOWUP_REQUESTS,
-    params,
-  );
+type FollowupRequestsArg = Record<string, any> | void;
 
+const buildFollowupRequestsUrl = (params: Record<string, any>): string => {
+  const withDefaults = { ...params };
+  if (!Object.keys(withDefaults).includes("numPerPage")) {
+    withDefaults["numPerPage"] = 10;
+  }
+  const filtered = filterOutEmptyValues(withDefaults);
+  const queryString = new URLSearchParams(
+    filtered as Record<string, string>,
+  ).toString();
+  return queryString
+    ? `api/followup_request?${queryString}`
+    : "api/followup_request";
+};
+
+export const followupRequestsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getFollowupRequests: build.query<
+      FollowupRequestsResult,
+      FollowupRequestsArg
+    >({
+      query: (params) => buildFollowupRequestsUrl(params ?? {}),
+      providesTags: ["FollowupRequest"],
+    }),
+    prioritizeFollowupRequests: build.mutation<unknown, Record<string, any>>({
+      query: (body) => ({
+        url: "api/followup_request/prioritization",
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["FollowupRequest"],
+    }),
+    addToWatchList: build.mutation<
+      unknown,
+      { id: number | string; params?: Record<string, any> }
+    >({
+      query: ({ id, params = {} }) => ({
+        url: `api/followup_request/watch/${id}`,
+        method: "POST",
+        body: params,
+      }),
+      invalidatesTags: ["FollowupRequest"],
+    }),
+    removeFromWatchList: build.mutation<
+      unknown,
+      { id: number | string; params?: Record<string, any> }
+    >({
+      query: ({ id, params = {} }) => ({
+        url: `api/followup_request/watch/${id}`,
+        method: "DELETE",
+        body: params,
+      }),
+      invalidatesTags: ["FollowupRequest"],
+    }),
+  }),
+});
+
+// Plain thunks for browser file downloads (not part of the RTK Query cache).
 export const downloadFollowupSchedule = (
   instrumentId: number | string,
   format = "csv",
@@ -69,47 +102,15 @@ export const downloadAllocationReport = (instrumentId: number | string) =>
     {},
   );
 
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === REFRESH_FOLLOWUP_REQUESTS) {
-      const params = store.getState()["followup_requests"].fetchingParams;
-      dispatch(fetchFollowupRequests(params));
-    }
-  },
-);
+// Websocket: the old handler refetched the list on REFRESH_FOLLOWUP_REQUESTS.
+invalidateOnMessage("skyportal/REFRESH_FOLLOWUP_REQUESTS", () => [
+  "FollowupRequest",
+]);
 
-type FollowupRequestsState = Record<string, any>;
-
-interface FollowupRequestsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-const reducer = (
-  state: FollowupRequestsState = { followupRequestList: [], totalMatches: 0 },
-  action: FollowupRequestsAction,
-): FollowupRequestsState => {
-  switch (action.type) {
-    case FETCH_FOLLOWUP_REQUESTS_OK: {
-      const { followup_requests, totalMatches } = action.data;
-      return {
-        ...state,
-        followupRequestList: followup_requests,
-        totalMatches,
-      };
-    }
-    case UPDATE_FOLLOWUP_FETCH_PARAMS: {
-      const { data } = action;
-      return {
-        ...state,
-        fetchingParams: data,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("followup_requests", reducer);
+export const {
+  useGetFollowupRequestsQuery,
+  useLazyGetFollowupRequestsQuery,
+  usePrioritizeFollowupRequestsMutation,
+  useAddToWatchListMutation,
+  useRemoveFromWatchListMutation,
+} = followupRequestsApi;

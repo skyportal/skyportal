@@ -1,4 +1,6 @@
-import React, { Suspense, useEffect, useState } from "react";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import React, { Suspense, useState } from "react";
 
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
@@ -30,7 +32,7 @@ import {
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 import AssignmentForm from "../observing_run/AssignmentForm";
@@ -39,13 +41,18 @@ import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "../StarList";
 import withRouter from "../withRouter";
 
-import * as SourceAction from "../../ducks/source";
-import * as Action from "../../ducks/observingRun";
+import { useEditAssignmentMutation } from "../../ducks/source";
+import {
+  useGetObservingRunQuery,
+  usePutObservingRunNotObservedMutation,
+} from "../../ducks/observingRun";
+import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 import SkyCam from "../SkyCam";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Spinner from "../Spinner";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
 
@@ -86,11 +93,9 @@ interface SimpleMenuProps {
 const SimpleMenu = ({ assignment }: SimpleMenuProps) => {
   const [anchorEl, setAnchorEl] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const dispatch = useAppDispatch();
+  const [editAssignment] = useEditAssignmentMutation();
 
-  const { observingRunList } = useAppSelector(
-    (state) => state["observingRuns"],
-  ) as any;
+  const { data: observingRunList = [] } = useGetObservingRunsQuery();
 
   const handleClick = (event: any) => {
     setAnchorEl(event.currentTarget);
@@ -102,7 +107,7 @@ const SimpleMenu = ({ assignment }: SimpleMenuProps) => {
 
   const updateAssignmentStatus = (status: string) => () => {
     handleClose();
-    return dispatch(SourceAction.editAssignment({ status }, assignment.id));
+    return editAssignment({ params: { status }, assignmentID: assignment.id });
   };
 
   const openDialog = () => {
@@ -214,14 +219,13 @@ interface RunSummaryProps {
 const RunSummary = ({ route }: RunSummaryProps) => {
   const dispatch = useAppDispatch();
   const { classes: styles } = useStyles();
-  const observingRun = useAppSelector((state) => state["observingRun"]) as any;
-  const { instrumentList } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
-  const { telescopeList } = useAppSelector(
-    (state) => state["telescopes"],
-  ) as any;
-  const groups = useAppSelector((state) => state.groups.all) as any;
+  const { data: observingRun } = useGetObservingRunQuery(route.id) as {
+    data: any;
+  };
+  const [putObservingRunNotObserved] = usePutObservingRunNotObservedMutation();
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const groups = (useGetGroupsQuery().data?.all ?? null) as any;
   const [dialog, setDialog] = useState(false);
   const [openedRows, setOpenedRows] = useState<any[]>([]);
 
@@ -229,25 +233,20 @@ const RunSummary = ({ route }: RunSummaryProps) => {
     setDialog(false);
   };
 
-  useEffect(() => {
-    dispatch(Action.fetchObservingRun(route.id));
-  }, [route.id, dispatch]);
-
   if (observingRun?.id !== parseInt(route.id, 10)) return <Spinner />;
 
   const assignments = observingRun?.assignments || [];
 
-  const notObservedFunction = () => {
-    dispatch(Action.putObservingRunNotObserved(observingRun.id)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(
-            showNotification("Observing run assignments set to not observed"),
-          );
-          closeDialog();
-        }
-      },
-    );
+  const notObservedFunction = async () => {
+    try {
+      await putObservingRunNotObserved(observingRun.id).unwrap();
+      dispatch(
+        showNotification("Observing run assignments set to not observed"),
+      );
+      closeDialog();
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const toggleExpand = (id: any) => {
@@ -587,9 +586,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
             <Typography gutterBottom align="center">
               Starlist and Offsets
             </Typography>
-            <ObservingRunStarList
-              {...({ observingRunId: observingRun.id } as any)}
-            />
+            <ObservingRunStarList observingRunId={observingRun.id} />
           </Paper>
         </Grid>
         <Grid

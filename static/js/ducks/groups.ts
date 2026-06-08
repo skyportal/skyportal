@@ -1,119 +1,124 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Groups (the list of groups visible to the current user).
+ *
+ * RTK Query conversion of the old `FETCH_GROUPS` duck. The endpoint is injected
+ * into the central `skyportalApi`. The backend returns
+ * `{ user_groups, user_accessible_groups, all_groups }`; the query keeps the old
+ * slice shape (`{ user, userAccessible, all }`) consumers expect. The various
+ * group/group-user create/update/delete actions are mutations that invalidate
+ * the `Group` tag so the list refetches.
+ *
+ * The websocket `skyportal/FETCH_GROUPS` message is bridged to cache
+ * invalidation via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
-
-const FETCH_GROUPS = "skyportal/FETCH_GROUPS";
-const FETCH_GROUPS_OK = "skyportal/FETCH_GROUPS_OK";
-
-const ADD_GROUP = "skyportal/ADD_GROUP";
-
-const DELETE_GROUP = "skyportal/DELETE_GROUP";
-
-const ADD_GROUP_USER = "skyportal/ADD_GROUP_USER";
-
-const ADD_GROUP_USERS = "skyportal/ADD_GROUP_USERS";
-
-const UPDATE_GROUP_USER = "skyportal/UPDATE_GROUP_USER";
-
-const DELETE_GROUP_USER = "skyportal/DELETE_GROUP_USER";
-
-export function fetchGroups(includeSingleUserGroups = false) {
-  return API.GET(
-    `/api/groups?includeSingleUserGroups=${includeSingleUserGroups}`,
-    FETCH_GROUPS,
-  );
+interface Group {
+  id: number;
+  name: string;
+  [key: string]: unknown;
 }
 
-export function addNewGroup(form_data: any) {
-  return API.POST("/api/groups", ADD_GROUP, form_data);
+interface GroupsResult {
+  user: Group[];
+  userAccessible: Group[];
+  all: Group[] | null;
 }
 
-export function deleteGroup(group_id: number | string) {
-  return API.DELETE(`/api/groups/${group_id}`, DELETE_GROUP);
+interface GroupsResponse {
+  user_groups: Group[];
+  user_accessible_groups: Group[];
+  all_groups: Group[] | null;
 }
 
-export function addGroupUser({
-  userID,
-  admin,
-  group_id,
-  canSave,
-}: {
-  userID: number | string;
-  admin: boolean;
-  group_id: number | string;
-  canSave: boolean;
-}) {
-  return API.POST(`/api/groups/${group_id}/users`, ADD_GROUP_USER, {
-    userID,
-    admin,
-    group_id,
-    canSave,
-  });
-}
+export const groupsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getGroups: build.query<GroupsResult, void>({
+      query: () => "api/groups?includeSingleUserGroups=true",
+      transformResponse: (data: GroupsResponse) => ({
+        user: data?.user_groups ?? [],
+        userAccessible: data?.user_accessible_groups ?? [],
+        all: data?.all_groups ?? null,
+      }),
+      providesTags: ["Group"],
+    }),
+    addNewGroup: build.mutation<unknown, Record<string, unknown>>({
+      query: (form_data) => ({
+        url: "api/groups",
+        method: "POST",
+        body: form_data,
+      }),
+      invalidatesTags: ["Group"],
+    }),
+    deleteGroup: build.mutation<unknown, number | string>({
+      query: (group_id) => ({
+        url: `api/groups/${group_id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Group"],
+    }),
+    addGroupUser: build.mutation<
+      unknown,
+      {
+        userID: number | string;
+        admin: boolean;
+        group_id: number | string;
+        canSave: boolean;
+      }
+    >({
+      query: ({ userID, admin, group_id, canSave }) => ({
+        url: `api/groups/${group_id}/users`,
+        method: "POST",
+        body: { userID, admin, group_id, canSave },
+      }),
+      invalidatesTags: ["Group"],
+    }),
+    addAllUsersFromGroups: build.mutation<
+      unknown,
+      { toGroupID: number | string; fromGroupIDs: (number | string)[] }
+    >({
+      query: ({ toGroupID, fromGroupIDs }) => ({
+        url: `api/groups/${toGroupID}/usersFromGroups`,
+        method: "POST",
+        body: { fromGroupIDs },
+      }),
+      invalidatesTags: ["Group"],
+    }),
+    updateGroupUser: build.mutation<
+      unknown,
+      { groupID: number | string; params: Record<string, unknown> }
+    >({
+      query: ({ groupID, params }) => ({
+        url: `api/groups/${groupID}/users`,
+        method: "PATCH",
+        body: params,
+      }),
+      invalidatesTags: ["Group"],
+    }),
+    deleteGroupUser: build.mutation<
+      unknown,
+      { userID: number | string; group_id: number | string }
+    >({
+      query: ({ userID, group_id }) => ({
+        url: `api/groups/${group_id}/users/${userID}`,
+        method: "DELETE",
+        body: { userID, group_id },
+      }),
+      invalidatesTags: ["Group"],
+    }),
+  }),
+});
 
-export const addAllUsersFromGroups = ({
-  toGroupID,
-  fromGroupIDs,
-}: {
-  toGroupID: number | string;
-  fromGroupIDs: (number | string)[];
-}) =>
-  API.POST(`/api/groups/${toGroupID}/usersFromGroups`, ADD_GROUP_USERS, {
-    fromGroupIDs,
-  });
+// Websocket-driven invalidation: refresh groups on skyportal/FETCH_GROUPS.
+invalidateOnMessage("skyportal/FETCH_GROUPS", () => ["Group"]);
 
-export const updateGroupUser = (groupID: number | string, params: any) =>
-  API.PATCH(`/api/groups/${groupID}/users`, UPDATE_GROUP_USER, params);
-
-export function deleteGroupUser({
-  userID,
-  group_id,
-}: {
-  userID: number | string;
-  group_id: number | string;
-}) {
-  return API.DELETE(
-    `/api/groups/${group_id}/users/${userID}`,
-    DELETE_GROUP_USER,
-    { userID, group_id },
-  );
-}
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === FETCH_GROUPS) {
-      dispatch(fetchGroups(true));
-    }
-  },
-);
-
-type GroupsState = Record<string, any>;
-
-interface GroupsAction {
-  type: string;
-  data?: any;
-}
-
-function reducer(
-  state: GroupsState = { user: [], userAccessible: [], all: null },
-  action: GroupsAction,
-): GroupsState {
-  switch (action.type) {
-    case FETCH_GROUPS_OK: {
-      const { user_groups, user_accessible_groups, all_groups } = action.data;
-      return {
-        ...state,
-        user: user_groups,
-        userAccessible: user_accessible_groups,
-        all: all_groups,
-      };
-    }
-    default:
-      return state;
-  }
-}
-
-store.injectReducer("groups", reducer);
+export const {
+  useGetGroupsQuery,
+  useAddNewGroupMutation,
+  useDeleteGroupMutation,
+  useAddGroupUserMutation,
+  useAddAllUsersFromGroupsMutation,
+  useUpdateGroupUserMutation,
+  useDeleteGroupUserMutation,
+} = groupsApi;

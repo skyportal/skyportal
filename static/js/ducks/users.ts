@@ -1,57 +1,59 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Users.
+ *
+ * RTK Query conversion of the old `FETCH_USER` / `FETCH_USERS` / `PATCH_USER`
+ * duck. Endpoints are injected into the central `skyportalApi`. `getUsers`
+ * preserves the old slice shape (`{ users, totalMatches }`); `getUser` fetches a
+ * single user. `patchUser` is a mutation that invalidates the `User` tag.
+ *
+ * The websocket `FETCH_USERS` message is bridged to cache invalidation via
+ * `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-
-const FETCH_USER = "skyportal/FETCH_USER";
-const FETCH_USER_OK = "skyportal/FETCH_USER_OK";
-
-const FETCH_USERS = "skyportal/FETCH_USERS";
-const FETCH_USERS_OK = "skyportal/FETCH_USERS_OK";
-
-const PATCH_USER = "skyportal/PATCH_USER";
-
-export function fetchUser(id: number | string) {
-  return API.GET(`/api/user/${id}`, FETCH_USER);
+export interface User {
+  id: number;
+  username: string;
+  [key: string]: unknown;
 }
 
-export function fetchUsers(filterParams: Record<string, any> = {}) {
-  return API.GET("/api/user", FETCH_USERS, filterParams);
+export interface UsersResult {
+  users: User[];
+  totalMatches: number;
 }
 
-export function patchUser(id: number | string, data: Record<string, any>) {
-  return API.PATCH(`/api/user/${id}`, PATCH_USER, data);
-}
-
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === FETCH_USERS) {
-    dispatch(fetchUsers());
-  }
+export const usersApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getUsers: build.query<UsersResult, Record<string, any> | void>({
+      query: (filterParams) => {
+        const params = new URLSearchParams(
+          filterParams as Record<string, string> | undefined,
+        ).toString();
+        return `api/user${params ? `?${params}` : ""}`;
+      },
+      providesTags: ["User"],
+    }),
+    getUser: build.query<User, number | string>({
+      query: (id) => `api/user/${id}`,
+      providesTags: ["User"],
+    }),
+    patchUser: build.mutation<
+      unknown,
+      { id: number | string; data: Record<string, any> }
+    >({
+      query: ({ id, data }) => ({
+        url: `api/user/${id}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["User"],
+    }),
+  }),
 });
 
-const reducer = (
-  state: Record<string, any> = { users: [], totalMatches: 0, user: {} },
-  action: { type: string; data?: any },
-): Record<string, any> => {
-  switch (action.type) {
-    case FETCH_USER_OK: {
-      return {
-        ...state,
-        user: action.data,
-      };
-    }
-    case FETCH_USERS_OK: {
-      const { users, totalMatches } = action.data;
-      return {
-        ...state,
-        users,
-        totalMatches,
-      };
-    }
-    default:
-      return state;
-  }
-};
+// Websocket-driven invalidation: refresh users on FETCH_USERS.
+invalidateOnMessage("skyportal/FETCH_USERS", () => ["User"]);
 
-store.injectReducer("users", reducer);
+export const { useGetUsersQuery, useGetUserQuery, usePatchUserMutation } =
+  usersApi;

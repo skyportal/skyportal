@@ -14,9 +14,12 @@ import IconButton from "@mui/material/IconButton";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Button from "../Button";
 
-import * as profileActions from "../../ducks/profile";
-import * as weatherActions from "../../ducks/weather";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
+import { useGetWeatherQuery } from "../../ducks/weather";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -152,15 +155,11 @@ interface WeatherWidgetProps {
 const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
   const { classes: styles } = useStyles();
 
-  const dispatch = useAppDispatch();
-  const weather = useAppSelector((state: any) => state.weather);
-  const userPrefs = useAppSelector(
-    (state: any) => state.profile.preferences.weather,
-  );
-  const telescopeList = useAppSelector(
-    (state: any) => state.telescopes.telescopeList,
-  );
-  telescopeList.sort((a: any, b: any) => {
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const userPrefs = (profile?.preferences as any)?.weather;
+  const { data: telescopeListData = [] } = useGetTelescopesQuery();
+  const telescopeList = [...telescopeListData].sort((a: any, b: any) => {
     const nameA = a.name.toUpperCase();
     const nameB = b.name.toUpperCase();
     if (nameA < nameB) {
@@ -174,26 +173,27 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
   const weatherPrefs = userPrefs?.telescopeID ? userPrefs : defaultPrefs;
   const [anchorEl, setAnchorEl] = useState<any>(null);
 
+  const { data: weather, refetch: refetchWeather } = useGetWeatherQuery(
+    weatherPrefs?.telescopeID ?? null,
+  );
+
   useEffect(() => {
-    if (!telescopeList?.length) return;
+    if (!telescopeList?.length || !weather) return;
 
     const isStale = (utcTime: any) => {
       if (!utcTime) return true;
       return dayjs().diff(`${utcTime}Z`, "hour") > 1;
     };
 
-    const isWrongTelescope =
-      weatherPrefs?.telescopeID !== weather?.telescope_id;
-
     // Check if the weather data is stale (older than 1 hour)
-    const isWeatherStale = weather?.weather_retrieved_at
-      ? isStale(weather?.weather_retrieved_at)
-      : isStale(weather?.weather_fetch_at);
+    const isWeatherStale = weather?.["weather_retrieved_at"]
+      ? isStale(weather?.["weather_retrieved_at"])
+      : isStale(weather?.["weather_fetch_at"]);
 
-    if (!weather || isWrongTelescope || isWeatherStale) {
-      dispatch(weatherActions.fetchWeather());
+    if (isWeatherStale) {
+      refetchWeather();
     }
-  }, [weatherPrefs, weather, telescopeList, dispatch]);
+  }, [weather, telescopeList, refetchWeather]);
 
   const handleClose = () => {
     setAnchorEl(null);
@@ -203,7 +203,7 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
     const prefs = {
       weather: { telescopeID },
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
     setAnchorEl(null);
   };
 
@@ -220,7 +220,7 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
             display="inline"
             className={styles.telescopeName}
           >
-            {weather?.telescope_name}
+            {weather?.["telescope_name"]}
           </Typography>
           <DragHandleIcon className={`${classes["widgetIcon"]} dragHandle`} />
           {telescopeList && (

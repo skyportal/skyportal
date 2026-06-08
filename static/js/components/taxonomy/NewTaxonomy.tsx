@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 
 import Form from "@rjsf/mui";
@@ -5,8 +6,11 @@ import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import { fetchTaxonomies, submitTaxonomy } from "../../ducks/taxonomies";
+import { useAppDispatch } from "../../types/hooks";
+import {
+  useGetTaxonomiesQuery,
+  useSubmitTaxonomyMutation,
+} from "../../ducks/taxonomies";
 
 import GroupShareSelect from "../group/GroupShareSelect";
 
@@ -15,25 +19,26 @@ interface NewTaxonomyProps {
 }
 
 const NewTaxonomy = ({ onClose = null }: NewTaxonomyProps) => {
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
+  const [submitTaxonomy] = useSubmitTaxonomyMutation();
   const dispatch = useAppDispatch();
 
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     formData.group_ids = selectedGroupIds;
     const parsed = dataUriToBuffer(formData.hierarchy_file);
     formData.hierarchy_file = new TextDecoder().decode(parsed.buffer);
-    dispatch(submitTaxonomy(formData)).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Taxonomy saved"));
-        dispatch(fetchTaxonomies());
-        if (typeof onClose === "function") {
-          onClose();
-        }
+    try {
+      await submitTaxonomy(formData).unwrap();
+      dispatch(showNotification("Taxonomy saved"));
+      if (typeof onClose === "function") {
+        onClose();
       }
-    });
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   function validate(formData: any, errors: any) {

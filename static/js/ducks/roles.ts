@@ -1,45 +1,53 @@
-import * as API from "../API";
-import store from "../store";
+/**
+ * Roles (user role definitions).
+ *
+ * RTK Query conversion of the old `FETCH_ROLES` duck. No websocket, no
+ * hydration. The list query provides the `Role` tag; the add/delete mutations
+ * affect a user's roles (reflected in the not-yet-migrated users-management
+ * slice), so consumers refetch that manually.
+ */
+import { skyportalApi } from "../api/skyportalApi";
 
-const FETCH_ROLES = "skyportal/FETCH_ROLES";
-const FETCH_ROLES_OK = "skyportal/FETCH_ROLES_OK";
-
-const ADD_USER_ROLES = "skyportal/ADD_USER_ROLES";
-
-const DELETE_USER_ROLE = "skyportal/DELETE_USER_ROLE";
-
-export const fetchRoles = () => API.GET("/api/roles", FETCH_ROLES);
-
-export const addUserRoles = ({
-  userID,
-  roleIds,
-}: {
-  userID: number | string;
-  roleIds: any;
-}) => API.POST(`/api/user/${userID}/roles`, ADD_USER_ROLES, { roleIds });
-
-export const deleteUserRole = ({
-  userID,
-  role,
-}: {
-  userID: number | string;
-  role: any;
-}) => API.DELETE(`/api/user/${userID}/roles/${role}`, DELETE_USER_ROLE);
-
-interface RolesAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
+export interface Role {
+  id: string;
+  acls?: string[] | undefined;
+  [key: string]: unknown;
 }
 
-function reducer(state: any = null, action: RolesAction) {
-  switch (action.type) {
-    case FETCH_ROLES_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
+interface AddUserRolesArg {
+  userID: number | string;
+  roleIds: string[];
 }
 
-store.injectReducer("roles", reducer);
+interface DeleteUserRoleArg {
+  userID: number | string;
+  role: string;
+}
+
+export const rolesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getRoles: build.query<Role[], void>({
+      query: () => "api/roles",
+      providesTags: ["Role"],
+    }),
+    addUserRoles: build.mutation<unknown, AddUserRolesArg>({
+      query: ({ userID, roleIds }) => ({
+        url: `api/user/${userID}/roles`,
+        method: "POST",
+        body: { roleIds },
+      }),
+    }),
+    deleteUserRole: build.mutation<unknown, DeleteUserRoleArg>({
+      query: ({ userID, role }) => ({
+        url: `api/user/${userID}/roles/${role}`,
+        method: "DELETE",
+      }),
+    }),
+  }),
+});
+
+export const {
+  useGetRolesQuery,
+  useAddUserRolesMutation,
+  useDeleteUserRoleMutation,
+} = rolesApi;

@@ -1,14 +1,19 @@
-import { useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useState } from "react";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
-import { submitInstrument } from "../../ducks/instrument";
-import { modifyInstrument } from "../../ducks/instrument";
-import { fetchFollowupApis } from "../../ducks/followupApis";
+import {
+  useSubmitInstrumentMutation,
+  useModifyInstrumentMutation,
+} from "../../ducks/instrument";
+import { useGetFollowupApisQuery } from "../../ducks/followupApis";
+import { useGetEnumTypesQuery } from "../../ducks/enum_types";
 
 interface InstrumentFormProps {
   onClose: () => void;
@@ -19,18 +24,14 @@ const InstrumentForm = ({
   onClose,
   instrumentId = null,
 }: InstrumentFormProps) => {
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { followupApis } = useAppSelector((state) => state["followupApis"]);
-  const { enum_types } = useAppSelector((state) => state["enum_types"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: followupApis } = useGetFollowupApisQuery();
+  const { data: enum_types } = useGetEnumTypesQuery();
   const [formData, setFormData] = useState<any>({});
   const dispatch = useAppDispatch();
-
-  useEffect(() => {
-    if (!followupApis?.length) {
-      dispatch(fetchFollowupApis()).then();
-    }
-  }, [dispatch]);
+  const [submitInstrument] = useSubmitInstrumentMutation();
+  const [modifyInstrument] = useModifyInstrumentMutation();
 
   const handleSubmit = async () => {
     const dataToSubmit: any = { ...formData };
@@ -74,20 +75,25 @@ const InstrumentForm = ({
       delete dataToSubmit.specific_configuration;
     }
 
-    const result: any = await dispatch(
-      instrumentId
-        ? modifyInstrument(instrumentId, dataToSubmit)
-        : submitInstrument(dataToSubmit),
-    );
-    if (result.status === "success") {
+    try {
+      if (instrumentId) {
+        await modifyInstrument({
+          id: instrumentId,
+          params: dataToSubmit,
+        }).unwrap();
+      } else {
+        await submitInstrument(dataToSubmit).unwrap();
+      }
       dispatch(showNotification("Instrument saved"));
       onClose();
+    } catch {
+      // error notification handled by the base query
     }
   };
 
   if (instrumentList.length === 0 || telescopeList.length === 0) {
     return <h3>No instruments available...</h3>;
-  } else if (enum_types.length === 0) {
+  } else if (enum_types == null) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -95,8 +101,8 @@ const InstrumentForm = ({
     );
   }
 
-  const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES].sort();
-  const filters = [...enum_types.ALLOWED_BANDPASSES].sort();
+  const api_classnames = [...enum_types["ALLOWED_API_CLASSNAMES"]].sort();
+  const filters = [...enum_types["ALLOWED_BANDPASSES"]].sort();
 
   const instrumentToEdit = instrumentId
     ? instrumentList.find((inst: any) => inst.id === instrumentId)
@@ -148,7 +154,7 @@ const InstrumentForm = ({
 
   const getDefaultConfigurationData = () => {
     const { specific_configuration, ...configuration } =
-      instrumentToEdit?.configuration_data || {};
+      instrumentToEdit?.["configuration_data"] || {};
     if (configuration && Object.keys(configuration).length > 0) {
       return configuration;
     }
@@ -204,21 +210,21 @@ const InstrumentForm = ({
         },
         uniqueItems: true,
         title: "Filter list",
-        default: instrumentToEdit?.filters || [],
+        default: instrumentToEdit?.["filters"] || [],
       },
       api_classname: {
         type: "string",
         enum: api_classnames,
         uniqueItems: true,
         title: "API Classname",
-        default: instrumentToEdit?.api_classname || undefined,
+        default: instrumentToEdit?.["api_classname"] || undefined,
       },
       api_classname_obsplan: {
         type: "string",
         enum: api_classnames,
         uniqueItems: true,
         title: "API Observation Plan Classname",
-        default: instrumentToEdit?.api_classname_obsplan || undefined,
+        default: instrumentToEdit?.["api_classname_obsplan"] || undefined,
       },
       field_data: {
         type: "string",
@@ -264,7 +270,7 @@ const InstrumentForm = ({
         title:
           "Sensitivity data i.e. {'ztfg': {'limiting_magnitude': 20.3, 'magsys': 'ab', 'exposure_time': 30, 'zeropoint': 26.3,}}",
         default: JSON.stringify(
-          instrumentToEdit?.sensitivity_data || undefined,
+          instrumentToEdit?.["sensitivity_data"] || undefined,
         ),
       },
       configuration_data: {
@@ -273,7 +279,7 @@ const InstrumentForm = ({
           "Configuration data i.e. {'overhead_per_exposure': 2.0, 'readout': 8.0, 'slew_rate': 2.6, 'filt_change_time': 60.0}",
         default: JSON.stringify(getDefaultConfigurationData()),
       },
-      ...(followupApis[formData.api_classname]?.formSchemaConfig?.properties
+      ...(followupApis?.[formData.api_classname]?.formSchemaConfig?.properties
         ? {
             specific_configuration: {
               type: "object",
@@ -283,8 +289,8 @@ const InstrumentForm = ({
                   .properties,
               },
               default:
-                instrumentToEdit?.configuration_data?.specific_configuration ||
-                {},
+                instrumentToEdit?.["configuration_data"]
+                  ?.specific_configuration || {},
             },
           }
         : {}),

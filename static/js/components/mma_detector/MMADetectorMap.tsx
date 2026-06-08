@@ -57,16 +57,8 @@ function normalizeLatitudeDiff(alpha: number, beta: number) {
   return Math.abs(alpha - beta);
 }
 
-interface MMADetector {
-  id?: number;
-  name?: string;
-  nickname?: string;
-  lat?: number;
-  lon?: number;
-}
-
 interface MMADetectorMapProps {
-  mmadetectors: MMADetector[];
+  mmadetectors: any[];
 }
 
 const MMADetectorMap = ({ mmadetectors }: MMADetectorMapProps) => {

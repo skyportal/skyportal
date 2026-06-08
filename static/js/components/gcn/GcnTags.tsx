@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -5,12 +6,13 @@ import { makeStyles } from "tss-react/mui";
 import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import AddGcnTag from "./AddGcnTag";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
-import * as gcnTagsActions from "../../ducks/gcnTags";
+import { useDeleteGcnTagMutation } from "../../ducks/gcnTags";
+import { useGetConfigQuery } from "../../ducks/config";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -63,12 +65,11 @@ const GcnTags = ({
   const { classes: styles } = useStyles();
 
   const dispatch = useAppDispatch();
+  const [deleteGcnTag] = useDeleteGcnTagMutation();
 
-  const userProfile = useAppSelector((state) => state.profile);
+  const { data: userProfile } = useGetProfileQuery();
 
-  const gcn_tags_classes = useAppSelector(
-    (state) => state["config"].gcnTagsClasses,
-  );
+  const gcn_tags_classes = (useGetConfigQuery().data as any)?.gcnTagsClasses;
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<any>(null);
@@ -82,14 +83,15 @@ const GcnTags = ({
   };
 
   const deleteTag = () => {
-    dispatch(gcnTagsActions.deleteGcnTag(gcnEvent.dateobs, tagToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("GCN Event Tag deleted"));
-          closeDialog();
-        }
-      },
-    );
+    deleteGcnTag({ gcnEventID: gcnEvent.dateobs, tag: tagToDelete })
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("GCN Event Tag deleted"));
+        closeDialog();
+      })
+      .catch(() => {
+        // error notification handled centrally by the base query
+      });
   };
 
   const gcnTags: string[] = [];
@@ -124,8 +126,8 @@ const GcnTags = ({
   const localizationTagsUnique = [...new Set(localizationTags)];
 
   const permission =
-    userProfile.permissions.includes("System admin") ||
-    userProfile.permissions.includes("Manage GCNs");
+    userProfile?.permissions.includes("System admin") ||
+    userProfile?.permissions.includes("Manage GCNs");
 
   return (
     <div className={styles.root}>

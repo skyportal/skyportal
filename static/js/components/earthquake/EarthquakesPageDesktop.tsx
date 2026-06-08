@@ -1,4 +1,5 @@
-import { lazy, Suspense } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { lazy, Suspense, useState } from "react";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
@@ -7,7 +8,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import NewEarthquake from "./NewEarthquake";
 import EarthquakeInfo from "./EarthquakeInfo";
 import Spinner from "../Spinner";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetEarthquakesQuery } from "../../ducks/earthquake";
 // lazy import the EarthquakeMap component
 const EarthquakeMap = lazy(() => import("./EarthquakeMap"));
 
@@ -34,25 +35,16 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const EarthquakePage = () => {
-  const dispatch = useAppDispatch();
   const { classes } = useStyles();
-  const currentUser = useAppSelector((state) => state.profile);
-  const earthquakes = useAppSelector((state) => state["earthquakes"]);
-  const currentEarthquakeMenu = useAppSelector(
-    (state) => (state["earthquake"] as any).currentEarthquakeMenu,
-  );
+  const { data: currentUser } = useGetProfileQuery();
+  const { data: earthquakes } = useGetEarthquakesQuery();
+  const [currentEarthquakeMenu, setCurrentEarthquakeMenu] =
+    useState("Earthquake List");
 
   if (!earthquakes) return <Spinner />;
 
   function setSelectedMenu(currentSelectedEarthquakeMenu: string) {
-    const currentEarthquakes: any = null;
-    dispatch({
-      type: "skyportal/CURRENT_EARTHQUAKES_AND_MENU",
-      data: {
-        currentEarthquakes,
-        currentEarthquakeMenu: currentSelectedEarthquakeMenu,
-      },
-    } as any);
+    setCurrentEarthquakeMenu(currentSelectedEarthquakeMenu);
   }
 
   function isMenuSelected(menu: string) {
@@ -66,7 +58,10 @@ const EarthquakePage = () => {
       <Grid container spacing={3}>
         <Grid size={{ md: 8, sm: 12 }}>
           <Paper className={classes.paperContent}>
-            <EarthquakeMap earthquakes={(earthquakes as any).events} />
+            <EarthquakeMap
+              earthquakes={(earthquakes as any).events}
+              onSelectEarthquakes={() => setSelectedMenu("Earthquake List")}
+            />
           </Paper>
         </Grid>
         <Grid size={{ md: 4, sm: 12 }}>
@@ -77,7 +72,7 @@ const EarthquakePage = () => {
             >
               Earthquake List
             </Button>
-            {currentUser.permissions?.includes("Manage allocations") && (
+            {currentUser?.permissions?.includes("Manage allocations") && (
               <Button
                 onClick={() => setSelectedMenu("New Earthquake")}
                 className={isMenuSelected("New Earthquake")}
@@ -90,7 +85,7 @@ const EarthquakePage = () => {
             {currentEarthquakeMenu === "Earthquake List" ? (
               <EarthquakeInfo />
             ) : (
-              currentUser.permissions?.includes("Manage allocations") && (
+              currentUser?.permissions?.includes("Manage allocations") && (
                 <NewEarthquake />
               )
             )}

@@ -15,9 +15,11 @@ import EditIcon from "@mui/icons-material/Edit";
 
 import { makeStyles } from "tss-react/mui";
 import { GridToolbarContainer } from "@mui/x-data-grid";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
-import * as profileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 
 import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
 
@@ -78,15 +80,13 @@ const ScanningProfilesList = ({
   classifications = [],
 }: ScanningProfilesListProps) => {
   const { classes } = useStyles();
-  const profiles = useAppSelector(
-    (state) => (state as any).profile.preferences.scanningProfiles,
-  );
+  const { data: userProfile } = useGetProfileQuery();
+  const profiles = (userProfile?.preferences as any)?.scanningProfiles;
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [profileToEdit, setProfileToEdit] = useState<any>();
-
-  const dispatch = useAppDispatch();
 
   // Memoized so the toolbar (and its "new scanning profile" button) keeps a
   // stable identity across the re-render that happens when the profiles list
@@ -141,11 +141,15 @@ const ScanningProfilesList = ({
   };
 
   const deleteProfile = (dataIndex: number) => {
-    profiles.splice(dataIndex, 1);
+    // `profiles` is frozen RTK Query data, so build a new array without the
+    // deleted entry rather than splicing in place.
+    const updatedProfiles = profiles.filter(
+      (_profile: any, i: number) => i !== dataIndex,
+    );
     const prefs = {
-      scanningProfiles: profiles,
+      scanningProfiles: updatedProfiles,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const editProfile = (profile: any) => {
@@ -158,11 +162,9 @@ const ScanningProfilesList = ({
       ...profile,
       default: checked && i === dataIndex,
     }));
-    dispatch(
-      profileActions.updateUserPreferences({
-        scanningProfiles: updatedProfiles,
-      }),
-    );
+    updateUserPreferences({
+      scanningProfiles: updatedProfiles,
+    });
   };
 
   const renderDefault = (params: any) => {

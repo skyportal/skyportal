@@ -2,14 +2,15 @@ import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 
 const UIPreferences = () => {
-  const preferences = useAppSelector(
-    (state) => state.profile.preferences,
-  ) as any;
+  const { data: profile } = useGetProfileQuery();
+  const preferences = profile?.preferences as any;
   const currentTheme = preferences?.theme;
   const invertThumbnails: boolean = preferences?.invertThumbnails || false;
   const useAMPM: boolean = preferences?.useAMPM || false;
@@ -22,70 +23,70 @@ const UIPreferences = () => {
   const showAISourceSummary: boolean =
     preferences?.showAISourceSummary || false;
 
-  const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   const themeToggled = (event: any) => {
     const prefs = {
       theme: event.target.checked ? "dark" : "light",
     };
 
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const thumbnailInvertToggled = (event: any) => {
     const prefs = {
       invertThumbnails: event.target.checked,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const useAMPMToggled = (event: any) => {
     const prefs = {
       useAMPM: event.target.checked,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const useRefMagToggled = (event: any) => {
     const prefs = {
       useRefMag: event.target.checked,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const showBotCommentsToggled = (event: any) => {
     const prefs = {
       showBotComments: event.target.checked,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const hideMLClassificationsToggled = (event: any) => {
     const prefs = {
       hideMLClassifications: event.target.checked,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const showSimilarSourcesToggled = (event: any) => {
     const prefs = {
       showSimilarSources: event.target.checked,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const hideSourceSummaryToggled = (event: any) => {
     const prefs = {
       hideSourceSummary: event.target.checked,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const showAISourceSummaryToggled = (event: any) => {
     const prefs = {
       showAISourceSummary: event.target.checked,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const themeSwitch = (

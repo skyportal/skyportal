@@ -13,7 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
-import * as sourceActions from "../../ducks/source";
+import { useUpdateSourceMutation } from "../../ducks/source";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -39,6 +39,7 @@ interface UpdateSourceRedshiftProps {
 const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [updateSource] = useUpdateSourceMutation();
   const [state, setState] = useState<Record<string, any>>({
     redshift: source.redshift ? String(source.redshift) : "",
     redshift_error: source.redshift_error ? String(source.redshift_error) : "",
@@ -89,16 +90,17 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
     newState["redshift_origin"] = subState.redshift_origin
       ? subState.redshift_origin
       : null;
-    const result: any = await dispatch(
-      sourceActions.updateSource(source.id!, {
-        ...newState,
-      }),
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await updateSource({
+        id: source.id!,
+        payload: { ...newState },
+      }).unwrap();
       dispatch(showNotification("Source redshift successfully updated."));
       setDialogOpen(false);
+    } catch {
+      // error notification handled by the baseQuery
     }
+    setIsSubmitting(false);
   };
 
   return (

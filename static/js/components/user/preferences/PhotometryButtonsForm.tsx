@@ -2,12 +2,14 @@ import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { useForm } from "react-hook-form";
 import TextField from "@mui/material/TextField";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
 import Button from "../../Button";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";
 import UserPreferencesHeader from "./UserPreferencesHeader";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 import DeletableChips from "../../DeletableChips";
 
 const useStyles = makeStyles()(() => ({
@@ -24,10 +26,9 @@ const useStyles = makeStyles()(() => ({
 
 const PhotometryButtonsForm = () => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
-  const { photometryButtons } = useAppSelector(
-    (state) => state.profile.preferences,
-  ) as any;
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const { data: profile } = useGetProfileQuery();
+  const { photometryButtons } = (profile?.preferences ?? {}) as any;
   const {
     handleSubmit,
     register,
@@ -61,7 +62,7 @@ const PhotometryButtonsForm = () => {
     const prefs = {
       photometryButtons: currPhotButtons,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
     setSelectedFilters([]);
     setSelectedOrigins([]);
     reset({
@@ -75,7 +76,7 @@ const PhotometryButtonsForm = () => {
     const prefs = {
       photometryButtons: currPhotButtons,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const parent = "PhotometryButtonsForm";

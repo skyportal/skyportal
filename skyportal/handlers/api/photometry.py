@@ -2052,7 +2052,13 @@ class PhotometryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -2213,7 +2219,13 @@ class PhotometryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -2461,7 +2473,13 @@ class ObjPhotometryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -2515,7 +2533,13 @@ class BulkDeletePhotometryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -2650,9 +2674,12 @@ PhotometryHandler.get.__doc__ = f"""
             content:
               application/json:
                 schema:
-                  oneOf:
-                    - $ref: "#/components/schemas/SinglePhotometryFlux"
-                    - $ref: "#/components/schemas/SinglePhotometryMag"
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Photometry'
           400:
             content:
               application/json:
@@ -2748,9 +2775,14 @@ ObjPhotometryHandler.get.__doc__ = f"""
             content:
               application/json:
                 schema:
-                  oneOf:
-                    - $ref: "#/components/schemas/ArrayOfPhotometryFluxs"
-                    - $ref: "#/components/schemas/ArrayOfPhotometryMags"
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/Photometry'
           400:
             content:
               application/json:
@@ -2794,9 +2826,14 @@ PhotometryRangeHandler.get.__doc__ = f"""
             content:
               application/json:
                 schema:
-                  oneOf:
-                    - $ref: "#/components/schemas/ArrayOfPhotometryFluxs"
-                    - $ref: "#/components/schemas/ArrayOfPhotometryMags"
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/Photometry'
           400:
             content:
               application/json:

@@ -1,21 +1,18 @@
-"""Frontend (Selenium) test for meta-object (SuperObj) read-aggregation.
+"""Frontend (Playwright) test for meta-object (SuperObj) read-aggregation.
 
 Links two sources under a SuperObj and verifies that the source page renders a
 classification belonging to the *other* underlying source, tagged with a
-clickable provenance chip pointing back to that source — i.e. the aggregated,
-provenance-preserving meta-object view that the backend feeds via
-``includeSuperObjs`` (which ``fetchSource`` always sends).
+clickable provenance chip pointing back to that source.
 """
 
 import uuid
 
 import sqlalchemy as sa
+from playwright.sync_api import expect
 
 from skyportal.models import DBSession, Obj, SuperObj
 from skyportal.tests import api
 
-# A small, valid taxonomy hierarchy (mirrors test_sources.py) so "Cepheid" is an
-# allowed classification.
 SIMPLE_TAXONOMY = {
     "class": "Cepheid",
     "tags": ["giant/supergiant", "instability strip", "standard candle"],
@@ -40,7 +37,6 @@ def _link_super_obj(obj_ids):
         s = DBSession()
         so = s.scalar(sa.select(SuperObj).where(SuperObj.id == super_obj_id))
         if so is not None:
-            # Clear the M2M links first so the cascade does not delete the Objs.
             so.objs = []
             s.commit()
             s.delete(so)
@@ -50,7 +46,7 @@ def _link_super_obj(obj_ids):
 
 
 def test_super_obj_classification_provenance_on_source_page(
-    driver,
+    page,
     user,
     upload_data_token,
     taxonomy_token,
@@ -59,20 +55,14 @@ def test_super_obj_classification_provenance_on_source_page(
     public_source,
 ):
     """A classification on a linked source shows up on this source's page with a
-    provenance chip linking back to the source it actually came from."""
+    provenance chip linking back to the source it came from."""
     obj1 = public_source.id
     obj2 = f"{uuid.uuid4().hex[:10]}_meta2"
 
-    # A second source the user can read, to be linked to the first.
     status, _ = api(
         "POST",
         "sources",
-        data={
-            "id": obj2,
-            "ra": 234.22,
-            "dec": -22.33,
-            "group_ids": [public_group.id],
-        },
+        data={"id": obj2, "ra": 234.22, "dec": -22.33, "group_ids": [public_group.id]},
         token=upload_data_token,
     )
     assert status == 200
@@ -92,7 +82,6 @@ def test_super_obj_classification_provenance_on_source_page(
     assert status == 200, data
     taxonomy_id = data["data"]["taxonomy_id"]
 
-    # Classify the *other* source; aggregation should surface it on obj1's page.
     status, data = api(
         "POST",
         "classification",
@@ -109,14 +98,15 @@ def test_super_obj_classification_provenance_on_source_page(
 
     _, teardown = _link_super_obj([obj1, obj2])
     try:
-        driver.get(f"/become_user/{user.id}")
-        driver.get(f"/source/{obj1}")
-        driver.wait_for_xpath(f'//h6[text()="{obj1}"]')
+        page.goto(f"/become_user/{user.id}")
+        page.goto(f"/source/{obj1}")
+        expect(page.locator(f'//h6[text()="{obj1}"]').first).to_be_visible()
 
-        # The Classifications accordion is defaultExpanded — no click needed.
         # The aggregated classification from the linked source is shown ...
-        driver.wait_for_xpath("//*[contains(text(), 'Cepheid')]", timeout=20)
+        expect(page.locator("//*[contains(text(), 'Cepheid')]").first).to_be_visible()
         # ... tagged with a provenance chip linking back to that source.
-        driver.wait_for_xpath(f'//a[contains(@href, "/source/{obj2}")]', timeout=20)
+        expect(
+            page.locator(f'//a[contains(@href, "/source/{obj2}")]').first
+        ).to_be_visible()
     finally:
         teardown()

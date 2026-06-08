@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
@@ -10,11 +11,23 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
-import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftsActions from "../../ducks/shifts";
-import * as earthquakeActions from "../../ducks/earthquake";
+import { skipToken } from "@reduxjs/toolkit/query";
+
+import { useGetSourceQuery, useAddCommentMutation } from "../../ducks/source";
+import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
+import { useGetCandidateQuery } from "../../ducks/candidate/candidate";
+import {
+  useGetGcnEventQuery,
+  useAddCommentOnGcnEventMutation,
+} from "../../ducks/gcnEvent";
+import {
+  useAddCommentOnShiftMutation,
+  useGetShiftQuery,
+} from "../../ducks/shifts";
+import {
+  useGetEarthquakeQuery,
+  useAddCommentOnEarthquakeMutation,
+} from "../../ducks/earthquake";
 
 import CommentEntry from "./CommentEntry";
 import Comment from "./Comment";
@@ -161,7 +174,9 @@ interface CommentListProps {
   isCandidate?: boolean;
   objID?: string | null;
   gcnEventID?: number | null;
+  gcnEventDateobs?: string | null;
   earthquakeID?: string | null;
+  earthquakeEventID?: string | null;
   associatedResourceType?: string;
   spectrumID?: number | null;
   shiftID?: number | null;
@@ -175,7 +190,9 @@ const CommentList = ({
   objID = null,
   spectrumID = null,
   gcnEventID = null,
+  gcnEventDateobs = null,
   earthquakeID = null,
+  earthquakeEventID = null,
   shiftID = null,
   includeCommentsOnAllResourceTypes = true,
   maxHeightList = "350px",
@@ -196,22 +213,36 @@ const CommentList = ({
     setHoverID(null);
   };
 
-  const dispatch = useAppDispatch();
-  const source = useAppSelector((state) => state["source"]);
-  const candidate = useAppSelector((state) => state["candidate"]);
-  const obj = isCandidate ? candidate : source;
-  const spectra = useAppSelector((state) => state["spectra"]);
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
-  const earthquake = useAppSelector((state) => state["earthquake"]);
-  const userProfile = useAppSelector((state) => state.profile);
-  const permissions = useAppSelector((state) => state.profile.permissions);
-  const { currentShift } = useAppSelector((state) => state["shifts"]);
-  const { showBotComments } = useAppSelector(
-    (state) => state.profile.preferences as any,
+  const [addCommentMutation] = useAddCommentMutation();
+  const { data: candidate } = useGetCandidateQuery(
+    isCandidate && objID ? objID : skipToken,
   );
-  const userColorTheme = useAppSelector(
-    (state) => (state.profile.preferences as any).theme,
+  const { data: source } = useGetSourceQuery(
+    !isCandidate && objID ? objID : skipToken,
   );
+  const obj: any = isCandidate ? candidate : source;
+  const resolvedObjID = objID ?? obj?.id ?? null;
+  const { data: spectra } = useFetchSourceSpectraQuery(
+    { id: resolvedObjID as string },
+    { skip: !resolvedObjID },
+  );
+  const { data: gcnEvent } = useGetGcnEventQuery(
+    gcnEventDateobs ?? skipToken,
+  ) as { data: any };
+  const [addCommentOnGcnEvent] = useAddCommentOnGcnEventMutation();
+  const { data: earthquake } = useGetEarthquakeQuery(
+    earthquakeEventID ?? skipToken,
+  ) as { data: any };
+  const { data: userProfile } = useGetProfileQuery();
+  const permissions = useGetProfileQuery().data?.permissions;
+  const [addCommentOnShift] = useAddCommentOnShiftMutation();
+  const { data: currentShift } = useGetShiftQuery(shiftID ?? skipToken) as {
+    data: any;
+  };
+  const [addCommentOnEarthquake] = useAddCommentOnEarthquakeMutation();
+  const showBotComments = (useGetProfileQuery().data?.preferences as any)
+    ?.showBotComments;
+  const userColorTheme = (useGetProfileQuery().data?.preferences as any)?.theme;
 
   const [includeBots, setIncludeBots] = useState(false);
 
@@ -227,64 +258,50 @@ const CommentList = ({
     gcnEventID = gcnEvent.id;
   }
 
-  if (!shiftID && currentShift) {
-    shiftID = currentShift.id;
-  }
-
   if (!earthquakeID && earthquake) {
     earthquakeID = earthquake.id;
   }
 
   const addComment = (formData: any) => {
-    dispatch(
-      sourceActions.addComment({
-        obj_id: objID,
-        spectrum_id: spectrumID,
-        ...formData,
-      }),
-    );
+    addCommentMutation({
+      obj_id: objID,
+      spectrum_id: spectrumID,
+      ...formData,
+    });
   };
 
   const addGcnEventComment = (formData: any) => {
-    dispatch(
-      gcnEventActions.addCommentOnGcnEvent({
-        gcnevent_id: gcnEventID,
-        ...formData,
-      }),
-    );
+    addCommentOnGcnEvent({
+      gcnevent_id: gcnEventID,
+      ...formData,
+    });
   };
 
   const addEarthquakeComment = (formData: any) => {
-    dispatch(
-      earthquakeActions.addCommentOnEarthquake({
-        earthquake_id: earthquakeID,
-        ...formData,
-      }),
-    );
+    addCommentOnEarthquake({
+      earthquake_id: earthquakeID,
+      ...formData,
+    });
   };
 
   const addShiftComment = (formData: any) => {
-    dispatch(
-      shiftsActions.addCommentOnShift({
-        shiftID,
-        ...formData,
-      }),
-    );
+    addCommentOnShift({
+      shiftID,
+      ...formData,
+    });
   };
 
   let comments: any = null;
   let specComments: any = null;
 
   if (associatedResourceType === "object") {
-    comments = obj.comments;
+    comments = obj?.comments;
     if (
       includeCommentsOnAllResourceTypes &&
-      typeof spectra === "object" &&
-      spectra !== null &&
-      objID != null &&
-      objID in spectra
+      Array.isArray(spectra) &&
+      objID != null
     ) {
-      specComments = spectra[objID]?.map((spec: any) => spec.comments)?.flat();
+      specComments = spectra?.map((spec: any) => spec.comments)?.flat();
     }
     if (comments !== null && specComments !== null) {
       comments = specComments.concat(comments);
@@ -294,15 +311,13 @@ const CommentList = ({
     if (spectrumID === null) {
       throw new Error("Must specify a spectrumID for comments on spectra");
     }
-    const spectrum = spectra[objID!].find(
-      (spec: any) => spec.id === spectrumID,
-    );
+    const spectrum = spectra?.find((spec: any) => spec.id === spectrumID);
     comments = spectrum?.comments;
   } else if (associatedResourceType === "gcn_event") {
     if (gcnEventID === null) {
       throw new Error("Must specify a gcnEventID for comments on gcnEvent");
     }
-    comments = gcnEvent.comments;
+    comments = gcnEvent?.comments;
   } else if (associatedResourceType === "shift") {
     if (shiftID === null) {
       throw new Error("Must specify a shiftID for comments on shift");
@@ -314,7 +329,7 @@ const CommentList = ({
         "Must specify an earthquakeID for comments on earthquake",
       );
     }
-    comments = earthquake.comments;
+    comments = earthquake?.comments;
   } else {
     throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }
@@ -409,23 +424,23 @@ const CommentList = ({
           }
         />
       </div>
-      {permissions.indexOf("Comment") >= 0 &&
+      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         objID &&
         (associatedResourceType === "object" ||
           associatedResourceType === "spectra") && (
           <CommentEntry addComment={addComment} />
         )}
-      {permissions.indexOf("Comment") >= 0 &&
+      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         gcnEventID &&
         associatedResourceType === "gcn_event" && (
           <CommentEntry addComment={addGcnEventComment} />
         )}
-      {permissions.indexOf("Comment") >= 0 &&
+      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         shiftID &&
         associatedResourceType === "shift" && (
           <CommentEntry addComment={addShiftComment} />
         )}
-      {permissions.indexOf("Comment") >= 0 &&
+      {(permissions?.indexOf("Comment") ?? -1) >= 0 &&
         earthquakeID &&
         associatedResourceType === "earthquake" && (
           <CommentEntry addComment={addEarthquakeComment} />

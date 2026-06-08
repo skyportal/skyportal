@@ -11,6 +11,7 @@ import utc from "dayjs/plugin/utc";
 
 import type { RootState } from "../types/store";
 import { POST } from "../API";
+import { sysInfoApi } from "../ducks/sysInfo";
 
 dayjs.extend(utc);
 
@@ -165,7 +166,10 @@ class ErrorBoundary extends React.Component<
 }
 
 const mapStateToProps = (state: RootState) => ({
-  version: state["sysInfo"]?.version,
+  // Best-effort: reads the version from the RTK Query cache if `getSysInfo` has
+  // been fetched (it is, during app hydration). `select()` with no arg targets
+  // the `void`-arg query.
+  version: sysInfoApi.endpoints.getSysInfo.select()(state)?.data?.version,
 });
 
 export default connect(mapStateToProps)(ErrorBoundary);

@@ -1,10 +1,8 @@
-import { useEffect } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import withRouter from "../withRouter";
 
-import * as Action from "../../ducks/users";
+import { useGetUserQuery } from "../../ducks/users";
 
 interface UserInfoProps {
   route: {
@@ -13,15 +11,13 @@ interface UserInfoProps {
 }
 
 const UserInfo = ({ route }: UserInfoProps) => {
-  const dispatch = useAppDispatch();
-  const user = useAppSelector((state) => state["users"].user);
-  useEffect(() => {
-    dispatch(Action.fetchUser(route.id));
-  }, [route.id, dispatch]);
+  const { data: user } = useGetUserQuery(route.id);
   if (user?.id !== Number(route.id)) {
     return <CircularProgress color="secondary" />;
   }
-  const { username, created_at, permissions } = user;
+  const { username } = user;
+  const created_at = user["created_at"] as string | undefined;
+  const permissions = (user["permissions"] as string[] | undefined) ?? [];
   return (
     <div>
       <b>{username}</b>

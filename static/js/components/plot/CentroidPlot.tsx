@@ -7,12 +7,15 @@ import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetSourceQuery } from "../../ducks/source";
+import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import { PHOT_ZP, greatCircleDistance } from "../../utils";
 
 import CentroidPlotPlugins, {
   getCrossMatches,
   getCrossMatchesTraces,
 } from "./CentroidPlotPlugins";
+import { useGetConfigQuery } from "../../ducks/config";
 
 const Plot: any = createPlotlyComponent(Plotly);
 
@@ -325,9 +328,12 @@ const CentroidPlot = ({
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
-  const { id, ra, dec } = useAppSelector((state) => state["source"]);
-  const photometry = useAppSelector((state) => state["photometry"][sourceId]);
-  const config = useAppSelector((state) => state["config"]);
+  const { data: source } = useGetSourceQuery(sourceId);
+  const id = source?.id ?? null;
+  const ra = source?.ra ?? null;
+  const dec = source?.dec ?? null;
+  const { data: photometry } = useFetchSourcePhotometryQuery({ id: sourceId });
+  const { data: config } = useGetConfigQuery() as { data: any };
 
   // no crossMatches in the default SkyPortal, but can be added by SkyPortal-based
   // apps on top of the basic SkyPortal
@@ -350,15 +356,15 @@ const CentroidPlot = ({
 
   useEffect(() => {
     if (
-      photometry?.length > 0 &&
+      (photometry?.length ?? 0) > 0 &&
       !Number.isNaN(ra) &&
       !Number.isNaN(dec) &&
       filter2color
     ) {
       const { refRA, refDec, points, oneSigmaCircle, stdCircle } = prepareData(
-        photometry,
-        ra,
-        dec,
+        photometry ?? [],
+        ra as number,
+        dec as number,
       );
       setData({ refRA, refDec, oneSigmaCircle, stdCircle });
 

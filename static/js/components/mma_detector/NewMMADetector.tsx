@@ -1,18 +1,23 @@
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import { fetchMMADetectors, submitMMADetector } from "../../ducks/mmadetector";
+import { useAppDispatch } from "../../types/hooks";
+import {
+  useGetMMADetectorsQuery,
+  useSubmitMMADetectorMutation,
+} from "../../ducks/mmadetector";
 
 const NewMMADetector = () => {
-  const { mmadetectorList } = useAppSelector((state) => state["mmadetectors"]);
+  const { data: mmadetectorList } = useGetMMADetectorsQuery();
   const dispatch = useAppDispatch();
+  const [submitMMADetector] = useSubmitMMADetectorMutation();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
-    const result: any = await dispatch(submitMMADetector(formData));
-    if (result.status === "success") {
+    try {
+      await submitMMADetector(formData).unwrap();
       dispatch(showNotification("MMADetector saved"));
-      dispatch(fetchMMADetectors());
+    } catch {
+      // error notification handled by the API base query
     }
   };
 

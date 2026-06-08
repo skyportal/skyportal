@@ -1,7 +1,8 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import { useAppSelector } from "../../types/hooks";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import GroupManagement from "./GroupManagement";
 import GroupList from "./GroupList";
 import NewGroupForm from "./NewGroupForm";
@@ -23,10 +24,10 @@ const useStyles = makeStyles()(() => ({
 
 const Groups = () => {
   const { classes } = useStyles();
-  const { permissions } = useAppSelector((state) => state.profile);
-  const { user: userGroups, all: allGroups } = useAppSelector(
-    (state) => state.groups,
-  );
+  const { permissions } = useGetProfileQuery().data ?? {};
+  const { data: groupsData } = useGetGroupsQuery();
+  const userGroups = groupsData?.user ?? [];
+  const allGroups = groupsData?.all ?? null;
 
   if (userGroups.length === 0 || allGroups === null) {
     return (
@@ -38,7 +39,7 @@ const Groups = () => {
 
   const nonMemberGroups = allGroups?.filter(
     (g) =>
-      !g.single_user_group && !userGroups.map((ug) => ug.id).includes(g.id),
+      !g["single_user_group"] && !userGroups.map((ug) => ug.id).includes(g.id),
   );
 
   return (
@@ -51,7 +52,7 @@ const Groups = () => {
         </>
       )}
       <NewGroupForm />
-      {permissions.includes("System admin") && <GroupManagement />}
+      {permissions?.includes("System admin") && <GroupManagement />}
     </div>
   );
 };

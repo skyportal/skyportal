@@ -10,7 +10,7 @@ import TextField from "@mui/material/TextField";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import * as shiftsActions from "../../ducks/shifts";
+import { useUpdateShiftMutation } from "../../ducks/shifts";
 
 const useStyles = makeStyles()(() => ({
   editIcon: {
@@ -34,6 +34,7 @@ interface UpdateShiftProps {
 const UpdateShift = ({ shift }: UpdateShiftProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [updateShift] = useUpdateShiftMutation();
   const [state, setState] = useState<Record<string, any>>({
     name: shift.name,
     description: shift.description,
@@ -105,16 +106,17 @@ const UpdateShift = ({ shift }: UpdateShiftProps) => {
       setIsSubmitting(false);
       return;
     }
-    const result: any = await dispatch(
-      shiftsActions.updateShift(shift.id, {
-        ...newState,
-      }),
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await updateShift({
+        id: shift.id,
+        payload: { ...newState },
+      }).unwrap();
       dispatch(showNotification("Shift successfully updated."));
       setDialogOpen(false);
+    } catch {
+      // error notification handled by the API layer
     }
+    setIsSubmitting(false);
   };
 
   return (

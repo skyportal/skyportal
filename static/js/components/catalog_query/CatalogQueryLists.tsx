@@ -32,8 +32,9 @@ const SourcesList = ({ sources }: SourcesListProps) => {
     setAnchorEl(null);
   };
 
-  // reorder the sources list alphabetically descending
-  sources.sort((a, b) => (a > b ? 1 : -1));
+  // reorder the sources list alphabetically descending.
+  // `sources` is frozen RTK Query data, so copy before sorting in place.
+  sources = [...sources].sort((a, b) => (a > b ? 1 : -1));
 
   return (
     <div>

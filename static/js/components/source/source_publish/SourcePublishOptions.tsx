@@ -1,8 +1,9 @@
+import { useGetGroupsQuery } from "../../../ducks/groups";
 import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
-import { useAppSelector } from "../../../types/hooks";
+import { useGetStreamsQuery } from "../../../ducks/streams";
 
 interface IsElements {
   summary?: boolean;
@@ -112,8 +113,8 @@ const SourcePublishOptions = ({
   isElements,
 }: SourcePublishOptionsProps) => {
   const { classes: styles } = useStyles();
-  const streams = useAppSelector((state) => state["streams"]);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const { data: streams = [] } = useGetStreamsQuery();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   return (
     <div className={styles.sourcePublishOptions}>

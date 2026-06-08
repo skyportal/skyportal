@@ -1,54 +1,39 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Catalog queries.
+ *
+ * RTK Query conversion of the old `FETCH_CATALOG_QUERIES` / `SUBMIT_CATALOG_QUERY`
+ * duck. `getCatalogQueries` lists the queries; `submitCatalogQuery` posts a new
+ * one and invalidates the `CatalogQuery` tag so the list refetches.
+ *
+ * The websocket `REFRESH_CATALOG_QUERIES` message is bridged to cache
+ * invalidation via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+export type CatalogQuery = Record<string, any>;
 
-const REFRESH_CATALOG_QUERIES = "skyportal/REFRESH_CATALOG_QUERIES";
+export const catalogQueryApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getCatalogQueries: build.query<CatalogQuery[], void>({
+      query: () => "api/catalog_queries",
+      providesTags: ["CatalogQuery"],
+    }),
+    submitCatalogQuery: build.mutation<unknown, any>({
+      query: (data) => ({
+        url: "api/catalog_queries",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["CatalogQuery"],
+    }),
+  }),
+});
 
-const FETCH_CATALOG_QUERIES = "skyportal/FETCH_CATALOG_QUERIES";
-const FETCH_CATALOG_QUERIES_OK = "skyportal/FETCH_CATALOG_QUERIES_OK";
+// Websocket: old handler refetched catalog queries on REFRESH_CATALOG_QUERIES.
+invalidateOnMessage("skyportal/REFRESH_CATALOG_QUERIES", () => [
+  "CatalogQuery",
+]);
 
-const SUBMIT_CATALOG_QUERY = "skyportal/SUBMIT_CATALOG_QUERY";
-
-export const fetchCatalogQueries = () =>
-  API.GET("/api/catalog_queries", FETCH_CATALOG_QUERIES);
-
-export function submitCatalogQuery(data: any) {
-  return API.POST(`/api/catalog_queries`, SUBMIT_CATALOG_QUERY, data);
-}
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === REFRESH_CATALOG_QUERIES) {
-      dispatch(fetchCatalogQueries());
-    }
-  },
-);
-
-type CatalogQueryState = Record<string, any>;
-
-interface CatalogQueryAction {
-  type: string;
-  data?: any;
-}
-
-const reducer = (
-  state: CatalogQueryState = { catalogQueries: [] },
-  action: CatalogQueryAction,
-): CatalogQueryState => {
-  switch (action.type) {
-    case FETCH_CATALOG_QUERIES_OK: {
-      const catalogQueries = action.data;
-      return {
-        ...state,
-        catalogQueries,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("catalogQueries", reducer);
+export const { useGetCatalogQueriesQuery, useSubmitCatalogQueryMutation } =
+  catalogQueryApi;

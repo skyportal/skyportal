@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -11,10 +12,11 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as earthquakeActions from "../../ducks/earthquake";
+import { useAppDispatch } from "../../types/hooks";
+import { useSubmitPredictionMutation } from "../../ducks/earthquake";
 import * as mmadetectorActions from "../../ducks/mmadetector";
 import GroupShareSelect from "../group/GroupShareSelect";
+import { useGetMMADetectorsQuery } from "../../ducks/mmadetector";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -65,9 +67,10 @@ const EarthquakePredictionForm = ({
 }: EarthquakePredictionFormProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [submitPrediction] = useSubmitPredictionMutation();
 
-  const { mmadetectorList } = useAppSelector((state) => state["mmadetectors"]);
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const { data: mmadetectorList = [] } = useGetMMADetectorsQuery();
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedMMADetectorId, setSelectedMMADetectorId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,11 +94,11 @@ const EarthquakePredictionForm = ({
       // update
 
       const result: any = await dispatch(
-        mmadetectorActions.fetchMMADetectors(),
+        mmadetectorActions.mmadetectorApi.endpoints.getMMADetectors.initiate(),
       );
 
       const { data } = result;
-      setSelectedMMADetectorId(data[0]?.id);
+      setSelectedMMADetectorId(data?.[0]?.id);
     };
 
     getMMADetectors();
@@ -117,13 +120,15 @@ const EarthquakePredictionForm = ({
       return;
     }
     setIsSubmitting(true);
-    await dispatch(
-      earthquakeActions.submitPrediction(
-        earthquake.event_id,
-        selectedMMADetectorId,
-        formData,
-      ),
-    );
+    try {
+      await submitPrediction({
+        id: earthquake.event_id,
+        mmadetector_id: selectedMMADetectorId,
+        params: formData,
+      }).unwrap();
+    } catch {
+      // error notification handled by the base query
+    }
     setIsSubmitting(false);
   };
 

@@ -1,22 +1,30 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Grid from "@mui/material/Grid";
+import { skipToken } from "@reduxjs/toolkit/query";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 import CatalogQueryForm from "./CatalogQueryForm";
 import CatalogQueryLists from "./CatalogQueryLists";
 
-import { fetchGcnEventCatalogQueries } from "../../ducks/gcnEvent";
+import {
+  useGetGcnEventQuery,
+  useGetGcnEventCatalogQueriesQuery,
+} from "../../ducks/gcnEvent";
 
-const AddCatalogQueryPage = () => {
-  const dispatch = useAppDispatch();
+interface AddCatalogQueryPageProps {
+  dateobs: string;
+}
+
+const AddCatalogQueryPage = ({ dateobs }: AddCatalogQueryPageProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [fetchingCatalogQueries, setFetchingCatalogQueries] = useState(false);
 
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]) as any;
+  const { data: gcnEvent } = useGetGcnEventQuery(dateobs ?? skipToken);
+  const { data: catalogQueries } = useGetGcnEventCatalogQueriesQuery(
+    gcnEvent?.id != null ? { gcnID: gcnEvent["id"] } : skipToken,
+  );
 
   const openDialog = () => {
     setDialogOpen(true);
@@ -26,18 +34,7 @@ const AddCatalogQueryPage = () => {
     setDialogOpen(false);
   };
 
-  useEffect(() => {
-    if (gcnEvent?.id && !gcnEvent?.catalog_queries && !fetchingCatalogQueries) {
-      setFetchingCatalogQueries(true);
-      dispatch(fetchGcnEventCatalogQueries({ gcnID: gcnEvent?.id })).then(
-        () => {
-          setFetchingCatalogQueries(false);
-        },
-      );
-    }
-  }, [dispatch, gcnEvent]);
-
-  const catalogQueryList = gcnEvent?.catalog_queries || [];
+  const catalogQueryList = catalogQueries || [];
 
   return (
     <>
@@ -45,7 +42,7 @@ const AddCatalogQueryPage = () => {
         secondary
         size="small"
         onClick={openDialog}
-        data-testid={`addCatalogQueryButton_${gcnEvent.id}`}
+        data-testid={`addCatalogQueryButton_${gcnEvent?.id}`}
       >
         Catalog Query
       </Button>
@@ -54,7 +51,7 @@ const AddCatalogQueryPage = () => {
         <DialogContent>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, md: 4 }}>
-              <CatalogQueryForm gcnevent={gcnEvent} />
+              <CatalogQueryForm gcnevent={gcnEvent as any} />
             </Grid>
             <Grid size={{ xs: 12, md: 8 }}>
               <CatalogQueryLists catalog_queries={catalogQueryList || []} />

@@ -21,7 +21,7 @@ import { useReactToPrint } from "react-to-print";
 import { showNotification } from "baselayer/components/Notifications";
 import { Tooltip } from "@mui/material";
 import { useAppDispatch } from "../types/hooks";
-import { fetchSourceFinderChart } from "../ducks/source";
+import { useLazyGetSourceFinderChartQuery } from "../ducks/source";
 import Button from "./Button";
 
 const initialFormState = {
@@ -104,6 +104,7 @@ const PlaceHolder = () => {
 
 const FindingChart = () => {
   const dispatch = useAppDispatch();
+  const [getSourceFinderChart] = useLazyGetSourceFinderChartQuery();
   const { classes } = useStyles();
   const {
     handleSubmit,
@@ -133,20 +134,21 @@ const FindingChart = () => {
         facility: `${params?.facility}`,
         as_json: "true",
       };
-      const response: any = await dispatch(
-        fetchSourceFinderChart(id, formData),
-      );
-      if (response.status === "success" && response?.data) {
-        const img_data = response?.data?.finding_chart;
-        const url = response?.data?.public_url;
+      try {
+        const data: any = await getSourceFinderChart({
+          id,
+          params: formData,
+        }).unwrap();
+        const img_data = data?.finding_chart;
+        const url = data?.public_url;
         if (!img_data) {
           console.error("No image data returned from server");
           return;
         }
         setImage(`data:image/png;base64,${img_data}`);
         setPublicUrl(url);
-      } else {
-        console.error("Error fetching image:", response.statusText);
+      } catch (err) {
+        console.error("Error fetching image:", err);
       }
     };
     fetchImage();

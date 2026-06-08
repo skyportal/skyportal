@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -14,14 +15,14 @@ import UpdateShift from "./UpdateShift";
 import ShiftUsersSelect from "./ShiftUsersSelect";
 import Button from "../Button";
 import {
-  addShiftUser,
-  deleteShiftUser,
-  updateShiftUser,
+  useAddShiftUserMutation,
+  useDeleteShiftUserMutation,
+  useUpdateShiftUserMutation,
+  useDeleteShiftMutation,
 } from "../../ducks/shifts";
-import { deleteShift } from "../../ducks/shifts";
 import { userLabel } from "../../utils/format";
 import Typography from "@mui/material/Typography";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 
 const formatUTC = (date: Date) =>
   date.toLocaleString("en-US", {
@@ -69,34 +70,31 @@ const ReplaceUserMenu = ({
   dispatch,
 }: ReplaceUserMenuProps) => {
   const [selectedId, setSelectedId] = useState<any>(null);
+  const [addShiftUser] = useAddShiftUserMutation();
+  const [deleteShiftUser] = useDeleteShiftUserMutation();
+  const [updateShiftUser] = useUpdateShiftUserMutation();
   const usersToReplace = shiftToManage.shift_users.filter(
     (shiftUser: any) => shiftUser.needs_replacement,
   );
 
-  const replaceUserInShift = (selectedUserId: any) => {
+  const replaceUserInShift = async (selectedUserId: any) => {
     const shiftID = parseInt(shiftToManage.id, 10);
     const shiftUser = usersToReplace.find((u: any) => u.id === selectedUserId);
-    dispatch(
-      deleteShiftUser({
+    try {
+      await deleteShiftUser({
         userID: shiftUser.user_id,
         shiftID,
-      }),
-    ).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(
-          addShiftUser({
-            shiftID,
-            userID: currentUser.id,
-            admin: false,
-            needs_replacement: false,
-          }),
-        ).then((next_result: any) => {
-          if (next_result.status === "success") {
-            dispatch(showNotification(`replaced user: ${shiftUser.username}`));
-          }
-        });
-      }
-    });
+      }).unwrap();
+      await addShiftUser({
+        shiftID,
+        userID: currentUser.id,
+        admin: false,
+        needs_replacement: false,
+      }).unwrap();
+      dispatch(showNotification(`replaced user: ${shiftUser.username}`));
+    } catch {
+      // error notification handled by the API layer
+    }
   };
 
   const currentUserIsMemberInShift = shiftToManage.shift_users.some(
@@ -118,21 +116,20 @@ const ReplaceUserMenu = ({
           primary
           variant="outlined"
           id="ask-for-replacement-button"
-          onClick={() => {
+          onClick={async () => {
             const shiftID = parseInt(shiftToManage.id, 10);
             const userID = parseInt(currentUser.id as any, 10);
-            dispatch(
-              updateShiftUser({
+            try {
+              await updateShiftUser({
                 shiftID,
                 userID,
                 admin: false,
                 needs_replacement: true,
-              }),
-            ).then((result: any) => {
-              if (result.status === "success") {
-                dispatch(showNotification(`asked for replacement`));
-              }
-            });
+              }).unwrap();
+              dispatch(showNotification(`asked for replacement`));
+            } catch {
+              // error notification handled by the API layer
+            }
           }}
         >
           Ask for Replacement
@@ -215,51 +212,56 @@ interface ShiftManagementProps {
 }
 
 const ShiftManagement = ({ shiftToManage }: ShiftManagementProps) => {
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const dispatch = useAppDispatch();
+  const [addShiftUser] = useAddShiftUserMutation();
+  const [deleteShiftUser] = useDeleteShiftUserMutation();
+  const [deleteShift] = useDeleteShiftMutation();
 
-  const deleteAShift = (shift: any) => {
-    dispatch(deleteShift(shift.id)).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Shift deleted"));
-      }
-    });
+  const deleteAShift = async (shift: any) => {
+    try {
+      await deleteShift(shift.id).unwrap();
+      dispatch(showNotification("Shift deleted"));
+    } catch {
+      // error notification handled by the API layer
+    }
   };
 
-  const joinShift = (shift: any) => {
-    dispatch(
-      addShiftUser({
-        userID: currentUser.id,
+  const joinShift = async (shift: any) => {
+    try {
+      await addShiftUser({
+        userID: currentUser!.id,
         admin: false,
         shiftID: shift.id,
-      }),
-    ).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification(`joined shift: ${shift.name}`));
-      }
-    });
+      }).unwrap();
+      dispatch(showNotification(`joined shift: ${shift.name}`));
+    } catch {
+      // error notification handled by the API layer
+    }
   };
 
-  const leaveShift = (shift: any) => {
-    dispatch(
-      deleteShiftUser({ userID: currentUser.id, shiftID: shift.id }),
-    ).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification(`left shift: ${shift.name}`));
-      }
-    });
+  const leaveShift = async (shift: any) => {
+    try {
+      await deleteShiftUser({
+        userID: currentUser!.id,
+        shiftID: shift.id,
+      }).unwrap();
+      dispatch(showNotification(`left shift: ${shift.name}`));
+    } catch {
+      // error notification handled by the API layer
+    }
   };
 
   const admins = shiftToManage.shift_users.filter((su: any) => su.admin);
   const members = shiftToManage.shift_users.filter((su: any) => !su.admin);
   const participating = shiftToManage.shift_users.some(
-    (su: any) => su.user_id === currentUser.id,
+    (su: any) => su.user_id === currentUser?.id,
   );
 
   let currentUserIsAdminOfShift = false;
   if (
     shiftToManage.shift_users.some(
-      (u: any) => u.user_id === currentUser.id && u.admin,
+      (u: any) => u.user_id === currentUser?.id && u.admin,
     )
   ) {
     currentUserIsAdminOfShift = true;

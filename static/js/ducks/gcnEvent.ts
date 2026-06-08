@@ -1,546 +1,451 @@
-import messageHandler from "baselayer/MessageHandler";
-
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
-
-export const REFRESH_GCN_EVENT = "skyportal/REFRESH_GCN_EVENT";
-
-export const FETCH_GCNEVENT = "skyportal/FETCH_GCNEVENT";
-export const FETCH_GCNEVENT_OK = "skyportal/FETCH_GCNEVENT_OK";
-
-export const SUBMIT_GCNEVENT = "skyportal/SUBMIT_GCNEVENT";
-
-const ADD_COMMENT_ON_GCNEVENT = "skyportal/ADD_COMMENT_ON_GCNEVENT";
-
-const EDIT_COMMENT_ON_GCNEVENT = "skyportal/EDIT_COMMENT_ON_GCNEVENT";
-
-const DELETE_COMMENT_ON_GCNEVENT = "skyportal/DELETE_COMMENT_ON_GCNEVENT";
-const PATCH_GCNEVENT_SUMMARY = "skyportal/PATCH_GCNEVENT_SUMMARY";
-
-const GET_COMMENT_ON_GCNEVENT_ATTACHMENT_OK =
-  "skyportal/GET_COMMENT_ON_GCNEVENT_ATTACHMENT_OK";
-
-const GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW =
-  "skyportal/GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW";
-const GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW_OK =
-  "skyportal/GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW_OK";
-
-const SUBMIT_OBSERVATION_PLAN_REQUEST =
-  "skyportal/SUBMIT_OBSERVATION_PLAN_REQUEST";
-
-const DELETE_OBSERVATION_PLAN_REQUEST =
-  "skyportal/DELETE_OBSERVATION_PLAN_REQUEST";
-
-const SUBMIT_OBSERVATION_PLAN_REQUEST_TREASUREMAP =
-  "skyportal/SUBMIT_OBSERVATION_PLAN_REQUEST_TREASUREMAP";
-const DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP =
-  "skyportal/DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP";
-
-const FETCH_OBSERVATION_PLAN_REQUEST =
-  "skyportal/FETCH_OBSERVATION_PLAN_REQUEST";
-const FETCH_OBSERVATION_PLAN_REQUEST_OK =
-  "skyportal/FETCH_OBSERVATION_PLAN_REQUEST_OK";
-
-const SEND_OBSERVATION_PLAN_REQUEST = "skyportal/SEND_OBSERVATION_PLAN_REQUEST";
-const REMOVE_OBSERVATION_PLAN_REQUEST =
-  "skyportal/REMOVE_OBSERVATION_PLAN_REQUEST";
-
-const CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN =
-  "skyportal/CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN";
-
-const DELETE_OBSERVATION_PLAN_FIELDS =
-  "skyportal/DELETE_OBSERVATION_PLAN_FIELDS";
-
-const POST_GCNEVENT_SUMMARY = "skyportal/POST_GCNEVENT_SUMMARY";
-const FETCH_GCNEVENT_SUMMARY = "skyportal/FETCH_GCNEVENT_SUMMARY";
-const DELETE_GCNEVENT_SUMMARY = "skyportal/DELETE_GCNEVENT_SUMMARY";
-
-const POST_GCNEVENT_REPORT = "skyportal/POST_GCNEVENT_REPORT";
-const FETCH_GCNEVENT_REPORT = "skyportal/FETCH_GCNEVENT_REPORT";
-const FETCH_GCNEVENT_REPORT_OK = "skyportal/FETCH_GCNEVENT_REPORT_OK";
-const FETCH_GCNEVENT_REPORTS = "skyportal/FETCH_GCNEVENT_REPORTS";
-const FETCH_GCNEVENT_REPORTS_OK = "skyportal/FETCH_GCNEVENT_REPORTS_OK";
-const REFRESH_GCNEVENT_REPORT = "skyportal/REFRESH_GCNEVENT_REPORT";
-const REFRESH_GCNEVENT_REPORTS = "skyportal/REFRESH_GCNEVENT_REPORTS";
-const DELETE_GCNEVENT_REPORT = "skyportal/DELETE_GCNEVENT_REPORT";
-const PATCH_GCNEVENT_REPORT = "skyportal/PATCH_GCNEVENT_REPORT";
-
-const POST_GCN_TACH = "skyportal/POST_GCN_TACH";
-const FETCH_GCN_TACH = "skyportal/FETCH_GCN_TACH";
-const FETCH_GCN_TACH_OK = "skyportal/FETCH_GCN_TACH_OK";
-
-const POST_GCN_GRACEDB = "skyportal/POST_GCN_GRACEDB";
-
-const PUT_GCN_TRIGGERED = "skyportal/PUT_GCN_TRIGGERED";
-const FETCH_GCN_TRIGGERED = "skyportal/FETCH_GCN_TRIGGERED";
-const FETCH_GCN_TRIGGERED_OK = "skyportal/FETCH_GCN_TRIGGERED_OK";
-const DELETE_GCN_TRIGGERED = "skyportal/DELETE_GCN_TRIGGERED";
-const REFRESH_GCN_TRIGGERED = "skyportal/REFRESH_GCN_TRIGGERED";
-
-const POST_GCN_ALIAS = "skyportal/POST_GCN_ALIAS";
-const DELETE_GCN_ALIAS = "skyportal/DELETE_GCN_ALIAS";
-
-const FETCH_GCNEVENT_SURVEY_EFFICIENCY =
-  "skyportal/FETCH_GCNEVENT_SURVEY_EFFICIENCY";
-const FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK =
-  "skyportal/FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK";
-const REFRESH_GCNEVENT_SURVEY_EFFICIENCY =
-  "skyportal/REFRESH_GCNEVENT_SURVEY_EFFICIENCY";
-
-const FETCH_GCNEVENT_CATALOG_QUERIES =
-  "skyportal/FETCH_GCNEVENT_CATALOG_QUERIES";
-const FETCH_GCNEVENT_CATALOG_QUERIES_OK =
-  "skyportal/FETCH_GCNEVENT_CATALOG_QUERIES_OK";
-const REFRESH_GCNEVENT_CATALOG_QUERIES =
-  "skyportal/REFRESH_GCNEVENT_CATALOG_QUERIES";
-
-const FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS =
-  "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS";
-
-const FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS_OK =
-  "skyportal/FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS_OK";
-
-const REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS =
-  "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS";
-
-export const fetchGcnEvent = (dateobs: string) =>
-  API.GET(
-    `/api/gcn_event/${dateobs}?excludeNoticeContent=true`,
-    FETCH_GCNEVENT,
-  );
-
-export function addCommentOnGcnEvent(formData: any) {
-  function fileReaderPromise(file: any) {
-    return new Promise((resolve) => {
-      const filereader = new FileReader();
-      filereader.readAsDataURL(file);
-      filereader.onloadend = () =>
-        resolve({ body: filereader.result, name: file.name });
-    });
-  }
-  if (formData.attachment) {
-    return (dispatch: AppDispatch) => {
-      fileReaderPromise(formData.attachment).then((fileData) => {
-        formData.attachment = fileData;
-
-        dispatch(
-          API.POST(
-            `/api/gcn_event/${formData.gcnevent_id}/comments`,
-            ADD_COMMENT_ON_GCNEVENT,
-            formData,
-          ),
-        );
-      });
-    };
-  }
-  return API.POST(
-    `/api/gcn_event/${formData.gcnevent_id}/comments`,
-    ADD_COMMENT_ON_GCNEVENT,
-    formData,
-  );
-}
-
-export function editCommentOnGcnEvent(
-  commentID: any,
-  gcnEventID: any,
-  formData: any,
-) {
-  function fileReaderPromise(file: any) {
-    return new Promise((resolve) => {
-      const filereader = new FileReader();
-      filereader.readAsDataURL(file);
-      filereader.onloadend = () =>
-        resolve({ body: filereader.result, name: file.name });
-    });
-  }
-  if (formData.attachment) {
-    return (dispatch: AppDispatch) => {
-      fileReaderPromise(formData.attachment).then((fileData) => {
-        formData.attachment = fileData;
-
-        dispatch(
-          API.PUT(
-            `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
-            EDIT_COMMENT_ON_GCNEVENT,
-            formData,
-          ),
-        );
-      });
-    };
-  }
-  return API.PUT(
-    `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
-    EDIT_COMMENT_ON_GCNEVENT,
-    formData,
-  );
-}
-
-export function deleteCommentOnGcnEvent(gcnEventID: any, commentID: any) {
-  return API.DELETE(
-    `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
-    DELETE_COMMENT_ON_GCNEVENT,
-  );
-}
-
-export function fetchObservationPlanRequests(gcnEventID: any) {
-  return API.GET(
-    `/api/gcn_event/${gcnEventID}/observation_plan_requests`,
-    FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS,
-  );
-}
-
-export const submitObservationPlanRequest = (params: any) => {
-  const { instrument_name, ...paramsToSubmit } = params;
-  return API.POST(
-    "/api/observation_plan",
-    SUBMIT_OBSERVATION_PLAN_REQUEST,
-    paramsToSubmit,
-  );
-};
-
-export const sendObservationPlanRequest = (id: any) =>
-  API.POST(`/api/observation_plan/${id}/queue`, SEND_OBSERVATION_PLAN_REQUEST);
-
-export const removeObservationPlanRequest = (id: any) =>
-  API.DELETE(
-    `/api/observation_plan/${id}/queue`,
-    REMOVE_OBSERVATION_PLAN_REQUEST,
-  );
-
-export const deleteObservationPlanRequest = (id: any) =>
-  API.DELETE(`/api/observation_plan/${id}`, DELETE_OBSERVATION_PLAN_REQUEST);
-
-export const submitObservationPlanRequestTreasureMap = (id: any) =>
-  API.POST(
-    `/api/observation_plan/${id}/treasuremap`,
-    SUBMIT_OBSERVATION_PLAN_REQUEST_TREASUREMAP,
-  );
-
-export const deleteObservationPlanRequestTreasureMap = (id: any) =>
-  API.DELETE(
-    `/api/observation_plan/${id}/treasuremap`,
-    DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP,
-  );
-
-export const createObservationPlanRequestObservingRun = (
-  id: any,
-  params: any = {},
-) =>
-  API.POST(
-    `/api/observation_plan/${id}/observing_run`,
-    CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN,
-    params,
-  );
-
-export const deleteObservationPlanFields = (id: any, fieldIds: any) =>
-  API.DELETE(
-    `/api/observation_plan/${id}/fields`,
-    DELETE_OBSERVATION_PLAN_FIELDS,
-    { fieldIds },
-  );
-
-export function fetchObservationPlan(id: any) {
-  return API.GET(
-    `/api/observation_plan/${id}?includePlannedObservations=true`,
-    FETCH_OBSERVATION_PLAN_REQUEST,
-  );
-}
-
-export function getCommentOnGcnEventTextAttachment(
-  gcnEventID: any,
-  commentID: any,
-) {
-  return API.GET(
-    `/api/gcn_event/${gcnEventID}/comments/${commentID}/attachment?download=false&preview=false`,
-    GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW,
-  );
-}
-
-export function submitGcnEvent(data: any) {
-  return API.POST("/api/gcn_event", SUBMIT_GCNEVENT, data);
-}
-
-export function postGcnEventSummary({ dateobs, params }: any) {
-  return API.POST(
-    `/api/gcn_event/${dateobs}/summary`,
-    POST_GCNEVENT_SUMMARY,
-    params,
-  );
-}
-
-export function fetchGcnEventSummary({ dateobs, summaryID }: any) {
-  return API.GET(
-    `/api/gcn_event/${dateobs}/summary/${summaryID}`,
-    FETCH_GCNEVENT_SUMMARY,
-  );
-}
-
-export function deleteGcnEventSummary({ dateobs, summaryID }: any) {
-  return API.DELETE(
-    `/api/gcn_event/${dateobs}/summary/${summaryID}`,
-    DELETE_GCNEVENT_SUMMARY,
-  );
-}
-
-export function patchGcnEventSummary({ dateobs, summaryID, formData }: any) {
-  return API.PATCH(
-    `/api/gcn_event/${dateobs}/summary/${summaryID}`,
-    PATCH_GCNEVENT_SUMMARY,
-    formData,
-  );
-}
-
-export function postGcnEventReport({ dateobs, params }: any) {
-  return API.POST(
-    `/api/gcn_event/${dateobs}/report`,
-    POST_GCNEVENT_REPORT,
-    params,
-  );
-}
-
-export function fetchGcnEventReport({ dateobs, reportID }: any) {
-  return API.GET(
-    `/api/gcn_event/${dateobs}/report/${reportID}`,
-    FETCH_GCNEVENT_REPORT,
-  );
-}
-
-export function fetchGcnEventReports(dateobs: any) {
-  return API.GET(`/api/gcn_event/${dateobs}/report`, FETCH_GCNEVENT_REPORTS);
-}
-
-export function deleteGcnEventReport({ dateobs, reportID }: any) {
-  return API.DELETE(
-    `/api/gcn_event/${dateobs}/report/${reportID}`,
-    DELETE_GCNEVENT_REPORT,
-  );
-}
-
-export function patchGcnEventReport({ dateobs, reportID, formData }: any) {
-  return API.PATCH(
-    `/api/gcn_event/${dateobs}/report/${reportID}`,
-    PATCH_GCNEVENT_REPORT,
-    formData,
-  );
-}
-
-export function postGcnAlias(dateobs: any, params: any = {}) {
-  return API.POST(`/api/gcn_event/${dateobs}/alias`, POST_GCN_ALIAS, params);
-}
-
-export function deleteGcnAlias(dateobs: any, params: any = {}) {
-  return API.DELETE(
-    `/api/gcn_event/${dateobs}/alias`,
-    DELETE_GCN_ALIAS,
-    params,
-  );
-}
-
-export function postGcnTach(dateobs: any) {
-  return API.POST(`/api/gcn_event/${dateobs}/tach`, POST_GCN_TACH);
-}
-
-export function fetchGcnTach(dateobs: any) {
-  return API.GET(`/api/gcn_event/${dateobs}/tach`, FETCH_GCN_TACH);
-}
-
-export function postGcnGraceDB(dateobs: any) {
-  return API.POST(`/api/gcn_event/${dateobs}/gracedb`, POST_GCN_GRACEDB);
-}
-
-export function putGcnTrigger({ dateobs, allocationID, triggered }: any) {
-  return API.PUT(
-    `/api/gcn_event/${dateobs}/triggered/${allocationID}`,
-    PUT_GCN_TRIGGERED,
-    { triggered },
-  );
-}
-
-export function fetchGcnTrigger({ dateobs, allocationID = null }: any) {
-  if (allocationID) {
-    return API.GET(
-      `/api/gcn_event/${dateobs}/triggered/${allocationID}`,
-      FETCH_GCN_TRIGGERED,
-    );
-  }
-  return API.GET(`/api/gcn_event/${dateobs}/triggered`, FETCH_GCN_TRIGGERED);
-}
-
-export function deleteGcnTrigger({ dateobs, allocationID }: any) {
-  return API.DELETE(
-    `/api/gcn_event/${dateobs}/triggered/${allocationID}`,
-    DELETE_GCN_TRIGGERED,
-  );
-}
-
-export function fetchGcnEventSurveyEfficiency({ gcnID }: any) {
-  return API.GET(
-    `/api/gcn_event/${gcnID}/survey_efficiency`,
-    FETCH_GCNEVENT_SURVEY_EFFICIENCY,
-  );
-}
-
-export function fetchGcnEventCatalogQueries({ gcnID }: any) {
-  return API.GET(
-    `/api/gcn_event/${gcnID}/catalog_query`,
-    FETCH_GCNEVENT_CATALOG_QUERIES,
-  );
-}
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: any, payload: any, dispatch: any, getState: any) => {
-    const { gcnEvent } = getState();
-    const loaded_gcnevent_key = gcnEvent?.dateobs;
-    const loaded_report_key = gcnEvent?.report?.id;
-
-    if (actionType === FETCH_GCNEVENT) {
-      dispatch(fetchGcnEvent(gcnEvent.dateobs)).then((response: any) => {
-        if (response.status === "success") {
-          dispatch(fetchGcnTach(gcnEvent.dateobs));
-        }
-      });
-    }
-    if (actionType === REFRESH_GCN_EVENT) {
-      if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
-        dispatch(fetchGcnEvent(gcnEvent.dateobs)).then((response: any) => {
-          if (response.status === "success") {
-            dispatch(fetchGcnTach(gcnEvent.dateobs));
-          }
-        });
-      }
-    }
-    if (actionType === REFRESH_GCN_TRIGGERED) {
-      if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
-        dispatch(fetchGcnTrigger({ dateobs: gcnEvent.dateobs }));
-      }
-    }
-    if (actionType === REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS) {
-      if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
-        dispatch(fetchObservationPlanRequests(gcnEvent?.id));
-      }
-    }
-    if (actionType === REFRESH_GCNEVENT_CATALOG_QUERIES) {
-      if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
-        dispatch(fetchGcnEventCatalogQueries({ gcnID: gcnEvent?.id }));
-      }
-    }
-    if (actionType === REFRESH_GCNEVENT_SURVEY_EFFICIENCY) {
-      if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
-        dispatch(fetchGcnEventSurveyEfficiency({ gcnID: gcnEvent?.id }));
-      }
-    }
-    if (actionType === REFRESH_GCNEVENT_REPORT) {
-      if (loaded_report_key === payload?.report_id) {
-        dispatch(
-          fetchGcnEventReport({
-            dateobs: loaded_gcnevent_key,
-            reportID: loaded_report_key,
-          }),
-        );
-      }
-    }
-    if (actionType === REFRESH_GCNEVENT_REPORTS) {
-      if (loaded_gcnevent_key === payload?.gcnEvent_dateobs) {
-        dispatch(fetchGcnEventReports(loaded_gcnevent_key));
-      }
-    }
-  },
-);
-
-interface GcnEventAction {
-  type: string;
-  data?: any;
+/**
+ * GCN event (the single loaded event detail + all its sub-resources).
+ *
+ * RTK Query conversion of the old composite `gcnEvent` duck. The old reducer
+ * built ONE `gcnEvent` slice out of many independent sub-fetches (the main
+ * event, tach circulars, triggered allocations, survey efficiency, catalog
+ * queries, observation plan requests, a single observation plan, a single
+ * report, and the report list). Here each sub-fetch becomes its own
+ * `build.query`, keyed by its own argument and cached independently, and every
+ * mutation (comments, aliases, triggers, observation plans, summaries, reports,
+ * tach/gracedb) becomes its own `build.mutation`.
+ *
+ * Consumers that used to read `state.gcnEvent.<subfield>` now call the matching
+ * query hook. Queries that surface event data provide the `GcnEvent` tag;
+ * mutations that change event data invalidate it. The websocket `REFRESH_*`
+ * messages are bridged to cache invalidation via `invalidateOnMessage`, so only
+ * the active (currently-loaded) event's queries refetch.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+
+export interface GcnEvent {
+  id?: number | undefined;
+  dateobs?: string | undefined;
   [key: string]: any;
 }
 
-const reducer = (state: any = null, action: GcnEventAction): any => {
-  switch (action.type) {
-    case FETCH_GCNEVENT_OK: {
-      if (action.data?.dateobs === state?.dateobs) {
-        return {
-          ...state,
-          ...action.data,
-        };
-      }
-      return action.data;
-    }
-    case GET_COMMENT_ON_GCNEVENT_ATTACHMENT_OK: {
-      const { commentId, text, attachment, attachment_name } = action.data;
-      return {
-        ...state,
-        commentAttachment: {
-          commentId,
-          text,
-          attachment,
-          attachment_name,
-        },
-      };
-    }
-    case GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW_OK: {
-      const { commentId, text, attachment, attachment_name } = action.data;
-      return {
-        ...state,
-        commentAttachment: {
-          commentId,
-          text,
-          attachment,
-          attachment_name,
-        },
-      };
-    }
-    case FETCH_GCN_TACH_OK: {
-      return {
-        ...state,
-        circulars: action.data.circulars,
-      };
-    }
-    case FETCH_GCN_TRIGGERED_OK: {
-      return {
-        ...state,
-        gcn_triggers: action.data,
-      };
-    }
-    case FETCH_GCNEVENT_SURVEY_EFFICIENCY_OK: {
-      return {
-        ...state,
-        survey_efficiency: action.data,
-      };
-    }
-    case FETCH_GCNEVENT_CATALOG_QUERIES_OK: {
-      return {
-        ...state,
-        catalog_queries: action.data,
-      };
-    }
-    case FETCH_GCNEVENT_OBSERVATION_PLAN_REQUESTS_OK: {
-      return {
-        ...state,
-        observation_plans: action.data,
-      };
-    }
-    case FETCH_OBSERVATION_PLAN_REQUEST_OK: {
-      return {
-        ...state,
-        observation_plan: action.data,
-      };
-    }
-    case FETCH_GCNEVENT_REPORT_OK: {
-      return {
-        ...state,
-        report: action.data,
-      };
-    }
-    case FETCH_GCNEVENT_REPORTS_OK: {
-      return {
-        ...state,
-        reports: action.data,
-      };
-    }
-    default:
-      return state;
-  }
-};
+export interface CommentAttachment {
+  commentId: number | string;
+  text: string;
+  attachment: string;
+  attachment_name: string;
+}
 
-store.injectReducer("gcnEvent", reducer);
+function fileReaderPromise(
+  file: File,
+): Promise<{ body: string | ArrayBuffer | null; name: string }> {
+  return new Promise((resolve) => {
+    const filereader = new FileReader();
+    filereader.readAsDataURL(file);
+    filereader.onloadend = () =>
+      resolve({ body: filereader.result, name: file.name });
+  });
+}
+
+export const gcnEventApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    // ----- Main event + read-only sub-fetches -----
+    getGcnEvent: build.query<GcnEvent, string>({
+      query: (dateobs) => `api/gcn_event/${dateobs}?excludeNoticeContent=true`,
+      providesTags: ["GcnEvent"],
+    }),
+    getGcnTach: build.query<{ circulars?: Record<string, string> }, string>({
+      query: (dateobs) => `api/gcn_event/${dateobs}/tach`,
+      providesTags: ["GcnEvent"],
+    }),
+    getGcnTrigger: build.query<
+      any,
+      { dateobs: string; allocationID?: number | string | null }
+    >({
+      query: ({ dateobs, allocationID = null }) =>
+        allocationID
+          ? `api/gcn_event/${dateobs}/triggered/${allocationID}`
+          : `api/gcn_event/${dateobs}/triggered`,
+      providesTags: ["GcnEvent"],
+    }),
+    getGcnEventSurveyEfficiency: build.query<any, { gcnID: number | string }>({
+      query: ({ gcnID }) => `api/gcn_event/${gcnID}/survey_efficiency`,
+      providesTags: ["GcnEvent"],
+    }),
+    getGcnEventCatalogQueries: build.query<any, { gcnID: number | string }>({
+      query: ({ gcnID }) => `api/gcn_event/${gcnID}/catalog_query`,
+      providesTags: ["GcnEvent"],
+    }),
+    getObservationPlanRequests: build.query<any, number | string>({
+      query: (gcnEventID) =>
+        `api/gcn_event/${gcnEventID}/observation_plan_requests`,
+      providesTags: ["GcnEvent"],
+    }),
+    getObservationPlan: build.query<any, number | string>({
+      query: (id) =>
+        `api/observation_plan/${id}?includePlannedObservations=true`,
+    }),
+    getGcnEventReport: build.query<
+      any,
+      { dateobs: string; reportID: number | string }
+    >({
+      query: ({ dateobs, reportID }) =>
+        `api/gcn_event/${dateobs}/report/${reportID}`,
+      providesTags: ["GcnEvent"],
+    }),
+    getGcnEventReports: build.query<any, string>({
+      query: (dateobs) => `api/gcn_event/${dateobs}/report`,
+      providesTags: ["GcnEvent"],
+    }),
+    getGcnEventSummary: build.query<
+      any,
+      { dateobs: string; summaryID: number | string }
+    >({
+      query: ({ dateobs, summaryID }) =>
+        `api/gcn_event/${dateobs}/summary/${summaryID}`,
+    }),
+    getCommentOnGcnEventTextAttachment: build.query<
+      CommentAttachment,
+      { gcnEventID: number | string; commentID: number | string }
+    >({
+      query: ({ gcnEventID, commentID }) =>
+        `api/gcn_event/${gcnEventID}/comments/${commentID}/attachment?download=false&preview=false`,
+    }),
+
+    // ----- Event-level mutations -----
+    submitGcnEvent: build.mutation<any, any>({
+      query: (data) => ({
+        url: "api/gcn_event",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    postGcnTach: build.mutation<any, string>({
+      query: (dateobs) => ({
+        url: `api/gcn_event/${dateobs}/tach`,
+        method: "POST",
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    postGcnGraceDB: build.mutation<any, string>({
+      query: (dateobs) => ({
+        url: `api/gcn_event/${dateobs}/gracedb`,
+        method: "POST",
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    postGcnAlias: build.mutation<
+      any,
+      { dateobs: string; params?: Record<string, any> | undefined }
+    >({
+      query: ({ dateobs, params = {} }) => ({
+        url: `api/gcn_event/${dateobs}/alias`,
+        method: "POST",
+        body: params,
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    deleteGcnAlias: build.mutation<
+      any,
+      { dateobs: string; params?: Record<string, any> | undefined }
+    >({
+      query: ({ dateobs, params = {} }) => ({
+        url: `api/gcn_event/${dateobs}/alias`,
+        method: "DELETE",
+        body: params,
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    putGcnTrigger: build.mutation<
+      any,
+      {
+        dateobs: string;
+        allocationID: number | string;
+        triggered: boolean;
+      }
+    >({
+      query: ({ dateobs, allocationID, triggered }) => ({
+        url: `api/gcn_event/${dateobs}/triggered/${allocationID}`,
+        method: "PUT",
+        body: { triggered },
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    deleteGcnTrigger: build.mutation<
+      any,
+      { dateobs: string; allocationID: number | string }
+    >({
+      query: ({ dateobs, allocationID }) => ({
+        url: `api/gcn_event/${dateobs}/triggered/${allocationID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+
+    // ----- Comments -----
+    addCommentOnGcnEvent: build.mutation<any, any>({
+      queryFn: async (formData, _api, _extra, baseQuery) => {
+        const body = { ...formData };
+        if (body.attachment) {
+          body.attachment = await fileReaderPromise(body.attachment);
+        }
+        const result = await baseQuery({
+          url: `api/gcn_event/${body.gcnevent_id}/comments`,
+          method: "POST",
+          body,
+        });
+        if (result.error) {
+          return { error: result.error };
+        }
+        return { data: result.data };
+      },
+      invalidatesTags: ["GcnEvent"],
+    }),
+    editCommentOnGcnEvent: build.mutation<
+      any,
+      {
+        commentID: number | string;
+        gcnEventID: number | string;
+        formData: any;
+      }
+    >({
+      queryFn: async (
+        { commentID, gcnEventID, formData },
+        _api,
+        _extra,
+        baseQuery,
+      ) => {
+        const body = { ...formData };
+        if (body.attachment) {
+          body.attachment = await fileReaderPromise(body.attachment);
+        }
+        const result = await baseQuery({
+          url: `api/gcn_event/${gcnEventID}/comments/${commentID}`,
+          method: "PUT",
+          body,
+        });
+        if (result.error) {
+          return { error: result.error };
+        }
+        return { data: result.data };
+      },
+      invalidatesTags: ["GcnEvent"],
+    }),
+    deleteCommentOnGcnEvent: build.mutation<
+      any,
+      { gcnEventID: number | string; commentID: number | string }
+    >({
+      query: ({ gcnEventID, commentID }) => ({
+        url: `api/gcn_event/${gcnEventID}/comments/${commentID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+
+    // ----- Observation plan requests -----
+    submitObservationPlanRequest: build.mutation<any, any>({
+      query: (params) => {
+        const { instrument_name, ...paramsToSubmit } = params;
+        return {
+          url: "api/observation_plan",
+          method: "POST",
+          body: paramsToSubmit,
+        };
+      },
+      invalidatesTags: ["GcnEvent"],
+    }),
+    sendObservationPlanRequest: build.mutation<any, number | string>({
+      query: (id) => ({
+        url: `api/observation_plan/${id}/queue`,
+        method: "POST",
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    removeObservationPlanRequest: build.mutation<any, number | string>({
+      query: (id) => ({
+        url: `api/observation_plan/${id}/queue`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    deleteObservationPlanRequest: build.mutation<any, number | string>({
+      query: (id) => ({
+        url: `api/observation_plan/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    submitObservationPlanRequestTreasureMap: build.mutation<
+      any,
+      number | string
+    >({
+      query: (id) => ({
+        url: `api/observation_plan/${id}/treasuremap`,
+        method: "POST",
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    deleteObservationPlanRequestTreasureMap: build.mutation<
+      any,
+      number | string
+    >({
+      query: (id) => ({
+        url: `api/observation_plan/${id}/treasuremap`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    createObservationPlanRequestObservingRun: build.mutation<
+      any,
+      { id: number | string; params?: Record<string, any> | undefined }
+    >({
+      query: ({ id, params = {} }) => ({
+        url: `api/observation_plan/${id}/observing_run`,
+        method: "POST",
+        body: params,
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    deleteObservationPlanFields: build.mutation<
+      any,
+      { id: number | string; fieldIds: any }
+    >({
+      query: ({ id, fieldIds }) => ({
+        url: `api/observation_plan/${id}/fields`,
+        method: "DELETE",
+        body: { fieldIds },
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+
+    // ----- Summaries -----
+    postGcnEventSummary: build.mutation<
+      any,
+      { dateobs: string; params: Record<string, any> }
+    >({
+      query: ({ dateobs, params }) => ({
+        url: `api/gcn_event/${dateobs}/summary`,
+        method: "POST",
+        body: params,
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    deleteGcnEventSummary: build.mutation<
+      any,
+      { dateobs: string; summaryID: number | string }
+    >({
+      query: ({ dateobs, summaryID }) => ({
+        url: `api/gcn_event/${dateobs}/summary/${summaryID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    patchGcnEventSummary: build.mutation<
+      any,
+      { dateobs: string; summaryID: number | string; formData: any }
+    >({
+      query: ({ dateobs, summaryID, formData }) => ({
+        url: `api/gcn_event/${dateobs}/summary/${summaryID}`,
+        method: "PATCH",
+        body: formData,
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+
+    // ----- Reports -----
+    postGcnEventReport: build.mutation<
+      any,
+      { dateobs: string; params: Record<string, any> }
+    >({
+      query: ({ dateobs, params }) => ({
+        url: `api/gcn_event/${dateobs}/report`,
+        method: "POST",
+        body: params,
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    deleteGcnEventReport: build.mutation<
+      any,
+      { dateobs: string; reportID: number | string }
+    >({
+      query: ({ dateobs, reportID }) => ({
+        url: `api/gcn_event/${dateobs}/report/${reportID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+    patchGcnEventReport: build.mutation<
+      any,
+      { dateobs: string; reportID: number | string; formData: any }
+    >({
+      query: ({ dateobs, reportID, formData }) => ({
+        url: `api/gcn_event/${dateobs}/report/${reportID}`,
+        method: "PATCH",
+        body: formData,
+      }),
+      invalidatesTags: ["GcnEvent"],
+    }),
+  }),
+});
+
+// Websocket-driven invalidation. The old handler conditionally re-fetched the
+// loaded event (and its sub-resources) when a REFRESH message matched the
+// loaded event's dateobs / report id. With RTK Query, invalidating the
+// `GcnEvent` tag only refetches the *active* queries — which are, by
+// construction, the ones for the currently-loaded event — so the conditional
+// "only if it matches the loaded event" guard is satisfied automatically.
+invalidateOnMessage("skyportal/FETCH_GCNEVENT", () => ["GcnEvent"]);
+invalidateOnMessage("skyportal/REFRESH_GCN_EVENT", () => ["GcnEvent"]);
+invalidateOnMessage("skyportal/REFRESH_GCN_TRIGGERED", () => ["GcnEvent"]);
+invalidateOnMessage(
+  "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+  () => ["GcnEvent"],
+);
+invalidateOnMessage("skyportal/REFRESH_GCNEVENT_CATALOG_QUERIES", () => [
+  "GcnEvent",
+]);
+invalidateOnMessage("skyportal/REFRESH_GCNEVENT_SURVEY_EFFICIENCY", () => [
+  "GcnEvent",
+]);
+invalidateOnMessage("skyportal/REFRESH_GCNEVENT_REPORT", () => ["GcnEvent"]);
+invalidateOnMessage("skyportal/REFRESH_GCNEVENT_REPORTS", () => ["GcnEvent"]);
+
+export const {
+  useGetGcnEventQuery,
+  useLazyGetGcnEventQuery,
+  useGetGcnTachQuery,
+  useGetGcnTriggerQuery,
+  useGetGcnEventSurveyEfficiencyQuery,
+  useGetGcnEventCatalogQueriesQuery,
+  useGetObservationPlanRequestsQuery,
+  useGetObservationPlanQuery,
+  useLazyGetObservationPlanQuery,
+  useGetGcnEventReportQuery,
+  useLazyGetGcnEventReportQuery,
+  useGetGcnEventReportsQuery,
+  useGetGcnEventSummaryQuery,
+  useLazyGetGcnEventSummaryQuery,
+  useGetCommentOnGcnEventTextAttachmentQuery,
+  useLazyGetCommentOnGcnEventTextAttachmentQuery,
+  useSubmitGcnEventMutation,
+  usePostGcnTachMutation,
+  usePostGcnGraceDBMutation,
+  usePostGcnAliasMutation,
+  useDeleteGcnAliasMutation,
+  usePutGcnTriggerMutation,
+  useDeleteGcnTriggerMutation,
+  useAddCommentOnGcnEventMutation,
+  useEditCommentOnGcnEventMutation,
+  useDeleteCommentOnGcnEventMutation,
+  useSubmitObservationPlanRequestMutation,
+  useSendObservationPlanRequestMutation,
+  useRemoveObservationPlanRequestMutation,
+  useDeleteObservationPlanRequestMutation,
+  useSubmitObservationPlanRequestTreasureMapMutation,
+  useDeleteObservationPlanRequestTreasureMapMutation,
+  useCreateObservationPlanRequestObservingRunMutation,
+  useDeleteObservationPlanFieldsMutation,
+  usePostGcnEventSummaryMutation,
+  useDeleteGcnEventSummaryMutation,
+  usePatchGcnEventSummaryMutation,
+  usePostGcnEventReportMutation,
+  useDeleteGcnEventReportMutation,
+  usePatchGcnEventReportMutation,
+} = gcnEventApi;

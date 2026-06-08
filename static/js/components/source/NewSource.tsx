@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Form from "@rjsf/mui";
@@ -9,9 +10,12 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import GroupShareSelect from "../group/GroupShareSelect";
-import { checkSource, saveSource } from "../../ducks/source";
+import {
+  useLazyCheckSourceQuery,
+  useSaveSourceMutation,
+} from "../../ducks/source";
 import { dms_to_dec, hours_to_ra } from "../../units";
 
 dayjs.extend(utc);
@@ -26,7 +30,9 @@ interface NewSourceProps {
 const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const [checkSource] = useLazyCheckSourceQuery();
+  const [saveSource] = useSaveSourceMutation();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
   const [selectedFormData, setSelectedFormData] = useState<any>({
     id: "",
@@ -56,24 +62,25 @@ const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
     ) {
       dispatch(showNotification("Please enter a source ID.", "error"));
     } else {
-      const data = (await dispatch(
-        checkSource(dataToSend?.id, dataToSend),
-      )) as any;
-      if (data.status === "success") {
-        if (data.data?.source_exists === true) {
-          dispatch(showNotification(data.data.message, "error"));
+      try {
+        const data: any = await checkSource({
+          id: dataToSend?.id,
+          params: dataToSend,
+        }).unwrap();
+        if (data?.source_exists === true) {
+          dispatch(showNotification(data.message, "error"));
           return;
         }
 
         if (selectedGroupIds.length > 0) {
           dataToSend.group_ids = selectedGroupIds;
         }
-        const result = (await dispatch(saveSource(dataToSend))) as any;
-        if (result.status === "success") {
-          onClose();
-          dispatch(showNotification("Source saved"));
-          navigate(`/source/${dataToSend.id}`);
-        }
+        await saveSource(dataToSend).unwrap();
+        onClose();
+        dispatch(showNotification("Source saved"));
+        navigate(`/source/${dataToSend.id}`);
+      } catch {
+        // error notification handled by the baseQuery
       }
     }
   };

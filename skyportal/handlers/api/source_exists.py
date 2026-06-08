@@ -25,6 +25,22 @@ class SourceExistsHandler(BaseHandler):
               required: false
               schema:
                 type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              source_exists:
+                                type: boolean
+                              message:
+                                type: string
         multiple:
           summary: Check if a source exists by position
           description: Check if a source exists by RA, Dec, and radius
@@ -49,6 +65,22 @@ class SourceExistsHandler(BaseHandler):
             schema:
               type: number
             description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              source_exists:
+                                type: boolean
+                              message:
+                                type: string
         """
 
         # ra/dec/radius are explicitly converted to float below, so opting

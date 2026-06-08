@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Paper from "@mui/material/Paper";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import Checkbox from "@mui/material/Checkbox";
@@ -18,9 +18,14 @@ import Button from "../Button";
 
 import { allowedClasses } from "../classification/ClassificationForm";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as gcnEventsActions from "../../ducks/gcnEvents";
-import * as spatialCatalogsActions from "../../ducks/spatialCatalogs";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
+import { useGetConfigQuery } from "../../ducks/config";
+import {
+  useGetSpatialCatalogsQuery,
+  useGetSpatialCatalogQuery,
+} from "../../ducks/spatialCatalogs";
 
 const useStyles = makeStyles()((theme) => ({
   paperDiv: {
@@ -137,7 +142,7 @@ const SourceTableFilterForm = ({
   };
 
   // Get unique classification names, in alphabetical order
-  const { taxonomyList } = useAppSelector((state) => (state as any).taxonomies);
+  const { data: taxonomyList } = useGetTaxonomiesQuery();
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   let classifications: any[] = [];
   latestTaxonomyList?.forEach((taxonomy: any) => {
@@ -160,43 +165,19 @@ const SourceTableFilterForm = ({
     setByMe(event.target.checked);
   };
 
-  const maxNumDaysUsingLocalization = useAppSelector(
-    (state) => (state as any).config.maxNumDaysUsingLocalization,
-  );
-  const gcnEvents = useAppSelector((state) => (state as any).gcnEvents);
+  const maxNumDaysUsingLocalization = useGetConfigQuery().data?.[
+    "maxNumDaysUsingLocalization"
+  ] as number | undefined;
+  const { data: gcnEvents } = useGetGcnEventsQuery() as { data: any };
   const [selectedGcnEventId, setSelectedGcnEventId] = useState<any>(null);
 
-  const spatialCatalogs = useAppSelector(
-    (state) => (state as any).spatialCatalogs,
-  );
-  const spatialCatalog = useAppSelector(
-    (state) => (state as any).spatialCatalog,
-  );
+  const { data: spatialCatalogs } = useGetSpatialCatalogsQuery();
   const [selectedSpatialCatalogId, setSelectedSpatialCatalogId] =
     useState<any>(null);
-
-  useEffect(() => {
-    if (gcnEvents?.length > 0 || !gcnEvents) {
-      dispatch(gcnEventsActions.fetchGcnEvents());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (spatialCatalogs?.length > 0 || !spatialCatalogs) {
-      dispatch(spatialCatalogsActions.fetchSpatialCatalogs());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (selectedSpatialCatalogId) {
-      dispatch(
-        spatialCatalogsActions.fetchSpatialCatalog(selectedSpatialCatalogId),
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSpatialCatalogId]);
+  const { data: spatialCatalog } = useGetSpatialCatalogQuery(
+    selectedSpatialCatalogId,
+    { skip: !selectedSpatialCatalogId },
+  );
 
   const { handleSubmit, register, control, reset, getValues } = useForm();
 

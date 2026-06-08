@@ -9,7 +9,7 @@ import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
+import { useAppDispatch } from "../../../types/hooks";
 import Button from "../../Button";
 
 import GcnNoticeTypesSelect from "../../gcn/GcnNoticeTypesSelect";
@@ -17,7 +17,10 @@ import GcnTagsSelect from "../../gcn/GcnTagsSelect";
 import GcnPropertiesSelect from "../../gcn/GcnPropertiesSelect";
 import LocalizationTagsSelect from "../../localization/LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "../../localization/LocalizationPropertiesSelect";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 
 const conversions: Record<string, any> = {
   FAR: {
@@ -103,11 +106,11 @@ const useStyles = makeStyles()((theme) => ({
 
 const NotificationGcnEvent = () => {
   const { classes } = useStyles();
-  const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const { notifications } = useAppSelector(
-    (state) => state.profile.preferences,
-  ) as any;
+  const { data: profileData } = useGetProfileQuery();
+  const profile = (profileData?.preferences ?? {}) as any;
+  const { notifications } = profile;
   const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const {
     handleSubmit,
     reset,
@@ -159,7 +162,7 @@ const NotificationGcnEvent = () => {
       },
     };
 
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   }
 
   const openManageProfile = (key: any) => {
@@ -197,20 +200,19 @@ const NotificationGcnEvent = () => {
       },
     };
 
-    dispatch(profileActions.updateUserPreferences(prefs)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("GCN notice preferences migrated"));
-        } else {
-          dispatch(
-            showNotification(
-              "Cannot automatically migrate GCN notice preferences",
-              "error",
-            ),
-          );
-        }
-      },
-    );
+    updateUserPreferences(prefs)
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("GCN notice preferences migrated"));
+      })
+      .catch(() => {
+        dispatch(
+          showNotification(
+            "Cannot automatically migrate GCN notice preferences",
+            "error",
+          ),
+        );
+      });
 
     setSelectedGcnNoticeTypes([]);
     setSelectedGcnTags([]);
@@ -238,17 +240,16 @@ const NotificationGcnEvent = () => {
     };
     setSelectedNotification(null);
     closeManageProfile();
-    dispatch(profileActions.updateUserPreferences(prefs)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("GCN notice preference deleted"));
-        } else {
-          dispatch(
-            showNotification("Can not delete gcn notice preference", "error"),
-          );
-        }
-      },
-    );
+    updateUserPreferences(prefs)
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("GCN notice preference deleted"));
+      })
+      .catch(() => {
+        dispatch(
+          showNotification("Can not delete gcn notice preference", "error"),
+        );
+      });
   };
 
   return (

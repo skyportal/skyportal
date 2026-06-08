@@ -6,7 +6,7 @@ import { Tooltip, IconButton } from "@mui/material";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ReplayIcon from "@mui/icons-material/Replay";
 
-import { useAppSelector } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 
 const TelescopeMap = lazy(() => import("../telescope/TelescopeMap"));
 
@@ -101,7 +101,7 @@ const TelescopeMapWidget = ({
   classes: parentClasses,
 }: TelescopeMapWidgetProps) => {
   const { classes } = useStyles();
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const [mapKey, setMapKey] = useState(0);
 
   return (

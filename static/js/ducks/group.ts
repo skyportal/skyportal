@@ -1,52 +1,30 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Single group fetch.
+ *
+ * RTK Query conversion of the old `FETCH_GROUP` duck. The endpoint is injected
+ * into the central `skyportalApi`. The old websocket handler refetched the
+ * currently-loaded group on a REFRESH_GROUP message whose `group_id` matched the
+ * loaded group; here we invalidate the "Group" tag for that id so the active
+ * query refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
+export type Group = Record<string, any>;
 
-const REFRESH_GROUP = "skyportal/REFRESH_GROUP";
+export const groupApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getGroup: build.query<Group, number | string>({
+      query: (id) => `api/groups/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "Group", id }],
+    }),
+  }),
+});
 
-const FETCH_GROUP = "skyportal/FETCH_GROUP";
-const FETCH_GROUP_OK = "skyportal/FETCH_GROUP_OK";
-const FETCH_GROUP_ERROR = "skyportal/FETCH_GROUP_ERROR";
-const FETCH_GROUP_FAIL = "skyportal/FETCH_GROUP_FAIL";
-
-export function fetchGroup(id: number | string) {
-  return API.GET(`/api/groups/${id}`, FETCH_GROUP);
-}
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, payload: any, dispatch: any, getState: any) => {
-    const { group } = getState();
-
-    if (actionType === REFRESH_GROUP) {
-      const loaded_group_id = group ? group.id : null;
-
-      if (loaded_group_id === payload.group_id) {
-        dispatch(fetchGroup(loaded_group_id));
-      }
-    }
-  },
+// Websocket: old handler refetched the loaded group on REFRESH_GROUP when the
+// pushed group_id matched.
+invalidateOnMessage("skyportal/REFRESH_GROUP", (payload) =>
+  payload?.group_id != null ? [{ type: "Group", id: payload.group_id }] : null,
 );
 
-interface GroupAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-const reducer = (state: any = null, action: GroupAction) => {
-  switch (action.type) {
-    case FETCH_GROUP_OK: {
-      return action.data;
-    }
-    case FETCH_GROUP_FAIL:
-    case FETCH_GROUP_ERROR: {
-      return null;
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("group", reducer);
+export const { useGetGroupQuery } = groupApi;

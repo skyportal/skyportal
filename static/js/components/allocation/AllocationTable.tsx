@@ -23,7 +23,7 @@ import {
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
-import * as allocationActions from "../../ducks/allocation";
+import { useDeleteAllocationMutation } from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import AllocationForm from "./AllocationForm";
 import { userLabel } from "../../utils/format";
@@ -105,15 +105,16 @@ const AllocationTable = ({
   const [allocationToEdit, setAllocationToEdit] = useState<any>(null);
   const [allocationToDelete, setAllocationToDelete] = useState<any>(null);
 
-  const deleteAllocation = () => {
-    dispatch(allocationActions.deleteAllocation(allocationToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Allocation deleted"));
-          setAllocationToDelete(null);
-        }
-      },
-    );
+  const [deleteAllocationMutation] = useDeleteAllocationMutation();
+
+  const deleteAllocation = async () => {
+    try {
+      await deleteAllocationMutation(allocationToDelete).unwrap();
+      dispatch(showNotification("Allocation deleted"));
+      setAllocationToDelete(null);
+    } catch {
+      // error notification handled by the baseQuery
+    }
   };
 
   const getInstrument = (allocation: any) =>

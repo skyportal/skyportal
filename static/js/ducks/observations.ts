@@ -1,170 +1,200 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Observations.
+ *
+ * RTK Query conversion of the old `FETCH_OBSERVATIONS` /
+ * `FETCH_GCNEVENT_OBSERVATIONS` duck. The executed-observations list and the
+ * GCN-event observations list are queries; submit/upload/treasuremap/external
+ * API calls are mutations.
+ *
+ * The date-window defaulting that the old thunks applied is preserved inside
+ * the query builders so callers can pass a sparse filterParams object.
+ *
+ * Websocket-driven invalidation bridges the old `messageHandler.add(...)`
+ * callbacks: `REFRESH_OBSERVATIONS` refetches the observations list, and
+ * `FETCH_GCNEVENT_OBSERVATIONS` refetches the GCN-event observations (the old
+ * handler gated this on the currently-loaded gcnEvent matching the pushed
+ * event id; that condition is preserved).
+ */
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch, RootState } from "../types/store";
+
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const FETCH_OBSERVATIONS = "skyportal/FETCH_OBSERVATIONS";
-const FETCH_OBSERVATIONS_OK = "skyportal/FETCH_OBSERVATIONS_OK";
+type FilterParams = Record<string, unknown>;
 
-const FETCH_GCNEVENT_OBSERVATIONS = "skyportal/FETCH_GCNEVENT_OBSERVATIONS";
-const FETCH_GCNEVENT_OBSERVATIONS_OK =
-  "skyportal/FETCH_GCNEVENT_OBSERVATIONS_OK";
+const buildQueryString = (filterParams: FilterParams): string => {
+  const params = new URLSearchParams(
+    Object.fromEntries(
+      Object.entries(filterParams).map(([key, value]) => [key, String(value)]),
+    ),
+  ).toString();
+  return params ? `api/observation?${params}` : "api/observation";
+};
 
-const SUBMIT_OBSERVATIONS = "skyportal/SUBMIT_OBSERVATIONS";
-
-const UPLOAD_OBSERVATIONS = "skyportal/UPLOAD_OBSERVATIONS";
-
-const REFRESH_OBSERVATIONS = "skyportal/REFRESH_OBSERVATIONS";
-
-const SUBMIT_OBSERVATIONS_TREASUREMAP =
-  "skyportal/SUBMIT_OBSERVATIONS_TREASUREMAP";
-const DELETE_OBSERVATIONS_TREASUREMAP =
-  "skyportal/DELETE_OBSERVATIONS_TREASUREMAP";
-const REQUEST_API_OBSERVATIONS = "skyportal/REQUEST_API_OBSERVATIONS";
-const REQUEST_API_QUEUED_OBSERVATIONS =
-  "skyportal/REQUEST_API_QUEUED_OBSERVATIONS";
-
-export const submitObservations = (params: any) =>
-  API.POST(`/api/observation`, SUBMIT_OBSERVATIONS, params);
-
-export function fetchObservations(filterParams: Record<string, any> = {}) {
-  if (!Object.keys(filterParams).includes("startDate")) {
-    filterParams["startDate"] = dayjs()
+const withObservationDefaults = (filterParams: FilterParams): FilterParams => {
+  const params = { ...filterParams };
+  if (!Object.keys(params).includes("startDate")) {
+    params["startDate"] = dayjs()
       .utc()
       .subtract(3650, "day")
       .utc()
       .format("YYYY-MM-DDTHH:mm:ssZ");
   }
-
-  if (!Object.keys(filterParams).includes("endDate")) {
-    filterParams["endDate"] = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  if (!Object.keys(params).includes("endDate")) {
+    params["endDate"] = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   }
-
-  if (!Object.keys(filterParams).includes("numPerPage")) {
-    filterParams["numPerPage"] = 10;
+  if (!Object.keys(params).includes("numPerPage")) {
+    params["numPerPage"] = 10;
   }
+  return params;
+};
 
-  return API.GET("/api/observation", FETCH_OBSERVATIONS, filterParams);
-}
-
-export function uploadObservations(data: any) {
-  return API.POST(`/api/observation/ascii`, UPLOAD_OBSERVATIONS, data);
-}
-
-export function requestAPIObservations(data: any) {
-  return API.POST(
-    `/api/observation/external_api`,
-    REQUEST_API_OBSERVATIONS,
-    data,
-  );
-}
-
-export function requestAPIQueuedObservations(id: number | string, data = {}) {
-  return API.GET(
-    `/api/observation/external_api/${id}`,
-    REQUEST_API_QUEUED_OBSERVATIONS,
-    data,
-  );
-}
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === REFRESH_OBSERVATIONS) {
-      dispatch(fetchObservations());
-    }
-  },
-);
-
-export function fetchGcnEventObservations(
+const withGcnEventObservationDefaults = (
   dateobs: string,
-  filterParams: Record<string, any> = {},
-) {
-  filterParams["localizationDateobs"] = dateobs;
-  filterParams["numPerPage"] = 1000;
+  filterParams: FilterParams,
+): FilterParams => {
+  const params = { ...filterParams };
+  params["localizationDateobs"] = dateobs;
+  params["numPerPage"] = 1000;
 
-  if (!Object.keys(filterParams).includes("startDate")) {
+  if (!Object.keys(params).includes("startDate")) {
     if (dateobs) {
-      filterParams["startDate"] = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+      params["startDate"] = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
     }
   }
-
-  if (!Object.keys(filterParams).includes("endDate")) {
+  if (!Object.keys(params).includes("endDate")) {
     if (dateobs) {
-      filterParams["endDate"] = dayjs(dateobs)
+      params["endDate"] = dayjs(dateobs)
         .add(7, "day")
         .format("YYYY-MM-DD HH:mm:ss");
     }
   }
+  return params;
+};
 
-  return API.GET("/api/observation", FETCH_GCNEVENT_OBSERVATIONS, filterParams);
+interface FetchGcnEventObservationsArg {
+  dateobs: string;
+  filterParams?: FilterParams | undefined;
 }
 
-export const submitObservationsTreasureMap = (id: number | string, data: any) =>
-  API.POST(
-    `/api/observation/treasuremap/${id}`,
-    SUBMIT_OBSERVATIONS_TREASUREMAP,
-    data,
-  );
+interface TreasureMapArg {
+  id: number | string;
+  data: Record<string, unknown>;
+}
 
-export const deleteObservationsTreasureMap = (id: number | string, data: any) =>
-  API.DELETE(
-    `/api/observation/treasuremap/${id}`,
-    DELETE_OBSERVATIONS_TREASUREMAP,
-    data,
-  );
+interface RequestAPIQueuedObservationsArg {
+  id: number | string;
+  data?: Record<string, unknown> | undefined;
+}
 
-// Websocket message handler
-messageHandler.add(
-  (
-    actionType: string,
-    payload: any,
-    dispatch: AppDispatch,
-    getState: () => RootState,
-  ) => {
-    const { gcnEvent } = getState();
-    if (actionType === FETCH_GCNEVENT_OBSERVATIONS) {
-      if (gcnEvent && gcnEvent.id === payload.gcnEvent.id) {
-        dispatch(fetchGcnEventObservations(gcnEvent.dateobs));
-      }
+export const observationsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getObservations: build.query<any, FilterParams | void>({
+      query: (filterParams) =>
+        buildQueryString(withObservationDefaults(filterParams ?? {})),
+      providesTags: ["Observation"],
+    }),
+    getGcnEventObservations: build.query<any, FetchGcnEventObservationsArg>({
+      query: ({ dateobs, filterParams }) =>
+        buildQueryString(
+          withGcnEventObservationDefaults(dateobs, filterParams ?? {}),
+        ),
+      providesTags: ["GcnEventObservation"],
+    }),
+    submitObservations: build.mutation<any, Record<string, unknown>>({
+      query: (params) => ({
+        url: "api/observation",
+        method: "POST",
+        body: params,
+      }),
+      invalidatesTags: ["Observation"],
+    }),
+    uploadObservations: build.mutation<any, Record<string, unknown>>({
+      query: (data) => ({
+        url: "api/observation/ascii",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Observation"],
+    }),
+    requestAPIObservations: build.mutation<any, Record<string, unknown>>({
+      query: (data) => ({
+        url: "api/observation/external_api",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Observation"],
+    }),
+    requestAPIQueuedObservations: build.query<
+      any,
+      RequestAPIQueuedObservationsArg
+    >({
+      query: ({ id, data }) => {
+        const params = new URLSearchParams(
+          Object.fromEntries(
+            Object.entries(data ?? {}).map(([key, value]) => [
+              key,
+              String(value),
+            ]),
+          ),
+        ).toString();
+        return params
+          ? `api/observation/external_api/${id}?${params}`
+          : `api/observation/external_api/${id}`;
+      },
+    }),
+    submitObservationsTreasureMap: build.mutation<any, TreasureMapArg>({
+      query: ({ id, data }) => ({
+        url: `api/observation/treasuremap/${id}`,
+        method: "POST",
+        body: data,
+      }),
+    }),
+    deleteObservationsTreasureMap: build.mutation<any, TreasureMapArg>({
+      query: ({ id, data }) => ({
+        url: `api/observation/treasuremap/${id}`,
+        method: "DELETE",
+        body: data,
+      }),
+    }),
+  }),
+});
+
+// Websocket: the old handler refetched the observations list on
+// REFRESH_OBSERVATIONS.
+invalidateOnMessage("skyportal/REFRESH_OBSERVATIONS", () => ["Observation"]);
+
+// Websocket: the old handler refetched the GCN-event observations on
+// FETCH_GCNEVENT_OBSERVATIONS, but only when the currently-loaded gcnEvent
+// matched the pushed event id.
+invalidateOnMessage(
+  "skyportal/FETCH_GCNEVENT_OBSERVATIONS",
+  (payload, getState) => {
+    const { gcnEvent } = getState() as {
+      gcnEvent?: { id?: number | string } | null;
+    };
+    if (gcnEvent && gcnEvent.id === payload?.gcnEvent?.id) {
+      return ["GcnEventObservation"];
     }
+    return null;
   },
 );
 
-type ObservationsState = Record<string, any>;
-
-interface ObservationsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-const reducer = (
-  state: ObservationsState = { gcnEventObservations: {} },
-  action: ObservationsAction,
-): ObservationsState => {
-  switch (action.type) {
-    case FETCH_OBSERVATIONS_OK: {
-      return {
-        ...state,
-        observations: action.data,
-      };
-    }
-    case FETCH_GCNEVENT_OBSERVATIONS_OK: {
-      return {
-        ...state,
-        gcnEventObservations: action.data,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("observations", reducer);
+export const {
+  useGetObservationsQuery,
+  useLazyGetObservationsQuery,
+  useGetGcnEventObservationsQuery,
+  useLazyGetGcnEventObservationsQuery,
+  useSubmitObservationsMutation,
+  useUploadObservationsMutation,
+  useRequestAPIObservationsMutation,
+  useRequestAPIQueuedObservationsQuery,
+  useLazyRequestAPIQueuedObservationsQuery,
+  useSubmitObservationsTreasureMapMutation,
+  useDeleteObservationsTreasureMapMutation,
+} = observationsApi;

@@ -10,7 +10,7 @@ import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { dec_to_dms, ra_to_hours } from "../../units";
-import * as localizationActions from "../../ducks/localization";
+import { useDeleteLocalizationMutation } from "../../ducks/localization";
 
 const useStyles = makeStyles()(() => ({
   accordion: {
@@ -47,6 +47,7 @@ const GcnLocalizationsTable = ({
 }: GcnLocalizationsTableProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [deleteLocalizationMutation] = useDeleteLocalizationMutation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [localizationToDelete, setLocalizationToDelete] = useState<any>(null);
@@ -59,18 +60,17 @@ const GcnLocalizationsTable = ({
     setLocalizationToDelete(null);
   };
 
-  const deleteLocalization = () => {
-    dispatch(
-      localizationActions.deleteLocalization(
-        localizationToDelete.dateobs,
-        localizationToDelete.name,
-      ),
-    ).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Localization deleted"));
-        closeDialog();
-      }
-    });
+  const deleteLocalization = async () => {
+    try {
+      await deleteLocalizationMutation({
+        dateobs: localizationToDelete.dateobs,
+        localization_name: localizationToDelete.name,
+      }).unwrap();
+      dispatch(showNotification("Localization deleted"));
+      closeDialog();
+    } catch {
+      // error notification handled by the baseQuery
+    }
   };
 
   if (!localizations || localizations.length === 0) {

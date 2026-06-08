@@ -2,19 +2,17 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Typography from "@mui/material/Typography";
 
-import { useAppSelector } from "../../types/hooks";
+import { useGetMMADetectorsQuery } from "../../ducks/mmadetector";
 
 interface MMADetectorListProps {
   isMobile?: boolean;
 }
 
 const MMADetectorList = ({ isMobile = false }: MMADetectorListProps) => {
-  const { mmadetectorList } = useAppSelector(
-    (state) => state["mmadetectors"] as any,
-  );
+  const { data: mmadetectorList } = useGetMMADetectorsQuery();
   return (
     <List>
-      {mmadetectorList.map((mmadetector: any) => (
+      {(mmadetectorList ?? []).map((mmadetector: any) => (
         <ListItem
           key={`${mmadetector.id}_info`}
           sx={{ flexDirection: "column", textAlign: "center" }}

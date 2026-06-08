@@ -1,13 +1,11 @@
-import { useEffect } from "react";
-
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import { submitGcnEvent } from "../../ducks/gcnEvent";
-import * as gcnTagsActions from "../../ducks/gcnTags";
+import { useAppDispatch } from "../../types/hooks";
+import { useSubmitGcnEventMutation } from "../../ducks/gcnEvent";
+import { useGetGcnTagsQuery } from "../../ducks/gcnTags";
 
 interface NewGcnEventProps {
   handleClose?: (() => void) | null;
@@ -15,13 +13,9 @@ interface NewGcnEventProps {
 
 const NewGcnEvent = ({ handleClose = null }: NewGcnEventProps) => {
   const dispatch = useAppDispatch();
-  const gcnTags = [
-    ...((useAppSelector((state) => state["gcnTags"]) as any) || []),
-  ].sort();
-
-  useEffect(() => {
-    dispatch(gcnTagsActions.fetchGcnTags());
-  }, [dispatch]);
+  const [submitGcnEvent] = useSubmitGcnEventMutation();
+  const { data: gcnTagsData } = useGetGcnTagsQuery();
+  const gcnTags = [...((gcnTagsData as any) || [])].sort();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     if (formData.json) {
@@ -45,10 +39,12 @@ const NewGcnEvent = ({ handleClose = null }: NewGcnEventProps) => {
         polygon: formData.polygon,
       };
     }
-    const result = (await dispatch(submitGcnEvent(formData))) as any;
-    if (result.status === "success") {
+    try {
+      await submitGcnEvent(formData).unwrap();
       dispatch(showNotification("GCN Event saved"));
       handleClose?.(); // Call handleClose if it's provided
+    } catch {
+      // error notification handled by baseQuery
     }
   };
 

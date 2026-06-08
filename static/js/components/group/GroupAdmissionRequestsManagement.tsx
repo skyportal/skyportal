@@ -1,15 +1,17 @@
-import { useEffect } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
-import * as groupAdmissionRequestsActions from "../../ducks/groupAdmissionRequests";
-import * as groupsActions from "../../ducks/groups";
-import * as groupActions from "../../ducks/group";
+import {
+  useGetGroupAdmissionRequestsQuery,
+  useUpdateAdmissionRequestStatusMutation,
+} from "../../ducks/groupAdmissionRequests";
+import { useAddGroupUserMutation } from "../../ducks/groups";
+import { groupApi } from "../../ducks/group";
 
 const renderUserInfo = (value: any) => {
   let userInfoString = value.username;
@@ -28,26 +30,16 @@ const GroupAdmissionRequestsManagement = ({
 }: GroupAdmissionRequestsManagementProps) => {
   const dispatch = useAppDispatch();
 
-  useEffect(() => {
-    if (groupID) {
-      dispatch(
-        groupAdmissionRequestsActions.fetchGroupAdmissionRequests(groupID),
-      );
-    }
-  }, [groupID, dispatch]);
+  const { data: requests } = useGetGroupAdmissionRequestsQuery(groupID, {
+    skip: !groupID,
+  });
+  const [updateAdmissionRequestStatus] =
+    useUpdateAdmissionRequestStatusMutation();
+  const [addGroupUser] = useAddGroupUserMutation();
 
-  const groupAdmissionRequests = useAppSelector(
-    (state) => state["groupAdmissionRequests"],
-  );
-  if (
-    !groupAdmissionRequests ||
-    !Object.keys(groupAdmissionRequests)
-      .map((k) => String(k))
-      .includes(String(groupID))
-  ) {
+  if (requests == null) {
     return <></>;
   }
-  const requests = (groupAdmissionRequests as Record<string, any>)[groupID];
 
   const handleAcceptRequest = async ({
     requestID,
@@ -56,44 +48,36 @@ const GroupAdmissionRequestsManagement = ({
     requestID: number;
     userID: number;
   }) => {
-    const addGroupUserResult: any = await dispatch(
-      groupsActions.addGroupUser({
+    try {
+      await addGroupUser({
         userID,
         admin: false,
         group_id: groupID,
-      } as any),
-    );
-    const updateAdmissionRequestStatusResult: any = await dispatch(
-      groupAdmissionRequestsActions.updateAdmissionRequestStatus({
+      } as any).unwrap();
+    } catch {
+      return;
+    }
+    try {
+      await updateAdmissionRequestStatus({
         requestID,
         status: "accepted",
-      }),
-    );
-    if (
-      addGroupUserResult.status === "success" &&
-      updateAdmissionRequestStatusResult.status === "success"
-    ) {
+      }).unwrap();
       dispatch(showNotification("Successfully admitted user to group."));
-      dispatch(groupsActions.fetchGroups(true));
-      dispatch(groupActions.fetchGroup(groupID));
-      dispatch(
-        groupAdmissionRequestsActions.fetchGroupAdmissionRequests(groupID),
-      );
+      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: groupID }]));
+    } catch {
+      // error notification handled by the base query
     }
   };
 
   const handleDeclineRequest = async ({ requestID }: { requestID: number }) => {
-    const updateAdmissionRequestStatusResult: any = await dispatch(
-      groupAdmissionRequestsActions.updateAdmissionRequestStatus({
+    try {
+      await updateAdmissionRequestStatus({
         requestID,
         status: "declined",
-      }),
-    );
-    if (updateAdmissionRequestStatusResult.status === "success") {
+      }).unwrap();
       dispatch(showNotification("Successfully declined request."));
-      dispatch(
-        groupAdmissionRequestsActions.fetchGroupAdmissionRequests(groupID),
-      );
+    } catch {
+      // error notification handled by the base query
     }
   };
 
