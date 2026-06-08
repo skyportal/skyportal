@@ -16,7 +16,7 @@ log = make_log("api/sharing_service_group")
 
 class SharingServiceGroupHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    def put(self, sharing_service_id, group_id=None):
+    def put(self, sharing_service_id: int, group_id: int | None = None):
         """
         ---
         summary: Add or edit a group for an external sharing service
@@ -61,7 +61,13 @@ class SharingServiceGroupHandler(BaseHandler):
             200:
                 content:
                     application/json:
-                        schema: Success
+                        schema:
+                            allOf:
+                                - $ref: '#/components/schemas/Success'
+                                - type: object
+                                  properties:
+                                    data:
+                                      $ref: '#/components/schemas/SharingServiceGroup'
             400:
                 content:
                     application/json:
@@ -92,6 +98,7 @@ class SharingServiceGroupHandler(BaseHandler):
             )
         try:
             group_id = int(group_id)
+            sharing_service_id = int(sharing_service_id)
         except ValueError:
             return self.error(f"Invalid group_id: {group_id}, must be an integer")
 
@@ -204,7 +211,7 @@ class SharingServiceGroupHandler(BaseHandler):
                 return self.success(data={"id": sharing_service_group.id})
 
     @permissions(["Manage sharing services"])
-    def delete(self, sharing_service_id, group_id):
+    def delete(self, sharing_service_id: int, group_id: int):
         """
         ---
         summary: Delete a group from an external sharing service
@@ -237,6 +244,13 @@ class SharingServiceGroupHandler(BaseHandler):
         if group_id is None:
             return self.error(
                 "You must specify a group_id when giving or editing the access to a sharing service for a group"
+            )
+        try:
+            group_id = int(group_id)
+            sharing_service_id = int(sharing_service_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid group_id/sharing_service_id: {group_id}/{sharing_service_id}"
             )
         with self.Session() as session:
             # Check if the user has access to the sharing_service and group

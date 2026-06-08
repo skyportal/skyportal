@@ -1,6 +1,8 @@
-from datetime import datetime
+import uuid
 
 from skyportal.tests import api
+
+from ....utils.naive_datetime import utcnow_naive
 
 
 def test_token_user_post_robotic_followup_request(
@@ -209,7 +211,7 @@ def test_filter_followup_request(
         },
     }
 
-    time_before_post = datetime.utcnow().isoformat()
+    time_before_post = utcnow_naive().isoformat()
     status, data = api(
         "POST", "followup_request", data=request_data, token=upload_data_token
     )
@@ -230,7 +232,7 @@ def test_filter_followup_request(
         s["obj_id"] == public_source.id for s in data["data"]["followup_requests"]
     )
 
-    time_after_post = datetime.utcnow().isoformat()
+    time_after_post = utcnow_naive().isoformat()
 
     params = {"startDate": time_after_post}
 
@@ -259,3 +261,84 @@ def test_filter_followup_request(
     assert any(
         s["obj_id"] == public_source.id for s in data["data"]["followup_requests"]
     )
+
+
+def _default_followup_payload(public_group, allocation, **extra):
+    data = {
+        "allocation_id": allocation.id,
+        "default_followup_name": str(uuid.uuid4()),
+        "source_filter": {"name": ".*", "group_id": public_group.id},
+        "target_group_ids": [public_group.id],
+        "payload": {
+            "priority": 5,
+            "observation_type": "IFU",
+            "exposure_time": 300,
+            "maximum_airmass": 2,
+            "maximum_fwhm": 1.2,
+        },
+    }
+    data.update(extra)
+    return data
+
+
+def test_default_followup_request_stores_constraints(
+    public_group, public_group_sedm_allocation, super_admin_token
+):
+    request_data = _default_followup_payload(
+        public_group,
+        public_group_sedm_allocation,
+        not_if_classified=True,
+        not_if_duplicates=True,
+        radius=2.0,
+        priority_order="desc",
+        validity_days=3,
+        comment="auto-trigger test",
+        implements_update=False,
+    )
+
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=request_data,
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    new_id = data["data"]["id"]
+
+    status, data = api("GET", "default_followup_request", token=super_admin_token)
+    assert status == 200
+    match = next(r for r in data["data"] if r["id"] == new_id)
+    constraints = match["constraints"]
+    assert constraints is not None
+    assert constraints["not_if_classified"] is True
+    assert constraints["not_if_duplicates"] is True
+    # radius is always added alongside any other constraint
+    assert constraints["radius"] == 2.0
+    # constraints not supplied are absent (not defaulted)
+    assert "not_if_spectra_exist" not in constraints
+    # priority_order / validity_days / comment are stored for the auto-trigger path
+    assert match["priority_order"] == "desc"
+    assert match["validity_days"] == 3
+    assert match["comment"] == "auto-trigger test"
+    assert match["implements_update"] is False
+
+
+def test_default_followup_request_without_constraints_is_null(
+    public_group, public_group_sedm_allocation, super_admin_token
+):
+    request_data = _default_followup_payload(public_group, public_group_sedm_allocation)
+
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=request_data,
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    new_id = data["data"]["id"]
+
+    status, data = api("GET", "default_followup_request", token=super_admin_token)
+    assert status == 200
+    match = next(r for r in data["data"] if r["id"] == new_id)
+    # no constraint keys supplied -> stored as null (always submit)
+    assert match["constraints"] is None

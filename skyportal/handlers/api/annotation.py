@@ -23,6 +23,19 @@ from ..base import BaseHandler
 log = make_log("api/annotation")
 
 
+def _coerce_resource_id(associated_resource_type, resource_id):
+    """Cast the resource_id from the URL path to the appropriate type for the
+    target column. obj_id is a string; spectrum_id and photometry_id are
+    integers (psycopg3 requires strict binding).
+    """
+    if associated_resource_type.lower() == "sources":
+        return resource_id
+    try:
+        return int(resource_id)
+    except (TypeError, ValueError):
+        return None
+
+
 class AnnotationHandler(BaseHandler):
     def get_associated_resource(self, associated_resource_type):
         associated_resource_type = associated_resource_type.lower()
@@ -51,7 +64,12 @@ class AnnotationHandler(BaseHandler):
         return associated_resource_types[associated_resource_type]
 
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, annotation_id=None):
+    def get(
+        self,
+        associated_resource_type: str,
+        resource_id: str,
+        annotation_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -135,6 +153,10 @@ class AnnotationHandler(BaseHandler):
 
         associated_resource = self.get_associated_resource(associated_resource_type)
 
+        coerced_resource_id = _coerce_resource_id(associated_resource_type, resource_id)
+        if coerced_resource_id is None:
+            return self.error(f"Invalid resource_id: {resource_id}")
+
         with self.Session() as session:
             if annotation_id is None:
                 annotations = (
@@ -146,7 +168,7 @@ class AnnotationHandler(BaseHandler):
                                 associated_resource["class"],
                                 associated_resource["id_attr"],
                             )
-                            == resource_id
+                            == coerced_resource_id
                         )
                     )
                     .unique()
@@ -196,7 +218,7 @@ class AnnotationHandler(BaseHandler):
             return self.success(data=query_output)
 
     @permissions(["Annotate"])
-    def post(self, associated_resource_type, resource_id):
+    def post(self, associated_resource_type: str, resource_id: str):
         """
         ---
         summary: Post an annotation
@@ -318,16 +340,20 @@ class AnnotationHandler(BaseHandler):
                     groups=groups,
                 )
             elif associated_resource_type.lower() == "spectra":
+                try:
+                    spectrum_id = int(resource_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid spectrum id: {resource_id}")
                 spectrum = session.scalar(
                     Spectrum.select(session.user_or_token).where(
-                        Spectrum.id == resource_id
+                        Spectrum.id == spectrum_id
                     )
                 )
                 if not spectrum:
                     return self.error(
                         f"Could not access spectrum {resource_id}.", status=403
                     )
-                data["spectrum_id"] = resource_id
+                data["spectrum_id"] = spectrum_id
                 data["obj_id"] = spectrum.obj_id
                 schema = AnnotationOnSpectrum.__schema__(exclude=["author_id"])
                 try:
@@ -339,23 +365,27 @@ class AnnotationHandler(BaseHandler):
 
                 annotation = AnnotationOnSpectrum(
                     data=annotation_data,
-                    spectrum_id=resource_id,
+                    spectrum_id=spectrum_id,
                     obj_id=spectrum.obj_id,
                     origin=origin,
                     author=author,
                     groups=groups,
                 )
             elif associated_resource_type.lower() == "photometry":
+                try:
+                    photometry_id = int(resource_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid photometry id: {resource_id}")
                 photometry = session.scalar(
                     Photometry.select(session.user_or_token).where(
-                        Photometry.id == resource_id
+                        Photometry.id == photometry_id
                     )
                 )
                 if not photometry:
                     return self.error(
                         f"Could not access photometry {resource_id}.", status=403
                     )
-                data["photometry_id"] = resource_id
+                data["photometry_id"] = photometry_id
                 data["obj_id"] = photometry.obj_id
                 schema = AnnotationOnPhotometry.__schema__(exclude=["author_id"])
                 try:
@@ -367,7 +397,7 @@ class AnnotationHandler(BaseHandler):
 
                 annotation = AnnotationOnPhotometry(
                     data=annotation_data,
-                    photometry_id=resource_id,
+                    photometry_id=photometry_id,
                     obj_id=photometry.obj_id,
                     origin=origin,
                     author=author,
@@ -402,7 +432,7 @@ class AnnotationHandler(BaseHandler):
             return self.success(data={"annotation_id": annotation.id})
 
     @permissions(["Annotate"])
-    def put(self, associated_resource_type, resource_id, annotation_id):
+    def put(self, associated_resource_type: str, resource_id: str, annotation_id: int):
         """
         ---
         summary: Update an annotation
@@ -457,11 +487,6 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            annotation_id = int(annotation_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) annotation ID. ")
 
         associated_resource = self.get_associated_resource(associated_resource_type)
 
@@ -528,7 +553,9 @@ class AnnotationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Annotate"])
-    def delete(self, associated_resource_type, resource_id, annotation_id):
+    def delete(
+        self, associated_resource_type: str, resource_id: str, annotation_id: int
+    ):
         """
         ---
         summary: Delete an annotation
@@ -564,11 +591,6 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            annotation_id = int(annotation_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid annotation ID. ")
-
         associated_resource = self.get_associated_resource(associated_resource_type)
 
         with self.Session() as session:

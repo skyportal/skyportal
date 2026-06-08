@@ -110,7 +110,7 @@ class ProfileHandler(BaseHandler):
             return self.success(data=user_info)
 
     @auth_or_token
-    def patch(self, user_id=None):
+    def patch(self, user_id: int | None = None):
         """
         ---
         description: Update user preferences
@@ -133,7 +133,7 @@ class ProfileHandler(BaseHandler):
                     description: |
                       User's preferred last name
                   affiliations:
-                    type: list
+                    type: array
                     description: |
                       User's list of affiliations
                   contact_email:
@@ -153,7 +153,7 @@ class ProfileHandler(BaseHandler):
                     description: |
                       Whether or not the user account should be flagged as a bot account
                   preferences:
-                    schema: UpdateUserPreferencesRequestJSON
+                    type: object
                     description: JSON describing updates to user preferences dict
         responses:
           200:

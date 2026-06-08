@@ -155,7 +155,7 @@ class SummaryQueryHandler(BaseHandler):
         - in: query
           name: k
           schema:
-              type: int
+              type: integer
           minimum: 1
           maximum: 100
           description: |
@@ -163,7 +163,7 @@ class SummaryQueryHandler(BaseHandler):
         - in: query
           name: z_min
           schema:
-              type: float
+              type: number
           nullable: true
           description: |
               Minimum redshift to consider of queries sources. If None or missing,
@@ -171,7 +171,7 @@ class SummaryQueryHandler(BaseHandler):
         - in: query
           name: z_max
           schema:
-              type: float
+              type: number
           nullable: true
           description: |
               Maximum redshift to consider of queries sources. If None or missing,
@@ -196,12 +196,9 @@ class SummaryQueryHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            sources:
-                              type: array
-                              items:
-                                $ref: '#/components/schemas/Obj'
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/Obj'
           400:
             content:
               application/json:

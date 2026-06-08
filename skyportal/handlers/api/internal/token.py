@@ -77,7 +77,7 @@ class TokenHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, token_id=None):
+    def get(self, token_id: str | None = None):
         """
         ---
         single:
@@ -107,7 +107,7 @@ class TokenHandler(BaseHandler):
             - in: query
               name: userID
               schema:
-                type: int
+                type: integer
               description: Filter by user ID
           responses:
             200:
@@ -120,7 +120,7 @@ class TokenHandler(BaseHandler):
                   schema: Error
         """
 
-        user_id = self.get_query_argument("userID", None)
+        user_id = self.get_query_argument("userID", None, type=int)
 
         with self.Session() as session:
             if token_id is not None:
@@ -138,7 +138,7 @@ class TokenHandler(BaseHandler):
             return self.success(data=data)
 
     @auth_or_token
-    def put(self, token_id):
+    def put(self, token_id: str):
         """
         ---
         description: Update token
@@ -246,7 +246,7 @@ class TokenHandler(BaseHandler):
                 return self.error(f"Could not update token: {e}")
 
     @auth_or_token
-    def delete(self, token_id):
+    def delete(self, token_id: str):
         """
         ---
         description: Delete a token

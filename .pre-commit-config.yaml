@@ -19,13 +19,15 @@ repos:
     hooks:
       - id: prettier
         pass_filenames: true
-        exclude: baselayer|node_modules|doc|data|^(.*_template\.html)$
+        exclude: baselayer|node_modules|doc|data|bun\.lock|static/js/types/api\.ts|static/js/types/routeSchemaMap\.ts|^(.*_template\.html)$
         args: [--prose-wrap=preserve]
+        additional_dependencies:
+          - prettier@3.8.3
   - repo: local
     hooks:
       - id: ESLint
         name: ESLint
-        entry: npx eslint -c eslint.config.js --fix
+        entry: bun x eslint -c eslint.config.js --fix
         language: system
-        files: static/.*\.jsx?$|static/.*\.js$
+        files: static/.*\.[jt]sx?$
         types: [file]

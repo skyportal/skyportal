@@ -7,7 +7,8 @@ from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 
-from ....models import Obj, ObjTag, SourceView
+from ....models import Obj, ObjTag, SourceView, serialize_obj_tag
+from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
 
 default_prefs = {
@@ -25,9 +26,7 @@ class SourceViewsHandler(BaseHandler):
 
         max_num_sources = int(top_sources_prefs["maxNumSources"])
         since_days_ago = float(top_sources_prefs["sinceDaysAgo"])
-        cutoff_day = datetime.datetime.utcnow() - datetime.timedelta(
-            days=since_days_ago
-        )
+        cutoff_day = utcnow_naive() - datetime.timedelta(days=since_days_ago)
         results = session.execute(
             SourceView.select(
                 session.user_or_token,
@@ -54,11 +53,17 @@ class SourceViewsHandler(BaseHandler):
                 self.current_user, session
             )
             tags = session.scalars(
-                ObjTag.select(session.user_or_token).where(
-                    ObjTag.obj_id.in_(list({obj_id for _, obj_id in query_results}))
-                )
+                ObjTag.select(session.user_or_token)
+                .where(ObjTag.obj_id.in_(list({obj_id for _, obj_id in query_results})))
+                .distinct()
             ).all()
-            tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+
+            user_group_ids = (
+                None
+                if session.user_or_token.is_system_admin
+                else {g.id for g in session.user_or_token.accessible_groups}
+            )
+            tags = [serialize_obj_tag(tag, user_group_ids) for tag in tags]
             # make it a hashmap of obj_id to tags
             tags_dict = defaultdict(list)
             for tag in tags:
@@ -94,7 +99,7 @@ class SourceViewsHandler(BaseHandler):
             return self.success(data=sources)
 
     @tornado.web.authenticated
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         with self.Session() as session:
             sv = SourceView(
                 obj_id=obj_id,

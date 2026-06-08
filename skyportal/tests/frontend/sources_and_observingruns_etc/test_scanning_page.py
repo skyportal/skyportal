@@ -1,17 +1,18 @@
-import datetime
 import time
 import uuid
 
 import pytest
-from selenium.webdriver import ActionChains
+from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
 from skyportal.tests import api
 
+from ....utils.naive_datetime import utcnow_naive
+
 
 @pytest.mark.flaky(reruns=2)
 def test_candidate_group_filtering(
-    driver,
+    page,
     user,
     public_candidate,
     public_filter,
@@ -32,7 +33,7 @@ def test_candidate_group_filtering(
                 "altdata": {"simbad": {"class": "RRLyr"}},
                 "transient": False,
                 "ra_dis": 2.3,
-                "passed_at": str(datetime.datetime.utcnow()),
+                "passed_at": str(utcnow_naive()),
                 "filter_ids": [public_filter.id],
             },
             token=upload_data_token,
@@ -48,32 +49,33 @@ def test_candidate_group_filtering(
     new_group_id = data["data"]["id"]
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/candidates")
-    group_checkbox = driver.wait_for_xpath(
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    group_checkbox = page.locator(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    )
-    driver.scroll_to_element_and_click(group_checkbox)
-    submit_button = driver.wait_for_xpath('//button[text()="Search"]')
-    driver.scroll_to_element_and_click(submit_button)
+    ).first
+    group_checkbox.click()
+    submit_button = page.locator('//button[text()="Search"]').first
+    submit_button.click()
 
-    driver.wait_for_xpath(
-        '//*[contains(., "Found 6 candidates.")]'
-    )  # the 5 candidates we added and the public candidate
+    expect(
+        page.locator('//*[contains(., "Found 6 candidates.")]').first
+    ).to_be_visible()
 
-    driver.scroll_to_element_and_click(group_checkbox)
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{new_group_id}"]',
-        wait_clickable=False,
-    )
-    driver.scroll_to_element_and_click(submit_button)
+    group_checkbox.click()
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{new_group_id}"]'
+    ).first.click()
+    submit_button.click()
 
-    driver.wait_for_xpath('//*[contains(., "Found 0 candidates.")]')
+    expect(
+        page.locator('//*[contains(., "Found 0 candidates.")]').first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_candidate_saved_status_filtering(
-    driver,
+    page,
     user,
     public_candidate,
     public_filter,
@@ -81,9 +83,6 @@ def test_candidate_saved_status_filtering(
     upload_data_token,
     manage_groups_token,
 ):
-    # This test just tests basic unsaved/saved filtering to test integration of
-    # the front-end form. More detailed testing of all options are covered in
-    # the API tests.
     candidate_id = str(uuid.uuid4())
     for i in range(5):
         status, data = api(
@@ -114,145 +113,141 @@ def test_candidate_saved_status_filtering(
                 "transient": False,
                 "ra_dis": 2.3,
                 "filter_ids": [public_filter.id],
-                "passed_at": str(datetime.datetime.utcnow()),
+                "passed_at": str(utcnow_naive()),
             },
             token=upload_data_token,
         )
         assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
-    # Set to candidates not saved to any accessibe groups
-    driver.click_xpath("//*[@data-testid='savedStatusSelect']")
-    driver.click_xpath(
-        "//li[@data-value='notSavedToAnyAccessible']", scroll_parent=True
-    )
-    driver.click_xpath('//button[text()="Search"]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator("//*[@data-testid='savedStatusSelect']").first.click()
+    page.locator("//li[@data-value='notSavedToAnyAccessible']").first.click()
+    page.locator('//button[text()="Search"]').first.click()
 
-    driver.wait_for_xpath(
-        '//*[contains(., "Found 1 candidates.")]'
-    )  # the public candidate
+    expect(
+        page.locator('//*[contains(., "Found 1 candidates.")]').first
+    ).to_be_visible()
 
-    # Set to candidates is saved to any accessibe groups and submit again
-    driver.click_xpath("//*[@data-testid='savedStatusSelect']")
-    driver.click_xpath("//li[@data-value='savedToAnyAccessible']", scroll_parent=True)
-    driver.click_xpath('//button[text()="Search"]')
+    page.locator("//*[@data-testid='savedStatusSelect']").first.click()
+    page.locator("//li[@data-value='savedToAnyAccessible']").first.click()
+    page.locator('//button[text()="Search"]').first.click()
 
-    driver.wait_for_xpath(
-        '//*[contains(., "Found 5 candidates.")]'
-    )  # the 5 candidates we added
+    expect(
+        page.locator('//*[contains(., "Found 5 candidates.")]').first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_save_candidate_quick_save(
-    driver, group_admin_user, public_group, public_candidate
+    page, group_admin_user, public_group, public_candidate
 ):
-    driver.get(f"/become_user/{group_admin_user.id}")
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
-    driver.click_xpath('//button[text()="Search"]', wait_clickable=False)
-    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
-    save_button = driver.wait_for_xpath(
+    page.goto(f"/become_user/{group_admin_user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(
+        page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
+    ).to_be_visible()
+    page.locator(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
-    )
-    driver.scroll_to_element_and_click(save_button)
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
-    driver.click_xpath('//button[text()="Search"]', wait_clickable=False)
-    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
-    driver.wait_for_xpath('//span[text()="Previously Saved"]')
+    ).first.click()
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(
+        page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
+    ).to_be_visible()
+    expect(page.locator('//span[text()="Previously Saved"]').first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_save_candidate_select_groups(
-    driver, group_admin_user, public_group, public_candidate
+    page, group_admin_user, public_group, public_candidate
 ):
-    driver.get(f"/become_user/{group_admin_user.id}")
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
-    driver.click_xpath('//button[text()="Search"]')
-    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
-    carat = driver.wait_for_xpath(
+    page.goto(f"/become_user/{group_admin_user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(
+        page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
+    ).to_be_visible()
+    page.locator(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
-    )
-    driver.scroll_to_element_and_click(carat)
-    driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath_to_be_clickable(
-            f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
-        ),
-    )
-    save_button = driver.wait_for_xpath_to_be_clickable(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
-    )
-    driver.scroll_to_element_and_click(save_button)
-
-    second_save_button = driver.wait_for_xpath(
+    ).first.click()
+    menu_option = page.locator(
+        f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
+    ).first
+    # the menu item only responds to a native DOM click (matches the legacy
+    # execute_script click); a normal click doesn't trigger its handler.
+    menu_option.evaluate("el => el.click()")
+    # "Select groups & save" opens a group-select dialog directly (the split-button
+    # menu stays open behind it by design -- it only closes on click-away). Wait
+    # for the dialog, then save; the filtered group (public_group) is pre-checked.
+    expect(
+        page.locator('//*[text()="Select one or more groups:"]').first
+    ).to_be_visible()
+    page.locator(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
-    )
-    second_save_button.click()
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
-    driver.click_xpath('//button[text()="Search"]')
-    driver.wait_for_xpath('//span[text()="Previously Saved"]')
+    ).first.click()
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(page.locator('//span[text()="Previously Saved"]').first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_save_candidate_no_groups_error_message(
-    driver, group_admin_user, public_group, public_candidate
+    page, group_admin_user, public_group, public_candidate
 ):
-    driver.get(f"/become_user/{group_admin_user.id}")
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
-    driver.click_xpath('//button[text()="Search"]')
-    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
-    carat = driver.wait_for_xpath_to_be_clickable(
+    page.goto(f"/become_user/{group_admin_user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(
+        page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
+    ).to_be_visible()
+    page.locator(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
-    )
-    driver.scroll_to_element_and_click(carat)
-    driver.execute_script(
-        "arguments[0].click();",
-        driver.wait_for_xpath_to_be_clickable(
-            f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
-        ),
-    )
-    save_button = driver.wait_for_xpath_to_be_clickable(
-        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
-    )
-    driver.scroll_to_element_and_click(save_button)
-
-    group_checkbox = driver.wait_for_xpath(
-        f"//*[@data-testid='saveCandGroupCheckbox-{public_group.id}']"
-    )
-    group_checkbox.click()
-    second_save_button = driver.wait_for_xpath_to_be_clickable(
+    ).first.click()
+    menu_option = page.locator(
+        f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
+    ).first
+    # the menu item only responds to a native DOM click (matches the legacy
+    # execute_script click); a normal click doesn't trigger its handler.
+    menu_option.evaluate("el => el.click()")
+    # "Select groups & save" opens a group-select dialog directly. Uncheck the
+    # pre-selected group so none is selected, then saving must surface a
+    # validation error.
+    expect(
+        page.locator('//*[text()="Select one or more groups:"]').first
+    ).to_be_visible()
+    page.locator(
+        f'//*[@data-testid="saveCandGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
-    )
-    second_save_button.click()
-    driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
+    ).first.click()
+    expect(
+        page.locator('//*[contains(.,"Select at least one group")]').first
+    ).to_be_visible()
 
 
 def test_submit_annotations_sorting(
-    driver,
+    page,
     view_only_user,
     public_group,
     public_candidate,
@@ -283,52 +278,54 @@ def test_submit_annotations_sorting(
     )
     assert status == 200
 
-    # origins are cached, so we wait for the cache to invalidate (5 seconds in test config)
+    # origins are cached, so wait for the cache to invalidate (5 s in test config)
     time.sleep(3)
 
-    driver.get(f"/become_user/{view_only_user.id}")
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
+    page.goto(f"/become_user/{view_only_user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
 
-    driver.click_xpath('//input[@id="annotationSortingOriginSelect"]')
-    driver.click_xpath(f'//li[text()="{origin}"]')
-    driver.click_xpath('//input[@id="annotationSortingKeySelect"]')
-    driver.click_xpath('//li[text()="numeric_field"]')
-    driver.click_xpath('//input[@id="annotationSortingOrderSelect"]')
-    driver.click_xpath('//li[text()="Ascending"]')
+    page.locator('//input[@id="annotationSortingOriginSelect"]').first.click()
+    page.locator(f'//li[text()="{origin}"]').first.click()
+    page.locator('//input[@id="annotationSortingKeySelect"]').first.click()
+    page.locator('//li[text()="numeric_field"]').first.click()
+    page.locator('//input[@id="annotationSortingOrderSelect"]').first.click()
+    page.locator('//li[text()="Ascending"]').first.click()
 
-    driver.click_xpath('//button[text()="Search"]')
-    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
+    page.locator('//button[text()="Search"]').first.click()
+    expect(
+        page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
+    ).to_be_visible()
 
-    # Check that results come back as expected
-    # candidate-1 should have the lowest value
-    driver.wait_for_xpath(
-        '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"1.0000")]]'
-    )
-    driver.wait_for_xpath(
-        '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"2.0000")]]'
-    )
+    expect(
+        page.locator(
+            '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"1.0000")]]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"2.0000")]]'
+        ).first
+    ).to_be_visible()
 
-    # Check to see that sorting button has become enabled, and click
-    driver.wait_for_xpath_to_be_clickable(
-        "//button[@data-testid='sortOnAnnotationButton']"
-    )
-    driver.click_xpath("//button[@data-testid='sortOnAnnotationButton']")
+    page.locator("//button[@data-testid='sortOnAnnotationButton']").first.click()
 
-    # the order should now be reversed
-    driver.wait_for_xpath(
-        '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"2.0000")]]'
-    )
-    driver.wait_for_xpath(
-        '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"1.0000")]]'
-    )
+    expect(
+        page.locator(
+            '//*[contains(@data-testid, "candidate-1")][.//*[contains(.,"2.0000")]]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            '//*[contains(@data-testid, "candidate-2")][.//*[contains(.,"1.0000")]]'
+        ).first
+    ).to_be_visible()
 
 
 def test_candidate_classifications_filtering(
-    driver,
+    page,
     user,
     public_candidate,
     public_filter,
@@ -337,7 +334,6 @@ def test_candidate_classifications_filtering(
     taxonomy_token,
     classification_token,
 ):
-    # Post an object with a classification
     candidate_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -350,17 +346,14 @@ def test_candidate_classifications_filtering(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
     assert status == 200
 
     status, data = api(
-        "POST",
-        "sources",
-        data={"id": candidate_id},
-        token=upload_data_token,
+        "POST", "sources", data={"id": candidate_id}, token=upload_data_token
     )
     assert status == 200
     status, data = api(
@@ -393,44 +386,33 @@ def test_candidate_classifications_filtering(
     )
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
-    driver.click_xpath("//div[@id='classifications-select']")
-    driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator("//div[@id='classifications-select']").first.click()
+    page.locator("//li[@data-value='Algol']").first.click()
+    page.keyboard.press("Escape")
 
-    # Click somewhere outside to remove focus from classification select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(page.locator(f'//a[@data-testid="{candidate_id}"]').first).to_be_visible()
 
-    driver.click_xpath('//button[text()="Search"]')
-    # Should see the posted classification
-    driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}"]')
-
-    # Now search for a different classification
-    driver.click_xpath("//div[@id='classifications-select']")
-    # Clear old classification selection
-    driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
-    driver.click_xpath("//li[@data-value='AGN']", scroll_parent=True)
-    # Click somewhere outside to remove focus from classification select
-    header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().perform()
-    driver.click_xpath('//button[text()="Search"]')
-    # Should no longer see the classification
-    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}"]')
+    page.locator("//div[@id='classifications-select']").first.click()
+    page.locator("//li[@data-value='Algol']").first.click()
+    page.locator("//li[@data-value='AGN']").first.click()
+    page.keyboard.press("Escape")
+    page.locator('//button[text()="Search"]').first.click()
+    expect(page.locator(f'//a[@data-testid="{candidate_id}"]').first).to_be_hidden()
 
 
 def test_candidate_redshift_filtering(
-    driver,
+    page,
     user,
     public_filter,
     public_group,
     upload_data_token,
 ):
-    # Post candidates with different redshifts
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
     status, data = api(
@@ -444,7 +426,7 @@ def test_candidate_redshift_filtering(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
@@ -460,39 +442,32 @@ def test_candidate_redshift_filtering(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
-    min_box = driver.wait_for_xpath("//input[@id='minimum-redshift']")
-    min_text = "0"
-    min_box.send_keys(min_text)
-    max_box = driver.wait_for_xpath("//input[@id='maximum-redshift']")
-    max_text = "0.5"
-    max_box.send_keys(max_text)
-    driver.click_xpath('//button[text()="Search"]')
-    # Should see the obj_id1 but not obj_id2
-    driver.wait_for_xpath(f'//a[@data-testid="{obj_id1}"]')
-    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{obj_id2}"]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator("//input[@id='minimum-redshift']").first.fill("0")
+    page.locator("//input[@id='maximum-redshift']").first.fill("0.5")
+    page.locator('//button[text()="Search"]').first.click()
+    expect(page.locator(f'//a[@data-testid="{obj_id1}"]').first).to_be_visible()
+    expect(page.locator(f'//a[@data-testid="{obj_id2}"]').first).to_be_hidden()
 
 
 def test_candidate_rejection_filtering(
-    driver,
+    page,
     user,
     public_group,
     upload_data_token,
     public_filter,
 ):
     candidate_id = str(uuid.uuid4())
-
     status, _ = api(
         "POST",
         "candidates",
@@ -505,44 +480,35 @@ def test_candidate_rejection_filtering(
             "transient": False,
             "ra_dis": 2.3,
             "filter_ids": [public_filter.id],
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(utcnow_naive()),
         },
         token=upload_data_token,
     )
     assert status == 200
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
 
-    driver.click_xpath('//button[text()="Search"]')
+    page.locator(f'//*[@data-testid="rejected-visible_{candidate_id}"]').first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(
+        page.locator(f'//*[@data-testid="rejected_invisible_{candidate_id}"]').first
+    ).to_be_visible()
 
-    # make sure candidate appears and click the icon to reject it
-    driver.click_xpath(f'//*[@data-testid="rejected-visible_{candidate_id}"]')
-
-    # by default we do not hide rejected candidates, so let's make sure we still
-    # see it in the results
-    driver.click_xpath('//button[text()="Search"]')
-
-    # make sure candidate appears and that it has a "rejected" icon
-    driver.wait_for_xpath(f'//*[@data-testid="rejected_invisible_{candidate_id}"]')
-
-    # choose to hide rejected candidates in the filtering form
-    driver.click_xpath('//*[@data-testid="rejectedStatusSelect"]')
-
-    driver.click_xpath('//button[text()="Search"]')
-
-    # now the candidate doesn't show up anymore
-    driver.wait_for_xpath('//*[contains(., "Found 0 candidates.")]')
+    page.locator('//*[@data-testid="rejectedStatusSelect"]').first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(
+        page.locator('//*[contains(., "Found 0 candidates.")]').first
+    ).to_be_visible()
 
 
 def test_add_scanning_profile(
-    driver, user, public_group, public_source, annotation_token
+    page, user, public_group, public_source, annotation_token
 ):
-    # Post an annotation to the test source, to test setting annotation sorting
     status, _ = api(
         "POST",
         f"sources/{public_source.id}/annotations",
@@ -556,166 +522,130 @@ def test_add_scanning_profile(
     )
     assert status == 200
 
-    # origins are cached, so we wait for the cache to invalidate (2 seconds in test config)
-    time.sleep(2)
+    time.sleep(2)  # origins are cached; wait for invalidation
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/candidates")
-    driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator('//button[@data-testid="manageScanningProfilesButton"]').first.click()
+    page.locator('//button[@name="new_scanning_profile"]').first.click()
+    time.sleep(1)  # let the form initialize / load groups
 
-    # click on the + icon on the top right of the table to open the form
-    driver.click_xpath('//button[@name="new_scanning_profile"]')
+    page.locator('//div[@data-testid="profile-name"]//input').first.fill("profile1")
+    page.locator('//div[@data-testid="timeRange"]//input').first.fill("48")
 
-    # let the form initialize, load the groups, etc.
-    time.sleep(1)
-
-    # Fill out form
-    name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
-    name_input.clear()
-    name_input.send_keys("profile1")
-
-    time_range_input = driver.wait_for_xpath('//div[@data-testid="timeRange"]//input')
-    time_range_input.clear()
-    time_range_input.send_keys("48")
-
-    driver.click_xpath('//div[@aria-labelledby="savedStatusSelectLabel"]')
+    page.locator('//div[@aria-labelledby="savedStatusSelectLabel"]').first.click()
     saved_status_option = "and is saved to at least one group I have access to"
-    driver.click_xpath(f'//li[text()="{saved_status_option}"]')
+    page.locator(f'//li[text()="{saved_status_option}"]').first.click()
 
-    redshift_minimum_input = driver.wait_for_xpath(
-        '//div[@data-testid="profile-minimum-redshift"]//input'
+    page.locator('//div[@data-testid="profile-minimum-redshift"]//input').first.fill(
+        "0.0"
     )
-    redshift_minimum_input.send_keys("0.0")
-    redshift_maximum_input = driver.wait_for_xpath(
-        '//div[@data-testid="profile-maximum-redshift"]//input'
+    page.locator('//div[@data-testid="profile-maximum-redshift"]//input').first.fill(
+        "1.0"
     )
-    redshift_maximum_input.send_keys("1.0")
-    driver.click_xpath('//div[@data-testid="annotation-sorting-accordion"]')
-    driver.click_xpath(
-        '//div[@data-testid="profileAnnotationSortingOriginSelect"]', scroll_parent=True
-    )
-    driver.click_xpath('//li[text()="kowalski"]')
-    driver.click_xpath('//div[@data-testid="profileAnnotationSortingKeySelect"]')
-    driver.click_xpath('//li[text()="offset_from_host_galaxy"]')
-    driver.click_xpath('//div[@data-testid="profileAnnotationSortingOrderSelect"]')
-    driver.click_xpath('//li[text()="Descending"]')
+    page.locator('//div[@data-testid="annotation-sorting-accordion"]').first.click()
+    page.locator(
+        '//div[@data-testid="profileAnnotationSortingOriginSelect"]'
+    ).first.click()
+    page.locator('//li[text()="kowalski"]').first.click()
+    page.locator(
+        '//div[@data-testid="profileAnnotationSortingKeySelect"]'
+    ).first.click()
+    page.locator('//li[text()="offset_from_host_galaxy"]').first.click()
+    page.locator(
+        '//div[@data-testid="profileAnnotationSortingOrderSelect"]'
+    ).first.click()
+    page.locator('//li[text()="Descending"]').first.click()
 
-    driver.click_xpath(
+    page.locator(
         f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
-    )
+    ).first.click()
 
-    # Submit and check it shows up in table of profiles
-    driver.click_xpath(
-        '//button[@data-testid="saveScanningProfileButton"]', scroll_parent=True
-    )
-    driver.wait_for_xpath(f'//div[text()="{saved_status_option}"]')
+    page.locator('//button[@data-testid="saveScanningProfileButton"]').first.click()
+    expect(page.locator(f'//div[text()="{saved_status_option}"]').first).to_be_visible()
 
-    # Navigate back to scanning page and check that form is populated properly
-    driver.click_xpath('//button[@data-testid="closeScanningProfilesButton"]')
-    # driver.wait_for_xpath(f'//div[text()="{saved_status_option}"]')
-    driver.wait_for_xpath('//input[@id="minimum-redshift"][@value="0.0"]')
-    driver.wait_for_xpath('//input[@id="maximum-redshift"][@value="1.0"]')
-    driver.wait_for_xpath(
-        f'//span[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    )
-    # driver.wait_for_xpath('//div[text()="kowalski"]')
-    driver.wait_for_xpath('//input[@value="offset_from_host_galaxy"]')
-    driver.wait_for_xpath('//input[@value="Descending"]')
+    page.locator('//button[@data-testid="closeScanningProfilesButton"]').first.click()
+    expect(
+        page.locator('//input[@id="minimum-redshift"][@value="0.0"]').first
+    ).to_be_visible()
+    expect(
+        page.locator('//input[@id="maximum-redshift"][@value="1.0"]').first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f'//span[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator('//input[@value="offset_from_host_galaxy"]').first
+    ).to_be_visible()
+    expect(page.locator('//input[@value="Descending"]').first).to_be_visible()
 
 
-def test_delete_scanning_profile(driver, user, public_group):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/candidates")
-    driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
-
-    # click on the + icon on the top right of the table to open the form
-    driver.click_xpath('//button[@name="new_scanning_profile"]')
-
-    # let the form initialize, load the groups, etc.
+def test_delete_scanning_profile(page, user, public_group):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator('//button[@data-testid="manageScanningProfilesButton"]').first.click()
+    page.locator('//button[@name="new_scanning_profile"]').first.click()
     time.sleep(1)
 
-    # Fill out form
-    name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
-    name_input.clear()
-    name_input.send_keys("profile1")
+    page.locator('//div[@data-testid="profile-name"]//input').first.fill("profile1")
+    page.locator('//div[@data-testid="timeRange"]//input').first.fill("123")
 
-    time_range_input = driver.wait_for_xpath('//div[@data-testid="timeRange"]//input')
-    time_range_input.clear()
-    time_range_input.send_keys("123")
+    page.locator(
+        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
 
-    driver.click_xpath(
-        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]',
-        scroll_parent=True,
-    )
+    page.locator('//button[@data-testid="saveScanningProfileButton"]').first.click()
+    expect(page.locator('//div[text()="123hrs"]').first).to_be_visible()
 
-    # Submit and check it shows up in table of profiles
-    driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
-    driver.wait_for_xpath('//div[text()="123hrs"]')
-
-    # Delete and check that it disappears
-    driver.click_xpath('//button[@id="delete_button_0"]')
-    driver.wait_for_xpath_to_disappear('//div[text()="123hrs"]')
+    page.locator('//button[@id="delete_button_0"]').first.click()
+    expect(page.locator('//div[text()="123hrs"]').first).to_be_hidden()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_load_scanning_profile(
-    driver, user, public_group, public_source, annotation_token
+    page, user, public_group, public_source, annotation_token
 ):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/candidates")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
 
-    # Add two scanning profiles with different max redshifts
-    driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
-
-    # click on the + icon on the top right of the table to open the form
-    driver.click_xpath('//button[@name="new_scanning_profile"]')
-
-    # let the form initialize, load the groups, etc.
+    page.locator('//button[@data-testid="manageScanningProfilesButton"]').first.click()
+    page.locator('//button[@name="new_scanning_profile"]').first.click()
     time.sleep(1)
 
-    redshift_maximum_input = driver.wait_for_xpath(
-        '//div[@data-testid="profile-maximum-redshift"]//input'
+    page.locator('//div[@data-testid="profile-maximum-redshift"]//input').first.fill(
+        "0.5"
     )
-    redshift_maximum_input.send_keys("0.5")
-    name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
-    name_input.clear()
-    name_input.send_keys("profile1")
-    driver.click_xpath(
-        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]',
-        scroll_parent=True,
+    page.locator('//div[@data-testid="profile-name"]//input').first.fill("profile1")
+    page.locator(
+        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[@data-testid="saveScanningProfileButton"]').first.click()
+    expect(page.locator('//div[contains(text(), "0.5")]').first).to_be_visible()
+
+    page.locator('//button[@name="new_scanning_profile"]').first.click()
+
+    page.locator('//div[@data-testid="profile-maximum-redshift"]//input').first.fill(
+        "1.0"
     )
-    driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
-    driver.wait_for_xpath('//div[contains(text(), "0.5")]')
+    page.locator('//div[@data-testid="profile-name"]//input').first.fill("profile2")
+    page.locator(
+        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[@data-testid="saveScanningProfileButton"]').first.click()
+    expect(page.locator('//div[contains(text(), "1.0")]').first).to_be_visible()
 
-    # click on the + icon on the top right of the table to open the form
-    driver.click_xpath('//button[@name="new_scanning_profile"]')
+    page.locator('//span[@data-testid="loaded_0"]').first.click()
 
-    redshift_maximum_input = driver.wait_for_xpath(
-        '//div[@data-testid="profile-maximum-redshift"]//input'
-    )
-    redshift_maximum_input.send_keys("1.0")
-    name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
-    name_input.clear()
-    name_input.send_keys("profile2")
-    driver.click_xpath(
-        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]',
-        scroll_parent=True,
-    )
-    driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
-    driver.wait_for_xpath('//div[contains(text(), "1.0")]')
-
-    # unload
-    driver.click_xpath('//span[@data-testid="loaded_0"]')
-    # load
-    driver.click_xpath('//span[@data-testid="loaded_0"]')
-
-    # Navigate back to scanning page and check that form is populated properly
-    driver.click_xpath('//button[@data-testid="closeScanningProfilesButton"]')
-    driver.wait_for_xpath('//input[@id="maximum-redshift"][@value="0.5"]')
+    page.locator('//button[@data-testid="closeScanningProfilesButton"]').first.click()
+    expect(
+        page.locator('//input[@id="maximum-redshift"][@value="0.5"]').first
+    ).to_be_visible()
 
 
 def test_user_without_save_access_cannot_save(
-    driver, super_admin_token, public_group, public_candidate, user_group2
+    page, super_admin_token, public_group, public_candidate, user_group2
 ):
     status, data = api(
         "POST",
@@ -738,30 +668,30 @@ def test_user_without_save_access_cannot_save(
     assert not group_user["can_save"]
     assert not group_user["admin"]
 
-    driver.get(f"/become_user/{user_group2.id}")
-    driver.get("/candidates")
-    driver.click_xpath(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
-        wait_clickable=False,
-    )
-    driver.click_xpath('//button[text()="Search"]', wait_clickable=False)
-    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
-    save_button = driver.wait_for_xpath(
+    page.goto(f"/become_user/{user_group2.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(
+        page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
+    ).to_be_visible()
+    page.locator(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
-    )
-    driver.scroll_to_element_and_click(save_button)
+    ).first.click()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_add_classification_on_scanning_page(
-    driver, user, public_group, taxonomy_token, public_filter, upload_data_token
+    page, user, public_group, taxonomy_token, public_filter, upload_data_token
 ):
-    from ..test_profile import add_classification_shortcut
+    from ..users_groups_and_content.test_profile import add_classification_shortcut
 
     shortcut_name = add_classification_shortcut(
-        driver, user, public_group, taxonomy_token
+        page, user, public_group, taxonomy_token
     )
-    driver.get(f"/become_user/{user.id}")
+    page.goto(f"/become_user/{user.id}")
     candidate_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -774,45 +704,35 @@ def test_add_classification_on_scanning_page(
             "altdata": {"simbad": {"class": "RRLyr"}},
             "transient": False,
             "ra_dis": 2.3,
-            "passed_at": str(datetime.datetime.utcnow()),
+            "passed_at": str(utcnow_naive()),
             "filter_ids": [public_filter.id],
         },
         token=upload_data_token,
     )
     assert status == 200
-    driver.get("/candidates")
-    group_checkbox = driver.wait_for_xpath(
+    page.goto("/candidates")
+    page.locator(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    )
-    driver.scroll_to_element_and_click(group_checkbox)
-    submit_button = driver.wait_for_xpath('//button[text()="Search"]')
-    driver.scroll_to_element_and_click(submit_button)
-    save_button = driver.wait_for_xpath(
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    page.locator(
         f'//button[@data-testid="saveCandidateButton_{candidate_id}"]'
-    )
-    driver.scroll_to_element_and_click(save_button)
+    ).first.click()
 
-    driver.get("/candidates")
-    group_checkbox = driver.wait_for_xpath(
+    page.goto("/candidates")
+    page.locator(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    )
-    driver.scroll_to_element_and_click(group_checkbox)
-    submit_button = driver.wait_for_xpath('//button[text()="Search"]')
-    driver.scroll_to_element_and_click(submit_button)
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
 
-    add_classifications_button = driver.wait_for_xpath(
+    page.locator(
         f'//button[@data-testid="addClassificationsButton_{candidate_id}"]'
-    )
-    driver.scroll_to_element_and_click(add_classifications_button)
-    shortcut_button = driver.wait_for_xpath(
-        f'//button[@data-testid="{shortcut_name}_inDialog"]'
-    )
-    driver.scroll_to_element_and_click(shortcut_button)
-    shortcut_button = driver.wait_for_xpath(
+    ).first.click()
+    page.locator(f'//button[@data-testid="{shortcut_name}_inDialog"]').first.click()
+    page.locator(
         '//button[@data-testid="addClassificationsButtonInDialog"]'
-    )
-    driver.scroll_to_element_and_click(shortcut_button)
+    ).first.click()
 
-    driver.get(f"/source/{candidate_id}")
-    driver.wait_for_xpath('//span[contains(text(), "AGN")]')
-    driver.wait_for_xpath('//span[contains(text(), "AM CVn")]')
+    page.goto(f"/source/{candidate_id}")
+    expect(page.locator('//span[contains(text(), "AGN")]').first).to_be_visible()
+    expect(page.locator('//span[contains(text(), "AM CVn")]').first).to_be_visible()

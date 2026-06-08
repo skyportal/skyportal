@@ -26,7 +26,7 @@ _, cfg = load_env()
 
 class ObjHandler(BaseHandler):
     @auth_or_token  # ACLs will be checked below based on configs
-    def delete(self, obj_id):
+    def delete(self, obj_id: str):
         """
         ---
         summary: Delete an Obj
@@ -174,7 +174,7 @@ class ObjPositionHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, obj_id):
+    def get(self, obj_id: str):
         """
         ---
         summary: Retrieve photometry-based position of an Obj
@@ -192,14 +192,19 @@ class ObjPositionHandler(BaseHandler):
             content:
               application/json:
                 schema:
-                  type: object
-                  properties:
-                    ra:
-                      type: number
-                      description: Right ascension of the object
-                    dec:
-                      type: number
-                      description: Declination of the object
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            ra:
+                              type: number
+                              description: Right ascension of the object
+                            dec:
+                              type: number
+                              description: Declination of the object
           400:
             content:
               application/json:
@@ -269,8 +274,9 @@ class ObjPositionHandler(BaseHandler):
 
                 # POST-QUERY FILTERING
                 additional_constraints = [
-                    lambda p: p.flux / p.fluxerr
-                    > snr_threshold,  # signal-to-noise ratio threshold
+                    lambda p: (
+                        p.flux / p.fluxerr > snr_threshold
+                    ),  # signal-to-noise ratio threshold
                 ]
                 if (
                     stream_only and not stream_ids

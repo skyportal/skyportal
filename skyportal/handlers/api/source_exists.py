@@ -11,7 +11,7 @@ from ..base import BaseHandler
 
 class SourceExistsHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id=None):
+    def get(self, obj_id: str = None):
         """
         ---
         single:
@@ -25,6 +25,22 @@ class SourceExistsHandler(BaseHandler):
               required: false
               schema:
                 type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              source_exists:
+                                type: boolean
+                              message:
+                                type: string
         multiple:
           summary: Check if a source exists by position
           description: Check if a source exists by RA, Dec, and radius
@@ -49,11 +65,30 @@ class SourceExistsHandler(BaseHandler):
             schema:
               type: number
             description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              source_exists:
+                                type: boolean
+                              message:
+                                type: string
         """
 
-        ra = self.get_query_argument("ra", None)
-        dec = self.get_query_argument("dec", None)
-        radius = self.get_query_argument("radius", None)
+        # ra/dec/radius are explicitly converted to float below, so opting
+        # into type=float here keeps the query-arg surface uniform but
+        # isn't strictly required for the comparison.
+        ra = self.get_query_argument("ra", None, type=float)
+        dec = self.get_query_argument("dec", None, type=float)
+        radius = self.get_query_argument("radius", None, type=float)
 
         if not (all([ra, dec, radius]) or obj_id):
             return self.error(

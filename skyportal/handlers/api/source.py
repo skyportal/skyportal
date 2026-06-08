@@ -9,6 +9,7 @@ import time
 import traceback
 from json.decoder import JSONDecodeError
 
+import arrow
 import astropy
 import astropy.units as u
 import conesearch_alchemy as ca
@@ -31,7 +32,7 @@ from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 from matplotlib import dates
 from sqlalchemy import func, or_
-from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
+from sqlalchemy.orm import joinedload, scoped_session, selectinload, sessionmaker
 from sqlalchemy.sql import bindparam, text
 from tornado.ioloop import IOLoop
 from twilio.base.exceptions import TwilioException
@@ -73,10 +74,12 @@ from ...models import (
     Thumbnail,
     Token,
     User,
+    serialize_obj_tag,
 )
 from ...utils.asynchronous import run_async
 from ...utils.calculations import great_circle_distance
 from ...utils.data_access import auto_source_publishing
+from ...utils.naive_datetime import UTCTZnaiveDateTime, utcnow_naive
 from ...utils.offset import (
     ALL_NGPS_SNCOSMO_BANDS,
     _calculate_best_position_for_offset_stars,
@@ -86,9 +89,8 @@ from ...utils.offset import (
     get_nearby_offset_stars,
     source_image_parameters,
 )
-from ...utils.parse import get_list_typed, get_page_and_n_per_page
+from ...utils.parse import get_list_typed, get_page_and_n_per_page, str_to_bool
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
-from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
 from ..base import BaseHandler
 from .candidate.candidate import (
     update_healpix_if_relevant,
@@ -200,6 +202,7 @@ async def get_source(
     include_candidates=False,
     include_associated_objs=False,
     include_tags=False,
+    include_super_objs=False,
 ):
     """Query source from database.
     obj_id: int
@@ -385,15 +388,29 @@ async def get_source(
         source_info = recursive_to_dict(source_info)
         session.commit()
 
+    # Meta-object aggregation: when include_super_objs is set, expand to every
+    # Obj linked to this one through a SuperObj, so the per-source data products
+    # (comments, annotations, classifications, tags) are each returned as one
+    # provenance-tagged union (every entry keeps its obj_id). Mirrors the
+    # photometry SuperObjs aggregation. Defaults to just this obj, so the
+    # non-aggregated path is byte-for-byte unchanged. RLS is preserved because
+    # each query still goes through Model.select(user) (per-row access predicates).
+    aggregated_obj_ids = {obj_id}
+    if include_super_objs:
+        for super_obj in s.super_objs:
+            aggregated_obj_ids.update({linked_obj.id for linked_obj in super_obj.objs})
+
     if include_comments:
+        # selectinload(Comment.groups) avoids an n+1 on the c.groups access below.
         comments = (
             session.scalars(
                 Comment.select(
                     user,
                     options=[
                         joinedload(Comment.author),
+                        selectinload(Comment.groups),
                     ],
-                ).where(Comment.obj_id == obj_id)
+                ).where(Comment.obj_id.in_(aggregated_obj_ids))
             )
             .unique()
             .all()
@@ -457,7 +474,7 @@ async def get_source(
         session.scalars(
             Annotation.select(user)
             .options(joinedload(Annotation.author))
-            .where(Annotation.obj_id == obj_id)
+            .where(Annotation.obj_id.in_(aggregated_obj_ids))
         )
         .unique()
         .all(),
@@ -466,13 +483,22 @@ async def get_source(
     source_info["annotations"] = [
         {**annotation.to_dict(), "type": "source"} for annotation in annotations
     ]
-    readable_classifications = (
-        session.scalars(
-            Classification.select(user).where(Classification.obj_id == obj_id)
+    # selectinload .groups / .votes to avoid an n+1 per classification below.
+    classification_query = (
+        Classification.select(user)
+        .options(
+            selectinload(Classification.groups),
+            selectinload(Classification.votes),
         )
-        .unique()
-        .all()
+        .where(Classification.obj_id.in_(aggregated_obj_ids))
     )
+    readable_classifications = session.scalars(classification_query).unique().all()
+    if include_super_objs:
+        # Most-recent-first across the union; obj_id on each entry preserves the
+        # per-survey provenance the frontend renders.
+        readable_classifications = sorted(
+            readable_classifications, key=lambda c: c.created_at, reverse=True
+        )
 
     readable_classifications_json = []
     for classification in readable_classifications:
@@ -553,13 +579,14 @@ async def get_source(
             source_info["gcn_crossmatch"].extend(
                 [gcn.dateobs for gcn in confirmed_in_gcn]
             )
-            source_info["gcn_crossmatch"] = list(set(source_info["gcn_crossmatch"]))
+
+        crossmatch_dateobs = list(
+            {arrow.get(dateobs).naive for dateobs in source_info["gcn_crossmatch"]}
+        )
 
         source_info["gcn_crossmatch"] = (
             session.scalars(
-                GcnEvent.select(user).where(
-                    GcnEvent.dateobs.in_(source_info["gcn_crossmatch"])
-                )
+                GcnEvent.select(user).where(GcnEvent.dateobs.in_(crossmatch_dateobs))
             )
             .unique()
             .all()
@@ -598,8 +625,14 @@ async def get_source(
                 ]
             )
     if include_tags:
-        tags = session.scalars(ObjTag.select(user).where(ObjTag.obj_id == obj_id)).all()
-        tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+        tags = session.scalars(
+            ObjTag.select(user).where(ObjTag.obj_id.in_(aggregated_obj_ids)).distinct()
+        ).all()
+
+        user_group_ids = (
+            None if user.is_system_admin else {g.id for g in user.accessible_groups}
+        )
+        tags = [serialize_obj_tag(tag, user_group_ids) for tag in tags]
         source_info["tags"] = tags
     source_query = Source.select(user).where(Source.obj_id == source_info["id"])
     source_query = apply_active_or_requested_filtering(
@@ -673,29 +706,6 @@ async def get_source(
 
     source_info = recursive_to_dict(source_info)
     return source_info
-
-
-def create_annotations_query(
-    session,
-    annotations_filter_origin=None,
-    annotations_filter_before=None,
-    annotations_filter_after=None,
-):
-    annotations_query = Annotation.select(session.user_or_token)
-    if annotations_filter_origin is not None:
-        annotations_query = annotations_query.where(
-            Annotation.origin.in_(annotations_filter_origin)
-        )
-    if annotations_filter_before:
-        annotations_query = annotations_query.where(
-            Annotation.created_at <= annotations_filter_before
-        )
-    if annotations_filter_after:
-        annotations_query = annotations_query.where(
-            Annotation.created_at >= annotations_filter_after
-        )
-
-    return annotations_query
 
 
 def post_source(data, user_id, session, refresh_source=True):
@@ -788,7 +798,7 @@ def post_source(data, user_id, session, refresh_source=True):
 
     # we want to allow admins to save sources as another user(s).
     # it's optional, and we default to saving to the current user unless specified otherwise.
-    saver_per_group_id = {gid: user for gid in group_ids}
+    saver_per_group_id = dict.fromkeys(group_ids, user)
     if "saver_per_group_id" in data:
         if not user.is_admin:
             raise AttributeError(
@@ -1011,7 +1021,7 @@ class SourceHandler(BaseHandler):
                 self.finish()
 
     @auth_or_token
-    async def get(self, obj_id=None):
+    async def get(self, obj_id: str = None):
         """
         ---
         single:
@@ -1142,7 +1152,7 @@ class SourceHandler(BaseHandler):
             name: rejectedSourceIDs
             nullable: true
             schema:
-              type: str
+              type: string
             description: Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query.
           - in: query
             name: simbadClass
@@ -1156,7 +1166,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: array
               items:
-                types: string
+                type: string
             description: additional name for the same object
           - in: query
             name: origin
@@ -1238,7 +1248,7 @@ class SourceHandler(BaseHandler):
             name: group_ids
             nullable: true
             schema:
-              type: list
+              type: array
               items:
                 type: integer
             description: |
@@ -1791,6 +1801,12 @@ class SourceHandler(BaseHandler):
         include_candidates = self.get_query_argument("includeCandidates", False)
         include_tags = self.get_query_argument("includeTags", True)
         include_associated_objs = self.get_query_argument("includeAssociatedObjs", True)
+        # Meta-object aggregation of per-source data products (classifications,
+        # and — as they are migrated — annotations/comments/tags). Default off so
+        # the per-source view is unchanged; str_to_bool so "false" is honored.
+        include_super_objs = str_to_bool(
+            self.get_query_argument("includeSuperObjs", "false"), default=False
+        )
 
         # optional, use caching
         use_cache = self.get_query_argument("useCache", False)
@@ -1930,6 +1946,7 @@ class SourceHandler(BaseHandler):
                         include_candidates=include_candidates,
                         include_tags=include_tags,
                         include_associated_objs=include_associated_objs,
+                        include_super_objs=include_super_objs,
                     )
                 except Exception as e:
                     traceback.print_exc()
@@ -2114,7 +2131,7 @@ class SourceHandler(BaseHandler):
                 return self.error(f"Failed to post source: {str(e)}")
 
     @permissions(["Upload data"])
-    def patch(self, obj_id):
+    def patch(self, obj_id: str):
         """
         ---
         summary: Update a source
@@ -2135,7 +2152,13 @@ class SourceHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Obj'
           400:
             content:
               application/json:
@@ -2197,7 +2220,7 @@ class SourceHandler(BaseHandler):
         return self.success()
 
     @permissions(["Manage sources"])
-    def delete(self, obj_id):
+    def delete(self, obj_id: str):
         """
         ---
         summary: Delete a source
@@ -2249,7 +2272,7 @@ class SourceHandler(BaseHandler):
 
 class SourceOffsetsHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Retrieve offset stars
@@ -2384,7 +2407,8 @@ class SourceOffsetsHandler(BaseHandler):
             use_ztfref = self.get_query_argument("use_ztfref", True)
 
             obstime = self.get_query_argument(
-                "obstime", datetime.datetime.utcnow().isoformat()
+                "obstime",
+                utcnow_naive().isoformat(),
             )
             if not isinstance(isoparse(obstime), datetime.datetime):
                 return self.error("obstime is not valid isoformat")
@@ -2663,7 +2687,7 @@ def get_finding_chart_callable(
 
 class SourceFinderHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Retrieve finding chart
@@ -2680,7 +2704,7 @@ class SourceFinderHandler(BaseHandler):
         - in: query
           name: imsize
           schema:
-            type: float
+            type: number
             minimum: 2
             maximum: 15
           description: Image size in arcmin (square)
@@ -2776,7 +2800,8 @@ class SourceFinderHandler(BaseHandler):
         image_source = self.get_query_argument("image_source", "ps1")
         use_ztfref = self.get_query_argument("use_ztfref", True)
         obstime = self.get_query_argument(
-            "obstime", datetime.datetime.utcnow().isoformat()
+            "obstime",
+            utcnow_naive().isoformat(),
         )
         if not isinstance(isoparse(obstime), datetime.datetime):
             return self.error("obstime is not valid isoformat")
@@ -2817,7 +2842,7 @@ class SourceFinderHandler(BaseHandler):
                         data["public_url"] = rez["public_url"]
                         if finding_charts_cache._max_age:
                             data["public_url_expires_at"] = (
-                                datetime.datetime.utcnow()
+                                utcnow_naive()
                                 + datetime.timedelta(
                                     seconds=finding_charts_cache._max_age
                                 )
@@ -2885,11 +2910,7 @@ class SourceNotificationHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: string
-                              description: New SourceNotification ID
+                          $ref: '#/components/schemas/SourceNotification'
         """
         if not cfg["notifications.enabled"]:
             return self.error("Notifications are not enabled in current deployment.")
@@ -3048,7 +3069,7 @@ class SurveyThumbnailHandler(BaseHandler):
 
 class SourceObservabilityPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Generate observability plot for a source
@@ -3160,7 +3181,7 @@ class SourceObservabilityPlotHandler(BaseHandler):
 
 class SourceCopyPhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, target_id):
+    def post(self, target_id: str):
         """
         ---
         summary: Copy photometry from one source to another
@@ -3199,9 +3220,7 @@ class SourceCopyPhotometryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
+                schema: Success
         """
 
         data = self.get_json()

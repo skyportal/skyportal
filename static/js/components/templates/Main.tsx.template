@@ -1,0 +1,147 @@
+// Baselayer components
+import { Notifications } from "baselayer/components/Notifications";
+import WebSocket from "baselayer/components/WebSocket";
+import messageHandler from "baselayer/MessageHandler";
+
+// React and Redux
+import React, { useEffect, Suspense } from "react";
+import { Provider } from "react-redux";
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+
+// MUI
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { useTheme } from "@mui/material/styles";
+import { makeStyles } from "tss-react/mui";
+import useMediaQuery from "@mui/material/useMediaQuery";
+
+// Store
+import store from "../../store";
+import { useAppSelector } from "../../types/hooks";
+
+// Actions
+import hydrate from "../../actions";
+import * as rotateLogoActions from "../../ducks/logo";
+import * as hydrationActions from "../../ducks/hydration";
+
+// Components
+import Theme from "../Theme";
+import Spinner from "../Spinner";
+import NoMatchingRoute from "../NoMatchingRoute";
+import SidebarAndHeader from "./SidebarAndHeader";
+import ErrorBoundary from "../ErrorBoundary";
+
+{% for route in app.routes -%}
+const {{ (route.component).split('/').pop() }} = React.lazy(() => import("../{{ route.component }}"));
+{% endfor %}
+
+messageHandler.init(store.dispatch, store.getState);
+
+const useStyles = makeStyles()((theme) => ({
+  content: {
+    flexGrow: 1,
+    transition: theme.transitions.create("margin", {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+    marginTop: "2.5em", // top bar height
+    "& a": {
+      textDecoration: "none",
+      color: "gray",
+      fontWeight: "bold",
+    },
+  },
+}));
+
+interface LazyRouteProps {
+  Component: React.ElementType;
+}
+
+const LazyRoute = ({ Component }: LazyRouteProps) => (
+  <Suspense fallback={<Spinner />}><Component /></Suspense>
+);
+
+interface MainContentInternalProps {
+  root: string;
+}
+
+const MainContentInternal = ({ root }: MainContentInternalProps) => {
+  const { open } = useAppSelector((state) => (state as any).sidebar);
+  const { classes } = useStyles();
+  const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down("md"));
+  const marginLeft = isSmall ? "0" : open ? "170px" : "65px";
+
+  useEffect(() => {
+    store.dispatch(rotateLogoActions.rotateLogo());
+    setTimeout(() => {
+      store.dispatch(hydrationActions.verifyHydration());
+    }, 1400);
+    setTimeout(() => {
+      const {hydratedList, hydrated} = store.getState()["hydration"];
+      if (hydrated === true) {
+        // fully hydrated, do nothing except dashboard refresh
+        store.dispatch(hydrate(true) as any);
+      } else if (hydratedList?.length > 0) {
+        // not fully hydrated, hydrate only missing
+        const missing = Array.from([...hydrationActions.DUCKS_TO_HYDRATE].filter((x: any) => !hydratedList.includes(x)));
+        store.dispatch(hydrate(false, missing) as any);
+      } else {
+        // not hydrated at all, hydrate everything
+        store.dispatch(hydrate() as any);
+      }
+      store.dispatch(rotateLogoActions.rotateLogo());
+    }, 1500);
+  }, []);
+
+  const location = useLocation();
+  useEffect(() => {
+    document.title = "{{ app.title }}";
+  }, [location.pathname]);
+
+  return (
+    <>
+      <WebSocket
+        url={`${window.location.protocol === "https:" ? "wss" :
+        "ws"}://${root}websocket`}
+        auth_url={`${window.location.protocol}//${root}baselayer/socket_auth_token`}
+        messageHandler={messageHandler}
+        dispatch={store.dispatch}
+      />
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <SidebarAndHeader/>
+        <div
+          role="main"
+          className={classes.content}
+          style={{"{{marginLeft, padding: location.pathname === '/' ? 0 : '0.625rem'}}"}}
+        >
+          <Notifications />
+          <ErrorBoundary key={location.pathname}>
+            <Routes>
+              {%- for route in app.routes %}
+              <Route path="{{ route.path }}" element={<LazyRoute Component={{ "{" + (route.component).split('/').pop() + "}" }} />} />
+              {%- endfor %}
+              <Route path="*" element={<NoMatchingRoute/>} />
+            </Routes>
+          </ErrorBoundary>
+        </div>
+      </LocalizationProvider>
+    </>
+  );
+};
+
+const container = document.getElementById("content");
+const root = createRoot(container as HTMLElement);
+
+root.render(
+  <Provider store={store}>
+    <ErrorBoundary>
+      <Theme {% if testing %} disableTransitions {% endif %}>
+        <BrowserRouter basename="/">
+          <MainContentInternal root={`${window.location.host}/`} />
+        </BrowserRouter>
+      </Theme>
+    </ErrorBoundary>
+  </Provider>
+);

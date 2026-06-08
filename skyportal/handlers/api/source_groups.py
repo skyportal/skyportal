@@ -1,5 +1,3 @@
-import datetime
-
 import sqlalchemy as sa
 
 from baselayer.app.access import permissions
@@ -8,6 +6,7 @@ from baselayer.log import make_log
 from ...models import Obj, Source
 from ...utils.asynchronous import run_async
 from ...utils.data_access import auto_source_publishing
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 log = make_log("api/source_groups")
@@ -67,8 +66,18 @@ class SourceGroupsHandler(BaseHandler):
             )
             if not obj:
                 return self.error(f"Obj {obj_id} not found", status=404)
-            save_or_invite_group_ids = data.get("inviteGroupIds", [])
-            unsave_group_ids = data.get("unsaveGroupIds", [])
+            # Coerce to int up front — clients (and old code paths) sometimes
+            # send these as strings, which then crashes the Source.group_id
+            # comparison against an integer column with a ProgrammingError.
+            try:
+                save_or_invite_group_ids = [
+                    int(g) for g in data.get("inviteGroupIds", [])
+                ]
+                unsave_group_ids = [int(g) for g in data.get("unsaveGroupIds", [])]
+            except (TypeError, ValueError):
+                return self.error(
+                    "inviteGroupIds and unsaveGroupIds must be lists of integers"
+                )
             if not save_or_invite_group_ids and not unsave_group_ids:
                 return self.error(
                     "Missing required parameter: one of either unsaveGroupIds or inviteGroupIds must be provided"
@@ -76,7 +85,7 @@ class SourceGroupsHandler(BaseHandler):
 
             saved_to_group_ids = []
             for save_or_invite_group_id in save_or_invite_group_ids:
-                if int(save_or_invite_group_id) in [
+                if save_or_invite_group_id in [
                     g.id for g in self.current_user.accessible_groups
                 ]:
                     active = True
@@ -119,7 +128,7 @@ class SourceGroupsHandler(BaseHandler):
                     )
                 source.unsaved_by_id = self.associated_user_object.id
                 source.active = False
-                source.unsaved_at = datetime.datetime.utcnow()
+                source.unsaved_at = utcnow_naive()
 
             if len(unsave_group_ids) > 0:
                 from .public_pages.public_source_page import delete_auto_published_page
@@ -155,7 +164,7 @@ class SourceGroupsHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def patch(self, obj_id, *ignored_args):
+    def patch(self, obj_id: str, *ignored_args):
         """
         ---
         summary: Update a Source table row
@@ -194,6 +203,10 @@ class SourceGroupsHandler(BaseHandler):
         group_id = data.get("groupID")
         if group_id is None:
             return self.error("Missing required parameter: groupID")
+        try:
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error("groupID must be an integer")
         active = data.get("active")
         requested = data.get("requested")
 

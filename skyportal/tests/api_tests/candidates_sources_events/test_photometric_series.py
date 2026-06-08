@@ -880,7 +880,10 @@ def test_patch_series_data(
         df = pd.DataFrame(input_data)
 
         new_df = df.copy()
-        new_df["mjd"][3] += 1
+        # Use .loc (not chained `new_df["mjd"][3]`) so the edit lands on new_df:
+        # chained assignment writes to a temporary copy and raises under
+        # pandas >= 3.0's Copy-on-Write, leaving the data unchanged.
+        new_df.loc[3, "mjd"] += 1
 
         status, data = api(
             "PATCH",
@@ -1919,11 +1922,25 @@ def test_get_series_by_snr(
     # high flux lightcurves should have SNR~100
     assert 50 < np.median(ps_h.snr) < 150
 
-    # should get all three series:
+    # Thresholds are derived from the fixtures' realized SNRs instead of
+    # hardcoded numbers. The fixtures generate noisy random photometry, so
+    # any fixed threshold sits within one sigma of the per-run extremes —
+    # past versions of these assertions flaked when ps_h.best_snr happened
+    # to land just below 100. By computing thresholds that fall strictly
+    # between the actual values, the API filter assertions exercise the
+    # backend filtering logic without depending on the random draw.
+
+    # ------------------------------------------------------------------
+    # median SNR: ps_l and ps_o are low (~10), ps_h is high (~100).
+    # ------------------------------------------------------------------
+    low_median = min(ps_l.median_snr, ps_o.median_snr)
+    median_below_all = low_median / 2  # below every series' median SNR
+
+    # >= median_below_all: all three series pass
     status, data = api(
         "GET",
         "photometric_series",
-        params={"minMedianSNR": 5},
+        params={"minMedianSNR": median_below_all},
         token=upload_data_token,
     )
 
@@ -1934,11 +1951,11 @@ def test_get_series_by_snr(
     assert ps_h.id in ids
     assert ps_o.id in ids
 
-    # should get none of the series:
+    # <= median_below_all: none pass
     status, data = api(
         "GET",
         "photometric_series",
-        params={"maxMedianSNR": 5},
+        params={"maxMedianSNR": median_below_all},
         token=upload_data_token,
     )
 
@@ -1948,11 +1965,20 @@ def test_get_series_by_snr(
     assert ps_h.id not in ids
     assert ps_o.id not in ids
 
-    # get only the series with the outlier with S/N=0
+    # ------------------------------------------------------------------
+    # worst SNR: ps_o has a flux=0 outlier so its worst SNR is 0; ps_l
+    # and ps_h's worst points sit well above 0. Threshold goes strictly
+    # between ps_o.worst_snr and the smaller of (ps_l, ps_h).
+    # ------------------------------------------------------------------
+    other_worst = min(ps_l.worst_snr, ps_h.worst_snr)
+    worst_threshold = (ps_o.worst_snr + other_worst) / 2
+    assert ps_o.worst_snr < worst_threshold < other_worst
+
+    # only ps_o's worst SNR is below threshold
     status, data = api(
         "GET",
         "photometric_series",
-        params={"maxWorstSNR": 0.1},
+        params={"maxWorstSNR": worst_threshold},
         token=upload_data_token,
     )
 
@@ -1962,11 +1988,11 @@ def test_get_series_by_snr(
     assert ps_h.id not in ids
     assert ps_o.id in ids
 
-    # get the other two:
+    # inverse: ps_l and ps_h have worst SNR above threshold
     status, data = api(
         "GET",
         "photometric_series",
-        params={"minWorstSNR": 0.1},
+        params={"minWorstSNR": worst_threshold},
         token=upload_data_token,
     )
 
@@ -1976,11 +2002,19 @@ def test_get_series_by_snr(
     assert ps_h.id in ids
     assert ps_o.id not in ids
 
-    # the best S/N will be the outliers and high-flux series
+    # ------------------------------------------------------------------
+    # best SNR: ps_h and ps_o (whose 5000/6000 outliers produce huge SNRs)
+    # have best SNR far above ps_l's. Threshold goes strictly between
+    # ps_l.best_snr and the smaller of (ps_h, ps_o).
+    # ------------------------------------------------------------------
+    high_best = min(ps_h.best_snr, ps_o.best_snr)
+    best_threshold = (ps_l.best_snr + high_best) / 2
+    assert ps_l.best_snr < best_threshold < high_best
+
     status, data = api(
         "GET",
         "photometric_series",
-        params={"minBestSNR": 100},
+        params={"minBestSNR": best_threshold},
         token=upload_data_token,
     )
 
@@ -1990,11 +2024,10 @@ def test_get_series_by_snr(
     assert ps_h.id in ids
     assert ps_o.id in ids
 
-    # the low-flux series doesn't have best S/N>100
     status, data = api(
         "GET",
         "photometric_series",
-        params={"maxBestSNR": 100},
+        params={"maxBestSNR": best_threshold},
         token=upload_data_token,
     )
 

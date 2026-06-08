@@ -72,6 +72,11 @@ app:
 
   ps1_endpoint: https://catalogs.mast.stsci.edu/
 
+  # PS1 cutout service used to scrape the public thumbnail link for an Obj.
+  # Set to an empty string to skip the HTTP call and use the
+  # "currently_unavailable.png" placeholder (useful in tests).
+  ps1_cutout_url: http://ps1images.stsci.edu/cgi-bin/ps1cutouts
+
   tess_endpoint: https://tess.mit.edu/public/tesstransients/
 
   atlas:
@@ -101,10 +106,19 @@ app:
     look_back_days: 1
 
   hermes:
-      endpoint: https://hermes.lco.global/api/v0
-      token:
-      topic: skyportal.skyportal
-      test_topic: skyportal.skyportal_test
+      endpoint: https://hermes.lco.global/api/v0  # Base URL of the Hermes API
+      token:  # Hermes API token for authentication (required to publish messages)
+      topic: skyportal.skyportal  # Kafka topic used to publish outgoing SkyPortal alerts to Hermes
+      test_topic: skyportal.skyportal_test  # Kafka topic used during testing
+      sync:
+        scimma_username: # SCiMMA/Kafka username for authentication
+        scimma_password: # SCiMMA/Kafka password for authentication
+        kafka_server: kafka.scimma.org
+        from_start: False  # Start from beginning of topic (True) or latest message (False)
+        max_age_days:  # Skip messages older than N days (null/empty = no limit)
+        bot_user_id:   # User ID of the bot account that will save sources and own photometry. If not set, the service will not start.
+        group_ids: []  # List of group IDs to assign imported sources to
+        instrument_tns_ids: # Whitelist of TNS instrument IDs whose photometry will be imported (see https://www.wis-tns.org/api/get/values). If not set, photometry import is skipped entirely.
 
   # Configuration for the WINTER and SPRING instruments.
   winter:
@@ -585,7 +599,16 @@ misc:
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
   dustmap: sfd
-  dustmap_folder: persistentdata/dustmap
+  # Vendored in the skyportal-data submodule so the SFD maps are present
+  # without a network fetch at startup. obj.py still falls back to fetching
+  # if the files are absent (e.g. submodule not initialized).
+  dustmap_folder: skyportal-data/dustmaps
+
+  # sncosmo cache (bandpasses, SED models, spectra), vendored in the
+  # skyportal-data submodule. Pointing sncosmo here keeps app import off the
+  # flaky SVO Filter Profile Service; any missing bandpass still falls back to
+  # a network fetch into this directory.
+  sncosmo_data_folder: skyportal-data/sncosmo
 
   # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
   # consider a photometry point as a detection
@@ -739,11 +762,21 @@ user:
 
 ports:
   app: 5000 # This is the internal port
-  facility_queue: 64510
+  # migration_manager port is already defined in baselayer config.yaml.defaults, but can be overridden here
+  # migration_manager:
   notification_queue: 64610
-  observation_plan_queue: 64710
   tns_retrieval_queue: 64810
-  sharing_service_submission_queue: 64812
+
+hosts:
+  # Hostnames the application uses to reach its internal microservices. These
+  # default to the loopback address, which is correct for the standard
+  # single-host deployment where every service runs alongside the app. Override
+  # a service's host to run it on a separate host/container (e.g. to scale a
+  # microservice independently, or for a distributed/Kubernetes deployment).
+  migration_manager: 127.0.0.1
+  notification_queue: 127.0.0.1
+  tns_retrieval_queue: 127.0.0.1
+  slack: 127.0.0.1
 
 gcn:
   server: gcn.nasa.gov

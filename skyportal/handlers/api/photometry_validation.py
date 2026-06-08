@@ -38,7 +38,7 @@ class Validator(Schema):
 
 class PhotometryValidationHandler(BaseHandler):
     @permissions(["Manage sources"])
-    async def post(self, photometry_id):
+    async def post(self, photometry_id: int):
         """
         ---
         summary: Validate/Reject a photometry point
@@ -50,7 +50,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometry_id
             required: true
             schema:
-              type: int
+              type: integer
             description: Photometry ID
         requestBody:
           content:
@@ -73,11 +73,7 @@ class PhotometryValidationHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: int
-                              description: The id of the photomety_validation
+                          $ref: '#/components/schemas/PhotometryValidation'
           400:
             content:
               application/json:
@@ -167,7 +163,7 @@ class PhotometryValidationHandler(BaseHandler):
             return self.success(data={"id": photometry_validation.id})
 
     @permissions(["Manage sources"])
-    def patch(self, photometry_id):
+    def patch(self, photometry_id: int):
         """
         ---
         summary: Update the validated/rejected status of a photometry point
@@ -179,7 +175,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometry_id
             required: true
             schema:
-              type: int
+              type: integer
         requestBody:
           content:
             application/json:
@@ -202,11 +198,7 @@ class PhotometryValidationHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: int
-                              description: The id of the modified photometry_validation
+                          $ref: '#/components/schemas/PhotometryValidation'
           400:
             content:
               application/json:
@@ -268,7 +260,7 @@ class PhotometryValidationHandler(BaseHandler):
             return self.success(data={"id": photometry_validation.id})
 
     @permissions(["Manage sources"])
-    def delete(self, photometry_id):
+    def delete(self, photometry_id: int):
         """
         ---
         summary: Delete the validated/rejected status of a photometry point
@@ -282,7 +274,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometric_id
             required: true
             schema:
-              type: int
+              type: integer
         responses:
           200:
             content:
@@ -296,7 +288,7 @@ class PhotometryValidationHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the deleted photometry_validation
           400:
             content:

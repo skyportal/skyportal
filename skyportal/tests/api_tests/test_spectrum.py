@@ -11,6 +11,8 @@ import yaml
 from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 from skyportal.tests import api
 
+from ...utils.naive_datetime import utcnow_naive
+
 
 def test_spectrum_put(super_admin_user, super_admin_token, public_source, lris):
     # make groups that must be unique to this test
@@ -330,7 +332,7 @@ def test_spectrum_filtering_time_ranges(
     assert data["status"] == "success"
     spectrum_id1 = data["data"]["id"]
 
-    time_after_posting_first_spec = str(datetime.datetime.utcnow())
+    time_after_posting_first_spec = str(utcnow_naive())
 
     status, data = api(
         "POST",
@@ -468,7 +470,7 @@ def test_spectrum_filtering_id_lists(
         "spectrum",
         data={
             "obj_id": public_source.id,
-            "observed_at": str(datetime.datetime.utcnow()),
+            "observed_at": str(utcnow_naive()),
             "instrument_id": sedm.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [434.7, 432.1, 435.3],
@@ -692,7 +694,7 @@ def test_spectrum_filtering_origin_label_type(
         "spectrum",
         data={
             "obj_id": public_source.id,
-            "observed_at": str(datetime.datetime.utcnow()),
+            "observed_at": str(utcnow_naive()),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [434.7, 432.1, 435.3],
@@ -879,7 +881,7 @@ def test_spectrum_filtering_comments(
     assert data["status"] == "success"
 
     time.sleep(2)
-    time_after_posting_first_spec = str(datetime.datetime.utcnow())
+    time_after_posting_first_spec = str(utcnow_naive())
 
     status, data = api(
         "POST",
@@ -955,9 +957,9 @@ def test_spectrum_filtering_comments(
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]) == 0
-    time_offset = (
-        datetime.datetime.utcnow() - datetime.datetime.now()
-    ) / datetime.timedelta(hours=1)
+    time_offset = (utcnow_naive() - datetime.datetime.now()) / datetime.timedelta(
+        hours=1
+    )
 
     comment_created_time = str(
         arrow.get(time_after_posting_first_spec)
@@ -1145,6 +1147,93 @@ def test_minimal_spectrum(
     for k in single_spec:
         assert k in full_spec
         assert single_spec[k] == full_spec[k]
+
+
+def test_include_original_file(upload_data_token, public_source, public_group, lris):
+    # upload via the ASCII endpoint so original_file_string is populated
+    ascii_content = "4000 0.01\n4500 0.02\n5000 0.005\n5500 0.006\n6000 0.01\n"
+    status, data = api(
+        "POST",
+        "spectrum/ascii",
+        data={
+            "obj_id": str(public_source.id),
+            "observed_at": "2020-02-01T00:00:00",
+            "instrument_id": lris.id,
+            "group_ids": [public_group.id],
+            "ascii": ascii_content,
+            "filename": f"{uuid.uuid4()}.ascii",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    spectrum_id = data["data"]["id"]
+
+    # --- list endpoint (SpectrumHandler.get, multiple) ---
+    # default: original_file_string omitted, rest of full payload intact
+    status, data = api(
+        "GET", "spectra", params={"objID": public_source.id}, token=upload_data_token
+    )
+    assert status == 200
+    spec = next(s for s in data["data"] if s["id"] == spectrum_id)
+    assert "original_file_string" not in spec
+    # full payload otherwise unchanged
+    assert "wavelengths" in spec and "fluxes" in spec
+    assert spec["original_file_filename"] is not None
+
+    # includeOriginalFile=true: field present and equal to what was uploaded
+    status, data = api(
+        "GET",
+        "spectra",
+        params={"objID": public_source.id, "includeOriginalFile": True},
+        token=upload_data_token,
+    )
+    assert status == 200
+    spec = next(s for s in data["data"] if s["id"] == spectrum_id)
+    assert spec["original_file_string"] == ascii_content
+
+    # explicit includeOriginalFile=false behaves like the default
+    status, data = api(
+        "GET",
+        "spectra",
+        params={"objID": public_source.id, "includeOriginalFile": False},
+        token=upload_data_token,
+    )
+    assert status == 200
+    spec = next(s for s in data["data"] if s["id"] == spectrum_id)
+    assert "original_file_string" not in spec
+
+    # --- single endpoint (SpectrumHandler.get, single) ---
+    status, data = api("GET", f"spectra/{spectrum_id}", token=upload_data_token)
+    assert status == 200
+    assert "original_file_string" not in data["data"]
+
+    status, data = api(
+        "GET",
+        f"spectra/{spectrum_id}",
+        params={"includeOriginalFile": True},
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["original_file_string"] == ascii_content
+
+    # --- object spectra endpoint (ObjSpectraHandler.get) ---
+    status, data = api(
+        "GET", f"sources/{public_source.id}/spectra", token=upload_data_token
+    )
+    assert status == 200
+    spec = next(s for s in data["data"]["spectra"] if s["id"] == spectrum_id)
+    assert "original_file_string" not in spec
+
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}/spectra",
+        params={"includeOriginalFile": True},
+        token=upload_data_token,
+    )
+    assert status == 200
+    spec = next(s for s in data["data"]["spectra"] if s["id"] == spectrum_id)
+    assert spec["original_file_string"] == ascii_content
 
 
 def test_token_user_get_range_spectrum(

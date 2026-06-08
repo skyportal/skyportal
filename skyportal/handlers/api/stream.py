@@ -11,7 +11,7 @@ from ..base import BaseHandler
 
 class StreamHandler(BaseHandler):
     @auth_or_token
-    def get(self, stream_id=None):
+    def get(self, stream_id: int | None = None):
         """
         ---
         single:
@@ -90,11 +90,7 @@ class StreamHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New stream ID
+                          $ref: '#/components/schemas/Stream'
         """
         data = self.get_json()
         with self.Session() as session:
@@ -111,7 +107,7 @@ class StreamHandler(BaseHandler):
             return self.success(data={"id": stream.id})
 
     @permissions(["System admin"])
-    def patch(self, stream_id):
+    def patch(self, stream_id: int):
         """
         ---
         summary: Update a stream
@@ -138,7 +134,13 @@ class StreamHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Stream'
           400:
             content:
               application/json:
@@ -169,7 +171,7 @@ class StreamHandler(BaseHandler):
             return self.success()
 
     @permissions(["System admin"])
-    def delete(self, stream_id):
+    def delete(self, stream_id: int):
         """
         ---
         summary: Delete a stream
@@ -204,7 +206,7 @@ class StreamHandler(BaseHandler):
 
 class StreamUserHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self, stream_id, *ignored_args):
+    def post(self, stream_id: int, *ignored_args):
         """
         ---
         summary: Grant stream access to a user
@@ -238,14 +240,7 @@ class StreamUserHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            stream_id:
-                              type: integer
-                              description: Stream ID
-                            user_id:
-                              type: integer
-                              description: User ID
+                          $ref: '#/components/schemas/StreamUser'
         """
         data = self.get_json()
 
@@ -269,7 +264,7 @@ class StreamUserHandler(BaseHandler):
             return self.success(data={"stream_id": stream_id, "user_id": user_id})
 
     @permissions(["System admin"])
-    def delete(self, stream_id, user_id):
+    def delete(self, stream_id: int, user_id: int):
         """
         ---
         summary: Revoke stream access from a user
@@ -294,6 +289,11 @@ class StreamUserHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            stream_id = int(stream_id)
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid stream_id/user_id: {stream_id}/{user_id}")
         with self.Session() as session:
             su = session.scalars(
                 StreamUser.select(session.user_or_token, mode="delete")

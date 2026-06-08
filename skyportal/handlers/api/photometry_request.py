@@ -11,7 +11,7 @@ from ..base import BaseHandler
 
 class PhotometryRequestHandler(BaseHandler):
     @auth_or_token
-    def get(self, request_id):
+    def get(self, request_id: int):
         """
         ---
         summary: Get photometry request
@@ -30,7 +30,6 @@ class PhotometryRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
         refresh_source = self.get_query_argument("refreshSource", True)
         refresh_requests = self.get_query_argument("refreshRequests", False)
 

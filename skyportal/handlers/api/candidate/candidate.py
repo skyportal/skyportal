@@ -339,7 +339,7 @@ class CandidateHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, obj_id=None):
+    def get(self, obj_id: str = None):
         """
         ---
         single:
@@ -824,6 +824,30 @@ class CandidateHandler(BaseHandler):
             "photometryAnnotationsFilterMinCount", 1
         )
 
+        # Coerce the date filters to datetimes before they reach the
+        # AnnotationOnPhotometry.created_at (timestamp) comparison -- psycopg3
+        # rejects a "timestamp = varchar" comparison if these stay strings.
+        if photometry_annotations_filter_after is not None:
+            try:
+                photometry_annotations_filter_after = arrow.get(
+                    photometry_annotations_filter_after
+                ).naive
+            except Exception:
+                return self.error(
+                    f"Invalid photometryAnnotationsFilterAfter: "
+                    f"{photometry_annotations_filter_after}"
+                )
+        if photometry_annotations_filter_before is not None:
+            try:
+                photometry_annotations_filter_before = arrow.get(
+                    photometry_annotations_filter_before
+                ).naive
+            except Exception:
+                return self.error(
+                    f"Invalid photometryAnnotationsFilterBefore: "
+                    f"{photometry_annotations_filter_before}"
+                )
+
         first_detected_date = self.get_query_argument("firstDetectionAfter", None)
         last_detected_date = self.get_query_argument("lastDetectionBefore", None)
         number_of_detections = self.get_query_argument("numberDetections", None)
@@ -833,7 +857,17 @@ class CandidateHandler(BaseHandler):
         )
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
+
+        if localization_dateobs is not None:
+            try:
+                localization_dateobs = arrow.get(localization_dateobs).naive
+            except Exception:
+                return self.error(
+                    f"Invalid localizationDateobs: {localization_dateobs}"
+                )
 
         if (localization_dateobs or localization_name) and require_detections:
             if (
@@ -1575,7 +1609,7 @@ class CandidateHandler(BaseHandler):
             return self.success(data={"ids": ids})
 
     @permissions(["Upload data"])
-    def delete(self, obj_id, filter_id):
+    def delete(self, obj_id: str, filter_id: int):
         """
         ---
         summary: Delete candidate(s)
@@ -1597,7 +1631,13 @@ class CandidateHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
         """
 
         with self.Session() as session:

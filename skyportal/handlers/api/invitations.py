@@ -351,7 +351,7 @@ class InvitationHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Manage users"])
-    def patch(self, invitation_id):
+    def patch(self, invitation_id: int):
         """
         ---
         summary: Update a pending invitation
@@ -485,7 +485,7 @@ class InvitationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, invitation_id):
+    def delete(self, invitation_id: int):
         """
         ---
         summary: Delete an invitation

@@ -39,7 +39,7 @@ log = make_log("api/group")
 
 class GroupHandler(BaseHandler):
     @auth_or_token
-    def get(self, group_id=None):
+    def get(self, group_id: int | None = None):
         """
         ---
         single:
@@ -70,15 +70,7 @@ class GroupHandler(BaseHandler):
                       - type: object
                         properties:
                           data:
-                            allOf:
-                              - $ref: '#/components/schemas/Group'
-                              - type: object
-                                properties:
-                                  users:
-                                    type: array
-                                    items:
-                                      $ref: '#/components/schemas/User'
-                                    description: List of group users
+                            $ref: '#/components/schemas/Group'
             400:
               content:
                 application/json:
@@ -312,7 +304,7 @@ class GroupHandler(BaseHandler):
             return self.success(data={"id": g.id})
 
     @permissions(["Upload data"])
-    def put(self, group_id):
+    def put(self, group_id: int):
         """
         ---
         summary: Update a group
@@ -332,7 +324,13 @@ class GroupHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Group'
           400:
             content:
               application/json:
@@ -367,7 +365,7 @@ class GroupHandler(BaseHandler):
             return self.success(action="skyportal/FETCH_GROUPS")
 
     @permissions(["Upload data"])
-    def delete(self, group_id):
+    def delete(self, group_id: int):
         """
         ---
         summary: Delete a group
@@ -410,7 +408,7 @@ class GroupHandler(BaseHandler):
 
 class GroupUserHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, group_id, *ignored_args):
+    def post(self, group_id: int, *ignored_args):
         """
         ---
         summary: Add a group user
@@ -450,17 +448,7 @@ class GroupUserHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            group_id:
-                              type: integer
-                              description: Group ID
-                            user_id:
-                              type: integer
-                              description: User ID
-                            admin:
-                              type: boolean
-                              description: Boolean indicating whether user is group admin
+                          $ref: '#/components/schemas/GroupUser'
         """
 
         data = self.get_json()
@@ -546,7 +534,7 @@ class GroupUserHandler(BaseHandler):
             )
 
     @permissions(["Upload data"])
-    def patch(self, group_id, *ignored_args):
+    def patch(self, group_id: int, *ignored_args):
         """
         ---
         summary: Update a group user
@@ -584,7 +572,13 @@ class GroupUserHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/GroupUser'
         """
         data = self.get_json()
         try:
@@ -630,7 +624,7 @@ class GroupUserHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, group_id, user_id):
+    def delete(self, group_id: int, user_id: int):
         """
         ---
         summary: Delete a group user
@@ -660,7 +654,6 @@ class GroupUserHandler(BaseHandler):
             user_id = int(user_id)
         except ValueError:
             return self.error("Invalid user_id; unable to parse to integer")
-
         with self.Session() as session:
             gu = session.scalars(
                 GroupUser.select(session.user_or_token, mode="delete")
@@ -687,7 +680,7 @@ class GroupUserHandler(BaseHandler):
 
 class GroupUsersFromOtherGroupsHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, group_id, *ignored_args):
+    def post(self, group_id: int, *ignored_args):
         """
         ---
         summary: Add users from other group(s)
@@ -718,13 +711,14 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/GroupUser'
         """
-        try:
-            group_id = int(group_id)
-        except (TypeError, ValueError):
-            return self.error("Invalid group_id parameter: must be an integer")
-
         data = self.get_json()
 
         from_group_ids = data.get("fromGroupIDs")
@@ -789,7 +783,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
 
 class GroupStreamHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, group_id, *ignored_args):
+    def post(self, group_id: int, *ignored_args):
         """
         ---
         summary: Add alert stream to group
@@ -823,18 +817,14 @@ class GroupStreamHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            group_id:
-                              type: integer
-                              description: Group ID
-                            stream_id:
-                              type: integer
-                              description: Stream ID
+                          $ref: '#/components/schemas/GroupStream'
         """
         data = self.get_json()
-        group_id = int(group_id)
         stream_id = data.get("stream_id")
+        try:
+            stream_id = int(stream_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid stream_id: {stream_id}")
 
         with self.Session() as session:
             group = session.scalars(
@@ -877,7 +867,7 @@ class GroupStreamHandler(BaseHandler):
             return self.success(data={"group_id": group_id, "stream_id": stream_id})
 
     @permissions(["Upload data"])
-    def delete(self, group_id, stream_id):
+    def delete(self, group_id: int, stream_id: int):
         """
         ---
         summary: Delete alert stream from group
@@ -903,6 +893,12 @@ class GroupStreamHandler(BaseHandler):
                 schema: Success
         """
 
+        try:
+            group_id = int(group_id)
+            stream_id = int(stream_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid group_id/stream_id: {group_id}/{stream_id}")
+
         with self.Session() as session:
             groupstreams = session.scalars(
                 GroupStream.select(session.user_or_token, mode="delete")
@@ -923,7 +919,7 @@ class GroupStreamHandler(BaseHandler):
 
 class ObjGroupsHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    def get(self, obj_id: str):
         """
         ---
         summary: Get an object's groups

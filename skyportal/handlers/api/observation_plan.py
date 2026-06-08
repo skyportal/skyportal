@@ -10,7 +10,7 @@ import tempfile
 import time
 import urllib
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import afterglowpy
 import arrow
@@ -87,6 +87,7 @@ from ...models import (
 )
 from ...models.schema import ObservationPlanPost
 from ...utils.earthquake import COUNTRIES_FILE
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
 from ..base import BaseHandler, format_doc
@@ -153,15 +154,21 @@ TREASUREMAP_FILTERS = {
     "HESS": "HESS",
     "WISEL": "WISEL",
 }
-# to it, we add mappers for sncosmo bandpasses
-for bandpass_name in ALLOWED_BANDPASSES:
-    try:
-        bandpass = get_bandpass(bandpass_name)
-        central_wavelength = (bandpass.minwave() + bandpass.maxwave()) / 2
-        bandwidth = bandpass.maxwave() - bandpass.minwave()
-        TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
-    except Exception as e:
-        log(f"Error adding bandpass {bandpass_name} to treasuremap filters: {e}")
+# to it, we add mappers for sncosmo bandpasses. Wrap the loop in a short
+# astropy `remote_timeout` so that an uncached bandpass whose CDN (typically
+# the flaky SVO host) is unreachable fails in ~2s instead of the default 10s.
+# With ~20 such bandpasses (atlas, gaia::*, galex::*, goto*, skymapper*,
+# tess), the difference is ~40s vs. ~200s of import-time blocking, and the
+# latter pushes app startup past test_frontend's 180s health-check window.
+with astropy.utils.data.conf.set_temp("remote_timeout", 2):
+    for bandpass_name in ALLOWED_BANDPASSES:
+        try:
+            bandpass = get_bandpass(bandpass_name)
+            central_wavelength = (bandpass.minwave() + bandpass.maxwave()) / 2
+            bandwidth = bandpass.maxwave() - bandpass.minwave()
+            TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
+        except Exception as e:
+            log(f"Error adding bandpass {bandpass_name} to treasuremap filters: {e}")
 
 # overwrite the filters for ZTF, as i-band is will otherwise be matched to TESS by treasuremap
 TREASUREMAP_FILTERS["ztfg"] = "g"
@@ -178,10 +185,6 @@ op_options = [
 ]
 
 Session = scoped_session(sessionmaker())
-
-observation_plans_microservice_url = (
-    f"http://127.0.0.1:{cfg['ports.observation_plan_queue']}"
-)
 
 MAX_OBSERVATION_PLAN_REQUESTS = 1000
 
@@ -258,7 +261,7 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
             return
 
         # if the plan request's created_at date (when we received the GCN) is more than 1 hour ago, we skip the auto-send
-        if observation_plan_request.created_at < datetime.utcnow() - timedelta(hours=1):
+        if observation_plan_request.created_at < utcnow_naive() - timedelta(hours=1):
             log(
                 f"Default observation plan request {default_obsplan_id} was created more than 1 hour ago, skipping auto send."
             )
@@ -269,7 +272,7 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
         if plan_request_end_date:
             if (
                 arrow.get(plan_request_end_date).timestamp()
-                < datetime.utcnow().timestamp()
+                < utcnow_naive().timestamp()
             ):
                 log(
                     f"Default observation plan request {default_obsplan_id} has an end date in the past, skipping auto send."
@@ -855,7 +858,7 @@ class ObservationPlanRequestHandler(BaseHandler):
 
     @auth_or_token
     @format_doc(MAX_OBSERVATION_PLAN_REQUESTS=MAX_OBSERVATION_PLAN_REQUESTS)
-    def get(self, observation_plan_request_id=None):
+    def get(self, observation_plan_request_id: int | None = None):
         """
         ---
         single:
@@ -1000,7 +1003,9 @@ class ObservationPlanRequestHandler(BaseHandler):
                 observation_plan_request = session.scalars(
                     ObservationPlanRequest.select(
                         session.user_or_token, options=options
-                    ).where(ObservationPlanRequest.id == observation_plan_request_id)
+                    ).where(
+                        ObservationPlanRequest.id == int(observation_plan_request_id)
+                    )
                 ).first()
 
                 if observation_plan_request is None:
@@ -1104,18 +1109,19 @@ class ObservationPlanRequestHandler(BaseHandler):
             )
 
             if start_date:
-                start_date = str(arrow.get(start_date.strip()).datetime)
+                start_date = arrow.get(start_date.strip()).naive
                 observation_plan_requests = observation_plan_requests.where(
                     ObservationPlanRequest.created_at >= start_date
                 )
             if end_date:
-                end_date = str(arrow.get(end_date.strip()).datetime)
+                end_date = arrow.get(end_date.strip()).naive
                 observation_plan_requests = observation_plan_requests.where(
                     ObservationPlanRequest.created_at <= end_date
                 )
             if dateobs:
+                parsed_dateobs = arrow.get(dateobs).naive
                 gcn_event_query = GcnEvent.select(self.current_user).where(
-                    GcnEvent.dateobs == dateobs
+                    GcnEvent.dateobs == parsed_dateobs
                 )
                 gcn_event_subquery = gcn_event_query.subquery()
                 observation_plan_requests = observation_plan_requests.join(
@@ -1126,8 +1132,12 @@ class ObservationPlanRequestHandler(BaseHandler):
                 # allocation query required as only way to reach
                 # instrument_id is through allocation (as requests
                 # are associated to allocations, not instruments)
+                try:
+                    instrument_id_int = int(instrumentID)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid instrumentID: {instrumentID}")
                 allocation_query = Allocation.select(self.current_user).where(
-                    Allocation.instrument_id == instrumentID
+                    Allocation.instrument_id == instrument_id_int
                 )
                 allocation_subquery = allocation_query.subquery()
                 observation_plan_requests = observation_plan_requests.join(
@@ -1157,7 +1167,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    def delete(self, observation_plan_request_id: int):
         """
         ---
         summary: Delete observation plan request.
@@ -1180,7 +1190,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             observation_plan_request = session.scalars(
                 ObservationPlanRequest.select(
                     session.user_or_token, mode="delete"
-                ).where(ObservationPlanRequest.id == observation_plan_request_id)
+                ).where(ObservationPlanRequest.id == int(observation_plan_request_id))
             ).first()
             if observation_plan_request is None:
                 return self.error(
@@ -1247,7 +1257,9 @@ class ObservationPlanManualRequestHandler(BaseHandler):
             if "gcnevent_id" in json_data:
                 stmt = stmt.where(GcnEvent.id == json_data["gcnevent_id"])
             elif "dateobs" in json_data:
-                stmt = stmt.where(GcnEvent.dateobs == json_data["dateobs"])
+                stmt = stmt.where(
+                    GcnEvent.dateobs == arrow.get(json_data["dateobs"]).naive
+                )
             else:
                 return self.error(
                     message="Need to specify either gcnevent_id or dateobs"
@@ -1355,7 +1367,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
 
 class ObservationPlanSubmitHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def post(self, observation_plan_request_id):
+    def post(self, observation_plan_request_id: int):
         """
         ---
         summary: Submit observation plan request to telescope.
@@ -1385,7 +1397,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             return self.success(data=observation_plan_request)
 
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    def delete(self, observation_plan_request_id: int):
         """
         ---
         summary: Remove observation plan request from telescope queue.
@@ -1402,14 +1414,20 @@ class ObservationPlanSubmitHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/SingleObservationPlanRequest'
         """
 
         with self.Session() as session:
             observation_plan_request = session.scalars(
                 ObservationPlanRequest.select(
                     session.user_or_token, mode="delete"
-                ).where(ObservationPlanRequest.id == observation_plan_request_id)
+                ).where(ObservationPlanRequest.id == int(observation_plan_request_id))
             ).first()
             if observation_plan_request is None:
                 return self.error(
@@ -1455,7 +1473,15 @@ class ObservationPlanNameHandler(BaseHandler):
               200:
                 content:
                   application/json:
-                    schema: Success
+                    schema:
+                      allOf:
+                        - $ref: '#/components/schemas/Success'
+                        - type: object
+                          properties:
+                            data:
+                              type: array
+                              items:
+                                type: string
               400:
                 content:
                   application/json:
@@ -1518,7 +1544,7 @@ class ObservationPlanNameHandler(BaseHandler):
 
 class ObservationPlanGCNHandler(BaseHandler):
     @auth_or_token
-    def get(self, observation_plan_request_id):
+    def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get GCN summary for observation plan request.
@@ -1540,7 +1566,7 @@ class ObservationPlanGCNHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -1731,7 +1757,7 @@ def observation_animations(
 
 class ObservationPlanMovieHandler(BaseHandler):
     @auth_or_token
-    async def get(self, observation_plan_request_id):
+    async def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get a movie of the observation plan.
@@ -1754,7 +1780,7 @@ class ObservationPlanMovieHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -1813,7 +1839,7 @@ class ObservationPlanMovieHandler(BaseHandler):
 
 class ObservationPlanTreasureMapHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def post(self, observation_plan_request_id):
+    def post(self, observation_plan_request_id: int):
         """
         ---
         summary: Submit observation plan request to TreasureMap.
@@ -1840,7 +1866,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -1976,7 +2002,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    def delete(self, observation_plan_request_id: int):
         """
         ---
         summary: Remove observation plan from treasuremap.space.
@@ -1999,7 +2025,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -2062,7 +2088,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
 
 class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
     @auth_or_token
-    def get(self, observation_plan_request_id):
+    def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get survey efficiency analyses of the observation plan.
@@ -2085,7 +2111,7 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans).joinedload(
                         EventObservationPlan.survey_efficiency_analyses
@@ -2122,7 +2148,7 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
 
 class ObservationPlanGeoJSONHandler(BaseHandler):
     @auth_or_token
-    def get(self, observation_plan_request_id):
+    def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Get GeoJSON summary of the observation plan.
@@ -2145,7 +2171,7 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -2183,7 +2209,7 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
 
 class ObservationPlanFieldsHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def delete(self, observation_plan_request_id):
+    def delete(self, observation_plan_request_id: int):
         """
         ---
         summary: Delete fields from the observation plan.
@@ -2222,7 +2248,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
         with self.Session() as session:
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -2260,7 +2286,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
 
 class ObservationPlanWorldmapPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id):
+    async def get(self, localization_id: int):
         """
         ---
         summary: Create a summary plot for an event's observability.
@@ -2306,7 +2332,7 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
             telescopes = session.scalars(stmt).all()
 
             stmt = Localization.select(self.current_user).where(
-                Localization.id == localization_id
+                Localization.id == int(localization_id)
             )
             localization = session.scalars(stmt).first()
             m = localization.flat_2d
@@ -2402,7 +2428,7 @@ class ObservationPlanWorldmapPlotHandler(BaseHandler):
 
 class ObservationPlanObservabilityPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id):
+    async def get(self, localization_id: int):
         """
         ---
         summary: Create a summary plot for an event's observability.
@@ -2446,7 +2472,7 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
             telescopes = session.scalars(stmt).all()
 
             stmt = Localization.select(self.current_user).where(
-                Localization.id == localization_id
+                Localization.id == int(localization_id)
             )
             localization = session.scalars(stmt).first()
             cent = localization.contour["features"][0]["geometry"]["coordinates"]
@@ -2517,7 +2543,7 @@ class ObservationPlanObservabilityPlotHandler(BaseHandler):
 
 class ObservationPlanAirmassChartHandler(BaseHandler):
     @auth_or_token
-    async def get(self, localization_id, telescope_id):
+    async def get(self, localization_id: int, telescope_id: int):
         """
         ---
         summary: Create an airmass chart for an event.
@@ -2548,12 +2574,12 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = Telescope.select(self.current_user).where(
-                Telescope.id == telescope_id
+                Telescope.id == int(telescope_id)
             )
             telescope = session.scalars(stmt).first()
 
             stmt = Localization.select(self.current_user).where(
-                Localization.id == localization_id
+                Localization.id == int(localization_id)
             )
             localization = session.scalars(stmt).first()
 
@@ -2597,7 +2623,7 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
 
 class ObservationPlanCreateObservingRunHandler(BaseHandler):
     @permissions(["Manage observation plans"])
-    def post(self, observation_plan_request_id):
+    def post(self, observation_plan_request_id: int):
         """
         ---
         summary: Create observing run from observation plan.
@@ -2635,7 +2661,7 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
                         .joinedload(EventObservationPlan.planned_observations)
                         .joinedload(PlannedObservation.field)
                     ],
-                ).where(ObservationPlanRequest.id == observation_plan_request_id),
+                ).where(ObservationPlanRequest.id == int(observation_plan_request_id)),
             ).first()
             if observation_plan_request is None:
                 raise self.error(
@@ -2775,7 +2801,7 @@ def observation_simsurvey(
 
     try:
         localization = session.scalars(
-            sa.select(Localization).where(Localization.id == localization_id)
+            sa.select(Localization).where(Localization.id == int(localization_id))
         ).first()
         if localization is None:
             raise ValueError(f"No localization with ID {localization_id}")
@@ -3103,7 +3129,7 @@ def observation_simsurvey_plot(
 
 class ObservationPlanSimSurveyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, observation_plan_request_id):
+    async def get(self, observation_plan_request_id: int):
         """
         ---
         summary: Run a simsurvey analysis for an observation plan request
@@ -3220,7 +3246,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
-                .where(ObservationPlanRequest.id == observation_plan_request_id)
+                .where(ObservationPlanRequest.id == int(observation_plan_request_id))
                 .options(
                     joinedload(ObservationPlanRequest.observation_plans)
                     .joinedload(EventObservationPlan.planned_observations)
@@ -3366,7 +3392,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
             return self.success(data={"id": survey_efficiency_analysis.id})
 
-    def delete(self, survey_efficiency_analysis_id):
+    def delete(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Delete a simsurvey efficiency calculation.
@@ -3407,7 +3433,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
 class ObservationPlanSimSurveyPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, survey_efficiency_analysis_id):
+    async def get(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Create a summary plot for a simsurvey.
@@ -3538,19 +3564,17 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             if "start_date" in payload:
                 return self.error("Cannot have start_date in the payload")
             else:
-                payload["start_date"] = str(datetime.utcnow())
+                payload["start_date"] = str(utcnow_naive())
 
             if "end_date" in payload:
                 return self.error("Cannot have end_date in the payload")
             else:
-                payload["end_date"] = str(datetime.utcnow() + timedelta(days=1))
+                payload["end_date"] = str(utcnow_naive() + timedelta(days=1))
 
             if "queue_name" in payload:
                 return self.error("Cannot have queue_name in the payload")
             else:
-                payload["queue_name"] = (
-                    f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}"
-                )
+                payload["queue_name"] = f"ToO_{str(utcnow_naive()).replace(' ', 'T')}"
 
             # validate the payload
             try:
@@ -3597,7 +3621,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             return self.success(data={"id": default_observation_plan_request.id})
 
     @auth_or_token
-    def get(self, default_observation_plan_id=None):
+    def get(self, default_observation_plan_id: int | None = None):
         """
         ---
         single:
@@ -3638,6 +3662,12 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
 
         with self.Session() as session:
             if default_observation_plan_id is not None:
+                try:
+                    default_observation_plan_id = int(default_observation_plan_id)
+                except (TypeError, ValueError):
+                    return self.error(
+                        f"Invalid default_observation_plan_id {default_observation_plan_id}"
+                    )
                 default_observation_plan_request = session.scalars(
                     DefaultObservationPlanRequest.select(
                         session.user_or_token,
@@ -3675,7 +3705,7 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             return self.success(data=default_observation_plan_data)
 
     @permissions(["Manage observation plans"])
-    def delete(self, default_observation_plan_id):
+    def delete(self, default_observation_plan_id: int):
         """
         ---
         summary: Delete a default observation plan request.

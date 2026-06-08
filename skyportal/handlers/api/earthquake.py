@@ -174,7 +174,15 @@ class EarthquakeStatusHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            type: string
           400:
             content:
               application/json:
@@ -207,14 +215,13 @@ class EarthquakeHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      gcnevent_id:
-                        type: integer
-                        description: New Earthquake ID
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakeEvent'
           400:
             content:
               application/json:
@@ -248,7 +255,7 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data={"id": event_id})
 
     @auth_or_token
-    async def get(self, event_id=None):
+    async def get(self, event_id: str | None = None):
         """
         ---
         single:
@@ -411,7 +418,7 @@ class EarthquakeHandler(BaseHandler):
             )
 
             if start_date:
-                start_date = arrow.get(start_date.strip()).datetime
+                start_date = arrow.get(start_date.strip()).naive
                 notice_subquery = (
                     EarthquakeNotice.select(session.user_or_token)
                     .where(EarthquakeNotice.date >= start_date)
@@ -422,7 +429,7 @@ class EarthquakeHandler(BaseHandler):
                     EarthquakeEvent.event_id == notice_subquery.c.event_id,
                 )
             if end_date:
-                end_date = arrow.get(end_date.strip()).datetime
+                end_date = arrow.get(end_date.strip()).naive
 
                 notice_subquery = (
                     EarthquakeNotice.select(session.user_or_token)
@@ -459,7 +466,7 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data=query_results)
 
     @auth_or_token
-    def delete(self, event_id):
+    def delete(self, event_id: str):
         """
         ---
         summary: Delete an Earthquake event
@@ -476,7 +483,13 @@ class EarthquakeHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -499,7 +512,7 @@ class EarthquakeHandler(BaseHandler):
 
 class EarthquakePredictionHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id, mma_detector_id):
+    async def post(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Run a prediction analysis for the earthquake.
@@ -521,9 +534,14 @@ class EarthquakePredictionHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakePrediction'
         """
-
         with self.Session() as session:
             event = session.scalars(
                 EarthquakeEvent.select(
@@ -646,7 +664,7 @@ def compute_traveltimes(earthquake, detector):
 
 class EarthquakeMeasurementHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id, mma_detector_id):
+    async def post(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Post a ground velocity measurement for the earthquake.
@@ -668,9 +686,14 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakeMeasured'
         """
-
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
             return self.error(
@@ -727,7 +750,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def get(self, earthquake_id, mma_detector_id):
+    async def get(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Retrieve a ground velocity measurement for the earthquake.
@@ -751,7 +774,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: SingleEarthquakeMeasured
         """
-
         with self.Session() as session:
             event = session.scalars(
                 EarthquakeEvent.select(
@@ -777,7 +799,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success(data=measurement)
 
     @auth_or_token
-    async def patch(self, earthquake_id, mma_detector_id):
+    async def patch(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Update a ground velocity measurement for the earthquake.
@@ -799,9 +821,14 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakeMeasured'
         """
-
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
             return self.error(
@@ -849,7 +876,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, earthquake_id, mma_detector_id):
+    async def delete(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Delete a ground velocity measurement for the earthquake.
@@ -871,9 +898,14 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
         """
-
         with self.Session() as session:
             event = session.scalars(
                 EarthquakeEvent.select(

@@ -139,6 +139,7 @@ class GcnReport(Base):
     )
 
     dateobs = sa.Column(
+        sa.DateTime,
         sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -374,6 +375,7 @@ class GcnSummary(Base):
     )
 
     dateobs = sa.Column(
+        sa.DateTime,
         sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -443,6 +445,7 @@ class GcnNotice(Base):
     date = sa.Column(sa.DateTime, nullable=False, doc="UTC message timestamp")
 
     dateobs = sa.Column(
+        sa.DateTime,
         sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         doc="UTC event timestamp",
@@ -489,6 +492,7 @@ class GcnProperty(Base):
     )
 
     dateobs = sa.Column(
+        sa.DateTime,
         sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -519,6 +523,7 @@ class GcnTag(Base):
     )
 
     dateobs = sa.Column(
+        sa.DateTime,
         sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,

@@ -9,7 +9,7 @@ log = make_log("api/sharing_service_coauthor")
 
 class SharingServiceCoauthorHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    def post(self, sharing_service_id, user_id=None):
+    def post(self, sharing_service_id: int, user_id: int | None = None):
         """
         ---
         summary: Add a coauthor to an external sharing service
@@ -42,7 +42,13 @@ class SharingServiceCoauthorHandler(BaseHandler):
             200:
                 content:
                     application/json:
-                        schema: Success
+                        schema:
+                            allOf:
+                                - $ref: '#/components/schemas/Success'
+                                - type: object
+                                  properties:
+                                    data:
+                                      $ref: '#/components/schemas/SharingServiceCoauthor'
             400:
                 content:
                     application/json:
@@ -53,6 +59,13 @@ class SharingServiceCoauthorHandler(BaseHandler):
         if user_id is None:
             return self.error(
                 "You must specify a coauthor_id when adding a coauthor to a sharing service"
+            )
+        try:
+            sharing_service_id = int(sharing_service_id)
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid sharing_service_id/user_id: {sharing_service_id}/{user_id}"
             )
         with self.Session() as session:
             # verify that the user has access to the sharing_service
@@ -98,7 +111,7 @@ class SharingServiceCoauthorHandler(BaseHandler):
             return self.success(data={"id": coauthor.id})
 
     @permissions(["Manage sharing services"])
-    def delete(self, sharing_service_id, user_id):
+    def delete(self, sharing_service_id: int, user_id: int):
         """
         ---
         summary: Remove a coauthor from an external sharing service
@@ -129,6 +142,13 @@ class SharingServiceCoauthorHandler(BaseHandler):
                         schema: Error
         """
 
+        try:
+            sharing_service_id = int(sharing_service_id)
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid sharing_service_id/user_id: {sharing_service_id}/{user_id}"
+            )
         with self.Session() as session:
             # verify that the user has access to the sharing_service
             sharing_service = session.scalar(

@@ -115,7 +115,7 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
 
 class GcnGraceDBHandler(BaseHandler):
     @permissions(["Manage GCNs"])
-    def post(self, dateobs):
+    def post(self, dateobs: str):
         """
         ---
         summary: Retrieve GW Event data from GraceDB
@@ -142,7 +142,7 @@ class GcnGraceDBHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the GcnEvent
           400:
             content:

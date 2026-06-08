@@ -13,7 +13,7 @@ from ...models import (
     Localization,
     SourcesConfirmedInGCN,
 )
-from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+from ...utils.naive_datetime import UTCTZnaiveDateTime
 from ..base import BaseHandler
 
 log = make_log("api/sources_confirmed_in_gcn")
@@ -75,7 +75,7 @@ class Validator(Schema):
 
 class SourcesConfirmedInGCNHandler(BaseHandler):
     @auth_or_token
-    async def get(self, dateobs, source_id=None):
+    async def get(self, dateobs: str, source_id: str = None):
         """
         ---
         single:
@@ -101,26 +101,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema:
-                    allOf:
-                      - $ref: '#/components/schemas/Success'
-                      - type: object
-                        properties:
-                          data:
-                            type: object
-                            properties:
-                              id:
-                                type: integer
-                                description: the id of the confirmed_source_in_gcn
-                              obj_id:
-                                type: string
-                                description: the source_id of the source
-                              dateobs:
-                                type: string
-                                description: dateobs of the GCN evn
-                              confirmed:
-                                type: boolean
-                                description: Boolean indicating whether the source is confirmed (True) or rejected (False)
+                  schema: SingleSourcesConfirmedInGCN
             400:
               content:
                 application/json:
@@ -159,19 +140,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                           data:
                             type: array
                             items:
-                              id:
-                                type: integer
-                                description: the id of the confirmed_source_in_gcn
-                              obj_id:
-                                type: string
-                                description: the source_id of the source
-                              dateobs:
-                                type: string
-                                description: dateobs of the GCN evn
-                              confirmed:
-                                type: boolean
-                                description: Whether the source is confirmed (True) or rejected (False)
-
+                              $ref: '#/components/schemas/SourcesConfirmedInGCN'
             400:
               content:
                 application/json:
@@ -228,7 +197,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data=sources_in_gcn)
 
     @permissions(["Manage GCNs"])
-    async def post(self, dateobs, source_id=None):
+    async def post(self, dateobs: str, source_id: str = None):
         """
         ---
         summary: Confirm or reject a source in a gcn
@@ -284,11 +253,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: int
-                              description: The id of the source_confirmed_in_gcn
+                          $ref: '#/components/schemas/SourcesConfirmedInGCN'
           400:
             content:
               application/json:
@@ -445,7 +410,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data={"id": source_in_gcn_id})
 
     @permissions(["Manage GCNs"])
-    def patch(self, dateobs, source_id):
+    def patch(self, dateobs: str, source_id: str):
         """
         ---
         summary: Update the confirmed/rejected status of a source in a GCN
@@ -486,11 +451,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: int
-                              description: The id of the modified source_confirmed_in_gcn
+                          $ref: '#/components/schemas/SourcesConfirmedInGCN'
           400:
             content:
               application/json:
@@ -580,7 +541,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data={"id": source_in_gcn_id})
 
     @permissions(["Manage GCNs"])
-    def delete(self, dateobs, source_id):
+    def delete(self, dateobs: str, source_id: str):
         """
         ---
         summary: Remove the confirmed/rejected status of a source in a GCN
@@ -605,17 +566,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: int
-                              description: The id of the deleted source_confirmed_in_gcn
+                schema: Success
           400:
             content:
               application/json:
@@ -685,7 +636,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
 
 class GCNsAssociatedWithSourceHandler(BaseHandler):
     @auth_or_token
-    async def get(self, source_id):
+    async def get(self, source_id: str):
         """
         ---
         summary: Get GCNs associated with a source

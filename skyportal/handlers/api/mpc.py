@@ -33,7 +33,7 @@ mpcheck_url = urllib.parse.urljoin(MPC_ENDPOINT, "cgi-bin/mpcheck.cgi")
 
 class ObjMPCHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         """
         ---
         summary: Crossmatch an object with MPC
@@ -63,12 +63,12 @@ class ObjMPCHandler(BaseHandler):
                       Time to check MPC for.
                       Defaults to current time.
                   limiting_magnitude:
-                    type: float
+                    type: number
                     description: |
                       Limiting magnitude down which to search.
                       Defaults to 24.0.
                   search_radius:
-                    type: float
+                    type: number
                     description: |
                       Search radius for MPC [in arcmin].
                       Defaults to 1 arcminute.

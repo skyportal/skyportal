@@ -218,9 +218,14 @@ def add_observations(instrument_id, obstable):
 
         del missing, unique_observation_ids, unique_observation_ids_batched
 
-        # again, batch the insertions
-        obstable_batched = np.array_split(obstable, 100)
-        for chunk in obstable_batched:
+        # again, batch the insertions. Split the positional indices (a numpy
+        # array) and slice with iloc, rather than np.array_split(obstable, ...):
+        # as of pandas 3.0 the latter returns numpy ndarrays (not DataFrames),
+        # which lack .iterrows().
+        for index_chunk in np.array_split(np.arange(len(obstable)), 100):
+            if len(index_chunk) == 0:
+                continue
+            chunk = obstable.iloc[index_chunk]
             observations = []
             try:
                 for _, row in chunk.iterrows():
@@ -397,10 +402,14 @@ def get_observations(
 
     # optional: slice by GcnEvent localization
     if localization_dateobs is not None:
+        if isinstance(localization_dateobs, str):
+            localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+        else:
+            localization_dateobs_parsed = localization_dateobs
         if localization_name is not None:
             localization = session.scalars(
                 Localization.select(session.user_or_token).where(
-                    Localization.dateobs == localization_dateobs,
+                    Localization.dateobs == localization_dateobs_parsed,
                     Localization.localization_name == localization_name,
                 )
             ).first()
@@ -410,7 +419,7 @@ def get_observations(
             event = session.scalars(
                 GcnEvent.select(
                     session.user_or_token, options=[joinedload(GcnEvent.localizations)]
-                ).where(GcnEvent.dateobs == localization_dateobs)
+                ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             ).first()
             if event is None:
                 raise ValueError("GCN event not found")
@@ -1030,7 +1039,7 @@ class ObservationHandler(BaseHandler):
               name: observationStatus
               nullable: true
               schema:
-                type: str
+                type: string
               description: |
                  Whether to include queued or executed observations.
                  Defaults to executed.
@@ -1086,8 +1095,12 @@ class ObservationHandler(BaseHandler):
         end_date = self.get_query_argument("endDate", None)
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        min_observations_per_field = self.get_query_argument("numberObservations", 1)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
+        min_observations_per_field = self.get_query_argument(
+            "numberObservations", 1, type=int
+        )
         return_statistics = self.get_query_argument("returnStatistics", False)
         stats_method = self.get_query_argument("statsMethod", "python")
         stats_logging = self.get_query_argument("statsLogging", False)
@@ -1164,7 +1177,7 @@ class ObservationHandler(BaseHandler):
             return self.success(data=data)
 
     @auth_or_token
-    def delete(self, observation_id):
+    def delete(self, observation_id: int):
         """
         ---
         summary: Delete an observation
@@ -1239,6 +1252,11 @@ class ObservationASCIIFileHandler(BaseHandler):
         if observation_data is None:
             return self.error(message="Missing observation_data")
 
+        try:
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
+
         instrument = (
             Instrument.query_records_accessible_by(
                 self.current_user,
@@ -1247,7 +1265,7 @@ class ObservationASCIIFileHandler(BaseHandler):
                 ],
             )
             .filter(
-                Instrument.id == instrument_id,
+                Instrument.id == instrument_id_int,
             )
             .first()
         )
@@ -1402,7 +1420,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    def get(self, allocation_id):
+    def get(self, allocation_id: int):
         """
         ---
         summary: Retrieve queued observations from external API
@@ -1506,7 +1524,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    def delete(self, allocation_id):
+    def delete(self, allocation_id: int):
         """
         ---
         summary: Delete queued observations from external API
@@ -1578,7 +1596,7 @@ class ObservationExternalAPIHandler(BaseHandler):
 
 class ObservationTreasureMapHandler(BaseHandler):
     @auth_or_token
-    def post(self, instrument_id):
+    def post(self, instrument_id: int):
         """
         ---
         summary: Submit observations to TreasureMap
@@ -1676,6 +1694,10 @@ class ObservationTreasureMapHandler(BaseHandler):
 
         start_date = arrow.get(start_date.strip()).datetime
         end_date = arrow.get(end_date.strip()).datetime
+        if localization_dateobs is not None:
+            localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+        else:
+            localization_dateobs_parsed = None
 
         with self.Session() as session:
             instrument = session.scalars(
@@ -1721,7 +1743,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             event = session.scalars(
                 GcnEvent.select(
                     session.user_or_token, options=[joinedload(GcnEvent.gcn_notices)]
-                ).where(GcnEvent.dateobs == localization_dateobs)
+                ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             ).first()
             if event is None:
                 return self.error(
@@ -1818,7 +1840,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, instrument_id):
+    def delete(self, instrument_id: int):
         """
         ---
         summary: Remove observations from TreasureMap
@@ -1853,6 +1875,10 @@ class ObservationTreasureMapHandler(BaseHandler):
 
         data = self.get_json()
         localization_dateobs = data.get("localizationDateobs", None)
+        if localization_dateobs is not None:
+            localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+        else:
+            localization_dateobs_parsed = None
 
         instrument = (
             Instrument.query_records_accessible_by(
@@ -1887,7 +1913,7 @@ class ObservationTreasureMapHandler(BaseHandler):
                     joinedload(GcnEvent.gcn_notices),
                 ],
             )
-            .filter(GcnEvent.dateobs == localization_dateobs)
+            .filter(GcnEvent.dateobs == localization_dateobs_parsed)
             .first()
         )
         if event is None:
@@ -2081,7 +2107,7 @@ def retrieve_observations_and_simsurvey(
 
 class ObservationSimSurveyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, instrument_id):
+    async def get(self, instrument_id: int):
         """
         ---
         summary: Perform SimSurvey efficiency calculation
@@ -2210,7 +2236,9 @@ class ObservationSimSurveyHandler(BaseHandler):
         end_date = self.get_query_argument("endDate")
         localization_dateobs = self.get_query_argument("localizationDateobs")
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
 
         number_of_injections = int(self.get_query_argument("numberInjections", 1000))
         number_of_detections = int(self.get_query_argument("numberDetections", 1))
@@ -2256,6 +2284,12 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             start_date = arrow.get(start_date.strip()).datetime
             end_date = arrow.get(end_date.strip()).datetime
+            localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+
+            try:
+                instrument_id_int = int(instrument_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid instrument_id {instrument_id}")
 
             instrument = session.scalars(
                 Instrument.select(
@@ -2264,7 +2298,7 @@ class ObservationSimSurveyHandler(BaseHandler):
                         joinedload(Instrument.telescope),
                     ],
                 ).where(
-                    Instrument.id == instrument_id,
+                    Instrument.id == instrument_id_int,
                 )
             ).first()
             if instrument is None:
@@ -2278,7 +2312,7 @@ class ObservationSimSurveyHandler(BaseHandler):
                     Localization.select(
                         self.current_user,
                     )
-                    .where(Localization.dateobs == localization_dateobs)
+                    .where(Localization.dateobs == localization_dateobs_parsed)
                     .order_by(Localization.created_at.desc())
                 ).first()
             else:
@@ -2286,14 +2320,14 @@ class ObservationSimSurveyHandler(BaseHandler):
                     Localization.select(
                         self.current_user,
                     )
-                    .where(Localization.dateobs == localization_dateobs)
+                    .where(Localization.dateobs == localization_dateobs_parsed)
                     .where(Localization.localization_name == localization_name)
                 ).first()
 
             event = session.scalars(
                 GcnEvent.select(
                     self.current_user,
-                ).where(GcnEvent.dateobs == localization_dateobs)
+                ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             ).first()
             if event is None:
                 return self.error("GCN event not found")
@@ -2317,7 +2351,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             survey_efficiency_analysis = SurveyEfficiencyForObservations(
                 requester_id=self.associated_user_object.id,
-                instrument_id=instrument_id,
+                instrument_id=instrument_id_int,
                 gcnevent_id=event.id,
                 localization_id=localization.id,
                 groups=groups,
@@ -2351,7 +2385,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             return self.success(data={"id": survey_efficiency_analysis.id})
 
-    def delete(self, survey_efficiency_analysis_id):
+    def delete(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Delete a SimSurvey efficiency calculation
@@ -2370,7 +2404,6 @@ class ObservationSimSurveyHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
         with self.Session() as session:
             survey_efficiency_analysis = session.scalars(
                 SurveyEfficiencyForObservations.select(
@@ -2397,7 +2430,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
 class ObservationSimSurveyPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, survey_efficiency_analysis_id):
+    async def get(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Create summary plot for SimSurvey

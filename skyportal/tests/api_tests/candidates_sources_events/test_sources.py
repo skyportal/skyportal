@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import arrow
 import astropy.units as u
@@ -13,6 +13,8 @@ from tdtax import __version__, taxonomy
 
 from skyportal.models import cosmo
 from skyportal.tests import api
+
+from ....utils.naive_datetime import utcnow_naive
 
 
 def test_source_list(view_only_token):
@@ -369,7 +371,7 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
     obj_id = str(uuid.uuid4())
     alias = str(uuid.uuid4())
     origin = str(uuid.uuid4())
-    t0 = datetime.now(timezone.utc)
+    t0 = datetime.now(UTC)
     status, data = api(
         "POST",
         "sources",
@@ -563,7 +565,7 @@ def test_source_notifications_unauthorized(
 def test_token_user_source_summary(
     public_group, public_source, view_only_token_two_groups, public_group2
 ):
-    now = datetime.utcnow().isoformat()
+    now = utcnow_naive().isoformat()
 
     status, data = api(
         "GET",
@@ -1076,7 +1078,7 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     )
     assert status == 200
     assert data["data"]["id"] == obj_id1
-    test_time = datetime.now(timezone.utc)
+    test_time = datetime.now(UTC)
     status, data = api(
         "POST",
         "sources",
@@ -1157,7 +1159,7 @@ def test_sources_filter_by_time_spectrum(
         "spectrum",
         data={
             "obj_id": obj_id1,
-            "observed_at": str(datetime.now(timezone.utc) - timedelta(days=1)),
+            "observed_at": str(datetime.now(UTC) - timedelta(days=1)),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [234.2, 232.1, 235.3],
@@ -1168,14 +1170,14 @@ def test_sources_filter_by_time_spectrum(
     assert status == 200
     assert data["status"] == "success"
 
-    test_time = datetime.now(timezone.utc)
+    test_time = datetime.now(UTC)
     # Add spectrum to source 2
     status, data = api(
         "POST",
         "spectrum",
         data={
             "obj_id": obj_id2,
-            "observed_at": str(datetime.now(timezone.utc) + timedelta(days=1)),
+            "observed_at": str(datetime.now(UTC) + timedelta(days=1)),
             "instrument_id": lris.id,
             "wavelengths": [664, 665, 666],
             "fluxes": [234.2, 232.1, 235.3],
@@ -1949,7 +1951,7 @@ def test_filter_sources_by_created_at(
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
 
-    time_before_both = datetime.now(timezone.utc)
+    time_before_both = datetime.now(UTC)
 
     # Upload two new sources
     status, data = api(
@@ -1966,7 +1968,7 @@ def test_filter_sources_by_created_at(
     assert status == 200
     assert data["data"]["id"] == obj_id1
 
-    partition_time = datetime.now(timezone.utc)
+    partition_time = datetime.now(UTC)
 
     status, data = api(
         "POST",
@@ -1982,7 +1984,7 @@ def test_filter_sources_by_created_at(
     assert status == 200
     assert data["data"]["id"] == obj_id2
 
-    time_after_both = datetime.now(timezone.utc)
+    time_after_both = datetime.now(UTC)
 
     # Filter for obj 2 only
     status, data = api(
@@ -2031,7 +2033,7 @@ def test_filter_sources_by_modified(
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
 
-    time_before_both = datetime.now(timezone.utc)
+    time_before_both = datetime.now(UTC)
 
     # Upload two new sources
     status, data = api(
@@ -2062,7 +2064,7 @@ def test_filter_sources_by_modified(
     assert status == 200
     assert data["data"]["id"] == obj_id2
 
-    partition_time = datetime.now(timezone.utc)
+    partition_time = datetime.now(UTC)
 
     status, data = api(
         "PATCH",
@@ -2075,7 +2077,7 @@ def test_filter_sources_by_modified(
     )
     assert status == 200
 
-    time_after_both = datetime.now(timezone.utc)
+    time_after_both = datetime.now(UTC)
 
     # Filter for obj 2 only
     status, data = api(
@@ -2638,3 +2640,53 @@ def test_deduplicate_photometry(
     assert len(data["data"]["photometry"]) == 1
     # should be the second one (which is first in the list)
     assert np.isclose(data["data"]["photometry"][0]["mag"], 12.8)
+
+
+def test_source_gcn_crossmatch_string_dateobs(
+    super_admin_token, super_admin_user, public_source
+):
+    # Regression test for a psycopg3 type mismatch. Obj.gcn_crossmatch is an
+    # ARRAY(String) column, so its GCN-event dateobs round-trip out of the DB as
+    # strings. get_source() then filters GcnEvent.dateobs (a timestamp) with that
+    # list; under psycopg3 a "timestamp = varchar" comparison raises
+    # UndefinedFunction unless the values are coerced to datetimes first. Before
+    # the fix this request 500'd; it should return the crossmatched event.
+    import sqlalchemy as sa
+
+    from skyportal.models import DBSession, GcnEvent, Obj
+
+    dateobs = datetime(2019, 4, 25, 8, 18, 5)
+    # Exactly how the value round-trips out of the ARRAY(String) column: psycopg
+    # renders the timestamp with a space (not a "T") separator.
+    dateobs_str = "2019-04-25 08:18:05"
+
+    session = DBSession()
+    event = GcnEvent(dateobs=dateobs, sent_by_id=super_admin_user.id)
+    session.add(event)
+    obj = session.scalar(sa.select(Obj).where(Obj.id == public_source.id))
+    # Populate the crossmatch column the way LocalizationCrossmatchHandler does.
+    obj.gcn_crossmatch = [dateobs_str]
+    session.commit()
+
+    try:
+        status, data = api(
+            "GET",
+            f"sources/{public_source.id}",
+            params={"includeGCNCrossmatches": "true"},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        assert data["status"] == "success"
+        crossmatches = data["data"]["gcn_crossmatch"]
+        assert any(arrow.get(c["dateobs"]).naive == dateobs for c in crossmatches), (
+            crossmatches
+        )
+    finally:
+        session = DBSession()
+        obj = session.scalar(sa.select(Obj).where(Obj.id == public_source.id))
+        if obj is not None:
+            obj.gcn_crossmatch = None
+        event = session.scalar(sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs))
+        if event is not None:
+            session.delete(event)
+        session.commit()

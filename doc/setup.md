@@ -78,14 +78,18 @@ After installing each package, Homebrew will print out the installation paths. Y
 
 2. Start the PostgreSQL server:
 
-  - To start automatically at login: `brew services start postgresql`
-  - To start manually: `pg_ctl -D /usr/local/var/postgres start`
+  - To start automatically at login: `brew services start postgresql@<version>`
+  - To start manually: `pg_ctl -D $(brew --prefix)/var/postgresql@<version> start`
+
+  Replace `<version>` with your installed PostgreSQL version (e.g., `14`). You can check with `brew list | grep postgresql`.
 
   You may also need to run the following command to create the proper admin user:
 
   ```bash
-  /usr/local/opt/postgres/bin/createuser -s postgres
+  createuser -s postgres
   ```
+
+  If `createuser` is not found in your `PATH`, locate it via `brew info postgresql` (typically `/opt/homebrew/opt/postgresql@<version>/bin/` on Apple Silicon, or `/usr/local/opt/postgresql@<version>/bin/` on Intel Macs) and invoke it with its full path.
 
 3. To run the test suite, you'll need Geckodriver:
 
@@ -290,6 +294,14 @@ login screen).  If you are running a public-facing instance of
 SkyPortal, you should enable multi-user login by adding Google
 credentials to the `server:auth` section of the configuration file and
 setting `debug_login` to `False`.
+
+### Username generation
+
+When `server.auth.username_is_email` is set to `True` (the default), the user's username is generated from their email address (e.g., `testuser@cesium-ml.org` → `testuser-cesium-ml-org`).
+
+When `server.auth.username_is_email` is set to `False`, SkyPortal automatically generates a username from the user's OAuth profile using the first letter of their first name combined with their last name (e.g., "Camille Douzet" → `cdouzet`). If that username is already taken, a number is appended and incremented until a unique username is found (e.g., `cdouzet1`, `cdouzet2`, ...).
+
+If the OAuth provider does not supply first and last name fields, the username falls back to the raw `username` field from the provider details.
 
 ### Creating an administrative user
 

@@ -58,7 +58,7 @@ class PublicReleaseHandler(BaseHandler):
                     group_ids:
                       type: array
                       items:
-                      type: integer
+                        type: integer
                     description:
                       type: string
                     options:
@@ -120,7 +120,7 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data={"id": public_release.id})
 
     @permissions(["Manage sources"])
-    def patch(self, release_id):
+    def patch(self, release_id: int):
         """
         ---
         summary: Update a public release
@@ -226,7 +226,15 @@ class PublicReleaseHandler(BaseHandler):
             200:
               content:
                 application/json:
-                    schema: Success
+                    schema:
+                      allOf:
+                        - $ref: '#/components/schemas/Success'
+                        - type: object
+                          properties:
+                            data:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/PublicRelease'
             400:
               content:
                 application/json:
@@ -268,7 +276,7 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data=public_releases)
 
     @permissions(["Manage sources"])
-    def delete(self, release_id):
+    def delete(self, release_id: int):
         """
         ---
         summary: Delete a public release
@@ -293,7 +301,6 @@ class PublicReleaseHandler(BaseHandler):
         """
         if release_id is None:
             return self.error("Missing release id")
-
         with self.Session() as session:
             public_release = session.scalar(
                 PublicRelease.select(session.user_or_token, mode="delete").where(

@@ -24,6 +24,23 @@ from ...models import (
 from ..base import BaseHandler
 
 
+def _coerce_resource_id(associated_resource_type, resource_id):
+    """For non-source resources the underlying FK column is integer;
+    psycopg3 binds Python strings as VARCHAR and Postgres refuses the
+    implicit comparison. Returns (coerced_value, error_message) — if the
+    coercion fails, the caller should `return self.error(error_message)`.
+    """
+    if associated_resource_type.lower() == "source":
+        return resource_id, None
+    try:
+        return int(resource_id), None
+    except (TypeError, ValueError):
+        return (
+            None,
+            f"Invalid resource_id {resource_id!r} for {associated_resource_type}",
+        )
+
+
 def post_reminder(
     session,
     associated_resource_type,
@@ -176,7 +193,12 @@ def post_reminder(
 
 class ReminderHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, reminder_id=None):
+    def get(
+        self,
+        associated_resource_type: str,
+        resource_id: str,
+        reminder_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -259,28 +281,33 @@ class ReminderHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        coerced_resource_id, err = _coerce_resource_id(
+            associated_resource_type, resource_id
+        )
+        if err is not None:
+            return self.error(err)
         try:
             with self.Session() as session:
                 if reminder_id is None:
                     if associated_resource_type.lower() == "source":
                         stmt = Reminder.select(session.user_or_token).where(
-                            Reminder.obj_id == resource_id
+                            Reminder.obj_id == coerced_resource_id
                         )
                     elif associated_resource_type.lower() == "spectra":
                         stmt = ReminderOnSpectrum.select(session.user_or_token).where(
-                            ReminderOnSpectrum.spectrum_id == resource_id
+                            ReminderOnSpectrum.spectrum_id == coerced_resource_id
                         )
                     elif associated_resource_type.lower() == "gcn_event":
                         stmt = ReminderOnGCN.select(session.user_or_token).where(
-                            ReminderOnGCN.gcn_id == resource_id
+                            ReminderOnGCN.gcn_id == coerced_resource_id
                         )
                     elif associated_resource_type.lower() == "earthquake":
                         stmt = ReminderOnEarthquake.select(session.user_or_token).where(
-                            ReminderOnEarthquake.earthquake_id == resource_id
+                            ReminderOnEarthquake.earthquake_id == coerced_resource_id
                         )
                     elif associated_resource_type.lower() == "shift":
                         stmt = ReminderOnShift.select(session.user_or_token).where(
-                            ReminderOnShift.shift_id == resource_id
+                            ReminderOnShift.shift_id == coerced_resource_id
                         )
                     else:
                         return self.error(
@@ -355,7 +382,7 @@ class ReminderHandler(BaseHandler):
             return self.error(str(e))
 
     @permissions(["Reminder"])
-    def post(self, associated_resource_type, resource_id, *ignored_args):
+    def post(self, associated_resource_type: str, resource_id: str, *ignored_args):
         """
         ---
         summary: Post a reminder
@@ -416,6 +443,12 @@ class ReminderHandler(BaseHandler):
                               type: integer
                               description: New reminder ID
         """
+        coerced_resource_id, err = _coerce_resource_id(
+            associated_resource_type, resource_id
+        )
+        if err is not None:
+            return self.error(err)
+
         data = self.get_json()
 
         reminder_text = data.get("text")
@@ -459,7 +492,7 @@ class ReminderHandler(BaseHandler):
                     reminders, resource_name = post_reminder(
                         session,
                         associated_resource_type,
-                        resource_id,
+                        coerced_resource_id,
                         reminder_text,
                         groups,
                         users,
@@ -531,7 +564,7 @@ class ReminderHandler(BaseHandler):
                 return self.error(str(e))
 
     @permissions(["Reminder"])
-    def patch(self, associated_resource_type, resource_id, reminder_id):
+    def patch(self, associated_resource_type: str, resource_id: str, reminder_id: int):
         """
         ---
         summary: Update a reminder
@@ -589,10 +622,11 @@ class ReminderHandler(BaseHandler):
                 schema: Error
         """
 
-        try:
-            reminder_id = int(reminder_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) reminder ID. ")
+        coerced_resource_id, err = _coerce_resource_id(
+            associated_resource_type, resource_id
+        )
+        if err is not None:
+            return self.error(err)
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
@@ -633,7 +667,7 @@ class ReminderHandler(BaseHandler):
                 if associated_resource_type.lower() == "source":
                     source = session.scalars(
                         Source.select(session.user_or_token).where(
-                            Source.obj_id == resource_id
+                            Source.obj_id == coerced_resource_id
                         )
                     )
                     if not source:
@@ -648,7 +682,7 @@ class ReminderHandler(BaseHandler):
                 elif associated_resource_type.lower() == "spectra":
                     spectrum = session.scalars(
                         Spectrum.select(session.user_or_token).where(
-                            Spectrum.obj_id == resource_id
+                            Spectrum.obj_id == coerced_resource_id
                         )
                     )
                     if not spectrum:
@@ -663,7 +697,7 @@ class ReminderHandler(BaseHandler):
                 elif associated_resource_type.lower() == "gcn_event":
                     gcn_event = session.scalars(
                         GcnEvent.select(session.user_or_token).where(
-                            GcnEvent.id == resource_id
+                            GcnEvent.id == coerced_resource_id
                         )
                     )
                     if not gcn_event:
@@ -677,7 +711,7 @@ class ReminderHandler(BaseHandler):
                 elif associated_resource_type.lower() == "earthquake":
                     earthquake = session.scalars(
                         EarthquakeEvent.select(session.user_or_token).where(
-                            EarthquakeEvent.id == resource_id
+                            EarthquakeEvent.id == coerced_resource_id
                         )
                     )
                     if not earthquake:
@@ -691,7 +725,7 @@ class ReminderHandler(BaseHandler):
                 elif associated_resource_type.lower() == "shift":
                     shift = session.scalars(
                         Shift.select(session.user_or_token).where(
-                            Shift.id == resource_id
+                            Shift.id == coerced_resource_id
                         )
                     )
                     if not shift:
@@ -765,7 +799,7 @@ class ReminderHandler(BaseHandler):
                 return self.error(str(e))
 
     @permissions(["Reminder"])
-    def delete(self, associated_resource_type, resource_id, reminder_id):
+    def delete(self, associated_resource_type: str, resource_id: str, reminder_id: int):
         """
         ---
         summary: Delete a reminder
@@ -805,16 +839,17 @@ class ReminderHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            reminder_id = int(reminder_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) reminder ID.")
+        coerced_resource_id, err = _coerce_resource_id(
+            associated_resource_type, resource_id
+        )
+        if err is not None:
+            return self.error(err)
         with self.Session() as session:
             try:
                 if associated_resource_type.lower() == "source":
                     source = session.scalars(
                         Source.select(session.user_or_token).where(
-                            Source.obj_id == resource_id
+                            Source.obj_id == coerced_resource_id
                         )
                     )
                     if not source:
@@ -828,7 +863,7 @@ class ReminderHandler(BaseHandler):
                 elif associated_resource_type.lower() == "spectra":
                     spectrum = session.scalars(
                         Spectrum.select(session.user_or_token).where(
-                            Spectrum.obj_id == resource_id
+                            Spectrum.obj_id == coerced_resource_id
                         )
                     )
                     if not spectrum:
@@ -842,7 +877,7 @@ class ReminderHandler(BaseHandler):
                 elif associated_resource_type.lower() == "gcn_event":
                     gcn_event = session.scalars(
                         GcnEvent.select(session.user_or_token).where(
-                            GcnEvent.id == resource_id
+                            GcnEvent.id == coerced_resource_id
                         )
                     )
                     if not gcn_event:
@@ -856,7 +891,7 @@ class ReminderHandler(BaseHandler):
                 elif associated_resource_type.lower() == "earthquake":
                     earthquake = session.scalars(
                         EarthquakeEvent.select(session.user_or_token).where(
-                            EarthquakeEvent.id == resource_id
+                            EarthquakeEvent.id == coerced_resource_id
                         )
                     )
                     if not earthquake:
@@ -870,7 +905,7 @@ class ReminderHandler(BaseHandler):
                 elif associated_resource_type.lower() == "shift":
                     shift = session.scalars(
                         Shift.select(session.user_or_token).where(
-                            Shift.id == resource_id
+                            Shift.id == coerced_resource_id
                         )
                     )
                     if not shift:

@@ -45,6 +45,7 @@ from ...models import (
     User,
     UserNotification,
 )
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler, format_doc
 from .photometry import serialize
 
@@ -381,7 +382,7 @@ def post_analysis(
                 df = pd.DataFrame(input_data)
             inputs[input_type] = df.to_csv(index=False)
 
-        invalid_after = datetime.datetime.utcnow() + datetime.timedelta(
+        invalid_after = utcnow_naive() + datetime.timedelta(
             seconds=analysis_service.timeout
         )
 
@@ -479,7 +480,7 @@ def post_analysis(
             log(f"Invalid analysis_resource_type: {analysis_resource_type}")
             return
 
-        analysis.last_activity = datetime.datetime.utcnow()
+        analysis.last_activity = utcnow_naive()
         try:
             result = future.result()
             analysis.status = "pending" if result.status_code == 200 else "failure"
@@ -594,7 +595,7 @@ class AnalysisServiceHandler(BaseHandler):
                         List of input data types that the service requires. Zero to many of:
                         {ANALYSIS_INPUT_TYPES}
                   timeout:
-                    type: float
+                    type: number
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
                   is_summary:
@@ -631,11 +632,7 @@ class AnalysisServiceHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New AnalysisService ID
+                          $ref: '#/components/schemas/AnalysisService'
         """
         data = self.get_json()
 
@@ -724,7 +721,7 @@ class AnalysisServiceHandler(BaseHandler):
             return self.success(data={"id": analysis_service.id})
 
     @auth_or_token
-    def get(self, analysis_service_id=None):
+    def get(self, analysis_service_id: int | None = None):
         """
         ---
         single:
@@ -764,6 +761,12 @@ class AnalysisServiceHandler(BaseHandler):
         """
         with self.Session() as session:
             if analysis_service_id is not None:
+                try:
+                    analysis_service_id = int(analysis_service_id)
+                except (TypeError, ValueError):
+                    return self.error(
+                        f"Invalid analysis_service_id {analysis_service_id}"
+                    )
                 s = session.scalars(
                     AnalysisService.select(session.user_or_token).where(
                         AnalysisService.id == analysis_service_id
@@ -809,7 +812,7 @@ class AnalysisServiceHandler(BaseHandler):
         ANALYSIS_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_TYPES),
         ANALYSIS_INPUT_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES),
     )
-    def patch(self, analysis_service_id):
+    def patch(self, analysis_service_id: int):
         """
         ---
         summary: Update an Analysis Service.
@@ -885,7 +888,7 @@ class AnalysisServiceHandler(BaseHandler):
                         List of input data types that the service requires. Zero to many of:
                         {ANALYSIS_INPUT_TYPES}
                   timeout:
-                    type: float
+                    type: number
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
                   is_summary:
@@ -909,7 +912,13 @@ class AnalysisServiceHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/AnalysisService'
           400:
             content:
               application/json:
@@ -969,7 +978,7 @@ class AnalysisServiceHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage Analysis Services"])
-    def delete(self, analysis_service_id):
+    def delete(self, analysis_service_id: int):
         """
         ---
         summary: Delete an Analysis Service.
@@ -1006,7 +1015,9 @@ class AnalysisServiceHandler(BaseHandler):
 
 class AnalysisHandler(BaseHandler):
     @permissions(["Run Analyses"])
-    async def post(self, analysis_resource_type, resource_id, analysis_service_id):
+    async def post(
+        self, analysis_resource_type: str, resource_id: str, analysis_service_id: int
+    ):
         """
         ---
         summary: Run an analysis
@@ -1053,6 +1064,8 @@ class AnalysisHandler(BaseHandler):
                     description: Whether to render the corner plots of this analysis
                   input_filters:
                     type: array
+                    items:
+                      type: string
                     description: Filters to apply to the input data
                   analysis_parameters:
                     type: object
@@ -1077,11 +1090,7 @@ class AnalysisHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            analysis_id:
-                              type: integer
-                              description: New analysis ID
+                          $ref: '#/components/schemas/ObjAnalysis'
         """
         try:
             data = self.get_json()
@@ -1207,7 +1216,7 @@ class AnalysisHandler(BaseHandler):
                     return self.error(f"Error posting analysis: {e}")
 
     @auth_or_token
-    def get(self, analysis_resource_type, analysis_id=None):
+    def get(self, analysis_resource_type: str, analysis_id: int | None = None):
         """
         ---
         single:
@@ -1228,7 +1237,7 @@ class AnalysisHandler(BaseHandler):
               name: analysis_id
               required: false
               schema:
-                type: int
+                type: integer
               description: |
                 ID of the analysis to return.
             - in: query
@@ -1242,7 +1251,7 @@ class AnalysisHandler(BaseHandler):
               name: analysisServiceID
               required: false
               schema:
-                type: int
+                type: integer
               description: |
                 ID of the analysis service used to create the analysis, used only if no analysis_id is given
             - in: query
@@ -1303,7 +1312,9 @@ class AnalysisHandler(BaseHandler):
         summary_only = self.get_query_argument("summaryOnly", False)
 
         obj_id = self.get_query_argument("objID", None)
-        analysis_service_id = self.get_query_argument("analysisServiceID", None)
+        analysis_service_id = self.get_query_argument(
+            "analysisServiceID", None, type=int
+        )
 
         with self.Session() as session:
             if obj_id is not None:
@@ -1314,6 +1325,10 @@ class AnalysisHandler(BaseHandler):
 
             if analysis_resource_type.lower() == "obj":
                 if analysis_id is not None:
+                    try:
+                        analysis_id = int(analysis_id)
+                    except (TypeError, ValueError):
+                        return self.error(f"Invalid analysis_id {analysis_id}")
                     stmt = ObjAnalysis.select(self.current_user).where(
                         ObjAnalysis.id == analysis_id
                     )
@@ -1410,7 +1425,7 @@ class AnalysisHandler(BaseHandler):
             return self.success(data=ret_array)
 
     @permissions(["Run Analyses"])
-    def delete(self, analysis_resource_type, analysis_id):
+    def delete(self, analysis_resource_type: str, analysis_id: int):
         """
         ---
         summary: Delete an Analysis.
@@ -1481,7 +1496,11 @@ class AnalysisHandler(BaseHandler):
 class AnalysisProductsHandler(BaseHandler):
     @auth_or_token
     async def get(
-        self, analysis_resource_type, analysis_id, product_type, plot_number=0
+        self,
+        analysis_resource_type: str,
+        analysis_id: int,
+        product_type: str,
+        plot_number: int = 0,
     ):
         """
         ---
@@ -1527,7 +1546,7 @@ class AnalysisProductsHandler(BaseHandler):
                 type: object
                 properties:
                   download:
-                    type: bool
+                    type: boolean
                     description: |
                         Download the results as a file
                   plot_kwargs:
@@ -1539,11 +1558,20 @@ class AnalysisProductsHandler(BaseHandler):
                         if new plots are to be generated (e.g. with corner plots)
         responses:
           200:
-            description: Requested analysis file
+            description: |
+              Requested analysis product. For product_type=corner returns a PNG
+              image; for product_type=plots returns binary plot data; for
+              product_type=results returns either a JSON file download or a
+              JSON-wrapped result payload.
             content:
               application/json:
                 schema:
-                  type: object
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
           400:
             content:
               application/json:
@@ -1553,6 +1581,10 @@ class AnalysisProductsHandler(BaseHandler):
         with self.Session() as session:
             if analysis_resource_type.lower() == "obj":
                 if analysis_id is not None:
+                    try:
+                        analysis_id = int(analysis_id)
+                    except (TypeError, ValueError):
+                        return self.error(f"Invalid analysis_id {analysis_id}")
                     stmt = ObjAnalysis.select(self.current_user).where(
                         ObjAnalysis.id == analysis_id
                     )
@@ -1649,7 +1681,9 @@ class AnalysisProductsHandler(BaseHandler):
 
 class AnalysisUploadOnlyHandler(BaseHandler):
     @permissions(["Run Analyses"])
-    def post(self, analysis_resource_type, resource_id, analysis_service_id):
+    def post(
+        self, analysis_resource_type: str, resource_id: str, analysis_service_id: int
+    ):
         """
         ---
         summary: Upload an upload_only analysis result
@@ -1715,11 +1749,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            analysis_id:
-                              type: integer
-                              description: New analysis ID
+                          $ref: '#/components/schemas/ObjAnalysis'
         """
         # allowable resources now are [obj]. Can be extended in the future.
         if analysis_resource_type.lower() not in ["obj"]:
@@ -1792,9 +1822,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                         ),
                         status=403,
                     )
-                invalid_after = datetime.datetime.utcnow() + datetime.timedelta(
-                    seconds=10
-                )
+                invalid_after = utcnow_naive() + datetime.timedelta(seconds=10)
                 analysis = ObjAnalysis(
                     obj=obj,
                     author=author,
@@ -1808,7 +1836,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                     status_message=status_message,
                     handled_by_url="/",
                     invalid_after=invalid_after,
-                    last_activity=datetime.datetime.utcnow(),
+                    last_activity=utcnow_naive(),
                 )
             else:
                 return self.error(
@@ -1841,7 +1869,7 @@ class DefaultAnalysisHandler(BaseHandler):
     # for a default analysis to be run on an object
 
     @auth_or_token
-    def get(self, analysis_service_id, default_analysis_id):
+    def get(self, analysis_service_id: int, default_analysis_id: int):
         """
         ---
         single:
@@ -1888,6 +1916,19 @@ class DefaultAnalysisHandler(BaseHandler):
                   schema: Error
         """
 
+        try:
+            analysis_service_id = (
+                int(analysis_service_id) if analysis_service_id is not None else None
+            )
+            default_analysis_id = (
+                int(default_analysis_id) if default_analysis_id is not None else None
+            )
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid analysis_service_id/default_analysis_id: "
+                f"{analysis_service_id}/{default_analysis_id}"
+            )
+
         with self.Session() as session:
             try:
                 if default_analysis_id is not None and analysis_service_id is not None:
@@ -1918,7 +1959,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 )
 
     @auth_or_token
-    def post(self, analysis_service_id, *ignored_args):
+    def post(self, analysis_service_id: int, *ignored_args):
         """
         ---
         summary: Create a new default analysis
@@ -1970,9 +2011,8 @@ class DefaultAnalysisHandler(BaseHandler):
                                 - $ref: '#/components/schemas/Success'
                                 - type: object
                                   properties:
-                                    id:
-                                      type: integer
-                                      description: New default analysis ID
+                                    data:
+                                      $ref: '#/components/schemas/DefaultAnalysis'
             400:
                 content:
                     application/json:
@@ -2024,9 +2064,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 stats = {
                     "daily_limit": daily_limit,
                     "daily_count": 0,
-                    "last_run": datetime.datetime.utcnow().strftime(
-                        "%Y-%m-%dT%H:%M:%S.%f"
-                    ),
+                    "last_run": utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S.%f"),
                 }
 
                 if not isinstance(source_filter, dict):
@@ -2126,7 +2164,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 )
 
     @auth_or_token
-    def delete(self, analysis_service_id, default_analysis_id):
+    def delete(self, analysis_service_id: int, default_analysis_id: int):
         """
         ---
         summary: Delete a default analysis
@@ -2158,6 +2196,15 @@ class DefaultAnalysisHandler(BaseHandler):
         """
         if default_analysis_id is None:
             return self.error("Missing required parameter: default_analysis_id")
+
+        try:
+            analysis_service_id = int(analysis_service_id)
+            default_analysis_id = int(default_analysis_id)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid analysis_service_id/default_analysis_id: "
+                f"{analysis_service_id}/{default_analysis_id}"
+            )
 
         with self.Session() as session:
             try:

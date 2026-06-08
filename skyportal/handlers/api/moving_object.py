@@ -23,7 +23,7 @@ _, cfg = load_env()
 
 class MovingObjectFollowupHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_name):
+    def post(self, obj_name: str):
         """
         ---
         summary: Find a continuous sequence of observations for a moving object
@@ -132,12 +132,12 @@ class MovingObjectFollowupHandler(BaseHandler):
             return self.error("Exposure time must be a number")
 
         try:
-            start_time = arrow.get(start_time).datetime
+            start_time = arrow.get(start_time).naive
         except arrow.parser.ParserError:
             return self.error("Invalid start time")
 
         try:
-            end_time = arrow.get(end_time).datetime
+            end_time = arrow.get(end_time).naive
         except arrow.parser.ParserError:
             return self.error("Invalid end time")
 

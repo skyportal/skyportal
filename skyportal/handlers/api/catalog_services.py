@@ -74,9 +74,7 @@ class CatalogQueryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
+                schema: Success
           400:
             content:
               application/json:
@@ -402,10 +400,8 @@ class SwiftLSXPSQueryHandler(BaseHandler):
                       for the Neil Gehrels Swift Observatory.
                       Defaults to Swift.
                   groupIDs:
-                    required: false
-                    schema:
-                      type: list
-                      items:
+                    type: array
+                    items:
                       type: integer
                     description: |
                       If provided, save to these group IDs.
@@ -623,20 +619,18 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
                       Use the same name as your nickname
                       for Gaia. Defaults to Gaia.
                   groupIDs:
-                    required: false
-                    schema:
-                      type: list
-                      items:
+                    type: array
+                    items:
                       type: integer
                     description: |
                       If provided, save to these group IDs.
                   startDate:
                     required: false
-                    type: str
+                    type: string
                     description: Arrow parsable string. Filter by start date.
                   endDate:
                     required: false
-                    type: str
+                    type: string
                     description: Arrow parsable string. Filter by end date.
         responses:
           200:
@@ -846,20 +840,18 @@ class TessTransientsQueryHandler(BaseHandler):
                       Use the same name as your nickname
                       for TESS. Defaults to TESS.
                   groupIDs:
-                    required: false
-                    schema:
-                      type: list
-                      items:
+                    type: array
+                    items:
                       type: integer
                     description: |
                       If provided, save to these group IDs.
                   startDate:
                     required: false
-                    type: str
+                    type: string
                     description: Arrow parsable string. Filter by start date.
                   endDate:
                     required: false
-                    type: str
+                    type: string
                     description: Arrow parsable string. Filter by end date.
         responses:
           200:

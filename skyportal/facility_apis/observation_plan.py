@@ -1,7 +1,7 @@
 import json
 import os
 import tempfile
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import paramiko
 import requests
@@ -18,6 +18,7 @@ from baselayer.log import make_log
 
 from ..email_utils import send_email
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 log = make_log("api/observation_plan")
@@ -441,7 +442,7 @@ class MMAAPI(FollowUpAPI):
             ]
         end_date = instrument.telescope.next_twilight_morning_nautical()
         if end_date is None:
-            end_date = str(datetime.utcnow() + timedelta(days=1))
+            end_date = str(utcnow_naive() + timedelta(days=1))
         else:
             end_date = Time(end_date, format="jd").iso
 
@@ -451,7 +452,8 @@ class MMAAPI(FollowUpAPI):
             .query(InstrumentField)
             .filter(
                 InstrumentField.instrument_id == instrument.id,
-                InstrumentField.reference_filters != "{}",
+                InstrumentField.reference_filters.isnot(None),
+                sa.func.cardinality(InstrumentField.reference_filters) > 0,
             )
             .count()
             > 0
@@ -462,11 +464,11 @@ class MMAAPI(FollowUpAPI):
             "properties": {
                 "queue_name": {
                     "type": "string",
-                    "default": f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}",
+                    "default": f"ToO_{str(utcnow_naive()).replace(' ', 'T')}",
                 },
                 "start_date": {
                     "type": "string",
-                    "default": str(datetime.utcnow()),
+                    "default": str(utcnow_naive()),
                     "title": "Start Date (UT)",
                 },
                 "end_date": {
@@ -764,7 +766,7 @@ class MMAAPI(FollowUpAPI):
                 )
         elif "type" in altdata and altdata["type"] == "slack":
             slack_microservice_url = (
-                f"http://127.0.0.1:{cfg['slack.microservice_port']}"
+                f"http://{cfg['hosts.slack']}:{cfg['slack.microservice_port']}"
             )
 
             data = json.dumps(

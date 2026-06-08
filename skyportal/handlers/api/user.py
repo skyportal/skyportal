@@ -6,6 +6,7 @@ import sqlalchemy as sa
 from email_validator import EmailNotValidError, validate_email
 from phonenumbers.phonenumberutil import NumberParseException
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
@@ -166,7 +167,7 @@ def add_user_and_setup_groups(
 
 class UserHandler(BaseHandler):
     @auth_or_token
-    def get(self, user_id=None):
+    def get(self, user_id: int | None = None):
         """
         ---
         single:
@@ -352,7 +353,12 @@ class UserHandler(BaseHandler):
             return self.error("Invalid numPerPage value.")
 
         with self.Session() as session:
-            stmt = User.select(self.current_user)
+            stmt = User.select(self.current_user).options(
+                selectinload(User.streams),
+                selectinload(User.groups),
+                selectinload(User.roles),
+                selectinload(User.acls),
+            )
 
             if not include_expired:
                 stmt = stmt.where(
@@ -477,6 +483,12 @@ class UserHandler(BaseHandler):
                     type: array
                     items:
                       type: array
+                      items:
+                        oneOf:
+                          - type: integer
+                          - type: boolean
+                      minItems: 2
+                      maxItems: 2
                     description: |
                       Array of 2-element arrays `[groupID, admin]` where `groupID`
                       is the ID of a group that the new user will be added to and
@@ -552,7 +564,7 @@ class UserHandler(BaseHandler):
         return self.success(data={"id": user_id})
 
     @permissions(["Manage users"])
-    def patch(self, user_id):
+    def patch(self, user_id: int):
         """
         ---
         summary: Update a user
@@ -626,7 +638,7 @@ class UserHandler(BaseHandler):
             return self.error("User ID must be provided")
 
     @permissions(["Manage users"])
-    def delete(self, user_id=None):
+    def delete(self, user_id: int | None = None):
         """
         ---
         summary: Delete a user
@@ -649,6 +661,8 @@ class UserHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        if user_id is None:
+            return self.error("User ID must be provided")
         with self.Session() as session:
             user = session.scalars(
                 User.select(self.current_user, mode="delete").where(User.id == user_id)

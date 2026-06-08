@@ -38,11 +38,7 @@ class MMADetectorHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New mmadetector ID
+                          $ref: '#/components/schemas/MMADetector'
           400:
             content:
               application/json:
@@ -75,7 +71,7 @@ class MMADetectorHandler(BaseHandler):
             return self.success(data={"id": mmadetector.id})
 
     @auth_or_token
-    def get(self, mmadetector_id=None):
+    def get(self, mmadetector_id: int | None = None):
         """
         ---
         single:
@@ -142,7 +138,7 @@ class MMADetectorHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Manage allocations"])
-    def patch(self, mmadetector_id):
+    def patch(self, mmadetector_id: int):
         """
         ---
         summary: Update an MMA Detector
@@ -163,7 +159,13 @@ class MMADetectorHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetector'
           400:
             content:
               application/json:
@@ -212,7 +214,7 @@ class MMADetectorHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage allocations"])
-    def delete(self, mmadetector_id):
+    def delete(self, mmadetector_id: int):
         """
         ---
         summary: Delete an MMA Detector
@@ -273,11 +275,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New mmadetector spectrum ID
+                          $ref: '#/components/schemas/MMADetectorSpectrum'
           400:
             content:
               application/json:
@@ -348,7 +346,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success(data={"id": spec.id})
 
     @auth_or_token
-    def get(self, spectrum_id=None):
+    def get(self, spectrum_id: int | None = None):
         """
         ---
         single:
@@ -396,7 +394,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             - in: query
               name: detectorIDs
               nullable: true
-              type: list
+              type: array
               items:
                 type: integer
               description: |
@@ -405,18 +403,35 @@ class MMADetectorSpectrumHandler(BaseHandler):
               name: groupIDs
               nullable: true
               schema:
-                type: list
+                type: array
                 items:
                   type: integer
               description: |
                 If provided, filter only spectra saved to one of these group IDs.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/MMADetectorSpectrum'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
         if spectrum_id is not None:
             with self.Session() as session:
                 spectrum = session.scalars(
                     MMADetectorSpectrum.select(session.user_or_token).where(
-                        MMADetectorSpectrum.id == spectrum_id
+                        MMADetectorSpectrum.id == int(spectrum_id)
                     )
                 ).first()
                 if spectrum is None:
@@ -434,15 +449,13 @@ class MMADetectorSpectrumHandler(BaseHandler):
         # validate inputs
         try:
             observed_before = (
-                arrow.get(observed_before).datetime if observed_before else None
+                arrow.get(observed_before).naive if observed_before else None
             )
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_before}".')
 
         try:
-            observed_after = (
-                arrow.get(observed_after).datetime if observed_after else None
-            )
+            observed_after = arrow.get(observed_after).naive if observed_after else None
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_after}".')
 
@@ -485,7 +498,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success(data=spectra)
 
     @permissions(["Upload data"])
-    def patch(self, spectrum_id):
+    def patch(self, spectrum_id: int):
         """
         ---
         summary: Update an MMA Detector Spectrum
@@ -506,7 +519,13 @@ class MMADetectorSpectrumHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetectorSpectrum'
           400:
             content:
               application/json:
@@ -549,7 +568,10 @@ class MMADetectorSpectrumHandler(BaseHandler):
                     )
 
                 if groups:
-                    spectrum.groups = spectrum.groups + groups
+                    existing_group_ids = {g.id for g in spectrum.groups}
+                    new_groups = [g for g in groups if g.id not in existing_group_ids]
+                    if new_groups:
+                        spectrum.groups = spectrum.groups + new_groups
 
             for k in data:
                 setattr(spectrum, k, data[k])
@@ -569,7 +591,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, spectrum_id):
+    def delete(self, spectrum_id: int):
         """
         ---
         summary: Delete an MMA Detector Spectrum
@@ -595,7 +617,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
         with self.Session() as session:
             spectrum = session.scalars(
                 MMADetectorSpectrum.select(self.current_user, mode="delete").where(
-                    MMADetectorSpectrum.id == spectrum_id
+                    MMADetectorSpectrum.id == int(spectrum_id)
                 )
             ).first()
             if spectrum is None:
@@ -730,7 +752,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, time_interval_id=None):
+    def get(self, time_interval_id: int | None = None):
         """
         ---
         single:
@@ -777,7 +799,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             - in: query
               name: detectorIDs
               nullable: true
-              type: list
+              type: array
               items:
                 type: integer
               description: |
@@ -786,17 +808,34 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
               name: groupIDs
               nullable: true
               schema:
-                type: list
+                type: array
                 items:
                   type: integer
               description: |
                 If provided, filter only time_interval saved to one of these group IDs.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/MMADetectorTimeInterval'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
         if time_interval_id is not None:
             with self.Session() as session:
                 time_interval = session.scalars(
                     MMADetectorTimeInterval.select(session.user_or_token).where(
-                        MMADetectorTimeInterval.id == time_interval_id
+                        MMADetectorTimeInterval.id == int(time_interval_id)
                     )
                 ).first()
                 if time_interval is None:
@@ -823,15 +862,13 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         # validate inputs
         try:
             observed_before = (
-                arrow.get(observed_before).datetime if observed_before else None
+                arrow.get(observed_before).naive if observed_before else None
             )
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_before}".')
 
         try:
-            observed_after = (
-                arrow.get(observed_after).datetime if observed_after else None
-            )
+            observed_after = arrow.get(observed_after).naive if observed_after else None
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_after}".')
 
@@ -885,7 +922,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Upload data"])
-    def patch(self, time_interval_id):
+    def patch(self, time_interval_id: int):
         """
         ---
         summary: Update an MMA Detector Time Interval
@@ -906,7 +943,13 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetectorTimeInterval'
           400:
             content:
               application/json:
@@ -963,7 +1006,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, time_interval_id):
+    def delete(self, time_interval_id: int):
         """
         ---
         summary: Delete an MMA Detector Time Interval
@@ -989,7 +1032,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         with self.Session() as session:
             time_interval = session.scalars(
                 MMADetectorTimeInterval.select(self.current_user, mode="delete").where(
-                    MMADetectorTimeInterval.id == time_interval_id
+                    MMADetectorTimeInterval.id == int(time_interval_id)
                 )
             ).first()
             if time_interval is None:

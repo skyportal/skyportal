@@ -1,4 +1,3 @@
-import datetime
 import os
 import time
 from io import StringIO
@@ -32,6 +31,7 @@ from ...models import (
     Obj,
 )
 from ...utils.asynchronous import run_async
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler, format_doc
 
 log = make_log("api/galaxy")
@@ -559,7 +559,7 @@ class GalaxyCatalogHandler(BaseHandler):
 
     @auth_or_token
     @format_doc(MAX_GALAXIES=MAX_GALAXIES)
-    async def get(self, catalog_name=None):
+    async def get(self, catalog_name: str = None):
         """
         ---
           summary: Retrieve multiple galaxies
@@ -732,8 +732,20 @@ class GalaxyCatalogHandler(BaseHandler):
             "galaxyName", None
         )  # Partial name to match
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        if localization_dateobs is not None:
+            # psycopg3 requires a real datetime when comparing against a
+            # DateTime column; coerce here so the sync helper's WHERE
+            # against Localization.dateobs binds correctly.
+            try:
+                localization_dateobs = arrow.get(localization_dateobs).naive
+            except (arrow.parser.ParserError, ValueError):
+                return self.error(
+                    f"Invalid localizationDateobs: {localization_dateobs}"
+                )
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         catalog_names_only = self.get_query_argument("catalogNamesOnly", False)
         min_redshift = self.get_query_argument("minRedshift", None)
@@ -800,7 +812,7 @@ class GalaxyCatalogHandler(BaseHandler):
                 return self.error(f"get_galaxies fails: {e}")
 
     @permissions(["System admin"])
-    def delete(self, catalog_name):
+    def delete(self, catalog_name: str):
         """
         ---
         summary: Delete a galaxy catalog
@@ -812,7 +824,7 @@ class GalaxyCatalogHandler(BaseHandler):
             name: catalog_name
             required: true
             schema:
-              type: str
+              type: string
         responses:
           200:
             content:
@@ -1257,7 +1269,7 @@ def add_glade(file_path=None, file_url=None):
             ]
 
             df["catalog_id"] = catalog_id
-            utcnow = datetime.datetime.utcnow().isoformat()
+            utcnow = utcnow_naive().isoformat()
             df["created_at"] = utcnow
             df["modified_at"] = utcnow
             blueshift_length = len(df[(df["redshift"] < 0)])
@@ -1304,16 +1316,18 @@ def add_glade(file_path=None, file_url=None):
                 quotechar="'",
             )
             output.seek(0)
+            # psycopg3 COPY API: full `COPY ... FROM STDIN` statement +
+            # context-managed copy object. Same shape as the rewrite in
+            # `photometry.save_data_using_copy`.
             connection = DBSession().connection().connection
-            cursor = connection.cursor()
-            cursor.copy_from(
-                output,
-                "galaxys",
-                sep="\t",
-                null="",
-                columns=columns,
+            quoted_columns = ", ".join(f'"{c}"' for c in columns)
+            copy_sql = (
+                f"COPY galaxys ({quoted_columns}) FROM STDIN "
+                "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
             )
-            cursor.close()
+            with connection.cursor() as cursor:
+                with cursor.copy(copy_sql) as copy:
+                    copy.write(output.getvalue())
             output.close()
             DBSession().commit()
             end_timer = time.perf_counter()
@@ -1345,8 +1359,8 @@ def get_galaxies_completeness(
     alpha_M2 = -0.79
     logMStar = 10.79
 
-    schechter_M_log_2 = (
-        lambda x: np.log(10)
+    schechter_M_log_2 = lambda x: (
+        np.log(10)
         * np.exp(-(10 ** (x - logMStar)))
         * (
             phiStar_M1 * (10 ** (x - logMStar)) ** (alpha_M1 + 1)
@@ -1456,7 +1470,7 @@ class GalaxyGladeHandler(BaseHandler):
 
 class ObjHostHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, obj_id):
+    def post(self, obj_id: str):
         """
         ---
         summary: Set an object's host galaxy
@@ -1522,7 +1536,7 @@ class ObjHostHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, obj_id):
+    def delete(self, obj_id: str):
         """
         ---
         summary: Delete an object's host galaxy

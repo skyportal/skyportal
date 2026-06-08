@@ -16,7 +16,7 @@ log = make_log("api/obj_tns")
 
 class ObjTNSHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    def get(self, obj_id: str):
         """
         ---
         summary: Get TNS info for an object
@@ -41,7 +41,7 @@ class ObjTNSHandler(BaseHandler):
                 schema: Error
         """
 
-        radius = self.get_query_argument("radius", 2.0)
+        radius = self.get_query_argument("radius", 2.0, type=float)
 
         try:
             radius = float(radius)

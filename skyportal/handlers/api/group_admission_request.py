@@ -7,7 +7,7 @@ from ..base import BaseHandler
 
 class GroupAdmissionRequestHandler(BaseHandler):
     @auth_or_token
-    def get(self, admission_request_id=None):
+    def get(self, admission_request_id: int | None = None):
         """
         ---
         single:
@@ -54,8 +54,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        group_id = self.get_query_argument("groupID", None)
-
+        group_id = self.get_query_argument("groupID", None, type=int)
         with self.Session() as session:
             if admission_request_id is not None:
                 admission_request = session.scalars(
@@ -224,7 +223,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.success(data={"id": admission_request.id})
 
     @permissions(["Upload data"])
-    def patch(self, admission_request_id):
+    def patch(self, admission_request_id: int):
         """
         ---
         summary: Update a group admission request status
@@ -292,7 +291,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, admission_request_id):
+    def delete(self, admission_request_id: int):
         """
         ---
         summary: Delete a group admission request

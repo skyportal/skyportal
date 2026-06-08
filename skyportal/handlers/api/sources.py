@@ -374,17 +374,19 @@ def create_annotation_query(
 
 def get_localization(localization_dateobs, localization_name, session):
     startTime = time.time()
+    if isinstance(localization_dateobs, str):
+        localization_dateobs = arrow.get(localization_dateobs).naive
     localization_dateobs_str = localization_dateobs.strftime("%Y-%m-%d %H:%M:%S")
     if localization_name is None:
         localization_id = session.scalars(
             sa.select(Localization.id)
-            .where(Localization.dateobs == localization_dateobs_str)
+            .where(Localization.dateobs == localization_dateobs)
             .order_by(Localization.created_at.desc())
         ).first()
     else:
         localization_id = session.scalars(
             sa.select(Localization.id)
-            .where(Localization.dateobs == localization_dateobs_str)
+            .where(Localization.dateobs == localization_dateobs)
             .where(Localization.localization_name == localization_name)
             .order_by(Localization.modified.desc())
         ).first()
@@ -1474,7 +1476,7 @@ async def get_sources(
         # GCN
         if localization_dateobs is not None:
             try:
-                localization_dateobs = arrow.get(localization_dateobs).datetime
+                localization_dateobs = arrow.get(localization_dateobs).naive
                 localization_cumprob = float(localization_cumprob)
                 localization_id, partition = get_localization(
                     localization_dateobs,

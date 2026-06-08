@@ -31,7 +31,7 @@ def check_list_name(name):
 
 class UserObjListHandler(BaseHandler):
     @auth_or_token
-    def get(self, user_id=None):
+    def get(self, user_id: int | None = None):
         """
         ---
         summary: Get user object listings
@@ -66,6 +66,11 @@ class UserObjListHandler(BaseHandler):
 
         if user_id is None:
             user_id = self.associated_user_object.id
+        else:
+            try:
+                user_id = int(user_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid user_id {user_id}")
 
         list_name = self.get_query_argument("listName", None)
 
@@ -237,7 +242,7 @@ class UserObjListHandler(BaseHandler):
             return self.success(data={"id": listing.id})
 
     @auth_or_token
-    def patch(self, listing_id):
+    def patch(self, listing_id: int):
         """
         ---
         summary: Update a listing
@@ -337,7 +342,7 @@ class UserObjListHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, listing_id=None):
+    def delete(self, listing_id: int | None = None):
         """
         ---
         summary: Remove a listing

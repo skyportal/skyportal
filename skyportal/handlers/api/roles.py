@@ -40,7 +40,7 @@ class RoleHandler(BaseHandler):
 
 class UserRoleHandler(BaseHandler):
     @permissions(["Manage users"])
-    def post(self, user_id, *ignored_args):
+    def post(self, user_id: int, *ignored_args):
         """
         ---
         summary: Grant new Role(s) to a user
@@ -110,7 +110,7 @@ class UserRoleHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, user_id, role_id):
+    def delete(self, user_id: int, role_id: str):
         """
         ---
         summary: Delete user role

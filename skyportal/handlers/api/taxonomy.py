@@ -14,7 +14,7 @@ _, cfg = load_env()
 
 class TaxonomyHandler(BaseHandler):
     @auth_or_token
-    def get(self, taxonomy_id=None):
+    def get(self, taxonomy_id: int | None = None):
         """
         ---
         single:
@@ -55,6 +55,10 @@ class TaxonomyHandler(BaseHandler):
 
         with self.Session() as session:
             if taxonomy_id is not None:
+                try:
+                    taxonomy_id = int(taxonomy_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid taxonomy_id: {taxonomy_id}")
                 taxonomy = Taxonomy.get_taxonomy_usable_by_user(
                     taxonomy_id,
                     self.current_user,
@@ -255,7 +259,7 @@ class TaxonomyHandler(BaseHandler):
             return self.success(data={"taxonomy_id": taxonomy.id})
 
     @permissions(["Post taxonomy"])
-    def put(self, taxonomy_id):
+    def put(self, taxonomy_id: int):
         """
         ---
         summary: Update a taxonomy
@@ -323,7 +327,7 @@ class TaxonomyHandler(BaseHandler):
             return self.success()
 
     @permissions(["Delete taxonomy"])
-    def delete(self, taxonomy_id):
+    def delete(self, taxonomy_id: int):
         """
         ---
         summary: Delete a taxonomy

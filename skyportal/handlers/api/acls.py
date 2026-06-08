@@ -36,7 +36,7 @@ class ACLHandler(BaseHandler):
 
 class UserACLHandler(BaseHandler):
     @permissions(["Manage users"])
-    def post(self, user_id, *ignored_args):
+    def post(self, user_id: int, *ignored_args):
         """
         ---
         summary: Grant ACLs to a user
@@ -102,7 +102,7 @@ class UserACLHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, user_id, acl_id):
+    def delete(self, user_id: int, acl_id: str):
         """
         ---
         summary: Remove ACL from a user

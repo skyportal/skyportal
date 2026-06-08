@@ -13,9 +13,11 @@ from ...models import (
     Group,
     Obj,
     SourceLabel,
+    SuperObj,
     Taxonomy,
     User,
 )
+from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -162,7 +164,7 @@ def post_classification(data, user_id, session):
 
 class ClassificationHandler(BaseHandler):
     @auth_or_token
-    def get(self, classification_id=None):
+    def get(self, classification_id: int | None = None):
         """
         ---
         single:
@@ -299,12 +301,12 @@ class ClassificationHandler(BaseHandler):
             classifications = Classification.select(session.user_or_token)
 
             if start_date:
-                start_date = str(arrow.get(start_date.strip()).datetime)
+                start_date = arrow.get(start_date.strip()).naive
                 classifications = classifications.where(
                     Classification.created_at >= start_date
                 )
             if end_date:
-                end_date = str(arrow.get(end_date.strip()).datetime)
+                end_date = arrow.get(end_date.strip()).naive
                 classifications = classifications.where(
                     Classification.created_at <= end_date
                 )
@@ -353,7 +355,7 @@ class ClassificationHandler(BaseHandler):
                   taxonomy_id:
                     type: integer
                   probability:
-                    type: float
+                    type: number
                     nullable: true
                     minimum: 0.0
                     maximum: 1.0
@@ -424,7 +426,7 @@ class ClassificationHandler(BaseHandler):
                 return self.success(data={"classification_id": classification_id})
 
     @permissions(["Classify"])
-    def put(self, classification_id):
+    def put(self, classification_id: int):
         """
         ---
         summary: Update a classification
@@ -523,7 +525,7 @@ class ClassificationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Classify"])
-    def delete(self, classification_id):
+    def delete(self, classification_id: int):
         """
         ---
         summary: Delete a classification
@@ -607,7 +609,7 @@ class ClassificationHandler(BaseHandler):
 
 class ObjClassificationHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    def get(self, obj_id: str):
         """
         ---
         summary: Get an object's classifications
@@ -621,6 +623,15 @@ class ObjClassificationHandler(BaseHandler):
             required: true
             schema:
               type: string
+          - in: query
+            name: includeSuperObjs
+            required: false
+            schema:
+              type: boolean
+            description: |
+              If true and the obj is linked to other objs via a SuperObj
+              (meta-object), return the union of classifications across all
+              linked objs. Each entry carries its obj_id for provenance.
         responses:
           200:
             content:
@@ -631,17 +642,41 @@ class ObjClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        include_super_objs = str_to_bool(
+            self.get_query_argument("includeSuperObjs", "false"), default=False
+        )
 
         with self.Session() as session:
+            # Meta-object aggregation: expand to every obj linked through a
+            # SuperObj (mirrors the photometry SuperObjs aggregation). RLS is
+            # preserved because Classification.select(user) filters per-row, so
+            # entries on a linked obj the user cannot read are excluded.
+            obj_ids = {obj_id}
+            if include_super_objs:
+                super_objs = (
+                    session.scalars(
+                        sa.select(SuperObj).where(SuperObj.objs.any(Obj.id == obj_id))
+                    )
+                    .unique()
+                    .all()
+                )
+                for super_obj in super_objs:
+                    obj_ids.update({linked_obj.id for linked_obj in super_obj.objs})
+
             classifications = (
                 session.scalars(
                     Classification.select(session.user_or_token).where(
-                        Classification.obj_id == obj_id
+                        Classification.obj_id.in_(obj_ids)
                     )
                 )
                 .unique()
                 .all()
             )
+            if include_super_objs:
+                # Most-recent-first across the union; obj_id preserves provenance.
+                classifications = sorted(
+                    classifications, key=lambda c: c.created_at, reverse=True
+                )
 
             classifications_json = []
             for classification in classifications:
@@ -654,7 +689,7 @@ class ObjClassificationHandler(BaseHandler):
             return self.success(data=classifications_json)
 
     @auth_or_token
-    def delete(self, obj_id):
+    def delete(self, obj_id: str):
         """
         ---
         summary: Delete all classifications for an object
@@ -794,12 +829,12 @@ class ObjClassificationQueryHandler(BaseHandler):
             classifications = Classification.select(session.user_or_token)
 
             if start_date:
-                start_date = str(arrow.get(start_date.strip()).datetime)
+                start_date = arrow.get(start_date.strip()).naive
                 classifications = classifications.where(
                     Classification.created_at >= start_date
                 )
             if end_date:
-                end_date = str(arrow.get(end_date.strip()).datetime)
+                end_date = arrow.get(end_date.strip()).naive
                 classifications = classifications.where(
                     Classification.created_at <= end_date
                 )
@@ -816,7 +851,7 @@ class ObjClassificationQueryHandler(BaseHandler):
 
 class ClassificationVotesHandler(BaseHandler):
     @auth_or_token
-    def post(self, classification_id):
+    def post(self, classification_id: int):
         """
         ---
         summary: Vote for a classification
@@ -908,7 +943,7 @@ class ClassificationVotesHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, classification_id):
+    def delete(self, classification_id: int):
         """
         ---
         summary: Delete a classification vote

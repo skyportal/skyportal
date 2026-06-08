@@ -221,7 +221,11 @@ def post_aliases(dateobs, tach_id, user_id):
     try:
         flow = Flow()
         user = session.scalars(sa.select(User).where(User.id == user_id)).first()
-        stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        if isinstance(dateobs, str):
+            dateobs_parsed = arrow.get(dateobs).naive
+        else:
+            dateobs_parsed = dateobs
+        stmt = GcnEvent.select(user).where(GcnEvent.dateobs == dateobs_parsed)
         gcn_event = session.scalars(stmt).first()
         if gcn_event is None:
             return
@@ -264,7 +268,7 @@ def post_aliases(dateobs, tach_id, user_id):
 
 class GcnTachHandler(BaseHandler):
     @permissions(["Manage GCNs"])
-    def post(self, dateobs):
+    def post(self, dateobs: str):
         """
         ---
         summary: Retrieve GCN Event aliases from TACH
@@ -291,7 +295,7 @@ class GcnTachHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the GcnEvent
           400:
             content:
@@ -299,13 +303,13 @@ class GcnTachHandler(BaseHandler):
                 schema: Error
         """
         try:
-            arrow.get(dateobs).datetime
+            dateobs_parsed = arrow.get(dateobs).naive
         except Exception:
             return self.error(f"Invalid dateobs: {dateobs}")
         try:
             with self.Session() as session:
                 stmt = GcnEvent.select(session.user_or_token).where(
-                    GcnEvent.dateobs == dateobs
+                    GcnEvent.dateobs == dateobs_parsed
                 )
                 gcn_event = session.scalars(stmt).first()
                 if gcn_event is None:
@@ -337,16 +341,16 @@ class GcnTachHandler(BaseHandler):
             return self.error(f"Error scraping aliases: {e}")
 
     @auth_or_token
-    def get(self, dateobs):
+    def get(self, dateobs: str):
         # gets the circulars and aliases of a GCN event
         try:
-            arrow.get(dateobs).datetime
+            dateobs_parsed = arrow.get(dateobs).naive
         except Exception:
             return self.error(f"Invalid dateobs: {dateobs}")
         try:
             with self.Session() as session:
                 stmt = GcnEvent.select(session.user_or_token).where(
-                    GcnEvent.dateobs == dateobs
+                    GcnEvent.dateobs == dateobs_parsed
                 )
                 gcn_event = session.scalars(stmt).first()
                 if gcn_event is None:

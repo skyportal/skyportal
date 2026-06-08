@@ -1,0 +1,366 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useEffect, useMemo, useState } from "react";
+import Select from "@mui/material/Select";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
+import CircularProgress from "@mui/material/CircularProgress";
+import { makeStyles } from "tss-react/mui";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
+
+import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
+import { useGetAnalysisServicesQuery } from "../../ducks/analysis_services";
+import { useStartAnalysisMutation } from "../../ducks/source";
+import GroupShareSelect from "../group/GroupShareSelect";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
+
+const useStyles = makeStyles()(() => ({
+  chips: {
+    display: "flex",
+    flexWrap: "wrap",
+  },
+  chip: {
+    margin: 2,
+  },
+  marginTop: {
+    marginTop: "1rem",
+  },
+  Select: {
+    width: "100%",
+  },
+  SelectItem: {
+    whiteSpace: "break-spaces",
+  },
+  container: {
+    width: "99%",
+    marginBottom: "1rem",
+    "& > *": {
+      marginTop: "1rem",
+      marginBottom: "1rem",
+    },
+  },
+}));
+
+interface AnalysisFormProps {
+  obj_id: string;
+}
+
+const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
+  const { classes } = useStyles();
+  const [startAnalysis] = useStartAnalysisMutation();
+
+  const { data: photometry } = useFetchSourcePhotometryQuery({ id: obj_id });
+  const { data: analysisServiceListData } = useGetAnalysisServicesQuery();
+  const analysisServiceList = useMemo(
+    () => analysisServiceListData ?? [],
+    [analysisServiceListData],
+  );
+  const uniqueNames = [
+    ...new Set(analysisServiceList.map((item: any) => item.name)),
+  ];
+  const uniqueAnalysisServiceList = uniqueNames.map((name) =>
+    analysisServiceList.find((item: any) => item.name === name),
+  );
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
+  const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
+    useState<any>(null);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const groupLookUp: Record<string, any> = {};
+
+  allGroups?.forEach((group: any) => {
+    groupLookUp[group.id] = group;
+  });
+
+  const analysisServiceLookUp: Record<string, any> = {};
+
+  analysisServiceList?.forEach((analysisService: any) => {
+    analysisServiceLookUp[analysisService.id] = analysisService;
+  });
+
+  useEffect(() => {
+    if (selectedAnalysisServiceId == null && analysisServiceList.length > 0) {
+      setSelectedAnalysisServiceId(analysisServiceList[0]?.id);
+    }
+  }, [analysisServiceList, selectedAnalysisServiceId]);
+
+  if (
+    !allGroups ||
+    allGroups.length === 0 ||
+    !analysisServiceList ||
+    analysisServiceList.length === 0 ||
+    !selectedAnalysisServiceId
+  ) {
+    return null;
+  }
+
+  const handleSubmit = async ({ formData }: { formData: any }) => {
+    setIsSubmitting(true);
+    const analysis_parameters = {
+      ...formData,
+    };
+
+    delete analysis_parameters.show_parameters;
+    delete analysis_parameters.show_plots;
+    delete analysis_parameters.show_corner;
+
+    const input_filters: Record<string, any> = {};
+    if (
+      (
+        analysisServiceLookUp[selectedAnalysisServiceId]?.input_data_types || []
+      ).includes("photometry")
+    ) {
+      input_filters["photometry"] = {};
+      if (analysis_parameters.input_filters_photometry_filters) {
+        delete analysis_parameters.input_filters_photometry_filters;
+        input_filters["photometry"].filters =
+          formData.input_filters_photometry_filters;
+      }
+      if (analysis_parameters.input_filters_photometry_instruments) {
+        delete analysis_parameters.input_filters_photometry_instruments;
+        input_filters["photometry"].instruments =
+          formData.input_filters_photometry_instruments;
+      }
+    }
+
+    const params: Record<string, any> = {
+      show_parameters: formData.show_parameters,
+      show_plots: formData.show_plots,
+      show_corner: formData.show_corner,
+      analysis_parameters,
+      input_filters,
+    };
+
+    if (formData.filters) {
+      params["photometry_filters"] = formData.filters;
+    }
+    if (formData.instruments) {
+      params["photometry_instruments"] = formData.instruments;
+    }
+
+    if (selectedGroupIds.length >= 0) {
+      params["group_ids"] = selectedGroupIds;
+    }
+    await startAnalysis({
+      id: obj_id,
+      analysis_service_id: selectedAnalysisServiceId,
+      formData: params,
+    });
+    setIsSubmitting(false);
+  };
+
+  const handleSelectedAnalysisServiceChange = (e: any) => {
+    setSelectedAnalysisServiceId(e.target.value);
+  };
+
+  const OptionalParameters: Record<string, any> = {};
+  const RequiredParameters: any[] = [];
+  if (
+    analysisServiceLookUp[selectedAnalysisServiceId]
+      ?.optional_analysis_parameters
+  ) {
+    const keys = Object.keys(
+      analysisServiceLookUp[selectedAnalysisServiceId]
+        .optional_analysis_parameters,
+    );
+    keys.forEach((key) => {
+      const params =
+        analysisServiceLookUp[selectedAnalysisServiceId]
+          ?.optional_analysis_parameters[key];
+
+      if (Array.isArray(params)) {
+        if (["True", "False"].every((val) => params.includes(val))) {
+          OptionalParameters[key] = { type: "boolean" };
+        } else {
+          OptionalParameters[key] = { type: "string", enum: params };
+          RequiredParameters.push(key);
+        }
+      } else if (typeof params === "object") {
+        if (params?.type === "number") {
+          OptionalParameters[key] = {
+            type: "number",
+            title: key,
+          };
+        } else if (params?.type === "file") {
+          OptionalParameters[key] = {
+            type: "string",
+            format: "data-url",
+            title: key,
+            description: key, // we set a description by default for file as the title doesn't show up in the rjsf form
+          };
+        } else if (params?.type === "string") {
+          OptionalParameters[key] = {
+            type: "string",
+            title: key,
+          };
+        }
+
+        if (params?.default) {
+          OptionalParameters[key].default = params.default;
+        }
+
+        if (params?.description) {
+          OptionalParameters[key].description = params.description;
+        }
+
+        if (params?.title) {
+          OptionalParameters[key].title = params.title;
+        }
+
+        if (params?.required) {
+          if (["True", "true", "t"].includes(params.required)) {
+            RequiredParameters.push(key);
+          }
+        }
+      } else {
+        OptionalParameters[key] = { type: "string", enum: params };
+        RequiredParameters.push(key);
+      }
+    });
+    if (
+      (
+        analysisServiceLookUp[selectedAnalysisServiceId]?.input_data_types || []
+      ).includes("photometry") &&
+      photometry
+    ) {
+      const filters: any[] = [];
+      const instrumentLookUp: Record<string, any> = {};
+      photometry.forEach((photometryData: any) => {
+        const { filter } = photometryData;
+        if (filter && !filters.includes(filter)) {
+          filters.push(filter);
+        }
+
+        const { instrument_name, instrument_id } = photometryData;
+        if (
+          instrument_name &&
+          instrument_id &&
+          !instrumentLookUp[instrument_id]
+        ) {
+          instrumentLookUp[instrument_id] = instrument_name;
+        }
+      });
+
+      // transform the instrumentLookUp into an array of objects
+      const instruments = Object.keys(instrumentLookUp).map(
+        (instrument_id) => ({
+          const: parseInt(instrument_id, 10),
+          title: instrumentLookUp[instrument_id],
+        }),
+      );
+
+      OptionalParameters["input_filters_photometry_filters"] = {
+        type: "array",
+        title: "Filters to include (optional)",
+        items: {
+          type: "string",
+          anyOf: filters.map((filter: any) => ({
+            const: filter,
+            title: filter,
+          })),
+        },
+        uniqueItems: true,
+      };
+
+      OptionalParameters["input_filters_photometry_instruments"] = {
+        type: "array",
+        title: "Instruments to include (optional)",
+        items: {
+          type: "integer",
+          anyOf: instruments,
+        },
+        uniqueItems: true,
+      };
+    }
+  }
+
+  const AnalysisSelectionFormSchema = {
+    type: "object",
+    properties: {
+      ...OptionalParameters,
+      show_parameters: {
+        type: "boolean",
+        title: "Show Parameters",
+        description: "Whether to render the parameters of this analysis",
+        default: true,
+      },
+      show_plots: {
+        type: "boolean",
+        title: "Show Plots",
+        description: "Whether to render the plots of this analysis",
+        default: true,
+      },
+      show_corner: {
+        type: "boolean",
+        title: "Show Corner",
+        description: "Whether to render the corner of this analysis",
+        default: true,
+      },
+    },
+    required: ["show_parameters", "show_plots", "show_corner"].concat(
+      RequiredParameters,
+    ),
+  };
+
+  return (
+    <div className={classes.container}>
+      <div>
+        <InputLabel id="analysisServiceSelectLabel">
+          Start New Analysis
+        </InputLabel>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="analysisServiceSelectLabel"
+          value={selectedAnalysisServiceId || ""}
+          onChange={handleSelectedAnalysisServiceChange}
+          name="analysisServiceSelect"
+          data-testid="analysisServiceSelect"
+          className={classes.Select}
+        >
+          {uniqueAnalysisServiceList?.map(
+            (analysisService: any) =>
+              analysisService.display_on_resource_dropdown !== false && (
+                <MenuItem
+                  value={analysisService.id}
+                  key={analysisService.id}
+                  className={classes.SelectItem}
+                >
+                  {analysisService.name}
+                </MenuItem>
+              ),
+          )}
+        </Select>
+      </div>
+      <GroupShareSelect
+        groupList={allGroups}
+        setGroupIDs={setSelectedGroupIds}
+        groupIDs={selectedGroupIds}
+      />
+      <div data-testid="analysis-service-request-form">
+        <div>
+          <Form
+            schema={AnalysisSelectionFormSchema as any}
+            validator={validator}
+            onSubmit={handleSubmit as any}
+            disabled={isSubmitting}
+            liveValidate
+          />
+        </div>
+        {isSubmitting && (
+          <div className={classes.marginTop}>
+            <CircularProgress />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default AnalysisForm;

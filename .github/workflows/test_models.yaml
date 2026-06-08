@@ -7,6 +7,11 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  # Cancel superseded runs on PRs, but let main runs finish (per-commit status).
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   test-models:
     if: github.event.pull_request.draft == false
@@ -35,6 +40,9 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
+          # Pull the skyportal-data submodule's LFS payload (SFD dust maps);
+          # bandpasses are plain git and come down with the submodule itself.
+          lfs: true
 
       - name: Cache dependencies
         uses: ./.github/actions/cache-dependencies
@@ -54,9 +62,9 @@ jobs:
           node-version: "22.x"
           package-manager-cache: false
 
-      - uses: browser-actions/setup-geckodriver@latest
+      - uses: oven-sh/setup-bun@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          bun-version-file: package.json
 
       - name: Write SkyPortal configs
         run: |
@@ -80,28 +88,28 @@ jobs:
             server:
               auth:
                 debug_login: True
+
+            # Same SEDM short-circuit as the repo's test_config.yaml — we
+            # overwrite that file with this heredoc, so the override has to
+            # be repeated here or the demo loader's followup_request POSTs
+            # will fall through to the live STScI endpoint and time out.
+            app:
+              sedm_endpoint:
           EOF
 
       - name: Install system dependencies
         run: |
           sudo apt update -y
-
-          ### firefox installation
-          sudo snap remove firefox
-          sudo add-apt-repository ppa:mozillateam/ppa
-          printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001' | sudo tee /etc/apt/preferences.d/mozilla-firefox
-
-          sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
+          sudo apt install -y wget unzip nginx libcurl4-gnutls-dev libgnutls28-dev
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
           which python; python --version
-          echo npm $(npm --version)
+          echo bun $(bun --version)
           echo node $(node --version)
           nginx -v
-          firefox --version
 
       - name: Initialize SkyPortal
         run: |
@@ -122,7 +130,7 @@ jobs:
           uv sync --inexact --group dev
           make db_init
 
-          npm ls --depth 0 || true
+          bun pm ls || true
 
       - name: Refresh SkyPortal dependencies for tested version
         run: |
@@ -135,10 +143,13 @@ jobs:
         run: |
           uvx pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
+      - name: Save dependency caches
+        uses: ./.github/actions/cache-dependencies-save
+
       - name: Test loading demo data
         run: |
-          make run &
-          sleep 180 && make load_demo_data
+          FLAGS="--config=test_config.yaml" make run &
+          sleep 180 && FLAGS="--config=test_config.yaml" make load_demo_data
           make stop
           kill %1 2>/dev/null || true
           sleep 5

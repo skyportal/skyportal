@@ -10,6 +10,12 @@ ports:
 
 server:
   port: 5000 # external facing port, edit this if you want to expose the app on a different port
+  # Tests run serially (no xdist), so extra app processes buy no concurrency and
+  # just contend for the 2 vCPUs of the CI runner alongside Postgres, the
+  # microservices and Firefox. Keep the process count small to reduce CPU/memory
+  # starvation (which otherwise shows up as nginx 504s and 30s+ UI timeouts).
+  processes: 2
+  dedicated_frontend_processes: 1
   auth:
     debug_login: True
     google_oauth2_key:
@@ -73,6 +79,10 @@ services:
     - external_publishing_submission_queue
     - watch_list
     - ngsf_analysis_service
+    # No tests exercise these; skip them to free CPU/RAM on the CI runner.
+    - gcn_service
+    - pdl_service
+    - hermes_skyportal_sync
 test_server:
   port: 64502
   smtp_port: 64503
@@ -116,12 +126,21 @@ app:
     host: localhost
     port: 64502
   ps1_endpoint: http://localhost:64502
+  # No live SEDM endpoint in tests — SEDMAPI short-circuits the HTTP call
+  # and returns a stub "accepted" response when this is empty.
+  sedm_endpoint:
+  # No live PS1 cutout service in tests — Obj.panstarrs_url falls back to
+  # the "currently_unavailable.png" placeholder without hitting the network.
+  ps1_cutout_url:
 
   observation_plan:
     default_filters: ["ztfg", "ztfr", "ztfi"]
     use_skyportal_fields: True
-    use_parallel: True
-    Ncores: 2
+    # Serial generation in CI: parallel plan generation spawns Ncores CPU-bound
+    # workers that peg the 2-vCPU runner and starve the app server (504s /
+    # timeouts) during observation-plan and gcn-summary tests.
+    use_parallel: False
+    Ncores: 1
 
 analysis_services:
   analysis_folder: analysis_data

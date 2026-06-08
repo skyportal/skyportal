@@ -1,10 +1,10 @@
 __all__ = ["SourceView"]
 
-from datetime import datetime
-
 import sqlalchemy as sa
 
 from baselayer.app.models import Base
+
+from ..utils.naive_datetime import utcnow_naive
 
 
 class SourceView(Base):
@@ -34,7 +34,7 @@ class SourceView(Base):
     created_at = sa.Column(
         sa.DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=utcnow_naive,
         index=True,
         doc="UTC timestamp of the view.",
     )

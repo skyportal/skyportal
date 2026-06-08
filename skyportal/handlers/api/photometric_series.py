@@ -725,11 +725,7 @@ class PhotometricSeriesHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New photometric series ID
+                          $ref: '#/components/schemas/PhotometricSeries'
         """
         json_data = self.get_json()
         data = json_data.pop("data", None)
@@ -781,7 +777,7 @@ class PhotometricSeriesHandler(BaseHandler):
             " " * 10,
         ).lstrip()
     )
-    def patch(self, photometric_series_id):
+    def patch(self, photometric_series_id: int):
         """
         ---
         summary: Update a photometric series.
@@ -815,11 +811,7 @@ class PhotometricSeriesHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New photometric series ID
+                          $ref: '#/components/schemas/PhotometricSeries'
         """
         with self.Session() as session:
             ps = session.scalars(
@@ -865,7 +857,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
-    def get(self, photometric_series_id=None):
+    def get(self, photometric_series_id: int | None = None):
         """
         ---
         single:
@@ -896,7 +888,13 @@ class PhotometricSeriesHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SinglePhotometricSeries
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            $ref: '#/components/schemas/PhotometricSeries'
         multiple:
           summary: Retrieve multiple photometric series
           description: Retrieve all photometric series, based on various cuts.
@@ -950,7 +948,7 @@ class PhotometricSeriesHandler(BaseHandler):
               name: rejectedObjectIDs
               nullable: true
               schema:
-                type: str
+                type: string
               description: |
                 Comma-separated string of object IDs not to be returned,
                 useful in cases where you are looking for new objects passing a query.
@@ -1330,9 +1328,7 @@ class PhotometricSeriesHandler(BaseHandler):
                             type: object
                             properties:
                               series:
-                                type: array
-                                items:
-                                  $ref: '#/components/schemas/PhotometricSeries'
+                                $ref: '#/components/schemas/ArrayOfPhotometricSeriess'
                               totalMatches:
                                 type: integer
                               pageNumber:
@@ -1451,7 +1447,9 @@ class PhotometricSeriesHandler(BaseHandler):
         if series_obj_id:
             stmt = stmt.where(PhotometricSeries.series_obj_id == series_obj_id.strip())
         if filter:
-            stmt = stmt.where(PhotometricSeries.filter == filter)
+            # psycopg3 strict-binds the string against the enum column; cast
+            # explicitly so the comparison binds as the enum type.
+            stmt = stmt.where(sa.cast(PhotometricSeries.filter, sa.String) == filter)
         if channel:
             stmt = stmt.where(PhotometricSeries.channel == channel)
         if origin:
@@ -1808,11 +1806,16 @@ class PhotometricSeriesHandler(BaseHandler):
                 # sorting enums is done by default using their order in the original
                 # definition, which is not alphabetical order (which is what the user expects)
                 # ref: https://stackoverflow.com/a/23618085
+                # Cast the enum column to String for the case() value mapping
+                # — psycopg3 won't implicitly compare bandpasses to varchar.
                 whens = {
                     name: name
                     for name in getattr(PhotometricSeries, sort_by).type.enums
                 }
-                order_by_column = case(whens, value=getattr(PhotometricSeries, sort_by))
+                order_by_column = case(
+                    whens,
+                    value=sa.cast(getattr(PhotometricSeries, sort_by), sa.String),
+                )
             else:
                 order_by_column = getattr(PhotometricSeries, sort_by)
         except AttributeError:
@@ -1866,7 +1869,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data=results)
 
     @permissions(["Upload data"])
-    def delete(self, photometric_series_id):
+    def delete(self, photometric_series_id: int):
         """
         ---
         summary: Delete a photometric series

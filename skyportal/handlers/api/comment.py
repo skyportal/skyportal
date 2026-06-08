@@ -142,9 +142,27 @@ def instruments_mentioned(text, session):
     return users
 
 
+def _coerce_comment_resource_id(associated_resource_type, resource_id):
+    """For comments, sources use a string obj_id; everything else uses an
+    integer id. Returns the coerced value or None on parse failure (which
+    only applies to the integer cases).
+    """
+    if associated_resource_type.lower() == "sources":
+        return resource_id
+    try:
+        return int(resource_id)
+    except (TypeError, ValueError):
+        return None
+
+
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id=None, comment_id=None):
+    def get(
+        self,
+        associated_resource_type: str,
+        resource_id: str = None,
+        comment_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -272,7 +290,12 @@ class CommentHandler(BaseHandler):
 
                 stmt = table.select(session.user_or_token)
                 if resource_id is not None:
-                    stmt = stmt.where(getattr(table, resource_id_col) == resource_id)
+                    coerced = _coerce_comment_resource_id(
+                        associated_resource_type, resource_id
+                    )
+                    if coerced is None:
+                        return self.error(f"Invalid resource_id: {resource_id}")
+                    stmt = stmt.where(getattr(table, resource_id_col) == coerced)
                 if text is not None:
                     stmt = stmt.where(
                         table.text.ilike(f"%{str(text).lower()}%")
@@ -399,13 +422,13 @@ class CommentHandler(BaseHandler):
                 end = time.time()
                 duration = end - start
                 log(
-                    f"User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds"
+                    f"User {self.associated_user_object.id} comment query returned {query_size} bytes in {duration} seconds"
                 )
 
             return self.success(data=comment_data)
 
     @permissions(["Comment"])
-    def post(self, associated_resource_type, resource_id, *ignore_args):
+    def post(self, associated_resource_type: str, resource_id: str, *ignore_args):
         """
         ---
         summary: Post a comment
@@ -469,11 +492,7 @@ class CommentHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            comment_id:
-                              type: integer
-                              description: New comment ID
+                          $ref: '#/components/schemas/Comment'
         """
         data = self.get_json()
 
@@ -547,7 +566,10 @@ class CommentHandler(BaseHandler):
                             bot=is_bot_request,
                         )
                 elif associated_resource_type.lower() == "spectra":
-                    spectrum_id = resource_id
+                    try:
+                        spectrum_id = int(resource_id)
+                    except (TypeError, ValueError):
+                        return self.error(f"Invalid spectrum id: {resource_id}")
                     spectrum = session.scalars(
                         Spectrum.select(session.user_or_token).where(
                             Spectrum.id == spectrum_id
@@ -583,7 +605,10 @@ class CommentHandler(BaseHandler):
                         )
 
                 elif associated_resource_type.lower() == "gcn_event":
-                    gcnevent_id = resource_id
+                    try:
+                        gcnevent_id = int(resource_id)
+                    except (TypeError, ValueError):
+                        return self.error(f"Invalid gcn event id: {resource_id}")
                     gcn_event = session.scalars(
                         GcnEvent.select(session.user_or_token).where(
                             GcnEvent.id == gcnevent_id
@@ -617,7 +642,10 @@ class CommentHandler(BaseHandler):
                             bot=is_bot_request,
                         )
                 elif associated_resource_type.lower() == "earthquake":
-                    earthquake_id = resource_id
+                    try:
+                        earthquake_id = int(resource_id)
+                    except (TypeError, ValueError):
+                        return self.error(f"Invalid earthquake id: {resource_id}")
                     earthquake = session.scalars(
                         EarthquakeEvent.select(session.user_or_token).where(
                             EarthquakeEvent.id == earthquake_id
@@ -651,7 +679,10 @@ class CommentHandler(BaseHandler):
                             bot=is_bot_request,
                         )
                 elif associated_resource_type.lower() == "shift":
-                    shift_id = resource_id
+                    try:
+                        shift_id = int(resource_id)
+                    except (TypeError, ValueError):
+                        return self.error(f"Invalid shift id: {resource_id}")
                     shift = session.scalars(
                         Shift.select(session.user_or_token).where(Shift.id == shift_id)
                     ).first()
@@ -830,7 +861,7 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
-    def put(self, associated_resource_type, resource_id, comment_id):
+    def put(self, associated_resource_type: str, resource_id: str, comment_id: int):
         """
         ---
         summary: Update a comment
@@ -882,17 +913,18 @@ class CommentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Comment'
           400:
             content:
               application/json:
                 schema: Error
         """
-
-        try:
-            comment_id = int(comment_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) comment ID. ")
 
         with self.Session() as session:
             try:
@@ -1051,7 +1083,7 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
-    def delete(self, associated_resource_type, resource_id, comment_id):
+    def delete(self, associated_resource_type: str, resource_id: str, comment_id: int):
         """
         ---
         summary: Delete a comment
@@ -1090,11 +1122,6 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-
-        try:
-            comment_id = int(comment_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) comment ID.")
 
         with self.Session() as session:
             if associated_resource_type.lower() == "sources":
@@ -1208,7 +1235,7 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, comment_id):
+    def get(self, associated_resource_type: str, resource_id: str, comment_id: int):
         """
         ---
         summary: Download/Preview comment attachment
@@ -1278,11 +1305,6 @@ class CommentAttachmentHandler(BaseHandler):
                               description: The attachment file contents decoded as a string
 
         """
-        try:
-            comment_id = int(comment_id)
-        except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) comment ID. ")
-
         download = self.get_query_argument("download", True)
         preview = self.get_query_argument("preview", False)
 

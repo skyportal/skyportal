@@ -176,6 +176,10 @@ class InstrumentHandler(BaseHandler):
         """
         data = self.get_json()
         telescope_id = data.get("telescope_id")
+        try:
+            telescope_id = int(telescope_id) if telescope_id is not None else None
+        except (TypeError, ValueError):
+            return self.error(f"Invalid telescope_id: {telescope_id}")
         with self.Session() as session:
             stmt = Telescope.select(session.user_or_token).filter(
                 Telescope.id == telescope_id
@@ -350,7 +354,7 @@ class InstrumentHandler(BaseHandler):
             return self.success(data={"id": instrument.id})
 
     @auth_or_token
-    async def get(self, instrument_id=None):
+    async def get(self, instrument_id: int | None = None):
         """
         ---
         single:
@@ -476,8 +480,20 @@ class InstrumentHandler(BaseHandler):
         ignore_cache = self.get_query_argument("ignoreCache", False)
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
         airmass_time = self.get_query_argument("airmassTime", None)
+
+        # Parse localization_dateobs into a naive datetime so psycopg3 can bind
+        # the Localization.dateobs (DateTime) comparison correctly.
+        if localization_dateobs is not None:
+            try:
+                localization_dateobs = arrow.get(localization_dateobs).naive
+            except Exception:
+                return self.error(
+                    f"Invalid date format for localizationDateobs: '{localization_dateobs}'."
+                )
 
         if airmass_time is None:
             if localization_dateobs is not None:
@@ -485,7 +501,7 @@ class InstrumentHandler(BaseHandler):
                     airmass_time = Time(arrow.get(localization_dateobs).datetime)
                 except Exception:
                     return self.error(
-                        f"Invalid date format for localizationDateobs: '{localization_dateobs}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
+                        f"Invalid date format for localizationDateobs: '{localization_dateobs}'."
                     )
         else:
             try:
@@ -740,7 +756,7 @@ class InstrumentHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Manage instruments"])
-    def put(self, instrument_id):
+    def put(self, instrument_id: int):
         """
         ---
         summary: Update an instrument
@@ -761,7 +777,13 @@ class InstrumentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Instrument'
           400:
             content:
               application/json:
@@ -970,7 +992,7 @@ class InstrumentHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage instruments"])
-    def delete(self, instrument_id):
+    def delete(self, instrument_id: int):
         """
         ---
         summary: Delete an instrument
@@ -995,7 +1017,13 @@ class InstrumentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -1374,7 +1402,7 @@ def add_tiles(
 
 class InstrumentFieldHandler(BaseHandler):
     @permissions(["Manage instruments"])
-    def delete(self, instrument_id):
+    def delete(self, instrument_id: int):
         """
         ---
         summary: Delete an instrument's fields
@@ -1391,7 +1419,13 @@ class InstrumentFieldHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:

@@ -50,29 +50,7 @@ class ShiftHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New Shift
-                            name:
-                              type: string
-                              description: New Shift's name
-                            start_date:
-                              type: string
-                              description: New Shift's start date
-                            end_date:
-                              type: string
-                              description: New Shift's end date
-                            shift_admins:
-                              type: array
-                              description: New Shift's admins IDs
-                            description:
-                              type: string
-                              description: New Shift's description
-                            required_users_number:
-                              type: integer
-                              description: The number of users required to join this shift for it to be considered full
+                          $ref: '#/components/schemas/Shift'
           400:
             content:
               application/json:
@@ -118,7 +96,7 @@ class ShiftHandler(BaseHandler):
             return self.success(data={"id": shift.id})
 
     @auth_or_token
-    def get(self, shift_id=None):
+    def get(self, shift_id: int | None = None):
         """
         ---
         single:
@@ -137,7 +115,7 @@ class ShiftHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: Shift
+                  schema: SingleShift
             400:
               content:
                 application/json:
@@ -182,6 +160,10 @@ class ShiftHandler(BaseHandler):
         with self.Session() as session:
             try:
                 if shift_id is not None:
+                    try:
+                        shift_id = int(shift_id)
+                    except (TypeError, ValueError):
+                        return self.error(f"Invalid shift_id: {shift_id}")
                     shift = session.scalars(
                         Shift.select(
                             session.user_or_token,
@@ -246,7 +228,7 @@ class ShiftHandler(BaseHandler):
                     }
                     return self.success(data)
                 else:
-                    group_id = self.get_query_argument("group_id", None)
+                    group_id = self.get_query_argument("group_id", None, type=int)
                     start_date_limit = self.get_query_argument("start_date_limit", None)
                     end_date_limit = self.get_query_argument("end_date_limit", None)
 
@@ -257,9 +239,7 @@ class ShiftHandler(BaseHandler):
                         stmt = stmt.where(Shift.group_id == group_id)
                     if start_date_limit is not None:
                         try:
-                            start_date_limit = arrow.get(
-                                start_date_limit
-                            ).datetime.replace(tzinfo=None)
+                            start_date_limit = arrow.get(start_date_limit).naive
                         except ValueError:
                             return self.error(
                                 "Invalid start_date_limit; unable to parse to datetime"
@@ -267,9 +247,7 @@ class ShiftHandler(BaseHandler):
                         stmt = stmt.where(Shift.start_date >= start_date_limit)
                     if end_date_limit is not None:
                         try:
-                            end_date_limit = arrow.get(end_date_limit).datetime.replace(
-                                tzinfo=None
-                            )
+                            end_date_limit = arrow.get(end_date_limit).naive
                         except ValueError:
                             return self.error(
                                 "Invalid end_date_limit; unable to parse to datetime"
@@ -282,7 +260,7 @@ class ShiftHandler(BaseHandler):
                 return self.error(f"Failed to get shift(s): {e}")
 
     @permissions(["Manage shifts"])
-    def patch(self, shift_id):
+    def patch(self, shift_id: int):
         """
         ---
         summary: Update a shift
@@ -303,7 +281,13 @@ class ShiftHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Shift'
           400:
             content:
               application/json:
@@ -365,7 +349,7 @@ class ShiftHandler(BaseHandler):
                 return self.error(f"Could not update shift: {e}")
 
     @permissions(["Manage shifts"])
-    def delete(self, shift_id):
+    def delete(self, shift_id: int):
         """
         ---
         summary: Delete a shift
@@ -410,7 +394,7 @@ class ShiftHandler(BaseHandler):
 
 class ShiftUserHandler(BaseHandler):
     @auth_or_token
-    def post(self, shift_id, *ignored_args):
+    def post(self, shift_id: int, *ignored_args):
         """
         ---
         summary: Add a shift user
@@ -447,20 +431,7 @@ class ShiftUserHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          type: object
-                          properties:
-                            shift_id:
-                              type: integer
-                              description: Shift ID
-                            user_id:
-                              type: integer
-                              description: User ID
-                            admin:
-                              type: boolean
-                              description: Boolean indicating whether user is shift admin
-                            needs_replacement:
-                              type: boolean
-                              description: Boolean indicating whether user needs replacement or not
+                          $ref: '#/components/schemas/ShiftUser'
         """
 
         data = self.get_json()
@@ -488,11 +459,6 @@ class ShiftUserHandler(BaseHandler):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
-        try:
-            shift_id = int(shift_id)
-        except (ValueError, TypeError):
-            return self.error("Invalid shift_id parameter: unable to parse to integer")
-
         with self.Session() as session:
             shift = session.scalars(
                 Shift.select(
@@ -547,7 +513,7 @@ class ShiftUserHandler(BaseHandler):
             )
 
     @auth_or_token
-    def patch(self, shift_id, user_id):
+    def patch(self, shift_id: int, user_id: int):
         """
         ---
         summary: Update a shift user
@@ -584,7 +550,13 @@ class ShiftUserHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/ShiftUser'
         """
         data = self.get_json()
         try:
@@ -665,7 +637,7 @@ class ShiftUserHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, shift_id, user_id):
+    def delete(self, shift_id: int, user_id: int):
         """
         ---
         summary: Delete a shift user
@@ -730,7 +702,7 @@ class ShiftSummary(BaseHandler):
     """
 
     @auth_or_token
-    def get(self, shift_id=None):
+    def get(self, shift_id: int | None = None):
         """
         ---
         summary: Get a summary of a shift
@@ -773,13 +745,13 @@ class ShiftSummary(BaseHandler):
 
         if start_date is not None and end_date is not None:
             try:
-                start_date = arrow.get(start_date).datetime
-                end_date = arrow.get(end_date).datetime
+                start_date = arrow.get(start_date).naive
+                end_date = arrow.get(end_date).naive
             except ValueError:
                 return self.error("Please provide valid start_date and end_date")
             if start_date > end_date:
                 return self.error("Please provide start_date < end_date")
-            if start_date > arrow.utcnow():
+            if start_date > arrow.utcnow().naive:
                 return self.error("Please provide start_date < today")
             # if there is more than 4 weeks, we return an error
             if (end_date - start_date).days > 28:
@@ -804,6 +776,10 @@ class ShiftSummary(BaseHandler):
                     .all()
                 )
             else:
+                try:
+                    shift_id = int(shift_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid shift_id {shift_id}")
                 s = (
                     session.scalars(
                         Shift.select(
