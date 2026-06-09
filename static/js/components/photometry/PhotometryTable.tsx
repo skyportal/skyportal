@@ -362,7 +362,7 @@ const PhotometryTable = ({
     () =>
       function PhotometryTableToolbar() {
         return (
-          <DataGridToolbar showQuickFilter={false}>
+          <DataGridToolbar showQuickFilter>
             <Button
               size="small"
               startIcon={<DownloadIcon />}
