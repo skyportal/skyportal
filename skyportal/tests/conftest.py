@@ -4263,7 +4263,6 @@ def public_group_annotation_on_spectrum(public_group, public_source, user):
         instrument_id=instrument.id,
         owner_id=user.id,
         type="source",
-        groups=[public_group],
     )
     DBSession.add(spectrum)
     DBSession.commit()
@@ -4275,7 +4274,6 @@ def public_group_annotation_on_spectrum(public_group, public_source, user):
         author_id=user.id,
         origin=str(uuid.uuid4()),
         data={"value": 1.0},
-        groups=[public_group],
     )
     DBSession.add(annotation)
     DBSession.commit()
@@ -4325,7 +4323,6 @@ def public_group_comment_on_earthquake(public_group, user):
         bot=False,
         earthquake_id=earthquake_id,
         author_id=user.id,
-        groups=[public_group],
     )
     DBSession.add(comment)
     DBSession.commit()
@@ -4374,7 +4371,6 @@ def public_group_comment_on_gcn(public_group, user):
         bot=False,
         author_id=user.id,
         gcn_id=gcn_event_id,
-        groups=[public_group],
     )
     DBSession.add(comment)
     DBSession.commit()
@@ -4490,7 +4486,6 @@ def public_group_comment_on_spectrum(public_group, public_source, user):
     spectrum = SpectrumFactory(
         obj=public_source,
         groups=[public_group],
-        owner=user,
     )
     DBSession().add(spectrum)
     DBSession().commit()
@@ -4751,7 +4746,6 @@ def public_group_obj_analysis(public_group, public_source, user):
         authentication_type="none",
         analysis_type="lightcurve_fitting",
         input_data_types=[],
-        groups=[public_group],
     )
     DBSession.add(analysis_service)
     DBSession.commit()
@@ -4766,7 +4760,6 @@ def public_group_obj_analysis(public_group, public_source, user):
         analysis_service_id=analysis_service_id,
         handled_by_url="/api/webhook/obj_analysis",
         status="completed",
-        groups=[public_group],
     )
     DBSession.add(obj_analysis)
     DBSession.commit()
@@ -4890,7 +4883,7 @@ def public_group_photometric_series(user, public_source, public_group):
         .execute(
             sa.select(GroupPhotometricSeries).filter(
                 GroupPhotometricSeries.group_id == public_group.id,
-                GroupPhotometricSeries.photometricseries_id == ps_id,
+                GroupPhotometricSeries.photometric_serie_id == ps_id,
             )
         )
         .scalars()
@@ -5180,7 +5173,7 @@ def public_group_reminder_on_spectrum(public_group, public_source, user):
         observed_at=datetime.utcnow(),
         type="source",
         instrument_id=instrument.id,
-        owner_id=user.id,
+        owner_id=1,
         groups=[public_group],
     )
     DBSession.add(spectrum)
@@ -5646,7 +5639,7 @@ def public_mmadetector_time_interval(public_group, user):
     time_interval = MMADetectorTimeInterval(
         detector_id=detector_id,
         owner_id=user.id,
-        time_interval=[datetime(2020, 1, 1), datetime(2020, 1, 2)],
+        time_interval="[2020-01-01 00:00:00,2020-01-02 00:00:00]",
         groups=[public_group],
     )
     DBSession.add(time_interval)
@@ -5966,12 +5959,19 @@ def public_observation_plan_request_target_group(public_group, user):
 
 @pytest.fixture()
 def public_phot_stat(public_source):
-    phot_stat = PhotStat(obj_id=public_source.id)
-    phot_stat.num_obs_global = 0
-    phot_stat.num_det_global = 0
-    phot_stat.num_det_no_forced_phot_global = 0
-    DBSession.add(phot_stat)
-    DBSession.commit()
+    phot_stat = (
+        DBSession()
+        .execute(sa.select(PhotStat).filter(PhotStat.obj_id == public_source.id))
+        .scalars()
+        .first()
+    )
+    if phot_stat is None:
+        phot_stat = PhotStat(obj_id=public_source.id)
+        phot_stat.num_obs_global = 0
+        phot_stat.num_det_global = 0
+        phot_stat.num_det_no_forced_phot_global = 0
+        DBSession.add(phot_stat)
+        DBSession.commit()
     phot_stat_id = phot_stat.id
     yield phot_stat
     row = (
@@ -7142,7 +7142,6 @@ def public_stream_photometry(public_stream, public_source):
         filter="ztfg",
         origin=str(uuid.uuid4()),
         upload_id=str(uuid.uuid4()),
-        streams=[public_stream],
     )
     DBSession().add(photometry)
     DBSession().commit()

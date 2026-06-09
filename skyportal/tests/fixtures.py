@@ -997,8 +997,8 @@ class AllocationFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Allocation
 
     instrument = factory.SubFactory(InstrumentFactory)
-    group = (factory.SubFactory(GroupFactory),)
-    pi = (factory.LazyFunction(lambda: uuid.uuid4().hex),)
+    group = factory.SubFactory(GroupFactory)
+    pi = factory.LazyFunction(lambda: uuid.uuid4().hex)
     proposal_id = factory.LazyFunction(lambda: uuid.uuid4().hex)
     hours_allocated = 100
 
