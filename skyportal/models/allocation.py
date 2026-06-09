@@ -46,7 +46,6 @@ def allocationuser_access_logic(cls, user_or_token):
         query = query.filter(
             sa.or_(
                 aliased.user_id == user_id,
-                sa.and_(aliased.admin.is_(True), aliased.user_id == user_id),
                 aliased.allocation_id.in_(
                     [allocation.id for allocation in user_allocation_admin.all()]
                 ),

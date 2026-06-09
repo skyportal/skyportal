@@ -3930,6 +3930,7 @@ def public_event_observation_plan(public_group, user):
         dateobs=dateobs,
         sent_by=user,
         localization_name=str(uuid.uuid4().hex),
+        notice_id=None,
     )
     DBSession().add(localization)
     DBSession().commit()

@@ -211,6 +211,8 @@ FIXTURE_MODEL = {
     "public_group_reminder_on_earthquake": "GroupReminderOnEarthquake",
     "public_group_reminder_on_shift": "GroupReminderOnShift",
     "public_group_reminder_on_spectrum": "GroupReminderOnSpectrum",
+    "public_allocation_user": "AllocationUser",
+    "public_event_observation_plan": "EventObservationPlan",
 }
 
 # (role_fixture, object_fixture, mode, expected_is_accessible)
@@ -2697,6 +2699,40 @@ CASES = [
     ("super_admin_user", "public_group_reminder_on_spectrum", "read", True),
     ("super_admin_user", "public_group_reminder_on_spectrum", "update", True),
     ("super_admin_user", "public_group_reminder_on_spectrum", "delete", True),
+    # --- AllocationUser  (public_allocation_user)  [recovered, probed] ---
+    ("user", "public_allocation_user", "create", True),
+    ("user", "public_allocation_user", "read", True),
+    ("user", "public_allocation_user", "update", True),
+    ("user", "public_allocation_user", "delete", True),
+    ("user_group2", "public_allocation_user", "create", False),
+    ("user_group2", "public_allocation_user", "read", False),
+    ("user_group2", "public_allocation_user", "update", False),
+    ("user_group2", "public_allocation_user", "delete", False),
+    ("group_admin_user", "public_allocation_user", "create", True),
+    ("group_admin_user", "public_allocation_user", "read", True),
+    ("group_admin_user", "public_allocation_user", "update", True),
+    ("group_admin_user", "public_allocation_user", "delete", True),
+    ("super_admin_user", "public_allocation_user", "create", True),
+    ("super_admin_user", "public_allocation_user", "read", True),
+    ("super_admin_user", "public_allocation_user", "update", True),
+    ("super_admin_user", "public_allocation_user", "delete", True),
+    # --- EventObservationPlan  (public_event_observation_plan)  [recovered, probed] ---
+    ("user", "public_event_observation_plan", "create", True),
+    ("user", "public_event_observation_plan", "read", True),
+    ("user", "public_event_observation_plan", "update", False),
+    ("user", "public_event_observation_plan", "delete", False),
+    ("user_group2", "public_event_observation_plan", "create", True),
+    ("user_group2", "public_event_observation_plan", "read", True),
+    ("user_group2", "public_event_observation_plan", "update", False),
+    ("user_group2", "public_event_observation_plan", "delete", False),
+    ("group_admin_user", "public_event_observation_plan", "create", True),
+    ("group_admin_user", "public_event_observation_plan", "read", True),
+    ("group_admin_user", "public_event_observation_plan", "update", False),
+    ("group_admin_user", "public_event_observation_plan", "delete", False),
+    ("super_admin_user", "public_event_observation_plan", "create", True),
+    ("super_admin_user", "public_event_observation_plan", "read", True),
+    ("super_admin_user", "public_event_observation_plan", "update", True),
+    ("super_admin_user", "public_event_observation_plan", "delete", True),
 ]
 
 
@@ -2749,13 +2785,11 @@ def test_fixture_model_map_matches_cases():
 KNOWN_UNCOVERED = frozenset(
     {
         "ACL",
-        "AllocationUser",
         "Association",
         "CatalogQueryTargetGroup",
         "Code",
         "CronJobRun",
         "DefaultFollowupRequestTargetGroup",
-        "EventObservationPlan",
         "ExecutedObservation",
         "GroupSurveyEfficiencyForObservationPlan",
         "GroupSurveyEfficiencyForObservations",
