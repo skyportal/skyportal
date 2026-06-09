@@ -91,8 +91,15 @@ const InstrumentForm = ({
     }
   };
 
-  if (instrumentList.length === 0 || telescopeList.length === 0) {
-    return <h3>No instruments available...</h3>;
+  if (telescopeList.length === 0) {
+    // A telescope is required to create an instrument (telescope_id). Do not
+    // also require existing instruments here -- otherwise a fresh deployment
+    // with zero instruments can never add its first one.
+    return (
+      <h3>
+        No telescopes available. Add a telescope before creating an instrument.
+      </h3>
+    );
   } else if (enum_types == null) {
     return (
       <div>
