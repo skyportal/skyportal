@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 import sqlalchemy as sa
 
-from baselayer.app import models
+from skyportal import models
 from skyportal.model_util import create_token, delete_token
 from skyportal.models import (
     Allocation,
@@ -3808,8 +3808,8 @@ def public_allocation_user(public_group, user):
 def public_comment_on_shift(public_group, user):
     shift = Shift(
         name=str(uuid.uuid4()),
-        start_date=datetime.datetime.utcnow(),
-        end_date=datetime.datetime.utcnow() + datetime.timedelta(days=1),
+        start_date=datetime.utcnow(),
+        end_date=datetime.utcnow() + timedelta(days=1),
         group_id=public_group.id,
     )
     DBSession.add(shift)
@@ -4005,7 +4005,7 @@ def public_event_observation_plan(public_group, user):
 @pytest.fixture()
 def public_facility_transaction(user):
     transaction = FacilityTransaction(
-        created_at=datetime.datetime.utcnow(),
+        created_at=datetime.utcnow(),
         request={"method": "POST", "endpoint": str(uuid.uuid4())},
         response={"status": 200, "content": str(uuid.uuid4())},
         initiator_id=user.id,
@@ -4224,7 +4224,7 @@ def public_group_annotation_on_photometry(public_group, public_source, user):
     # The join row coupling the Group and the AnnotationOnPhotometry.
     join = models.GroupAnnotationOnPhotometry(
         group_id=public_group.id,
-        annotationonphotometr_id=annotation_id,
+        annotations_on_photometr_id=annotation_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -4283,7 +4283,7 @@ def public_group_annotation_on_spectrum(public_group, public_source, user):
 
     join = GroupAnnotationOnSpectrum(
         group_id=public_group.id,
-        annotationonspectrum_id=annotation_id,
+        annotations_on_spectr_id=annotation_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -4333,7 +4333,7 @@ def public_group_comment_on_earthquake(public_group, user):
 
     group_comment = GroupCommentOnEarthquake(
         group_id=public_group.id,
-        commentonearthquake_id=comment_id,
+        comments_on_earthquake_id=comment_id,
     )
     DBSession.add(group_comment)
     DBSession.commit()
@@ -4383,7 +4383,7 @@ def public_group_comment_on_gcn(public_group, user):
     # Create the join row linking the Group and the CommentOnGCN.
     group_comment = GroupCommentOnGCN(
         group_id=public_group.id,
-        commentongcn_id=comment_id,
+        comments_on_gcn_id=comment_id,
     )
     DBSession.add(group_comment)
     DBSession.commit()
@@ -4455,7 +4455,7 @@ def public_group_comment_on_shift(public_group, user):
 
     group_comment = GroupCommentOnShift(
         group_id=public_group.id,
-        commentonshift_id=comment_id,
+        comments_on_shift_id=comment_id,
     )
     DBSession.add(group_comment)
     DBSession.commit()
@@ -4583,7 +4583,7 @@ def public_group_default_analysis(public_group, user):
 
     group_default_analysis = GroupDefaultAnalysis(
         group_id=public_group.id,
-        defaultanalysis_id=default_analysis_id,
+        default_analyse_id=default_analysis_id,
     )
     DBSession.add(group_default_analysis)
     DBSession.commit()
@@ -4668,7 +4668,7 @@ def public_group_mmadetector_spectrum(public_group, user):
 
     join = GroupMMADetectorSpectrum(
         group_id=public_group.id,
-        mmadetectorspectrum_id=spectrum_id,
+        detector_spectr_id=spectrum_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -4774,7 +4774,7 @@ def public_group_obj_analysis(public_group, public_source, user):
 
     group_obj_analysis = GroupObjAnalysis(
         group_id=public_group.id,
-        objanalysis_id=obj_analysis_id,
+        obj_analyse_id=obj_analysis_id,
     )
     DBSession.add(group_obj_analysis)
     DBSession.commit()
@@ -4929,7 +4929,7 @@ def public_group_public_release(public_group):
 
     group_public_release = GroupPublicRelease(
         group_id=public_group.id,
-        public_release_id=release_id,
+        publicrelease_id=release_id,
     )
     DBSession.add(group_public_release)
     DBSession.commit()
@@ -5036,7 +5036,7 @@ def public_group_reminder_on_earthquake(public_group, user):
     # The join row linking the Group to the ReminderOnEarthquake
     group_reminder = GroupReminderOnEarthquake(
         group_id=public_group.id,
-        reminderonearthquake_id=reminder_id,
+        reminders_on_earthquake_id=reminder_id,
     )
     DBSession.add(group_reminder)
     DBSession.commit()
@@ -5090,7 +5090,7 @@ def public_group_reminder_on_gcn(public_group, user):
 
     group_reminder = GroupReminderOnGCN(
         group_id=public_group.id,
-        reminderongcn_id=reminder_id,
+        reminders_on_gcn_id=reminder_id,
     )
     DBSession.add(group_reminder)
     DBSession.commit()
@@ -5143,7 +5143,7 @@ def public_group_reminder_on_shift(public_group, user):
 
     join = GroupReminderOnShift(
         group_id=public_group.id,
-        reminderonshift_id=reminder_id,
+        reminders_on_shift_id=reminder_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -6090,7 +6090,7 @@ def public_recurring_api(user):
         endpoint=f"api/{uuid.uuid4().hex}",
         payload={},
         method="GET",
-        next_call=datetime.datetime.utcnow(),
+        next_call=datetime.utcnow(),
         call_delay=1.0,
         number_of_retries=10,
         active=True,
@@ -6115,7 +6115,7 @@ def public_reminder(public_source, public_group, user):
     reminder = Reminder(
         text=str(uuid.uuid4()),
         bot=False,
-        next_reminder=datetime.datetime.utcnow(),
+        next_reminder=datetime.utcnow(),
         reminder_delay=1.0,
         number_of_reminders=1,
         obj_id=public_source.id,
@@ -6672,8 +6672,8 @@ def public_shift(public_group):
 def public_shift_user(public_group, user):
     shift = Shift(
         name=str(uuid.uuid4()),
-        start_date=datetime.datetime.utcnow(),
-        end_date=datetime.datetime.utcnow() + datetime.timedelta(days=1),
+        start_date=datetime.utcnow(),
+        end_date=datetime.utcnow() + timedelta(days=1),
         group_id=public_group.id,
     )
     DBSession.add(shift)
@@ -6837,7 +6837,7 @@ def public_spectrum_observer(public_source, public_group, user):
     spectrum_id = spectrum.id
 
     spectrum_observer = SpectrumObserver(
-        spectrum_id=spectrum_id,
+        spectr_id=spectrum_id,
         user_id=user.id,
     )
     DBSession.add(spectrum_observer)
@@ -6891,7 +6891,7 @@ def public_spectrum_pi(public_source, public_group, user):
     spectrum_id = spectrum.id
 
     spectrum_pi = SpectrumPI(
-        spectrum_id=spectrum_id,
+        spectr_id=spectrum_id,
         user_id=user.id,
         external_pi=str(uuid.uuid4()),
     )
@@ -6941,7 +6941,7 @@ def public_spectrum_reducer(public_source, public_group, user):
     DBSession.commit()
     spectrum_id = spectrum.id
 
-    reducer = SpectrumReducer(spectrum_id=spectrum_id, user_id=user.id)
+    reducer = SpectrumReducer(spectr_id=spectrum_id, user_id=user.id)
     DBSession.add(reducer)
     DBSession.commit()
     reducer_id = reducer.id
@@ -7083,7 +7083,7 @@ def public_stream_photometric_series(
     # Create the join row coupling the Stream and the PhotometricSeries.
     join = StreamPhotometricSeries(
         stream_id=public_stream.id,
-        photometricseries_id=ps_id,
+        photometric_serie_id=ps_id,
     )
     DBSession().add(join)
     DBSession().commit()
@@ -7149,7 +7149,7 @@ def public_stream_photometry(public_stream, public_source):
     photometry_id = photometry.id
 
     stream_photometry = StreamPhotometry(
-        stream_id=public_stream.id, photometry_id=photometry_id
+        stream_id=public_stream.id, photometr_id=photometry_id
     )
     DBSession().add(stream_photometry)
     DBSession().commit()
@@ -7529,7 +7529,7 @@ def public_weather():
     weather = Weather(
         telescope_id=telescope_id,
         weather_info={},
-        retrieved_at=datetime.datetime.utcnow(),
+        retrieved_at=datetime.utcnow(),
     )
     DBSession.add(weather)
     DBSession.commit()
