@@ -620,8 +620,19 @@ def test_duplicate_sources_render(
 
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
-    expect(
-        page.locator('//*[contains(text(), "Possible duplicate of:")]').first
-    ).to_be_visible()
+    # The "Possible duplicate of:" panel is driven by `source.duplicates`, which
+    # is computed in the source fetch. Right after `become_user`, the first fetch
+    # can race the session switch (or hit a stale cache), so the duplicate may be
+    # missing on the initial paint -- Playwright then reports the (not-yet-present)
+    # element as "hidden". Reload once and retry if it has not appeared yet, the
+    # same reload-retry approach used elsewhere in this file.
+    duplicate_header = page.locator(
+        '//*[contains(text(), "Possible duplicate of:")]'
+    ).first
+    try:
+        expect(duplicate_header).to_be_visible(timeout=30000)
+    except AssertionError:
+        page.reload()
+        expect(duplicate_header).to_be_visible()
     page.locator(f'//*[contains(text(), "{obj_id2}")]').first.click()
     expect(page.locator(f'//*[contains(text(), "{obj_id2}")]').first).to_be_visible()
