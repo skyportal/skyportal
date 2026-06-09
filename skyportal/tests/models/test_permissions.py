@@ -2090,12 +2090,14 @@ CASES = [
 
 # Optional CI sharding: set PERM_SHARD="k/n" (e.g. "0/4") to run only every nth
 # case, so the matrix can split this suite across n parallel jobs and stay well
-# under the ~15 min budget. Unset -> run everything. The coverage ratchet and
-# map-consistency tests are unaffected (they don't iterate CASES).
+# under the ~15 min budget. Unset -> run everything. Only the parametrized test
+# is sharded; the full CASES list is kept intact so the map-consistency and
+# coverage tests (which iterate it) behave the same in every shard.
 _shard = os.environ.get("PERM_SHARD")
+_PARAM_CASES = CASES
 if _shard:
     _k, _n = (int(x) for x in _shard.split("/"))
-    CASES = CASES[_k::_n]
+    _PARAM_CASES = CASES[_k::_n]
 
 
 def _case_id(case):
@@ -2105,8 +2107,8 @@ def _case_id(case):
 
 @pytest.mark.parametrize(
     "role_fixture, obj_fixture, mode, expected",
-    CASES,
-    ids=[_case_id(c) for c in CASES],
+    _PARAM_CASES,
+    ids=[_case_id(c) for c in _PARAM_CASES],
 )
 def test_model_access(role_fixture, obj_fixture, mode, expected, request):
     actor = request.getfixturevalue(role_fixture)
