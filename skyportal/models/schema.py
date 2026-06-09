@@ -911,8 +911,9 @@ class PhotometryFlux(_Schema, PhotBase):
         # conversion happens here
         photdata = PhotometricData(table).normalized(zp=PHOT_ZP, zpsys=PHOT_SYS)
 
-        # replace with null if needed
-        final_flux = None if data["flux"] is None else photdata.flux[0]
+        # A non-detection has no flux; store it as NaN (the flux column is
+        # NOT NULL), matching how the bulk upload path persists non-detections.
+        final_flux = np.nan if data["flux"] is None else photdata.flux[0]
 
         if data.get("ref_flux") is not None and data.get("ref_fluxerr") is not None:
             ref_flux = data["ref_flux"]
@@ -1136,8 +1137,9 @@ class PhotometryMag(_Schema, PhotBase):
             ref_flux = None
             ref_fluxerr = None
 
-        # replace with null if needed
-        final_flux = None if flux is None else photdata.flux[0]
+        # A non-detection has no flux; store it as NaN (the flux column is
+        # NOT NULL), matching how the bulk upload path persists non-detections.
+        final_flux = np.nan if flux is None else photdata.flux[0]
 
         p = Photometry(
             obj_id=data["obj_id"],
