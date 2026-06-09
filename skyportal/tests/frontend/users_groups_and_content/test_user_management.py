@@ -1,6 +1,3 @@
-import datetime
-
-import pytest
 from playwright.sync_api import expect
 
 
@@ -191,26 +188,44 @@ def test_add_user_to_stream(
     ).to_be_visible()
 
 
-# Passes in isolation; only times out under full-suite contention, so retry.
-@pytest.mark.flaky(reruns=3)
 def test_user_expiration(page, user, super_admin_user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
     filter_for_user(page, user.username)
 
-    # Set expiration date to today
+    # Set expiration date to 2021
     page.locator(f"//*[@data-testid='editUserExpirationDate{user.id}']").first.click()
-    # The MUI date field is read-only, so `fill` times out; type the MMDDYYYY
-    # digits into the segmented input instead (as the other date-picker tests do).
     date_input = page.locator("//input[@placeholder='MM/DD/YYYY']").first
     date_input.click()
-    date_input.press_sequentially(datetime.datetime.now().strftime("%m%d%Y"))
+    date_input.press_sequentially("01012021")
+    page.locator(f"//*[@data-testid='submitExpirationDateButton']").first.click()
+    # Wait for the PATCH to complete before navigating
+    expect(
+        page.locator("//div[text()='User expiration date successfully updated.']").first
+    ).to_be_visible()
 
-    # use the dialog's own submit button (the unscoped //*[text()="Submit"] can
-    # match a leftover/hidden Submit elsewhere on the page).
-    page.locator('//*[@data-testid="submitExpirationDateButton"]').first.click()
-
-    # Check that user deactivated
+    # Check that user is deactivated: as the expired user, any authenticated
+    # API call must be rejected with 403 "User account expired".
     page.goto(f"/become_user/{user.id}")
-    page.goto("/")
-    expect(page.locator("//*[contains(text(), 'Top Sources')]").first).to_be_hidden()
+    response = page.request.get("/api/internal/profile")
+    assert response.status == 403
+
+    # then set expiration date to 3000 and check that user is active again
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+    page.locator("//*[@data-testid='showExpiredUsersToggle']").first.click()
+    filter_for_user(page, user.username)
+
+    # Set expiration date to 3000
+    page.locator(f"//*[@data-testid='editUserExpirationDate{user.id}']").first.click()
+    date_input = page.locator("//input[@placeholder='MM/DD/YYYY']").first
+    date_input.click()
+    date_input.press_sequentially("01013000")
+    page.locator(f"//*[@data-testid='submitExpirationDateButton']").first.click()
+    expect(
+        page.locator("//div[text()='User expiration date successfully updated.']").first
+    ).to_be_visible()
+
+    page.goto(f"/become_user/{user.id}")
+    response = page.request.get("/api/internal/profile")
+    assert response.status == 200
