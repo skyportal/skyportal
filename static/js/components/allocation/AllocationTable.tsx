@@ -18,6 +18,7 @@ import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
   GridToolbarQuickFilter,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -358,6 +359,7 @@ const AllocationTable = ({
   const CustomToolbar = () => (
     <GridToolbarContainer>
       <GridToolbarColumnsButton />
+      <GridToolbarExport />
       <IconButton
         name="new_allocation"
         size="small"

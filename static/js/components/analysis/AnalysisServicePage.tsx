@@ -15,6 +15,7 @@ import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
   GridToolbarQuickFilter,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 import CircularProgress from "@mui/material/CircularProgress";
 import ReactJson from "react-json-view";
@@ -291,6 +292,7 @@ const AnalysisServiceList = ({
           <GridToolbarContainer>
             <GridToolbarColumnsButton />
             <GridToolbarQuickFilter />
+            <GridToolbarExport />
             {deletePermission && (
               <IconButton
                 name="new_analysis_service"

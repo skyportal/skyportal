@@ -14,6 +14,7 @@ import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
   GridToolbarQuickFilter,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -272,6 +273,7 @@ const TelescopeTable = ({
   const CustomToolbar = () => (
     <GridToolbarContainer>
       <GridToolbarColumnsButton />
+      <GridToolbarExport />
       <GridToolbarQuickFilter />
       <IconButton name="new_telescope" onClick={() => setNewDialogOpen(true)}>
         <AddIcon />

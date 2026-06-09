@@ -12,6 +12,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 
 import StyledDataGrid from "../StyledDataGrid";
@@ -95,6 +96,7 @@ const GalaxyTable = ({
         return (
           <GridToolbarContainer>
             <GridToolbarColumnsButton />
+            <GridToolbarExport />
             <Tooltip title="Filter Table">
               <IconButton
                 size="small"

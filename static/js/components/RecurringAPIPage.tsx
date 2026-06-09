@@ -14,6 +14,7 @@ import Box from "@mui/material/Box";
 import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 import { useAppDispatch } from "../types/hooks";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
@@ -152,6 +153,7 @@ const RecurringAPIPage = () => {
   const CustomToolbar = () => (
     <GridToolbarContainer>
       <GridToolbarColumnsButton />
+      <GridToolbarExport />
       <IconButton
         name="new_recurring_api_form"
         onClick={() => setOpenNewForm(true)}

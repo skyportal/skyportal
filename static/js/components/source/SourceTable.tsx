@@ -48,6 +48,7 @@ import Typography from "@mui/material/Typography";
 import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 
 import { isMobileOnly } from "react-device-detect";
@@ -1700,6 +1701,7 @@ const SourceTable = ({
         return (
           <GridToolbarContainer>
             <GridToolbarColumnsButton />
+            <GridToolbarExport />
             <Tooltip title="Filter Table">
               <IconButton
                 size="small"

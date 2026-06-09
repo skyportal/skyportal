@@ -15,6 +15,7 @@ import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
   GridToolbarQuickFilter,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -624,6 +625,7 @@ const FollowupRequestLists = ({
       return (
         <GridToolbarContainer>
           <GridToolbarColumnsButton />
+          <GridToolbarExport />
           {showDownload && (
             <Tooltip title="Download CSV">
               <IconButton

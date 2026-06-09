@@ -13,6 +13,7 @@ import { JSONTree } from "react-json-tree";
 import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -229,6 +230,7 @@ const DefaultFollowupRequestList = ({
   const CustomToolbar = () => (
     <GridToolbarContainer>
       <GridToolbarColumnsButton />
+      <GridToolbarExport />
       <IconButton
         name="new_default_followup_request"
         onClick={() => openNewDialog()}
