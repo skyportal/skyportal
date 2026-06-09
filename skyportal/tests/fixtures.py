@@ -809,7 +809,8 @@ class GcnEventFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().commit()
 
     @factory.post_generation
-    def localizations(self, create, passed_localizations=[], **kwargs):
+    def localizations(self, create, passed_localizations=None, **kwargs):
+        passed_localizations = passed_localizations or []
         if len(passed_localizations) > 0:
             new_localizations = []
             for localization_dict in passed_localizations:
