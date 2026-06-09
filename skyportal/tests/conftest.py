@@ -4444,7 +4444,6 @@ def public_group_comment_on_shift(public_group, user):
         author_id=user.id,
         bot=False,
     )
-    comment.groups = [public_group]
     DBSession.add(comment)
     DBSession.commit()
     comment_id = comment.id
@@ -4496,7 +4495,6 @@ def public_group_comment_on_spectrum(public_group, public_source, user):
         obj_id=public_source.id,
         spectrum_id=spectrum.id,
         author=user,
-        groups=[public_group],
         bot=False,
     )
     DBSession().add(comment)
@@ -4505,7 +4503,7 @@ def public_group_comment_on_spectrum(public_group, public_source, user):
     # The join row coupling public_group <-> the CommentOnSpectrum.
     join = GroupCommentOnSpectrum(
         group_id=public_group.id,
-        commentonspectrum_id=comment.id,
+        comments_on_spectr_id=comment.id,
     )
     DBSession().add(join)
     DBSession().commit()
@@ -4703,7 +4701,6 @@ def public_group_mmadetector_time_interval(public_group, user):
         detector_id=detector_id,
         owner_id=user.id,
     )
-    time_interval.groups = [public_group]
     DBSession.add(time_interval)
     DBSession.commit()
     time_interval_id = time_interval.id
@@ -5021,7 +5018,6 @@ def public_group_reminder_on_earthquake(public_group, user):
         user_id=user.id,
         earthquake_id=earthquake_id,
     )
-    reminder.groups = [public_group]
     DBSession.add(reminder)
     DBSession.commit()
     reminder_id = reminder.id
@@ -5129,7 +5125,6 @@ def public_group_reminder_on_shift(public_group, user):
         user_id=user.id,
         shift_id=shift_id,
     )
-    reminder.groups = [public_group]
     DBSession.add(reminder)
     DBSession.commit()
     reminder_id = reminder.id
@@ -5191,7 +5186,6 @@ def public_group_reminder_on_spectrum(public_group, public_source, user):
         user_id=user.id,
         obj_id=public_source.id,
         spectrum_id=spectrum_id,
-        groups=[public_group],
     )
     DBSession.add(reminder)
     DBSession.commit()
@@ -5200,7 +5194,7 @@ def public_group_reminder_on_spectrum(public_group, public_source, user):
     # The actual join-model row mapping public_group -> reminder.
     group_reminder = GroupReminderOnSpectrum(
         group_id=public_group.id,
-        reminderonspectrum_id=reminder_id,
+        reminders_on_spectr_id=reminder_id,
     )
     DBSession.add(group_reminder)
     DBSession.commit()
