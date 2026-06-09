@@ -2110,10 +2110,16 @@ def observation_schedule(
     # Initialize a Schedule object, to contain the new schedule
     priority_schedule = Schedule(observation_start, observation_end)
 
+    if len(blocks) == 0:
+        raise ValueError("Scheduling failed: there are probably no observable targets.")
+
     # Call the schedule with the observing blocks and schedule to schedule the blocks
     prior_scheduler(blocks, priority_schedule)
 
     log(f"Generated schedule for {instrument.name} in {time.time() - start_time} s")
+
+    if len(priority_schedule.observing_blocks) == 0:
+        raise ValueError("Scheduling failed: there are probably no observable targets.")
 
     if output_format in ["png", "pdf"]:
         matplotlib.use("Agg")
@@ -2462,7 +2468,10 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             self.push_notification(
                 "Schedule generation in progress. Download will start soon."
             )
-            rez = await IOLoop.current().run_in_executor(None, schedule)
+            try:
+                rez = await IOLoop.current().run_in_executor(None, schedule)
+            except ValueError as e:
+                return self.error(str(e))
 
             filename = rez["name"]
             data = io.BytesIO(rez["data"])
