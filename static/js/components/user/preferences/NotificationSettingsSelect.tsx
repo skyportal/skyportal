@@ -234,45 +234,45 @@ const NotificationSettingsSelect = ({
       notificationResourceType === "observation_plans"
     ) {
       if (type === "sms") {
+        const reversed = [...valueSMS].reverse();
         const prefs = {
           notifications: {
             [notificationResourceType]: {
               sms: {
-                time_slot: valueSMS,
+                time_slot: reversed,
               },
             },
           },
         };
-        // `valueSMS` may be frozen RTK Query data, so copy before reversing.
-        setValueSMS([...valueSMS].reverse());
+        setValueSMS(reversed);
         setInvertedSMS(!invertedSMS);
         updateUserPreferences(prefs);
       } else if (type === "phone") {
+        const reversed = [...valuePhone].reverse();
         const prefs = {
           notifications: {
             [notificationResourceType]: {
               phone: {
-                time_slot: valuePhone,
+                time_slot: reversed,
               },
             },
           },
         };
-        // `valuePhone` may be frozen RTK Query data, so copy before reversing.
-        setValuePhone([...valuePhone].reverse());
+        setValuePhone(reversed);
         setInvertedPhone(!invertedPhone);
         updateUserPreferences(prefs);
       } else if (type === "whatsapp") {
+        const reversed = [...valueWhatsapp].reverse();
         const prefs = {
           notifications: {
             [notificationResourceType]: {
               whatsapp: {
-                time_slot: valueWhatsapp,
+                time_slot: reversed,
               },
             },
           },
         };
-        // `valueWhatsapp` may be frozen RTK Query data, so copy before reversing.
-        setValueWhatsapp([...valueWhatsapp].reverse());
+        setValueWhatsapp(reversed);
         setInvertedWhatsapp(!invertedWhatsapp);
         updateUserPreferences(prefs);
       }
@@ -280,9 +280,7 @@ const NotificationSettingsSelect = ({
   };
 
   const handleChecked = (type: string) => {
-    let checked = false;
-    checked = profile?.notifications[notificationResourceType][type]?.active;
-    return checked;
+    return profile?.notifications[notificationResourceType][type]?.active;
   };
 
   const handleSliders = (type: string, slider_type: string) => {
