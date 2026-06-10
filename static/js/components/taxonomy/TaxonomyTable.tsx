@@ -25,16 +25,6 @@ import { useDeleteTaxonomyMutation } from "../../ducks/taxonomies";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map are not server-sortable.
-const SERVER_SORT_FIELD: Record<string, string> = {
-  name: "name",
-  id: "id",
-  isLatest: "isLatest",
-  provenance: "provenance",
-  version: "version",
-};
-
 const useStyles = makeStyles()((theme) => ({
   container: {
     width: "100%",
@@ -71,18 +61,14 @@ interface TaxonomyTableProps {
 
 const TaxonomyTable = ({
   taxonomies,
-  paginateCallback,
-  totalMatches = 0,
   deletePermission,
-  sortingCallback = null,
 }: TaxonomyTableProps) => {
   const { classes } = useStyles();
 
   const dispatch = useAppDispatch();
   const [deleteTaxonomyMutation] = useDeleteTaxonomyMutation();
 
-  const [rowsPerPage, setRowsPerPage] = useState(100);
-  const [sortModel, setSortModel] = useState<any[]>([]);
+  const [rowsPerPage] = useState(100);
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -207,32 +193,6 @@ const TaxonomyTable = ({
     );
   };
 
-  const currentSortOrder = () =>
-    sortModel.length
-      ? {
-          name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
-          direction: sortModel[0].sort,
-        }
-      : {};
-
-  const handlePaginationModelChange = (model: any) => {
-    setRowsPerPage(model.pageSize);
-    paginateCallback(model.page + 1, model.pageSize, currentSortOrder());
-  };
-
-  const handleSortModelChange = (model: any) => {
-    setSortModel(model);
-    if (!model.length) {
-      paginateCallback(1, rowsPerPage, {});
-      return;
-    }
-    const { field, sort } = model[0];
-    sortingCallback?.({
-      name: SERVER_SORT_FIELD[field] || field,
-      direction: sort,
-    });
-  };
-
   const columns: any[] = [
     {
       field: "name",
@@ -325,13 +285,13 @@ const TaxonomyTable = ({
             rows={taxonomies}
             columns={columns}
             getRowId={(row: any) => row.id}
-            paginationMode="server"
-            sortingMode="server"
-            rowCount={totalMatches}
-            paginationModel={{ page: 0, pageSize: rowsPerPage }}
-            onPaginationModelChange={handlePaginationModelChange}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
+            // The taxonomy API returns the full list (it does not paginate or
+            // sort server-side), so let the DataGrid paginate/sort the rows it
+            // already has -- otherwise the server-pagination footer shows
+            // "0-0 of 0" because no rowCount is provided.
+            initialState={{
+              pagination: { paginationModel: { pageSize: rowsPerPage } },
+            }}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             disableColumnFilter
             slots={{ toolbar: CustomToolbar }}

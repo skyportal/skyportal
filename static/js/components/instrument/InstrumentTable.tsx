@@ -24,23 +24,6 @@ import { useDeleteInstrumentMutation } from "../../ducks/instrument";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map are not server-sortable.
-const SERVER_SORT_FIELD: Record<string, string> = {
-  id: "id",
-  instrument_name: "instrument_name",
-  telescope_name: "telescope_name",
-  Latitude: "Latitude",
-  Longitude: "Longitude",
-  filters: "filters",
-  API_classname: "API_classname",
-  API_classname_obsplan: "API_classname_obsplan",
-  Band: "Band",
-  Type: "Type",
-  "FOV Region?": "FOV Region?",
-  Fields: "Fields",
-};
-
 const useStyles = makeStyles()(() => ({
   container: {
     width: "100%",
@@ -72,9 +55,7 @@ const InstrumentTable = ({
   instruments,
   telescopes,
   deletePermission,
-  sortingCallback = null,
   paginateCallback = null,
-  totalMatches = 0,
   numPerPage = 10,
   telescopeInfo = true,
   fixedHeader = false,
@@ -88,7 +69,6 @@ const InstrumentTable = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [instrumentToEditDelete, setInstrumentToEditDelete] =
     useState<any>(null);
-  const [sortModel, setSortModel] = useState<any[]>([]);
   const [searchText, setSearchText] = useState("");
 
   const openNewDialog = () => {
@@ -126,7 +106,7 @@ const InstrumentTable = ({
     }
   };
 
-  const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  const [rowsPerPage] = useState(numPerPage);
 
   const renderInstrumentID = (params: any) => {
     const instrument = params.row;
@@ -255,34 +235,6 @@ const InstrumentTable = ({
     if (!paginateCallback) return;
     const data = { name: text };
     paginateCallback(1, rowsPerPage, {}, data);
-  };
-
-  const currentSortOrder = () =>
-    sortModel.length
-      ? {
-          name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
-          direction: sortModel[0].sort,
-        }
-      : {};
-
-  const handlePaginationModelChange = (model: any) => {
-    if (!paginateCallback) return;
-    setRowsPerPage(model.pageSize);
-    paginateCallback(model.page + 1, model.pageSize, currentSortOrder());
-  };
-
-  const handleSortModelChange = (model: any) => {
-    if (!paginateCallback || !sortingCallback) return;
-    setSortModel(model);
-    if (!model.length) {
-      paginateCallback(1, rowsPerPage, {});
-      return;
-    }
-    const { field, sort } = model[0];
-    sortingCallback({
-      name: SERVER_SORT_FIELD[field] || field,
-      direction: sort,
-    });
   };
 
   const columns: any[] = [
@@ -436,13 +388,13 @@ const InstrumentTable = ({
             rows={instruments || []}
             columns={columns}
             getRowId={(row: any) => row.id}
-            paginationMode="server"
-            sortingMode="server"
-            rowCount={totalMatches}
-            paginationModel={{ page: 0, pageSize: rowsPerPage }}
-            onPaginationModelChange={handlePaginationModelChange}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
+            // The instruments API returns the full list (it does not paginate
+            // or sort server-side), so let the DataGrid paginate/sort the rows
+            // it already has -- otherwise the server-pagination footer shows
+            // "0-0 of 0" because no rowCount is provided.
+            initialState={{
+              pagination: { paginationModel: { pageSize: rowsPerPage } },
+            }}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             disableColumnFilter
             slots={{ toolbar: CustomToolbar }}

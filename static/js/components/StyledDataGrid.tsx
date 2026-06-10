@@ -25,13 +25,35 @@ import SearchIcon from "@mui/icons-material/Search";
 //
 // Defaults here are the conventions we want everywhere; any of them can be
 // overridden by passing the same prop at the call site.
-const baseSx = {
-  border: "none",
+const baseSx = (theme: any) => ({
+  // Framed, rounded container instead of a borderless grid.
+  border: `1px solid ${theme.palette.divider}`,
+  borderRadius: 1,
+  overflow: "hidden",
+  // Comfortable cell spacing (paired with the `standard` density default below)
+  // and soft row dividers.
   "& .MuiDataGrid-cell": {
-    padding: "0.25rem 0.5rem",
+    padding: "0.5rem 0.75rem",
+    borderColor: theme.palette.divider,
+  },
+  // Emphasized header: a subtle tinted background, semibold labels, and a
+  // clear divider separating it from the data.
+  "& .MuiDataGrid-columnHeaders": {
+    borderBottom: `1px solid ${theme.palette.divider}`,
   },
   "& .MuiDataGrid-columnHeader": {
-    padding: "0.25rem 0.5rem",
+    padding: "0.5rem 0.75rem",
+    backgroundColor:
+      theme.palette.mode === "dark"
+        ? theme.palette.grey[900]
+        : theme.palette.grey[100],
+  },
+  "& .MuiDataGrid-columnHeaderTitle": {
+    fontWeight: 600,
+  },
+  // Subtle hover highlight to track the row under the cursor.
+  "& .MuiDataGrid-row:hover": {
+    backgroundColor: theme.palette.action.hover,
   },
   // Many cells render text inside a <p> (and sometimes headings). Browser
   // default margins on those block elements are taller than a compact row, so
@@ -44,7 +66,7 @@ const baseSx = {
   "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
     outline: "none",
   },
-};
+});
 
 // Loose props: `sx` is optional and everything else is forwarded straight to
 // the underlying DataGrid (columns/rows/pagination/etc.). Kept as `any` to
@@ -63,7 +85,7 @@ const LooseDataGrid = DataGrid as any;
 
 const StyledDataGrid = ({ sx, ...props }: StyledDataGridProps) => (
   <LooseDataGrid
-    density="compact"
+    density="standard"
     disableRowSelectionOnClick
     sx={[baseSx, ...(Array.isArray(sx) ? sx : [sx])]}
     {...props}
