@@ -247,9 +247,12 @@ const FilterCandidateList = ({
   }, [defaultScanningProfile]);
 
   const defaultStartDate = new Date();
+  // The DateTimePicker only exposes minute precision
+  defaultStartDate.setSeconds(0, 0);
   let defaultEndDate = null;
   if (selectedScanningProfile?.timeRange) {
     defaultEndDate = new Date();
+    defaultEndDate.setSeconds(0, 0);
     defaultStartDate.setHours(
       defaultStartDate.getHours() -
         parseInt(selectedScanningProfile.timeRange, 10),
@@ -639,7 +642,10 @@ const FilterCandidateList = ({
                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                       <DateTimePicker
                         value={value}
-                        onChange={(newValue) => onChange(newValue)}
+                        onChange={(newValue) => {
+                          if (newValue) newValue.setSeconds(0, 0);
+                          onChange(newValue);
+                        }}
                         label="Start (Local Time)"
                         ampm={useAMPM}
                         slotProps={{ textField: { variant: "outlined" } }}
@@ -656,7 +662,10 @@ const FilterCandidateList = ({
                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                       <DateTimePicker
                         value={value}
-                        onChange={(newValue) => onChange(newValue)}
+                        onChange={(newValue) => {
+                          if (newValue) newValue.setSeconds(0, 0);
+                          onChange(newValue);
+                        }}
                         label="End (Local Time)"
                         ampm={useAMPM}
                         slotProps={{ textField: { variant: "outlined" } }}
