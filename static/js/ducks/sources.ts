@@ -140,9 +140,6 @@ export const {
   useFetchPendingGroupSourcesQuery,
   useLazyFetchPendingGroupSourcesQuery,
   useFetchFavoriteSourcesQuery,
-  useLazyFetchFavoriteSourcesQuery,
   useFetchGcnEventSourcesQuery,
-  useLazyFetchGcnEventSourcesQuery,
   useFetchSpatialCatalogSourcesQuery,
-  useLazyFetchSpatialCatalogSourcesQuery,
 } = sourcesApi;
