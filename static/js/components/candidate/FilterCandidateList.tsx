@@ -220,7 +220,7 @@ const FilterCandidateList = ({
   const defaultScanningProfile = scanningProfiles?.find(
     (profile: any) => profile.default,
   );
-  const [searchNonce, setSearchNonce] = useState(0);
+  const [searchCount, setSearchCount] = useState(0);
   const [selectedScanningProfile, setSelectedScanningProfile] = useState<any>(
     defaultScanningProfile,
   );
@@ -544,13 +544,13 @@ const FilterCandidateList = ({
     dispatch(setFilterFormData(data));
 
     // Trigger a new search in CandidateList when the search button is clicked and reset to page 1.
-    const nextSearchNonce = searchNonce + 1;
-    setSearchNonce(nextSearchNonce);
+    const nextSearchCount = searchCount + 1;
+    setSearchCount(nextSearchCount);
     setSearchParams({
       pageNumber: 1,
       numPerPage,
       ...fetchParams,
-      _searchNonce: nextSearchNonce,
+      _searchCount: nextSearchCount,
     });
   };
 
