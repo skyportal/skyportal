@@ -75,7 +75,6 @@ def test_news_feed(page, user, public_group, upload_data_token, comment_token):
         ).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=3)
 def test_news_feed_prefs_widget(
     page, user, public_group, upload_data_token, comment_token
 ):
