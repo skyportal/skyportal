@@ -11,14 +11,22 @@ from ....utils.naive_datetime import utcnow_naive
 def test_candidate_date_filtering(
     page,
     user,
-    public_candidate,
-    public_filter,
-    public_group,
+    public_filter2,
+    public_group2,
     upload_data_token,
+    super_admin_token,
     ztf_camera,
 ):
     now_utc = utcnow_naive()
     now = datetime.datetime.now()
+
+    status, data = api(
+        "POST",
+        f"groups/{public_group2.id}/users",
+        data={"userID": user.id, "admin": False},
+        token=super_admin_token,
+    )
+    assert status == 200
 
     candidate_id = str(uuid.uuid4())
     for i in range(5):
@@ -33,7 +41,7 @@ def test_candidate_date_filtering(
                 "altdata": {"simbad": {"class": "RRLyr"}},
                 "transient": False,
                 "ra_dis": 2.3,
-                "filter_ids": [public_filter.id],
+                "filter_ids": [public_filter2.id],
                 "passed_at": str(now_utc),
             },
             token=upload_data_token,
@@ -52,7 +60,7 @@ def test_candidate_date_filtering(
                 "zp": 25.0,
                 "magsys": "ab",
                 "filter": "ztfr",
-                "group_ids": [public_group.id],
+                "group_ids": [public_group2.id],
             },
             token=upload_data_token,
         )
@@ -61,7 +69,7 @@ def test_candidate_date_filtering(
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
     page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group2.id}"]'
     ).first.click()
     start_date_input = page.locator(
         '//label[text()="Start (Local Time)"]/../div/input'
