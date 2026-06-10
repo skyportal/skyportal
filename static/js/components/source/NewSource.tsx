@@ -43,6 +43,7 @@ const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
   const handleSubmit = async ({ formData }: { formData: any }) => {
     const dataToSend: any = {
       ...formData,
+      group_ids: selectedGroupIds,
     };
     if (dataToSend?.ra?.includes(":")) {
       dataToSend.ra = hours_to_ra(dataToSend?.ra);
