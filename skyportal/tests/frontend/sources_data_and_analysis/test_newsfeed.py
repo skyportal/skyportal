@@ -1,11 +1,7 @@
 import uuid
 
-import pytest
 from playwright.sync_api import expect
-
 from skyportal.tests import api
-
-from .test_quick_search import remove_notification
 
 
 def _seed_sources_and_comments(api_, public_group, upload_data_token, comment_token):
@@ -58,13 +54,12 @@ def test_news_feed_prefs_widget(
     expect(page.locator('//span[text()="a few seconds ago"]').first).to_be_visible()
     expect(page.locator('//*[@id="newsFeedSettingsIcon"]').first).to_be_visible()
 
-    remove_notification(page)
-
     page.locator('//*[@id="newsFeedSettingsIcon"]').first.click()
     expect(
         page.locator('//*[@data-testid="categories.includeCommentsFromBots"]').first
     ).to_be_visible()
     page.locator('//*[@data-testid="categories.includeCommentsFromBots"]').first.click()
+    page.mouse.move(0, 0)  # dismiss tooltip that can cover the submit button
     page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
     expect(page.locator('//span[text()="a few seconds ago"]').first).to_be_visible()
     for i in range(2):
@@ -117,6 +112,7 @@ def test_news_feed_prefs_widget(
 
     page.locator('//*[@id="newsFeedSettingsIcon"]').first.click()
     page.locator('//*[@data-testid="categories.includeCommentsFromBots"]').first.click()
+    page.mouse.move(0, 0)  # dismiss tooltip that can cover the submit button
     page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
     for i in range(2):
         expect(
