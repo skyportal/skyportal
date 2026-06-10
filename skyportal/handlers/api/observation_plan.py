@@ -2211,11 +2211,16 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             geojson = []
             fields_in = []
             for observation in observation_plans[0].planned_observations:
-                if observation.field_id not in fields_in:
-                    fields_in.append(observation.field_id)
-                    geojson.append(observation.field.contour_summary)
-                else:
+                if observation.field_id in fields_in:
                     continue
+                fields_in.append(observation.field_id)
+                # A planned observation can reference a field that no longer
+                # exists (or that has no contour). Skip those rather than raising
+                # an AttributeError (500), which left the frontend skymap globe
+                # spinning on its loading indicator forever.
+                field = observation.field
+                if field is not None and field.contour_summary is not None:
+                    geojson.append(field.contour_summary)
 
             return self.success(data={"geojson": geojson})
 

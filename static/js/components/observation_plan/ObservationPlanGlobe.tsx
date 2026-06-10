@@ -61,6 +61,7 @@ const ObservationPlanGlobe = ({
   displayOptionsDefault.localization = true;
   displayOptionsDefault.observations = true;
   const [obsList, setObsList] = useState<any>(null);
+  const [fetchFailed, setFetchFailed] = useState(false);
   const [selectedObservations, setSelectedObservations] = useState<any[]>([]);
 
   const { data: localization } = useGetLocalizationQuery(
@@ -78,6 +79,7 @@ const ObservationPlanGlobe = ({
   );
 
   useEffect(() => {
+    let cancelled = false;
     const fetchObsList = async () => {
       const response = (await dispatch(
         GET(
@@ -85,7 +87,16 @@ const ObservationPlanGlobe = ({
           "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON",
         ),
       )) as any;
-      setObsList(response.data);
+      if (cancelled) return;
+      if (response?.status === "success") {
+        // A successful response with no data still means "nothing to draw"
+        // (e.g. a plan with no fields), not "still loading".
+        setObsList(response.data ?? { geojson: [] });
+      } else {
+        // On an API error the response has no `.data`; without this the globe
+        // would sit on a spinner forever.
+        setFetchFailed(true);
+      }
     };
     if (
       ["complete", "submitted to telescope queue"].includes(
@@ -94,8 +105,14 @@ const ObservationPlanGlobe = ({
     ) {
       fetchObsList();
     }
-  }, [dispatch, setObsList, observationplanRequest]);
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, setObsList, setFetchFailed, observationplanRequest]);
 
+  if (fetchFailed) {
+    return <p>Could not load the skymap for this plan.</p>;
+  }
   if (!obsList) return <CircularProgress />;
 
   const handleDeleteObservationPlanFields = async (selectedIds: any) => {

@@ -1249,6 +1249,13 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                         joinedload(GcnEvent.observationplan_requests).joinedload(
                             ObservationPlanRequest.requester
                         ),
+                        # Eager-load the localization so each serialized request
+                        # carries localization.dateobs/localization_name. The
+                        # frontend skymap globe needs those to fetch the contour;
+                        # without them it skips the fetch and spins forever.
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.localization
+                        ),
                         joinedload(GcnEvent.observationplan_requests)
                         .joinedload(ObservationPlanRequest.observation_plans)
                         .joinedload(EventObservationPlan.statistics),

@@ -514,8 +514,12 @@ const ObservationPlanRequestLists = ({
         sortable: false,
         renderCell: (params: any) => {
           const observationplanRequest = params.row;
+          // Only render the skymap for statuses where ObservationPlanGlobe
+          // actually fetches its geojson. A "running" plan has no geojson yet,
+          // so the globe never fetched and spun on a CircularProgress forever
+          // -- keep this status list in sync with the globe's fetch condition.
           if (
-            !["complete", "running", "submitted to telescope queue"].includes(
+            !["complete", "submitted to telescope queue"].includes(
               observationplanRequest?.status,
             )
           ) {
@@ -526,6 +530,7 @@ const ObservationPlanRequestLists = ({
               <ObservationPlanGlobe
                 observationplanRequest={observationplanRequest}
                 size={350}
+                retrieveLocalization
               />
             </Box>
           );
