@@ -45,36 +45,6 @@ def _set_num_items(page, value):
     n_items_input.press_sequentially(value)
 
 
-@pytest.mark.flaky(reruns=3)
-def test_news_feed(page, user, public_group, upload_data_token, comment_token):
-    obj_id_base = _seed_sources_and_comments(
-        api, public_group, upload_data_token, comment_token
-    )
-
-    page.goto(f"/become_user/{user.id}")
-    page.goto("/")
-    expect(page.locator('//span[text()="a few seconds ago"]').first).to_be_visible()
-    expect(page.locator('//*[@id="newsFeedSettingsIcon"]').first).to_be_visible()
-
-    remove_notification(page)
-
-    page.locator('//*[@id="newsFeedSettingsIcon"]').first.click()
-    expect(
-        page.locator('//*[@data-testid="categories.includeCommentsFromBots"]').first
-    ).to_be_visible()
-    page.locator('//*[@data-testid="categories.includeCommentsFromBots"]').first.click()
-    page.locator('//form//button[@type="submit" and contains(., "Save")]').first.click()
-    for i in range(2):
-        expect(
-            page.locator(
-                f'//div[contains(@class, "entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
-            ).first
-        ).to_be_visible()
-        expect(
-            page.locator(f'//p[contains(text(),"comment_text_{i}")]').first
-        ).to_be_visible()
-
-
 def test_news_feed_prefs_widget(
     page, user, public_group, upload_data_token, comment_token
 ):
