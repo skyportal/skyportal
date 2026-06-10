@@ -436,10 +436,12 @@ def test_notification_setting_select(page, user):
         page.locator('//*[@aria-label="time_slot_slider" and @value="3"]').first
     ).to_be_visible()
 
-    # test inverting the timeslot
-    page.locator(
-        '//*[@label="Invert" and contains(@class, "MuiCheckbox-root")]'
-    ).first.click()
+    with page.expect_response(
+        lambda r: "api/internal/profile" in r.url and r.request.method == "PATCH"
+    ):
+        page.locator(
+            '//*[@label="Invert" and contains(@class, "MuiCheckbox-root")]'
+        ).first.click()
     expect(
         page.locator('//*[@label="Invert" and contains(@class,"Mui-checked")]').first
     ).to_be_visible()
