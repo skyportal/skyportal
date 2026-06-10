@@ -1243,6 +1243,12 @@ class FollowupRequestHandler(BaseHandler):
             except ValueError:
                 return self.error("Allocation ID must be an integer.")
 
+        if instrumentID is not None:
+            try:
+                instrumentID = int(instrumentID)
+            except ValueError:
+                return self.error("Instrument ID must be an integer.")
+
         with self.Session() as session:
             if allocationID is not None:
                 # verify that the user can access the allocation
@@ -2468,10 +2474,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             self.push_notification(
                 "Schedule generation in progress. Download will start soon."
             )
-            try:
-                rez = await IOLoop.current().run_in_executor(None, schedule)
-            except ValueError as e:
-                return self.error(str(e))
+            rez = await IOLoop.current().run_in_executor(None, schedule)
 
             filename = rez["name"]
             data = io.BytesIO(rez["data"])
