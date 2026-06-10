@@ -1030,7 +1030,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
-              currentUser?.preferences?.["hideSourceSummary"] !== true && (
+              !currentUser?.preferences?.["hideSourceSummary"] && (
                 <Paper
                   className={classes.flexColumn}
                   style={{
@@ -1086,15 +1086,15 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         }
                       />
                       {source.comments?.length > 0 ||
-                      source.classifications?.length > 0 ? (
-                        <StartBotSummary obj_id={source.id} />
-                      ) : null}
-                      {source.summary_history?.length > 0 ? (
+                        (source.classifications?.length > 0 && (
+                          <StartBotSummary obj_id={source.id} />
+                        ))}
+                      {source.summary_history?.length > 0 && (
                         <ShowSummaryHistory
                           summaries={source.summary_history}
                           obj_id={source.id}
                         />
-                      ) : null}
+                      )}
                     </div>
                   </div>
                 </Paper>
