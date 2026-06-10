@@ -54,34 +54,21 @@ const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
     } else {
       dataToSend.dec = parseFloat(dataToSend?.dec);
     }
-    if (
-      dataToSend?.id === "" ||
-      dataToSend?.id === null ||
-      dataToSend?.id === undefined ||
-      !dataToSend?.id
-    ) {
-      dispatch(showNotification("Please enter a source ID.", "error"));
-    } else {
-      try {
-        const data: any = await checkSource({
-          id: dataToSend?.id,
-          params: dataToSend,
-        }).unwrap();
-        if (data?.source_exists === true) {
-          dispatch(showNotification(data.message, "error"));
-          return;
-        }
-
-        if (selectedGroupIds.length > 0) {
-          dataToSend.group_ids = selectedGroupIds;
-        }
-        await saveSource(dataToSend).unwrap();
-        onClose();
-        dispatch(showNotification("Source saved"));
-        navigate(`/source/${dataToSend.id}`);
-      } catch {
-        // error notification handled by the baseQuery
+    try {
+      const data: any = await checkSource({
+        id: dataToSend?.id,
+        params: dataToSend,
+      }).unwrap();
+      if (data?.source_exists) {
+        dispatch(showNotification(data.message, "error"));
+        return;
       }
+      await saveSource(dataToSend).unwrap();
+      onClose();
+      dispatch(showNotification("Source saved"));
+      navigate(`/source/${dataToSend.id}`);
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 
