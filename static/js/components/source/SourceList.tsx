@@ -26,9 +26,6 @@ const SourceList = () => {
   const sourceTableEmpty = (useGetDbInfoQuery().data as any)
     ?.source_table_empty;
 
-  const [rowsPerPage, setRowsPerPage] = useState(100);
-  const [sorting, setSorting] = useState<any>(null);
-  const [filtering, setFiltering] = useState<any>(null);
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
@@ -38,7 +35,6 @@ const SourceList = () => {
     sortData: any,
     filterData: any,
   ) => {
-    setRowsPerPage(numPerPage);
     const data: any = {
       ...filterData,
       pageNumber,
@@ -51,10 +47,6 @@ const SourceList = () => {
     setQueryParams(data);
     fetchSourcesTrigger(data)
       .unwrap()
-      .then(() => {
-        setSorting(sortData);
-        setFiltering(filterData);
-      })
       .catch(() => {
         handleSourceTablePagination(pageNumber, numPerPage, null, null);
       });
@@ -64,14 +56,12 @@ const SourceList = () => {
     const data = {
       ...filterData,
       pageNumber: 1,
-      rowsPerPage,
+      numPerPage: queryParams.numPerPage,
       sortBy: sortData.name,
       sortOrder: sortData.direction,
     };
     setQueryParams(data);
     fetchSourcesTrigger(data);
-    setSorting(sortData);
-    setFiltering(filterData);
   };
 
   const handleSourcesDownload = async () => {
@@ -86,14 +76,10 @@ const SourceList = () => {
         i += 1
       ) {
         const data: any = {
-          ...filtering,
+          ...queryParams,
           pageNumber: i,
           numPerPage: sourcesState.numPerPage,
         };
-        if (sorting) {
-          data.sortBy = sorting.name;
-          data.sortOrder = sorting.direction;
-        }
         /* eslint-disable no-await-in-loop */
         try {
           const result: any = await fetchSourcesTrigger(data).unwrap();

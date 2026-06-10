@@ -39,7 +39,7 @@ export interface SourcesResult {
 const addFilterParamDefaults = (filterParams: FilterParams): FilterParams => {
   const params = { ...filterParams };
   if (!Object.keys(params).includes("numPerPage")) {
-    params["numPerPage"] = 10;
+    params["numPerPage"] = 30;
   }
   params["includeColorMagnitude"] = true;
   params["includeThumbnails"] = true;
