@@ -1,6 +1,6 @@
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import InputLabel from "@mui/material/InputLabel";
@@ -78,10 +78,26 @@ const FollowupRequestForm = ({
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
   const [requestData, setRequestData] = useState<any>(null);
 
-  const [filteredAllocationList, setFilteredAllocationList] = useState<any[]>(
-    [],
-  );
-  const [settingFilteredList, setSettingFilteredList] = useState(false);
+  const filteredAllocationList = useMemo<any[]>(() => {
+    if (requestType === "triggered") {
+      return (allocationListApiClassname || []).filter(
+        (allocation: any) =>
+          allocation.instrument_id in instrumentFormParams &&
+          instrumentFormParams[allocation.instrument_id].formSchema != null &&
+          allocation.types.includes("triggered"),
+      );
+    }
+    if (requestType === "forced_photometry") {
+      return (allocationListApiClassname || []).filter(
+        (allocation: any) =>
+          allocation.instrument_id in instrumentFormParams &&
+          instrumentFormParams[allocation.instrument_id]
+            .formSchemaForcedPhotometry != null &&
+          allocation.types.includes("forced_photometry"),
+      );
+    }
+    return [];
+  }, [allocationListApiClassname, instrumentFormParams, requestType]);
 
   useEffect(() => {
     const data = allocationListApiClassname || [];
@@ -94,11 +110,11 @@ const FollowupRequestForm = ({
     });
 
     if (!selectedAllocationId) {
-      if (data[0]?.["default_share_group_ids"]?.length > 0) {
-        setSelectedGroupIds(data[0]?.["default_share_group_ids"]);
-      } else {
-        setSelectedGroupIds([data[0]?.["group_id"]]);
-      }
+      setSelectedGroupIds(
+        data[0]?.["default_share_group_ids"]?.length
+          ? data[0]["default_share_group_ids"]
+          : [data[0]?.["group_id"]],
+      );
     } else if (
       tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids
         ?.length > 0
@@ -122,41 +138,6 @@ const FollowupRequestForm = ({
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationList is not
   // empty.
-
-  // only keep allocations in allocationListApiClassname where there is a corresponding
-  // instrument form params with a non null formSchema
-  useEffect(() => {
-    async function filterAllocations() {
-      setSettingFilteredList(true);
-      if (requestType === "triggered") {
-        const filtered = (allocationListApiClassname || []).filter(
-          (allocation: any) =>
-            allocation.instrument_id in instrumentFormParams &&
-            instrumentFormParams[allocation.instrument_id].formSchema !==
-              null &&
-            instrumentFormParams[allocation.instrument_id].formSchema !==
-              undefined &&
-            allocation.types.includes("triggered"),
-        );
-        setFilteredAllocationList(filtered);
-      } else if (requestType === "forced_photometry") {
-        const filtered = (allocationListApiClassname || []).filter(
-          (allocation: any) =>
-            allocation.instrument_id in instrumentFormParams &&
-            instrumentFormParams[allocation.instrument_id]
-              .formSchemaForcedPhotometry !== null &&
-            instrumentFormParams[allocation.instrument_id]
-              .formSchemaForcedPhotometry !== undefined &&
-            allocation.types.includes("forced_photometry"),
-        );
-        setFilteredAllocationList(filtered);
-      }
-      setSettingFilteredList(false);
-    }
-    if (settingFilteredList === false) {
-      filterAllocations();
-    }
-  }, [allocationListApiClassname, instrumentFormParams, settingFilteredList]);
 
   useEffect(() => {
     if (

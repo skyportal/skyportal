@@ -387,7 +387,7 @@ def check_objects_exist(metadata, user, session):
         raise ValueError("Must supply an instrument_id")
 
     instrument = session.scalars(
-        Instrument.select(user).where(Instrument.id == instrument_id)
+        Instrument.select(user).where(Instrument.id == int(instrument_id))
     ).first()
     if instrument is None:
         raise ValueError(f"Invalid instrument_id: {instrument_id}")

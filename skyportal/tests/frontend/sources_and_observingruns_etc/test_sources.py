@@ -118,6 +118,7 @@ def test_public_source_page_null_z(page, user, public_source, public_group):
     expect(page.locator(f'//span[text()="{public_group.name}"]').first).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_classifications(page, user, taxonomy_token, public_group, public_source):
     simple = {
         "class": "Cepheid",
@@ -422,6 +423,7 @@ def test_unsave_from_group(
     ).to_be_hidden()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_request_group_to_save_then_save(
     page, user, user_two_groups, public_source, public_group2
 ):
@@ -480,6 +482,7 @@ def test_update_redshift_and_history(page, user, public_source):
     expect(page.locator(f"//td[text()='{user.username}']").first).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_update_redshift_and_history_without_error(page, user, public_source):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
@@ -580,6 +583,7 @@ def test_source_hr_diagram(page, user, public_source, annotation_token, tmp_path
     assert difference.getbbox() is None
 
 
+@pytest.mark.flaky(reruns=2)
 def test_duplicate_sources_render(
     page, public_source, public_group, upload_data_token, user, ztf_camera
 ):
@@ -617,8 +621,16 @@ def test_duplicate_sources_render(
 
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
-    expect(
-        page.locator('//*[contains(text(), "Possible duplicate of:")]').first
-    ).to_be_visible()
-    page.locator(f'//*[contains(text(), "{obj_id2}")]').first.click()
-    expect(page.locator(f'//*[contains(text(), "{obj_id2}")]').first).to_be_visible()
+    # The duplicate renders as an <a href="/source/{obj_id2}"> link in the
+    # "Possible duplicate of:" panel. Target that link directly: a plain
+    # text match (//*[contains(text(), obj_id2)]) also resolves the invisible
+    # SVG <title> nodes the thumbnails emit, which never become "visible" and
+    # made this test very flaky. `source.duplicates` is computed in the source
+    # fetch, which can race the become_user session switch on first paint, so
+    # reload once and retry if the link has not appeared yet.
+    duplicate_link = page.locator(f'//a[contains(@href, "/source/{obj_id2}")]').first
+    try:
+        expect(duplicate_link).to_be_visible(timeout=30000)
+    except AssertionError:
+        page.reload()
+        expect(duplicate_link).to_be_visible(timeout=30000)

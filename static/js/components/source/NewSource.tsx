@@ -13,7 +13,7 @@ import utc from "dayjs/plugin/utc";
 import { useAppDispatch } from "../../types/hooks";
 import GroupShareSelect from "../group/GroupShareSelect";
 import {
-  useLazyCheckSourceQuery,
+  useCheckSourceMutation,
   useSaveSourceMutation,
 } from "../../ducks/source";
 import { dms_to_dec, hours_to_ra } from "../../units";
@@ -30,7 +30,7 @@ interface NewSourceProps {
 const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const [checkSource] = useLazyCheckSourceQuery();
+  const [checkSource] = useCheckSourceMutation();
   const [saveSource] = useSaveSourceMutation();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);

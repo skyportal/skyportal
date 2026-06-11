@@ -12,16 +12,12 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export interface RecurringAPI {
-  id: number;
-  [key: string]: unknown;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const recurringAPIsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getRecurringAPIs: build.query<
-      RecurringAPI[],
+      RouteData<"GET /api/recurring_api">,
       Record<string, unknown> | void
     >({
       query: (params) => ({

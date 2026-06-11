@@ -18,12 +18,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export interface GcnEvent {
-  id?: number | undefined;
-  dateobs?: string | undefined;
-  [key: string]: any;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 export interface CommentAttachment {
   commentId: number | string;
@@ -46,13 +41,25 @@ function fileReaderPromise(
 export const gcnEventApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     // ----- Main event + read-only sub-fetches -----
-    getGcnEvent: build.query<GcnEvent, string>({
-      query: (dateobs) => `api/gcn_event/${dateobs}?excludeNoticeContent=true`,
-      providesTags: ["GcnEvent"],
-    }),
+    getGcnEvent: build.query<RouteData<"GET /api/gcn_event/{dateobs}">, string>(
+      {
+        query: (dateobs) =>
+          `api/gcn_event/${dateobs}?excludeNoticeContent=true`,
+        // Broad "GcnEvent" tag (so mutations / other REFRESH_* events still
+        // refetch) plus a per-id tag keyed by dateobs, so REFRESH_GCN_EVENT only
+        // refetches the event a client is actually viewing.
+        providesTags: (_result, _error, dateobs) => [
+          "GcnEvent",
+          { type: "GcnEvent", id: dateobs },
+        ],
+      },
+    ),
     getGcnTach: build.query<{ circulars?: Record<string, string> }, string>({
       query: (dateobs) => `api/gcn_event/${dateobs}/tach`,
-      providesTags: ["GcnEvent"],
+      providesTags: (_result, _error, dateobs) => [
+        "GcnEvent",
+        { type: "GcnEvent", id: dateobs },
+      ],
     }),
     getGcnTrigger: build.query<
       any,
@@ -64,25 +71,37 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
           : `api/gcn_event/${dateobs}/triggered`,
       providesTags: ["GcnEvent"],
     }),
-    getGcnEventSurveyEfficiency: build.query<any, { gcnID: number | string }>({
+    getGcnEventSurveyEfficiency: build.query<
+      RouteData<"GET /api/gcn_event/{gcnevent_id}/survey_efficiency">,
+      { gcnID: number | string }
+    >({
       query: ({ gcnID }) => `api/gcn_event/${gcnID}/survey_efficiency`,
       providesTags: ["GcnEvent"],
     }),
-    getGcnEventCatalogQueries: build.query<any, { gcnID: number | string }>({
+    getGcnEventCatalogQueries: build.query<
+      RouteData<"GET /api/gcn_event/{gcnevent_id}/catalog_query">,
+      { gcnID: number | string }
+    >({
       query: ({ gcnID }) => `api/gcn_event/${gcnID}/catalog_query`,
       providesTags: ["GcnEvent"],
     }),
-    getObservationPlanRequests: build.query<any, number | string>({
+    getObservationPlanRequests: build.query<
+      RouteData<"GET /api/gcn_event/{gcnevent_id}/observation_plan_requests">,
+      number | string
+    >({
       query: (gcnEventID) =>
         `api/gcn_event/${gcnEventID}/observation_plan_requests`,
       providesTags: ["GcnEvent"],
     }),
-    getObservationPlan: build.query<any, number | string>({
+    getObservationPlan: build.query<
+      RouteData<"GET /api/observation_plan/{observation_plan_request_id}">,
+      number | string
+    >({
       query: (id) =>
         `api/observation_plan/${id}?includePlannedObservations=true`,
     }),
     getGcnEventReport: build.query<
-      any,
+      RouteData<"GET /api/gcn_event/{dateobs}/report/{report_id}">,
       { dateobs: string; reportID: number | string }
     >({
       query: ({ dateobs, reportID }) =>
@@ -94,7 +113,7 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
       providesTags: ["GcnEvent"],
     }),
     getGcnEventSummary: build.query<
-      any,
+      RouteData<"GET /api/gcn_event/{dateobs}/summary/{summary_id}">,
       { dateobs: string; summaryID: number | string }
     >({
       query: ({ dateobs, summaryID }) =>
@@ -109,7 +128,7 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
     }),
 
     // ----- Event-level mutations -----
-    submitGcnEvent: build.mutation<any, any>({
+    submitGcnEvent: build.mutation<RouteData<"POST /api/gcn_event">, any>({
       query: (data) => ({
         url: "api/gcn_event",
         method: "POST",
@@ -180,7 +199,10 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
     }),
 
     // ----- Comments -----
-    addCommentOnGcnEvent: build.mutation<any, any>({
+    addCommentOnGcnEvent: build.mutation<
+      RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
+      any
+    >({
       queryFn: async (formData, _api, _extra, baseQuery) => {
         const body = { ...formData };
         if (body.attachment) {
@@ -194,12 +216,14 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
         if (result.error) {
           return { error: result.error };
         }
-        return { data: result.data };
+        return {
+          data: result.data as RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
+        };
       },
       invalidatesTags: ["GcnEvent"],
     }),
     editCommentOnGcnEvent: build.mutation<
-      any,
+      RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
       {
         commentID: number | string;
         gcnEventID: number | string;
@@ -224,7 +248,9 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
         if (result.error) {
           return { error: result.error };
         }
-        return { data: result.data };
+        return {
+          data: result.data as RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
+        };
       },
       invalidatesTags: ["GcnEvent"],
     }),
@@ -251,14 +277,20 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
       },
       invalidatesTags: ["GcnEvent"],
     }),
-    sendObservationPlanRequest: build.mutation<any, number | string>({
+    sendObservationPlanRequest: build.mutation<
+      RouteData<"POST /api/observation_plan/{observation_plan_request_id}/queue">,
+      number | string
+    >({
       query: (id) => ({
         url: `api/observation_plan/${id}/queue`,
         method: "POST",
       }),
       invalidatesTags: ["GcnEvent"],
     }),
-    removeObservationPlanRequest: build.mutation<any, number | string>({
+    removeObservationPlanRequest: build.mutation<
+      RouteData<"DELETE /api/observation_plan/{observation_plan_request_id}/queue">,
+      number | string
+    >({
       query: (id) => ({
         url: `api/observation_plan/${id}/queue`,
         method: "DELETE",
@@ -304,7 +336,7 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["GcnEvent"],
     }),
     deleteObservationPlanFields: build.mutation<
-      any,
+      RouteData<"DELETE /api/observation_plan/{observation_plan_request_id}/fields">,
       { id: number | string; fieldIds: any }
     >({
       query: ({ id, fieldIds }) => ({
@@ -392,7 +424,16 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
 // construction, the ones for the currently-loaded event — so the conditional
 // "only if it matches the loaded event" guard is satisfied automatically.
 invalidateOnMessage("skyportal/FETCH_GCNEVENT", () => ["GcnEvent"]);
-invalidateOnMessage("skyportal/REFRESH_GCN_EVENT", () => ["GcnEvent"]);
+// REFRESH_GCN_EVENT is broadcast to every client carrying the changed event's
+// dateobs (which is exactly the getGcnEvent/getGcnTach query arg — no lookup
+// needed). Invalidate only that event's per-id tag so other clients viewing a
+// different event don't refetch their (heavy) event object. Restores the
+// pre-migration "only if it matches the loaded event's dateobs" gate.
+invalidateOnMessage("skyportal/REFRESH_GCN_EVENT", (payload) =>
+  payload?.gcnEvent_dateobs != null
+    ? [{ type: "GcnEvent", id: payload.gcnEvent_dateobs }]
+    : ["GcnEvent"],
+);
 invalidateOnMessage("skyportal/REFRESH_GCN_TRIGGERED", () => ["GcnEvent"]);
 invalidateOnMessage(
   "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",

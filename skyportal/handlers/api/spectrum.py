@@ -116,7 +116,7 @@ def post_spectrum(data, user_id, session):
 
     user = session.scalar(sa.select(User).where(User.id == user_id))
 
-    stmt = Instrument.select(user).where(Instrument.id == data["instrument_id"])
+    stmt = Instrument.select(user).where(Instrument.id == int(data["instrument_id"]))
     instrument = session.scalars(stmt).first()
     if instrument is None:
         raise ValueError(f"Cannot find instrument with ID: {data['instrument_id']}")
@@ -1252,7 +1252,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
             inst_check = session.scalars(
                 Instrument.select(session.user_or_token).where(
-                    Instrument.id == json["instrument_id"]
+                    Instrument.id == int(json["instrument_id"])
                 )
             ).first()
 

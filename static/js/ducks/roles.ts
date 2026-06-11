@@ -7,12 +7,7 @@
  * slice), so consumers refetch that manually.
  */
 import { skyportalApi } from "../api/skyportalApi";
-
-export interface Role {
-  id: string;
-  acls?: string[] | undefined;
-  [key: string]: unknown;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 interface AddUserRolesArg {
   userID: number | string;
@@ -26,7 +21,7 @@ interface DeleteUserRoleArg {
 
 export const rolesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getRoles: build.query<Role[], void>({
+    getRoles: build.query<RouteData<"GET /api/roles">, void>({
       query: () => "api/roles",
       providesTags: ["Role"],
     }),

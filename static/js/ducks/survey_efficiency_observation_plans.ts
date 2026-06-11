@@ -14,14 +14,13 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-type SurveyEfficiencyObservationPlan = Record<string, any>;
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const surveyEfficiencyObservationPlansApi = skyportalApi.injectEndpoints(
   {
     endpoints: (build) => ({
       getSurveyEfficiencyObservationPlans: build.query<
-        SurveyEfficiencyObservationPlan[],
+        RouteData<"GET /api/survey_efficiency/observation_plan">,
         void
       >({
         query: () => "api/survey_efficiency/observation_plan",

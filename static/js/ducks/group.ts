@@ -9,12 +9,14 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export type Group = Record<string, any>;
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const groupApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getGroup: build.query<Group, number | string>({
+    getGroup: build.query<
+      RouteData<"GET /api/groups/{group_id}">,
+      number | string
+    >({
       query: (id) => `api/groups/${id}`,
       providesTags: (_result, _error, id) => [{ type: "Group", id }],
     }),

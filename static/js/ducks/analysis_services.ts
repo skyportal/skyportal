@@ -9,13 +9,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export interface AnalysisService {
-  id: number;
-  name: string;
-  display_name?: string | undefined;
-  [key: string]: unknown;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 interface ModifyAnalysisServiceArg {
   id: number | string;
@@ -25,7 +19,7 @@ interface ModifyAnalysisServiceArg {
 export const analysisServicesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getAnalysisServices: build.query<
-      AnalysisService[],
+      RouteData<"GET /api/analysis_service">,
       Record<string, unknown> | void
     >({
       query: (params) => {
@@ -38,11 +32,17 @@ export const analysisServicesApi = skyportalApi.injectEndpoints({
       },
       providesTags: ["AnalysisServices"],
     }),
-    getAnalysisService: build.query<AnalysisService, number | string>({
+    getAnalysisService: build.query<
+      RouteData<"GET /api/analysis_service/{analysis_service_id}">,
+      number | string
+    >({
       query: (id) => `api/analysis_service/${id}`,
       providesTags: ["AnalysisService"],
     }),
-    submitAnalysisService: build.mutation<unknown, Record<string, unknown>>({
+    submitAnalysisService: build.mutation<
+      RouteData<"POST /api/analysis_service">,
+      Record<string, unknown>
+    >({
       query: (run) => ({
         url: "api/analysis_service",
         method: "POST",

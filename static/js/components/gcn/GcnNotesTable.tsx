@@ -14,17 +14,12 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarExport,
-} from "@mui/x-data-grid";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -103,9 +98,7 @@ const GcnNotesTable = ({ gcnNotes, canExpand = true }: GcnNotesTableProps) => {
   });
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
-      <GridToolbarExport />
+    <DataGridToolbar showExport showQuickFilter={false}>
       {canExpand && (
         <IconButton
           name="expand_annotations"
@@ -114,7 +107,7 @@ const GcnNotesTable = ({ gcnNotes, canExpand = true }: GcnNotesTableProps) => {
           <OpenInFullIcon />
         </IconButton>
       )}
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

@@ -16,8 +16,9 @@ const UserInfo = ({ route }: UserInfoProps) => {
     return <CircularProgress color="secondary" />;
   }
   const { username } = user;
-  const created_at = user["created_at"] as string | undefined;
-  const permissions = (user["permissions"] as string[] | undefined) ?? [];
+  const userAny = user as any;
+  const created_at = userAny["created_at"] as string | undefined;
+  const permissions = (userAny["permissions"] as string[] | undefined) ?? [];
   return (
     <div>
       <b>{username}</b>

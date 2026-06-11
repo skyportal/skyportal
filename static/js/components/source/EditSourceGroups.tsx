@@ -66,6 +66,7 @@ const EditSourceGroups = ({
   );
 
   useEffect(() => {
+    if (!dialogOpen) return;
     reset({
       inviteGroupIds: Array(
         groups?.filter((g) => !source.currentGroupIds.includes(g.id)).length,
@@ -74,7 +75,8 @@ const EditSourceGroups = ({
         groups?.filter((g) => source.currentGroupIds.includes(g.id)).length,
       ).fill(false),
     });
-  }, [reset, groups, source]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen]);
 
   const openDialog = () => {
     setDialogOpen(true);

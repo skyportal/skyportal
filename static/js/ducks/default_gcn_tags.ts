@@ -11,21 +11,20 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export interface DefaultGcnTag {
-  id: number;
-  default_tag_name: string;
-  filters?: Record<string, unknown> | undefined;
-  [key: string]: unknown;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const defaultGcnTagsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getDefaultGcnTags: build.query<DefaultGcnTag[], void>({
-      query: () => "api/default_gcn_tag",
-      providesTags: ["FetchDefaultGcnTags"],
-    }),
-    submitDefaultGcnTag: build.mutation<unknown, Record<string, unknown>>({
+    getDefaultGcnTags: build.query<RouteData<"GET /api/default_gcn_tag">, void>(
+      {
+        query: () => "api/default_gcn_tag",
+        providesTags: ["FetchDefaultGcnTags"],
+      },
+    ),
+    submitDefaultGcnTag: build.mutation<
+      RouteData<"POST /api/default_gcn_tag">,
+      Record<string, unknown>
+    >({
       query: (default_tag) => ({
         url: "api/default_gcn_tag",
         method: "POST",

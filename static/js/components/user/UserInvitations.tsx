@@ -24,10 +24,6 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Tooltip from "@mui/material/Tooltip";
 import HelpIcon from "@mui/icons-material/Help";
 import { makeStyles } from "tss-react/mui";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import PapaParse from "papaparse";
@@ -37,7 +33,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 import FormValidationError from "../FormValidationError";
 import { useGetGroupsQuery } from "../../ducks/groups";
@@ -630,8 +626,7 @@ const UserInvitations = () => {
 
   const CustomToolbar = function UserInvitationsToolbar() {
     return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
+      <DataGridToolbar showQuickFilter={false}>
         <Tooltip title="Filter Table">
           <IconButton
             size="small"
@@ -649,7 +644,7 @@ const UserInvitations = () => {
             onDelete={() => handleFilterChipDelete(chip)}
           />
         ))}
-      </GridToolbarContainer>
+      </DataGridToolbar>
     );
   };
 

@@ -13,6 +13,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
 interface Group {
   id: number;
@@ -59,7 +60,7 @@ export const groupsApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Group"],
     }),
     addGroupUser: build.mutation<
-      unknown,
+      RouteData<"POST /api/groups/{group_id}/users">,
       {
         userID: number | string;
         admin: boolean;
@@ -75,7 +76,7 @@ export const groupsApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Group"],
     }),
     addAllUsersFromGroups: build.mutation<
-      unknown,
+      RouteData<"POST /api/groups/{group_id}/usersFromGroups">,
       { toGroupID: number | string; fromGroupIDs: (number | string)[] }
     >({
       query: ({ toGroupID, fromGroupIDs }) => ({
@@ -86,7 +87,7 @@ export const groupsApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Group"],
     }),
     updateGroupUser: build.mutation<
-      unknown,
+      RouteData<"PATCH /api/groups/{group_id}/users">,
       { groupID: number | string; params: Record<string, unknown> }
     >({
       query: ({ groupID, params }) => ({

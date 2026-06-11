@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
@@ -133,7 +133,10 @@ const NotificationGcnEvent = () => {
   const [manageProfileOpen, setManageProfileOpen] = useState(false);
   const [newProfileOpen, setNewProfileOpen] = useState(false);
 
-  // Convert the existing notifications to a list format, so that they can be easily modified
+  // Convert the existing notifications to a list format, so that they can be
+  // easily modified. This runs as an effect (not in the render body) so the
+  // mutation doesn't dispatch on every render — which caused an infinite
+  // PATCH/render loop ("Cannot update a component while rendering").
   useEffect(() => {
     if (!notifications?.gcn_events?.properties) {
       const default_properties: Record<string, any> = {};
@@ -165,7 +168,7 @@ const NotificationGcnEvent = () => {
 
       updateUserPreferences(prefs);
     }
-  }, [notifications]);
+  }, [notifications, updateUserPreferences]);
 
   const openManageProfile = (key: any) => {
     setSelectedNotification(key);

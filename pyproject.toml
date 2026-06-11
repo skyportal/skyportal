@@ -54,6 +54,9 @@ dependencies = [
     "pyvo==1.8",
     "lxml==6.1.0",
     "suds-py3==1.4.5.0",
+    # aiohttp 3.14 dropped streams.AsyncStreamReaderMixin, which vcrpy 8.1.1's
+    # aiohttp stub imports -- crashing the test_server cassettes. Pin until vcrpy supports 3.14.
+    "aiohttp==3.13.5",
     "vcrpy==8.1.1",
     "aiosmtpd==1.4.6",
     "ligo.skymap==2.5.3",

@@ -13,16 +13,7 @@
  * invalidate the `Localization` tag.
  */
 import { skyportalApi } from "../api/skyportalApi";
-
-interface Localization {
-  id: number;
-  dateobs: string;
-  localization_name: string;
-  contour?: unknown;
-  center?: unknown;
-  tags?: { text: string }[];
-  [key: string]: unknown;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 interface GetLocalizationArg {
   dateobs: string;
@@ -31,7 +22,10 @@ interface GetLocalizationArg {
 
 export const localizationApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getLocalization: build.query<Localization, GetLocalizationArg>({
+    getLocalization: build.query<
+      RouteData<"GET /api/localization/{dateobs}/name/{localization_name}">,
+      GetLocalizationArg
+    >({
       query: ({ dateobs, localization_name }) =>
         `api/localization/${dateobs}/name/${localization_name}`,
       providesTags: ["Localization"],

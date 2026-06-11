@@ -11,15 +11,10 @@ import Box from "@mui/material/Box";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import DownloadIcon from "@mui/icons-material/Download";
 import { makeStyles } from "tss-react/mui";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import WatcherButton from "./WatcherButton";
 
 import {
@@ -36,6 +31,8 @@ const useStyles = makeStyles()(() => ({
   actionButtons: {
     display: "flex",
     flexFlow: "row wrap",
+    gap: "0.2rem",
+    padding: "0.3rem 0",
   },
   accordion: {
     width: "100%",
@@ -622,8 +619,7 @@ const FollowupRequestLists = ({
   const makeToolbar = () =>
     function FollowupRequestToolbar() {
       return (
-        <GridToolbarContainer>
-          <GridToolbarColumnsButton />
+        <DataGridToolbar>
           {showDownload && (
             <Tooltip title="Download CSV">
               <IconButton
@@ -636,8 +632,7 @@ const FollowupRequestLists = ({
               </IconButton>
             </Tooltip>
           )}
-          <GridToolbarQuickFilter />
-        </GridToolbarContainer>
+        </DataGridToolbar>
       );
     };
 
@@ -752,6 +747,11 @@ const FollowupRequestLists = ({
               <Box sx={{ width: "100%" }}>
                 <StyledDataGrid
                   autoHeight
+                  // Action cells can hold several buttons (Delete, Retrieve,
+                  // Submit, Edit) that wrap onto multiple lines; let each row
+                  // grow to fit so the wrapped buttons (e.g. Edit) aren't clipped
+                  // by the fixed default row height.
+                  getRowHeight={() => "auto"}
                   rows={requestsGroupedByInstId[instrument_id]}
                   columns={columns}
                   getRowId={(row: any) => row.id}

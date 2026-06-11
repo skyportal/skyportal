@@ -4,6 +4,7 @@ import uuid
 from os.path import join as pjoin
 
 import numpy as np
+import pandas as pd
 import pytest
 from astropy.table import Table
 from numpy import random
@@ -11,6 +12,10 @@ from playwright.sync_api import expect
 
 from baselayer.app.config import load_config
 from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
+from skyportal.tests.external.test_moving_objects import (
+    add_telescope_and_instrument,
+    remove_telescope_and_instrument,
+)
 
 cfg = load_config()
 
@@ -159,6 +164,190 @@ def test_upload_download_comment_attachment(page, user, public_source):
         assert lines.split("\n")[0] == "wavelengths,fluxes,instrument_id"
     finally:
         os.remove(fpath)
+
+
+def test_gcn_summary_observations(
+    page,
+    super_admin_user,
+    super_admin_token,
+    public_group,
+):
+    datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
+    with open(datafile, "rb") as fid:
+        payload = fid.read()
+    event_data = {"xml": payload}
+
+    dateobs = "2019-08-14T21:10:39"
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+
+    if status == 404:
+        status, data = api(
+            "POST", "gcn_event", data=event_data, token=super_admin_token
+        )
+        assert status == 200
+        assert data["status"] == "success"
+
+        gcnevent_id = data["data"]["gcnevent_id"]
+    else:
+        gcnevent_id = data["data"]["id"]
+
+    # wait for event to load
+    wait_for_gcn_event(dateobs, super_admin_token)
+
+    # wait for the localization to load
+    localization = wait_for_localization(
+        "2019-08-14T21:10:39", "LALInference.v1.fits.gz", super_admin_token
+    )
+    assert np.isclose(np.sum(localization["flat_2d"]), 1)
+    localization_id = localization["id"]
+
+    telescope_id, instrument_id, telescope_name, instrument_name = (
+        add_telescope_and_instrument("ZTF", super_admin_token, list(range(199, 204)))
+    )
+
+    request_data = {
+        "group_id": public_group.id,
+        "instrument_id": instrument_id,
+        "pi": "Shri Kulkarni",
+        "hours_allocated": 200,
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+        "proposal_id": "COO-2020A-P01",
+    }
+
+    status, data = api("POST", "allocation", data=request_data, token=super_admin_token)
+    assert status == 200
+    assert data["status"] == "success"
+    allocation_id = data["data"]["id"]
+
+    queue_name = str(uuid.uuid4())
+    request_data = {
+        "allocation_id": allocation_id,
+        "gcnevent_id": gcnevent_id,
+        "localization_id": localization_id,
+        "payload": {
+            "start_date": "2019-08-15 08:18:05",
+            "end_date": "2019-08-20 08:18:05",
+            "filter_strategy": "block",
+            "schedule_strategy": "tiling",
+            "schedule_type": "greedy_slew",
+            "exposure_time": 300,
+            "field_ids": [200, 201, 202],
+            "filters": "ztfr",
+            "maximum_airmass": 2.0,
+            "integrated_probability": 100,
+            "minimum_time_difference": 30,
+            "queue_name": queue_name,
+            "program_id": "Partnership",
+            "subprogram_name": "GRB",
+            "galactic_latitude": 10,
+        },
+    }
+
+    status, data = api(
+        "POST", "observation_plan", data=request_data, token=super_admin_token
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    id = data["data"]["ids"][0]
+
+    # wait for the observation plan to finish loading
+    time.sleep(15)
+
+    status, data = api(
+        "GET",
+        f"observation_plan/{id}",
+        params={"includePlannedObservations": "true"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    assert data["data"]["gcnevent_id"] == gcnevent_id
+    assert data["data"]["allocation_id"] == allocation_id
+    assert data["data"]["payload"] == request_data["payload"]
+
+    assert len(data["data"]["observation_plans"]) == 1
+
+    datafile = f"{os.path.dirname(__file__)}/../../../../data/sample_observation_gw.csv"
+    data = {
+        "telescopeName": telescope_name,
+        "instrumentName": instrument_name,
+        "observationData": pd.read_csv(datafile).to_dict(orient="list"),
+    }
+
+    status, data = api("POST", "observation", data=data, token=super_admin_token)
+
+    assert status == 200
+    assert data["status"] == "success"
+
+    # wait for the executed observations to populate
+
+    params = {
+        "telescopeName": telescope_name,
+        "instrumentName": instrument_name,
+        "startDate": "2019-08-13 08:18:05",
+        "endDate": "2019-08-19 08:18:05",
+    }
+    nretries = 0
+    observations_loaded = False
+    while not observations_loaded and nretries < 25:
+        try:
+            status, data = api(
+                "GET", "observation", params=params, token=super_admin_token
+            )
+            assert status == 200
+            data = data["data"]
+            assert len(data["observations"]) >= 9
+            observations_loaded = True
+        except AssertionError:
+            nretries = nretries + 1
+            time.sleep(2)
+
+    assert nretries < 25
+    assert status == 200
+    assert observations_loaded is True
+    # generate the GCN summary (with observations) and read it back
+    text = get_summary(
+        page, super_admin_user, public_group, False, False, True, super_admin_token
+    )
+
+    # The summary is markdown viewed in the Edit dialog now (no downloaded file),
+    # so assert on stable content substrings rather than fixed line indices.
+    assert "TITLE: GCN SUMMARY" in text
+    assert "SUBJECT: Follow-up" in text
+    assert "DATE" in text
+    assert (
+        f"FROM: {super_admin_user.first_name} {super_admin_user.last_name} at ... <{super_admin_user.contact_email}>"
+        in text
+    )
+    assert f"on behalf of the {public_group.name} group:" in text
+
+    assert "Observations:" in text
+    assert (
+        "We observed the localization region of LVC trigger 2019-08-14T21:10:39.000 UTC"
+        in text
+    )
+    # the observations table header row lists the columns
+    assert all(
+        col in text
+        for col in (
+            "T-T0 (hr)",
+            "mjd",
+            "ra",
+            "dec",
+            "filter",
+            "exposure",
+            "limmag (ab)",
+        )
+    )
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
 
 
 def test_gcn_summary_galaxies(

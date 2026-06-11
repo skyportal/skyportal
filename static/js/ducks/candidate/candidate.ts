@@ -14,14 +14,9 @@
  */
 import * as API from "../../API";
 import { skyportalApi } from "../../api/skyportalApi";
+import type { RouteData } from "../../types/routeSchemaMap";
 
 const FETCH_CANDIDATE = "skyportal/FETCH_CANDIDATE";
-
-export interface Candidate {
-  id: string;
-  comments?: unknown[] | undefined;
-  [key: string]: any;
-}
 
 /**
  * Plain action creator kept for the candidates *list* duck, which dispatches
@@ -33,7 +28,10 @@ export const fetchCandidate = (id: number | string, how = FETCH_CANDIDATE) =>
 
 export const candidateApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getCandidate: build.query<Candidate, number | string>({
+    getCandidate: build.query<
+      RouteData<"GET /api/candidates/{obj_id}">,
+      number | string
+    >({
       query: (id) => `api/candidates/${id}`,
       providesTags: ["Candidate"],
     }),

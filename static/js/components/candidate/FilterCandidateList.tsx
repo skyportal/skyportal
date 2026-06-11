@@ -398,15 +398,35 @@ const FilterCandidateList = ({
 
   useEffect(() => {
     resetFormFields(defaultStartDate, defaultEndDate, selectedScanningProfile);
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    reset,
-    selectedScanningProfile,
-    userAccessibleGroups,
-    availableAnnotationsInfo,
-  ]);
+  }, [selectedScanningProfile]);
+
+  // Populate the group/annotation-sort options when those queries land, WITHOUT
+  // resetting the form.
+  useEffect(() => {
+    if (selectedScanningProfile?.groupIDs && userAccessibleGroups.length > 0) {
+      setFilterGroups(
+        userAccessibleGroups.filter((group) =>
+          selectedScanningProfile.groupIDs.includes(group.id),
+        ),
+      );
+    }
+  }, [userAccessibleGroups, selectedScanningProfile]);
+
+  useEffect(() => {
+    if (availableAnnotationsInfo) {
+      setAnnotationSortingKeyOptions(
+        selectedScanningProfile?.sortingOrigin
+          ? (
+              availableAnnotationsInfo[selectedScanningProfile.sortingOrigin] ||
+              []
+            )
+              .map((annotation: any) => Object.keys(annotation || {}))
+              .flat()
+          : [],
+      );
+    }
+  }, [availableAnnotationsInfo, selectedScanningProfile]);
 
   // Set initial form values in the redux state
   useEffect(() => {

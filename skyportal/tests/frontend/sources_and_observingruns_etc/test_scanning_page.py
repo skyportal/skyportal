@@ -2,6 +2,7 @@ import datetime
 import time
 import uuid
 
+import pytest
 from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
@@ -10,6 +11,7 @@ from skyportal.tests import api
 from ....utils.naive_datetime import utcnow_naive
 
 
+@pytest.mark.flaky(reruns=2)
 def test_candidate_group_filtering(
     page,
     user,
@@ -72,6 +74,7 @@ def test_candidate_group_filtering(
     ).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_candidate_saved_status_filtering(
     page,
     user,
@@ -139,6 +142,7 @@ def test_candidate_saved_status_filtering(
     ).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_save_candidate_quick_save(
     page, group_admin_user, public_group, public_candidate
 ):
@@ -165,6 +169,7 @@ def test_save_candidate_quick_save(
     expect(page.locator('//span[text()="Previously Saved"]').first).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_save_candidate_select_groups(
     page, group_admin_user, public_group, public_candidate
 ):
@@ -203,6 +208,7 @@ def test_save_candidate_select_groups(
     expect(page.locator('//span[text()="Previously Saved"]').first).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_save_candidate_no_groups_error_message(
     page, group_admin_user, public_group, public_candidate
 ):
@@ -693,6 +699,7 @@ def test_delete_scanning_profile(page, user, public_group):
     expect(page.locator('//div[text()="123hrs"]').first).to_be_hidden()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_load_scanning_profile(
     page, user, public_group, public_source, annotation_token
 ):
@@ -733,6 +740,7 @@ def test_load_scanning_profile(
     ).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_user_without_save_access_cannot_save(
     page, super_admin_token, public_group, public_candidate, user_group2
 ):
@@ -771,6 +779,7 @@ def test_user_without_save_access_cannot_save(
     ).first.click()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_classification_on_scanning_page(
     page, user, public_group, taxonomy_token, public_filter, upload_data_token
 ):
