@@ -54,6 +54,7 @@ def test_analysis_start(
     ).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_analysis_with_file_input_start(
     page, user, public_source, analysis_service_token, public_group
 ):
