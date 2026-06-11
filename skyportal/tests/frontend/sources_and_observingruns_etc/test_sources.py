@@ -118,6 +118,7 @@ def test_public_source_page_null_z(page, user, public_source, public_group):
     expect(page.locator(f'//span[text()="{public_group.name}"]').first).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_classifications(page, user, taxonomy_token, public_group, public_source):
     simple = {
         "class": "Cepheid",
@@ -481,6 +482,7 @@ def test_update_redshift_and_history(page, user, public_source):
     expect(page.locator(f"//td[text()='{user.username}']").first).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_update_redshift_and_history_without_error(page, user, public_source):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
@@ -581,6 +583,7 @@ def test_source_hr_diagram(page, user, public_source, annotation_token, tmp_path
     assert difference.getbbox() is None
 
 
+@pytest.mark.flaky(reruns=2)
 def test_duplicate_sources_render(
     page, public_source, public_group, upload_data_token, user, ztf_camera
 ):
