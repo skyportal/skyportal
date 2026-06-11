@@ -29,33 +29,6 @@ else:
     tach_isonline = True
 
 
-def get_summary(page, user, group, showSources, showGalaxies, showObservations):
-    page.goto(f"/become_user/{user.id}")
-    page.goto("/gcn_events/2019-08-14T21:10:39")
-
-    page.locator('//button[@name="gcn_summary"]').first.click()
-
-    page.locator('//*[@aria-labelledby="group-select"]').first.click()
-    page.locator(f'//li[contains(., "{group.name}")]').first.click()
-
-    if showSources is True:
-        page.locator('//*[@label="Show Sources"]').first.click()
-    if showGalaxies is True:
-        page.locator('//*[@label="Show Galaxies"]').first.click()
-    if showObservations is True:
-        page.locator('//*[@label="Show Observations"]').first.click()
-
-    page.locator('//button[contains(.,"Get Summary")]').first.click()
-
-    expect(page.locator('//textarea[@id="text"]').first).to_be_visible()
-    expect(
-        page.locator('//textarea[contains(.,"TITLE: GCN SUMMARY")]').first
-    ).to_be_visible()
-
-    with page.expect_download():
-        page.locator('//button[contains(.,"Download")]').first.click()
-
-
 @pytest.mark.flaky(reruns=3)
 @pytest.mark.skipif(not tach_isonline, reason="GCN TACH is not online")
 def test_gcn_tach(page, super_admin_user, super_admin_token):
