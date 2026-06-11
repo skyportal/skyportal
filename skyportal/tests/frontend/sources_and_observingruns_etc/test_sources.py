@@ -621,19 +621,16 @@ def test_duplicate_sources_render(
 
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
-    # The "Possible duplicate of:" panel is driven by `source.duplicates`, which
-    # is computed in the source fetch. Right after `become_user`, the first fetch
-    # can race the session switch (or hit a stale cache), so the duplicate may be
-    # missing on the initial paint -- Playwright then reports the (not-yet-present)
-    # element as "hidden". Reload once and retry if it has not appeared yet, the
-    # same reload-retry approach used elsewhere in this file.
-    duplicate_header = page.locator(
-        '//*[contains(text(), "Possible duplicate of:")]'
-    ).first
+    # The duplicate renders as an <a href="/source/{obj_id2}"> link in the
+    # "Possible duplicate of:" panel. Target that link directly: a plain
+    # text match (//*[contains(text(), obj_id2)]) also resolves the invisible
+    # SVG <title> nodes the thumbnails emit, which never become "visible" and
+    # made this test very flaky. `source.duplicates` is computed in the source
+    # fetch, which can race the become_user session switch on first paint, so
+    # reload once and retry if the link has not appeared yet.
+    duplicate_link = page.locator(f'//a[contains(@href, "/source/{obj_id2}")]').first
     try:
-        expect(duplicate_header).to_be_visible(timeout=30000)
+        expect(duplicate_link).to_be_visible(timeout=30000)
     except AssertionError:
         page.reload()
-        expect(duplicate_header).to_be_visible()
-    page.locator(f'//*[contains(text(), "{obj_id2}")]').first.click()
-    expect(page.locator(f'//*[contains(text(), "{obj_id2}")]').first).to_be_visible()
+        expect(duplicate_link).to_be_visible(timeout=30000)
