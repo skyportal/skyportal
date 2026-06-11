@@ -29,8 +29,9 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
-import { showNotification } from "baselayer/components/Notifications";
 import { shallowEqual } from "react-redux";
+
+import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 import Button from "../Button";

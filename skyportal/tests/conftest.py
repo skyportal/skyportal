@@ -177,7 +177,13 @@ from skyportal.tests.fixtures import (
 )
 from skyportal.tests.test_util import page  # noqa: F401
 
+from ..models.obj import cfg as _obj_cfg
 from ..utils.naive_datetime import utcnow_naive
+
+# Models load config via load_env(), which omits test_config.yaml, so the
+# production PS1 URL leaks in. Empty it so in-process thumbnail builds skip the
+# real ps1images.stsci.edu call (it can hang ~18 min when STScI is unreachable).
+_obj_cfg["app"]["ps1_cutout_url"] = ""
 
 # Add a "test factory" User so that all factory-generated comments have a
 # proper author, if it doesn't already exist (the user may already be in
@@ -2305,7 +2311,11 @@ def photometric_series_undetected(
     user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
 ):
     df = phot_series_maker(number=100, use_mags=False, format="pandas")
-    df["flux"] = np.random.normal(-50, 50, 100)
+    # Force all fluxes negative so no point's SNR can exceed the detection
+    # threshold (is_detected = any snr > threshold). The previous symmetric
+    # noise occasionally produced a high-SNR point, making this "undetected"
+    # series flakily come back detected.
+    df["flux"] = -np.abs(np.random.normal(-50, 50, 100))
 
     data = {
         "obj_id": public_source.id,

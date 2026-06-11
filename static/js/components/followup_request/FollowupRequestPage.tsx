@@ -4,11 +4,9 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -25,6 +23,7 @@ import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
 import ProgressIndicator from "../ProgressIndicators";
 import DefaultFollowupRequestList from "./DefaultFollowupRequestList";
+import Paper from "../Paper";
 
 import {
   useGetFollowupRequestsQuery,
@@ -32,39 +31,6 @@ import {
 } from "../../ducks/followup_requests";
 
 dayjs.extend(utc);
-
-const useStyles = makeStyles()((theme) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  paperContent: {
-    padding: "1rem",
-  },
-  hover: {
-    "&:hover": {
-      textDecoration: "underline",
-    },
-    color: theme.palette.mode === "dark" ? "#fafafa !important" : undefined,
-  },
-  defaultFollowupRequestDelete: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
-  },
-  defaultFollowupRequestManage: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-  defaultFollowupRequestDeleteDisabled: {
-    opacity: 0,
-  },
-}));
 
 const FollowupRequestLists = FollowupRequestListsBase as any;
 
@@ -77,7 +43,6 @@ const FollowupRequestPage = () => {
   const { data: defaultFollowupRequestList } =
     useGetDefaultFollowupRequestsQuery();
   const { data: currentUser } = useGetProfileQuery();
-  const { classes } = useStyles() as any;
   const dispatch = useAppDispatch();
 
   const permission =
@@ -231,50 +196,41 @@ const FollowupRequestPage = () => {
       {tabIndex === 0 && (
         <Grid container size={12} style={{ paddingTop: 0 }}>
           <Grid size={{ sm: 12, md: 8 }}>
-            <Paper elevation={1}>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">List of Followup Requests</Typography>
-                {!followupRequestList ? (
-                  <div>
-                    <CircularProgress />
-                  </div>
-                ) : (
-                  <div>
-                    <FollowupRequestLists
-                      followupRequests={followupRequestList}
-                      instrumentList={instrumentList}
-                      instrumentFormParams={instrumentFormParams}
-                      pageNumber={fetchParams.pageNumber}
-                      numPerPage={fetchParams.numPerPage}
-                      handleTableChange={handleTableChange as any}
-                      totalMatches={totalMatches}
-                      serverSide
-                      showObject
-                      fetchParams={fetchParams}
-                      onDownload={onDownload as any}
-                    />
-                  </div>
-                )}
-              </div>
+            <Paper>
+              <Typography variant="h6">List of Followup Requests</Typography>
+              {!followupRequestList ? (
+                <CircularProgress />
+              ) : (
+                <FollowupRequestLists
+                  followupRequests={followupRequestList}
+                  instrumentList={instrumentList}
+                  instrumentFormParams={instrumentFormParams}
+                  pageNumber={fetchParams.pageNumber}
+                  numPerPage={fetchParams.numPerPage}
+                  handleTableChange={handleTableChange as any}
+                  totalMatches={totalMatches}
+                  serverSide
+                  showObject
+                  fetchParams={fetchParams}
+                  onDownload={onDownload as any}
+                />
+              )}
             </Paper>
           </Grid>
           <Grid size={{ sm: 12, md: 4 }}>
-            <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">Filter Followup Requests</Typography>
-                <FollowupRequestSelectionForm
-                  fetchParams={fetchParams}
-                  setFetchParams={setFetchParams}
-                />
-              </div>
+            <Paper
+              sx={{ marginBottom: 2 }}
+              data-testid="filter-followup-requests-form"
+            >
+              <Typography variant="h6">Filter Followup Requests</Typography>
+              <FollowupRequestSelectionForm
+                fetchParams={fetchParams}
+                setFetchParams={setFetchParams}
+              />
             </Paper>
             <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">
-                  Prioritize Followup Requests
-                </Typography>
-                <FollowupRequestPrioritizationForm fetchParams={fetchParams} />
-              </div>
+              <Typography variant="h6">Prioritize Followup Requests</Typography>
+              <FollowupRequestPrioritizationForm fetchParams={fetchParams} />
             </Paper>
             <Dialog open={downloadProgressTotal > 0} maxWidth="md">
               <DialogContent

@@ -615,7 +615,7 @@ const SourceTable = ({
   paginateCallback,
   pageNumber = 1,
   totalMatches = 0,
-  numPerPage = 10,
+  numPerPage = 30,
   sortingCallback = null,
   downloadCallback = null,
   includeGcnStatus = false,

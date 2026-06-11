@@ -43,14 +43,14 @@ const NewRecurringAPI = () => {
       },
       method: {
         type: "string",
-        oneOf: allowedRecurringAPIMethods.map(
+        oneOf: (allowedRecurringAPIMethods ?? []).map(
           (allowedRecurringAPIMethod: string) => ({
             enum: [allowedRecurringAPIMethod],
             title: allowedRecurringAPIMethod,
           }),
         ),
         title: "HTTP Method",
-        default: allowedRecurringAPIMethods[0],
+        default: allowedRecurringAPIMethods?.[0],
       },
       next_call: {
         type: "string",

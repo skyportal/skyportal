@@ -173,7 +173,6 @@ def test_add_run_to_observing_run_page(
     page.locator('//input[@id="root_pi"]').first.click()
     page.keyboard.type(pi_name)
     page.keyboard.press("Tab")
-    page.keyboard.press("Backspace")
     page.keyboard.type(calendar_keys)
     page.keyboard.press("Tab")
     page.keyboard.type(observer)

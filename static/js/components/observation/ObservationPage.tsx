@@ -72,7 +72,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const defaultNumPerPage = 10;
+const defaultNumPerPage = 30;
 
 const ExecutedObservationList = ({
   observations,

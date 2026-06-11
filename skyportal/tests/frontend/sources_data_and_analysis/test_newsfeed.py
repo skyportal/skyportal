@@ -1,11 +1,7 @@
 import uuid
 
-import pytest
 from playwright.sync_api import expect
-
 from skyportal.tests import api
-
-from .test_quick_search import remove_notification
 
 
 def _seed_sources_and_comments(api_, public_group, upload_data_token, comment_token):

@@ -53,6 +53,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
   const [invalid, setInvalid] = useState(true);
 
   useEffect(() => {
+    if (dialogOpen) return;
     setInvalid(
       !String(source.redshift) || isNaN(String(source.redshift) as any),
     );
@@ -65,7 +66,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
         ? String(source.redshift_origin)
         : "",
     });
-  }, [source, setInvalid]);
+  }, [source, dialogOpen]);
 
   const handleChange = (e: any) => {
     const newState: Record<string, any> = {};

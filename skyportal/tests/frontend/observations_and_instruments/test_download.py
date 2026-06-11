@@ -4,12 +4,10 @@ import uuid
 from os.path import join as pjoin
 
 import numpy as np
-import pandas as pd
 import pytest
 from astropy.table import Table
 from numpy import random
 from playwright.sync_api import expect
-from regions import Regions
 
 from baselayer.app.config import load_config
 from skyportal.tests import api, wait_for_gcn_event, wait_for_localization

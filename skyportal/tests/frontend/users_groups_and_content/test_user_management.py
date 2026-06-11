@@ -208,5 +208,25 @@ def test_user_expiration(page, user, super_admin_user, super_admin_token):
 
     # The expired user should be deactivated (no dashboard).
     page.goto(f"/become_user/{user.id}")
-    page.goto("/")
-    expect(page.locator("//*[contains(text(), 'Top Sources')]").first).to_be_hidden()
+    response = page.request.get("/api/internal/profile")
+    assert response.status == 403
+
+    # then set expiration date to 3000 and check that user is active again
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/user_management")
+    page.locator("//*[@data-testid='showExpiredUsersToggle']").first.click()
+    filter_for_user(page, user.username)
+
+    # Set expiration date to 3000
+    page.locator(f"//*[@data-testid='editUserExpirationDate{user.id}']").first.click()
+    date_input = page.locator("//input[@placeholder='MM/DD/YYYY']").first
+    date_input.click()
+    date_input.press_sequentially("01013000")
+    page.locator(f"//*[@data-testid='submitExpirationDateButton']").first.click()
+    expect(
+        page.locator("//div[text()='User expiration date successfully updated.']").first
+    ).to_be_visible()
+
+    page.goto(f"/become_user/{user.id}")
+    response = page.request.get("/api/internal/profile")
+    assert response.status == 200

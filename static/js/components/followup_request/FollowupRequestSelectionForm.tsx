@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -10,6 +10,8 @@ import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import Typography from "@mui/material/Typography";
+import FormControl from "@mui/material/FormControl";
+import Divider from "@mui/material/Divider";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -26,8 +28,8 @@ import {
   useGetInstrumentFormsQuery,
 } from "../../ducks/instruments";
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
-import Button from "../Button";
 import { useGetUsersQuery } from "../../ducks/users";
+import Button from "../Button";
 
 dayjs.extend(utc);
 
@@ -38,19 +40,8 @@ const useStyles = makeStyles()(() => ({
   selectInstrument: {
     width: "99%",
   },
-  container: {
-    width: "99%",
-    marginBottom: "1rem",
-  },
   selectItem: {
     whiteSpace: "break-spaces",
-  },
-  divider: {
-    marginTop: "2rem",
-    marginBottom: "1rem",
-    minWidth: "100%",
-    height: "2px",
-    backgroundColor: "grey",
   },
 }));
 
@@ -92,30 +83,24 @@ const FollowupRequestSelectionForm = ({
     .format("YYYY-MM-DDTHH:mm:ssZ");
 
   const [isSubmittingFilter, setIsSubmittingFilter] = useState(false);
+  const [filterFormData, setFilterFormData] = useState<any>({
+    filterby: "instrument",
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
+    useObservationDates: false,
+  });
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
   const [selectedFormat, setSelectedFormat] = useState("csv");
   const [includeStandards, setIncludeStandards] = useState(false);
 
-  useEffect(() => {
-    if (instrumentList.length > 0) {
-      setSelectedInstrumentId(instrumentList[0]?.["id"]);
-    }
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-  }, [instrumentList, setSelectedInstrumentId]);
-
-  if (!Array.isArray(followupRequestList)) {
-    return <p>Waiting for followup requests to load...</p>;
-  }
+  if (!Array.isArray(followupRequestList)) return <CircularProgress />;
 
   if (
-    instrumentList.length === 0 ||
-    telescopeList.length === 0 ||
-    !selectedInstrumentId ||
-    Object.keys(instrumentFormParams).length === 0
+    !instrumentList.length ||
+    !telescopeList.length ||
+    !Object.keys(instrumentFormParams).length
   ) {
-    return <p>No robotic followup requests found...</p>;
+    return "No instruments or telescopes found...";
   }
 
   const telLookUp: Record<string, any> = {};
@@ -213,13 +198,18 @@ const FollowupRequestSelectionForm = ({
     delete data.filterby;
 
     setIsSubmittingFilter(true);
-    setSelectedInstrumentId(formData.instrumentID);
-    // Updating fetchParams re-keys the followup-requests query, which refetches.
-    setFetchParams(formData);
+    setFetchParams({
+      ...data,
+      pageNumber: 1,
+      numPerPage: fetchParams.numPerPage,
+      sortBy: fetchParams["sortBy"],
+      sortOrder: fetchParams["sortOrder"],
+    });
     setIsSubmittingFilter(false);
   };
 
   function handleDownloadSchedule(event: any) {
+    if (!selectedInstrumentId) return;
     event.preventDefault(); // prevent the default form submission
     // we download the content here and then if status is 200 save it
     dispatch(
@@ -232,6 +222,7 @@ const FollowupRequestSelectionForm = ({
   }
 
   function handleDownloadAnalysis(event: any) {
+    if (!selectedInstrumentId) return;
     event.preventDefault(); // prevent the default form submission
     dispatch(downloadAllocationReport(selectedInstrumentId));
   }
@@ -245,16 +236,51 @@ const FollowupRequestSelectionForm = ({
     return errors;
   }
 
+  const instrumentOptions = filteredInstrumentList.map((instrument: any) => ({
+    enum: [instrument.id],
+    title: `${
+      telescopeList.find(
+        (telescope: any) => telescope.id === instrument.telescope_id,
+      )?.["name"]
+    } / ${instrument.name}`,
+  }));
+  const allocationOptions = filteredAllocationListApiClassname.map(
+    (allocation: any) => ({
+      enum: [allocation.id],
+      title: `${instLookUp[allocation.instrument_id]?.name} [${
+        allocation.pi
+      }] (${allocation.id})`,
+    }),
+  );
+
   const FollowupRequestSelectionFormSchema: any = {
     type: "object",
     properties: {
       filterby: {
-        // either instrument or allocation
         type: "string",
         title: "Filter by",
         enum: ["instrument", "allocation"],
         default: "instrument",
       },
+      ...(filterFormData.filterby === "instrument"
+        ? {
+            instrumentID: {
+              type: "integer",
+              title: "Instrument",
+              ...(instrumentOptions.length > 0 && {
+                enum: instrumentOptions.map((option: any) => option.enum[0]),
+              }),
+            },
+          }
+        : {
+            allocationID: {
+              type: "integer",
+              title: "Allocation",
+              ...(allocationOptions.length > 0 && {
+                enum: allocationOptions.map((option: any) => option.enum[0]),
+              }),
+            },
+          }),
       startDate: {
         type: "string",
         format: "date-time",
@@ -287,7 +313,6 @@ const FollowupRequestSelectionForm = ({
         default: false,
       },
       requesters: {
-        // pick users as requesters, and get their id
         type: "array",
         items: {
           type: "integer",
@@ -303,52 +328,6 @@ const FollowupRequestSelectionForm = ({
       },
     },
     dependencies: {
-      filterby: {
-        oneOf: [
-          {
-            properties: {
-              filterby: {
-                enum: ["instrument"],
-              },
-              instrumentID: {
-                type: "integer",
-                oneOf: filteredInstrumentList.map((instrument: any) => ({
-                  enum: [instrument.id],
-                  title: `${
-                    telescopeList.find(
-                      (telescope: any) =>
-                        telescope.id === instrument.telescope_id,
-                    )?.["name"]
-                  } / ${instrument.name}`,
-                })),
-                title: "Instrument",
-                default: filteredInstrumentList[0]?.["id"] || null,
-              },
-            },
-          },
-          {
-            properties: {
-              filterby: {
-                enum: ["allocation"],
-              },
-              allocationID: {
-                type: "integer",
-                oneOf: filteredAllocationListApiClassname.map(
-                  (allocation: any) => ({
-                    enum: [allocation.id],
-                    // title should be instrument name [PI] (allocation id)
-                    title: `${instLookUp[allocation.instrument_id]?.name} [${
-                      allocation.pi
-                    }] (${allocation.id})`,
-                  }),
-                ),
-                title: "Allocation",
-                default: filteredAllocationListApiClassname[0]?.["id"] || null,
-              },
-            },
-          },
-        ],
-      },
       useObservationDates: {
         oneOf: [
           {
@@ -387,6 +366,12 @@ const FollowupRequestSelectionForm = ({
     requesters: {
       "ui:enumNames": allUsers?.map((user: any) => user.username) || [],
     },
+    instrumentID: {
+      "ui:enumNames": instrumentOptions.map((option: any) => option.title),
+    },
+    allocationID: {
+      "ui:enumNames": allocationOptions.map((option: any) => option.title),
+    },
     "ui:order": [
       "filterby",
       "instrumentID",
@@ -404,79 +389,93 @@ const FollowupRequestSelectionForm = ({
   };
   return (
     <div>
-      <div data-testid="followup-request-selection-form">
-        <Form
-          formData={fetchParams}
-          onChange={({ formData }: { formData: any }) =>
-            setFetchParams(formData)
-          }
-          schema={FollowupRequestSelectionFormSchema}
-          uiSchema={uiSchema}
-          validator={validator}
-          onSubmit={handleSubmitFilter as any}
-          {...({ validate: validateFilter } as any)}
-          disabled={isSubmittingFilter}
-          liveValidate
-        />
-        {isSubmittingFilter && (
-          <div>
-            <CircularProgress />
-          </div>
-        )}
-      </div>
-      <div className={classes.divider} />
-      <div>
-        <Typography variant="h6">Schedule (with astroplan) </Typography>
-        <InputLabel id="instrumentSelectLabel">Format</InputLabel>
+      <Form
+        formData={filterFormData}
+        onChange={({ formData }: { formData: any }) =>
+          setFilterFormData(formData)
+        }
+        schema={FollowupRequestSelectionFormSchema}
+        uiSchema={uiSchema}
+        validator={validator}
+        onSubmit={handleSubmitFilter as any}
+        {...({ validate: validateFilter } as any)}
+        disabled={isSubmittingFilter}
+        liveValidate
+      />
+      {isSubmittingFilter && <CircularProgress />}
+      <Divider sx={{ my: 4 }} />
+      <Typography variant="h6">Schedule (with astroplan)</Typography>
+      <FormControl fullWidth>
+        <InputLabel>Instrument</InputLabel>
         <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="formatSelectLabel"
-          value={selectedFormat}
-          onChange={handleSelectedFormatChange}
-          name="followupRequestFormatSelect"
-          className={classes.select}
+          label="Instrument"
+          value={selectedInstrumentId ?? ""}
+          onChange={(e) => setSelectedInstrumentId(e.target.value)}
+          name="followupRequestInstrumentSelect"
+          className={classes.selectInstrument}
         >
-          <MenuItem value="png" key="png" className={classes.selectItem}>
-            PNG
-          </MenuItem>
-          <MenuItem value="pdf" key="pdf" className={classes.selectItem}>
-            PDF
-          </MenuItem>
-          <MenuItem value="csv" key="csv" className={classes.selectItem}>
-            CSV
-          </MenuItem>
+          {filteredInstrumentList.map((instrument: any) => (
+            <MenuItem
+              value={instrument.id}
+              key={instrument.id}
+              className={classes.selectItem}
+            >
+              {`${telLookUp[instrument.telescope_id]?.name} / ${
+                instrument.name
+              }`}
+            </MenuItem>
+          ))}
         </Select>
-        <FormControlLabel
-          label="Include Standards?"
-          control={
-            <Checkbox
-              color="primary"
-              title="Include Standards?"
-              {...({ type: "checkbox" } as any)}
-              onChange={(event) => setIncludeStandards(event.target.checked)}
-              checked={includeStandards}
-            />
-          }
-        />
-        <Button
-          primary
-          size="small"
-          type="submit"
-          data-testid={`scheduleRequest_${selectedInstrumentId}`}
-          onClick={handleDownloadSchedule} // to handle the download
-        >
-          Download
-        </Button>
-        <Button
-          primary
-          size="small"
-          type="submit"
-          data-testid={`reportRequest_${selectedInstrumentId}`}
-          onClick={handleDownloadAnalysis} // to handle the download
-        >
-          Instrument Allocation Analysis
-        </Button>
-      </div>
+      </FormControl>
+      <InputLabel id="formatSelectLabel">Format</InputLabel>
+      <Select
+        inputProps={{ MenuProps: { disableScrollLock: true } }}
+        labelId="formatSelectLabel"
+        value={selectedFormat}
+        onChange={handleSelectedFormatChange}
+        name="followupRequestFormatSelect"
+        className={classes.select}
+      >
+        <MenuItem value="png" key="png" className={classes.selectItem}>
+          PNG
+        </MenuItem>
+        <MenuItem value="pdf" key="pdf" className={classes.selectItem}>
+          PDF
+        </MenuItem>
+        <MenuItem value="csv" key="csv" className={classes.selectItem}>
+          CSV
+        </MenuItem>
+      </Select>
+      <FormControlLabel
+        label="Include Standards?"
+        control={
+          <Checkbox
+            color="primary"
+            title="Include Standards?"
+            {...({ type: "checkbox" } as any)}
+            onChange={(event) => setIncludeStandards(event.target.checked)}
+            checked={includeStandards}
+          />
+        }
+      />
+      <Button
+        primary
+        size="small"
+        type="submit"
+        disabled={!selectedInstrumentId}
+        onClick={handleDownloadSchedule}
+      >
+        Download
+      </Button>
+      <Button
+        primary
+        size="small"
+        type="submit"
+        disabled={!selectedInstrumentId}
+        onClick={handleDownloadAnalysis}
+      >
+        Instrument Allocation Analysis
+      </Button>
     </div>
   );
 };
