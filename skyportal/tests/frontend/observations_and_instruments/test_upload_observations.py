@@ -9,7 +9,7 @@ from skyportal.tests.external.test_moving_objects import (
 
 
 def test_upload_observations(page, super_admin_user, super_admin_token):
-    telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
+    telescope_id, instrument_id, _, instrument_name = add_telescope_and_instrument(
         "ZTF", super_admin_token, list(range(5))
     )
 
@@ -19,13 +19,6 @@ def test_upload_observations(page, super_admin_user, super_admin_token):
     data_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
     )
-
-    def open_add_from_file():
-        # Uploading is now behind an Add button -> "Add from File" menu item,
-        # which opens the dialog containing the file-upload form.
-        page.locator('//*[@name="new_executed_observation"]').first.click()
-        page.locator('//li[contains(., "Add from File")]').first.click()
-        expect(page.locator('//input[@type="file"]').first).to_be_visible()
 
     def upload(filename):
         # The rjsf data-url widget reads the file asynchronously and no longer
@@ -37,7 +30,14 @@ def test_upload_observations(page, super_admin_user, super_admin_token):
         page.locator('//button[contains(.,"Submit")]').first.click()
         page.wait_for_timeout(2000)
 
-    open_add_from_file()
+    page.locator('//*[@name="new_executed_observation"]').first.click()
+    page.locator('//li[contains(., "Add from File")]').first.click()
+    expect(page.locator('//input[@type="file"]').first).to_be_visible()
+
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_role("combobox").first.click()
+    page.get_by_role("option", name=instrument_name).first.click()
+
     # malformed upload (rejected server-side); the dialog stays open afterwards
     upload("sample_observation_data_upload_malformed.csv")
     upload("sample_observation_data_upload.csv")

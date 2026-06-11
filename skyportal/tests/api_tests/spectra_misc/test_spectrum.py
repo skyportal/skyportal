@@ -11,7 +11,7 @@ import yaml
 from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 from skyportal.tests import api
 
-from ...utils.naive_datetime import utcnow_naive
+from ....utils.naive_datetime import utcnow_naive
 
 
 def test_spectrum_put(super_admin_user, super_admin_token, public_source, lris):
@@ -1729,7 +1729,7 @@ def test_admin_can_delete_unowned_spectrum_data(
 def test_jsonify_spectrum_header(
     upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
-    for filename in glob(f"{os.path.dirname(__file__)}/../data/ZTF*.ascii.head"):
+    for filename in glob(f"{os.path.dirname(__file__)}/../../data/ZTF*.ascii.head"):
         with open(filename[:-5]) as f:
             status, data = api(
                 "POST",
@@ -1823,7 +1823,7 @@ def test_can_post_spectrum_empty_groups_list(
 def test_jsonify_spectrum_data(
     upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
-    for filename in glob(f"{os.path.dirname(__file__)}/../data/ZTF*.ascii"):
+    for filename in glob(f"{os.path.dirname(__file__)}/../../data/ZTF*.ascii"):
         with open(filename) as f:
             status, data = api(
                 "POST",
@@ -1878,7 +1878,7 @@ def test_jsonify_spectrum_data(
 def test_upload_bad_spectrum_from_ascii_file(
     upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
-    for filename in glob(f"{os.path.dirname(__file__)}/../data/ZTF*.ascii.bad"):
+    for filename in glob(f"{os.path.dirname(__file__)}/../../data/ZTF*.ascii.bad"):
         with open(filename) as f:
             content = f.read()
             observed_at = str(datetime.datetime.now())

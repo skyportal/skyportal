@@ -125,7 +125,6 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
             <Controller
               {...({
                 inputProps: { MenuProps: { disableScrollLock: true } },
-                labelId: "assignmentSelect",
                 "data-testid": "assignmentSelect",
               } as any)}
               name="run_id"
@@ -138,7 +137,8 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
               }
               render={({ field: { onChange, value } }) => (
                 <Select
-                  labelId="assignmentSelect"
+                  labelId="assignmentSelectLabel"
+                  label="Choose Run"
                   onChange={onChange}
                   value={value}
                   size="small"
@@ -166,7 +166,6 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
             <Controller
               {...({
                 inputProps: { MenuProps: { disableScrollLock: true } },
-                labelId: "prioritySelect",
               } as any)}
               defaultValue="1"
               name="priority"
@@ -174,7 +173,8 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
               rules={{ required: true }}
               render={({ field: { onChange, value } }) => (
                 <Select
-                  labelId="prioritySelect"
+                  labelId="prioritySelectLabel"
+                  label="Priority"
                   onChange={onChange}
                   value={value}
                   size="small"

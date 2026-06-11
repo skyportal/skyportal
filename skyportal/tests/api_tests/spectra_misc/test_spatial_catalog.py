@@ -12,7 +12,7 @@ from skyportal.tests import api
 def test_spatial_catalog(super_admin_token, upload_data_token, view_only_token):
     catalog_name = str(uuid.uuid4())
 
-    datafile = f"{os.path.dirname(__file__)}/../data/gll_psc_v27_small.csv"
+    datafile = f"{os.path.dirname(__file__)}/../../data/gll_psc_v27_small.csv"
     data_out = pd.read_csv(datafile)
     entries = [str(uuid.uuid4()) for _ in range(len(data_out))]
     data_out["name"] = entries
