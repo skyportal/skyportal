@@ -176,6 +176,20 @@ def setup_permissions():
         DBSession().add(role)
     DBSession().commit()
 
+    provision_anonymous_user()
+
+
+def provision_anonymous_user():
+    """Create the anonymous read-only user when ``app.anonymous_access`` is set.
+
+    The account uses the "View only" role (no write ACLs) and is added to the
+    public group, so unauthenticated visitors get read-only access to public
+    data (see ``BaseHandler.get_current_user``). No-op when the flag is off."""
+    if not cfg.get("app.anonymous_access", False):
+        return
+    username = cfg.get("app.anonymous_user") or "anonymous"
+    add_user(username, roles=["View only"])
+
 
 def create_token(ACLs, user_id, name):
     t = Token(permissions=ACLs, name=name)

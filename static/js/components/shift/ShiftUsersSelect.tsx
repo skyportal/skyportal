@@ -1,4 +1,4 @@
-import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
 import { useAppDispatch } from "../../types/hooks";
 import { useState } from "react";
 import {
@@ -47,11 +47,13 @@ function ShiftUsersSelect({
 }: ShiftUsersSelectProps) {
   const dispatch = useAppDispatch();
   const { data: currentUser } = useGetProfileQuery();
+  const isReadOnly = useIsReadOnly();
   const [addShiftUser] = useAddShiftUserMutation();
   const [deleteShiftUser] = useDeleteShiftUserMutation();
   const [updateShiftUser] = useUpdateShiftUserMutation();
   const [selectedIds, setSelectedIds] = useState<any[]>([]);
 
+  if (isReadOnly) return null;
   if (!shiftsToManage || shiftsToManage.length === 0) return;
   // We use only the first shift to populate the users list
   const users = getShiftGroupUsersFiltered(shiftsToManage[0]);

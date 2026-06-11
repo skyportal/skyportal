@@ -25,6 +25,7 @@ import {
   useDeleteTagOptionMutation,
 } from "../ducks/objectTags";
 import { getContrastColor } from "./ObjectTags";
+import { useIsReadOnly } from "../ducks/profile";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -70,6 +71,7 @@ const useStyles = makeStyles()((theme) => ({
 const TagManagement = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<any>(null);
@@ -224,6 +226,7 @@ const TagManagement = () => {
       filterable: false,
       renderCell: (params: any) => {
         const tag = params.row;
+        if (isReadOnly) return null;
         return (
           <div className={classes.manage}>
             <Tooltip title="Edit tag">
@@ -256,13 +259,25 @@ const TagManagement = () => {
   function CustomToolbar() {
     return (
       <DataGridToolbar showFilter showQuickFilter={false} showExport>
-        <Tooltip title="Create new tag">
+        {!isReadOnly && (
+          <Tooltip title="Create new tag">
+            <IconButton
+              onClick={handleCreateClick}
+              disabled={loading}
+              data-testid="create-tag-button"
+            >
+              <AddIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+        <Tooltip title="Download CSV">
           <IconButton
-            onClick={handleCreateClick}
-            disabled={loading}
-            data-testid="create-tag-button"
+            size="small"
+            aria-label="Download CSV"
+            data-testid="download-tags-button"
+            onClick={handleDownload}
           >
-            <AddIcon />
+            <DownloadIcon />
           </IconButton>
         </Tooltip>
       </DataGridToolbar>

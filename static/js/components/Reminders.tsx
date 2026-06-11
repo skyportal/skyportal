@@ -1,4 +1,4 @@
-import { useGetProfileQuery } from "../ducks/profile";
+import { useGetProfileQuery, useIsReadOnly } from "../ducks/profile";
 import { useMemo, useState } from "react";
 import { withStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -167,6 +167,7 @@ interface RemindersProps {
 
 const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [open, setOpen] = useState(false);
   const [deleteReminderMutation] = useDeleteReminderMutation();
   // for now, we'll just show the reminders of the current user.
@@ -194,17 +195,19 @@ const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
             showColumns={false}
             quickFilterTestId="reminders-quick-filter"
           >
-            <IconButton
-              name={`new_reminder_${resourceId}`}
-              onClick={() => setOpen(true)}
-            >
-              <AddIcon />
-            </IconButton>
+            {!isReadOnly && (
+              <IconButton
+                name={`new_reminder_${resourceId}`}
+                onClick={() => setOpen(true)}
+              >
+                <AddIcon />
+              </IconButton>
+            )}
           </DataGridToolbar>
         );
       },
 
-    [resourceId],
+    [resourceId, isReadOnly],
   );
 
   if (!resourceType || !resourceId) return <CircularProgress />;
@@ -249,11 +252,12 @@ const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
       width: 70,
       sortable: false,
       filterable: false,
-      renderCell: (params: any) => (
-        <Button onClick={() => deleteReminder(params.row.id)}>
-          <DeleteIcon />
-        </Button>
-      ),
+      renderCell: (params: any) =>
+        isReadOnly ? null : (
+          <Button onClick={() => deleteReminder(params.row.id)}>
+            <DeleteIcon />
+          </Button>
+        ),
     },
   ];
 
