@@ -29,6 +29,9 @@ import { makeStyles } from "tss-react/mui";
 import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
+  GridToolbarExport,
+  GridToolbarFilterButton,
+  GridToolbarQuickFilter,
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -535,7 +538,10 @@ const RunSummary = ({ route }: RunSummaryProps) => {
   function CustomToolbar() {
     return (
       <GridToolbarContainer>
+        <GridToolbarQuickFilter />
         <GridToolbarColumnsButton />
+        <GridToolbarFilterButton />
+        <GridToolbarExport />
         <IconButton name="clouds" onClick={() => setDialog(true)}>
           <CloudIcon />
         </IconButton>

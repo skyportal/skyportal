@@ -16,6 +16,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -401,6 +402,7 @@ const InstrumentTable = ({
     return (
       <GridToolbarContainer>
         <GridToolbarColumnsButton />
+        <GridToolbarExport />
         <TextField
           variant="standard"
           size="small"

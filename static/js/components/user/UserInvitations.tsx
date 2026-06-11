@@ -27,6 +27,7 @@ import { makeStyles } from "tss-react/mui";
 import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -632,6 +633,7 @@ const UserInvitations = () => {
     return (
       <GridToolbarContainer>
         <GridToolbarColumnsButton />
+        <GridToolbarExport />
         <Tooltip title="Filter Table">
           <IconButton
             size="small"

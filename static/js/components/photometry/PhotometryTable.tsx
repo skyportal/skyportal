@@ -19,6 +19,7 @@ import Typography from "@mui/material/Typography";
 import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 
 import StyledDataGrid from "../StyledDataGrid";
@@ -368,6 +369,7 @@ const PhotometryTable = ({
         return (
           <GridToolbarContainer>
             <GridToolbarColumnsButton />
+            <GridToolbarExport />
             <Button
               size="small"
               startIcon={<DownloadIcon />}

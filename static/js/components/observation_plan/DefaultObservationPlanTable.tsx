@@ -14,6 +14,7 @@ import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
   GridToolbarQuickFilter,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -199,6 +200,7 @@ const DefaultObservationPlanTable = ({
   const CustomToolbar = () => (
     <GridToolbarContainer>
       <GridToolbarColumnsButton />
+      <GridToolbarExport />
       <IconButton size="small" onClick={() => setNewDialogOpen(true)}>
         <AddIcon />
       </IconButton>

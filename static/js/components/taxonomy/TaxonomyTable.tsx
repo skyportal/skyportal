@@ -15,6 +15,7 @@ import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -306,6 +307,7 @@ const TaxonomyTable = ({
     return (
       <GridToolbarContainer>
         <GridToolbarColumnsButton />
+        <GridToolbarExport />
         <IconButton
           name="new_taxonomy"
           onClick={() => {

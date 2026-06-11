@@ -12,6 +12,7 @@ import Box from "@mui/material/Box";
 import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -259,6 +260,7 @@ const DefaultSurveyEfficiencyTable = ({
   const CustomToolbar = () => (
     <GridToolbarContainer>
       <GridToolbarColumnsButton />
+      <GridToolbarExport />
       <IconButton
         name="new_default_survey_efficiency"
         size="small"

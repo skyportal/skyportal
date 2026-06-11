@@ -18,6 +18,7 @@ import {
   GridToolbarContainer,
   GridToolbarColumnsButton,
   GridToolbarFilterButton,
+  GridToolbarExport,
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -285,6 +286,7 @@ const TagManagement = () => {
     return (
       <GridToolbarContainer>
         <GridToolbarColumnsButton />
+        <GridToolbarExport />
         <GridToolbarFilterButton />
         <Tooltip title="Create new tag">
           <IconButton
