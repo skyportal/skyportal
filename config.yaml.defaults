@@ -9,6 +9,13 @@ app:
       https://github.com/skyportal/skyportal
     </a>
 
+  # Anonymous read-only access. When true, visitors who are not signed in are
+  # served as `anonymous_user` (a "View only" account) so pages render without a
+  # login. Write endpoints still 401 because that account holds no write ACLs.
+  # The account is auto-provisioned (in the public group) when this is enabled.
+  anonymous_access: false
+  anonymous_user: anonymous
+
   secret_key: abc01234  # This secret key can be any random string of
                         # characters.
                         #

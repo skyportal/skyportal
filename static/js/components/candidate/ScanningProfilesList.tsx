@@ -18,6 +18,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
+  useIsReadOnly,
 } from "../../ducks/profile";
 
 import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
@@ -79,6 +80,7 @@ const ScanningProfilesList = ({
   classifications = [],
 }: ScanningProfilesListProps) => {
   const { classes } = useStyles();
+  const isReadOnly = useIsReadOnly();
   const { data: userProfile } = useGetProfileQuery();
   const profiles = (userProfile?.preferences as any)?.scanningProfiles;
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
@@ -96,16 +98,18 @@ const ScanningProfilesList = ({
       function ScanningProfilesToolbar() {
         return (
           <DataGridToolbar showColumns={false} showQuickFilter={false}>
-            <IconButton
-              name="new_scanning_profile"
-              onClick={() => setNewDialogOpen(true)}
-            >
-              <AddIcon />
-            </IconButton>
+            {!isReadOnly && (
+              <IconButton
+                name="new_scanning_profile"
+                onClick={() => setNewDialogOpen(true)}
+              >
+                <AddIcon />
+              </IconButton>
+            )}
           </DataGridToolbar>
         );
       },
-    [],
+    [isReadOnly],
   );
 
   const handleLoadedChange = (checked: boolean, dataIndex: number) => {
@@ -275,19 +279,23 @@ const ScanningProfilesList = ({
     const dataIndex = params.row.__rowid;
     return (
       <div className={classes.actionButtons}>
-        <IconButton
-          key={`edit_${dataIndex}`}
-          id={`edit_button_${dataIndex}`}
-          onClick={() => editProfile(profiles[dataIndex])}
-        >
-          <EditIcon />
-        </IconButton>
-        <IconButton
-          id={`delete_button_${dataIndex}`}
-          onClick={() => deleteProfile(dataIndex)}
-        >
-          <DeleteIcon />
-        </IconButton>
+        {!isReadOnly && (
+          <>
+            <IconButton
+              key={`edit_${dataIndex}`}
+              id={`edit_button_${dataIndex}`}
+              onClick={() => editProfile(profiles[dataIndex])}
+            >
+              <EditIcon />
+            </IconButton>
+            <IconButton
+              id={`delete_button_${dataIndex}`}
+              onClick={() => deleteProfile(dataIndex)}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </>
+        )}
       </div>
     );
   };

@@ -21,6 +21,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
 import { useDeleteInstrumentMutation } from "../../ducks/instrument";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -62,6 +63,7 @@ const InstrumentTable = ({
 }: InstrumentTableProps) => {
   const { classes } = useStyles() as any;
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [deleteInstrumentMutation] = useDeleteInstrumentMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
@@ -358,9 +360,11 @@ const InstrumentTable = ({
             handleSearchChange(event.target.value);
           }}
         />
-        <IconButton name="new_instrument" onClick={() => openNewDialog()}>
-          <AddIcon />
-        </IconButton>
+        {!isReadOnly && (
+          <IconButton name="new_instrument" onClick={() => openNewDialog()}>
+            <AddIcon />
+          </IconButton>
+        )}
       </DataGridToolbar>
     );
   };

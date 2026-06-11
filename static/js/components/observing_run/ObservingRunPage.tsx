@@ -1,4 +1,4 @@
-import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -211,6 +211,7 @@ const ObservingRunList = ({
 const ObservingRunPage = () => {
   const { data: observingRunList = [] } = useGetObservingRunsQuery();
   const { data: currentUser } = useGetProfileQuery();
+  const isReadOnly = useIsReadOnly();
 
   const managePermission =
     currentUser?.permissions?.includes("System admin") ||
@@ -224,9 +225,11 @@ const ObservingRunPage = () => {
           managePermission={!!managePermission}
         />
       </Grid>
-      <Grid size={{ md: 6, sm: 12 }}>
-        <NewObservingRun />
-      </Grid>
+      {!isReadOnly && (
+        <Grid size={{ md: 6, sm: 12 }}>
+          <NewObservingRun />
+        </Grid>
+      )}
     </Grid>
   );
 };

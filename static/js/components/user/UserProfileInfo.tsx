@@ -125,7 +125,7 @@ const UserProfileInfo = () => {
             <Box fontWeight="fontWeightBold" component="span" mr={1}>
               User roles:
             </Box>
-            {profile.roles.join(", ")}
+            {profile.roles?.join(", ")}
           </Box>
           {!!profile.acls?.length && (
             <Box pb={1}>

@@ -30,6 +30,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import { filterOutEmptyValues } from "../../API";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useIsReadOnly } from "../../ducks/profile";
 import Spinner from "../Spinner";
 import GcnEventsFilterForm from "./GcnEventsFilterForm";
 import NewGcnEvent from "./NewGcnEvent";
@@ -124,6 +125,7 @@ const defaultNumPerPage = 10;
 const GcnEvents = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
 
   const gcn_tags_classes = useGetConfigQuery().data?.["gcnTagsClasses"] as
     | Record<string, string>
@@ -453,14 +455,16 @@ const GcnEvents = () => {
             handleSearchChange(event.target.value);
           }}
         />
-        <IconButton
-          name="new_gcnevent"
-          onClick={() => {
-            setOpenNew(true);
-          }}
-        >
-          <AddIcon />
-        </IconButton>
+        {!isReadOnly && (
+          <IconButton
+            name="new_gcnevent"
+            onClick={() => {
+              setOpenNew(true);
+            }}
+          >
+            <AddIcon />
+          </IconButton>
+        )}
         <IconButton
           name="crossmatch_gcnevents"
           onClick={() => {

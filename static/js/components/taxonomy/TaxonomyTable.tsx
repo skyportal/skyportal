@@ -22,6 +22,7 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyTaxonomy from "./ModifyTaxonomy";
 import NewTaxonomy from "./NewTaxonomy";
 import { useDeleteTaxonomyMutation } from "../../ducks/taxonomies";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -66,6 +67,7 @@ const TaxonomyTable = ({
   const { classes } = useStyles();
 
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [deleteTaxonomyMutation] = useDeleteTaxonomyMutation();
 
   const [rowsPerPage] = useState(100);
@@ -261,14 +263,16 @@ const TaxonomyTable = ({
   const CustomToolbar = function TaxonomyTableToolbar() {
     return (
       <DataGridToolbar showQuickFilter={false}>
-        <IconButton
-          name="new_taxonomy"
-          onClick={() => {
-            openNewDialog();
-          }}
-        >
-          <AddIcon />
-        </IconButton>
+        {!isReadOnly && (
+          <IconButton
+            name="new_taxonomy"
+            onClick={() => {
+              openNewDialog();
+            }}
+          >
+            <AddIcon />
+          </IconButton>
+        )}
       </DataGridToolbar>
     );
   };

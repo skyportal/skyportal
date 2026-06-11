@@ -28,6 +28,7 @@ import GroupShareSelect from "../group/GroupShareSelect";
 import FormValidationError from "../FormValidationError";
 import { useUploadPhotometryMutation } from "../../ducks/source";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useIsReadOnly } from "../../ducks/profile";
 
 // `font` is a deprecated HTML element not present in JSX.IntrinsicElements.
 const Font: any = "font";
@@ -53,6 +54,7 @@ export const HtmlTooltip = withStyles(Tooltip, (theme) => ({
 }));
 
 const UploadPhotometryForm = () => {
+  const isReadOnly = useIsReadOnly();
   const [uploadPhotometry] = useUploadPhotometryMutation();
   const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
     data: any[];
@@ -249,6 +251,10 @@ const UploadPhotometryForm = () => {
     },
   }));
   const { classes } = useStyles();
+
+  if (isReadOnly) {
+    return null;
+  }
 
   if (!sortedInstrumentList || !userGroups) {
     return (

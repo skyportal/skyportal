@@ -22,6 +22,7 @@ import { useDeleteDefaultFollowupRequestMutation } from "../../ducks/default_fol
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -47,6 +48,7 @@ const DefaultFollowupRequestList = ({
 }: DefaultFollowupRequestListProps) => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
+  const isReadOnly = useIsReadOnly();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? null;
@@ -224,12 +226,14 @@ const DefaultFollowupRequestList = ({
 
   const CustomToolbar = () => (
     <DataGridToolbar showQuickFilter={false}>
-      <IconButton
-        name="new_default_followup_request"
-        onClick={() => openNewDialog()}
-      >
-        <AddIcon />
-      </IconButton>
+      {!isReadOnly && (
+        <IconButton
+          name="new_default_followup_request"
+          onClick={() => openNewDialog()}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
     </DataGridToolbar>
   );
 
