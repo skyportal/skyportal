@@ -462,6 +462,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
           defaultExpanded
           disableGutters
           className={classes.flexColumn}
+          data-testid="source-classifications"
         >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
@@ -472,14 +473,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={classes.classifications}>
-              <ClassificationList obj={source} />
-              <ClassificationForm
-                obj_id={source.id}
-                taxonomyList={taxonomyList}
-                {...({ action: "createNew" } as any)}
-              />
-            </div>
+            <ClassificationList obj={source} />
+            <ClassificationForm
+              obj_id={source.id}
+              taxonomyList={taxonomyList}
+              {...({ action: "createNew" } as any)}
+            />
           </AccordionDetails>
         </Accordion>
       </Grid>
@@ -509,11 +508,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
         </Accordion>
       </Grid>
       <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 9, lg: 13 }}>
-        <Accordion
-          defaultExpanded
-          disableGutters
-          className={classes.classifications}
-        >
+        <Accordion defaultExpanded disableGutters>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="hr-diagram-content"

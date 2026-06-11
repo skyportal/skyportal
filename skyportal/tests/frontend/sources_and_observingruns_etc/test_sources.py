@@ -118,7 +118,6 @@ def test_public_source_page_null_z(page, user, public_source, public_group):
     expect(page.locator(f'//span[text()="{public_group.name}"]').first).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=3)
 def test_classifications(page, user, taxonomy_token, public_group, public_source):
     simple = {
         "class": "Cepheid",
@@ -170,22 +169,24 @@ def test_classifications(page, user, taxonomy_token, public_group, public_source
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
-    page.locator('//div[@id="root_taxonomy"]').first.click()
+    classifications_div = page.locator(
+        '//div[@data-testid="source-classifications"]'
+    ).first
+    classifications_div.locator('//div[@id="root_taxonomy"]').first.click()
     page.locator(f'//li[contains(., "{tax_name} ({tax_version})")]').first.click()
     page.keyboard.press("Escape")
 
-    page.locator('//*[@id="classification"]').first.click()
-    page.locator('//*[@id="classification"]').first.fill("Symmetrical")
+    classifications_div.locator('//*[@id="classification"]').first.click()
+    classifications_div.locator('//*[@id="classification"]').first.fill("Symmetrical")
     page.locator('//div[contains(@id, "Symmetrical")]').first.click()
     page.keyboard.press("Escape")
 
-    page.locator('//*[@id="probability"]').first.fill("1")
-
-    page.locator("//*[text()='Submit']").first.click()
+    classifications_div.locator('//*[@id="probability"]').first.fill("1")
+    classifications_div.locator("//*[text()='Submit']").first.click()
     expect(page.locator("//*[text()='Classification saved']").first).to_be_visible()
 
     del_button_xpath = "//button[starts-with(@name, 'deleteClassificationButton')]"
-    page.locator(del_button_xpath).first.click()
+    classifications_div.locator(del_button_xpath).first.click()
     page.locator("//*[text()='Confirm']").first.click()
     expect(page.locator("//*[contains(text(), '(P=1)')]").first).to_be_hidden()
     expect(page.locator(f"//i[text()='{tax_name}']").first).to_be_hidden()
@@ -196,17 +197,17 @@ def test_classifications(page, user, taxonomy_token, public_group, public_source
     ).to_be_hidden()
 
     # ensure low probability classifications have a question mark on the label
-    page.locator('//div[@id="root_taxonomy"]').first.click()
+    classifications_div.locator('//div[@id="root_taxonomy"]').first.click()
     page.locator(f'//li[contains(., "{tax_name} ({tax_version})")]').first.click()
     page.keyboard.press("Escape")
 
-    page.locator('//*[@id="classification"]').first.click()
-    page.locator('//*[@id="classification"]').first.fill("Mult-mode")
+    classifications_div.locator('//*[@id="classification"]').first.click()
+    classifications_div.locator('//*[@id="classification"]').first.fill("Mult-mode")
     page.locator('//div[contains(@id, "Mult-mode")]').first.click()
     page.keyboard.press("Escape")
 
-    page.locator('//*[@id="probability"]').first.fill("0.02")
-    page.locator("//*[text()='Submit']").first.click()
+    classifications_div.locator('//*[@id="probability"]').first.fill("0.02")
+    classifications_div.locator("//*[text()='Submit']").first.click()
     expect(page.locator("//*[text()='Classification saved']").first).to_be_visible()
 
     expect(page.locator("//span[text()='Mult-mode?']").first).to_be_visible()
@@ -421,7 +422,6 @@ def test_unsave_from_group(
     ).to_be_hidden()
 
 
-@pytest.mark.flaky(reruns=3)
 def test_request_group_to_save_then_save(
     page, user, user_two_groups, public_source, public_group2
 ):
