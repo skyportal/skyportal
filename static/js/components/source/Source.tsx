@@ -466,7 +466,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="classifications-content"
-            id="classifications-header"
           >
             <Typography className={classes.accordionHeading}>
               Classifications
