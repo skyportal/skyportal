@@ -2,6 +2,7 @@ import datetime
 import time
 import uuid
 
+import pytest
 from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
