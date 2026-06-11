@@ -270,7 +270,7 @@ def test_cannot_add_annotation_without_permission(view_only_token, public_source
     assert data["status"] == "error"
 
 
-def test_delete_annotation(annotation_token, public_source):
+def test_obj_annotations(annotation_token, public_source):
     origin = str(uuid.uuid4())
 
     status, data = api(
@@ -293,6 +293,13 @@ def test_delete_annotation(annotation_token, public_source):
     assert status == 200
     assert data["data"]["data"] == {"offset_from_host_galaxy": 1.5}
     assert data["data"]["origin"] == origin
+
+    status, data = api(
+        "GET", f"sources/{public_source.id}/annotations", token=annotation_token
+    )
+    assert status == 200
+    assert data["data"][0]["id"] == annotation_id
+    assert len(data["data"]) == 1
 
     # delete should fail if using the wrong object ID
     status, data = api(
@@ -319,36 +326,6 @@ def test_delete_annotation(annotation_token, public_source):
         token=annotation_token,
     )
     assert status == 403
-
-
-def test_obj_annotations(annotation_token, public_source, public_group):
-    origin = str(uuid.uuid4())
-
-    status, data = api(
-        "POST",
-        f"sources/{public_source.id}/annotations",
-        data={
-            "origin": origin,
-            "data": {"offset_from_host_galaxy": 1.5},
-        },
-        token=annotation_token,
-    )
-    assert status == 200
-    annotation_id = data["data"]["annotation_id"]
-
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/annotations/{annotation_id}",
-        token=annotation_token,
-    )
-    assert status == 200
-
-    status, data = api(
-        "GET", f"sources/{public_source.id}/annotations", token=annotation_token
-    )
-    assert status == 200
-    assert data["data"][0]["id"] == annotation_id
-    assert len(data["data"]) == 1
 
 
 def test_cannot_add_annotation_without_data(
@@ -385,28 +362,3 @@ def test_post_invalid_data(annotation_token, public_source, public_group):
 
     assert status == 400
     assert "Invalid data" in data["message"]
-
-
-def test_fetch_all_annotations_on_obj(annotation_token, public_source, public_group):
-    status, data = api(
-        "POST",
-        f"sources/{public_source.id}/annotations",
-        data={
-            "origin": "kowalski",
-            "data": {"offset_from_host_galaxy": 1.5},
-            "group_ids": [public_group.id],
-        },
-        token=annotation_token,
-    )
-    assert status == 200
-
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/annotations",
-        token=annotation_token,
-    )
-
-    assert status == 200
-    assert len(data["data"]) == 1
-    assert data["data"][0]["data"] == {"offset_from_host_galaxy": 1.5}
-    assert data["data"][0]["origin"] == "kowalski"

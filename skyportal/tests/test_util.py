@@ -75,7 +75,13 @@ def page():
         pass
 
     with sync_playwright() as p:
-        browser = p.firefox.launch(headless=_frontend_test_headless())
+        browser = p.firefox.launch(
+            headless=_frontend_test_headless(),
+            firefox_user_prefs={
+                "ui.primaryPointerCapabilities": 6,
+                "ui.allPointerCapabilities": 6,
+            },
+        )
         context = browser.new_context(
             base_url=PLAYWRIGHT_BASE_URL,
             viewport={"width": 1920, "height": 1200},
