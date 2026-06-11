@@ -480,7 +480,6 @@ def test_update_redshift_and_history(page, user, public_source):
     expect(page.locator(f"//td[text()='{user.username}']").first).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=2)
 def test_update_redshift_and_history_without_error(page, user, public_source):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
@@ -542,7 +541,7 @@ def test_javascript_sexagesimal_conversion(public_source, page, user):
     expect(page.locator('//*[contains(., "+15:36:24.15")]').first).to_be_visible()
 
 
-def test_source_hr_diagram(page, user, public_source, annotation_token):
+def test_source_hr_diagram(page, user, public_source, annotation_token, tmp_path):
     page.goto(f"/become_user/{user.id}")
 
     status, data = api(
@@ -569,12 +568,10 @@ def test_source_hr_diagram(page, user, public_source, annotation_token):
     # Since Vega uses a <canvas>, compare an image of the plot to the baseline.
     generated_plot = Image.open(BytesIO(vegaplot_div.screenshot()))
 
-    expected_plot_path = os.path.abspath("skyportal/tests/data/HR_diagram_expected.png")
-    # Regenerate the baseline (matches the legacy test's behavior).
+    # Regenerate the baseline (matches the legacy test's behavior); write to a
+    # temp dir so the committed baseline isn't overwritten on every run.
+    expected_plot_path = tmp_path / "HR_diagram_expected.png"
     generated_plot.save(expected_plot_path)
-
-    if not os.path.exists(expected_plot_path):
-        pytest.fail("Missing HR diagram baseline image for comparison")
     expected_plot = Image.open(expected_plot_path)
 
     difference = ImageChops.difference(
