@@ -358,12 +358,7 @@ const InstrumentTable = ({
             handleSearchChange(event.target.value);
           }}
         />
-        <IconButton
-          name="new_instrument"
-          onClick={() => {
-            openNewDialog();
-          }}
-        >
+        <IconButton name="new_instrument" onClick={() => openNewDialog()}>
           <AddIcon />
         </IconButton>
       </DataGridToolbar>
@@ -388,10 +383,6 @@ const InstrumentTable = ({
             rows={instruments || []}
             columns={columns}
             getRowId={(row: any) => row.id}
-            // The instruments API returns the full list (it does not paginate
-            // or sort server-side), so let the DataGrid paginate/sort the rows
-            // it already has -- otherwise the server-pagination footer shows
-            // "0-0 of 0" because no rowCount is provided.
             initialState={{
               pagination: { paginationModel: { pageSize: rowsPerPage } },
             }}

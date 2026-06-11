@@ -78,8 +78,6 @@ const FollowupRequestForm = ({
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
   const [requestData, setRequestData] = useState<any>(null);
 
-  // Derived via useMemo, not state+effect: the old effect setState'd every render
-  // (unstable `instrumentFormParams` dep) -> infinite loop that blanked the page.
   const filteredAllocationList = useMemo<any[]>(() => {
     if (requestType === "triggered") {
       return (allocationListApiClassname || []).filter(
@@ -112,11 +110,11 @@ const FollowupRequestForm = ({
     });
 
     if (!selectedAllocationId) {
-      if ((data[0]?.["default_share_group_ids"]?.length ?? 0) > 0) {
-        setSelectedGroupIds(data[0]?.["default_share_group_ids"] ?? []);
-      } else {
-        setSelectedGroupIds([data[0]?.["group_id"]]);
-      }
+      setSelectedGroupIds(
+        data[0]?.["default_share_group_ids"]?.length
+          ? data[0]["default_share_group_ids"]
+          : [data[0]?.["group_id"]],
+      );
     } else if (
       tempAllocationLookUp[selectedAllocationId]?.default_share_group_ids
         ?.length > 0

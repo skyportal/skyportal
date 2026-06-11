@@ -65,9 +65,6 @@ const EditSourceGroups = ({
     source.currentGroupIds.includes(g.id),
   );
 
-  // Re-init the form only when the dialog opens; re-running reset() on every
-  // `groups`/`source` reference change (e.g. an RTK refetch) wipes the user's
-  // in-progress checkbox selections mid-edit, sending an empty save.
   useEffect(() => {
     if (!dialogOpen) return;
     reset({

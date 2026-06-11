@@ -377,9 +377,6 @@ const ObservationPlanRequestForm = ({
   }, [
     dispatch,
     gcnEvent,
-    // The allocation list arrives asynchronously from RTK Query after mount;
-    // without it as a dependency the effect never re-runs and the allocation
-    // select stays empty.
     allocationListApiObsplan,
     setSelectedAllocationId,
     setSelectedGroupIds,

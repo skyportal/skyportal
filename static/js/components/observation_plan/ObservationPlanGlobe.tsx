@@ -89,12 +89,8 @@ const ObservationPlanGlobe = ({
       )) as any;
       if (cancelled) return;
       if (response?.status === "success") {
-        // A successful response with no data still means "nothing to draw"
-        // (e.g. a plan with no fields), not "still loading".
         setObsList(response.data ?? { geojson: [] });
       } else {
-        // On an API error the response has no `.data`; without this the globe
-        // would sit on a spinner forever.
         setFetchFailed(true);
       }
     };

@@ -91,21 +91,14 @@ const InstrumentForm = ({
     }
   };
 
-  if (telescopeList.length === 0) {
-    // A telescope is required to create an instrument (telescope_id). Do not
-    // also require existing instruments here -- otherwise a fresh deployment
-    // with zero instruments can never add its first one.
+  if (!telescopeList.length) {
     return (
       <h3>
         No telescopes available. Add a telescope before creating an instrument.
       </h3>
     );
   } else if (enum_types == null) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+    return <CircularProgress />;
   }
 
   const api_classnames = [...enum_types["ALLOWED_API_CLASSNAMES"]].sort();

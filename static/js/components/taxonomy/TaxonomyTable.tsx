@@ -285,10 +285,6 @@ const TaxonomyTable = ({
             rows={taxonomies}
             columns={columns}
             getRowId={(row: any) => row.id}
-            // The taxonomy API returns the full list (it does not paginate or
-            // sort server-side), so let the DataGrid paginate/sort the rows it
-            // already has -- otherwise the server-pagination footer shows
-            // "0-0 of 0" because no rowCount is provided.
             initialState={{
               pagination: { paginationModel: { pageSize: rowsPerPage } },
             }}

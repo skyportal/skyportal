@@ -220,9 +220,7 @@ const FilterCandidateList = ({
   const defaultScanningProfile = scanningProfiles?.find(
     (profile: any) => profile.default,
   );
-  // Monotonic counter to force a fresh `getCandidates` fetch on each explicit
-  // search (see `_searchNonce` below).
-  const [searchNonce, setSearchNonce] = useState(0);
+  const [searchCount, setSearchCount] = useState(0);
   const [selectedScanningProfile, setSelectedScanningProfile] = useState<any>(
     defaultScanningProfile,
   );
@@ -399,9 +397,6 @@ const FilterCandidateList = ({
   };
 
   useEffect(() => {
-    // Apply the scanning profile (which resets the form) ONLY when the profile
-    // changes -- not when the groups/annotations queries land, which would wipe
-    // a user's in-progress filter input (the date-filter "churn").
     resetFormFields(defaultStartDate, defaultEndDate, selectedScanningProfile);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedScanningProfile]);
@@ -571,17 +566,14 @@ const FilterCandidateList = ({
     // Save form-specific data, formatted for the API query
     dispatch(setFilterFormData(data));
 
-    // Trigger a new search (resets to page 1). The query result drives the
-    // loading state in the parent CandidateList. `_searchNonce` forces a fresh
-    // fetch even when the filter is unchanged (e.g. re-searching after rejecting
-    // a candidate); it's stripped from both the cache key and the request URL.
-    const nextSearchNonce = searchNonce + 1;
-    setSearchNonce(nextSearchNonce);
+    // Trigger a new search in CandidateList when the search button is clicked and reset to page 1.
+    const nextSearchCount = searchCount + 1;
+    setSearchCount(nextSearchCount);
     setSearchParams({
       pageNumber: 1,
       numPerPage,
       ...fetchParams,
-      _searchNonce: nextSearchNonce,
+      _searchCount: nextSearchCount,
     });
   };
 

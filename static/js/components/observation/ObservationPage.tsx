@@ -81,9 +81,6 @@ const ExecutedObservationList = ({
   handleFilterSubmit,
   downloadCallback,
 }: ObservationListProps) => {
-  // Always render the table + filter form (even while the query is pending or
-  // empty), so the date filter stays usable and a slow initial query doesn't
-  // hide the page behind "No observations available".
   return (
     <ExecutedObservationsTable
       observations={observations?.observations ?? []}

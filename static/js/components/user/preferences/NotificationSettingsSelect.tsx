@@ -234,11 +234,6 @@ const NotificationSettingsSelect = ({
       notificationResourceType === "observation_plans"
     ) {
       if (type === "sms") {
-        // Inverting persists the *reversed* time_slot. Compute it once and use
-        // it for both the saved prefs and local state. (The pre-migration code
-        // relied on an in-place `valueSMS.reverse()` also mutating the array
-        // referenced by `prefs.time_slot`; copying for frozen-data safety broke
-        // that, so the inverted value must be saved explicitly.)
         const reversed = [...valueSMS].reverse();
         const prefs = {
           notifications: {
