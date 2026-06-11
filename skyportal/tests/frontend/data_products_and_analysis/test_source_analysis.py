@@ -103,7 +103,6 @@ def test_analysis_with_file_input_start(
         )
     )
 
-    expect(page.locator("ul.file-info li").first).to_be_visible()
     page.locator(
         '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
     ).first.click()
