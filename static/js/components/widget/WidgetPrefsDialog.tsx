@@ -1,5 +1,5 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -52,13 +52,10 @@ const WidgetPrefsDialog = ({
     control,
 
     formState: { errors },
-  } = useForm(initialValues);
-
-  useEffect(() => {
-    reset(initialValues);
-  }, [initialValues, reset]);
+  } = useForm({ defaultValues: initialValues });
 
   const handleClickOpen = () => {
+    reset(initialValues);
     setOpen(true);
   };
 
@@ -91,33 +88,8 @@ const WidgetPrefsDialog = ({
                 return (
                   <div key={key} className={classes.inputSectionDiv}>
                     <Typography variant="subtitle2">Select {key}:</Typography>
-                    {Object.keys(initialValues[key]).map((subKey) =>
-                      subKey === "includeCommentsFromBots" ? (
-                        <Tooltip
-                          key={subKey}
-                          title="Bot comments are those posted programmatically using API tokens"
-                        >
-                          <FormControlLabel
-                            control={
-                              <Controller
-                                render={({ field: { onChange, value } }) => (
-                                  <Checkbox
-                                    onChange={(event) =>
-                                      onChange(event.target.checked)
-                                    }
-                                    checked={value}
-                                    data-testid={`${key}.${subKey}`}
-                                  />
-                                )}
-                                name={`${key}.${subKey}`}
-                                control={control}
-                                defaultValue={false}
-                              />
-                            }
-                            label={subKey}
-                          />
-                        </Tooltip>
-                      ) : (
+                    {Object.keys(initialValues[key]).map((subKey) => {
+                      const checkbox = (
                         <FormControlLabel
                           key={subKey}
                           control={
@@ -138,8 +110,19 @@ const WidgetPrefsDialog = ({
                           }
                           label={subKey}
                         />
-                      ),
-                    )}
+                      );
+                      return subKey === "includeCommentsFromBots" ? (
+                        <Tooltip
+                          key={subKey}
+                          placement="right"
+                          title="Bot comments are those posted programmatically using API tokens"
+                        >
+                          {checkbox}
+                        </Tooltip>
+                      ) : (
+                        checkbox
+                      );
+                    })}
                   </div>
                 );
               }

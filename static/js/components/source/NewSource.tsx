@@ -43,6 +43,7 @@ const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
   const handleSubmit = async ({ formData }: { formData: any }) => {
     const dataToSend: any = {
       ...formData,
+      group_ids: selectedGroupIds,
     };
     if (dataToSend?.ra?.includes(":")) {
       dataToSend.ra = hours_to_ra(dataToSend?.ra);
@@ -54,63 +55,47 @@ const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
     } else {
       dataToSend.dec = parseFloat(dataToSend?.dec);
     }
-    if (
-      dataToSend?.id === "" ||
-      dataToSend?.id === null ||
-      dataToSend?.id === undefined ||
-      !dataToSend?.id
-    ) {
-      dispatch(showNotification("Please enter a source ID.", "error"));
-    } else {
-      try {
-        const data: any = await checkSource({
-          id: dataToSend?.id,
-          params: dataToSend,
-        }).unwrap();
-        if (data?.source_exists === true) {
-          dispatch(showNotification(data.message, "error"));
-          return;
-        }
-
-        if (selectedGroupIds.length > 0) {
-          dataToSend.group_ids = selectedGroupIds;
-        }
-        await saveSource(dataToSend).unwrap();
-        onClose();
-        dispatch(showNotification("Source saved"));
-        navigate(`/source/${dataToSend.id}`);
-      } catch {
-        // error notification handled by the baseQuery
+    try {
+      const data: any = await checkSource({
+        id: dataToSend?.id,
+        params: dataToSend,
+      }).unwrap();
+      if (data?.source_exists) {
+        dispatch(showNotification(data.message, "error"));
+        return;
       }
+      await saveSource(dataToSend).unwrap();
+      onClose();
+      dispatch(showNotification("Source saved"));
+      navigate(`/source/${dataToSend.id}`);
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 
   function validate(formData: any, errors: any) {
-    if (selectedGroupIds?.length === 0 && formData?.id !== "") {
+    const id = formData?.id || "";
+    const ra = formData?.ra || "";
+    const dec = formData?.dec || "";
+
+    if (id.includes(" ")) {
+      errors.id.addError("IDs are not allowed to have spaces, please fix.");
+    } else if (id === "") {
+      errors.id.addError("Please enter a source ID.");
+    } else if (!selectedGroupIds?.length) {
       errors.__errors.push("Select at least one group.");
     }
-    if ((formData?.ra !== "" || formData?.dec !== "") && formData?.id === "") {
-      errors.id.addError("Please enter a source ID.");
-    }
-    if ((formData?.id || "").indexOf(" ") >= 0) {
-      errors.id.addError("IDs are not allowed to have spaces, please fix.");
-    }
-    if ((formData?.ra || "").includes(":")) {
-      formData.ra = hours_to_ra(formData.ra);
-    } else {
-      formData.ra = parseFloat(formData.ra);
-    }
-    if (formData?.ra < 0 || formData?.ra >= 360) {
+
+    const raDeg = ra.includes(":") ? hours_to_ra(ra) : parseFloat(ra);
+    if (raDeg < 0 || raDeg >= 360) {
       errors.ra.addError("0 <= RA < 360, please fix.");
     }
-    if ((formData?.dec || "").includes(":")) {
-      formData.dec = dms_to_dec(formData.dec);
-    } else {
-      formData.dec = parseFloat(formData.dec);
+
+    const decDeg = dec.includes(":") ? dms_to_dec(dec) : parseFloat(dec);
+    if (decDeg < -90 || decDeg > 90) {
+      errors.dec.addError("-90 <= Declination <= 90, please fix.");
     }
-    if (formData?.dec < -90 || formData?.dec > 90) {
-      errors.ra.addError("-90 <= Declination <= 90, please fix.");
-    }
+
     return errors;
   }
 

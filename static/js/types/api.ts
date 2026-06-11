@@ -21281,6 +21281,11 @@ export interface paths {
                                 weather?: Record<string, never>;
                                 /** @description Datetime (UTC) when the weather was fetched */
                                 weather_retrieved_at?: string;
+                                /**
+                                 * @description Datetime (UTC) when the API call was made,
+                                 *     even if no data was returned
+                                 */
+                                weather_fetch_at?: string;
                                 /** @description URL for more weather info */
                                 weather_link?: string;
                                 /** @description Name of the telescope */
@@ -21293,6 +21298,14 @@ export interface paths {
                                 message?: string;
                             };
                         };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
@@ -134,36 +134,38 @@ const NotificationGcnEvent = () => {
   const [newProfileOpen, setNewProfileOpen] = useState(false);
 
   // Convert the existing notifications to a list format, so that they can be easily modified
-  if (!notifications?.gcn_events?.properties) {
-    const default_properties: Record<string, any> = {};
-    if (
-      notifications?.gcn_events?.gcn_notice_types ||
-      notifications?.gcn_events?.gcn_tags ||
-      notifications?.gcn_events?.gcn_properties ||
-      notifications?.gcn_events?.localization_tags ||
-      notifications?.gcn_events?.localization_properties
-    ) {
-      default_properties["original"] = {
-        gcn_notice_types: notifications?.gcn_events?.gcn_notice_types,
-        gcn_tags: notifications?.gcn_events?.gcn_tags,
-        gcn_properties: notifications?.gcn_events?.gcn_properties,
-        localization_tags: notifications?.gcn_events?.localization_tags,
-        localization_properties:
-          notifications?.gcn_events?.localization_properties,
-      };
-    }
+  useEffect(() => {
+    if (!notifications?.gcn_events?.properties) {
+      const default_properties: Record<string, any> = {};
+      if (
+        notifications?.gcn_events?.gcn_notice_types ||
+        notifications?.gcn_events?.gcn_tags ||
+        notifications?.gcn_events?.gcn_properties ||
+        notifications?.gcn_events?.localization_tags ||
+        notifications?.gcn_events?.localization_properties
+      ) {
+        default_properties["original"] = {
+          gcn_notice_types: notifications?.gcn_events?.gcn_notice_types,
+          gcn_tags: notifications?.gcn_events?.gcn_tags,
+          gcn_properties: notifications?.gcn_events?.gcn_properties,
+          localization_tags: notifications?.gcn_events?.localization_tags,
+          localization_properties:
+            notifications?.gcn_events?.localization_properties,
+        };
+      }
 
-    const prefs = {
-      notifications: {
-        gcn_events: {
-          active: true,
-          properties: default_properties,
+      const prefs = {
+        notifications: {
+          gcn_events: {
+            active: true,
+            properties: default_properties,
+          },
         },
-      },
-    };
+      };
 
-    updateUserPreferences(prefs);
-  }
+      updateUserPreferences(prefs);
+    }
+  }, [notifications]);
 
   const openManageProfile = (key: any) => {
     setSelectedNotification(key);

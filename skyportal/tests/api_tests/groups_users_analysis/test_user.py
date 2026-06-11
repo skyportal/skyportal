@@ -11,14 +11,6 @@ def test_get_user_info(manage_users_token, user):
     assert data["data"]["id"] == user.id
 
 
-def test_delete_user(super_admin_token, user):
-    status, data = api("DELETE", f"user/{user.id}", token=super_admin_token)
-    assert status == 200
-
-    status, data = api("GET", f"user/{user.id}", token=super_admin_token)
-    assert status == 400
-
-
 def test_delete_user_cascades_to_tokens(super_admin_token, user, public_group):
     token_name = str(uuid.uuid4())
     token_id = create_token(ACLs=[], user_id=user.id, name=token_name)

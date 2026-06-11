@@ -1285,9 +1285,6 @@ const SharingServicesPage = () => {
               },
             }}
             onSubmit={submitSharingService}
-            onError={(errors: any) =>
-              console.log("Form validation errors: ", errors)
-            }
             validator={validator}
             {...({ customValidate: validate } as any)}
           />

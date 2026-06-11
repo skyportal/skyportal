@@ -1321,7 +1321,10 @@ const UserManagement = () => {
                     value={value}
                     onChange={(newValue) => onChange(newValue)}
                     slotProps={{
-                      textField: { variant: "outlined" },
+                      textField: {
+                        variant: "outlined",
+                        sx: { mt: 1 },
+                      },
                       field: { clearable: true } as any,
                     }}
                     label="Expiration date (UTC)"
@@ -1353,7 +1356,6 @@ const UserManagement = () => {
                   setRemoveExpirationConfirmDialogOpen(true);
                 }}
                 name="removeExpirationDateButton"
-                data-testid="removeExpirationDateButton"
               >
                 Remove Expiration Date
               </Button>

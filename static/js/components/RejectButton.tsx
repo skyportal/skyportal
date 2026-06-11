@@ -24,7 +24,11 @@ const ButtonVisible = (objID: string) => {
     setIsSubmitting(false);
   };
   return (
-    <Tooltip title="click to hide candidate from scanning page">
+    <Tooltip
+      placement="right"
+      title="click to hide candidate from scanning page"
+      disableInteractive
+    >
       <IconButton
         onClick={handleSubmit}
         data-testid={`rejected-visible_${objID}`}
@@ -51,7 +55,11 @@ const ButtonInvisible = (objID: string) => {
   };
 
   return (
-    <Tooltip title="click to make candidate visible on scanning page">
+    <Tooltip
+      placement="right"
+      title="click to make candidate visible on scanning page"
+      disableInteractive
+    >
       <IconButton
         onClick={handleSubmit}
         data-testid={`rejected_invisible_${objID}`}

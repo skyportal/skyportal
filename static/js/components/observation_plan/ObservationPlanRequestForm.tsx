@@ -374,6 +374,7 @@ const ObservationPlanRequestForm = ({
   }, [
     dispatch,
     gcnEvent,
+    allocationListApiObsplan,
     setSelectedAllocationId,
     setSelectedGroupIds,
     setSelectedLocalizationId,
@@ -388,15 +389,11 @@ const ObservationPlanRequestForm = ({
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationListApiObsplan is not
   // empty.
-  if (
-    allocationListApiObsplan.length === 0 ||
-    !selectedAllocationId ||
-    Object.keys(instrumentObsplanFormParams).length === 0
-  ) {
+  if (!allocationListApiObsplan.length) {
     return <h3>No allocations with an observation plan API...</h3>;
   }
 
-  if (filteredAllocationListApiObsplan.length === 0) {
+  if (!filteredAllocationListApiObsplan.length) {
     return (
       <h3>
         No allocations with an observation plan API and observation plan type
@@ -406,18 +403,14 @@ const ObservationPlanRequestForm = ({
   }
 
   if (
-    !allGroups ||
-    allGroups.length === 0 ||
-    telescopeList.length === 0 ||
-    instrumentList.length === 0 ||
+    !selectedAllocationId ||
+    !Object.keys(instrumentObsplanFormParams).length ||
+    !allGroups?.length ||
+    !telescopeList.length ||
+    !instrumentList.length ||
     dateobs !== gcnEvent?.dateobs
-  ) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  )
+    return <CircularProgress />;
 
   const handleSelectedAllocationChange = (e: any) => {
     setSelectedAllocationId(e.target.value);

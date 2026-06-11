@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import Paper from "@mui/material/Paper";
 import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
@@ -60,13 +60,9 @@ const GroupList = ({
               .filter((group) => !group.single_user_group)
               .map((group) => (
                 <Link to={getLink(group)} key={group.id}>
-                  <ListItem
-                    key={group.id}
-                    data-testid={`${title}-${group.name}`}
-                    {...({ button: true } as any)}
-                  >
+                  <ListItemButton data-testid={`${title}-${group.name}`}>
                     <ListItemText primary={group.name} />
-                  </ListItem>
+                  </ListItemButton>
                 </Link>
               ))}
         </List>
