@@ -4,6 +4,7 @@ import uuid
 from os.path import join as pjoin
 
 import numpy as np
+import pandas as pd
 import pytest
 from astropy.table import Table
 from numpy import random

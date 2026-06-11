@@ -1,8 +1,28 @@
 import uuid
 
 import pytest
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect
+
 from skyportal.tests import api
+
+
+def remove_notification(page):
+    # Defined locally: this helper used to live in test_quick_search, but main
+    # removed it there and test_newsfeed is now the only caller.
+    notification = page.locator('[data-testid*="notification-"]')
+    n_retries = 0  # we enforce a max, just to not have a runaway loop
+    while n_retries < 5:
+        try:
+            notification.first.click(timeout=3000)
+        except PlaywrightTimeoutError:
+            return  # nothing to dismiss
+        try:
+            expect(notification).to_have_count(0, timeout=3000)
+            return
+        except AssertionError:
+            pass
+        n_retries += 1
 
 
 def _seed_sources_and_comments(api_, public_group, upload_data_token, comment_token):
