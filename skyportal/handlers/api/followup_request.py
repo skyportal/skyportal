@@ -2339,6 +2339,11 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            instrument_id = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error("Instrument ID must be an integer.")
+
         with self.Session() as session:
             instrument = session.scalars(
                 Instrument.select(

@@ -555,6 +555,10 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            classification_id = int(classification_id)
+        except (ValueError, TypeError):
+            return self.error(f"Invalid classification ID: {classification_id}")
 
         with self.Session() as session:
             c = session.scalars(
