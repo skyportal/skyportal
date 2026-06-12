@@ -50,3 +50,31 @@ export function invalidateOnMessage(
     },
   );
 }
+
+/**
+ * Look up the argument a cached query was fetched with, by matching on its
+ * result data.
+ *
+ * SkyPortal's websocket `REFRESH_*` payloads identify a source by its
+ * `internal_key` (a hash), whereas the RTK Query cache for `getSource` is keyed
+ * by the obj id (`api/sources/{id}`). To invalidate a single source's cache
+ * entry from a websocket message we translate `internal_key` -> obj id by
+ * finding the cached `getSource` result whose `internal_key` matches and
+ * returning the argument it was fetched with.
+ *
+ * Returns `null` when no matching cached query is found (e.g. that source isn't
+ * currently loaded), so callers can fall back to a broad invalidation.
+ */
+export function findCachedQueryArg(
+  getState: () => unknown,
+  endpointName: string,
+  match: (data: any) => boolean,
+): unknown {
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  for (const entry of Object.values(queries) as any[]) {
+    if (entry?.endpointName === endpointName && match(entry?.data)) {
+      return entry.originalArgs;
+    }
+  }
+  return null;
+}

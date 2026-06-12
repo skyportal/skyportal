@@ -98,6 +98,7 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
     analysis_id: route.analysis_id,
     analysis_resource_type: "obj",
   });
+  const analysisAny = analysis as any;
 
   let chip_color: any = "warning";
   if (analysis?.status === "completed") {
@@ -107,9 +108,9 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
     chip_color = "error";
   }
   const last_active_str = `${dayjs().to(
-    dayjs.utc(`${analysis?.last_activity}Z`),
+    dayjs.utc(`${analysisAny?.["last_activity"]}Z`),
   )}`;
-  const duration_str = `${analysis?.duration?.toFixed(2)} sec`;
+  const duration_str = `${analysisAny?.["duration"]?.toFixed(2)} sec`;
   const info_str = `Last activity ${last_active_str} (duration ${duration_str})`;
   return (
     <>
@@ -120,7 +121,7 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
         </Link>{" "}
         (#{route.analysis_id})
       </Typography>
-      {analysis?.last_activity ? (
+      {analysis && analysisAny?.["last_activity"] ? (
         <>
           <Chip
             label={analysis?.status}
@@ -153,9 +154,9 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
           {analysis?.analysis_parameters && (
             <div className={classes.div}>
               <b>Analysis Parameters</b>:
-              {Object.keys(analysis?.analysis_parameters).map((key) => (
+              {Object.keys(analysis?.analysis_parameters ?? {}).map((key) => (
                 <Chip
-                  label={`${key}: ${analysis?.analysis_parameters[key]}`}
+                  label={`${key}: ${(analysisAny?.["analysis_parameters"] ?? {})[key]}`}
                   key={`chip_ap_${key}`}
                   size="small"
                   className={classes.chip}
@@ -163,30 +164,32 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
               ))}
             </div>
           )}
-          {analysis?.input_filters &&
-            Object.keys(analysis?.input_filters || {}).every(
+          {analysisAny?.["input_filters"] &&
+            Object.keys(analysisAny?.["input_filters"] || {}).every(
               (input_type) =>
-                Object.keys(analysis?.input_filters[input_type]).length > 0,
+                Object.keys(analysisAny?.["input_filters"][input_type]).length >
+                0,
             ) && (
               <div className={classes.div}>
                 <b>Input Data Filters</b>:
-                {Object.keys(analysis?.input_filters).map((input_type) =>
-                  Object.keys(analysis?.input_filters[input_type]).map(
-                    (key) => (
-                      <Chip
-                        label={`${input_type}.${key}: ${JSON.stringify(
-                          analysis?.input_filters[input_type][key],
-                        )}`}
-                        key={`chip_if_${key}`}
-                        size="small"
-                        className={classes.chip}
-                      />
+                {Object.keys(analysisAny?.["input_filters"]).map(
+                  (input_type: string) =>
+                    Object.keys(analysisAny?.["input_filters"][input_type]).map(
+                      (key) => (
+                        <Chip
+                          label={`${input_type}.${key}: ${JSON.stringify(
+                            analysisAny?.["input_filters"][input_type][key],
+                          )}`}
+                          key={`chip_if_${key}`}
+                          size="small"
+                          className={classes.chip}
+                        />
+                      ),
                     ),
-                  ),
                 )}
               </div>
             )}
-          {analysis?.show_parameters &&
+          {analysisAny?.["show_parameters"] &&
             analysisResults &&
             analysis?.status === "completed" && (
               <Accordion>
@@ -226,7 +229,7 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
                 </AccordionDetails>
               </Accordion>
             )}
-          {analysis?.show_corner && analysis?.status === "completed" && (
+          {analysisAny?.["show_corner"] && analysis?.status === "completed" && (
             <Accordion>
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
@@ -264,9 +267,9 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
               </AccordionDetails>
             </Accordion>
           )}
-          {analysis?.show_plots &&
+          {analysisAny?.["show_plots"] &&
             analysis?.status === "completed" &&
-            analysis?.num_plots > 0 && (
+            (analysisAny?.["num_plots"] ?? 0) > 0 && (
               <Accordion>
                 <AccordionSummary
                   expandIcon={<ExpandMoreIcon />}

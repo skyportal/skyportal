@@ -91,14 +91,14 @@ const InstrumentForm = ({
     }
   };
 
-  if (instrumentList.length === 0 || telescopeList.length === 0) {
-    return <h3>No instruments available...</h3>;
-  } else if (enum_types == null) {
+  if (!telescopeList.length) {
     return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
+      <h3>
+        No telescopes available. Add a telescope before creating an instrument.
+      </h3>
     );
+  } else if (enum_types == null) {
+    return <CircularProgress />;
   }
 
   const api_classnames = [...enum_types["ALLOWED_API_CLASSNAMES"]].sort();
@@ -289,8 +289,9 @@ const InstrumentForm = ({
                   .properties,
               },
               default:
-                instrumentToEdit?.["configuration_data"]
-                  ?.specific_configuration || {},
+                instrumentToEdit?.["configuration_data"]?.[
+                  "specific_configuration"
+                ] || {},
             },
           }
         : {}),

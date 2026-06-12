@@ -816,11 +816,6 @@ const CandidateList = () => {
     dispatch(photometryMinimalApi.util.invalidateTags(["Photometry"]));
   }, [pageNumber, dispatch]);
 
-  const groupIds: any[] = [];
-  filterGroups?.forEach((g) => {
-    groupIds.push(g.id);
-  });
-
   const fetchPage = (offset: number) => {
     if (!queryInProgress && (candidates?.length ?? 0) < totalMatches) {
       dispatch(showNotification("Loading more candidates..."));
@@ -845,17 +840,9 @@ const CandidateList = () => {
           setSortOrder={setSortOrder}
           setSearchParams={setSearchParams}
         />
-        <Box
-          display={queryInProgress ? "block" : "none"}
-          className={classes.spinnerDiv}
-        >
-          <Spinner />
-        </Box>
         <Box style={{ marginTop: "0.75rem" }}>
           {queryInProgress ? (
-            <div>
-              <Spinner />
-            </div>
+            <Spinner />
           ) : (
             <div>
               <Paper

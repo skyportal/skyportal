@@ -165,7 +165,7 @@ def test_observation_plan_galaxy(
         "DELETE", f"galaxy_catalog/{catalog_name}", token=super_admin_token
     )
 
-    datafile = f"{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5"
+    datafile = f"{os.path.dirname(__file__)}/../../../../data/CLU_mini.hdf5"
     data = {
         "catalog_name": catalog_name,
         "catalog_data": Table.read(datafile)

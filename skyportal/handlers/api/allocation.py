@@ -219,9 +219,20 @@ class AllocationHandler(BaseHandler):
               description: Page number for paginated query results. Defaults to 1
           responses:
             200:
-               content:
+              content:
                 application/json:
-                  schema: SingleAllocation
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              allocation:
+                                $ref: '#/components/schemas/Allocation'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:
@@ -377,7 +388,7 @@ class AllocationHandler(BaseHandler):
             instrument_id = self.get_query_argument("instrument_id", None, type=int)
             if instrument_id is not None:
                 allocations = allocations.where(
-                    Allocation.instrument_id == instrument_id
+                    Allocation.instrument_id == int(instrument_id)
                 )
 
             apitype = self.get_query_argument("apiType", None)
@@ -766,7 +777,7 @@ class AllocationReportHandler(BaseHandler):
         with self.Session() as session:
             # get owned allocations
             stmt = Allocation.select(session.user_or_token)
-            stmt = stmt.where(Allocation.instrument_id == instrument_id)
+            stmt = stmt.where(Allocation.instrument_id == int(instrument_id))
             allocations = session.scalars(stmt).unique().all()
 
             if len(allocations) == 0:

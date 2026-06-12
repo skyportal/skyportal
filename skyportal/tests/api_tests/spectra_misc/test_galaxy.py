@@ -17,7 +17,7 @@ def test_galaxy(super_admin_token, view_only_token, gcn_GW190814):
         "DELETE", f"galaxy_catalog/{catalog_name}", token=super_admin_token
     )
 
-    datafile = f"{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5"
+    datafile = f"{os.path.dirname(__file__)}/../../../../data/CLU_mini.hdf5"
     data = {
         "catalog_name": catalog_name,
         "catalog_data": Table.read(datafile)
@@ -132,7 +132,7 @@ def test_source_host(
     assert status == 200
     assert data["data"]["id"] == obj_id
 
-    datafile = f"{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5"
+    datafile = f"{os.path.dirname(__file__)}/../../../../data/CLU_mini.hdf5"
     data = {
         "catalog_name": catalog_name,
         "catalog_data": Table.read(datafile)

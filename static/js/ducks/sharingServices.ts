@@ -14,8 +14,8 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export type SharingService = Record<string, any>;
+import type { components } from "../types/api";
+import type { RouteData } from "../types/routeSchemaMap";
 
 export interface SharingServiceSubmissions {
   sharing_service_id: number | string;
@@ -71,7 +71,7 @@ interface EditSharingServiceArg {
 export const sharingServicesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getSharingServices: build.query<
-      SharingService[],
+      components["schemas"]["SharingService"][],
       FetchSharingServicesArg | void
     >({
       query: (params) => ({
@@ -81,7 +81,9 @@ export const sharingServicesApi = skyportalApi.injectEndpoints({
       providesTags: ["SharingService"],
     }),
     getSharingServiceSubmissions: build.query<
-      SharingServiceSubmissions,
+      RouteData<"GET /api/sharing_service/submission"> & {
+        sharing_service_id?: number;
+      },
       FetchSubmissionsArg | void
     >({
       query: (params) => ({
@@ -101,7 +103,10 @@ export const sharingServicesApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["SharingService"],
     }),
-    editSharingService: build.mutation<unknown, EditSharingServiceArg>({
+    editSharingService: build.mutation<
+      components["schemas"]["SingleSharingService"],
+      EditSharingServiceArg
+    >({
       query: ({ id, data }) => ({
         url: `api/sharing_service/${id}`,
         method: "PUT",
@@ -125,7 +130,7 @@ export const sharingServicesApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["SharingService"],
     }),
     editSharingServiceGroup: build.mutation<
-      unknown,
+      components["schemas"]["SharingServiceGroup"],
       EditSharingServiceGroupArg
     >({
       query: ({ sharing_service_id, group_id, data }) => ({
@@ -168,7 +173,7 @@ export const sharingServicesApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["SharingService"],
     }),
     addSharingServiceCoauthor: build.mutation<
-      unknown,
+      components["schemas"]["SharingServiceCoauthor"],
       SharingServiceCoauthorArg
     >({
       query: ({ sharing_service_id, user_id }) => ({
@@ -187,7 +192,10 @@ export const sharingServicesApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["SharingService"],
     }),
-    addSharingServiceSubmission: build.mutation<unknown, any>({
+    addSharingServiceSubmission: build.mutation<
+      components["schemas"]["SharingServiceSubmission"],
+      any
+    >({
       query: (formData) => ({
         url: "api/sharing_service/submission",
         method: "POST",

@@ -1,7 +1,6 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export type LocalizationProperties = string[];
+import type { RouteData } from "../types/routeSchemaMap";
 
 export type LocalizationPropertiesArgs =
   | Record<string, string | number | boolean>
@@ -10,7 +9,7 @@ export type LocalizationPropertiesArgs =
 export const localizationPropertiesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getLocalizationProperties: build.query<
-      LocalizationProperties,
+      RouteData<"GET /api/localization/properties">,
       LocalizationPropertiesArgs
     >({
       query: (filterParams) => ({

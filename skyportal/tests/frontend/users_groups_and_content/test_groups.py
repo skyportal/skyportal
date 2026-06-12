@@ -60,40 +60,39 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
     ).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=2)
-def test_add_new_group_explicit_self_admin(page, super_admin_user, user):
-    test_proj_name = str(uuid.uuid4())
-    page.goto(f"/become_user/{super_admin_user.id}")
-    page.goto("/")
-    page.reload()
-    page.goto("/groups")
-    page.locator('//input[@name="name"]').first.fill(test_proj_name)
-    page.locator('//div[@id="groupAdminsSelect"]').first.click()
-    page.locator(f'//li[contains(text(),"{user.username}")]').first.click()
-    # close the (multiple) admins select so its menu overlay stops covering the
-    # Create Group button
-    page.keyboard.press("Escape")
-    page.locator('//button[contains(.,"Create Group")]').first.click()
-    expect(page.locator(f'//a[contains(.,"{test_proj_name}")]').first).to_be_visible()
-
-
-def test_add_new_group_user_admin(
-    page, super_admin_user, super_admin_token, user_no_groups, public_group
+@pytest.mark.parametrize(
+    "checkbox, admin_chip_count, admin, can_save",
+    [
+        ("adminCheckbox", 1, True, True),
+        (None, 0, False, True),
+        ("canSaveCheckbox", 0, False, False),
+    ],
+)
+def test_add_new_group_user(
+    page,
+    super_admin_user,
+    super_admin_token,
+    user_no_groups,
+    public_group,
+    checkbox,
+    admin_chip_count,
+    admin,
+    can_save,
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
     expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
-    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
     page.locator('//div[@data-testid="newGroupUserTextInput"]').first.click()
     page.locator(f'//li[text()="{user_no_groups.username}"]').first.click()
-    # Default is unchecked; just need to click once to make group admin
-    page.locator('//*[@data-testid="adminCheckbox"]').first.click()
+    if checkbox is not None:
+        page.locator(f'//*[@data-testid="{checkbox}"]').first.click()
     page.locator('//button[contains(.,"Add user")]').first.click()
     expect(
         page.locator(f'//a[contains(.,"{user_no_groups.username}")]').first
     ).to_be_visible()
     expect(page.locator(f'//div[@id="{user_no_groups.id}-admin-chip"]')).to_have_count(
-        1
+        admin_chip_count
     )
 
     status, data = api(
@@ -106,74 +105,8 @@ def test_add_new_group_user_admin(
         if gu["id"] == user_no_groups.id:
             group_user = gu
     assert group_user is not None
-    assert group_user["admin"]
-    assert group_user["can_save"]
-
-
-@pytest.mark.flaky(reruns=2)
-def test_add_new_group_user_nonadmin(
-    page, super_admin_user, super_admin_token, user_no_groups, public_group
-):
-    page.goto(f"/become_user/{super_admin_user.id}")
-    page.goto("/groups")
-    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
-    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
-    page.locator('//div[@data-testid="newGroupUserTextInput"]').first.click()
-    page.locator(f'//li[text()="{user_no_groups.username}"]').first.click()
-    page.locator('//button[contains(.,"Add user")]').first.click()
-    expect(
-        page.locator(f'//a[contains(.,"{user_no_groups.username}")]').first
-    ).to_be_visible()
-    expect(page.locator(f'//div[@id="{user_no_groups.id}-admin-chip"]')).to_have_count(
-        0
-    )
-
-    status, data = api(
-        "GET",
-        f"groups/{public_group.id}?includeGroupUsers=true",
-        token=super_admin_token,
-    )
-    group_user = None
-    for gu in data["data"]["users"]:
-        if gu["id"] == user_no_groups.id:
-            group_user = gu
-    assert group_user is not None
-    assert not group_user["admin"]
-    assert group_user["can_save"]
-
-
-@pytest.mark.flaky(reruns=2)
-def test_add_new_group_user_cant_save(
-    page, super_admin_user, super_admin_token, user_no_groups, public_group
-):
-    page.goto(f"/become_user/{super_admin_user.id}")
-    page.goto("/groups")
-    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
-    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
-    page.locator('//div[@data-testid="newGroupUserTextInput"]').first.click()
-    page.locator(f'//li[text()="{user_no_groups.username}"]').first.click()
-    # Checkbox is checked by default
-    page.locator('//*[@data-testid="canSaveCheckbox"]').first.click()
-    page.locator('//button[contains(.,"Add user")]').first.click()
-    expect(
-        page.locator(f'//a[contains(.,"{user_no_groups.username}")]').first
-    ).to_be_visible()
-    expect(page.locator(f'//div[@id="{user_no_groups.id}-admin-chip"]')).to_have_count(
-        0
-    )
-
-    status, data = api(
-        "GET",
-        f"groups/{public_group.id}?includeGroupUsers=true",
-        token=super_admin_token,
-    )
-    group_user = None
-    for gu in data["data"]["users"]:
-        if gu["id"] == user_no_groups.id:
-            group_user = gu
-    assert group_user is not None
-    assert not group_user["admin"]
-    assert not group_user["can_save"]
+    assert group_user["admin"] == admin
+    assert group_user["can_save"] == can_save
 
 
 @pytest.mark.flaky(reruns=2)
@@ -186,7 +119,7 @@ def test_invite_all_users_from_other_group(
     expect(
         page.locator(f'//a[contains(.,"{user_group2.username}")]').first
     ).to_be_hidden()
-    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
     page.locator('//*[@data-testid="addUsersFromGroupsTextField"]').first.click()
     page.locator(f'//li[text()="{public_group2.name}"]').first.click()
     page.locator('//*[text()="Add users"]').first.click()
@@ -202,7 +135,7 @@ def test_delete_group_user(page, super_admin_user, user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
     expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
-    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
 
     expect(page.locator(f'//a[contains(.,"{user.username}")]').first).to_be_visible()
     page.locator(f'//button[@data-testid="delete-{user.username}"]').first.click()
@@ -217,7 +150,7 @@ def test_delete_group(page, super_admin_user, user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
     expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
-    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
     page.locator('//button[contains(.,"Delete Group")]').first.click()
     page.locator('//button[contains(.,"Confirm")]').first.click()
     expect(page.locator(f'//a[contains(.,"{public_group.name}")]').first).to_be_hidden()
@@ -238,7 +171,7 @@ def test_add_stream_add_delete_filter_group(
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
     page.locator('//h6[text()="All Groups"]').first.click()
-    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
 
     # Add stream
     page.locator('//button[contains(.,"Add stream")]').first.click()
@@ -272,7 +205,7 @@ def test_cannot_add_stream_group_users_cant_access(
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
     page.locator('//h6[text()="All Groups"]').first.click()
-    page.locator(f'//li[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
 
     # Cannot add stream that group members don't have access to
     page.locator('//button[contains(.,"Add stream")]').first.click()

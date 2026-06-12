@@ -1,11 +1,9 @@
 import uuid
 
 import numpy as np
-import pytest
 from playwright.sync_api import expect
 
 
-@pytest.mark.flaky(reruns=2)
 def test_new_source(page, user, super_admin_token, view_only_token, public_group):
     page.goto(f"/become_user/{user.id}")
     page.goto("/sources")

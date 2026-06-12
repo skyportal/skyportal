@@ -462,25 +462,23 @@ const SourceContent = ({ source }: SourceContentProps) => {
           defaultExpanded
           disableGutters
           className={classes.flexColumn}
+          data-testid="source-classifications"
         >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="classifications-content"
-            id="classifications-header"
           >
             <Typography className={classes.accordionHeading}>
               Classifications
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={classes.classifications}>
-              <ClassificationList obj={source} />
-              <ClassificationForm
-                obj_id={source.id}
-                taxonomyList={taxonomyList}
-                {...({ action: "createNew" } as any)}
-              />
-            </div>
+            <ClassificationList obj={source} />
+            <ClassificationForm
+              obj_id={source.id}
+              taxonomyList={taxonomyList}
+              {...({ action: "createNew" } as any)}
+            />
           </AccordionDetails>
         </Accordion>
       </Grid>
@@ -510,11 +508,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
         </Accordion>
       </Grid>
       <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 9, lg: 13 }}>
-        <Accordion
-          defaultExpanded
-          disableGutters
-          className={classes.classifications}
-        >
+        <Accordion defaultExpanded disableGutters>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="hr-diagram-content"
@@ -1030,7 +1024,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
-              currentUser?.preferences?.["hideSourceSummary"] !== true && (
+              !currentUser?.preferences?.["hideSourceSummary"] && (
                 <Paper
                   className={classes.flexColumn}
                   style={{
@@ -1086,15 +1080,15 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         }
                       />
                       {source.comments?.length > 0 ||
-                      source.classifications?.length > 0 ? (
-                        <StartBotSummary obj_id={source.id} />
-                      ) : null}
-                      {source.summary_history?.length > 0 ? (
+                        (source.classifications?.length > 0 && (
+                          <StartBotSummary obj_id={source.id} />
+                        ))}
+                      {source.summary_history?.length > 0 && (
                         <ShowSummaryHistory
                           summaries={source.summary_history}
                           obj_id={source.id}
                         />
-                      ) : null}
+                      )}
                     </div>
                   </div>
                 </Paper>

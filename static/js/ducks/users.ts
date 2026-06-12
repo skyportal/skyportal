@@ -11,6 +11,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
 export interface User {
   id: number;
@@ -34,10 +35,12 @@ export const usersApi = skyportalApi.injectEndpoints({
       },
       providesTags: ["User"],
     }),
-    getUser: build.query<User, number | string>({
-      query: (id) => `api/user/${id}`,
-      providesTags: ["User"],
-    }),
+    getUser: build.query<RouteData<"GET /api/user/{user_id}">, number | string>(
+      {
+        query: (id) => `api/user/${id}`,
+        providesTags: ["User"],
+      },
+    ),
     patchUser: build.mutation<
       unknown,
       { id: number | string; data: Record<string, any> }

@@ -10,20 +10,18 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export interface Stream {
-  id: number;
-  name: string;
-  [key: string]: unknown;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const streamsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getStreams: build.query<Stream[], void>({
+    getStreams: build.query<RouteData<"GET /api/streams">, void>({
       query: () => "api/streams",
       providesTags: ["Streams"],
     }),
-    addNewStream: build.mutation<unknown, Record<string, unknown>>({
+    addNewStream: build.mutation<
+      RouteData<"POST /api/streams">,
+      Record<string, unknown>
+    >({
       query: (form_data) => ({
         url: "api/streams",
         method: "POST",
@@ -39,7 +37,7 @@ export const streamsApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Streams"],
     }),
     addGroupStream: build.mutation<
-      unknown,
+      RouteData<"POST /api/groups/{group_id}/streams">,
       { group_id: number | string; stream_id: number | string }
     >({
       query: ({ group_id, stream_id }) => ({
@@ -60,7 +58,7 @@ export const streamsApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Streams"],
     }),
     addStreamUser: build.mutation<
-      unknown,
+      RouteData<"POST /api/streams/{stream_id}/users">,
       { user_id: number | string; stream_id: number | string }
     >({
       query: ({ user_id, stream_id }) => ({

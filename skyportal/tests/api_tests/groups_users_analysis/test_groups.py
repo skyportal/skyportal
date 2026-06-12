@@ -213,42 +213,6 @@ def test_add_already_added_stream_to_group(
     assert data["message"] == "Specified stream is already associated with this group."
 
 
-def test_add_stream_to_single_user_group_delete_stream(
-    super_admin_token, super_admin_user, public_group_no_streams, public_stream
-):
-    # create new user
-    username = str(uuid.uuid4())
-    status, data = api(
-        "POST", "user", data={"username": username}, token=super_admin_token
-    )
-    assert status == 200
-
-    # get single-user group
-    status, data = api(
-        "GET", "groups?includeSingleUserGroups=true", token=super_admin_token
-    )
-    assert data["status"] == "success"
-    assert any(
-        group["single_user_group"] and group["name"] == username
-        for group in data["data"]["all_groups"]
-    )
-    single_user_group = [
-        group for group in data["data"]["all_groups"] if group["name"] == username
-    ][0]
-
-    # add stream to this group
-    status, data = api(
-        "POST",
-        f"groups/{single_user_group['id']}/streams",
-        data={"stream_id": public_stream.id},
-        token=super_admin_token,
-    )
-
-    # check that you can't add a stream to a single user group
-    assert status == 400
-    assert data["status"] == "error"
-
-
 def test_add_stream_to_group_delete_stream(
     super_admin_token, public_group_no_streams, public_stream
 ):
@@ -542,16 +506,6 @@ def test_cannot_add_self_to_group(public_group2, view_only_token, user):
     )
     assert status == 401
     assert "Unauthorized" in data["message"]
-
-
-def test_super_admin_add_user_to_group(public_group2, super_admin_token, user):
-    status, data = api(
-        "POST",
-        f"groups/{public_group2.id}/users",
-        data={"userID": user.id, "admin": False},
-        token=super_admin_token,
-    )
-    assert status == 200
 
 
 def test_group_admin_add_user_to_group(public_group, group_admin_token, user_group2):

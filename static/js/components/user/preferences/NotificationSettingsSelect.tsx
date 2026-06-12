@@ -234,45 +234,45 @@ const NotificationSettingsSelect = ({
       notificationResourceType === "observation_plans"
     ) {
       if (type === "sms") {
+        const reversed = [...valueSMS].reverse();
         const prefs = {
           notifications: {
             [notificationResourceType]: {
               sms: {
-                time_slot: valueSMS,
+                time_slot: reversed,
               },
             },
           },
         };
-        // `valueSMS` may be frozen RTK Query data, so copy before reversing.
-        setValueSMS([...valueSMS].reverse());
+        setValueSMS(reversed);
         setInvertedSMS(!invertedSMS);
         updateUserPreferences(prefs);
       } else if (type === "phone") {
+        const reversed = [...valuePhone].reverse();
         const prefs = {
           notifications: {
             [notificationResourceType]: {
               phone: {
-                time_slot: valuePhone,
+                time_slot: reversed,
               },
             },
           },
         };
-        // `valuePhone` may be frozen RTK Query data, so copy before reversing.
-        setValuePhone([...valuePhone].reverse());
+        setValuePhone(reversed);
         setInvertedPhone(!invertedPhone);
         updateUserPreferences(prefs);
       } else if (type === "whatsapp") {
+        const reversed = [...valueWhatsapp].reverse();
         const prefs = {
           notifications: {
             [notificationResourceType]: {
               whatsapp: {
-                time_slot: valueWhatsapp,
+                time_slot: reversed,
               },
             },
           },
         };
-        // `valueWhatsapp` may be frozen RTK Query data, so copy before reversing.
-        setValueWhatsapp([...valueWhatsapp].reverse());
+        setValueWhatsapp(reversed);
         setInvertedWhatsapp(!invertedWhatsapp);
         updateUserPreferences(prefs);
       }
@@ -280,9 +280,7 @@ const NotificationSettingsSelect = ({
   };
 
   const handleChecked = (type: string) => {
-    let checked = false;
-    checked = profile?.notifications[notificationResourceType][type]?.active;
-    return checked;
+    return profile?.notifications[notificationResourceType][type]?.active;
   };
 
   const handleSliders = (type: string, slider_type: string) => {
@@ -309,7 +307,7 @@ const NotificationSettingsSelect = ({
     }
   };
 
-  const handleChangeCommitted = () => {
+  const handleChangeCommitted = (type: string, newValue: any) => {
     if (
       notificationResourceType === "gcn_events" ||
       notificationResourceType === "sources" ||
@@ -322,14 +320,8 @@ const NotificationSettingsSelect = ({
       const prefs = {
         notifications: {
           [notificationResourceType]: {
-            sms: {
-              [`time_slot`]: valueSMS,
-            },
-            phone: {
-              [`time_slot`]: valuePhone,
-            },
-            whatsapp: {
-              [`time_slot`]: valueWhatsapp,
+            [type]: {
+              time_slot: newValue,
             },
           },
         },
@@ -477,7 +469,9 @@ const NotificationSettingsSelect = ({
                         getAriaLabel={() => "time_slot_slider"}
                         value={valueSMS}
                         onChange={handleChange}
-                        onChangeCommitted={handleChangeCommitted}
+                        onChangeCommitted={(_event, newValue) =>
+                          handleChangeCommitted("sms", newValue)
+                        }
                         valueLabelDisplay="on"
                         getAriaValueText={valuetext}
                         min={0}
@@ -488,7 +482,7 @@ const NotificationSettingsSelect = ({
                         name="time_slot_slider_sms"
                       />
                       <Checkbox
-                        checked={invertedSMS === true}
+                        checked={invertedSMS}
                         onChange={() => onChangeInverted("sms")}
                         {...({ label: "Invert" } as any)}
                         name="time_slot_slider_sms"
@@ -578,7 +572,9 @@ const NotificationSettingsSelect = ({
                         getAriaLabel={() => "time_slot_slider"}
                         value={valuePhone}
                         onChange={handleChange}
-                        onChangeCommitted={handleChangeCommitted}
+                        onChangeCommitted={(_event, newValue) =>
+                          handleChangeCommitted("phone", newValue)
+                        }
                         valueLabelDisplay="on"
                         getAriaValueText={valuetext}
                         min={0}
@@ -589,7 +585,7 @@ const NotificationSettingsSelect = ({
                         name="time_slot_slider_phone"
                       />
                       <Checkbox
-                        checked={invertedPhone === true}
+                        checked={invertedPhone}
                         onChange={() => onChangeInverted("phone")}
                         {...({ label: "Invert" } as any)}
                       />
@@ -678,7 +674,9 @@ const NotificationSettingsSelect = ({
                         getAriaLabel={() => "time_slot_slider"}
                         value={valueWhatsapp}
                         onChange={handleChange}
-                        onChangeCommitted={handleChangeCommitted}
+                        onChangeCommitted={(_event, newValue) =>
+                          handleChangeCommitted("whatsapp", newValue)
+                        }
                         valueLabelDisplay="on"
                         getAriaValueText={valuetext}
                         min={0}
@@ -689,7 +687,7 @@ const NotificationSettingsSelect = ({
                         name="time_slot_slider_whatsapp"
                       />
                       <Checkbox
-                        checked={invertedWhatsapp === true}
+                        checked={invertedWhatsapp}
                         onChange={() => onChangeInverted("whatsapp")}
                         {...({ label: "Invert" } as any)}
                       />

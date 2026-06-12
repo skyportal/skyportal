@@ -2104,10 +2104,11 @@ class PhotometryHandler(BaseHandler):
 
             original_user_data = copy.deepcopy(data)
 
-            nan_if_none_keys = {"flux", "fluxerr", "mag", "magerr"}
-            for key in nan_if_none_keys:
-                if key in data and data[key] is None:
-                    data[key] = np.nan
+            # PhotometryFlux/PhotometryMag accept null flux/mag/magerr (a
+            # non-detection) but reject NaN ("Special numeric values ... are not
+            # permitted"). Leave None as-is so clearing magnitude + magnitude
+            # error in the edit form converts the point to a non-detection
+            # instead of failing schema validation.
 
             optional_keys = {"ra", "dec", "ra_unc", "dec_unc", "assignment_id"}
             for key in optional_keys:

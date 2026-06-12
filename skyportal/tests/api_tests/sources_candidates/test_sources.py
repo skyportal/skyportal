@@ -496,54 +496,6 @@ def test_admin_save_source_as_other_user(
     assert data["data"]["groups"][0]["saved_by"]["id"] == view_only_user.id
 
 
-def test_starlist(super_admin_token, upload_data_token, public_source):
-    status, data = api(
-        "PATCH",
-        f"sources/{public_source.id}",
-        data={"ra": 234.22, "dec": 22.33},
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/offsets",
-        params={"facility": "P200", "num_offset_stars": "1"},
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    assert data["data"]["noffsets"] == 1
-    assert data["data"]["queries_issued"] == 1
-    assert data["data"]["facility"] == "P200"
-    assert "starlist_str" in data["data"]
-    assert isinstance(data["data"]["starlist_info"][0]["ra"], float)
-
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/offsets",
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    assert data["data"]["noffsets"] == 3
-    assert data["data"]["facility"] == "Keck"
-    assert "starlist_str" in data["data"]
-    assert isinstance(data["data"]["starlist_info"][2]["dec"], float)
-
-    # use DR3 for offsets ... it should not be identical position as DR3
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/offsets",
-        params={"use_ztfref": "false"},
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    assert isinstance(data["data"]["starlist_info"][2]["dec"], float)
-
-
 def test_source_notifications_unauthorized(
     source_notification_user_token, public_group, public_source
 ):

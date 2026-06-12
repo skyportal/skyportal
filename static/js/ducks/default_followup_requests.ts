@@ -7,14 +7,21 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const defaultFollowupRequestsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getDefaultFollowupRequests: build.query<any[], void>({
+    getDefaultFollowupRequests: build.query<
+      RouteData<"GET /api/default_followup_request">,
+      void
+    >({
       query: () => "api/default_followup_request",
       providesTags: ["DefaultFollowupRequest"],
     }),
-    submitDefaultFollowupRequest: build.mutation<unknown, any>({
+    submitDefaultFollowupRequest: build.mutation<
+      RouteData<"POST /api/default_followup_request">,
+      any
+    >({
       query: (default_plan) => ({
         url: "api/default_followup_request",
         method: "POST",

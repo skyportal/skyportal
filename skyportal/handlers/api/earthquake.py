@@ -332,7 +332,20 @@ class EarthquakeHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfEarthquakeEvents
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              events:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/EarthquakeEvent'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:

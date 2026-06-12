@@ -7,14 +7,7 @@
  * the `SourceInGcn` tag so the list refetches.
  */
 import { skyportalApi } from "../api/skyportalApi";
-
-export interface SourceInGcn {
-  obj_id: string;
-  confirmed?: boolean | null;
-  explanation?: string | undefined;
-  notes?: string | undefined;
-  [key: string]: unknown;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 interface FetchSourcesInGcnArg {
   dateobs: string;
@@ -40,7 +33,10 @@ interface DeleteSourceInGcnArg {
 
 export const sourcesInGcnApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getSourcesInGcn: build.query<SourceInGcn[], FetchSourcesInGcnArg>({
+    getSourcesInGcn: build.query<
+      RouteData<"GET /api/sources_in_gcn/{dateobs}">,
+      FetchSourcesInGcnArg
+    >({
       query: ({ dateobs, ...filterParams }) => {
         const cleaned: Record<string, string> = {};
         Object.entries(filterParams).forEach(([key, value]) => {
@@ -70,7 +66,10 @@ export const sourcesInGcnApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["SourceInGcn"],
     }),
-    patchSourceInGcn: build.mutation<unknown, PatchSourceInGcnArg>({
+    patchSourceInGcn: build.mutation<
+      RouteData<"PATCH /api/sources_in_gcn/{dateobs}/{source_id}">,
+      PatchSourceInGcnArg
+    >({
       query: ({ dateobs, source_id, data }) => ({
         url: `api/sources_in_gcn/${dateobs}/${source_id}`,
         method: "PATCH",

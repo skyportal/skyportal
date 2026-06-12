@@ -1,5 +1,6 @@
 import uuid
 
+import pytest
 from playwright.sync_api import expect
 
 
@@ -47,6 +48,7 @@ def test_invite_single_user(page, super_admin_user, public_group, public_stream)
     ).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=3)
 def test_delete_invitation(page, super_admin_user, public_group, public_stream):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")

@@ -14,12 +14,7 @@ import * as API from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import { filterOutEmptyValues } from "../API";
-
-interface FollowupRequestsResult {
-  followup_requests: any[];
-  totalMatches: number;
-  [key: string]: unknown;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 type FollowupRequestsArg = Record<string, any> | void;
 
@@ -40,13 +35,16 @@ const buildFollowupRequestsUrl = (params: Record<string, any>): string => {
 export const followupRequestsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getFollowupRequests: build.query<
-      FollowupRequestsResult,
+      RouteData<"GET /api/followup_request">,
       FollowupRequestsArg
     >({
       query: (params) => buildFollowupRequestsUrl(params ?? {}),
       providesTags: ["FollowupRequest"],
     }),
-    prioritizeFollowupRequests: build.mutation<unknown, Record<string, any>>({
+    prioritizeFollowupRequests: build.mutation<
+      RouteData<"PUT /api/followup_request/prioritization">,
+      Record<string, any>
+    >({
       query: (body) => ({
         url: "api/followup_request/prioritization",
         method: "PUT",
