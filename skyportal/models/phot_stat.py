@@ -468,7 +468,7 @@ class PhotStat(Base):
             if original_user_data is not None and "limiting_mag" in original_user_data:
                 lim = original_user_data["limiting_mag"]
             else:
-                fivesigma = 5 * fluxerr if fluxerr else 0
+                fivesigma = 5 * fluxerr
                 lim = -2.5 * np.log10(fivesigma) + PHOT_ZP if fivesigma > 0 else np.nan
 
         # make sure a non detection has a limiting magnitude
@@ -746,7 +746,7 @@ class PhotStat(Base):
                 ):
                     lims.append(original_user_data["limiting_mag"])
                 else:
-                    fivesigma = 5 * fluxerr if fluxerr else 0
+                    fivesigma = 5 * fluxerr
                     if fivesigma > 0:
                         lims.append(-2.5 * np.log10(fivesigma) + PHOT_ZP)
                     else:

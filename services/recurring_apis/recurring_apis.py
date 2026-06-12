@@ -1,6 +1,6 @@
 import json
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 from astropy.time import Time
 
@@ -23,7 +23,7 @@ MAX_RETRIES = 10
 
 def perform_api_calls():
     sleep_time = MAX_SLEEP
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     with DBSession() as session:
         try:
             user = session.query(User).where(User.id == 1).first()
