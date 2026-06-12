@@ -1082,7 +1082,39 @@ class ObservationHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfExecutedObservations
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              observations:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/ExecutedObservation'
+                              totalMatches:
+                                type: integer
+                              geojson:
+                                type: array
+                                items:
+                                  type: object
+                                nullable: true
+                              field_ids:
+                                type: array
+                                items:
+                                  type: integer
+                                nullable: true
+                              probability:
+                                type: number
+                                nullable: true
+                              area:
+                                type: number
+                                nullable: true
+                              min_observations_per_field:
+                                type: integer
+                                nullable: true
             400:
               content:
                 application/json:
@@ -1703,7 +1735,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             instrument = session.scalars(
                 Instrument.select(
                     session.user_or_token, options=[joinedload(Instrument.telescope)]
-                ).where(Instrument.id == instrument_id)
+                ).where(Instrument.id == int(instrument_id))
             ).first()
             if instrument is None:
                 return self.error(message=f"Invalid instrument ID {instrument_id}")
@@ -1888,7 +1920,7 @@ class ObservationTreasureMapHandler(BaseHandler):
                 ],
             )
             .filter(
-                Instrument.id == instrument_id,
+                Instrument.id == int(instrument_id),
             )
             .first()
         )
@@ -2013,7 +2045,7 @@ def retrieve_observations_and_simsurvey(
     instrument = session.scalars(
         sa.select(Instrument)
         .options(joinedload(Instrument.telescope))
-        .where(Instrument.id == instrument_id)
+        .where(Instrument.id == int(instrument_id))
     ).first()
 
     localization = session.scalars(

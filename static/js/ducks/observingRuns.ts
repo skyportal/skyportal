@@ -11,12 +11,11 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export type ObservingRun = Record<string, any>;
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const observingRunsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getObservingRuns: build.query<ObservingRun[], void>({
+    getObservingRuns: build.query<RouteData<"GET /api/observing_run">, void>({
       query: () => "api/observing_run",
       providesTags: ["ObservingRun"],
     }),

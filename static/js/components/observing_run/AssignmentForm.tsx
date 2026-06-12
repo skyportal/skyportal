@@ -121,11 +121,10 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className={classes.formContainer}>
           <FormControl className={classes.formControl}>
-            <InputLabel id="assignmentSelectLabel">Choose Run</InputLabel>
+            <InputLabel id="assignmentSelect">Choose Run</InputLabel>
             <Controller
               {...({
                 inputProps: { MenuProps: { disableScrollLock: true } },
-                labelId: "assignmentSelect",
                 "data-testid": "assignmentSelect",
               } as any)}
               name="run_id"
@@ -139,6 +138,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
               render={({ field: { onChange, value } }) => (
                 <Select
                   labelId="assignmentSelect"
+                  label="Choose Run"
                   onChange={onChange}
                   value={value}
                   size="small"
@@ -162,11 +162,10 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
             />
           </FormControl>
           <FormControl className={classes.formControl}>
-            <InputLabel id="prioritySelectLabel">Priority</InputLabel>
+            <InputLabel id="prioritySelect">Priority</InputLabel>
             <Controller
               {...({
                 inputProps: { MenuProps: { disableScrollLock: true } },
-                labelId: "prioritySelect",
               } as any)}
               defaultValue="1"
               name="priority"
@@ -175,6 +174,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
               render={({ field: { onChange, value } }) => (
                 <Select
                   labelId="prioritySelect"
+                  label="Priority"
                   onChange={onChange}
                   value={value}
                   size="small"

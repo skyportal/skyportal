@@ -1091,7 +1091,7 @@ def test_run_analysis_with_file_input(
 
     analysis_service_id = data["data"]["id"]
 
-    datafile = f"{os.path.dirname(__file__)}/../data/spectral_cube_analysis.fits"
+    datafile = f"{os.path.dirname(__file__)}/../../data/spectral_cube_analysis.fits"
     with open(datafile, "rb") as fid:
         payload = fid.read()
 

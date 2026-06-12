@@ -7,7 +7,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { useSaveSourceMutation } from "../../ducks/source";
 import Button from "../Button";
 
@@ -23,8 +23,8 @@ const QuickSaveButton = ({
   const dispatch = useAppDispatch();
   const [saveSource] = useSaveSourceMutation();
   const { data: profile } = useGetProfileQuery();
-  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
-  const { hydratedList } = useAppSelector((state) => state["hydration"]);
+  const { data: groupsData, isSuccess: groupsLoaded } = useGetGroupsQuery();
+  const userAccessibleGroups = groupsData?.userAccessible ?? [];
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -69,11 +69,6 @@ const QuickSaveButton = ({
   ) {
     return null;
   }
-
-  const groupsLoaded =
-    typeof hydratedList === "object" &&
-    Array.isArray(hydratedList) &&
-    hydratedList.includes("groups");
 
   if (userAccessibleGroups?.length === 0) {
     return null;

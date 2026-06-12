@@ -717,7 +717,30 @@ class GalaxyCatalogHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfGalaxys
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              galaxies:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Galaxy'
+                              totalMatches:
+                                type: integer
+                              sortBy:
+                                type: string
+                              sortOrder:
+                                type: string
+                              page:
+                                type: integer
+                              numPerPage:
+                                type: integer
+                              geojson:
+                                type: object
             400:
               content:
                 application/json:

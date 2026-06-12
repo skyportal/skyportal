@@ -7,10 +7,14 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const defaultObservationPlansApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getDefaultObservationPlans: build.query<any[], void>({
+    getDefaultObservationPlans: build.query<
+      RouteData<"GET /api/default_observation_plan">,
+      void
+    >({
       query: () => "api/default_observation_plan",
       providesTags: ["DefaultObservationPlan"],
     }),

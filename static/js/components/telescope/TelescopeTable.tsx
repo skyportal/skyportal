@@ -10,17 +10,12 @@ import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Chip from "@mui/material/Chip";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import {
   useDeleteTelescopeMutation,
@@ -270,13 +265,11 @@ const TelescopeTable = ({
   ];
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
-      <GridToolbarQuickFilter />
+    <DataGridToolbar>
       <IconButton name="new_telescope" onClick={() => setNewDialogOpen(true)}>
         <AddIcon />
       </IconButton>
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

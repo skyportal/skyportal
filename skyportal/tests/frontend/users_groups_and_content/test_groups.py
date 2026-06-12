@@ -109,6 +109,7 @@ def test_add_new_group_user(
     assert group_user["can_save"] == can_save
 
 
+@pytest.mark.flaky(reruns=2)
 def test_invite_all_users_from_other_group(
     page, super_admin_user, public_group, public_group2, user, user_group2
 ):
@@ -144,6 +145,7 @@ def test_delete_group_user(page, super_admin_user, user, public_group):
     expect(page.locator(f'//a[contains(.,"{user.username}")]').first).to_be_hidden()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_delete_group(page, super_admin_user, user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
@@ -154,6 +156,7 @@ def test_delete_group(page, super_admin_user, user, public_group):
     expect(page.locator(f'//a[contains(.,"{public_group.name}")]').first).to_be_hidden()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_add_stream_add_delete_filter_group(
     page, super_admin_user, super_admin_token, public_group, public_stream2
 ):

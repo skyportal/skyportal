@@ -29,6 +29,8 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
+import { shallowEqual } from "react-redux";
+
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppSelector, useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
@@ -314,7 +316,7 @@ const PhotometryPlot = ({
       })(state as any).data;
     });
     return result;
-  });
+  }, shallowEqual);
 
   // Combined map of obj_id -> photometry array, mirroring the old store slice.
   const photometry = useMemo<Record<string, any>>(

@@ -12,6 +12,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
 type Instrument = Record<string, any>;
 
@@ -33,7 +34,10 @@ interface ModifyInstrumentArg {
 
 export const instrumentApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getInstrument: build.query<Instrument, number | string>({
+    getInstrument: build.query<
+      RouteData<"GET /api/instrument/{instrument_id}">,
+      number | string
+    >({
       query: (id) => `api/instrument/${id}`,
       providesTags: ["Instrument"],
     }),
@@ -44,7 +48,10 @@ export const instrumentApi = skyportalApi.injectEndpoints({
       }),
       providesTags: ["Instrument"],
     }),
-    getInstrumentSkymap: build.query<Instrument, FetchInstrumentSkymapArg>({
+    getInstrumentSkymap: build.query<
+      RouteData<"GET /api/instrument/{instrument_id}">,
+      FetchInstrumentSkymapArg
+    >({
       query: ({ id, localization, airmassTime = null }) => {
         const base = `api/instrument/${id}?includeGeoJSONSummary=True&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`;
         return airmassTime ? `${base}&airmassTime=${airmassTime}` : base;
@@ -59,7 +66,10 @@ export const instrumentApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Instrument"],
     }),
-    modifyInstrument: build.mutation<Instrument, ModifyInstrumentArg>({
+    modifyInstrument: build.mutation<
+      RouteData<"PUT /api/instrument/{instrument_id}">,
+      ModifyInstrumentArg
+    >({
       query: ({ id, params }) => ({
         url: `api/instrument/${id}`,
         method: "PUT",
@@ -67,7 +77,10 @@ export const instrumentApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Instrument"],
     }),
-    deleteInstrument: build.mutation<Instrument, number | string>({
+    deleteInstrument: build.mutation<
+      RouteData<"DELETE /api/instrument/{instrument_id}">,
+      number | string
+    >({
       query: (id) => ({
         url: `api/instrument/${id}`,
         method: "DELETE",

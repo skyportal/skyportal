@@ -15,21 +15,25 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import { components } from "../types/api";
-
-export type MMADetector = components["schemas"]["MMADetector"];
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const mmadetectorApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getMMADetector: build.query<MMADetector, number | string>({
+    getMMADetector: build.query<
+      RouteData<"GET /api/mmadetector/{mmadetector_id}">,
+      number | string
+    >({
       query: (id) => `api/mmadetector/${id}`,
       providesTags: ["MMADetector"],
     }),
-    getMMADetectors: build.query<MMADetector[], void>({
+    getMMADetectors: build.query<RouteData<"GET /api/mmadetector">, void>({
       query: () => "api/mmadetector",
       providesTags: ["MMADetectors"],
     }),
-    submitMMADetector: build.mutation<unknown, Record<string, unknown>>({
+    submitMMADetector: build.mutation<
+      RouteData<"POST /api/mmadetector">,
+      Record<string, unknown>
+    >({
       query: (run) => ({
         url: "api/mmadetector",
         method: "POST",

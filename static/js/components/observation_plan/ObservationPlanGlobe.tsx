@@ -37,11 +37,13 @@ interface ObservationPlanRequest {
 interface ObservationPlanGlobeProps {
   observationplanRequest: ObservationPlanRequest;
   retrieveLocalization?: boolean;
+  size?: number;
 }
 
 const ObservationPlanGlobe = ({
   observationplanRequest,
   retrieveLocalization = false,
+  size = 600,
 }: ObservationPlanGlobeProps) => {
   const dispatch = useAppDispatch();
   const [deleteObservationPlanFields] =
@@ -59,6 +61,7 @@ const ObservationPlanGlobe = ({
   displayOptionsDefault.localization = true;
   displayOptionsDefault.observations = true;
   const [obsList, setObsList] = useState<any>(null);
+  const [fetchFailed, setFetchFailed] = useState(false);
   const [selectedObservations, setSelectedObservations] = useState<any[]>([]);
 
   const { data: localization } = useGetLocalizationQuery(
@@ -76,6 +79,7 @@ const ObservationPlanGlobe = ({
   );
 
   useEffect(() => {
+    let cancelled = false;
     const fetchObsList = async () => {
       const response = (await dispatch(
         GET(
@@ -83,7 +87,12 @@ const ObservationPlanGlobe = ({
           "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON",
         ),
       )) as any;
-      setObsList(response.data);
+      if (cancelled) return;
+      if (response?.status === "success") {
+        setObsList(response.data ?? { geojson: [] });
+      } else {
+        setFetchFailed(true);
+      }
     };
     if (
       ["complete", "submitted to telescope queue"].includes(
@@ -92,8 +101,14 @@ const ObservationPlanGlobe = ({
     ) {
       fetchObsList();
     }
-  }, [dispatch, setObsList, observationplanRequest]);
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, setObsList, setFetchFailed, observationplanRequest]);
 
+  if (fetchFailed) {
+    return <p>Could not load the skymap for this plan.</p>;
+  }
   if (!obsList) return <CircularProgress />;
 
   const handleDeleteObservationPlanFields = async (selectedIds: any) => {
@@ -115,8 +130,8 @@ const ObservationPlanGlobe = ({
         localization={localization}
         observations={obsList}
         options={displayOptionsDefault}
-        height={600}
-        width={600}
+        height={size}
+        width={size}
         type="obsplan"
         projection="mollweide"
         selectedObservations={selectedObservations}

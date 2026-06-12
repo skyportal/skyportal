@@ -26,15 +26,11 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 
 import { makeStyles } from "tss-react/mui";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import AssignmentForm from "../observing_run/AssignmentForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import { observingRunTitle } from "./AssignmentForm";
@@ -534,12 +530,11 @@ const RunSummary = ({ route }: RunSummaryProps) => {
 
   function CustomToolbar() {
     return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
+      <DataGridToolbar showQuickFilter={false}>
         <IconButton name="clouds" onClick={() => setDialog(true)}>
           <CloudIcon />
         </IconButton>
-      </GridToolbarContainer>
+      </DataGridToolbar>
     );
   }
 

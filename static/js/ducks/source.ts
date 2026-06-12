@@ -17,20 +17,12 @@
  * the active (currently-loaded) source's queries refetch.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
 export const REFRESH_SOURCE_POSITION = "skyportal/REFRESH_SOURCE_POSITION";
 export const REFRESH_OBJ_ANALYSES = "skyportal/REFRESH_OBJ_ANALYSES";
-
-export interface Source {
-  id?: string | undefined;
-  internal_key?: string | undefined;
-  ra?: number | undefined;
-  dec?: number | undefined;
-  loadError?: string | undefined;
-  [key: string]: any;
-}
 
 export interface SourcePosition {
   ra?: number | undefined;
@@ -88,25 +80,40 @@ const sourceIncludeParams = {
 export const sourceApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     // ----- Main source + read-only sub-fetches -----
-    getSource: build.query<Source, number | string>({
+    getSource: build.query<
+      RouteData<"GET /api/sources/{obj_id}">,
+      number | string
+    >({
       query: (id) => {
         const queryString = new URLSearchParams(
           sourceIncludeParams as unknown as Record<string, string>,
         ).toString();
         return `api/sources/${id}?${queryString}`;
       },
-      providesTags: ["Source"],
+      // Provides both the broad "Source" tag (so the existing mutations, which
+      // invalidate ["Source"], keep refetching) and a per-id tag so a websocket
+      // REFRESH for one source invalidates only that source's cache entry.
+      providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
     }),
     getSourcePosition: build.query<SourcePosition, number | string>({
       query: (id) => `api/sources/${id}/position`,
-      providesTags: ["Source"],
+      // Position has its own REFRESH_SOURCE_POSITION event, so it gets its own
+      // per-id tag (a REFRESH_SOURCE from e.g. a comment must NOT refetch it).
+      // The broad "Source" tag is kept so source mutations still refetch it.
+      providesTags: (_result, _error, id) => [
+        "Source",
+        { type: "SourcePosition", id },
+      ],
     }),
     getAssociatedGcns: build.query<AssociatedGcns, number | string>({
       query: (id) => `api/associated_gcns/${id}`,
+      // Broad tag only: matching the pre-migration behavior, associated GCNs are
+      // not refetched by the per-id REFRESH_SOURCE websocket (they refresh on
+      // source mutations via the "Source" tag).
       providesTags: ["Source"],
     }),
     getAnalyses: build.query<
-      any,
+      RouteData<"GET /api/{analysis_resource_type}/analysis">,
       {
         analysis_resource_type?: string | undefined;
         params?: Record<string, any> | undefined;
@@ -119,7 +126,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
       providesTags: ["Source"],
     }),
     getAnalysis: build.query<
-      any,
+      RouteData<"GET /api/{analysis_resource_type}/analysis/{analysis_id}">,
       {
         analysis_id: number | string;
         analysis_resource_type?: string | undefined;
@@ -152,7 +159,12 @@ export const sourceApi = skyportalApi.injectEndpoints({
         params,
       }),
     }),
-    checkSource: build.query<
+    // An imperative one-off existence check (used in submit handlers via
+    // `await checkSource(...).unwrap()`), so it's a mutation, not a lazy query:
+    // a lazy-query trigger's `.unwrap()` in a handler can reject on subscription
+    // teardown, which the callers' empty `catch` swallows — silently aborting
+    // the subsequent saveSource.
+    checkSource: build.mutation<
       any,
       { id: number | string; params: Record<string, any> }
     >({
@@ -160,7 +172,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
         const queryParams = params["nameOnly"]
           ? ""
           : `?ra=${params["ra"]}&dec=${params["dec"]}&radius=0.0003`;
-        return `api/source_exists/${id}${queryParams}`;
+        return {
+          url: `api/source_exists/${id}${queryParams}`,
+          method: "GET",
+        };
       },
     }),
     getPhotometryRequest: build.query<
@@ -206,7 +221,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Source"],
     }),
     updateSource: build.mutation<
-      any,
+      RouteData<"PATCH /api/sources/{obj_id}">,
       { id: number | string; payload: Record<string, any> }
     >({
       query: ({ id, payload }) => ({
@@ -292,7 +307,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
     }),
 
     // ----- Comments -----
-    addComment: build.mutation<any, Record<string, any>>({
+    addComment: build.mutation<
+      RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
+      Record<string, any>
+    >({
       queryFn: async (formData, _api, _extra, baseQuery) => {
         const body = { ...formData };
         if (body["attachment"]) {
@@ -305,12 +323,14 @@ export const sourceApi = skyportalApi.injectEndpoints({
         if (result.error) {
           return { error: result.error };
         }
-        return { data: result.data };
+        return {
+          data: result.data as RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
+        };
       },
       invalidatesTags: ["Source"],
     }),
     editComment: build.mutation<
-      any,
+      RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
       { commentID: number | string; formData: Record<string, any> }
     >({
       queryFn: async ({ commentID, formData }, _api, _extra, baseQuery) => {
@@ -325,7 +345,9 @@ export const sourceApi = skyportalApi.injectEndpoints({
         if (result.error) {
           return { error: result.error };
         }
-        return { data: result.data };
+        return {
+          data: result.data as RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
+        };
       },
       invalidatesTags: ["Source"],
     }),
@@ -398,7 +420,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
     }),
 
     // ----- Follow-up requests -----
-    submitFollowupRequest: build.mutation<any, Record<string, any>>({
+    submitFollowupRequest: build.mutation<
+      RouteData<"POST /api/followup_request">,
+      Record<string, any>
+    >({
       query: (params) => {
         const { instrument_name, ...paramsToSubmit } = params;
         return {
@@ -410,7 +435,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Source"],
     }),
     editFollowupRequest: build.mutation<
-      any,
+      RouteData<"PUT /api/followup_request/{request_id}">,
       { params: Record<string, any>; requestID: number | string }
     >({
       query: ({ params, requestID }) => {
@@ -464,7 +489,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
     }),
 
     // ----- Notifications / sharing / photometry -----
-    sendAlert: build.mutation<any, Record<string, any>>({
+    sendAlert: build.mutation<
+      RouteData<"POST /api/source_notifications">,
+      Record<string, any>
+    >({
       query: (params) => ({
         url: "api/source_notifications",
         method: "POST",
@@ -499,14 +527,20 @@ export const sourceApi = skyportalApi.injectEndpoints({
     }),
 
     // ----- External-catalog annotations -----
-    fetchGaia: build.mutation<any, number | string>({
+    fetchGaia: build.mutation<
+      RouteData<"POST /api/sources/{obj_id}/annotations/gaia">,
+      number | string
+    >({
       query: (sourceID) => ({
         url: `api/sources/${sourceID}/annotations/gaia`,
         method: "POST",
       }),
       invalidatesTags: ["Source"],
     }),
-    fetchWise: build.mutation<any, number | string>({
+    fetchWise: build.mutation<
+      RouteData<"POST /api/sources/{obj_id}/annotations/irsa">,
+      number | string
+    >({
       query: (sourceID) => ({
         url: `api/sources/${sourceID}/annotations/irsa`,
         method: "POST",
@@ -514,7 +548,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Source"],
     }),
     fetchVizier: build.mutation<
-      any,
+      RouteData<"POST /api/sources/{obj_id}/annotations/vizier">,
       { sourceID: number | string; catalog?: string | undefined }
     >({
       query: ({ sourceID, catalog = "VII/290" }) => ({
@@ -531,7 +565,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Source"],
     }),
-    fetchPS1: build.mutation<any, number | string>({
+    fetchPS1: build.mutation<
+      RouteData<"POST /api/sources/{obj_id}/annotations/ps1">,
+      number | string
+    >({
       query: (sourceID) => ({
         url: `api/sources/${sourceID}/annotations/ps1`,
         method: "POST",
@@ -593,7 +630,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
 
     // ----- Analyses (start / delete) -----
     startAnalysis: build.mutation<
-      any,
+      RouteData<"POST /api/{analysis_resource_type}/{resource_id}/analysis/{analysis_service_id}">,
       {
         id: number | string;
         analysis_service_id: number | string;
@@ -626,12 +663,43 @@ export const sourceApi = skyportalApi.injectEndpoints({
 
 // Websocket-driven invalidation. The old handler conditionally re-fetched the
 // loaded source (and its sub-resources) when a REFRESH message matched the
-// loaded source's internal_key. With RTK Query, invalidating the `Source` tag
-// only refetches the *active* queries — which are, by construction, the ones for
-// the currently-loaded source — so the conditional "only if it matches the
-// loaded source" guard is satisfied automatically.
-invalidateOnMessage(REFRESH_SOURCE, () => ["Source"]);
-invalidateOnMessage(REFRESH_SOURCE_POSITION, () => ["Source"]);
+// loaded source's internal_key.
+//
+// REFRESH_SOURCE is broadcast to every connected client (`push_all`) carrying
+// the changed source's `internal_key` as `obj_key`. We translate that to the
+// obj id of the matching cached `getSource` entry and invalidate only that
+// source's per-id tag — so a change to one source no longer forces every other
+// client to refetch its own (heavy) source object. When no cached source
+// matches (this client isn't viewing that source), there is nothing to refetch,
+// which restores the original "only if it matches the loaded source" gate.
+invalidateOnMessage(REFRESH_SOURCE, (payload, getState) => {
+  const objKey = payload?.obj_key;
+  if (!objKey) {
+    return ["Source"];
+  }
+  const objId = findCachedQueryArg(
+    getState,
+    "getSource",
+    (data) => data?.internal_key === objKey,
+  ) as string | number | null;
+  return objId != null ? [{ type: "Source", id: objId }] : null;
+});
+// REFRESH_SOURCE_POSITION is likewise broadcast to all clients with the
+// changed source's internal_key; translate to the obj id and invalidate only
+// that source's position cache entry (its own tag, so the heavy source object
+// is not refetched on a position change).
+invalidateOnMessage(REFRESH_SOURCE_POSITION, (payload, getState) => {
+  const objKey = payload?.obj_key;
+  if (!objKey) {
+    return ["Source"];
+  }
+  const objId = findCachedQueryArg(
+    getState,
+    "getSource",
+    (data) => data?.internal_key === objKey,
+  ) as string | number | null;
+  return objId != null ? [{ type: "SourcePosition", id: objId }] : null;
+});
 invalidateOnMessage(REFRESH_OBJ_ANALYSES, () => ["Source"]);
 
 export const {
@@ -644,8 +712,7 @@ export const {
   useLazyGetAnalysisQuery,
   useGetAnalysisResultsQuery,
   useLazyGetAnalysisResultsQuery,
-  useCheckSourceQuery,
-  useLazyCheckSourceQuery,
+  useCheckSourceMutation,
   useGetPhotometryRequestQuery,
   useLazyGetPhotometryRequestQuery,
   useGetSourceFinderChartQuery,

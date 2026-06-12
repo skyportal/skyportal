@@ -10,6 +10,7 @@
  */
 import { skyportalApi } from "../../api/skyportalApi";
 import { invalidateOnMessage } from "../../api/wsInvalidation";
+import type { RouteData } from "../../types/routeSchemaMap";
 
 export interface PublicRelease {
   id: number;
@@ -23,7 +24,10 @@ export interface PublicRelease {
 
 export const publicReleaseApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getPublicReleases: build.query<PublicRelease[], void>({
+    getPublicReleases: build.query<
+      RouteData<"GET /api/public_pages/release">,
+      void
+    >({
       query: () => "api/public_pages/release",
       providesTags: ["PublicRelease"],
     }),

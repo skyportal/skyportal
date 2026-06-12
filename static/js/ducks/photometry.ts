@@ -12,6 +12,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_PHOTOMETRY = "skyportal/REFRESH_SOURCE_PHOTOMETRY";
 
@@ -27,7 +28,7 @@ export const photometryApi = skyportalApi.injectEndpoints({
     // type is `any` (the `PhotometryPoint` interface above documents the stable
     // fields).
     fetchSourcePhotometry: build.query<
-      any[],
+      RouteData<"GET /api/sources/{obj_id}/photometry">,
       { id: number | string; params?: { [key: string]: any } }
     >({
       query: ({ id, params = {} }) => ({
@@ -41,7 +42,10 @@ export const photometryApi = skyportalApi.injectEndpoints({
       }),
       providesTags: ["Photometry"],
     }),
-    deletePhotometry: build.mutation<unknown, number | string>({
+    deletePhotometry: build.mutation<
+      RouteData<"DELETE /api/photometry/{photometry_id}">,
+      number | string
+    >({
       query: (id) => ({
         url: `/api/photometry/${id}`,
         method: "DELETE",
@@ -57,7 +61,7 @@ export const photometryApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Photometry"],
     }),
     updatePhotometry: build.mutation<
-      unknown,
+      RouteData<"PATCH /api/photometry/{photometry_id}">,
       { id: number | string; photometry: any }
     >({
       query: ({ id, photometry }) => ({

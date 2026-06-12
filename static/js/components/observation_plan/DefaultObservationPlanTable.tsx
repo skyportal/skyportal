@@ -10,16 +10,11 @@ import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import { JSONTree } from "react-json-tree";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useDeleteDefaultObservationPlanMutation } from "../../ducks/default_observation_plans";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
@@ -197,13 +192,11 @@ const DefaultObservationPlanTable = ({
   ];
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
+    <DataGridToolbar>
       <IconButton size="small" onClick={() => setNewDialogOpen(true)}>
         <AddIcon />
       </IconButton>
-      <GridToolbarQuickFilter />
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

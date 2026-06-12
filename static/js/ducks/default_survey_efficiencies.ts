@@ -7,13 +7,12 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export type DefaultSurveyEfficiencies = any[];
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const defaultSurveyEfficienciesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getDefaultSurveyEfficiencies: build.query<
-      DefaultSurveyEfficiencies,
+      RouteData<"GET /api/default_survey_efficiency">,
       Record<string, unknown> | void
     >({
       query: (filterParams) => {

@@ -38,6 +38,27 @@ export interface Profile {
   [key: string]: any;
 }
 
+// Deep-merge `source` into `target` (an Immer draft), matching the backend's
+// deep merge of preferences, so an optimistic update is correct without a
+// refetch.
+function deepMergePreferences(target: any, source: any) {
+  for (const key of Object.keys(source)) {
+    const val = source[key];
+    if (
+      val &&
+      typeof val === "object" &&
+      !Array.isArray(val) &&
+      target[key] &&
+      typeof target[key] === "object" &&
+      !Array.isArray(target[key])
+    ) {
+      deepMergePreferences(target[key], val);
+    } else {
+      target[key] = val;
+    }
+  }
+}
+
 export const profileApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getProfile: build.query<Profile, void>({
@@ -50,7 +71,23 @@ export const profileApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: { preferences },
       }),
-      invalidatesTags: ["Profile"],
+      // Optimistically merge the new preferences into the cached profile instead
+      // of invalidating "Profile": that blanket refetch re-renders the ~89
+      // components reading the profile on every settings change, which churns
+      // the dashboard. Revert if the request fails.
+      async onQueryStarted(preferences, { dispatch, queryFulfilled }) {
+        const patch = dispatch(
+          profileApi.util.updateQueryData("getProfile", undefined, (draft) => {
+            if (!(draft as any).preferences) (draft as any).preferences = {};
+            deepMergePreferences((draft as any).preferences, preferences);
+          }),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
     }),
     updateBasicUserInfo: build.mutation<
       unknown,

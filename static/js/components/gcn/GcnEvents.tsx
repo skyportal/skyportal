@@ -21,15 +21,11 @@ import MuiDialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import ExpandLess from "@mui/icons-material/ExpandLess";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 import { filterOutEmptyValues } from "../../API";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
@@ -437,8 +433,7 @@ const GcnEvents = () => {
 
   const CustomToolbar = function GcnEventsToolbar() {
     return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
+      <DataGridToolbar showQuickFilter={false}>
         <Tooltip title="Filter Table">
           <IconButton
             size="small"
@@ -482,7 +477,7 @@ const GcnEvents = () => {
         >
           <LocalOfferIcon />
         </IconButton>
-      </GridToolbarContainer>
+      </DataGridToolbar>
     );
   };
 

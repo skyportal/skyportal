@@ -9,12 +9,8 @@ import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import InfoIcon from "@mui/icons-material/Info";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import GalaxyTableFilterForm from "./GalaxyTableFilterForm";
 import { filterOutEmptyValues } from "../../API";
 
@@ -93,8 +89,7 @@ const GalaxyTable = ({
     () =>
       function GalaxyTableToolbar() {
         return (
-          <GridToolbarContainer>
-            <GridToolbarColumnsButton />
+          <DataGridToolbar showQuickFilter={false}>
             <Tooltip title="Filter Table">
               <IconButton
                 size="small"
@@ -119,7 +114,7 @@ const GalaxyTable = ({
                 }
               }}
             />
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
     // The toolbar reads/writes the search value through a ref, so it never
