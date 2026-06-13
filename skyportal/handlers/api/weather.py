@@ -6,6 +6,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
 from ...models import Telescope, Weather
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.offset import get_url
 from ..base import BaseHandler
 

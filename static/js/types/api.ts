@@ -17752,7 +17752,15 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /**
+                     * @description If true, include the raw uploaded spectrum file
+                     *     (original_file_string) in the response. Defaults to false;
+                     *     when omitted, that field is neither loaded nor returned.
+                     * @default false
+                     */
+                    includeOriginalFile?: boolean;
+                };
                 header?: never;
                 path: {
                     spectrum_id: number;
@@ -17887,6 +17895,14 @@ export interface paths {
                      */
                     minimalPayload?: boolean;
                     /**
+                     * @description If true, include the raw uploaded spectrum file
+                     *     (original_file_string) in each spectrum. Defaults to false;
+                     *     when omitted, that field is neither loaded nor returned.
+                     *     Ignored when minimalPayload is true (which never includes it).
+                     * @default false
+                     */
+                    includeOriginalFile?: boolean;
+                    /**
                      * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
                      *     return only spectra observed before this time.
                      */
@@ -17914,17 +17930,17 @@ export interface paths {
                     /** @description If provided, filter only spectra observed with one of these instrument IDs. */
                     instrumentIDs?: string;
                     /** @description If provided, filter only spectra saved to one of these group IDs. */
-                    groupIDs?: Record<string, never>;
+                    groupIDs?: number[];
                     /**
                      * @description If provided, filter only spectra associate with these
                      *     followup request IDs.
                      */
-                    followupRequestIDs?: Record<string, never>;
+                    followupRequestIDs?: number[];
                     /**
                      * @description If provided, filter only spectra associate with these
                      *     assignment request IDs.
                      */
-                    assignmentIDs?: Record<string, never>;
+                    assignmentIDs?: number[];
                     /**
                      * @description Return any spectra that have an origin with a (partial) match
                      *     to any of the values in this comma separated list.
@@ -17966,7 +17982,26 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["Spectrum"][];
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
         };
         put?: never;
         /**
@@ -18254,7 +18289,15 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /**
+                     * @description If true, include the raw uploaded spectrum file
+                     *     (original_file_string) in the response. Defaults to false;
+                     *     when omitted, that field is neither loaded nor returned.
+                     * @default false
+                     */
+                    includeOriginalFile?: boolean;
+                };
                 header?: never;
                 path: {
                     spectrum_id: number;
@@ -18389,6 +18432,14 @@ export interface paths {
                      */
                     minimalPayload?: boolean;
                     /**
+                     * @description If true, include the raw uploaded spectrum file
+                     *     (original_file_string) in each spectrum. Defaults to false;
+                     *     when omitted, that field is neither loaded nor returned.
+                     *     Ignored when minimalPayload is true (which never includes it).
+                     * @default false
+                     */
+                    includeOriginalFile?: boolean;
+                    /**
                      * @description Arrow-parseable date string (e.g. 2020-01-01). If provided,
                      *     return only spectra observed before this time.
                      */
@@ -18416,17 +18467,17 @@ export interface paths {
                     /** @description If provided, filter only spectra observed with one of these instrument IDs. */
                     instrumentIDs?: string;
                     /** @description If provided, filter only spectra saved to one of these group IDs. */
-                    groupIDs?: Record<string, never>;
+                    groupIDs?: number[];
                     /**
                      * @description If provided, filter only spectra associate with these
                      *     followup request IDs.
                      */
-                    followupRequestIDs?: Record<string, never>;
+                    followupRequestIDs?: number[];
                     /**
                      * @description If provided, filter only spectra associate with these
                      *     assignment request IDs.
                      */
-                    assignmentIDs?: Record<string, never>;
+                    assignmentIDs?: number[];
                     /**
                      * @description Return any spectra that have an origin with a (partial) match
                      *     to any of the values in this comma separated list.
@@ -18468,7 +18519,26 @@ export interface paths {
                 cookie?: never;
             };
             requestBody?: never;
-            responses: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["Spectrum"][];
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
         };
         put?: never;
         /**
@@ -21301,6 +21371,11 @@ export interface paths {
                                 weather?: Record<string, never>;
                                 /** @description Datetime (UTC) when the weather was fetched */
                                 weather_retrieved_at?: string;
+                                /**
+                                 * @description Datetime (UTC) when the API call was made,
+                                 *     even if no data was returned
+                                 */
+                                weather_fetch_at?: string;
                                 /** @description URL for more weather info */
                                 weather_link?: string;
                                 /** @description Name of the telescope */
@@ -21313,6 +21388,14 @@ export interface paths {
                                 message?: string;
                             };
                         };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };

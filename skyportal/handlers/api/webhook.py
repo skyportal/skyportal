@@ -6,6 +6,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import ObjAnalysis
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 from .candidate.candidate import (
     update_summary_history_if_relevant,

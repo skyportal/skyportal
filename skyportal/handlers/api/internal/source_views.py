@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.access import auth_or_token
 
 from ....models import Obj, ObjTag, SourceView
+from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
 
 default_prefs = {
