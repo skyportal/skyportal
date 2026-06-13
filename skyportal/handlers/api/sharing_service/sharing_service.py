@@ -263,12 +263,6 @@ class SharingServiceHandler(BaseHandler):
         instrument_ids = data.pop("instrument_ids", [])
         stream_ids = data.pop("stream_ids", [])
 
-        if existing_id is not None:
-            try:
-                existing_id = int(existing_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid sharing_service_id: {existing_id}")
-
         async with self.AsyncSession() as session:
             # Check for duplicates if we're creating a new sharing service
             if not existing_id:
@@ -362,12 +356,6 @@ class SharingServiceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if sharing_service_id is not None:
-            try:
-                sharing_service_id = int(sharing_service_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid sharing_service_id: {sharing_service_id}")
-
         async with self.AsyncSession() as session:
             stmt = SharingService.select(session.user_or_token, mode="read").options(
                 selectinload(SharingService.groups).selectinload(

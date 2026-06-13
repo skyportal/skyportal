@@ -167,10 +167,6 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            thumbnail_id = int(thumbnail_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         async with self.AsyncSession() as session:
             t = await session.scalar(
                 Thumbnail.select(session.user_or_token).where(
@@ -215,10 +211,6 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            thumbnail_id = int(thumbnail_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         async with self.AsyncSession() as session:
             t = await session.scalar(
                 Thumbnail.select(session.user_or_token, mode="update").where(
@@ -269,10 +261,6 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            thumbnail_id = int(thumbnail_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid thumbnail_id: {thumbnail_id}")
         async with self.AsyncSession() as session:
             t = await session.scalar(
                 Thumbnail.select(session.user_or_token, mode="delete").where(

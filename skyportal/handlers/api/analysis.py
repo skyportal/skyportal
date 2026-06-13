@@ -877,7 +877,7 @@ class AnalysisServiceHandler(BaseHandler):
                         List of input data types that the service requires. Zero to many of:
                         {ANALYSIS_INPUT_TYPES}
                   timeout:
-                    type: float
+                    type: number
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
                   is_summary:
@@ -1176,7 +1176,7 @@ class AnalysisServiceHandler(BaseHandler):
                         List of input data types that the service requires. Zero to many of:
                         {ANALYSIS_INPUT_TYPES}
                   timeout:
-                    type: float
+                    type: number
                     description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
                   is_summary:
@@ -1535,7 +1535,7 @@ class AnalysisHandler(BaseHandler):
               name: analysis_id
               required: false
               schema:
-                type: int
+                type: integer
               description: |
                 ID of the analysis to return.
             - in: query
@@ -1549,7 +1549,7 @@ class AnalysisHandler(BaseHandler):
               name: analysisServiceID
               required: false
               schema:
-                type: int
+                type: integer
               description: |
                 ID of the analysis service used to create the analysis, used only if no analysis_id is given
             - in: query
@@ -1611,18 +1611,6 @@ class AnalysisHandler(BaseHandler):
 
         obj_id = self.get_query_argument("objID", None)
         analysis_service_id = self.get_query_argument("analysisServiceID", None)
-        if analysis_service_id is not None:
-            try:
-                analysis_service_id = int(analysis_service_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid analysisServiceID: {analysis_service_id}")
-
-        if analysis_id is not None:
-            try:
-                analysis_id = int(analysis_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid analysis_id: {analysis_id}")
-
         async with self.AsyncSession() as session:
             if obj_id is not None:
                 stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
@@ -1886,12 +1874,6 @@ class AnalysisProductsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        if analysis_id is not None:
-            try:
-                analysis_id = int(analysis_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid analysis_id: {analysis_id}")
 
         async with self.AsyncSession() as session:
             if analysis_resource_type.lower() == "obj":
@@ -2239,17 +2221,6 @@ class DefaultAnalysisHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-
-        if analysis_service_id is not None:
-            try:
-                analysis_service_id = int(analysis_service_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid analysis_service_id: {analysis_service_id}")
-        if default_analysis_id is not None:
-            try:
-                default_analysis_id = int(default_analysis_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid default_analysis_id: {default_analysis_id}")
 
         async with self.AsyncSession() as session:
             try:

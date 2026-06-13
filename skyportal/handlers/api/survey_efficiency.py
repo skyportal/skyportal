@@ -267,13 +267,6 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
                   schema: Error
         """
 
-        if default_survey_efficiency_id is not None:
-            try:
-                default_survey_efficiency_id = int(default_survey_efficiency_id)
-            except (TypeError, ValueError):
-                return self.error(
-                    f"Invalid default_survey_efficiency_id: {default_survey_efficiency_id}"
-                )
         async with self.AsyncSession() as session:
             if default_survey_efficiency_id is not None:
                 default_survey_efficiency_request = await session.scalar(

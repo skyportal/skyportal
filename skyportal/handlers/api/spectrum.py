@@ -48,7 +48,20 @@ log = make_log("api/spectrum")
 
 
 async def parse_id_list(id_list, model_class, session):
-    """Async equivalent of ``parse_id_list``."""
+    """
+    Return a list of integer IDs from the comma separated
+    string of IDs given by the query argument, and the
+    model/table to be queried.
+
+    Parameters
+    ----------
+    id_list: string
+        Comma separated list of integer values.
+    model_class: class
+        A skyportal data model class, e.g., Group, Instrument.
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
     if id_list is None:
         return
 
@@ -91,7 +104,14 @@ def parse_string_list(str_list):
 
 
 async def post_spectrum(data, user_id, session):
-    """Async equivalent of ``post_spectrum``."""
+    """Post spectrum to database.
+    data: dict
+        Spectrum dictionary
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
     user = await session.scalar(sa.select(User).where(User.id == user_id))
 
     instrument = await session.scalar(
@@ -285,6 +305,16 @@ class SpectrumHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: includeOriginalFile
+              nullable: true
+              default: false
+              schema:
+                type: boolean
+              description: |
+                If true, include the raw uploaded spectrum file
+                (original_file_string) in the response. Defaults to false;
+                when omitted, that field is neither loaded nor returned.
           responses:
             200:
               content:
@@ -316,6 +346,17 @@ class SpectrumHandler(BaseHandler):
                 observed_at, created_at, modified,
                 instrument_id, instrument_name, original_file_name,
                 followup_request_id, assignment_id, and altdata.
+            - in: query
+              name: includeOriginalFile
+              nullable: true
+              default: false
+              schema:
+                type: boolean
+              description: |
+                If true, include the raw uploaded spectrum file
+                (original_file_string) in each spectrum. Defaults to false;
+                when omitted, that field is neither loaded nor returned.
+                Ignored when minimalPayload is true (which never includes it).
             - in: query
               name: observedBefore
               nullable: true
@@ -359,7 +400,7 @@ class SpectrumHandler(BaseHandler):
             - in: query
               name: instrumentIDs
               nullable: true
-              type: list
+              type: array
               items:
                 type: integer
               description: |
@@ -368,7 +409,7 @@ class SpectrumHandler(BaseHandler):
               name: groupIDs
               nullable: true
               schema:
-                type: list
+                type: array
                 items:
                   type: integer
               description: |
@@ -377,7 +418,7 @@ class SpectrumHandler(BaseHandler):
               name: followupRequestIDs
               nullable: true
               schema:
-                type: list
+                type: array
                 items:
                   type: integer
               description: |
@@ -387,7 +428,7 @@ class SpectrumHandler(BaseHandler):
               name: assignmentIDs
               nullable: true
               schema:
-                type: list
+                type: array
                 items:
                   type: integer
               description: |
@@ -455,17 +496,29 @@ class SpectrumHandler(BaseHandler):
               description: |
                 Arrow-parseable date string (e.g. 2020-01-01). If provided,
                 only return sources that have comments after this time.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Spectrum'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
         # original_file_string (the raw uploaded file) is opt-in to keep the
         # default payload small.
         include_original_file = self.get_query_argument("includeOriginalFile", False)
 
         if spectrum_id is not None:
-            try:
-                spectrum_id = int(spectrum_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid spectrum_id: {spectrum_id}")
-
             async with self.AsyncSession() as session:
                 spectrum = await session.scalar(
                     Spectrum.select(session.user_or_token)
@@ -1099,11 +1152,6 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            spectrum_id = int(spectrum_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid spectrum_id: {spectrum_id}")
-
         async with self.AsyncSession() as session:
             spectrum = await session.scalar(
                 Spectrum.select(self.current_user).where(Spectrum.id == spectrum_id)
@@ -1762,11 +1810,6 @@ class SyntheticPhotometryHandler(BaseHandler):
 
         data = self.get_json()
         filters = data.get("filters")
-
-        try:
-            spectrum_id = int(spectrum_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid spectrum_id: {spectrum_id}")
 
         async with self.AsyncSession() as session:
             spectrum = await session.scalar(

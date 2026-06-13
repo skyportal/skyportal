@@ -79,10 +79,6 @@ class UserRoleHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         data = self.get_json()
         new_role_ids = data.get("roleIds")
         if new_role_ids is None:
@@ -148,10 +144,6 @@ class UserRoleHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         async with self.AsyncSession() as session:
             user = await session.scalar(
                 User.select(self.associated_user_object).where(User.id == user_id)

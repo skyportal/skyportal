@@ -310,7 +310,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the source_confirmed_in_gcn
           400:
             content:
@@ -473,7 +473,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the modified source_confirmed_in_gcn
           400:
             content:
@@ -584,7 +584,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the deleted source_confirmed_in_gcn
           400:
             content:

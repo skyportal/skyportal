@@ -345,10 +345,6 @@ class SpatialCatalogHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            catalog_id = int(catalog_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid catalog_id: {catalog_id}")
         async with self.AsyncSession() as session:
             stmt = SpatialCatalog.select(session.user_or_token, mode="delete").where(
                 SpatialCatalog.id == catalog_id

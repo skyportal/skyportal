@@ -233,7 +233,14 @@ async def post_gcnevent_from_xml(
     asynchronous=True,
     notify=True,
 ):
-    """Async equivalent of ``post_gcnevent_from_xml``."""
+    """Post GcnEvent to database from voevent xml.
+    payload: str
+        VOEvent readable string
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
     user = await session.get(User, user_id)
 
     schema = f"{os.path.dirname(__file__)}/../../utils/schema/VOEvent-v2.0.xsd"
@@ -390,7 +397,7 @@ async def post_gcnevent_from_xml(
 async def post_skymap_from_notice(
     dateobs, notice_id, user_id, session, asynchronous=True, notify=True
 ):
-    """Async equivalent of ``post_skymap_from_notice``."""
+    """Post skymap to database from gcn notice."""
     user = await session.get(User, user_id)
 
     gcn_notice = await session.scalar(
@@ -470,7 +477,14 @@ async def post_skymap_from_notice(
 async def post_gcnevent_from_json(
     payload, user_id, session, post_skymap=True, asynchronous=True, notify=True
 ):
-    """Async equivalent of ``post_gcnevent_from_json``."""
+    """Post GcnEvent to database from JSON.
+    payload: dict
+        JSON containing alert payload
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
     if isinstance(payload, str):
         try:
             payload = json.loads(payload)
@@ -621,7 +635,14 @@ async def post_gcnevent_from_json(
 
 
 async def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=True):
-    """Async equivalent of ``post_gcnevent_from_dictionary``."""
+    """Post GcnEvent to database from dictionary.
+    payload: dict
+        Dictionary containing dateobs and skymap
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
     user = await session.get(User, user_id)
 
     dateobs = arrow.get(payload["dateobs"]).naive
@@ -3873,7 +3894,7 @@ class GcnSummaryHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         localization_name = data.get("localizationName", None)
-        localization_cumprob = data.get("localizationCumprob", 0.95)
+        localization_cumprob = float(data.get("localizationCumprob", 0.95))
         number_of_detections = data.get("numberDetections", 2)
         number_of_observations = data.get("numberObservations", 1)
         show_sources = data.get("showSources", False)
@@ -4634,7 +4655,7 @@ class GcnReportHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         localization_name = data.get("localizationName", None)
-        localization_cumprob = data.get("localizationCumprob", 0.95)
+        localization_cumprob = float(data.get("localizationCumprob", 0.95))
         number_of_detections = data.get("numberDetections", 2)
         show_sources = data.get("showSources", False)
         show_observations = data.get("showObservations", False)
@@ -5308,7 +5329,7 @@ class GcnEventInstrumentFieldHandler(BaseHandler):
             name: integrated_probability
             nullable: true
             schema:
-              type: float
+              type: number
             description: Cumulative integrated probability threshold
         responses:
           200:

@@ -218,10 +218,6 @@ class RecurringAPIHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            recurring_api_id = int(recurring_api_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid recurring_api_id: {recurring_api_id}")
         async with self.AsyncSession() as session:
             recurring_api = await session.scalar(
                 RecurringAPI.select(session.user_or_token, mode="delete").where(

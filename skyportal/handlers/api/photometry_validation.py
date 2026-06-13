@@ -51,7 +51,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometry_id
             required: true
             schema:
-              type: int
+              type: integer
             description: Photometry ID
         requestBody:
           content:
@@ -77,7 +77,7 @@ class PhotometryValidationHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the photomety_validation
           400:
             content:
@@ -87,11 +87,6 @@ class PhotometryValidationHandler(BaseHandler):
         """
         if not USE_PHOTOMETRY_VALIDATION:
             return self.error("Photometry validation is not enabled.")
-
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
 
         data = self.get_json()
 
@@ -186,7 +181,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometry_id
             required: true
             schema:
-              type: int
+              type: integer
         requestBody:
           content:
             application/json:
@@ -212,7 +207,7 @@ class PhotometryValidationHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the modified photometry_validation
           400:
             content:
@@ -221,11 +216,6 @@ class PhotometryValidationHandler(BaseHandler):
         """
         if not USE_PHOTOMETRY_VALIDATION:
             return self.error("Photometry validation is not enabled.")
-
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
 
         data = self.get_json()
         validated = data.get("validated")
@@ -298,7 +288,7 @@ class PhotometryValidationHandler(BaseHandler):
             name: photometric_id
             required: true
             schema:
-              type: int
+              type: integer
         responses:
           200:
             content:
@@ -312,7 +302,7 @@ class PhotometryValidationHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the deleted photometry_validation
           400:
             content:
@@ -321,11 +311,6 @@ class PhotometryValidationHandler(BaseHandler):
         """
         if not USE_PHOTOMETRY_VALIDATION:
             return self.error("Photometry validation is not enabled.")
-
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
 
         validator_instance = Validator()
         params_to_be_validated = {

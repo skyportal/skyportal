@@ -476,11 +476,6 @@ class InstrumentHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             if instrument_id is not None:
-                try:
-                    instrument_id = int(instrument_id)
-                except (TypeError, ValueError):
-                    return self.error(f"Invalid instrument_id: {instrument_id}")
-
                 instrument = await session.scalar(
                     Instrument.select(self.current_user, options=options).where(
                         Instrument.id == instrument_id
@@ -732,11 +727,6 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            instrument_id = int(instrument_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid instrument_id: {instrument_id}")
-
         data = self.get_json()
         data["id"] = instrument_id
         async with self.AsyncSession() as session:
@@ -984,11 +974,6 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            instrument_id = int(instrument_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid instrument_id: {instrument_id}")
-
         async with self.AsyncSession() as session:
             instrument = await session.scalar(
                 Instrument.select(session.user_or_token, mode="delete").where(
@@ -1034,14 +1019,13 @@ InstrumentHandler.post.__doc__ = f"""
                       properties:
                         filter_name:
                           type: object
-                          enum: {list(ALLOWED_BANDPASSES)}
                           properties:
                             limiting_magnitude:
-                              type: float
+                              type: number
                             magsys:
                               type: string
                             exposure_time:
-                              type: float
+                              type: number
                               description: |
                                 Exposure time in seconds.
                       description: |
@@ -1055,19 +1039,19 @@ InstrumentHandler.post.__doc__ = f"""
                           type: object
                           properties:
                             filt_change_time:
-                              type: float
+                              type: number
                               description: |
                                 Time in seconds to change filters
                             readout:
-                              type: float
+                              type: number
                               description: |
                                 Time in seconds to readout camera
                             overhead_per_exposure:
-                              type: float
+                              type: number
                               description: |
                                 Non-readout overheads, e.g. instrument settling times, in seconds.
                             slew_rate:
-                              type: float
+                              type: number
                               description: |
                                 Slew rate for the telescope in deg/s.
                       description: |
@@ -1511,11 +1495,6 @@ class InstrumentFieldHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            instrument_id = int(instrument_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid instrument_id: {instrument_id}")
-
         async with self.AsyncSession() as session:
             instrument = await session.scalar(
                 Instrument.select(session.user_or_token, mode="delete").where(

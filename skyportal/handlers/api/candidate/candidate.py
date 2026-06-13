@@ -1651,11 +1651,6 @@ class CandidateHandler(BaseHandler):
                           $ref: '#/components/schemas/Success'
         """
 
-        try:
-            filter_id = int(filter_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid filter_id: {filter_id}")
-
         async with self.AsyncSession() as session:
             result = await session.scalars(
                 Candidate.select(session.user_or_token, mode="delete")
@@ -1710,8 +1705,10 @@ async def grab_query_results(
     query_id=None,
     use_cache=False,
 ):
-    """Async variant of the candidate-results pager. Returns a dict shaped
-    ``{items_name: [...], totalMatches, pageNumber, numPerPage, queryID?}``.
+    """
+    Returns a SQLAlchemy Query object (which is iterable) for the sorted Obj IDs desired.
+    If there are no matching Objs, an empty list [] is returned instead.
+    include_detection_stats is added to the pagination query directly here.
     """
     row = func.row_number().over(order_by=order_by).label("row_num")
     full_query = q.add_columns(row)

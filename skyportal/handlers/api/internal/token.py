@@ -117,7 +117,7 @@ class TokenHandler(BaseHandler):
             - in: query
               name: userID
               schema:
-                type: int
+                type: integer
               description: Filter by user ID
           responses:
             200:

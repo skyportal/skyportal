@@ -353,10 +353,6 @@ class TaxonomyHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            taxonomy_id = int(taxonomy_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid taxonomy_id: {taxonomy_id}")
         async with self.AsyncSession() as session:
             cls_result = await session.scalars(
                 sa.select(Classification).where(

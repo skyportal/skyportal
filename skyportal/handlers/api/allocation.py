@@ -589,11 +589,6 @@ class AllocationHandler(BaseHandler):
                 schema: Error
         """
 
-        try:
-            allocation_id = int(allocation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid allocation_id: {allocation_id}")
-
         async with self.AsyncSession() as session:
             allocation = await session.scalar(
                 Allocation.select(session.user_or_token, mode="update")
@@ -686,11 +681,6 @@ class AllocationHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            allocation_id = int(allocation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid allocation_id: {allocation_id}")
-
         async with self.AsyncSession() as session:
             allocation = await session.scalar(
                 Allocation.select(session.user_or_token, mode="delete").where(
@@ -742,11 +732,6 @@ class AllocationReportHandler(BaseHandler):
         output_format = self.get_query_argument("output_format", "pdf")
         if output_format not in ["pdf", "png"]:
             return self.error("output_format must be png or pdf")
-
-        try:
-            instrument_id = int(instrument_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid instrument_id: {instrument_id}")
 
         async with self.AsyncSession() as session:
             allocations_result = await session.scalars(

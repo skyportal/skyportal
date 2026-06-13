@@ -48,11 +48,6 @@ class FilterHandler(BaseHandler):
                   schema: Error
         """
 
-        if filter_id is not None:
-            try:
-                filter_id = int(filter_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid filter_id: {filter_id}")
         async with self.AsyncSession() as session:
             if filter_id is not None:
                 f = await session.scalar(

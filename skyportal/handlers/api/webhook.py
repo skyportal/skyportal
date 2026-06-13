@@ -1,5 +1,3 @@
-import datetime
-
 from sqlalchemy.orm import selectinload
 
 from baselayer.app import models as baselayer_models
@@ -80,13 +78,10 @@ class AnalysisWebhookHandler(BaseHandler):
                         f" and message={analysis.status_message}",
                         status=403,
                     )
-                if (
-                    analysis.invalid_after
-                    and datetime.datetime.utcnow() > analysis.invalid_after
-                ):
+                if analysis.invalid_after and utcnow_naive() > analysis.invalid_after:
                     analysis.status = "timed_out"
-                    analysis.status_message = f"Analysis timed out before webhook call at {str(datetime.datetime.utcnow())}"
-                    analysis.last_activity = datetime.datetime.utcnow()
+                    analysis.status_message = f"Analysis timed out before webhook call at {str(utcnow_naive())}"
+                    analysis.last_activity = utcnow_naive()
                     analysis.duration = (
                         analysis.last_activity - last_active
                     ).total_seconds()
@@ -96,7 +91,7 @@ class AnalysisWebhookHandler(BaseHandler):
                 # lock the analysis associated with this token and commit immediately
                 # to avoid race conditions, so results are not written more than once
                 analysis.status = "completed"
-                analysis.last_activity = datetime.datetime.utcnow()
+                analysis.last_activity = utcnow_naive()
                 analysis.duration = (
                     analysis.last_activity - last_active
                 ).total_seconds()

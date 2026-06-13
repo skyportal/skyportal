@@ -376,12 +376,17 @@ class IRSAQueryWISEHandler(BaseHandler):
             radius_arcsec = data.pop("crossmatchRadius", 2.0)
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
-            df = Irsa.query_region(
-                coordinates=candidate_coord,
-                catalog=catalog,
-                spatial="Cone",
-                radius=radius_arcsec * u.arcsec,
-            ).to_pandas()
+            try:
+                df = Irsa.query_region(
+                    coordinates=candidate_coord,
+                    catalog=catalog,
+                    spatial="Cone",
+                    radius=radius_arcsec * u.arcsec,
+                ).to_pandas()
+            except Exception as e:
+                return self.error(
+                    f"Error querying IRSA ({catalog}) for {obj_id}: {e}. Please try again later."
+                )
 
             keys = [
                 "ra",
@@ -533,11 +538,16 @@ class VizierQueryHandler(BaseHandler):
             radius_arcsec = data.pop("crossmatchRadius", 2.0)
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
-            tl = Vizier.query_region(
-                coordinates=candidate_coord,
-                catalog=catalog,
-                radius=radius_arcsec * u.arcsec,
-            )
+            try:
+                tl = Vizier.query_region(
+                    coordinates=candidate_coord,
+                    catalog=catalog,
+                    radius=radius_arcsec * u.arcsec,
+                )
+            except Exception as e:
+                return self.error(
+                    f"Error querying Vizier ({catalog}) for {obj_id}: {e}. Please try again later."
+                )
 
             if len(tl) == 0:
                 return self.error("No successful cross-match available.")

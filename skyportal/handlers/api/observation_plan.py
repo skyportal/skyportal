@@ -198,10 +198,14 @@ MAX_OBSERVATION_PLAN_REQUESTS = 1000
 async def send_observation_plan(
     plan_id, session, auto_send=False, default_obsplan_id=None
 ):
-    """Async equivalent of ``send_observation_plan``.
+    """Send observation plan to queue
 
-    Uses an ``AsyncSession`` for DB I/O. The facility-API ``send`` call is
-    sync and runs via ``session.run_sync(...)`` on the underlying connection.
+    Parameters
+    ----------
+    plan_id : int
+        SkyPortal ID of Observation plan request
+    session : sqlalchemy.Session
+        Database session for this transaction
     """
     observation_plan_request = await session.scalar(
         sa.select(ObservationPlanRequest)
@@ -397,7 +401,21 @@ async def send_observation_plan(
 async def post_survey_efficiency_analysis(
     survey_efficiency_analysis, plan_id, user_id, session, asynchronous=True
 ):
-    """Async equivalent of ``post_survey_efficiency_analysis``."""
+    """Post survey efficiency analysis to database.
+
+    Parameters
+    ----------
+    survey_efficiency_analysis : dict
+        Dictionary describing survey efficiency analysis
+    plan_id : int
+        SkyPortal ID of Observation plan request
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session : sqlalchemy.Session
+        Database session for this transaction
+    asynchronous : bool
+        Create asynchronous efficiency analysis. Defaults to True.
+    """
 
     status_complete = False
     while not status_complete:
@@ -556,7 +574,21 @@ async def post_survey_efficiency_analysis(
 async def post_observation_plans(
     plans, user_id, session, default_plan=False, asynchronous=True
 ):
-    """Async equivalent of ``post_observation_plans``."""
+    """Post combined ObservationPlans to database.
+
+    Parameters
+    ----------
+    plan : dict
+        Observation plan dictionary
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session : sqlalchemy.Session
+        Database session for this transaction
+    default_plan : bool
+        Observation plan is created automatically. Defaults to False.
+    asynchronous : bool
+        Create asynchronous request. Defaults to True.
+    """
 
     user = await session.get(User, int(user_id))
 
@@ -1218,12 +1250,12 @@ class ObservationPlanRequestHandler(BaseHandler):
             )
 
             if start_date:
-                start_date = str(arrow.get(start_date.strip()).datetime)
+                start_date = arrow.get(start_date.strip()).naive
                 observation_plan_requests = observation_plan_requests.where(
                     ObservationPlanRequest.created_at >= start_date
                 )
             if end_date:
-                end_date = str(arrow.get(end_date.strip()).datetime)
+                end_date = arrow.get(end_date.strip()).naive
                 observation_plan_requests = observation_plan_requests.where(
                     ObservationPlanRequest.created_at <= end_date
                 )
@@ -2402,7 +2434,13 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             for observation in observation_plans[0].planned_observations:
                 if observation.field_id not in fields_in:
                     fields_in.append(observation.field_id)
-                    geojson.append(observation.field.contour_summary)
+                    # A planned observation can reference a field that no longer
+                    # exists (or that has no contour). Skip those rather than
+                    # raising an AttributeError (500), which left the frontend
+                    # skymap globe spinning on its loading indicator forever.
+                    field = observation.field
+                    if field is not None and field.contour_summary is not None:
+                        geojson.append(field.contour_summary)
                 else:
                     continue
 

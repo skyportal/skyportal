@@ -50,6 +50,7 @@ from ...models import (
 from ...models.schema import ObservationExternalAPIHandlerPost
 from ...utils.cache import Cache
 from ...utils.observation_plan import combine_healpix_tuples
+from ...utils.parse import str_to_bool
 from ...utils.simsurvey import (
     get_simsurvey_parameters,
 )
@@ -364,12 +365,9 @@ async def get_observations(
         localization_cumprob = float(localization_cumprob)
     except (TypeError, ValueError):
         localization_cumprob = 0.95
-    if isinstance(return_statistics, str):
-        return_statistics = return_statistics.lower() in ("true", "1", "yes", "t")
-    if isinstance(stats_logging, str):
-        stats_logging = stats_logging.lower() in ("true", "1", "yes", "t")
-    if isinstance(includeGeoJSON, str):
-        includeGeoJSON = includeGeoJSON.lower() in ("true", "1", "yes", "t")
+    return_statistics = str_to_bool(return_statistics, default=False)
+    stats_logging = str_to_bool(stats_logging, default=False)
+    includeGeoJSON = str_to_bool(includeGeoJSON, default=False)
 
     if observation_status == "executed":
         Observation = ExecutedObservation

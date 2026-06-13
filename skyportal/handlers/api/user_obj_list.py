@@ -285,10 +285,6 @@ class UserObjListHandler(BaseHandler):
                 schema: Success
 
         """
-        try:
-            listing_id = int(listing_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid listing_id: {listing_id}")
         async with self.AsyncSession() as session:
             listing = await session.scalar(
                 Listing.select(self.current_user, mode="update").where(

@@ -140,8 +140,25 @@ def remove_obj_thumbnails(obj_id):
 
 
 async def check_if_obj_has_photometry(obj_id, user, session):
-    """Async: check if an object has photometry (regular or photometric
-    series) accessible to ``user``.
+    """
+    Check if an object has photometry that is
+    accessible to the current user.
+    This includes regular (individual point)
+    photometry and also photometric series.
+
+    Parameters
+    ----------
+    obj_id: str
+        The ID of the object to check.
+    user: baselayer.app.models.User
+        The user to check.
+    session: sqlalchemy.orm.session.Session
+        The session to use to query the database.
+
+    Returns
+    -------
+    bool
+        True if the object has photometry that is accessible to the current user.
     """
     phot = await session.scalar(
         Photometry.select(user, columns=[Photometry.id]).where(
@@ -2930,7 +2947,7 @@ class SourceFinderHandler(BaseHandler):
         - in: query
           name: imsize
           schema:
-            type: float
+            type: number
             minimum: 2
             maximum: 15
           description: Image size in arcmin (square)

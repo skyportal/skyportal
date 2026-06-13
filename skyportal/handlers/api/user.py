@@ -697,10 +697,6 @@ class UserHandler(BaseHandler):
         """
         if user_id is None:
             return self.error("User ID must be provided")
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         async with self.AsyncSession() as session:
             user = await session.scalar(
                 User.select(self.current_user, mode="delete").where(User.id == user_id)

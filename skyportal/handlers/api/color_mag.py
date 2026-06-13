@@ -208,10 +208,9 @@ class ObjColorMagHandler(BaseHandler):
                           origin:
                             type: string
                           color:
-                            type: float
+                            type: number
                           abs_mag:
-                            type: float
-
+                            type: number
           400:
             content:
               application/json:

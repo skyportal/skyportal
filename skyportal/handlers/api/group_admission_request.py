@@ -57,14 +57,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
                   schema: Error
         """
         group_id = self.get_query_argument("groupID", None, type=int)
-        if admission_request_id is not None:
-            try:
-                admission_request_id = int(admission_request_id)
-            except (TypeError, ValueError):
-                return self.error(
-                    f"Invalid admission_request_id: {admission_request_id}"
-                )
-
         async with self.AsyncSession() as session:
             if admission_request_id is not None:
                 admission_request = await session.scalar(

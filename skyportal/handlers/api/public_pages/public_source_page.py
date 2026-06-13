@@ -429,11 +429,6 @@ class PublicSourcePageHandler(BaseHandler):
 
         if page_id is None:
             return self.error("Page ID is required")
-        try:
-            page_id = int(page_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid page_id: {page_id}")
-
         async with self.AsyncSession() as session:
             public_source_page = await session.scalar(
                 PublicSourcePage.select(session.user_or_token, mode="delete").where(

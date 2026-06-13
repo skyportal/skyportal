@@ -401,11 +401,6 @@ class InvitationHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
-        try:
-            invitation_id = int(invitation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid invitation_id: {invitation_id}")
-
         async with self.AsyncSession() as session:
             invitation = await session.scalar(
                 Invitation.select(session.user_or_token, mode="update")
@@ -523,10 +518,6 @@ class InvitationHandler(BaseHandler):
                 schema: Success
         """
 
-        try:
-            invitation_id = int(invitation_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid invitation_id: {invitation_id}")
         async with self.AsyncSession() as session:
             invitation = await session.scalar(
                 Invitation.select(session.user_or_token, mode="delete").where(

@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 
 import arrow
 import astropy.units as u
@@ -10,6 +9,7 @@ from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Allocation, Instrument, InstrumentLog
 from ...utils.instrument_log import read_logs
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 
@@ -64,7 +64,7 @@ class InstrumentLogHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the InstrumentLog
           400:
             content:
@@ -403,7 +403,7 @@ class InstrumentStatusHandler(BaseHandler):
                         )
 
                     instrument.status = status
-                    instrument.last_status_update = datetime.utcnow()
+                    instrument.last_status_update = utcnow_naive()
                     await session.commit()
 
                     self.push_all(

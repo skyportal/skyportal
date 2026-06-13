@@ -545,11 +545,6 @@ class EarthquakePredictionHandler(BaseHandler):
                         data:
                           $ref: '#/components/schemas/EarthquakePrediction'
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         async with self.AsyncSession() as session:
             event = await session.scalar(
                 EarthquakeEvent.select(
@@ -701,11 +696,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
                         data:
                           $ref: '#/components/schemas/EarthquakeMeasured'
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
             return self.error(
@@ -786,11 +776,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: SingleEarthquakeMeasured
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         async with self.AsyncSession() as session:
             event = await session.scalar(
                 EarthquakeEvent.select(
@@ -846,11 +831,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
                         data:
                           $ref: '#/components/schemas/EarthquakeMeasured'
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
             return self.error(
@@ -928,11 +908,6 @@ class EarthquakeMeasurementHandler(BaseHandler):
                         data:
                           $ref: '#/components/schemas/Success'
         """
-        try:
-            mma_detector_id = int(mma_detector_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid mma_detector_id: {mma_detector_id}")
-
         async with self.AsyncSession() as session:
             event = await session.scalar(
                 EarthquakeEvent.select(

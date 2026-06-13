@@ -433,7 +433,7 @@ class CommentHandler(BaseHandler):
                 end = time.time()
                 duration = end - start
                 log(
-                    f"User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds"
+                    f"User {self.associated_user_object.id} comment query returned {query_size} bytes in {duration} seconds"
                 )
 
             return self.success(data=comment_data)

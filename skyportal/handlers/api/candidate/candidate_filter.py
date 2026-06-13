@@ -21,11 +21,6 @@ from ...base import BaseHandler
 
 log = make_log("api/candidate_filter")
 
-# Back-compat aliases (the *_sync/no-suffix names were used by call sites
-# before the helpers moved to skyportal.utils.data_access).
-get_user_accessible_group_and_filter_ids_sync = accessible_group_and_filter_ids
-get_user_accessible_group_and_filter_ids = accessible_group_and_filter_ids
-
 
 def get_subquery_for_saved_status(session, stmt, saved_status, group_ids, user):
     user_accessible_group_ids = [g.id for g in user.accessible_groups]
@@ -108,7 +103,7 @@ class CandidateFilterHandler(BaseHandler):
         n_per_page = self.get_query_argument("numPerPage", None) or 25
 
         async with self.AsyncSession() as session:
-            group_ids, filter_ids = await get_user_accessible_group_and_filter_ids(
+            group_ids, filter_ids = await accessible_group_and_filter_ids(
                 session,
                 session.user_or_token,
                 group_ids,

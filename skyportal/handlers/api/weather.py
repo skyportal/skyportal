@@ -51,6 +51,11 @@ class WeatherHandler(BaseHandler):
                               type: string
                               description: |
                                  Datetime (UTC) when the weather was fetched
+                            weather_fetch_at:
+                              type: string
+                              description: |
+                                 Datetime (UTC) when the API call was made,
+                                 even if no data was returned
                             weather_link:
                               type: string
                               description: URL for more weather info
@@ -66,6 +71,10 @@ class WeatherHandler(BaseHandler):
                             message:
                               type: string
                               description: Weather fetching error message
+          400:
+            content:
+              application/json:
+                schema: Error
         """
         async with self.AsyncSession() as session:
             user_prefs = getattr(self.associated_user_object, "preferences", None) or {}
@@ -105,7 +114,7 @@ class WeatherHandler(BaseHandler):
             if refresh and weather.retrieved_at is not None:
                 if (
                     weather.retrieved_at + datetime.timedelta(seconds=weather_refresh)
-                    >= datetime.datetime.utcnow()
+                    >= utcnow_naive()
                 ):
                     # it is too soon to refresh
                     refresh = False
@@ -122,7 +131,7 @@ class WeatherHandler(BaseHandler):
                     if response.status_code == 200:
                         data = response.json()
                         weather.weather_info = data
-                        weather.retrieved_at = datetime.datetime.utcnow()
+                        weather.retrieved_at = utcnow_naive()
                         await session.commit()
                     else:
                         message = response.text
@@ -135,7 +144,7 @@ class WeatherHandler(BaseHandler):
                     # Timestamp indicating when the weather data was successfully retrieved from the API
                     "weather_retrieved_at": weather.retrieved_at,
                     # Timestamp indicating when the API call was made, even if no data was returned
-                    "weather_fetch_at": datetime.datetime.utcnow(),
+                    "weather_fetch_at": utcnow_naive(),
                     "weather_link": telescope.weather_link,
                     "telescope_name": telescope.name,
                     "telescope_nickname": telescope.nickname,

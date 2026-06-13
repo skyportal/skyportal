@@ -1,5 +1,3 @@
-import datetime
-
 import sqlalchemy as sa
 
 from baselayer.app.access import permissions
@@ -67,8 +65,18 @@ class SourceGroupsHandler(BaseHandler):
             )
             if not obj:
                 return self.error(f"Obj {obj_id} not found", status=404)
-            save_or_invite_group_ids = data.get("inviteGroupIds", [])
-            unsave_group_ids = data.get("unsaveGroupIds", [])
+            # Coerce to int up front — clients (and old code paths) sometimes
+            # send these as strings, which then crashes the Source.group_id
+            # comparison against an integer column with a ProgrammingError.
+            try:
+                save_or_invite_group_ids = [
+                    int(g) for g in data.get("inviteGroupIds", [])
+                ]
+                unsave_group_ids = [int(g) for g in data.get("unsaveGroupIds", [])]
+            except (TypeError, ValueError):
+                return self.error(
+                    "inviteGroupIds and unsaveGroupIds must be lists of integers"
+                )
             if not save_or_invite_group_ids and not unsave_group_ids:
                 return self.error(
                     "Missing required parameter: one of either unsaveGroupIds or inviteGroupIds must be provided"
@@ -119,7 +127,7 @@ class SourceGroupsHandler(BaseHandler):
                     )
                 source.unsaved_by_id = self.associated_user_object.id
                 source.active = False
-                source.unsaved_at = datetime.datetime.utcnow()
+                source.unsaved_at = utcnow_naive()
 
             if len(unsave_group_ids) > 0:
                 from .public_pages.public_source_page import delete_auto_published_page

@@ -638,10 +638,6 @@ class MMADetectorSpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            spectrum_id = int(spectrum_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid spectrum_id: {spectrum_id}")
         async with self.AsyncSession() as session:
             spectrum = await session.scalar(
                 MMADetectorSpectrum.select(self.current_user, mode="delete")
@@ -1066,10 +1062,6 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            time_interval_id = int(time_interval_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid time_interval_id: {time_interval_id}")
         async with self.AsyncSession() as session:
             time_interval = await session.scalar(
                 MMADetectorTimeInterval.select(self.current_user, mode="delete")

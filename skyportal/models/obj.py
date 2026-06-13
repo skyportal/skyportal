@@ -469,10 +469,9 @@ class Obj(Base, conesearch_alchemy.Point):
     )
 
     async def add_linked_thumbnails(self, thumbnails, session):
-        """Async variant of ``add_linked_thumbnails``. Same behaviour, but
-        awaits the commits and avoids touching the back-populated
-        ``self.thumbnails`` collection.
-        """
+        """Determine the URLs of the SDSS, Legacy Survey DR10, and
+        thumbnails of the object,
+        insert them into the Thumbnails table, and link them to the object."""
         if "sdss" in thumbnails:
             session.add(
                 Thumbnail(obj_id=self.id, public_url=self.sdss_url, type="sdss")

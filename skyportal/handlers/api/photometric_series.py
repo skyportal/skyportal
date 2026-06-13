@@ -821,10 +821,6 @@ class PhotometricSeriesHandler(BaseHandler):
                               type: integer
                               description: New photometric series ID
         """
-        try:
-            photometric_series_id = int(photometric_series_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometric_series_id: {photometric_series_id}")
         with self.Session() as session:
             ps = session.scalars(
                 PhotometricSeries.select(self.current_user).where(
@@ -1345,12 +1341,6 @@ class PhotometricSeriesHandler(BaseHandler):
                                 type: integer
         """
         if photometric_series_id is not None:
-            try:
-                photometric_series_id = int(photometric_series_id)
-            except (TypeError, ValueError):
-                return self.error(
-                    f"Invalid photometric_series_id: {photometric_series_id}"
-                )
             with self.Session() as session:
                 ps = session.scalars(
                     PhotometricSeries.select(self.current_user).where(
@@ -1906,11 +1896,6 @@ class PhotometricSeriesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        try:
-            photometric_series_id = int(photometric_series_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometric_series_id: {photometric_series_id}")
 
         async with self.AsyncSession() as session:
             ps = await session.scalar(

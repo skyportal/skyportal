@@ -11,12 +11,6 @@ class NotificationHandler(BaseHandler):
     async def get(self, notification_id: int | None = None):
         """Fetch notification(s)"""
 
-        if notification_id is not None:
-            try:
-                notification_id = int(notification_id)
-            except (TypeError, ValueError):
-                return self.error(f"Invalid notification_id: {notification_id}")
-
         async with self.AsyncSession() as session:
             if notification_id is not None:
                 notification = await session.scalar(

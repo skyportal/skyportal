@@ -295,7 +295,7 @@ class GcnTachHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the GcnEvent
           400:
             content:

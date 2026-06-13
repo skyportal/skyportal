@@ -71,10 +71,6 @@ class UserACLHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         data = self.get_json()
         new_acl_ids = data.get("aclIds")
         if new_acl_ids is None:
@@ -138,10 +134,6 @@ class UserACLHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid user_id: {user_id}")
         async with self.AsyncSession() as session:
             user_result = await session.scalars(
                 User.select(session.user_or_token).where(User.id == user_id)

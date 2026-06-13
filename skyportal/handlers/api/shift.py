@@ -325,11 +325,6 @@ class ShiftHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            shift_id = int(shift_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid shift_id: {shift_id}")
-
         async with self.AsyncSession() as session:
             try:
                 shift = await session.scalar(
