@@ -70,6 +70,74 @@ log = make_log("api/followup_request")
 
 MAX_FOLLOWUP_REQUESTS = 1000
 
+# Trigger-constraint keys the manual follow-up API accepts; Default Follow-up
+# Requests store and apply the identical logic.
+FOLLOWUP_CONSTRAINT_KEYS = (
+    "not_if_duplicates",
+    "source_group_ids",
+    "ignore_source_group_ids",
+    "not_if_classified",
+    "not_if_spectra_exist",
+    "not_if_tns_classified",
+    "not_if_tns_reported",
+    "ignore_allocation_ids",
+    "not_if_assignment_exists",
+)
+
+# Recognized priority keys in a follow-up payload, highest-precedence first.
+FOLLOWUP_PRIORITY_ALIASES = ("priority", "urgency", "Urgency")
+
+
+def build_constraints_dict(data):
+    """Pop trigger-constraint keys out of ``data`` and return them as a dict.
+
+    Returns ``None`` when no constraint keys are present. Raises ``ValueError``
+    if a radius is provided but cannot be parsed as a float.
+    """
+    constraints = {}
+    for key in FOLLOWUP_CONSTRAINT_KEYS:
+        if key in data:
+            constraints[key] = data.pop(key)
+    if not constraints:
+        return None
+    try:
+        constraints["radius"] = float(data.pop("radius", 0.5))
+    except (TypeError, ValueError):
+        raise ValueError("Invalid specified radius for spatial constraints.")
+    return constraints
+
+
+def get_payload_priority(payload):
+    """Return (key, float value) of the priority in a follow-up payload, or
+    (None, None) if no recognized priority key holds a numeric value."""
+    if not isinstance(payload, dict):
+        return None, None
+    for alias in FOLLOWUP_PRIORITY_ALIASES:
+        if alias in payload and isinstance(payload[alias], int | float | str):
+            try:
+                return alias, float(payload[alias])
+            except (TypeError, ValueError):
+                return None, None
+    return None, None
+
+
+def priority_should_update(existing_priority, new_priority, priority_order="asc"):
+    """Whether ``new_priority`` outranks ``existing_priority``. With
+    ``priority_order == "desc"`` a lower number means higher priority."""
+    if priority_order == "desc":
+        return float(new_priority) < float(existing_priority)
+    return float(new_priority) > float(existing_priority)
+
+
+def detect_priority_alias(payload):
+    """Return the priority key present in ``payload`` (one of
+    FOLLOWUP_PRIORITY_ALIASES), defaulting to "priority"."""
+    if isinstance(payload, dict):
+        for alias in FOLLOWUP_PRIORITY_ALIASES:
+            if alias in payload:
+                return alias
+    return "priority"
+
 
 def post_assignment(data, session):
     """Post assignment to database.
@@ -3024,12 +3092,33 @@ class DefaultFollowupRequestHandler(BaseHandler):
             else:
                 return self.error("source_filter is required")
 
+            try:
+                constraints = build_constraints_dict(data)
+            except ValueError as e:
+                return self.error(str(e))
+
+            priority_order = data.get("priority_order", "asc")
+            if priority_order not in ("asc", "desc"):
+                return self.error("priority_order must be one of: asc, desc.")
+
+            validity_days = data.get("validity_days", None)
+            if validity_days is not None:
+                try:
+                    validity_days = int(validity_days)
+                except (TypeError, ValueError):
+                    return self.error("validity_days must be an integer.")
+
             default_followup_request = DefaultFollowupRequest(
                 requester_id=self.associated_user_object.id,
                 allocation_id=allocation.id,
                 payload=payload,
                 default_followup_name=data["default_followup_name"],
                 source_filter=data["source_filter"],
+                constraints=constraints,
+                priority_order=priority_order,
+                validity_days=validity_days,
+                comment=data.get("comment", None),
+                implements_update=data.get("implements_update", True),
             )
             default_followup_request.target_groups = target_groups
 

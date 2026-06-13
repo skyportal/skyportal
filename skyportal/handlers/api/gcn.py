@@ -3206,9 +3206,9 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
             end_date = allocation.instrument.telescope.next_sunrise()
             if end_date is None:
-                end_date = str(
-                    utcnow_naive() + datetime.timedelta(days=1)
-                ).replace("T", "")
+                end_date = str(utcnow_naive() + datetime.timedelta(days=1)).replace(
+                    "T", ""
+                )
             else:
                 end_date = Time(end_date, format="jd").iso
 
@@ -4501,10 +4501,10 @@ class GcnSummaryHandler(BaseHandler):
             start_date = UTCTZnaiveDateTime(required=False, load_default=None)
             end_date = UTCTZnaiveDateTime(required=False, load_default=None)
             number_of_detections = Integer(
-                required=False, missing=2, validate=validate.Range(min=1)
+                required=False, load_default=2, validate=validate.Range(min=1)
             )
             number_of_observations = Integer(
-                required=False, missing=1, validate=validate.Range(min=1)
+                required=False, load_default=1, validate=validate.Range(min=1)
             )
 
         validator_instance = Validator()

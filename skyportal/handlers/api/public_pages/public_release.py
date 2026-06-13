@@ -183,7 +183,10 @@ class PublicReleaseHandler(BaseHandler):
         async with self.AsyncSession() as session:
             public_release = await session.scalar(
                 PublicRelease.select(session.user_or_token, mode="update")
-                .options(selectinload(PublicRelease.source_pages))
+                .options(
+                    selectinload(PublicRelease.source_pages),
+                    selectinload(PublicRelease.groups),
+                )
                 .where(PublicRelease.id == release_id)
             )
 

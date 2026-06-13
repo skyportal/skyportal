@@ -55,12 +55,7 @@ class FacilityMessageHandler(BaseHandler):
 
             jsonschema.validate(data, instrument.listener_class.complete_schema())
 
-            # Bridge sync listener-API call via greenlet on async connection
-            await session.run_sync(
-                lambda sync_session: instrument.listener_class.process_message(
-                    self, sync_session
-                )
-            )
+            await instrument.listener_class.process_message(self, session)
             await session.commit()
 
             self.push_all(

@@ -9,6 +9,7 @@ import time
 import traceback
 from json.decoder import JSONDecodeError
 
+import arrow
 import astropy
 import astropy.units as u
 import conesearch_alchemy as ca
@@ -184,6 +185,7 @@ async def get_source(
     include_candidates=False,
     include_associated_objs=False,
     include_tags=False,
+    include_super_objs=False,
 ):
     """Query source from database.
     obj_id: int
@@ -220,6 +222,23 @@ async def get_source(
     s = await session.scalar(stmt)
     if s is None:
         raise ValueError("Source not found")
+
+    # Meta-object aggregation: when include_super_objs is set, expand to every
+    # Obj linked to this one through a SuperObj so the per-source data products
+    # (comments, annotations, classifications) are returned as one
+    # provenance-tagged union. Defaults to just this obj. RLS is preserved
+    # because each .select(user) still filters per row.
+    from ...models import SuperObj  # local import to avoid cycles
+
+    aggregated_obj_ids = {obj_id}
+    if include_super_objs:
+        agg_super_objs_result = await session.scalars(
+            sa.select(SuperObj)
+            .options(selectinload(SuperObj.objs))
+            .where(SuperObj.objs.any(Obj.id == obj_id))
+        )
+        for super_obj in agg_super_objs_result.unique().all():
+            aggregated_obj_ids.update({o.id for o in super_obj.objs})
 
     # Convert to a plain dict first so that the deduplication below operates on
     # copied data rather than on the SQLAlchemy-tracked relationship collection.
@@ -379,7 +398,7 @@ async def get_source(
                     selectinload(Comment.author),
                     selectinload(Comment.groups),
                 ],
-            ).where(Comment.obj_id == obj_id)
+            ).where(Comment.obj_id.in_(aggregated_obj_ids))
         )
         comments = comments_result.unique().all()
         source_info["comments"] = sorted(
@@ -433,7 +452,7 @@ async def get_source(
     annotations_result = await session.scalars(
         Annotation.select(user)
         .options(selectinload(Annotation.author))
-        .where(Annotation.obj_id == obj_id)
+        .where(Annotation.obj_id.in_(aggregated_obj_ids))
     )
     annotations = sorted(
         annotations_result.unique().all(),
@@ -448,7 +467,7 @@ async def get_source(
             selectinload(Classification.groups),
             selectinload(Classification.votes),
         )
-        .where(Classification.obj_id == obj_id)
+        .where(Classification.obj_id.in_(aggregated_obj_ids))
     )
     readable_classifications = readable_classifications_result.unique().all()
 
@@ -524,12 +543,15 @@ async def get_source(
             source_info["gcn_crossmatch"].extend(
                 [gcn.dateobs for gcn in confirmed_in_gcn]
             )
-            source_info["gcn_crossmatch"] = list(set(source_info["gcn_crossmatch"]))
 
+        # Obj.gcn_crossmatch is an ARRAY(String), so its dateobs come as strings;
+        # normalize all to naive datetimes (deduping across types) so the
+        # GcnEvent.dateobs timestamp IN-filter gets correctly-typed params.
+        crossmatch_dateobs = list(
+            {arrow.get(dateobs).naive for dateobs in source_info["gcn_crossmatch"]}
+        )
         gcn_crossmatch_result = await session.scalars(
-            GcnEvent.select(user).where(
-                GcnEvent.dateobs.in_(source_info["gcn_crossmatch"])
-            )
+            GcnEvent.select(user).where(GcnEvent.dateobs.in_(crossmatch_dateobs))
         )
         source_info["gcn_crossmatch"] = gcn_crossmatch_result.unique().all()
 
@@ -570,7 +592,7 @@ async def get_source(
         tags_result = await session.scalars(
             ObjTag.select(user)
             .options(selectinload(ObjTag.objtagoption))
-            .where(ObjTag.obj_id == obj_id)
+            .where(ObjTag.obj_id.in_(aggregated_obj_ids))
         )
         tags = tags_result.all()
         tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
@@ -2013,6 +2035,7 @@ class SourceHandler(BaseHandler):
         include_candidates = self.get_query_argument("includeCandidates", False)
         include_tags = self.get_query_argument("includeTags", True)
         include_associated_objs = self.get_query_argument("includeAssociatedObjs", True)
+        include_super_objs = self.get_query_argument("includeSuperObjs", False)
 
         # optional, use caching
         use_cache = self.get_query_argument("useCache", False)
@@ -2152,6 +2175,7 @@ class SourceHandler(BaseHandler):
                         include_candidates=include_candidates,
                         include_tags=include_tags,
                         include_associated_objs=include_associated_objs,
+                        include_super_objs=include_super_objs,
                     )
                 except Exception as e:
                     traceback.print_exc()
@@ -2607,9 +2631,7 @@ class SourceOffsetsHandler(BaseHandler):
             num_offset_stars = self.get_query_argument("num_offset_stars", "3")
             use_ztfref = self.get_query_argument("use_ztfref", True)
 
-            obstime = self.get_query_argument(
-                "obstime", utcnow_naive().isoformat()
-            )
+            obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
             if not isinstance(isoparse(obstime), datetime.datetime):
                 return self.error("obstime is not valid isoformat")
 
@@ -2997,9 +3019,7 @@ class SourceFinderHandler(BaseHandler):
         facility = self.get_query_argument("facility", "Keck")
         image_source = self.get_query_argument("image_source", "ps1")
         use_ztfref = self.get_query_argument("use_ztfref", True)
-        obstime = self.get_query_argument(
-            "obstime", utcnow_naive().isoformat()
-        )
+        obstime = self.get_query_argument("obstime", utcnow_naive().isoformat())
         if not isinstance(isoparse(obstime), datetime.datetime):
             return self.error("obstime is not valid isoformat")
         output_type = self.get_query_argument("type", "pdf")
@@ -3512,12 +3532,10 @@ class SourceCopyPhotometryHandler(BaseHandler):
                 **df.to_dict(orient="list"),
             }
 
-            # add_external_photometry is sync and uses its own scoped
-            # session — calling it from async is acceptable but blocks.
-            add_external_photometry(
+            await add_external_photometry(
                 data_out,
                 self.associated_user_object,
-                parent_session=None,
+                session,
                 refresh=True,
             )
 

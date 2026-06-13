@@ -1971,10 +1971,8 @@ class SyntheticPhotometryHandler(BaseHandler):
                     "group_ids": group_ids,
                     **df.to_dict(orient="list"),
                 }
-                # add_external_photometry is sync and uses its own scoped
-                # session — calling it from async is acceptable but blocks.
-                add_external_photometry(
-                    data_out, self.associated_user_object, parent_session=None
+                await add_external_photometry(
+                    data_out, self.associated_user_object, session
                 )
 
                 return self.success()

@@ -309,7 +309,7 @@ class PublicSourcePageHandler(BaseHandler):
         if release_id is not None and not isinstance(release_id, int):
             return self.error("Invalid release ID")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 source = await get_source(
                     obj_id=source_id,
@@ -323,6 +323,8 @@ class PublicSourcePageHandler(BaseHandler):
             if source is None:
                 return self.error("Source not found", status=404)
 
+        # get_source returns a plain dict; the publish helpers below are sync.
+        with self.Session() as session:
             release = None
             if release_id is not None:
                 release = session.scalar(
@@ -380,6 +382,10 @@ class PublicSourcePageHandler(BaseHandler):
         async with self.AsyncSession() as session:
             result = await session.scalars(
                 PublicSourcePage.select(session.user_or_token, mode="read")
+                .options(
+                    sa.orm.selectinload(PublicSourcePage.release),
+                    sa.orm.undefer(PublicSourcePage.data),
+                )
                 .where(
                     PublicSourcePage.source_id == source_id, PublicSourcePage.is_visible
                 )

@@ -238,11 +238,13 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
         `bulk_verify` runs on the legacy Query API but uses the same
         chain, so keeping them in lockstep avoids divergence.
         """
-        # Build the access-controlled Select WITHOUT projecting columns yet, so the
-        # admin join below still has Group/User in its FROM scope; baselayer's
-        # columns path wraps the select in a subquery (Group/User out of scope),
-        # so we project last instead.
-        stmt = super().select_accessible_rows(cls, user_or_token, columns=None)
+        # AccessibleIfUserMatches builds the columns select as
+        # select(*columns).select_from(cls) (Group/User stay in the FROM scope
+        # for the admin join below), so pass columns straight through. The
+        # ComposedAccessControl path aliases cls and requests columns=[alias.id];
+        # projecting via select_from keeps that single FROM (vs select(entity) +
+        # with_only_columns, which left a duplicate group_users FROM).
+        stmt = super().select_accessible_rows(cls, user_or_token, columns=columns)
         if not user_or_token.is_admin:
             group_user_subq = (
                 sa.select(GroupUser).where(GroupUser.admin.is_(True)).subquery()
@@ -254,8 +256,6 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
                     User.id == group_user_subq.c.user_id,
                 ),
             )
-        if columns is not None:
-            stmt = stmt.with_only_columns(*columns)
         return stmt
 
 

@@ -1,5 +1,4 @@
 import copy
-import datetime
 import json
 import traceback
 import uuid
@@ -17,7 +16,8 @@ from matplotlib import cm
 from matplotlib.colors import LinearSegmentedColormap, rgb2hex
 from sncosmo.photdata import PhotometricData
 from sqlalchemy import and_
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm import joinedload, load_only
 from sqlalchemy.sql import Values, column
 
 from baselayer.app.access import auth_or_token, permissions
@@ -34,7 +34,6 @@ from ...models import (
     GroupPhotometry,
     Instrument,
     Obj,
-    ObjToSuperObj,
     PhotometricSeries,
     Photometry,
     PhotStat,
@@ -51,6 +50,7 @@ from ...models.schema import (
     PhotometryRangeQuery,
 )
 from ...utils.extinction import calculate_extinction, deredden_flux
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import str_to_bool
 from ..base import BaseHandler, format_doc
 from .photometry_validation import USE_PHOTOMETRY_VALIDATION
@@ -84,11 +84,16 @@ class NumpyEncoder(json.JSONEncoder):
 
 
 def numpy_to_native(value):
-    """Convert a numpy scalar to a native Python type.
+    """Recursively convert numpy scalars and arrays inside ``value`` to
+    native Python types. Passes through anything that's already native.
 
-    In numpy 2.x, numpy scalars are no longer subclasses of Python
-    built-in types, which can cause issues with JSON serialization
-    and database adapters (e.g., psycopg2).
+    In numpy 2.x, numpy scalars are no longer subclasses of Python built-in
+    types, which can cause issues with JSON serialization and database
+    adapters (e.g., psycopg2/3 rejecting np.float64 in JSONB payloads).
+
+    Use this on a dict/list before handing it to ``pg_insert.values()`` for
+    a JSONB column, instead of a ``json.loads(json.dumps(..., NumpyEncoder))``
+    round-trip — same effect, no parse step.
     """
     if isinstance(value, np.integer):
         return int(value)
@@ -96,6 +101,12 @@ def numpy_to_native(value):
         return float(value)
     if isinstance(value, np.bool_):
         return bool(value)
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, dict):
+        return {k: numpy_to_native(v) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [numpy_to_native(x) for x in value]
     return value
 
 
@@ -280,38 +291,6 @@ def save_data_using_copy(rows, table, columns, session):
     output.close()
 
 
-async def save_data_using_copy_async(rows, table, columns, session):
-    """Async equivalent of ``save_data_using_copy``. Uses psycopg v3's async
-    COPY API on the AsyncSession's underlying raw async connection."""
-    output = StringIO()
-    df = pd.DataFrame.from_records(rows)
-    df.replace("NaN", "null", inplace=True)
-    df.replace(np.nan, "NaN", inplace=True)
-
-    df.to_csv(
-        output,
-        index=False,
-        sep="\t",
-        header=False,
-        encoding="utf8",
-        quotechar="'",
-    )
-    output.seek(0)
-
-    sa_conn = await session.connection()
-    raw_async_conn = await sa_conn.get_raw_connection()
-    psycopg_conn = raw_async_conn.driver_connection
-    quoted_columns = ", ".join(f'"{c}"' for c in columns)
-    copy_sql = (
-        f"COPY {table} ({quoted_columns}) FROM STDIN "
-        "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
-    )
-    async with psycopg_conn.cursor() as cursor:
-        async with cursor.copy(copy_sql) as copy:
-            await copy.write(output.getvalue())
-    output.close()
-
-
 def nan_to_none(value):
     """Coerce a value to None if it is nan, else return value."""
     try:
@@ -322,6 +301,76 @@ def nan_to_none(value):
 
 def allscalar(d):
     return all(np.isscalar(v) or v is None for v in d.values())
+
+
+# Columns required by _serialize_plot. The slim ObjPhotometry path applies
+# load_only(*PHOT_PLOT_COLUMNS) so the rest of the Photometry row (altdata,
+# ra/dec, snr, ref_*, etc.) stays deferred.
+PHOT_PLOT_COLUMNS = (
+    "id",
+    "obj_id",
+    "filter",
+    "mjd",
+    "origin",
+    "flux",
+    "fluxerr",
+    "original_user_data",
+)
+
+
+def _serialize_plot(phot, outsys):
+    """Slim serializer for the lightcurve-plotter payload.
+
+    Returns only the columns the front-end plot consumes
+    (id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag) and skips
+    every per-point auxiliary join (groups, annotations, instrument, owner,
+    streams, validations) plus the ref/tot/extinction blocks. Magnitudes are
+    converted into ``outsys`` the same way the full ``serialize`` does.
+    """
+    filter = phot.filter
+
+    if filter == "swiftxrt":
+        outsys = "ab"
+
+    magsys_db = sncosmo.get_magsystem("ab")
+    outsys_ms = sncosmo.get_magsystem(outsys)
+
+    try:
+        relzp_out = 2.5 * np.log10(outsys_ms.zpbandflux(filter))
+        relzp_db = 2.5 * np.log10(magsys_db.zpbandflux(filter))
+        db_correction = relzp_out - relzp_db
+        corrected_db_zp = PHOT_ZP + db_correction
+
+        if (
+            phot.original_user_data is not None
+            and "limiting_mag" in phot.original_user_data
+        ):
+            magsys_packet = sncosmo.get_magsystem(phot.original_user_data["magsys"])
+            relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
+            packet_correction = relzp_out - relzp_packet
+            maglimit = float(phot.original_user_data["limiting_mag"])
+            maglimit_out = maglimit + packet_correction
+        else:
+            maglimit_out = -2.5 * np.log10(5 * phot.fluxerr) + corrected_db_zp
+
+        return {
+            "id": phot.id,
+            "obj_id": phot.obj_id,
+            "filter": filter,
+            "mjd": phot.mjd,
+            "origin": phot.origin,
+            "mag": (phot.mag + db_correction)
+            if nan_to_none(phot.mag) is not None
+            else None,
+            "magerr": phot.e_mag if nan_to_none(phot.e_mag) is not None else None,
+            "limiting_mag": maglimit_out,
+        }
+    except ValueError as e:
+        raise ValueError(
+            f"Could not serialize phot_id: {phot.id} "
+            f"on obj {phot.obj_id} with filter: {filter},  "
+            f"due to error: {e}"
+        )
 
 
 def serialize(
@@ -336,6 +385,8 @@ def serialize(
     validation=False,
     extinction_dict=None,
 ):
+    if format == "plot":
+        return _serialize_plot(phot, outsys)
     return_value = {
         "obj_id": phot.obj_id,
         "ra": phot.ra,
@@ -532,7 +583,7 @@ def serialize(
     return return_value
 
 
-def standardize_photometry_data(data, session):
+async def standardize_photometry_data(data, session):
     if not isinstance(data, dict):
         raise ValidationError(
             f"Top level JSON must be an instance of `dict`, got {type(data)}."
@@ -799,255 +850,6 @@ def standardize_photometry_data(data, session):
 
     instrument_cache = {}
     for iid in df["instrument_id"].unique():
-        instrument = session.scalar(
-            sa.select(Instrument).where(Instrument.id == int(iid))
-        )
-        if not instrument:
-            raise ValidationError(f"Invalid instrument ID: {iid}")
-        instrument_cache[iid] = instrument
-
-    # convert the object IDs to str datatype
-    df["obj_id"] = df["obj_id"].astype(str)
-
-    for oid in df["obj_id"].unique():
-        obj = session.scalar(sa.select(Obj).where(Obj.id == str(oid)))
-        if not obj:
-            raise ValidationError(f"Invalid object ID: {oid}")
-
-    return df, instrument_cache
-
-
-async def standardize_photometry_data_async(data, session):
-    """Async equivalent of ``standardize_photometry_data``. Does the same
-    pure-Python normalization, then validates instruments/objs via async
-    session queries."""
-    if not isinstance(data, dict):
-        raise ValidationError(
-            f"Top level JSON must be an instance of `dict`, got {type(data)}."
-        )
-
-    max_num_elements = max(
-        [
-            len(data[key])
-            for key in data
-            if isinstance(data[key], list | tuple)
-            and key not in ["group_ids", "stream_ids"]
-        ]
-        + [1]
-    )
-
-    if "altdata" in data and not data["altdata"]:
-        del data["altdata"]
-    if "altdata" in data:
-        if isinstance(data["altdata"], dict):
-            for key in data["altdata"]:
-                if isinstance(data["altdata"][key], list):
-                    if len(data["altdata"][key]) != max_num_elements:
-                        if len(data["altdata"][key]) == 1:
-                            data["altdata"][key] = (
-                                data["altdata"][key] * max_num_elements
-                            )
-                        else:
-                            raise ValueError(f"{key} in altdata incorrect length")
-                elif max_num_elements > 1:
-                    data["altdata"][key] = [data["altdata"][key]] * max_num_elements
-
-            altdata = data.pop("altdata")
-            try:
-                df = pd.DataFrame(altdata)
-            except ValueError:
-                df = pd.DataFrame(altdata, index=[0])
-            altdata = df.to_dict(orient="records")
-        else:
-            altdata = data.pop("altdata")
-    else:
-        altdata = None
-
-    try:
-        data = PhotMagFlexible.load(data)
-    except ValidationError as e1:
-        try:
-            data = PhotFluxFlexible.load(data)
-        except ValidationError as e2:
-            raise ValidationError(
-                "Invalid input format: Tried to parse data "
-                f"in mag space, got: "
-                f'"{e1.normalized_messages()}." Tried '
-                f"to parse data in flux space, got:"
-                f' "{e2.normalized_messages()}."'
-            )
-        else:
-            kind = "flux"
-    else:
-        kind = "mag"
-
-    data.pop("group_ids", None)
-    data.pop("stream_ids", None)
-
-    if allscalar(data):
-        data = [data]
-
-    try:
-        if max_num_elements == 1:
-            df = pd.DataFrame(data, index=[0])
-        else:
-            df = pd.DataFrame(data)
-    except ValueError as e:
-        raise ValidationError(
-            f'Unable to coerce passed JSON to a series of packets. Error was: "{e}"'
-        )
-
-    if altdata is not None and len(altdata) > 0:
-        for index, e in enumerate(altdata):
-            altdata[index] = (
-                {k: v for k, v in e.items() if v not in [None, ""]}
-                if not all(v in [None, ""] for v in e.values())
-                else None
-            )
-        df["altdata"] = altdata
-
-    df = df.apply(to_numeric)
-
-    if "origin" in df.columns:
-        df["origin"] = df["origin"].astype(object)
-        df.loc[df["origin"].isna(), "origin"] = "None"
-    ref_phot_table = None
-
-    if kind == "mag":
-        magnull = df["mag"].isna()
-        magerrnull = df["magerr"].isna()
-        magdet = ~magnull
-
-        bad = (magerrnull ^ magnull).values
-
-        if any(bad):
-            first_offender = np.argwhere(bad)[0, 0]
-            packet = df.iloc[first_offender].to_dict()
-            for key in packet:
-                if key != "standardized_flux":
-                    packet[key] = nan_to_none(packet[key])
-            raise ValidationError(
-                f'Error parsing packet "{packet}": mag '
-                f"and magerr must both be null, or both be "
-                f"not null."
-            )
-
-        for field in ["mag", "magerr", "limiting_mag"]:
-            try:
-                infinite = np.isinf(df[field].values)
-            except TypeError:
-                raise ValidationError(
-                    f"Some values in the {field} field are not numeric."
-                )
-            if any(infinite):
-                first_offender = np.argwhere(infinite)[0, 0]
-                packet = df.iloc[first_offender].to_dict()
-                for key in packet:
-                    packet[key] = nan_to_none(packet[key])
-                raise ValidationError(
-                    f'Error parsing packet "{packet}": field {field} must be finite.'
-                )
-
-        for field in PhotMagFlexible.required_keys:
-            missing = df[field].isna()
-            if any(missing):
-                first_offender = np.argwhere(missing.values)[0, 0]
-                packet = df.iloc[first_offender].to_dict()
-                for key in packet:
-                    packet[key] = nan_to_none(packet[key])
-                raise ValidationError(
-                    f'Error parsing packet "{packet}": missing required field {field}.'
-                )
-
-        detflux = 10 ** (-0.4 * (df[magdet]["mag"] - PHOT_ZP))
-        detfluxerr = df[magdet]["magerr"] / (2.5 / np.log(10)) * detflux
-
-        limmag_flux = 10 ** (-0.4 * (df[magnull]["limiting_mag"] - PHOT_ZP))
-        ndetfluxerr = limmag_flux / df[magnull]["limiting_mag_nsigma"]
-
-        phot_table = Table.from_pandas(df[["mjd", "magsys", "filter"]])
-
-        phot_table["zp"] = PHOT_ZP
-        phot_table["flux"] = np.nan
-        phot_table["fluxerr"] = np.nan
-        phot_table["flux"][magdet] = detflux
-        phot_table["fluxerr"][magdet] = detfluxerr
-        phot_table["fluxerr"][magnull] = ndetfluxerr
-
-        if "magref" in df.columns and "e_magref" in df.columns:
-            ref_phot_table = Table.from_pandas(df[["mjd", "magsys", "filter"]])
-            magref = df["magref"].fillna(np.nan)
-            ref_phot_table["flux"] = 10 ** (-0.4 * (magref - PHOT_ZP))
-            ref_phot_table["fluxerr"] = (
-                df["e_magref"] / (2.5 / np.log(10)) * ref_phot_table["flux"]
-            )
-            ref_phot_table["zp"] = PHOT_ZP
-
-    else:
-        for field in PhotFluxFlexible.required_keys:
-            missing = df[field].isna().values
-            if any(missing):
-                first_offender = np.argwhere(missing)[0, 0]
-                packet = df.iloc[first_offender].to_dict()
-                for key in packet:
-                    packet[key] = nan_to_none(packet[key])
-                raise ValidationError(
-                    f'Error parsing packet "{packet}": missing required field {field}.'
-                )
-
-        for field in ["flux", "fluxerr"]:
-            infinite = np.isinf(df[field].values)
-            if any(infinite):
-                first_offender = np.argwhere(infinite)[0, 0]
-                packet = df.iloc[first_offender].to_dict()
-                for key in packet:
-                    packet[key] = nan_to_none(packet[key])
-                raise ValidationError(
-                    f'Error parsing packet "{packet}": field {field} must be finite.'
-                )
-
-        phot_table = Table.from_pandas(df[["mjd", "magsys", "filter", "zp"]])
-        phot_table["flux"] = df["flux"].fillna(np.nan)
-        phot_table["fluxerr"] = df["fluxerr"].fillna(np.nan)
-
-        if "ref_flux" in df.columns and "ref_fluxerr" in df.columns:
-            ref_phot_table = Table.from_pandas(df[["mjd", "magsys", "filter"]])
-            ref_phot_table["flux"] = df["ref_flux"].fillna(np.nan)
-            ref_phot_table["fluxerr"] = df["ref_fluxerr"].fillna(np.nan)
-            if "ref_zp" in df.columns:
-                ref_phot_table["zp"] = df["ref_zp"].fillna(np.nan)
-            else:
-                ref_phot_table["zp"] = PHOT_ZP
-
-    unknown_filters = set(phot_table["filter"]).difference(ALLOWED_BANDPASSES)
-    if len(unknown_filters) > 0:
-        raise ValidationError(
-            f"Filter(s) {unknown_filters} is not allowed. "
-            f"Allowed filters are: {ALLOWED_BANDPASSES}"
-        )
-
-    pdata = PhotometricData(phot_table)
-    try:
-        standardized = pdata.normalized(zp=PHOT_ZP, zpsys="ab")
-    except Exception as e:
-        raise ValidationError(f"Error standardizing photometry data: {e}.")
-
-    df["standardized_flux"] = standardized.flux
-    df["standardized_fluxerr"] = standardized.fluxerr
-
-    if ref_phot_table:
-        ref_pdata = PhotometricData(ref_phot_table)
-        try:
-            ref_standardized = ref_pdata.normalized(zp=PHOT_ZP, zpsys="ab")
-        except Exception as e:
-            raise ValidationError(
-                f"Error standardizing reference photometry data: {e}."
-            )
-        df["ref_standardized_flux"] = ref_standardized.flux
-        df["ref_standardized_fluxerr"] = ref_standardized.fluxerr
-
-    instrument_cache = {}
-    for iid in df["instrument_id"].unique():
         instrument = await session.scalar(
             sa.select(Instrument).where(Instrument.id == int(iid))
         )
@@ -1055,6 +857,7 @@ async def standardize_photometry_data_async(data, session):
             raise ValidationError(f"Invalid instrument ID: {iid}")
         instrument_cache[iid] = instrument
 
+    # convert the object IDs to str datatype
     df["obj_id"] = df["obj_id"].astype(str)
 
     for oid in df["obj_id"].unique():
@@ -1138,7 +941,129 @@ def get_values_table_and_condition(df, ignore_flux=False):
     return values_table, condition
 
 
-def insert_new_photometry_data(
+# Per-column coercions applied when building a dedup key from either an
+# input param dict (raw user data, may contain numpy scalars) or a row
+# returned from RETURNING (driver types). Columns not listed pass through
+# unchanged. Keep aligned with Photometry.DEDUP_COLUMNS.
+_DEDUP_COERCIONS = {
+    "origin": str,
+    "mjd": float,
+    "fluxerr": float,
+    "flux": float,
+}
+
+
+def _dedup_key(row):
+    """Normalize a row (dict or ORM result) into the canonical deduplication
+    key tuple matching the Photometry.DEDUP_COLUMNS columns. Coercing types
+    here lets us treat returned rows and input params interchangeably in
+    the id_by_key map.
+    """
+    if isinstance(row, dict):
+        get = row.get
+    else:
+        get = lambda k: getattr(row, k)  # noqa: E731
+    return tuple(
+        _DEDUP_COERCIONS.get(c, lambda x: x)(get(c)) for c in Photometry.DEDUP_COLUMNS
+    )
+
+
+async def bulk_upsert_photometry(session, params, duplicates):
+    """Atomic INSERT … ON CONFLICT on the photometry deduplication index.
+
+    Replaces the older "LOCK TABLE then check-then-insert" pattern. The lock
+    used to be necessary because the duplicate-check and the insert were
+    separate statements; with ON CONFLICT the conflict resolution happens
+    inside the INSERT and PostgreSQL handles the serialization at row level
+    via the unique index.
+
+    Parameters
+    ----------
+    session: sqlalchemy.orm.Session
+    params: list[dict]
+        Photometry rows ready for INSERT (all columns present).
+    duplicates: str
+        - "error":  ON CONFLICT DO NOTHING. If any row conflicts with an
+                    existing one, raises ValidationError listing the
+                    duplicate keys (preserves the old validate=True behavior
+                    visible to API clients).
+        - "ignore": ON CONFLICT DO NOTHING. Returns existing rows' IDs so
+                    the caller can wire up group/stream rows even for the
+                    skipped photometry rows.
+        - "update": ON CONFLICT DO UPDATE on the non-key columns. Atomic
+                    upsert; the previous worker's row is overwritten with
+                    the new values.
+
+    Returns
+    -------
+    list[int]
+        Photometry IDs in the same order as input params.
+    """
+    if not params:
+        return []
+
+    # Approach: ON CONFLICT DO UPDATE with a self-assignment (`id = id`) is a
+    # no-op at the row level but tells PostgreSQL to emit the row in RETURNING.
+    # For "update", we use the real non-key column set instead. For "error",
+    # we use DO NOTHING — the missing rows in RETURNING ARE the conflicts,
+    # and that's what we report.
+    #
+    # SQLAlchemy's insertmanyvalues machinery preserves input-row order in
+    # RETURNING when DO UPDATE always emits a row (one RETURNING row per
+    # input row, in order). For DO NOTHING, RETURNING is sparse — only
+    # actually-inserted rows show up — so we can't rely on positional
+    # correspondence; we error out instead.
+    stmt = pg_insert(Photometry).values(params)
+    if duplicates == "error":
+        stmt = stmt.on_conflict_do_nothing(
+            index_elements=list(Photometry.DEDUP_COLUMNS),
+        )
+    elif duplicates == "ignore":
+        # No-op set: keep the existing row exactly as-is, but emit it in
+        # RETURNING so we can read back its id.
+        stmt = stmt.on_conflict_do_update(
+            index_elements=list(Photometry.DEDUP_COLUMNS),
+            set_={"id": Photometry.id},
+        )
+    elif duplicates == "update":
+        non_key_cols = {col.name for col in Photometry.__table__.columns} - {
+            *Photometry.DEDUP_COLUMNS,
+            "id",
+            "created_at",
+        }
+        stmt = stmt.on_conflict_do_update(
+            index_elements=list(Photometry.DEDUP_COLUMNS),
+            set_={c: stmt.excluded[c] for c in non_key_cols},
+        )
+    else:
+        raise ValueError(f"bulk_upsert_photometry: invalid duplicates={duplicates!r}")
+
+    stmt = stmt.returning(
+        Photometry.id,
+        *(getattr(Photometry, c) for c in Photometry.DEDUP_COLUMNS),
+    )
+    result = await session.execute(stmt)
+    returned = result.all()
+
+    if duplicates == "error":
+        # Sparse RETURNING — rows missing from it conflicted with existing.
+        if len(returned) < len(params):
+            returned_keys = {_dedup_key(r) for r in returned}
+            missing = [
+                _dedup_key(p) for p in params if _dedup_key(p) not in returned_keys
+            ]
+            raise ValidationError(
+                f"The following photometry already exists in the database "
+                f"(deduplication keys: obj_id, instrument_id, origin, mjd, "
+                f"fluxerr, flux): {missing}"
+            )
+        return [r.id for r in returned]
+
+    # ignore/update: RETURNING is one row per input row, in input order.
+    return [r.id for r in returned]
+
+
+async def insert_new_photometry_data(
     df,
     instrument_cache,
     group_ids,
@@ -1147,38 +1072,14 @@ def insert_new_photometry_data(
     session,
     validate=True,
     refresh=False,
+    duplicates=None,
 ):
-    # check for existing photometry and error if any is found
-    if validate:
-        values_table, condition = get_values_table_and_condition(df)
-
-        duplicated_photometry = (
-            session.execute(sa.select(Photometry).join(values_table, condition))
-            .scalars()
-            .all()
-        )
-
-        dict_rep = [d.to_dict() for d in duplicated_photometry]
-
-        if len(dict_rep) > 0:
-            raise ValidationError(
-                f"The following photometry already exists in the database: {dict_rep}."
-            )
-
-    # pre-fetch the photometry PKs. these are not guaranteed to be
-    # gapless (e.g., 1, 2, 3, 4, 5, ...) but they are guaranteed
-    # to be unique in the table and thus can be used to "reserve"
-    # PK slots for uninserted rows
-
-    pkq = sa.text(
-        f"SELECT nextval('photometry_id_seq') FROM generate_series(1, {len(df)})"
-    )
-
-    proxy = session.execute(pkq)
-
-    # cache this as list for response
-    ids = [i[0] for i in proxy]
-    df["id"] = ids
+    # validate=True ⇒ ON CONFLICT DO NOTHING + raise if any row conflicted
+    # (preserves the user-visible "duplicates already exist" error path).
+    # validate=False ⇒ ON CONFLICT DO NOTHING but silently return existing IDs
+    # (the PUT upsert path's "new rows" branch where the pre-check already ran).
+    if duplicates is None:
+        duplicates = "error" if validate else "ignore"
 
     df = df.where(pd.notnull(df), None)
     df.loc[df["standardized_flux"].isna(), "standardized_flux"] = np.nan
@@ -1187,8 +1088,6 @@ def insert_new_photometry_data(
     upload_id = str(uuid.uuid4())
 
     params = []
-    group_photometry_params = []
-    stream_photometry_params = []
     for packet in rows:
         if (
             instrument_cache[packet["instrument_id"]].type == "imager"
@@ -1209,15 +1108,23 @@ def insert_new_photometry_data(
         if original_user_data == {}:
             original_user_data = None
 
-        utcnow = datetime.datetime.utcnow().isoformat()
+        utcnow = utcnow_naive()
+        # original_user_data and altdata are JSONB columns; with pg_insert.values()
+        # SQLAlchemy serializes Python dicts via the column type, so we pass
+        # the raw structures (None or dict). The old COPY path needed
+        # json.dumps() strings because COPY's text protocol interprets them
+        # as JSON literals on the wire. Also normalize NaN→None (pandas leaks
+        # NaN for missing cells in object columns, and JSONB rejects NaN).
+        altdata_val = packet.get("altdata")
+        if isinstance(altdata_val, float) and np.isnan(altdata_val):
+            altdata_val = None
         phot = {
-            "id": packet["id"],
-            "original_user_data": json.dumps(original_user_data, cls=NumpyEncoder),
+            "original_user_data": numpy_to_native(original_user_data),
             "upload_id": upload_id,
             "flux": flux,
             "fluxerr": fluxerr,
             "obj_id": packet["obj_id"],
-            "altdata": json.dumps(packet.get("altdata"), cls=NumpyEncoder),
+            "altdata": numpy_to_native(altdata_val),
             "instrument_id": packet["instrument_id"],
             "ra_unc": packet["ra_unc"],
             "dec_unc": packet["dec_unc"],
@@ -1240,303 +1147,120 @@ def insert_new_photometry_data(
 
         params.append(phot)
 
-        for group_id in group_ids:
-            group_photometry_params.append(
-                {
-                    "photometr_id": packet["id"],
-                    "group_id": group_id,
-                    "created_at": utcnow,
-                    "modified": utcnow,
-                }
-            )
+    # Atomic upsert via INSERT ... ON CONFLICT on the deduplication index.
+    # Returns IDs in the same order as params; raises ValidationError for
+    # duplicates="error" if any row conflicted with an existing one.
+    ids = await bulk_upsert_photometry(session, params, duplicates=duplicates)
+    # Stitch the returned IDs back onto each param so we can build join rows.
+    for packet, pid in zip(params, ids):
+        packet["id"] = pid
 
-        for stream_id in stream_ids:
-            stream_photometry_params.append(
-                {
-                    "photometr_id": packet["id"],
-                    "stream_id": stream_id,
-                    "created_at": utcnow,
-                    "modified": utcnow,
-                }
-            )
-
-    if len(params) > 0:
-        save_data_using_copy(
-            params,
-            "photometry",
-            (
-                "id",
-                "original_user_data",
-                "upload_id",
-                "flux",
-                "fluxerr",
-                "obj_id",
-                "altdata",
-                "instrument_id",
-                "ra_unc",
-                "dec_unc",
-                "mjd",
-                "filter",
-                "ra",
-                "dec",
-                "origin",
-                "owner_id",
-                "created_at",
-                "modified",
-                "ref_flux",
-                "ref_fluxerr",
-            ),
-            session=session,
+    # group_photometry and stream_photometry both have unique indexes on the
+    # (group_id, photometr_id) and (stream_id, photometr_id) pairs respectively,
+    # so concurrent workers re-inserting the same association must use
+    # ON CONFLICT DO NOTHING to avoid IntegrityError.
+    group_photometry_params = [
+        {
+            "photometr_id": packet["id"],
+            "group_id": gid,
+            "created_at": packet["created_at"],
+            "modified": packet["modified"],
+        }
+        for packet in params
+        for gid in group_ids
+    ]
+    if group_photometry_params:
+        gp_stmt = pg_insert(GroupPhotometry).values(group_photometry_params)
+        gp_stmt = gp_stmt.on_conflict_do_nothing(
+            index_elements=["group_id", "photometr_id"]
         )
+        await session.execute(gp_stmt)
 
-    if len(group_photometry_params) > 0:
-        # Bulk COPY in the group_photometry records
-        save_data_using_copy(
-            group_photometry_params,
-            "group_photometry",
-            ("photometr_id", "group_id", "created_at", "modified"),
-            session=session,
+    stream_photometry_params = [
+        {
+            "photometr_id": packet["id"],
+            "stream_id": sid,
+            "created_at": packet["created_at"],
+            "modified": packet["modified"],
+        }
+        for packet in params
+        for sid in stream_ids
+    ]
+    if stream_photometry_params:
+        sp_stmt = pg_insert(StreamPhotometry).values(stream_photometry_params)
+        sp_stmt = sp_stmt.on_conflict_do_nothing(
+            index_elements=["stream_id", "photometr_id"]
         )
+        await session.execute(sp_stmt)
 
-    if len(stream_photometry_params) > 0:
-        # Bulk COPY in the stream_photometry records
-        save_data_using_copy(
-            stream_photometry_params,
-            "stream_photometry",
-            ("photometr_id", "stream_id", "created_at", "modified"),
-            session=session,
+    # PhotStat update. PhotStat.obj_id has a UNIQUE constraint, so we can
+    # atomically ensure-then-lock a single row per obj:
+    #   1. INSERT … ON CONFLICT DO NOTHING — creates the row if missing, no-op
+    #      if a concurrent worker already inserted it.
+    #   2. SELECT … FOR UPDATE — row-level lock for the read-modify-write below.
+    #
+    # Branch on `duplicates`:
+    # - "error": every row in params was freshly inserted (any pre-existing
+    #   row would have raised), so the cheap per-point add is correct and
+    #   safe under the row lock.
+    # - "ignore"/"update": params may include rows that already existed
+    #   pre-call; the per-point path would double-count or miss updates,
+    #   so we full_update from the photometry table.
+    #
+    # The full_update path is also taken for large batches (>50 rows) where
+    # the per-point path is slower than a single recompute. The loaded
+    # `all_phot` rows are expunged from the session immediately afterward so
+    # the _VerifiedSession RLS read-check doesn't iterate them at commit time.
+    obj_id = params[0]["obj_id"]
+    # Initial values mirror PhotStat.__init__ — needed because raw pg_insert
+    # bypasses the ORM-side __init__ that initializes the nullable JSONB
+    # dict/list columns (add_photometry_point indexes into them and would
+    # blow up on NULL otherwise).
+    #
+    # RETURNING id tells us whether the row was actually inserted (vs the
+    # on_conflict_do_nothing branch). A freshly-inserted row has never been
+    # full_update'd, so it must take the full_update path below to populate
+    # last_full_update etc. — matches the old "if phot_stat is None" branch.
+    inserted_id = await session.scalar(
+        pg_insert(PhotStat)
+        .values(
+            obj_id=obj_id,
+            num_obs_per_filter={},
+            num_det_per_filter={},
+            predetection_mjds=[],
+            mean_mag_per_filter={},
+            mean_color={},
+            peak_mjd_per_filter={},
+            peak_mag_per_filter={},
+            faintest_mag_per_filter={},
+            deepest_limit_per_filter={},
+            mag_rms_per_filter={},
         )
-
-    # add a phot stats for each photometry
-    obj_id = phot["obj_id"]
-    phot_stat = session.scalars(
-        sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
-    ).first()
-    # if there are a lot of new points, should just
-    # pull up all the photometry and recalculate
-    # instead of adding them one-by-one
-    if phot_stat is None or len(params) > 50:
-        all_phot = session.scalars(
-            sa.select(Photometry).where(Photometry.obj_id == obj_id)
-        ).all()
-
-        if phot_stat is None:
-            phot_stat = PhotStat(obj_id=obj_id)
-
-        phot_stat.full_update(all_phot)
-
+        .on_conflict_do_nothing(index_elements=["obj_id"])
+        .returning(PhotStat.id)
+    )
+    newly_created = inserted_id is not None
+    phot_stat_result = await session.scalars(
+        sa.select(PhotStat).where(PhotStat.obj_id == obj_id).with_for_update()
+    )
+    phot_stat = phot_stat_result.first()
+    use_fast_path = not newly_created and duplicates == "error" and len(params) <= 50
+    if use_fast_path:
+        for packet in params:
+            phot_stat.add_photometry_point(packet)
     else:
-        for phot in params:
-            phot_stat.add_photometry_point(phot)
-
-    session.add(phot_stat)
-    session.commit()  # add the updated phot_stats and release any potential locks on the Photometry table
-
-    if refresh:
-        flow = Flow()
-        # grab the list of unique obj_ids
-        obj_ids = df["obj_id"].unique()
-        for obj_id in obj_ids:
-            internal_key = session.scalar(
-                sa.select(Obj.internal_key).where(Obj.id == obj_id)
-            )
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": internal_key},
-            )
-
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": obj_id},
-            )
-
-    return ids, upload_id
-
-
-async def insert_new_photometry_data_async(
-    df,
-    instrument_cache,
-    group_ids,
-    stream_ids,
-    user,
-    session,
-    validate=True,
-    refresh=False,
-):
-    """Async equivalent of ``insert_new_photometry_data``."""
-    if validate:
-        values_table, condition = get_values_table_and_condition(df)
-
-        result = await session.execute(
-            sa.select(Photometry).join(values_table, condition)
-        )
-        duplicated_photometry = result.scalars().all()
-
-        dict_rep = [d.to_dict() for d in duplicated_photometry]
-
-        if len(dict_rep) > 0:
-            raise ValidationError(
-                f"The following photometry already exists in the database: {dict_rep}."
-            )
-
-    pkq = sa.text(
-        f"SELECT nextval('photometry_id_seq') FROM generate_series(1, {len(df)})"
-    )
-
-    proxy = await session.execute(pkq)
-
-    ids = [i[0] for i in proxy]
-    df["id"] = ids
-
-    df = df.where(pd.notnull(df), None)
-    df.loc[df["standardized_flux"].isna(), "standardized_flux"] = np.nan
-
-    rows = df.to_dict("records")
-    upload_id = str(uuid.uuid4())
-
-    params = []
-    group_photometry_params = []
-    stream_photometry_params = []
-    for packet in rows:
-        if (
-            instrument_cache[packet["instrument_id"]].type == "imager"
-            and packet["filter"]
-            not in instrument_cache[packet["instrument_id"]].filters
-        ):
-            instrument = instrument_cache[packet["instrument_id"]]
-            raise ValidationError(
-                f"Instrument {instrument.name} has no filter {packet['filter']}."
-            )
-
-        flux = packet.pop("standardized_flux")
-        fluxerr = packet.pop("standardized_fluxerr")
-
-        keys = ["limiting_mag", "magsys", "limiting_mag_nsigma"]
-        original_user_data = {key: packet[key] for key in keys if key in packet}
-        if original_user_data == {}:
-            original_user_data = None
-
-        utcnow = datetime.datetime.utcnow().isoformat()
-        phot = {
-            "id": packet["id"],
-            "original_user_data": json.dumps(original_user_data, cls=NumpyEncoder),
-            "upload_id": upload_id,
-            "flux": flux,
-            "fluxerr": fluxerr,
-            "obj_id": packet["obj_id"],
-            "altdata": json.dumps(packet.get("altdata"), cls=NumpyEncoder),
-            "instrument_id": packet["instrument_id"],
-            "ra_unc": packet["ra_unc"],
-            "dec_unc": packet["dec_unc"],
-            "mjd": packet["mjd"],
-            "filter": packet["filter"],
-            "ra": packet["ra"],
-            "dec": packet["dec"],
-            "origin": packet["origin"],
-            "owner_id": user.id,
-            "created_at": utcnow,
-            "modified": utcnow,
-        }
-
-        if "ref_standardized_flux" in packet:
-            phot["ref_flux"] = packet.pop("ref_standardized_flux")
-            phot["ref_fluxerr"] = packet.pop("ref_standardized_fluxerr")
-        else:
-            phot["ref_flux"] = None
-            phot["ref_fluxerr"] = None
-
-        params.append(phot)
-
-        for group_id in group_ids:
-            group_photometry_params.append(
-                {
-                    "photometr_id": packet["id"],
-                    "group_id": group_id,
-                    "created_at": utcnow,
-                    "modified": utcnow,
-                }
-            )
-
-        for stream_id in stream_ids:
-            stream_photometry_params.append(
-                {
-                    "photometr_id": packet["id"],
-                    "stream_id": stream_id,
-                    "created_at": utcnow,
-                    "modified": utcnow,
-                }
-            )
-
-    if len(params) > 0:
-        await save_data_using_copy_async(
-            params,
-            "photometry",
-            (
-                "id",
-                "original_user_data",
-                "upload_id",
-                "flux",
-                "fluxerr",
-                "obj_id",
-                "altdata",
-                "instrument_id",
-                "ra_unc",
-                "dec_unc",
-                "mjd",
-                "filter",
-                "ra",
-                "dec",
-                "origin",
-                "owner_id",
-                "created_at",
-                "modified",
-                "ref_flux",
-                "ref_fluxerr",
-            ),
-            session=session,
-        )
-
-    if len(group_photometry_params) > 0:
-        await save_data_using_copy_async(
-            group_photometry_params,
-            "group_photometry",
-            ("photometr_id", "group_id", "created_at", "modified"),
-            session=session,
-        )
-
-    if len(stream_photometry_params) > 0:
-        await save_data_using_copy_async(
-            stream_photometry_params,
-            "stream_photometry",
-            ("photometr_id", "stream_id", "created_at", "modified"),
-            session=session,
-        )
-
-    obj_id = phot["obj_id"]
-    phot_stat = await session.scalar(
-        sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
-    )
-    if phot_stat is None or len(params) > 50:
         all_phot_result = await session.scalars(
             sa.select(Photometry).where(Photometry.obj_id == obj_id)
         )
         all_phot = all_phot_result.all()
-
-        if phot_stat is None:
-            phot_stat = PhotStat(obj_id=obj_id)
-
         phot_stat.full_update(all_phot)
-    else:
-        for phot in params:
-            phot_stat.add_photometry_point(phot)
-
-    session.add(phot_stat)
+        for p in all_phot:
+            session.expunge(p)
     await session.commit()
 
     if refresh:
         flow = Flow()
+        # grab the list of unique obj_ids
         obj_ids = df["obj_id"].unique()
         for obj_id in obj_ids:
             internal_key = await session.scalar(
@@ -1557,56 +1281,13 @@ async def insert_new_photometry_data_async(
     return ids, upload_id
 
 
-def get_group_ids(data, user, parent_session=None):
-    if parent_session is None:
-        session = DBSession()
-    else:
-        session = parent_session
+async def get_group_ids(data, user, session):
+    """Resolve and validate the group_ids in a photometry-post payload.
 
-    group_ids = data.pop("group_ids", [])
-    if isinstance(group_ids, list | tuple):
-        try:
-            group_ids = {int(group_id) for group_id in group_ids}
-        except ValueError:
-            raise ValidationError(
-                "Invalid format for group_ids parameter. Must be a list of integers."
-            )
-        groups = (
-            session.scalars(sa.select(Group).where(Group.id.in_(list(group_ids))))
-            .unique()
-            .all()
-        )
-        available_group_ids = {group.id for group in groups}
-        diff_group_ids = group_ids - available_group_ids
-        if diff_group_ids:
-            raise ValidationError(
-                f"Invalid group IDs: {diff_group_ids}. Available group IDs: {available_group_ids}"
-            )
-    elif group_ids == "all":
-        public_group = session.scalar(
-            sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
-        )
-        if public_group is None:
-            raise ValidationError(
-                f"Public group {cfg['misc.public_group_name']} not found."
-            )
-        group_ids = {public_group.id}
-    else:
-        raise ValidationError(
-            "Invalid group_ids parameter value. Must be a list of IDs "
-            "(integers) or the string 'all'."
-        )
-
-    group_ids = list(group_ids)
-    # always add the single user group
-    if user.single_user_group.id not in group_ids:
-        group_ids.append(user.single_user_group.id)
-
-    return group_ids
-
-
-async def get_group_ids_async(data, user, session):
-    """Async equivalent of ``get_group_ids``. ``session`` is an AsyncSession."""
+    `session` is an AsyncSession. `user.single_user_group` would be a lazy
+    relationship load under async, which raises MissingGreenlet — we look the
+    single-user-group id up via an explicit query instead.
+    """
     group_ids = data.pop("group_ids", [])
     if isinstance(group_ids, list | tuple):
         try:
@@ -1641,7 +1322,6 @@ async def get_group_ids_async(data, user, session):
         )
 
     group_ids = list(group_ids)
-    # always add the single user group — re-fetch via async session
     single_user_group_id = await session.scalar(
         sa.select(Group.id).where(
             Group.single_user_group.is_(True), Group.users.any(id=user.id)
@@ -1653,40 +1333,10 @@ async def get_group_ids_async(data, user, session):
     return group_ids
 
 
-def get_stream_ids(data, user, parent_session=None):
-    if parent_session is None:
-        session = DBSession()
-    else:
-        session = parent_session
-    stream_ids = data.pop("stream_ids", [])
-    if isinstance(stream_ids, list | tuple):
-        try:
-            stream_ids = {int(stream_id) for stream_id in stream_ids}
-        except ValueError:
-            raise ValidationError(
-                "Invalid format for stream_ids parameter. Must be a list of integers."
-            )
-        streams = (
-            session.scalars(Stream.select(user).where(Stream.id.in_(list(stream_ids))))
-            .unique()
-            .all()
-        )
-        available_stream_ids = {stream.id for stream in streams}
-        diff_stream_ids = stream_ids - available_stream_ids
-        if diff_stream_ids:
-            raise ValidationError(
-                f"Invalid stream IDs: {diff_stream_ids}. Available stream IDs: {available_stream_ids}"
-            )
-    else:
-        raise ValidationError(
-            "Invalid stream_ids parameter value. Must be a list of IDs (integers)."
-        )
-
-    return list(stream_ids)
-
-
-async def get_stream_ids_async(data, user, session):
-    """Async equivalent of ``get_stream_ids``. ``session`` is an AsyncSession."""
+async def get_stream_ids(data, user, session):
+    """Resolve and validate stream_ids in a photometry-post payload.
+    `session` is an AsyncSession.
+    """
     stream_ids = data.pop("stream_ids", [])
     if isinstance(stream_ids, list | tuple):
         try:
@@ -1713,37 +1363,33 @@ async def get_stream_ids_async(data, user, session):
     return list(stream_ids)
 
 
-def add_external_photometry(
-    json, user, parent_session=None, duplicates="update", refresh=False
+async def add_external_photometry(
+    json, user, session, duplicates="update", refresh=False
 ):
-    """
-    Posts external photometry to the database (as from
-    another API)
+    """Post external photometry to the database (e.g. from a facility API
+    or the TNS retrieval worker).
 
     Parameters
     ----------
     json : dict
-        Photometry to be posted. Schema follows that of
-        schemas/PhotMagFlexible or schemas/PhotFluxFlexible.
-    user : SingleUser
-        User posting the photometry
-    parent_session : sqlalchemy.orm.session.Session
-        Session to use for the database transaction (optional)
+        Photometry payload following PhotMagFlexible or PhotFluxFlexible.
+    user : User
+        User on whose behalf the photometry is being posted.
+    session : AsyncSession
+        Required. The caller owns the session lifecycle (open + close + commit).
+    duplicates : {"error", "ignore", "update"}
+        How to treat rows that conflict on the deduplication index.
+    refresh : bool
+        Whether to push REFRESH actions over the websocket after the insert.
     """
-
     if duplicates not in ["error", "ignore", "update"]:
         raise ValueError(
             "duplicates argument can only be one of: error, ignore, update"
         )
 
-    if parent_session is None:
-        session = DBSession()
-    else:
-        session = parent_session
-
-    group_ids = get_group_ids(json, user, session)
-    stream_ids = get_stream_ids(json, user, session)
-    df, instrument_cache = standardize_photometry_data(json, session)
+    group_ids = await get_group_ids(json, user, session)
+    stream_ids = await get_stream_ids(json, user, session)
+    df, instrument_cache = await standardize_photometry_data(json, session)
 
     if len(df.index) > MAX_NUMBER_ROWS:
         raise ValueError(
@@ -1754,30 +1400,16 @@ def add_external_photometry(
     username = user.username
     log(f"Pending request from {username} with {len(df.index)} rows")
 
-    # This lock ensures that the Photometry table data are not modified in any way
-    # between when the query for duplicate photometry is first executed and
-    # when the insert statement with the new photometry is performed.
-    # From the psql docs: This mode protects a table against concurrent
-    # data changes, and is self-exclusive so that only one session can
-    # hold it at a time.
     try:
-        session.execute(
-            sa.text(
-                f"LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE"
-            )
-        )
         if duplicates in ["ignore", "update"]:
             values_table, condition = get_values_table_and_condition(df)
-            duplicated_photometry = (
-                session.execute(
-                    sa.select(values_table.c.pdidx, Photometry)
-                    .join(Photometry, condition)
-                    .options(joinedload(Photometry.groups))
-                    .options(joinedload(Photometry.streams))
-                )
-                .unique()
-                .all()
+            duplicated_result = await session.execute(
+                sa.select(values_table.c.pdidx, Photometry)
+                .join(Photometry, condition)
+                .options(joinedload(Photometry.groups))
+                .options(joinedload(Photometry.streams))
             )
+            duplicated_photometry = duplicated_result.unique().all()
             duplicated_photometry_pdidx = {g[0] for g in duplicated_photometry}
             if len(duplicated_photometry_pdidx) > 0:
                 new_photometry_df_idxs = [
@@ -1798,35 +1430,52 @@ def add_external_photometry(
                 duplicate_stream_ids = {s.id for s in duplicate.streams}
 
                 updated = False
-                # posting to new groups?
-                if len(set(group_ids) - duplicate_group_ids) > 0:
-                    # select old + new groups
-                    group_ids_update = set(group_ids).union(duplicate_group_ids)
-                    groups = (
-                        session.execute(
-                            sa.select(Group).filter(Group.id.in_(group_ids_update))
+                # posting to new groups? Insert with ON CONFLICT DO NOTHING
+                # rather than assigning the ORM relationship — concurrent
+                # workers race on the (group_id, photometr_id) unique index.
+                new_group_ids = set(group_ids) - duplicate_group_ids
+                if len(new_group_ids) > 0:
+                    now = utcnow_naive()
+                    gp_stmt = pg_insert(GroupPhotometry).values(
+                        [
+                            {
+                                "photometr_id": duplicate.id,
+                                "group_id": gid,
+                                "created_at": now,
+                                "modified": now,
+                            }
+                            for gid in new_group_ids
+                        ]
+                    )
+                    await session.execute(
+                        gp_stmt.on_conflict_do_nothing(
+                            index_elements=["group_id", "photometr_id"]
                         )
-                        .scalars()
-                        .all()
                     )
-                    # update the corresponding photometry entry in the db
-                    duplicate.groups = groups
-                    log(
-                        f"Adding groups {group_ids_update} to photometry {duplicate.id}"
-                    )
+                    log(f"Adding groups {new_group_ids} to photometry {duplicate.id}")
                     updated = True
 
-                # posting to new streams?
+                # posting to new streams? Same ON CONFLICT handling.
                 if stream_ids:
-                    # Add new stream_photometry rows if not already present
                     stream_ids_update = set(stream_ids) - duplicate_stream_ids
                     if len(stream_ids_update) > 0:
-                        for id in stream_ids_update:
-                            session.add(
-                                StreamPhotometry(
-                                    photometr_id=duplicate.id, stream_id=id
-                                )
+                        now = utcnow_naive()
+                        sp_stmt = pg_insert(StreamPhotometry).values(
+                            [
+                                {
+                                    "photometr_id": duplicate.id,
+                                    "stream_id": sid,
+                                    "created_at": now,
+                                    "modified": now,
+                                }
+                                for sid in stream_ids_update
+                            ]
+                        )
+                        await session.execute(
+                            sp_stmt.on_conflict_do_nothing(
+                                index_elements=["stream_id", "photometr_id"]
                             )
+                        )
                         log(
                             f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
                         )
@@ -1839,7 +1488,6 @@ def add_external_photometry(
                 log(
                     f"A total of ({len(id_map_no_update_needed)}) duplicate photometry points did not need to be updated: {id_map_no_update_needed.values()}"
                 )
-            # now safely drop the duplicates:
             new_photometry = df.loc[new_photometry_df_idxs]
             log(
                 f"Inserting {len(new_photometry.index)} "
@@ -1850,7 +1498,7 @@ def add_external_photometry(
 
         ids, upload_id = [], None
         if len(new_photometry) > 0:
-            ids, upload_id = insert_new_photometry_data(
+            ids, upload_id = await insert_new_photometry_data(
                 new_photometry,
                 instrument_cache,
                 group_ids,
@@ -1865,11 +1513,9 @@ def add_external_photometry(
                 for (df_index, _), id in zip(new_photometry.iterrows(), ids):
                     id_map[df_index] = id
 
-        # release the lock
-        session.commit()
+        await session.commit()
 
         if duplicates in ["ignore", "update"]:
-            # get ids in the correct order
             ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
 
         if len(new_photometry) > 0:
@@ -1884,12 +1530,40 @@ def add_external_photometry(
             )
         return ids, upload_id
     except Exception as e:
-        session.rollback()
+        await session.rollback()
         log(f"Unable to post photometry: {e}")
         return None, None
-    finally:
-        if parent_session is None:
-            session.close()
+
+
+async def commit_external_photometry(data, user_id):
+    """Sync-to-async bridge for ``add_external_photometry``.
+
+    Opens its own ``async_plain_session_factory()`` session, re-loads the
+    User by ID inside that session, calls ``add_external_photometry``, and
+    returns the inserted IDs. Intended to be invoked from sync contexts
+    (executor-bound workers, top-level service scripts) via
+    ``asyncio.run(commit_external_photometry(data, user.id))``.
+
+    Parameters
+    ----------
+    data : dict
+        Same payload shape that ``add_external_photometry`` expects.
+    user_id : int
+        ID of the user the photometry should be attributed to. The user
+        is re-loaded inside the new async session so callers can pass
+        only the id.
+
+    Returns
+    -------
+    ids : list[int] or None
+        The IDs returned by ``add_external_photometry``.
+    """
+    from baselayer.app import models as baselayer_models
+
+    async with baselayer_models.async_plain_session_factory() as async_session:
+        user = await async_session.get(User, user_id)
+        ids, _ = await add_external_photometry(data, user, async_session)
+        return ids
 
 
 class PhotometryHandler(BaseHandler):
@@ -1938,20 +1612,20 @@ class PhotometryHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                group_ids = await get_group_ids_async(
+                group_ids = await get_group_ids(
                     self.get_json(), self.associated_user_object, session
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
             try:
-                stream_ids = await get_stream_ids_async(
+                stream_ids = await get_stream_ids(
                     self.get_json(), self.associated_user_object, session
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
 
             try:
-                df, instrument_cache = await standardize_photometry_data_async(
+                df, instrument_cache = await standardize_photometry_data(
                     self.get_json(), session
                 )
             except (ValidationError, RuntimeError) as e:
@@ -1970,12 +1644,7 @@ class PhotometryHandler(BaseHandler):
             )
 
             try:
-                await session.execute(
-                    sa.text(
-                        f"LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE"
-                    )
-                )
-                ids, upload_id = await insert_new_photometry_data_async(
+                ids, upload_id = await insert_new_photometry_data(
                     df,
                     instrument_cache,
                     group_ids,
@@ -1988,7 +1657,6 @@ class PhotometryHandler(BaseHandler):
                 await session.rollback()
                 if "The following photometry already exists in the database:" in str(e):
                     return self.error(str(e))
-
                 return self.error(traceback.format_exc())
 
             log(
@@ -2081,19 +1749,19 @@ class PhotometryHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                group_ids = await get_group_ids_async(
+                group_ids = await get_group_ids(
                     self.get_json(), self.associated_user_object, session
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
             try:
-                stream_ids = await get_stream_ids_async(
+                stream_ids = await get_stream_ids(
                     self.get_json(), self.associated_user_object, session
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
             try:
-                df, instrument_cache = await standardize_photometry_data_async(
+                df, instrument_cache = await standardize_photometry_data(
                     self.get_json(), session
                 )
             except ValidationError as e:
@@ -2114,17 +1782,11 @@ class PhotometryHandler(BaseHandler):
             values_table, condition = get_values_table_and_condition(df, ignore_flux)
 
             try:
-                await session.execute(
-                    sa.text(
-                        f"LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE"
-                    )
-                )
-
                 dup_result = await session.execute(
                     sa.select(values_table.c.pdidx, Photometry)
                     .join(Photometry, condition)
-                    .options(selectinload(Photometry.groups))
-                    .options(selectinload(Photometry.streams))
+                    .options(joinedload(Photometry.groups))
+                    .options(joinedload(Photometry.streams))
                 )
                 duplicated_photometry = dup_result.unique().all()
 
@@ -2147,28 +1809,54 @@ class PhotometryHandler(BaseHandler):
                     duplicate_group_ids = {g.id for g in duplicate.groups}
                     duplicate_stream_ids = {s.id for s in duplicate.streams}
 
-                    # posting to new groups?
-                    if len(set(group_ids) - duplicate_group_ids) > 0:
-                        group_ids_update = set(group_ids).union(duplicate_group_ids)
-                        groups_result = await session.execute(
-                            sa.select(Group).filter(Group.id.in_(group_ids_update))
+                    # posting to new groups? Insert the new associations with
+                    # ON CONFLICT DO NOTHING rather than assigning the ORM
+                    # relationship — concurrent workers race on the
+                    # (group_id, photometr_id) unique index otherwise.
+                    new_group_ids = set(group_ids) - duplicate_group_ids
+                    if len(new_group_ids) > 0:
+                        now = utcnow_naive()
+                        gp_stmt = pg_insert(GroupPhotometry).values(
+                            [
+                                {
+                                    "photometr_id": duplicate.id,
+                                    "group_id": gid,
+                                    "created_at": now,
+                                    "modified": now,
+                                }
+                                for gid in new_group_ids
+                            ]
                         )
-                        groups = groups_result.scalars().all()
-                        duplicate.groups = groups
+                        await session.execute(
+                            gp_stmt.on_conflict_do_nothing(
+                                index_elements=["group_id", "photometr_id"]
+                            )
+                        )
                         log(
-                            f"Adding groups {group_ids_update} to photometry {duplicate.id}"
+                            f"Adding groups {new_group_ids} to photometry {duplicate.id}"
                         )
 
-                    # posting to new streams?
+                    # posting to new streams? Same ON CONFLICT handling.
                     if stream_ids:
                         stream_ids_update = set(stream_ids) - duplicate_stream_ids
                         if len(stream_ids_update) > 0:
-                            for id in stream_ids_update:
-                                session.add(
-                                    StreamPhotometry(
-                                        photometr_id=duplicate.id, stream_id=id
-                                    )
+                            now = utcnow_naive()
+                            sp_stmt = pg_insert(StreamPhotometry).values(
+                                [
+                                    {
+                                        "photometr_id": duplicate.id,
+                                        "stream_id": sid,
+                                        "created_at": now,
+                                        "modified": now,
+                                    }
+                                    for sid in stream_ids_update
+                                ]
+                            )
+                            await session.execute(
+                                sp_stmt.on_conflict_do_nothing(
+                                    index_elements=["stream_id", "photometr_id"]
                                 )
+                            )
                             log(
                                 f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
                             )
@@ -2217,7 +1905,7 @@ class PhotometryHandler(BaseHandler):
                         duplicate.altdata = json.dumps(
                             df.loc[df_index]["altdata"], cls=NumpyEncoder
                         )
-                        duplicate.modified = datetime.datetime.utcnow().isoformat()
+                        duplicate.modified = utcnow_naive()
                         updated_ids.append(duplicate.id)
                         updated_duplicate_values.append(duplicate_value)
 
@@ -2232,8 +1920,16 @@ class PhotometryHandler(BaseHandler):
                         f"A total of {len(updated_ids)} duplicate photometry points (by obj_id, instrument_id, mjd, origin only, ignoring flux/fluxerr) were updated as requested."
                     )
 
+                # Flush the in-loop duplicate mutations to the DB before
+                # downstream work. Under async SQLAlchemy with the verified
+                # session wrapper, autoflush on subsequent execute() did not
+                # reliably push these UPDATEs, so the explicit flush is
+                # required to make ignore_flux+overwrite_flux land.
+                if updated_ids:
+                    await session.flush()
+
                 if len(new_photometry) > 0:
-                    ids, upload_id = await insert_new_photometry_data_async(
+                    ids, upload_id = await insert_new_photometry_data(
                         new_photometry,
                         instrument_cache,
                         group_ids,
@@ -2247,7 +1943,6 @@ class PhotometryHandler(BaseHandler):
                     for (df_index, _), id in zip(new_photometry.iterrows(), ids):
                         id_map[df_index] = id
 
-                # release the lock
                 await session.commit()
 
                 # get ids in the correct order
@@ -2270,24 +1965,13 @@ class PhotometryHandler(BaseHandler):
                 return self.error(traceback.format_exc())
 
     @auth_or_token
-    async def get(self, photometry_id):
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
-        async with self.AsyncSession() as session:
-            phot = await session.scalar(
-                Photometry.select(session.user_or_token)
-                .where(Photometry.id == photometry_id)
-                .options(
-                    selectinload(Photometry.instrument),
-                    selectinload(Photometry.groups),
-                    selectinload(Photometry.annotations),
-                    selectinload(Photometry.owner),
-                    selectinload(Photometry.streams),
-                    selectinload(Photometry.validations),
+    def get(self, photometry_id: int):
+        with self.Session() as session:
+            phot = session.scalars(
+                Photometry.select(session.user_or_token).where(
+                    Photometry.id == photometry_id
                 )
-            )
+            ).first()
 
             if phot is None:
                 return self.error(
@@ -2301,7 +1985,7 @@ class PhotometryHandler(BaseHandler):
             return self.success(data=output)
 
     @permissions(["Upload data"])
-    async def patch(self, photometry_id):
+    def patch(self, photometry_id: int):
         """
         ---
         summary: Update photometry
@@ -2343,12 +2027,12 @@ class PhotometryHandler(BaseHandler):
 
         refresh = self.get_query_argument("refresh", default=False)
 
-        async with self.AsyncSession() as session:
-            photometry = await session.scalar(
-                Photometry.select(session.user_or_token, mode="update")
-                .where(Photometry.id == photometry_id)
-                .options(selectinload(Photometry.groups))
-            )
+        with self.Session() as session:
+            photometry = session.scalars(
+                Photometry.select(session.user_or_token, mode="update").where(
+                    Photometry.id == photometry_id
+                )
+            ).first()
 
             if photometry is None:
                 return self.error(
@@ -2357,10 +2041,11 @@ class PhotometryHandler(BaseHandler):
 
             original_user_data = copy.deepcopy(data)
 
-            nan_if_none_keys = {"flux", "fluxerr", "mag", "magerr"}
-            for key in nan_if_none_keys:
-                if key in data and data[key] is None:
-                    data[key] = np.nan
+            # PhotometryFlux/PhotometryMag accept null flux/mag/magerr (a
+            # non-detection) but reject NaN ("Special numeric values ... are not
+            # permitted"). Leave None as-is so clearing magnitude + magnitude
+            # error in the edit form converts the point to a non-detection
+            # instead of failing schema validation.
 
             optional_keys = {"ra", "dec", "ra_unc", "dec_unc", "assignment_id"}
             for key in optional_keys:
@@ -2384,44 +2069,33 @@ class PhotometryHandler(BaseHandler):
             phot.original_user_data = original_user_data
             phot.id = photometry_id
 
-            await session.merge(phot)
-            await session.flush()
+            session.merge(phot)
 
             # Update groups, if relevant
             if group_ids is not None:
-                from ...utils.data_access import accessible_group_ids_async
-
-                groups_result = await session.scalars(
+                groups = session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-                )
-                groups = groups_result.all()
+                ).all()
                 if not groups:
                     return self.error(
                         "Invalid group_ids field. Specify at least one valid group ID."
                     )
-                accessible_group_ids = await accessible_group_ids_async(
-                    self.current_user, session
-                )
+                accessible_group_ids = [
+                    g.id for g in self.current_user.accessible_groups
+                ]
                 if not all(g.id in accessible_group_ids for g in groups):
                     return self.error(
                         "Cannot upload photometry to groups you are not a member of."
                     )
-                photometry = await session.scalar(
-                    sa.select(Photometry)
-                    .where(Photometry.id == photometry_id)
-                    .options(selectinload(Photometry.groups))
-                )
                 photometry.groups = groups
-                await session.flush()
 
             # Update streams, if relevant
             if stream_ids is not None:
-                streams_result = await session.scalars(
+                streams = session.scalars(
                     Stream.select(session.user_or_token).where(
                         Stream.id.in_(stream_ids)
                     )
-                )
-                streams = streams_result.all()
+                ).all()
 
                 if not streams:
                     return self.error(
@@ -2430,12 +2104,12 @@ class PhotometryHandler(BaseHandler):
 
                 # Add new stream_photometry rows if not already present
                 for stream in streams:
-                    stream_photometry = await session.scalar(
+                    stream_photometry = session.scalars(
                         StreamPhotometry.select(session.user_or_token).where(
                             StreamPhotometry.stream_id == stream.id,
                             StreamPhotometry.photometr_id == photometry_id,
                         )
-                    )
+                    ).first()
                     if stream_photometry is None:
                         session.add(
                             StreamPhotometry(
@@ -2443,27 +2117,26 @@ class PhotometryHandler(BaseHandler):
                             )
                         )
 
-            phot_stat = await session.scalar(
+            phot_stat = session.scalars(
                 PhotStat.select(session.user_or_token, mode="update").where(
                     PhotStat.obj_id == photometry.obj_id
                 )
-            )
+            ).first()
             if phot_stat is None:
                 phot_stat = PhotStat(obj_id=photometry.obj_id)
 
-            all_phot_result = await session.scalars(
+            all_phot = session.scalars(
                 sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
-            )
-            all_phot = all_phot_result.all()
+            ).all()
             phot_stat.full_update(all_phot)
             for phot in all_phot:
                 session.expunge(phot)
 
-            await session.commit()
+            session.commit()
 
             if refresh:
                 flow = Flow()
-                internal_key = await session.scalar(
+                internal_key = session.scalar(
                     sa.select(Obj.internal_key).where(Obj.id == photometry.obj_id)
                 )
                 flow.push(
@@ -2481,7 +2154,7 @@ class PhotometryHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    async def delete(self, photometry_id):
+    def delete(self, photometry_id: int):
         """
         ---
         summary: Delete photometry
@@ -2504,16 +2177,12 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        try:
-            photometry_id = int(photometry_id)
-        except (TypeError, ValueError):
-            return self.error(f"Invalid photometry_id: {photometry_id}")
-        async with self.AsyncSession() as session:
-            photometry = await session.scalar(
+        with self.Session() as session:
+            photometry = session.scalars(
                 Photometry.select(session.user_or_token, mode="delete").where(
                     Photometry.id == photometry_id
                 )
-            )
+            ).first()
 
             if photometry is None:
                 return self.error(
@@ -2522,20 +2191,20 @@ class PhotometryHandler(BaseHandler):
 
             obj_id = photometry.obj_id
 
-            await session.delete(photometry)
+            session.delete(photometry)
 
-            phot_stat = await session.scalar(
+            phot_stat = session.scalars(
                 PhotStat.select(session.user_or_token, mode="update").where(
-                    PhotStat.obj_id == obj_id
+                    PhotStat.obj_id == photometry.obj_id
                 )
-            )
+            ).first()
             if phot_stat is not None:
-                all_phot_result = await session.scalars(
-                    sa.select(Photometry).where(Photometry.obj_id == obj_id)
-                )
-                phot_stat.full_update(all_phot_result.all())
+                all_phot = session.scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                ).all()
+                phot_stat.full_update(all_phot)
 
-            await session.commit()
+            session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
@@ -2547,7 +2216,7 @@ class PhotometryHandler(BaseHandler):
 
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    def get(self, obj_id: str):
         individual_or_series = self.get_query_argument("individualOrSeries", "both")
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
         format = self.get_query_argument("format", "mag")
@@ -2576,10 +2245,10 @@ class ObjPhotometryHandler(BaseHandler):
 
         include_extinction = str_to_bool(include_extinction, default=False)
 
-        async with self.AsyncSession() as session:
-            obj: Obj = await session.scalar(
+        with self.Session() as session:
+            obj: Obj = session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            )
+            ).first()
             if obj is None:
                 return self.error(
                     f"Insufficient permissions for User {self.current_user.id} to read Obj {obj_id}",
@@ -2589,41 +2258,50 @@ class ObjPhotometryHandler(BaseHandler):
             phot_data = []
             series_data = []
             if individual_or_series in ["individual", "both"]:
-                options = [
-                    selectinload(Photometry.instrument).load_only(Instrument.name),
-                    selectinload(Photometry.groups).load_only(
-                        Group.id, Group.name, Group.nickname, Group.single_user_group
-                    ),
-                ]
-                if include_annotation_info:
-                    options.append(selectinload(Photometry.annotations))
-                if include_owner_info:
-                    options.append(
-                        selectinload(Photometry.owner).load_only(
-                            User.id,
-                            User.username,
-                            User.first_name,
-                            User.last_name,
+                if format == "plot":
+                    options = [
+                        load_only(*(getattr(Photometry, c) for c in PHOT_PLOT_COLUMNS))
+                    ]
+                else:
+                    options = [
+                        joinedload(Photometry.instrument).load_only(Instrument.name),
+                        joinedload(Photometry.groups).load_only(
+                            Group.id,
+                            Group.name,
+                            Group.nickname,
+                            Group.single_user_group,
+                        ),
+                    ]
+                    if include_annotation_info:
+                        options.append(joinedload(Photometry.annotations))
+                    if include_owner_info:
+                        options.append(
+                            joinedload(Photometry.owner).load_only(
+                                User.id,
+                                User.username,
+                                User.first_name,
+                                User.last_name,
+                            )
                         )
-                    )
-                if include_stream_info:
-                    options.append(
-                        selectinload(Photometry.streams).load_only(
-                            Stream.id,
-                            Stream.name,
+                    if include_stream_info:
+                        options.append(
+                            joinedload(Photometry.streams).load_only(
+                                Stream.id,
+                                Stream.name,
+                            )
                         )
-                    )
-                if include_validation_info:
-                    options.append(selectinload(Photometry.validations))
 
                 obj_ids = {obj_id}
                 if include_superobjs_photometry:
-                    super_objs_result = await session.scalars(
-                        sa.select(SuperObj)
-                        .where(SuperObj.objs.any(Obj.id == obj_id))
-                        .options(selectinload(SuperObj.objs))
+                    super_objs = (
+                        session.scalars(
+                            sa.select(SuperObj).where(
+                                SuperObj.objs.any(Obj.id == obj_id)
+                            )
+                        )
+                        .unique()
+                        .all()
                     )
-                    super_objs = super_objs_result.unique().all()
                     for super_obj in super_objs:
                         obj_ids.update({o.id for o in super_obj.objs})
 
@@ -2639,13 +2317,13 @@ class ObjPhotometryHandler(BaseHandler):
                     )
                     .distinct()
                 )
-                photometry_result = await session.scalars(stmt)
-                photometry = photometry_result.unique().all()
+                photometry = session.scalars(stmt).unique().all()
 
                 # Compute extinction for all filters
                 extinction_dict = None
                 if (
                     include_extinction
+                    and format != "plot"
                     and len(photometry) > 0
                     and nan_to_none(obj.ra) is not None
                     and nan_to_none(obj.dec) is not None
@@ -2670,7 +2348,7 @@ class ObjPhotometryHandler(BaseHandler):
                     )
                     for phot in photometry
                 ]
-                if deduplicate_photometry and len(phot_data) > 0:
+                if deduplicate_photometry and format != "plot" and len(phot_data) > 0:
                     df_phot = pd.DataFrame.from_records(phot_data)
                     # drop duplicate mjd/filter points, keeping most recent
                     phot_data = (
@@ -2681,12 +2359,15 @@ class ObjPhotometryHandler(BaseHandler):
                     )
 
             if individual_or_series in ["series", "both"]:
-                series_result = await session.scalars(
-                    PhotometricSeries.select(session.user_or_token).where(
-                        PhotometricSeries.obj_id == obj_id
+                series = (
+                    session.scalars(
+                        PhotometricSeries.select(session.user_or_token).where(
+                            PhotometricSeries.obj_id == obj_id
+                        )
                     )
+                    .unique()
+                    .all()
                 )
-                series = series_result.unique().all()
                 series_data = []
                 for s in series:
                     series_data += s.get_data_with_extra_columns().to_dict(
@@ -2700,12 +2381,11 @@ class ObjPhotometryHandler(BaseHandler):
             if phase_fold_data:
                 period, modified = None, arrow.Arrow(1, 1, 1)
 
-                annotations_result = await session.scalars(
+                annotations = session.scalars(
                     Annotation.select(session.user_or_token).where(
                         Annotation.obj_id == obj_id
                     )
-                )
-                annotations = annotations_result.all()
+                ).all()
                 period_str_options = ["period", "Period", "PERIOD"]
                 for an in annotations:
                     if not isinstance(an.data, dict):
@@ -2722,7 +2402,7 @@ class ObjPhotometryHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Delete bulk photometry"])
-    async def delete(self, obj_id):
+    def delete(self, obj_id: str):
         """
         ---
         summary: Delete all photometry for an object
@@ -2746,39 +2426,37 @@ class ObjPhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        async with self.AsyncSession() as session:
-            result = await session.scalars(
+        with self.Session() as session:
+            photometry_to_delete = session.scalars(
                 Photometry.select(session.user_or_token, mode="delete").where(
                     Photometry.obj_id == obj_id
                 )
-            )
-            photometry_to_delete = result.all()
+            ).all()
 
             n = len(photometry_to_delete)
             if n == 0:
                 return self.error("Invalid object id.")
 
             for phot in photometry_to_delete:
-                await session.delete(phot)
+                session.delete(phot)
 
-            stat = await session.scalar(
+            stat = session.scalars(
                 PhotStat.select(session.user_or_token, mode="update").where(
                     PhotStat.obj_id == obj_id
                 )
-            )
-            all_phot_result = await session.scalars(
+            ).first()
+            all_phot = session.scalars(
                 sa.select(Photometry).where(Photometry.obj_id == obj_id)
-            )
-            if stat is not None:
-                stat.full_update(all_phot_result.all())
+            ).all()
+            stat.full_update(all_phot)
 
-            await session.commit()
+            session.commit()
             return self.success(f"Deleted {n} photometry point(s) of {obj_id}.")
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
     @permissions(["Delete bulk photometry"])
-    async def delete(self, upload_id):
+    def delete(self, upload_id: str):
         """
         ---
         summary: Delete bulk-uploaded photometry
@@ -2802,41 +2480,39 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 schema: Error
         """
 
-        async with self.AsyncSession() as session:
-            result = await session.scalars(
+        with self.Session() as session:
+            photometry_to_delete = session.scalars(
                 Photometry.select(session.user_or_token, mode="delete").where(
                     Photometry.upload_id == upload_id
                 )
-            )
-            photometry_to_delete = result.all()
+            ).all()
 
             n = len(photometry_to_delete)
             if n == 0:
                 return self.error("Invalid bulk upload id.")
 
-            obj_ids = {phot.obj_id for phot in photometry_to_delete}
-
             for phot in photometry_to_delete:
-                await session.delete(phot)
+                session.delete(phot)
 
+            obj_ids = {phot.obj_id for phot in photometry_to_delete}
             for oid in obj_ids:
-                stat = await session.scalar(
+                stat = session.scalars(
                     PhotStat.select(session.user_or_token, mode="update").where(
                         PhotStat.obj_id == oid
                     )
-                )
-                all_phot_result = await session.scalars(
+                ).first()
+                all_phot = session.scalars(
                     sa.select(Photometry).where(Photometry.obj_id == oid)
-                )
-                stat.full_update(all_phot_result.all())
+                ).all()
+                stat.full_update(all_phot)
 
-            await session.commit()
+            session.commit()
             return self.success(f"Deleted {n} photometry point(s).")
 
 
 class PhotometryRangeHandler(BaseHandler):
     @auth_or_token
-    async def get(self):
+    def get(self):
         """Docstring appears below as an f-string."""
 
         json = self.get_json()
@@ -2849,7 +2525,7 @@ class PhotometryRangeHandler(BaseHandler):
         if format not in ["mag", "flux"]:
             return self.error("Invalid output format.")
 
-        async with self.AsyncSession() as session:
+        with self.Session() as session:
             try:
                 standardized = PhotometryRangeQuery.load(json)
             except ValidationError as e:
@@ -2859,9 +2535,7 @@ class PhotometryRangeHandler(BaseHandler):
             min_date = standardized["min_date"]
             max_date = standardized["max_date"]
 
-            from ...utils.data_access import accessible_group_ids_async
-
-            gids = await accessible_group_ids_async(self.current_user, session)
+            gids = [g.id for g in self.current_user.accessible_groups]
 
             group_phot_subquery = (
                 GroupPhotometry.select(session.user_or_token)
@@ -2881,20 +2555,18 @@ class PhotometryRangeHandler(BaseHandler):
 
             query = query.join(
                 group_phot_subquery, Photometry.id == group_phot_subquery.c.photometr_id
-            ).options(
-                selectinload(Photometry.instrument),
-                selectinload(Photometry.groups),
-                selectinload(Photometry.annotations),
             )
 
-            result = await session.scalars(query.distinct())
-            output = [serialize(p, magsys, format) for p in result.unique().all()]
+            output = [
+                serialize(p, magsys, format)
+                for p in session.scalars(query.distinct()).unique().all()
+            ]
             return self.success(data=output)
 
 
 class PhotometryOriginHandler(BaseHandler):
     @auth_or_token
-    async def get(self):
+    def get(self):
         return self.error("This feature is deprecated")
 
 
@@ -2965,11 +2637,18 @@ ObjPhotometryHandler.get.__doc__ = f"""
               Return the photometry in flux or magnitude space?
               If a value for this query parameter is not provided, the
               result will be returned in magnitude space.
+              "plot" returns a slim per-point payload
+              (id, obj_id, filter, mjd, origin, mag, magerr, limiting_mag)
+              intended for lightcurve plotting; all per-point auxiliary
+              joins (groups, annotations, instrument, owner, streams,
+              validations) and the ref/tot/extinction blocks are skipped,
+              regardless of the corresponding ``include*`` flags.
             schema:
               type: string
               enum:
                 - mag
                 - flux
+                - plot
           - in: query
             name: magsys
             required: false

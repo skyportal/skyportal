@@ -9,6 +9,7 @@ from baselayer.app.models import RoleACL, UserACL, UserRole
 from baselayer.log import make_log
 
 from ...models import (
+    Filter,
     Group,
     GroupStream,
     GroupUser,
@@ -755,6 +756,19 @@ class GroupUserHandler(BaseHandler):
             return self.error(f"Invalid group_id/user_id: {group_id}/{user_id}")
 
         async with self.AsyncSession() as session:
+            # FIXME: GroupUser.delete's access control excludes single-user
+            # groups, but the async verify path doesn't enforce it yet
+            # (CustomUserAccessControl.select_accessible_rows projects columns
+            # out of subquery scope in baselayer). Enforce explicitly here
+            # until the baselayer select_accessible_rows fix lands.
+            group = await session.scalar(
+                Group.select(session.user_or_token).where(Group.id == group_id)
+            )
+            if group is not None and group.single_user_group:
+                return self.error(
+                    "Cannot remove a user from their single user group.", status=403
+                )
+
             gu = await session.scalar(
                 GroupUser.select(session.user_or_token, mode="delete")
                 .where(GroupUser.group_id == group_id)
@@ -1023,6 +1037,19 @@ class GroupStreamHandler(BaseHandler):
             return self.error(f"Invalid group_id/stream_id: {group_id}/{stream_id}")
 
         async with self.AsyncSession() as session:
+            # FIXME: GroupStream.delete excludes streams still operated on by a
+            # group filter, but the async verify path doesn't enforce that
+            # CustomUserAccessControl predicate yet (out-of-scope columns in
+            # baselayer select_accessible_rows). Enforce explicitly until the
+            # baselayer fix lands.
+            actively_filtered = await session.scalar(
+                Filter.select(session.user_or_token)
+                .where(Filter.group_id == group_id)
+                .where(Filter.stream_id == stream_id)
+            )
+            if actively_filtered is not None:
+                return self.error(f"No stream IDs with ID {stream_id} accessible")
+
             groupstreams_result = await session.scalars(
                 GroupStream.select(session.user_or_token, mode="delete")
                 .where(GroupStream.group_id == group_id)

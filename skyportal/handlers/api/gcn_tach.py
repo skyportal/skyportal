@@ -355,8 +355,12 @@ class GcnTachHandler(BaseHandler):
             return self.error(f"Invalid dateobs: {dateobs}")
         try:
             async with self.AsyncSession() as session:
-                stmt = GcnEvent.select(session.user_or_token).where(
-                    GcnEvent.dateobs == dateobs_parsed
+                # circulars is a deferred column; eager-load it (and aliases)
+                # so accessing them below doesn't lazy-load under async.
+                stmt = (
+                    GcnEvent.select(session.user_or_token)
+                    .where(GcnEvent.dateobs == dateobs_parsed)
+                    .options(sa.orm.undefer(GcnEvent.circulars))
                 )
                 gcn_event = await session.scalar(stmt)
                 if gcn_event is None:
