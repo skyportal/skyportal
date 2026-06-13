@@ -53,7 +53,11 @@ def api(
         Response JSON, if `raw_response` is False.
     """
     if host is None:
-        host = f"http://localhost:{cfg['ports.app']}"
+        # SKYPORTAL_TEST_API_HOST lets the suite run against an alternate server
+        # (e.g. the ASGI/uvicorn app during the Tornado->ASGI migration, #381).
+        host = os.environ.get("SKYPORTAL_TEST_API_HOST") or (
+            f"http://localhost:{cfg['ports.app']}"
+        )
     url = urllib.parse.urljoin(host, f"/api/{endpoint}")
     headers = {"Authorization": f"token {token}"} if token else None
     response = session.request(method, url, json=data, params=params, headers=headers)
