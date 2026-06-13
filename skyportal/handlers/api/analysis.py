@@ -1610,7 +1610,9 @@ class AnalysisHandler(BaseHandler):
         summary_only = self.get_query_argument("summaryOnly", False)
 
         obj_id = self.get_query_argument("objID", None)
-        analysis_service_id = self.get_query_argument("analysisServiceID", None)
+        analysis_service_id = self.get_query_argument(
+            "analysisServiceID", None, type=int
+        )
         async with self.AsyncSession() as session:
             if obj_id is not None:
                 stmt = Obj.select(self.current_user).where(Obj.id == obj_id)
@@ -2224,6 +2226,16 @@ class DefaultAnalysisHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
+                analysis_service_id = (
+                    int(analysis_service_id)
+                    if analysis_service_id is not None
+                    else None
+                )
+                default_analysis_id = (
+                    int(default_analysis_id)
+                    if default_analysis_id is not None
+                    else None
+                )
                 if default_analysis_id is not None and analysis_service_id is not None:
                     stmt = (
                         DefaultAnalysis.select(self.current_user)

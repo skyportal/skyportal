@@ -438,6 +438,10 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
 
     submit_button.click()
 
+    # UVOTXRT's API implements no delete method, so the form shows a
+    # confirmation dialog before submitting; accept it.
+    page.locator('//div[@role="dialog"]//button[contains(., "Confirm")]').first.click()
+
     page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
 
     expect(
