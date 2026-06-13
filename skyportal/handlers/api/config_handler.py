@@ -73,6 +73,8 @@ class ConfigHandler(BaseHandler):
                                 description: Reference for the cosmology used.
                             allowedSpectrumTypes:
                               type: array
+                              items:
+                                type: string
                               description: allowed values for spectrum type.
                             defaultSpectrumType:
                               type: string

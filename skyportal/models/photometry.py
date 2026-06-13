@@ -505,15 +505,22 @@ class Photometry(conesearch_alchemy.Point, Base):
 # being inserted into the table. The index also allows fast lookups on this
 # set of columns, making the search for duplicates a O(log(n)) operation.
 
+# Single source of truth for the dedup column set: ON CONFLICT call sites
+# and the dedup-key helper in handlers/api/photometry.py both read this so
+# the list cannot drift from the index definition.
+Photometry.DEDUP_COLUMNS = (
+    "obj_id",
+    "instrument_id",
+    "origin",
+    "mjd",
+    "fluxerr",
+    "flux",
+)
+
 Photometry.__table_args__ = (
     sa.Index(
         "deduplication_index",
-        Photometry.obj_id,
-        Photometry.instrument_id,
-        Photometry.origin,
-        Photometry.mjd,
-        Photometry.fluxerr,
-        Photometry.flux,
+        *(getattr(Photometry, c) for c in Photometry.DEDUP_COLUMNS),
         unique=True,
     ),
 )

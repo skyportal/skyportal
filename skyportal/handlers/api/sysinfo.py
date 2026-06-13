@@ -38,6 +38,8 @@ class SysInfoHandler(BaseHandler):
                           properties:
                             gitlog:
                                 type: array
+                                items:
+                                  type: string
                                 description: Recent git commit lines
 
         """

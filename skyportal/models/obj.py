@@ -555,13 +555,23 @@ class Obj(Base, conesearch_alchemy.Point):
 
         If this page does not return without PS1_CUTOUT_TIMEOUT seconds then
         we assume that the image is not available and return None.
+
+        Test environments can set `app.ps1_cutout_url` to an empty string,
+        which skips the external HTTP call and falls straight back to the
+        placeholder image — the live STScI cutout service is slow enough from
+        some CI runners to hang the thumbnail queue past test timeouts.
         """
+        cutout_url = "/static/images/currently_unavailable.png"
+        ps1_cutout_base = cfg.get(
+            "app.ps1_cutout_url", "http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+        )
+        if not ps1_cutout_base:
+            return cutout_url
         ps_query_url = (
-            f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+            f"{ps1_cutout_base}"
             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
             f"&filter=r&filter=i&filetypes=stack&size=250"
         )
-        cutout_url = "/static/images/currently_unavailable.png"
         try:
             response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
             response.raise_for_status()

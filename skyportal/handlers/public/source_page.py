@@ -37,7 +37,7 @@ def get_version(session, release_name, source_id, version_hash):
 
 
 class SourcePageHandler(BaseHandler):
-    def get(self, source_id=None, version_hash=None):
+    def get(self, source_id: str = None, version_hash: str = None):
         """
         ---
         single:
@@ -138,7 +138,7 @@ class SourcePageHandler(BaseHandler):
 
 
 class ReleaseSourcePageHandler(BaseHandler):
-    def get(self, release_name, source_id, version_hash):
+    def get(self, release_name: str, source_id: str, version_hash: str):
         """
         ---
         summary: Display the public page for a source in a specific release

@@ -1,0 +1,430 @@
+import { useState } from "react";
+import Paper from "@mui/material/Paper";
+import { makeStyles } from "tss-react/mui";
+import { Link } from "react-router-dom";
+
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import IconButton from "@mui/material/IconButton";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+
+import { showNotification } from "baselayer/components/Notifications";
+import { useAppDispatch } from "../../types/hooks";
+import Button from "../Button";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import InstrumentForm from "./InstrumentForm";
+import { useDeleteInstrumentMutation } from "../../ducks/instrument";
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+const useStyles = makeStyles()(() => ({
+  container: {
+    width: "100%",
+    overflow: "scroll",
+  },
+  instrumentManage: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+}));
+
+interface InstrumentTableProps {
+  title?: string;
+  instruments: any[];
+  telescopes?: any[];
+  deletePermission?: boolean;
+  sortingCallback?: ((...a: any[]) => void) | null;
+  paginateCallback?: ((...a: any[]) => void) | null;
+  totalMatches?: number;
+  numPerPage?: number;
+  telescopeInfo?: boolean;
+  fixedHeader?: boolean;
+}
+
+const InstrumentTable = ({
+  title = "Instruments",
+  instruments,
+  telescopes,
+  deletePermission,
+  paginateCallback = null,
+  numPerPage = 10,
+  telescopeInfo = true,
+  fixedHeader = false,
+}: InstrumentTableProps) => {
+  const { classes } = useStyles() as any;
+  const dispatch = useAppDispatch();
+  const [deleteInstrumentMutation] = useDeleteInstrumentMutation();
+
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [instrumentToEditDelete, setInstrumentToEditDelete] =
+    useState<any>(null);
+  const [searchText, setSearchText] = useState("");
+
+  const openNewDialog = () => {
+    setNewDialogOpen(true);
+  };
+  const closeNewDialog = () => {
+    setNewDialogOpen(false);
+  };
+
+  const openEditDialog = (id: any) => {
+    setEditDialogOpen(true);
+    setInstrumentToEditDelete(id);
+  };
+  const closeEditDialog = () => {
+    setEditDialogOpen(false);
+    setInstrumentToEditDelete(null);
+  };
+
+  const openDeleteDialog = (id: any) => {
+    setDeleteDialogOpen(true);
+    setInstrumentToEditDelete(id);
+  };
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setInstrumentToEditDelete(null);
+  };
+
+  const deleteInstrument = async () => {
+    try {
+      await deleteInstrumentMutation(instrumentToEditDelete).unwrap();
+      dispatch(showNotification("Instrument deleted"));
+      closeDeleteDialog();
+    } catch {
+      // error notification handled by the base query
+    }
+  };
+
+  const [rowsPerPage] = useState(numPerPage);
+
+  const renderInstrumentID = (params: any) => {
+    const instrument = params.row;
+    return (
+      <div>
+        {instrument?.log_exists ? (
+          <>
+            <Link
+              to={`/instrument/${instrument.id}`}
+              role="link"
+              className={classes.hover}
+            >
+              {instrument ? instrument.id : ""}
+            </Link>
+          </>
+        ) : (
+          <>{instrument ? instrument.id : ""}</>
+        )}
+      </div>
+    );
+  };
+
+  const renderInstrumentName = (params: any) => {
+    const instrument = params.row;
+    return <div>{instrument ? instrument.name : ""}</div>;
+  };
+
+  const renderTelescopeName = (params: any) => {
+    const instrument = params.row;
+    const telescope_id = instrument?.telescope_id;
+    const telescope = telescopes?.filter((t: any) => t.id === telescope_id)[0];
+    return <div>{telescope ? telescope.nickname : ""}</div>;
+  };
+
+  const renderTelescopeLat = (params: any) => {
+    const instrument = params.row;
+    const telescope_id = instrument?.telescope_id;
+    const telescope = telescopes?.filter((t: any) => t.id === telescope_id)[0];
+    return <div>{telescope ? telescope.lat : ""}</div>;
+  };
+
+  const renderTelescopeLon = (params: any) => {
+    const instrument = params.row;
+    const telescope_id = instrument?.telescope_id;
+    const telescope = telescopes?.filter((t: any) => t.id === telescope_id)[0];
+    return <div>{telescope ? telescope.lon : ""}</div>;
+  };
+
+  const renderFilters = (params: any) => {
+    const instrument = params.row;
+    return <div>{instrument ? instrument.filters.join("\n") : ""}</div>;
+  };
+
+  const renderAPIClassname = (params: any) => {
+    const instrument = params.row;
+    return <div>{instrument ? instrument.api_classname : ""}</div>;
+  };
+
+  const renderAPIClassnameObsPlan = (params: any) => {
+    const instrument = params.row;
+    return <div>{instrument ? instrument.api_classname_obsplan : ""}</div>;
+  };
+
+  const renderBand = (params: any) => {
+    const instrument = params.row;
+    return <div>{instrument ? instrument.band : ""}</div>;
+  };
+
+  const renderType = (params: any) => {
+    const instrument = params.row;
+    return <div>{instrument ? instrument.type : ""}</div>;
+  };
+
+  const renderRegion = (params: any) => {
+    const instrument = params.row;
+    return <div>{instrument ? instrument.region_summary : ""}</div>;
+  };
+
+  const renderFields = (params: any) => {
+    const instrument = params.row;
+    return <div>{instrument ? instrument.number_of_fields : ""}</div>;
+  };
+
+  const renderLogs = (params: any) => {
+    const instrument = params.row;
+    return (
+      <div>
+        <Button
+          key={instrument.id}
+          id="logs_button"
+          component={Link}
+          to={`/instrument/${instrument.id}`}
+        >
+          Logs
+        </Button>
+      </div>
+    );
+  };
+
+  const renderManage = (params: any) => {
+    if (!deletePermission) {
+      return null;
+    }
+    const instrument = params.row;
+    return (
+      <div className={classes.instrumentManage}>
+        <Button
+          id={`edit_button_${instrument.id}`}
+          onClick={() => openEditDialog(instrument.id)}
+          disabled={!deletePermission}
+        >
+          <EditIcon />
+        </Button>
+        <Button
+          id={`delete_button_${instrument.id}`}
+          onClick={() => openDeleteDialog(instrument.id)}
+          disabled={!deletePermission}
+        >
+          <DeleteIcon />
+        </Button>
+      </div>
+    );
+  };
+
+  const handleSearchChange = (text: string) => {
+    if (!paginateCallback) return;
+    const data = { name: text };
+    paginateCallback(1, rowsPerPage, {}, data);
+  };
+
+  const columns: any[] = [
+    {
+      field: "id",
+      headerName: "ID",
+      flex: 1,
+      minWidth: 80,
+      renderCell: renderInstrumentID,
+    },
+    {
+      field: "instrument_name",
+      headerName: "Instrument Name",
+      flex: 1,
+      minWidth: 140,
+      renderCell: renderInstrumentName,
+    },
+  ];
+  if (telescopeInfo === true) {
+    columns.push({
+      field: "telescope_name",
+      headerName: "Telescope Name",
+      flex: 1,
+      minWidth: 140,
+      renderCell: renderTelescopeName,
+    });
+    columns.push({
+      field: "Latitude",
+      headerName: "Latitude",
+      flex: 1,
+      minWidth: 100,
+      renderCell: renderTelescopeLat,
+    });
+    columns.push({
+      field: "Longitude",
+      headerName: "Longitude",
+      flex: 1,
+      minWidth: 100,
+      renderCell: renderTelescopeLon,
+    });
+  }
+
+  columns.push({
+    field: "filters",
+    headerName: "Filters",
+    flex: 1,
+    minWidth: 100,
+    renderCell: renderFilters,
+  });
+  columns.push({
+    field: "API_classname",
+    headerName: "API Classname",
+    flex: 1,
+    minWidth: 140,
+    renderCell: renderAPIClassname,
+  });
+  columns.push({
+    field: "API_classname_obsplan",
+    headerName: "API Observation Plan Classname",
+    flex: 1,
+    minWidth: 200,
+    renderCell: renderAPIClassnameObsPlan,
+  });
+  columns.push({
+    field: "Band",
+    headerName: "Band",
+    flex: 1,
+    minWidth: 90,
+    renderCell: renderBand,
+  });
+  columns.push({
+    field: "Type",
+    headerName: "Type",
+    flex: 1,
+    minWidth: 90,
+    renderCell: renderType,
+  });
+  columns.push({
+    field: "FOV Region?",
+    headerName: "FOV Region?",
+    flex: 1,
+    minWidth: 120,
+    renderCell: renderRegion,
+  });
+  columns.push({
+    field: "Fields",
+    headerName: "Fields",
+    flex: 1,
+    minWidth: 90,
+    renderCell: renderFields,
+  });
+  columns.push({
+    field: "logs",
+    headerName: " ",
+    flex: 1,
+    minWidth: 90,
+    sortable: false,
+    filterable: false,
+    renderCell: renderLogs,
+  });
+  columns.push({
+    field: "manage",
+    headerName: " ",
+    flex: 1,
+    minWidth: 120,
+    sortable: false,
+    filterable: false,
+    renderCell: renderManage,
+  });
+
+  const CustomToolbar = function InstrumentTableToolbar() {
+    return (
+      <DataGridToolbar showQuickFilter={false}>
+        <TextField
+          variant="standard"
+          size="small"
+          placeholder="Search"
+          value={searchText}
+          onChange={(event) => {
+            setSearchText(event.target.value);
+            handleSearchChange(event.target.value);
+          }}
+        />
+        <IconButton name="new_instrument" onClick={() => openNewDialog()}>
+          <AddIcon />
+        </IconButton>
+      </DataGridToolbar>
+    );
+  };
+
+  return (
+    <div>
+      <Paper className={classes.container}>
+        <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
+          {title}
+        </Typography>
+        <Box
+          sx={
+            fixedHeader
+              ? { height: "calc(100vh - 148px)", width: "100%" }
+              : { width: "100%" }
+          }
+        >
+          <StyledDataGrid
+            autoHeight={!fixedHeader}
+            rows={instruments || []}
+            columns={columns}
+            getRowId={(row: any) => row.id}
+            initialState={{
+              pagination: { paginationModel: { pageSize: rowsPerPage } },
+            }}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            disableColumnFilter
+            slots={{ toolbar: CustomToolbar }}
+            showToolbar
+          />
+        </Box>
+        <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
+          <DialogTitle>New Instrument</DialogTitle>
+          <DialogContent dividers>
+            <InstrumentForm onClose={closeNewDialog} />
+          </DialogContent>
+        </Dialog>
+        <Dialog
+          open={editDialogOpen && instrumentToEditDelete !== null}
+          onClose={closeEditDialog}
+          maxWidth="md"
+        >
+          <DialogTitle>
+            {`Edit ${
+              instruments.find((i: any) => i.id === instrumentToEditDelete)
+                ?.name
+            } instrument`}
+          </DialogTitle>
+          <DialogContent dividers>
+            <InstrumentForm
+              onClose={closeEditDialog}
+              instrumentId={instrumentToEditDelete}
+            />
+          </DialogContent>
+        </Dialog>
+        <ConfirmDeletionDialog
+          deleteFunction={deleteInstrument}
+          dialogOpen={deleteDialogOpen}
+          closeDialog={closeDeleteDialog}
+          resourceName="instrument"
+        />
+      </Paper>
+    </div>
+  );
+};
+
+export default InstrumentTable;

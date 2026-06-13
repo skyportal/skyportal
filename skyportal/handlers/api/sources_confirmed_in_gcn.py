@@ -11,7 +11,7 @@ from ...models import (
     Localization,
     SourcesConfirmedInGCN,
 )
-from ...utils.UTCTZnaiveDateTime import UTCTZnaiveDateTime
+from ...utils.naive_datetime import UTCTZnaiveDateTime
 from ..base import BaseHandler
 
 log = make_log("api/sources_confirmed_in_gcn")

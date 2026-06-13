@@ -1,7 +1,7 @@
 import functools
 import json
 import urllib
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import astropy
 import numpy as np
@@ -21,6 +21,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import MMAAPI, FollowUpAPI
 
 env, cfg = load_env()
@@ -684,13 +685,13 @@ class ZTFAPI(FollowUpAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": str(datetime.utcnow()).replace("T", ""),
+                "default": str(utcnow_naive()).replace("T", ""),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": str(datetime.utcnow() + timedelta(days=1)).replace("T", ""),
+                "default": str(utcnow_naive() + timedelta(days=1)).replace("T", ""),
             },
             "program_id": {
                 "type": "string",
@@ -707,7 +708,7 @@ class ZTFAPI(FollowUpAPI):
             "field_ids": {"type": "string", "default": "699,700"},
             "queue_name": {
                 "type": "string",
-                "default": datetime.utcnow(),
+                "default": utcnow_naive(),
             },
         },
         "required": [
@@ -736,13 +737,13 @@ class ZTFAPI(FollowUpAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": str(datetime.utcnow() - timedelta(days=30)).replace("T", ""),
+                "default": str(utcnow_naive() - timedelta(days=30)).replace("T", ""),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": str(datetime.utcnow()).replace("T", ""),
+                "default": str(utcnow_naive()).replace("T", ""),
             },
         },
         "required": [
@@ -1225,10 +1226,12 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                     skiprows=[1],
                     delimiter="|",
                 )
-                # remove spaces around the column names and str values if any
+                # remove spaces around the column names and str values if any.
+                # is_string_dtype (not `== "object"`) so this also matches
+                # pandas >= 3.0's default `str` dtype for parsed text columns.
                 obstable.columns = [col.strip() for col in obstable.columns]
                 for col in obstable.columns:
-                    if obstable[col].dtype == "object":
+                    if pd.api.types.is_string_dtype(obstable[col].dtype):
                         obstable[col] = obstable[col].str.strip()
 
                 if obstable.empty:

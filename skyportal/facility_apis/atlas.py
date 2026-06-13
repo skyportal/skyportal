@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from io import StringIO
 
 import numpy as np
@@ -13,6 +13,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -390,13 +391,13 @@ class ATLASAPI(FollowUpAPI):
         "properties": {
             "start_date": {
                 "type": "string",
-                "default": str(datetime.utcnow() - timedelta(days=30)).replace("T", ""),
+                "default": str(utcnow_naive() - timedelta(days=30)).replace("T", ""),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": str(datetime.utcnow()).replace("T", ""),
+                "default": str(utcnow_naive()).replace("T", ""),
             },
         },
         "required": [

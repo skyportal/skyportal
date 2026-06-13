@@ -91,6 +91,7 @@ from ...models import (
 )
 from ...models.schema import ObservationPlanPost
 from ...utils.earthquake import COUNTRIES_FILE
+from ...utils.naive_datetime import utcnow_naive
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.simsurvey import get_simsurvey_parameters, random_parameters_notheta
 from ..base import BaseHandler, format_doc
@@ -157,15 +158,19 @@ TREASUREMAP_FILTERS = {
     "HESS": "HESS",
     "WISEL": "WISEL",
 }
-# to it, we add mappers for sncosmo bandpasses
-for bandpass_name in ALLOWED_BANDPASSES:
-    try:
-        bandpass = get_bandpass(bandpass_name)
-        central_wavelength = (bandpass.minwave() + bandpass.maxwave()) / 2
-        bandwidth = bandpass.maxwave() - bandpass.minwave()
-        TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
-    except Exception as e:
-        log(f"Error adding bandpass {bandpass_name} to treasuremap filters: {e}")
+# to it, we add mappers for sncosmo bandpasses. Wrap the loop in a short
+# astropy remote_timeout so an uncached bandpass whose CDN (the flaky SVO host)
+# is unreachable fails in ~2s instead of the default 10s, keeping import-time
+# blocking from pushing app startup past the test health-check window.
+with astropy.utils.data.conf.set_temp("remote_timeout", 2):
+    for bandpass_name in ALLOWED_BANDPASSES:
+        try:
+            bandpass = get_bandpass(bandpass_name)
+            central_wavelength = (bandpass.minwave() + bandpass.maxwave()) / 2
+            bandwidth = bandpass.maxwave() - bandpass.minwave()
+            TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
+        except Exception as e:
+            log(f"Error adding bandpass {bandpass_name} to treasuremap filters: {e}")
 
 # overwrite the filters for ZTF, as i-band is will otherwise be matched to TESS by treasuremap
 TREASUREMAP_FILTERS["ztfg"] = "g"
@@ -262,7 +267,7 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
             return
 
         # if the plan request's created_at date (when we received the GCN) is more than 1 hour ago, we skip the auto-send
-        if observation_plan_request.created_at < datetime.utcnow() - timedelta(hours=1):
+        if observation_plan_request.created_at < utcnow_naive() - timedelta(hours=1):
             log(
                 f"Default observation plan request {default_obsplan_id} was created more than 1 hour ago, skipping auto send."
             )
@@ -273,7 +278,7 @@ def send_observation_plan(plan_id, session, auto_send=False, default_obsplan_id=
         if plan_request_end_date:
             if (
                 arrow.get(plan_request_end_date).timestamp()
-                < datetime.utcnow().timestamp()
+                < utcnow_naive().timestamp()
             ):
                 log(
                     f"Default observation plan request {default_obsplan_id} has an end date in the past, skipping auto send."
@@ -461,7 +466,7 @@ async def send_observation_plan_async(
             )
             return
 
-        if observation_plan_request.created_at < datetime.utcnow() - timedelta(hours=1):
+        if observation_plan_request.created_at < utcnow_naive() - timedelta(hours=1):
             log(
                 f"Default observation plan request {default_obsplan_id} was created more than 1 hour ago, skipping auto send."
             )
@@ -471,7 +476,7 @@ async def send_observation_plan_async(
         if plan_request_end_date:
             if (
                 arrow.get(plan_request_end_date).timestamp()
-                < datetime.utcnow().timestamp()
+                < utcnow_naive().timestamp()
             ):
                 log(
                     f"Default observation plan request {default_obsplan_id} has an end date in the past, skipping auto send."
@@ -4289,18 +4294,18 @@ class DefaultObservationPlanRequestHandler(BaseHandler):
             if "start_date" in payload:
                 return self.error("Cannot have start_date in the payload")
             else:
-                payload["start_date"] = str(datetime.utcnow())
+                payload["start_date"] = str(utcnow_naive())
 
             if "end_date" in payload:
                 return self.error("Cannot have end_date in the payload")
             else:
-                payload["end_date"] = str(datetime.utcnow() + timedelta(days=1))
+                payload["end_date"] = str(utcnow_naive() + timedelta(days=1))
 
             if "queue_name" in payload:
                 return self.error("Cannot have queue_name in the payload")
             else:
                 payload["queue_name"] = (
-                    f"ToO_{str(datetime.utcnow()).replace(' ', 'T')}"
+                    f"ToO_{str(utcnow_naive()).replace(' ', 'T')}"
                 )
 
             # validate the payload

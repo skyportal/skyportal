@@ -32,198 +32,47 @@ import * as objTagActions from "./ducks/objectTags";
 
 // we also import actions that won't be hydrated, to make sure they are
 // registered as reducers, to avoid conflicts with redux-state-sync
-import * as sourceActions from "./ducks/source";
-import * as sourcesActions from "./ducks/sources";
+import "./ducks/source";
 import * as gcnTagsActions from "./ducks/gcnTags";
-import * as gcnEventActions from "./ducks/gcnEvent";
-import * as gcnEventsActions from "./ducks/gcnEvents";
+import "./ducks/gcnEvent";
+import "./ducks/gcnEvents";
 import * as weatherActions from "./ducks/weather";
 import * as spatialCatalogsActions from "./ducks/spatialCatalogs";
-import * as photometryActions from "./ducks/photometry";
 import * as photometryMinimalActions from "./ducks/photometry_minimal";
 import * as classificationsActions from "./ducks/classifications";
 import * as sourcesInGcnActions from "./ducks/sourcesingcn";
-import * as candidateActions from "./ducks/candidate/candidate";
+import "./ducks/candidate/candidate";
 import * as candidatesActions from "./ducks/candidate/candidates";
 import * as observationsActions from "./ducks/observations";
 import * as catalogQueriesActions from "./ducks/catalog_query";
-import * as surveyEfficiencyObservationsActions from "./ducks/survey_efficiency_observations";
-import * as surveyEfficiencyObservationPlansActions from "./ducks/survey_efficiency_observation_plans";
+import "./ducks/survey_efficiency_observations";
+import "./ducks/survey_efficiency_observation_plans";
 import * as localizationActions from "./ducks/localization";
 import * as shiftsActions from "./ducks/shifts";
 import * as remindersActions from "./ducks/reminders";
-import * as groupActions from "./ducks/group";
+import "./ducks/group";
 import * as instrumentActions from "./ducks/instrument";
 
 // this is used to keep track of what has been hydrated yet or not
 import * as hydrationActions from "./ducks/hydration";
 
-export default function hydrate(
-  dashboardOnly = false,
-  ducks_to_hydrate = hydrationActions.DUCKS_TO_HYDRATE,
-) {
+export default function hydrate() {
   return (dispatch) => {
-    if (!dashboardOnly) {
-      // initial data
-      if (ducks_to_hydrate.includes("sysInfo")) {
-        dispatch(sysInfoActions.fetchSystemInfo()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("sysInfo"));
-        });
-      }
-      if (ducks_to_hydrate.includes("dbInfo")) {
-        dispatch(dbInfoActions.fetchDBInfo()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("dbInfo"));
-        });
-      }
-      if (ducks_to_hydrate.includes("config")) {
-        dispatch(configActions.fetchConfig()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("config"));
-        });
-      }
-      if (ducks_to_hydrate.includes("profile")) {
-        dispatch(profileActions.fetchUserProfile()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("profile"));
-        });
-      }
-      if (ducks_to_hydrate.includes("groups")) {
-        dispatch(groupsActions.fetchGroups(true)).then(() => {
-          dispatch(hydrationActions.finishedHydrating("groups"));
-        });
-      }
-      if (ducks_to_hydrate.includes("users")) {
-        dispatch(usersActions.fetchUsers()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("users"));
-        });
-      }
-    }
-    // dashboard data, always refreshed
-    dispatch(newsFeedActions.fetchNewsFeed());
-    dispatch(topSourcesActions.fetchTopSources());
-    dispatch(topSaversActions.fetchTopSavers());
-    dispatch(recentSourcesActions.fetchRecentSources());
-    dispatch(sourceCountsActions.fetchSourceCounts());
-    dispatch(recentGcnEventsActions.fetchRecentGcnEvents());
-    if (!dashboardOnly) {
-      // other data
-      if (ducks_to_hydrate.includes("streams")) {
-        dispatch(streamsActions.fetchStreams()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("streams"));
-        });
-      }
-      if (ducks_to_hydrate.includes("enumTypes")) {
-        dispatch(enumTypesActions.fetchEnumTypes()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("enumTypes"));
-        });
-      }
-      if (ducks_to_hydrate.includes("instruments")) {
-        dispatch(instrumentsActions.fetchInstruments()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("instruments"));
-        });
-      }
-      if (ducks_to_hydrate.includes("allocations")) {
-        dispatch(allocationsActions.fetchAllocations()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("allocations"));
-        });
-      }
-      if (ducks_to_hydrate.includes("telescopes")) {
-        dispatch(telescopesActions.fetchTelescopes()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("telescopes"));
-        });
-      }
-      if (ducks_to_hydrate.includes("taxonomy")) {
-        dispatch(taxonomyActions.fetchTaxonomies()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("taxonomy"));
-        });
-      }
-      if (ducks_to_hydrate.includes("instrumentForms")) {
-        dispatch(instrumentsActions.fetchInstrumentForms()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("instrumentForms"));
-        });
-      }
-      if (ducks_to_hydrate.includes("favorites")) {
-        dispatch(favoritesActions.fetchFavorites()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("favorites"));
-        });
-      }
-      if (ducks_to_hydrate.includes("sharingServices")) {
-        dispatch(sharingServicesActions.fetchSharingServices()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("sharingServices"));
-        });
-      }
-      if (ducks_to_hydrate.includes("galaxyCatalogs")) {
-        dispatch(galaxiesActions.fetchGalaxyCatalogs()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("galaxyCatalogs"));
-        });
-      }
-      if (ducks_to_hydrate.includes("rejected")) {
-        dispatch(rejectedActions.fetchRejected()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("rejected"));
-        });
-      }
-      if (ducks_to_hydrate.includes("observingRuns")) {
-        dispatch(observingRunsActions.fetchObservingRuns()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("observingRuns"));
-        });
-      }
-      if (ducks_to_hydrate.includes("allocationsApiClassname")) {
-        dispatch(allocationsActions.fetchAllocationsApiClassname()).then(() => {
-          dispatch(
-            hydrationActions.finishedHydrating("allocationsApiClassname"),
-          );
-        });
-      }
-      if (ducks_to_hydrate.includes("analysisServices")) {
-        dispatch(analysisServicesActions.fetchAnalysisServices()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("analysisServices"));
-        });
-      }
-      if (ducks_to_hydrate.includes("defaultFollowupRequests")) {
-        dispatch(
-          defaultFollowupRequestsActions.fetchDefaultFollowupRequests(),
-        ).then(() => {
-          dispatch(
-            hydrationActions.finishedHydrating("defaultFollowupRequests"),
-          );
-        });
-      }
-      if (ducks_to_hydrate.includes("defaultObservationPlans")) {
-        dispatch(
-          defaultObservationPlansActions.fetchDefaultObservationPlans(),
-        ).then(() => {
-          dispatch(
-            hydrationActions.finishedHydrating("defaultObservationPlans"),
-          );
-        });
-      }
-      if (ducks_to_hydrate.includes("defaultSurveyEfficiencies")) {
-        dispatch(
-          defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies(),
-        ).then(() => {
-          dispatch(
-            hydrationActions.finishedHydrating("defaultSurveyEfficiencies"),
-          );
-        });
-      }
-      if (ducks_to_hydrate.includes("earthquake")) {
-        dispatch(earthquakeActions.fetchEarthquakes()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("earthquake"));
-        });
-      }
-      if (ducks_to_hydrate.includes("mmadetector")) {
-        dispatch(mmadetectorActions.fetchMMADetectors()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("mmadetector"));
-        });
-      }
-      if (ducks_to_hydrate.includes("followupApis")) {
-        dispatch(followupApisActions.fetchFollowupApis()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("followupApis"));
-        });
-      }
-      if (ducks_to_hydrate.includes("objectTags")) {
-        dispatch(objTagActions.fetchTagOptions()).then(() => {
-          dispatch(hydrationActions.finishedHydrating("objectTags"));
-        });
-      }
-    }
+    // Dashboard data, refreshed on navigation. Everything else is fetched
+    // on-demand by each page's RTK Query hooks (no eager boot prefetch).
+    dispatch(newsFeedActions.newsFeedApi.endpoints.getNewsFeed.initiate());
+    dispatch(
+      topSourcesActions.topSourcesApi.endpoints.getTopSources.initiate(),
+    );
+    dispatch(topSaversActions.topSaversApi.endpoints.getTopSavers.initiate());
+    dispatch(
+      recentSourcesActions.recentSourcesApi.endpoints.getRecentSources.initiate(),
+    );
+    dispatch(
+      sourceCountsActions.sourceCountsApi.endpoints.getSourceCounts.initiate(),
+    );
+    dispatch(
+      recentGcnEventsActions.recentGcnEventsApi.endpoints.getRecentGcnEvents.initiate(),
+    );
   };
 }

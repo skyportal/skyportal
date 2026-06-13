@@ -1,4 +1,5 @@
 import os
+import time
 import urllib.parse
 
 import requests
@@ -119,3 +120,39 @@ def assert_api_fail(status, data, expected_status=None, expected_error_partial=N
     if expected_status is not None:
         if status != expected_status:
             raise Exception(f"Expected status {expected_status}, got {status}")
+
+
+def wait_for_gcn_event(dateobs, token, timeout=120):
+    """Poll until the GCN event for `dateobs` has finished processing.
+
+    GCN event/localization ingestion (HEALPix skymaps) is slow under CI load, so
+    callers must wait for it with a generous timeout rather than racing it.
+    Returns the event data, or raises if it never finishes.
+    """
+    for _ in range(timeout // 2):
+        status, data = api("GET", f"gcn_event/{dateobs}", token=token)
+        if status == 200 and data.get("status") == "success":
+            return data["data"]
+        time.sleep(2)
+    raise AssertionError(f"GCN event {dateobs} did not process within {timeout}s")
+
+
+def wait_for_localization(dateobs, localization_name, token, timeout=240):
+    """Poll until the localization `dateobs`/`localization_name` has processed.
+
+    Returns the localization data (including its `id` and `flat_2d`), or raises.
+    """
+    for _ in range(timeout // 2):
+        status, data = api(
+            "GET",
+            f"localization/{dateobs}/name/{localization_name}",
+            token=token,
+            params={"include2DMap": True},
+        )
+        if status == 200 and data.get("status") == "success":
+            return data["data"]
+        time.sleep(2)
+    raise AssertionError(
+        f"Localization {localization_name} for {dateobs} did not process "
+        f"within {timeout}s"
+    )

@@ -3,12 +3,20 @@ import time
 import uuid
 
 import pytest
+from playwright.sync_api import expect
 
 from skyportal.models import DBSession, SourceView
 from skyportal.tests import api
 
 
-def test_top_sources(driver, user, public_source, public_group, upload_data_token):
+def _set_max_num_sources(page, value):
+    num = page.locator('//input[@name="maxNumSources"]').first
+    num.click()
+    num.press("ControlOrMeta+a")
+    num.press_sequentially(value)
+
+
+def test_top_sources(page, user, public_source, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -28,43 +36,32 @@ def test_top_sources(driver, user, public_source, public_group, upload_data_toke
     assert status == 200
     assert data["data"]["id"] == obj_id
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
-    # Wait for just added source to show up in added sources
-    driver.wait_for_xpath(f'//a/span[contains(.,"{obj_id}")]')
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
+    expect(page.locator(f'//a/span[contains(.,"{obj_id}")]').first).to_be_visible()
 
     # edit the preferences to show more than the default 10 sources
-    settings_button = driver.wait_for_xpath('//*[@id="topSourcesSettingsIcon"]')
-    driver.scroll_to_element_and_click(settings_button)
-
-    input = driver.wait_for_xpath('//input[@name="maxNumSources"]')
-    driver.scroll_to_element_and_click(input)
-    input.send_keys("50")
-
-    submit_button = driver.wait_for_xpath(
-        '//button[@type="submit"][@name="topSourcesSubmit"]'
-    )
-    driver.scroll_to_element_and_click(submit_button)
+    page.locator('//*[@id="topSourcesSettingsIcon"]').first.click()
+    _set_max_num_sources(page, "50")
+    page.locator('//button[@type="submit"][@name="topSourcesSubmit"]').first.click()
 
     # Test that front-end views register as source views
-    driver.click_xpath(f'//a/span[contains(.,"{obj_id}")]')
-    driver.wait_for_xpath(f'//h6[text()="{obj_id}"]')
+    page.locator(f'//a/span[contains(.,"{obj_id}")]').first.click()
+    expect(page.locator(f'//h6[text()="{obj_id}"]').first).to_be_visible()
     time.sleep(2)
-    driver.get("/")
-    driver.wait_for_xpath("//*[contains(.,'1 view')]")
+    page.goto("/")
+    expect(page.locator("//*[contains(.,'1 view')]").first).to_be_visible()
 
-    # Test that token requests (which register source views) do not increment the view count in the UI
-    # (we used to show token views, but periodic scripts ran by users with tokens would artificially inflate the view count)
+    # Token requests register source views but must NOT increment the UI count
     status, data = api("GET", f"sources/{obj_id}", token=upload_data_token)
     time.sleep(1)
     assert status == 200
-    driver.refresh()
-    driver.wait_for_xpath("//*[contains(.,'1 view')]")
+    page.reload()
+    expect(page.locator("//*[contains(.,'1 view')]").first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
-def test_top_source_prefs(driver, user, public_group, upload_data_token):
-    # Add an old source and give it an old view
+def test_top_source_prefs(page, user, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -88,40 +85,28 @@ def test_top_source_prefs(driver, user, public_group, upload_data_token):
     sv = SourceView(
         obj_id=obj_id,
         username_or_token_id=upload_data_token,
-        is_token=False,  # token views are not shown on the frontend
+        is_token=False,
         created_at=twenty_days_ago,
     )
     DBSession().add(sv)
     DBSession().commit()
 
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/")
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
 
-    # Wait for just top source widget to show up
     timespan_button = "//button[contains(@data-testid, 'topSources_timespanButton')]"
-    driver.wait_for_xpath(timespan_button)
+    expect(page.locator(timespan_button).first).to_be_visible()
 
-    # edit the preferences to show more than the default 10 sources
-    settings_button = driver.wait_for_xpath('//*[@id="topSourcesSettingsIcon"]')
-    driver.scroll_to_element_and_click(settings_button)
+    page.locator('//*[@id="topSourcesSettingsIcon"]').first.click()
+    _set_max_num_sources(page, "50")
+    page.locator('//button[@type="submit"][@name="topSourcesSubmit"]').first.click()
 
-    input = driver.wait_for_xpath('//input[@name="maxNumSources"]')
-    driver.scroll_to_element_and_click(input)
-    input.send_keys("50")
-
-    submit_button = driver.wait_for_xpath(
-        '//button[@type="submit"][@name="topSourcesSubmit"]'
-    )
-    driver.scroll_to_element_and_click(submit_button)
-
-    # Test that source doesn't show up in last 7 days of views
+    # Source doesn't show up in last 7 days of views
     source_view_xpath = f"//div[starts-with(@data-testid, 'topSourceItem_{obj_id}')]"
-    driver.wait_for_xpath_to_disappear(source_view_xpath)
+    expect(page.locator(source_view_xpath).first).to_be_hidden()
 
-    # Test that source does show up in last 30 days of views
-    driver.click_xpath(timespan_button)
-    last_30_days_button = "//*[contains(@data-testid, 'topSources_30days')]"
-    driver.click_xpath(last_30_days_button)
+    # Source shows up in last 30 days of views
+    page.locator(timespan_button).first.click()
+    page.locator("//*[contains(@data-testid, 'topSources_30days')]").first.click()
 
-    # Test that source view appears after changing prefs
-    driver.wait_for_xpath(source_view_xpath)
+    expect(page.locator(source_view_xpath).first).to_be_visible()

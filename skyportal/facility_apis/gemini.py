@@ -1,5 +1,5 @@
 import traceback
-from datetime import datetime, timedelta
+from datetime import timedelta
 from json import JSONDecodeError
 
 import arrow
@@ -11,6 +11,7 @@ from baselayer.log import make_log
 
 from ..utils import http
 from ..utils.calculations import deg2dms, deg2hms
+from ..utils.naive_datetime import utcnow_naive
 from ..utils.offset import _calculate_best_position_for_offset_stars, get_finding_chart
 from ..utils.parse import get_list_typed
 from . import FollowUpAPI
@@ -378,12 +379,12 @@ class GEMINIAPI(FollowUpAPI):
             "start_date": {
                 "title": "Start Date (UT)",
                 "type": "string",
-                "default": str(datetime.utcnow() - timedelta(days=7)).replace("T", ""),
+                "default": str(utcnow_naive() - timedelta(days=7)).replace("T", ""),
             },
             "end_date": {
                 "title": "End Date (UT)",
                 "type": "string",
-                "default": str(datetime.utcnow()).replace("T", ""),
+                "default": str(utcnow_naive()).replace("T", ""),
             },
             "l_exptime": {
                 "title": "Exposure Time",

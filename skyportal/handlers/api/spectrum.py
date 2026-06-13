@@ -10,7 +10,7 @@ from arrow import ParserError
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 from sqlalchemy import or_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import defer, selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
@@ -612,6 +612,9 @@ class SpectrumHandler(BaseHandler):
                 Arrow-parseable date string (e.g. 2020-01-01). If provided,
                 only return sources that have comments after this time.
         """
+        # original_file_string (the raw uploaded file) is opt-in to keep the
+        # default payload small.
+        include_original_file = self.get_query_argument("includeOriginalFile", False)
 
         if spectrum_id is not None:
             try:
@@ -631,6 +634,11 @@ class SpectrumHandler(BaseHandler):
                         selectinload(Spectrum.observers),
                         selectinload(Spectrum.pis),
                         selectinload(Spectrum.owner),
+                        *(
+                            []
+                            if include_original_file
+                            else [defer(Spectrum.original_file_string)]
+                        ),
                     )
                     .where(Spectrum.id == spectrum_id)
                 )
@@ -871,6 +879,11 @@ class SpectrumHandler(BaseHandler):
                 selectinload(Spectrum.pis),
                 selectinload(Spectrum.reducers),
                 selectinload(Spectrum.observers),
+                *(
+                    []
+                    if include_original_file
+                    else [defer(Spectrum.original_file_string)]
+                ),
             )
             spectra_result = await session.scalars(spec_query)
             spectra = spectra_result.unique().all()
@@ -1618,6 +1631,9 @@ class ObjSpectraHandler(BaseHandler):
         if sortOrder not in ["asc", "desc"]:
             return self.error("Invalid sortOrder, must be one of: asc, desc.")
 
+        # original_file_string (the raw uploaded file) is opt-in.
+        include_original_file = self.get_query_argument("includeOriginalFile", False)
+
         async with self.AsyncSession() as session:
             obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
@@ -1636,6 +1652,11 @@ class ObjSpectraHandler(BaseHandler):
                     selectinload(Spectrum.pis),
                     selectinload(Spectrum.reducers),
                     selectinload(Spectrum.observers),
+                    *(
+                        []
+                        if include_original_file
+                        else [defer(Spectrum.original_file_string)]
+                    ),
                 )
                 .where(Spectrum.obj_id == obj_id)
             )

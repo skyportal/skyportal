@@ -7,7 +7,11 @@ ENV LANG=C.UTF-8
 ENV NODE_MAJOR=20
 ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
 ENV PATH="/root/.cargo/bin:${PATH}"
-ENV SNCOSMO_DATA_DIR=/skyportal/persistentdata/sncosmo
+# Point sncosmo at the vendored data in the skyportal-data submodule (baked in
+# by `ADD . /skyportal`). SNCOSMO_DATA_DIR takes precedence over the config's
+# misc.sncosmo_data_folder, so set it to the same location. The chown of
+# /skyportal below keeps it writable for any runtime fallback fetch.
+ENV SNCOSMO_DATA_DIR=/skyportal/skyportal-data/sncosmo
 ENV UV_NO_DEV=1
 ENV UV_PYTHON_INSTALL_DIR=/opt/uv-python
 
@@ -23,9 +27,12 @@ RUN apt-get update && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     apt-get update && \
-    apt-get install -y cargo nodejs nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter && \
-    npm install -g npm@latest && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    apt-get install -y cargo nodejs nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter unzip && \
+    # bun is the project's package manager (per packageManager in package.json);
+    # baselayer's check_js_deps.sh auto-detects it from there.
+    curl -fsSL https://bun.sh/install | bash && \
+    install -m 0755 /root/.bun/bin/bun /usr/local/bin/bun && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.bun
 
 ARG SKYPORTAL_UID=1000
 ARG SKYPORTAL_GID=1000
@@ -64,8 +71,12 @@ RUN bash -c "\
     mkdir -p /skyportal/persistentdata/phot_series && \
     chown -R skyportal.skyportal /skyportal/persistentdata/phot_series && \
     \
-    mkdir -p /skyportal/persistentdata/sncosmo && \
-    chown -R skyportal.skyportal /skyportal/persistentdata/sncosmo && \
+    # sncosmo data (bandpasses, models) is vendored in the skyportal-data
+    # submodule and baked into the image by `ADD . /skyportal`, with
+    # SNCOSMO_DATA_DIR pointing at it — so there is no network warm-up at
+    # build time. The chown of /skyportal above keeps it writable for any
+    # runtime fallback fetch of a bandpass not present in the vendored set.
+    \
     # we remove the cache and temp files to reduce the image size
     rm -rf /root/.cache/pip && rm -rf /root/.cache/uv && rm -rf /tmp/* && \
     # we remove some unused data from the gwemopt package to reduce the image size
