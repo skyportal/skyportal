@@ -125,7 +125,7 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data={"id": public_release.id})
 
     @permissions(["Manage sources"])
-    async def patch(self, release_id):
+    async def patch(self, release_id: int):
         """
         ---
         summary: Update a public release
@@ -239,7 +239,15 @@ class PublicReleaseHandler(BaseHandler):
             200:
               content:
                 application/json:
-                    schema: Success
+                    schema:
+                      allOf:
+                        - $ref: '#/components/schemas/Success'
+                        - type: object
+                          properties:
+                            data:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/PublicRelease'
             400:
               content:
                 application/json:
@@ -278,7 +286,7 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data=public_releases)
 
     @permissions(["Manage sources"])
-    async def delete(self, release_id):
+    async def delete(self, release_id: int):
         """
         ---
         summary: Delete a public release

@@ -43,7 +43,7 @@ gaia = GaiaQuery()
 
 class GaiaQueryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id):
+    async def post(self, obj_id: str):
         """
         ---
         summary: Add Gaia annotations
@@ -103,7 +103,13 @@ class GaiaQueryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Annotation'
           400:
             content:
               application/json:
@@ -269,7 +275,7 @@ class GaiaQueryHandler(BaseHandler):
 
 class IRSAQueryWISEHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id):
+    async def post(self, obj_id: str):
         """
         ---
         summary: Add WISE annotations
@@ -318,7 +324,13 @@ class IRSAQueryWISEHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Annotation'
           400:
             content:
               application/json:
@@ -419,7 +431,7 @@ class IRSAQueryWISEHandler(BaseHandler):
 
 class VizierQueryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id):
+    async def post(self, obj_id: str):
         """
         ---
         summary: Add Vizier annotations
@@ -469,7 +481,13 @@ class VizierQueryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Annotation'
           400:
             content:
               application/json:
@@ -626,7 +644,7 @@ class DatalabQueryHandler(BaseHandler):
     """
 
     @auth_or_token
-    async def post(self, obj_id):
+    async def post(self, obj_id: str):
         data = self.get_json()
 
         async with self.AsyncSession() as session:
@@ -710,7 +728,7 @@ class DatalabQueryHandler(BaseHandler):
 
 class PS1QueryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id):
+    async def post(self, obj_id: str):
         """
         ---
         summary: Add PS1 annotations
@@ -768,7 +786,13 @@ class PS1QueryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Annotation'
           400:
             content:
               application/json:

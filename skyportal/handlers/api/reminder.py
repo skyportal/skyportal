@@ -193,7 +193,12 @@ async def post_reminder(
 
 class ReminderHandler(BaseHandler):
     @auth_or_token
-    async def get(self, associated_resource_type, resource_id, reminder_id=None):
+    async def get(
+        self,
+        associated_resource_type: str,
+        resource_id: str,
+        reminder_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -378,7 +383,9 @@ class ReminderHandler(BaseHandler):
             return self.error(str(e))
 
     @permissions(["Reminder"])
-    async def post(self, associated_resource_type, resource_id, *ignored_args):
+    async def post(
+        self, associated_resource_type: str, resource_id: str, *ignored_args
+    ):
         """
         ---
         summary: Post a reminder
@@ -562,7 +569,9 @@ class ReminderHandler(BaseHandler):
                 return self.error(str(e))
 
     @permissions(["Reminder"])
-    async def patch(self, associated_resource_type, resource_id, reminder_id):
+    async def patch(
+        self, associated_resource_type: str, resource_id: str, reminder_id: int
+    ):
         """
         ---
         summary: Update a reminder
@@ -804,7 +813,9 @@ class ReminderHandler(BaseHandler):
                 return self.error(str(e))
 
     @permissions(["Reminder"])
-    async def delete(self, associated_resource_type, resource_id, reminder_id):
+    async def delete(
+        self, associated_resource_type: str, resource_id: str, reminder_id: int
+    ):
         """
         ---
         summary: Delete a reminder

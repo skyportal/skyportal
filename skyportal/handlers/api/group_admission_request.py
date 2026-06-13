@@ -9,7 +9,7 @@ from ..base import BaseHandler
 
 class GroupAdmissionRequestHandler(BaseHandler):
     @auth_or_token
-    async def get(self, admission_request_id=None):
+    async def get(self, admission_request_id: int | None = None):
         """
         ---
         single:
@@ -242,7 +242,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.success(data={"id": admission_request.id})
 
     @permissions(["Upload data"])
-    async def patch(self, admission_request_id):
+    async def patch(self, admission_request_id: int):
         """
         ---
         summary: Update a group admission request status
@@ -317,7 +317,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    async def delete(self, admission_request_id):
+    async def delete(self, admission_request_id: int):
         """
         ---
         summary: Delete a group admission request

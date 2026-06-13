@@ -39,7 +39,7 @@ class Validator(Schema):
 
 class PhotometryValidationHandler(BaseHandler):
     @permissions(["Manage sources"])
-    async def post(self, photometry_id):
+    async def post(self, photometry_id: int):
         """
         ---
         summary: Validate/Reject a photometry point
@@ -174,7 +174,7 @@ class PhotometryValidationHandler(BaseHandler):
             return self.success(data={"id": photometry_validation.id})
 
     @permissions(["Manage sources"])
-    async def patch(self, photometry_id):
+    async def patch(self, photometry_id: int):
         """
         ---
         summary: Update the validated/rejected status of a photometry point
@@ -284,7 +284,7 @@ class PhotometryValidationHandler(BaseHandler):
             return self.success(data={"id": photometry_validation.id})
 
     @permissions(["Manage sources"])
-    async def delete(self, photometry_id):
+    async def delete(self, photometry_id: int):
         """
         ---
         summary: Delete the validated/rejected status of a photometry point

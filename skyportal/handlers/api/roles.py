@@ -47,7 +47,7 @@ class RoleHandler(BaseHandler):
 
 class UserRoleHandler(BaseHandler):
     @permissions(["Manage users"])
-    async def post(self, user_id, *ignored_args):
+    async def post(self, user_id: int, *ignored_args):
         """
         ---
         summary: Grant new Role(s) to a user
@@ -123,7 +123,7 @@ class UserRoleHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    async def delete(self, user_id, role_id):
+    async def delete(self, user_id: int, role_id: str):
         # Path arg comes in as a string; the column is integer.
         """
         ---

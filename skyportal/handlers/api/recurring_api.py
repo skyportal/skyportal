@@ -122,7 +122,7 @@ class RecurringAPIHandler(BaseHandler):
             return self.success(data={"id": recurring_api.id})
 
     @auth_or_token
-    async def get(self, recurring_api_id=None):
+    async def get(self, recurring_api_id: int | None = None):
         """
         ---
         single:
@@ -198,7 +198,7 @@ class RecurringAPIHandler(BaseHandler):
             return self.success(data=ret_array)
 
     @permissions(["Manage Recurring APIs"])
-    async def delete(self, recurring_api_id):
+    async def delete(self, recurring_api_id: int):
         """
         ---
         summary: Delete a Recurring API

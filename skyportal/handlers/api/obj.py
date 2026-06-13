@@ -27,7 +27,7 @@ _, cfg = load_env()
 
 class ObjHandler(BaseHandler):
     @auth_or_token  # ACLs will be checked below based on configs
-    async def delete(self, obj_id):
+    async def delete(self, obj_id: str):
         """
         ---
         summary: Delete an Obj
@@ -137,7 +137,7 @@ class ObjPositionHandler(BaseHandler):
             )
 
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Retrieve photometry-based position of an Obj
@@ -155,14 +155,19 @@ class ObjPositionHandler(BaseHandler):
             content:
               application/json:
                 schema:
-                  type: object
-                  properties:
-                    ra:
-                      type: number
-                      description: Right ascension of the object
-                    dec:
-                      type: number
-                      description: Declination of the object
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            ra:
+                              type: number
+                              description: Right ascension of the object
+                            dec:
+                              type: number
+                              description: Declination of the object
           400:
             content:
               application/json:

@@ -35,7 +35,7 @@ MAX_OBSERVATION_PLANS = 1000
 class AllocationObservationPlanHandler(BaseHandler):
     @auth_or_token
     @format_doc(MAX_OBSERVATION_PLANS=MAX_OBSERVATION_PLANS)
-    async def get(self, allocation_id):
+    async def get(self, allocation_id: int):
         """
         ---
         summary: Get an allocation's observation plans
@@ -160,7 +160,7 @@ class AllocationObservationPlanHandler(BaseHandler):
 class AllocationHandler(BaseHandler):
     @auth_or_token
     @format_doc(MAX_FOLLOWUP_REQUESTS=MAX_FOLLOWUP_REQUESTS)
-    async def get(self, allocation_id=None):
+    async def get(self, allocation_id: int | None = None):
         """
         ---
         single:
@@ -189,9 +189,20 @@ class AllocationHandler(BaseHandler):
               description: Page number for paginated query results. Defaults to 1
           responses:
             200:
-               content:
+              content:
                 application/json:
-                  schema: SingleAllocation
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              allocation:
+                                $ref: '#/components/schemas/Allocation'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:
@@ -550,7 +561,7 @@ class AllocationHandler(BaseHandler):
             return self.success(data={"id": allocation.id})
 
     @permissions(["Manage allocations"])
-    async def put(self, allocation_id):
+    async def put(self, allocation_id: int):
         """
         ---
         summary: Update an allocation
@@ -655,7 +666,7 @@ class AllocationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage allocations"])
-    async def delete(self, allocation_id):
+    async def delete(self, allocation_id: int):
         """
         ---
         summary: Delete an allocation
@@ -697,7 +708,7 @@ class AllocationHandler(BaseHandler):
 
 class AllocationReportHandler(BaseHandler):
     @auth_or_token
-    async def get(self, instrument_id):
+    async def get(self, instrument_id: int):
         """
         ---
         summary: Get allocation report

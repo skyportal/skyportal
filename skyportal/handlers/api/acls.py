@@ -39,7 +39,7 @@ class ACLHandler(BaseHandler):
 
 class UserACLHandler(BaseHandler):
     @permissions(["Manage users"])
-    async def post(self, user_id, *ignored_args):
+    async def post(self, user_id: int, *ignored_args):
         """
         ---
         summary: Grant ACLs to a user
@@ -113,7 +113,7 @@ class UserACLHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    async def delete(self, user_id, acl_id):
+    async def delete(self, user_id: int, acl_id: str):
         # Path arg comes in as a string; the column is integer.
         """
         ---

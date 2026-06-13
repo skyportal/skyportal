@@ -468,42 +468,7 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sharing submissions associated with this obj.",
     )
 
-    def add_linked_thumbnails(self, thumbnails, session=None):
-        """Determine the URLs of the SDSS, Legacy Survey DR10, and
-        thumbnails of the object,
-        insert them into the Thumbnails table, and link them to the object."""
-        if session is None:
-            session = DBSession()
-
-        # first we create and commit the thumbnails that don't require any
-        # request to external services to get their URLs. That way we don't
-        # end up committing nothing if one of the external requests fails,
-        # and we provide the user with as many thumbnails as possible, as
-        # quickly as possible.
-        # Pass obj_id (FK) instead of obj (relationship) so we don't trigger
-        # back-population of self.thumbnails (lazy load — fine under sync,
-        # fires MissingGreenlet under async).
-        if "sdss" in thumbnails:
-            session.add(
-                Thumbnail(obj_id=self.id, public_url=self.sdss_url, type="sdss")
-            )
-        if "ls" in thumbnails:
-            session.add(
-                Thumbnail(
-                    obj_id=self.id,
-                    public_url=self.legacysurvey_dr10_url,
-                    type="ls",
-                )
-            )
-        session.commit()
-
-        # now we create the thumbnails that require external requests
-        if "ps1" in thumbnails:
-            url = self.panstarrs_url
-            session.add(Thumbnail(obj_id=self.id, public_url=url, type="ps1"))
-            session.commit()
-
-    async def add_linked_thumbnails_async(self, thumbnails, session):
+    async def add_linked_thumbnails(self, thumbnails, session):
         """Async variant of ``add_linked_thumbnails``. Same behaviour, but
         awaits the commits and avoids touching the back-populated
         ``self.thumbnails`` collection.

@@ -11,7 +11,7 @@ from ..base import BaseHandler
 
 class StreamHandler(BaseHandler):
     @auth_or_token
-    async def get(self, stream_id=None):
+    async def get(self, stream_id: int | None = None):
         """
         ---
         single:
@@ -116,7 +116,7 @@ class StreamHandler(BaseHandler):
             return self.success(data={"id": stream.id})
 
     @permissions(["System admin"])
-    async def patch(self, stream_id):
+    async def patch(self, stream_id: int):
         """
         ---
         summary: Update a stream
@@ -143,7 +143,13 @@ class StreamHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Stream'
           400:
             content:
               application/json:
@@ -178,7 +184,7 @@ class StreamHandler(BaseHandler):
             return self.success()
 
     @permissions(["System admin"])
-    async def delete(self, stream_id):
+    async def delete(self, stream_id: int):
         """
         ---
         summary: Delete a stream
@@ -217,7 +223,7 @@ class StreamHandler(BaseHandler):
 
 class StreamUserHandler(BaseHandler):
     @permissions(["System admin"])
-    async def post(self, stream_id, *ignored_args):
+    async def post(self, stream_id: int, *ignored_args):
         """
         ---
         summary: Grant stream access to a user
@@ -282,7 +288,7 @@ class StreamUserHandler(BaseHandler):
             return self.success(data={"stream_id": stream_id, "user_id": user_id})
 
     @permissions(["System admin"])
-    async def delete(self, stream_id, user_id):
+    async def delete(self, stream_id: int, user_id: int):
         """
         ---
         summary: Revoke stream access from a user

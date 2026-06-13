@@ -9,7 +9,7 @@ from ..base import BaseHandler
 
 class FilterHandler(BaseHandler):
     @auth_or_token
-    async def get(self, filter_id=None):
+    async def get(self, filter_id: int | None = None):
         """
         ---
         single:
@@ -110,7 +110,7 @@ class FilterHandler(BaseHandler):
             return self.success(data={"id": fil.id})
 
     @permissions(["Upload data"])
-    async def patch(self, filter_id):
+    async def patch(self, filter_id: int):
         """
         ---
         summary: Update a filter
@@ -171,7 +171,7 @@ class FilterHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    async def delete(self, filter_id):
+    async def delete(self, filter_id: int):
         """
         ---
         summary: Delete a filter

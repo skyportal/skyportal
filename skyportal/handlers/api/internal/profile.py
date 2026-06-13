@@ -117,7 +117,7 @@ class ProfileHandler(BaseHandler):
             return self.success(data=user_info)
 
     @auth_or_token
-    async def patch(self, user_id=None):
+    async def patch(self, user_id: int | None = None):
         """
         ---
         description: Update user preferences

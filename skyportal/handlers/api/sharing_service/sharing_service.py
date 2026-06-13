@@ -215,7 +215,7 @@ async def update_sharing_service(
 
 class SharingServiceHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    async def put(self, existing_id=None):
+    async def put(self, existing_id: int | None = None):
         """
         ---
         summary: Create or update a sharing service
@@ -324,7 +324,7 @@ class SharingServiceHandler(BaseHandler):
                     return self.error(f"Failed to update sharing service: {e}")
 
     @auth_or_token
-    async def get(self, sharing_service_id=None):
+    async def get(self, sharing_service_id: int | None = None):
         """
         ---
         single:
@@ -404,7 +404,7 @@ class SharingServiceHandler(BaseHandler):
                 return self.success(data=sharing_services)
 
     @permissions(["Manage sharing services"])
-    async def delete(self, sharing_service_id):
+    async def delete(self, sharing_service_id: int):
         """
         ---
         summary: Delete an external sharing service

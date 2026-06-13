@@ -1,3 +1,4 @@
+import asyncio
 import itertools
 import time
 import traceback
@@ -7,7 +8,7 @@ import sqlalchemy as sa
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.app.models import init_db
+from baselayer.app.models import async_plain_session_factory, init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.observation_plan import (
     post_survey_efficiency_analysis,
@@ -319,24 +320,44 @@ def service(*args, **kwargs):
                                 )
                             ).first()
                             if defaultobsplanrequest is not None:
+                                obsplan_request_id = plan.observation_plan_request.id
                                 if defaultobsplanrequest.auto_send:
-                                    send_observation_plan(
-                                        plan.observation_plan_request.id,
-                                        session=session,
-                                        auto_send=True,
-                                        default_obsplan_id=default,
-                                    )
+                                    # bridge to the async impl on a fresh async
+                                    # session (this sync poller has no event loop)
+                                    async def _send(rid=obsplan_request_id):
+                                        async with async_plain_session_factory() as s:
+                                            await send_observation_plan(
+                                                rid,
+                                                s,
+                                                auto_send=True,
+                                                default_obsplan_id=default,
+                                            )
+
+                                    asyncio.run(_send())
                                 for (
                                     default_survey_efficiency
                                 ) in defaultobsplanrequest.default_survey_efficiencies:
                                     try:
-                                        post_survey_efficiency_analysis(
-                                            default_survey_efficiency.to_dict(),
-                                            plan.observation_plan_request.id,
-                                            1,
-                                            session,
-                                            asynchronous=False,
+                                        survey_eff_data = (
+                                            default_survey_efficiency.to_dict()
                                         )
+
+                                        async def _post_eff(
+                                            data=survey_eff_data,
+                                            rid=obsplan_request_id,
+                                        ):
+                                            async with (
+                                                async_plain_session_factory() as s
+                                            ):
+                                                await post_survey_efficiency_analysis(
+                                                    data,
+                                                    rid,
+                                                    1,
+                                                    s,
+                                                    asynchronous=False,
+                                                )
+
+                                        asyncio.run(_post_eff())
                                     except Exception as e:
                                         if (
                                             "Need at least one observation to evaluate efficiency"

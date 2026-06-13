@@ -8,7 +8,7 @@ from ..base import BaseHandler
 
 class PhotometryRequestHandler(BaseHandler):
     @auth_or_token
-    async def get(self, request_id):
+    async def get(self, request_id: int):
         """
         ---
         summary: Get photometry request

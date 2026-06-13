@@ -13,7 +13,7 @@ from ..base import BaseHandler
 
 class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
     @auth_or_token
-    async def get(self, survey_efficiency_analysis_id=None):
+    async def get(self, survey_efficiency_analysis_id: int | None = None):
         """
         ---
         single:
@@ -97,7 +97,7 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
 
 class SurveyEfficiencyForObservationsHandler(BaseHandler):
     @auth_or_token
-    async def get(self, survey_efficiency_analysis_id=None):
+    async def get(self, survey_efficiency_analysis_id: int | None = None):
         """
         ---
         single:
@@ -228,7 +228,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
             return self.success(data={"id": default_survey_efficiency_request.id})
 
     @auth_or_token
-    async def get(self, default_survey_efficiency_id=None):
+    async def get(self, default_survey_efficiency_id: int | None = None):
         """
         ---
         single:
@@ -320,7 +320,7 @@ class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
             return self.success(data=default_survey_efficiency_data)
 
     @auth_or_token
-    async def delete(self, default_survey_efficiency_id):
+    async def delete(self, default_survey_efficiency_id: int):
         """
         ---
         summary: Delete a default survey efficiency

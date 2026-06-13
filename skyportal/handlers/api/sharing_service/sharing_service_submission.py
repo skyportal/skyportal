@@ -86,7 +86,13 @@ class SharingServiceSubmissionHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/SharingServiceSubmission'
           400:
             content:
               application/json:
@@ -214,7 +220,7 @@ class SharingServiceSubmissionHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def get(self, sharing_service_submission_id=None):
+    async def get(self, sharing_service_submission_id: int | None = None):
         """
         ---
         single:
@@ -239,7 +245,7 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 200:
                     content:
                         application/json:
-                            schema: SharingServiceSubmission
+                            schema: SingleSharingServiceSubmission
                 400:
                     content:
                         application/json:
@@ -290,7 +296,26 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 200:
                     content:
                         application/json:
-                            schema: ArrayOfSharingServiceSubmissions
+                            schema:
+                                allOf:
+                                  - $ref: '#/components/schemas/Success'
+                                  - type: object
+                                    properties:
+                                      data:
+                                        type: object
+                                        properties:
+                                          sharing_service_id:
+                                            type: integer
+                                          submissions:
+                                            type: array
+                                            items:
+                                              $ref: '#/components/schemas/SharingServiceSubmission'
+                                          pageNumber:
+                                            type: integer
+                                          numPerPage:
+                                            type: integer
+                                          totalMatches:
+                                            type: integer
                 400:
                     content:
                         application/json:

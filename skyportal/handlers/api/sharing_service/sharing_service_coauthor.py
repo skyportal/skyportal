@@ -11,7 +11,7 @@ log = make_log("api/sharing_service_coauthor")
 
 class SharingServiceCoauthorHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    async def post(self, sharing_service_id, user_id=None):
+    async def post(self, sharing_service_id: int, user_id: int | None = None):
         """
         ---
         summary: Add a coauthor to an external sharing service
@@ -44,7 +44,13 @@ class SharingServiceCoauthorHandler(BaseHandler):
             200:
                 content:
                     application/json:
-                        schema: Success
+                        schema:
+                            allOf:
+                                - $ref: '#/components/schemas/Success'
+                                - type: object
+                                  properties:
+                                    data:
+                                      $ref: '#/components/schemas/SharingServiceCoauthor'
             400:
                 content:
                     application/json:
@@ -107,7 +113,7 @@ class SharingServiceCoauthorHandler(BaseHandler):
             return self.success(data={"id": coauthor.id})
 
     @permissions(["Manage sharing services"])
-    async def delete(self, sharing_service_id, user_id):
+    async def delete(self, sharing_service_id: int, user_id: int):
         """
         ---
         summary: Remove a coauthor from an external sharing service

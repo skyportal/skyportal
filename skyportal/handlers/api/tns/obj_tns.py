@@ -14,7 +14,7 @@ log = make_log("api/obj_tns")
 
 class ObjTNSHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Get TNS info for an object

@@ -21,7 +21,7 @@ MAX_SOURCES_PER_PAGE = 500
 
 class PhotStatHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id=None):
+    async def get(self, obj_id: str = None):
         """
         ---
         summary: Get photometry stats for a source
@@ -39,7 +39,13 @@ class PhotStatHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: PhotStat
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/PhotStat'
           400:
               content:
                 application/json:
@@ -79,7 +85,7 @@ class PhotStatHandler(BaseHandler):
         return self.success(data=phot_stat)
 
     @permissions(["system admin"])
-    async def post(self, obj_id=None):
+    async def post(self, obj_id: str = None):
         """
         ---
         summary: Create new phot stats for a source
@@ -133,7 +139,7 @@ class PhotStatHandler(BaseHandler):
         return self.success()
 
     @permissions(["system admin"])
-    async def put(self, obj_id=None):
+    async def put(self, obj_id: str = None):
         """
         ---
         summary: Update phot stats for a source
@@ -184,7 +190,7 @@ class PhotStatHandler(BaseHandler):
         return self.success()
 
     @permissions(["system admin"])
-    async def delete(self, obj_id=None):
+    async def delete(self, obj_id: str = None):
         """
         ---
         summary: Delete phot stats of a source

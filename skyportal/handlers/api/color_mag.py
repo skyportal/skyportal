@@ -91,7 +91,7 @@ def get_color_mag(annotations, **kwargs):
 
 class ObjColorMagHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Get color and absolute magnitude of a source

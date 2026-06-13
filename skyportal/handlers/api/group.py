@@ -24,20 +24,7 @@ from ..base import BaseHandler
 _, cfg = load_env()
 
 
-def has_admin_access_for_group(user, group_id, session):
-    groupuser = session.scalar(
-        GroupUser.select(user).where(
-            GroupUser.group_id == group_id, GroupUser.user_id == user.id
-        )
-    )
-    return len(
-        {"System admin", "Manage groups", "Manage_users"}.intersection(
-            set(user.permissions)
-        )
-    ) > 0 or (groupuser is not None and groupuser.admin)
-
-
-async def has_admin_access_for_group_async(user, group_id, session):
+async def has_admin_access_for_group(user, group_id, session):
     """Async variant of has_admin_access_for_group. Looks up the user's
     permission set via an explicit query (instead of touching the lazy
     ``user.permissions`` property) so it works under an async session.
@@ -64,7 +51,7 @@ async def has_admin_access_for_group_async(user, group_id, session):
     return bool(sysadmin_like)
 
 
-async def _user_is_system_admin_async(user_id, session):
+async def _user_is_system_admin(user_id, session):
     direct = sa.select(UserACL.acl_id).where(UserACL.user_id == user_id)
     via_role = (
         sa.select(RoleACL.acl_id)
@@ -85,7 +72,7 @@ log = make_log("api/group")
 
 class GroupHandler(BaseHandler):
     @auth_or_token
-    async def get(self, group_id=None):
+    async def get(self, group_id: int | None = None):
         """
         ---
         single:
@@ -269,7 +256,7 @@ class GroupHandler(BaseHandler):
             )
 
             # user_accessible_groups: all for sysadmin, member groups otherwise
-            is_sysadmin = await _user_is_system_admin_async(user_id, session)
+            is_sysadmin = await _user_is_system_admin(user_id, session)
             if is_sysadmin:
                 accessible_stmt = sa.select(Group).where(
                     Group.single_user_group.is_(False)
@@ -395,7 +382,7 @@ class GroupHandler(BaseHandler):
             return self.success(data={"id": g.id})
 
     @permissions(["Upload data"])
-    async def put(self, group_id):
+    async def put(self, group_id: int):
         """
         ---
         summary: Update a group
@@ -415,7 +402,13 @@ class GroupHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Group'
           400:
             content:
               application/json:
@@ -453,7 +446,7 @@ class GroupHandler(BaseHandler):
             return self.success(action="skyportal/FETCH_GROUPS")
 
     @permissions(["Upload data"])
-    async def delete(self, group_id):
+    async def delete(self, group_id: int):
         """
         ---
         summary: Delete a group
@@ -499,7 +492,7 @@ class GroupHandler(BaseHandler):
 
 class GroupUserHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, group_id, *ignored_args):
+    async def post(self, group_id: int, *ignored_args):
         """
         ---
         summary: Add a group user
@@ -639,7 +632,7 @@ class GroupUserHandler(BaseHandler):
             )
 
     @permissions(["Upload data"])
-    async def patch(self, group_id, *ignored_args):
+    async def patch(self, group_id: int, *ignored_args):
         """
         ---
         summary: Update a group user
@@ -677,7 +670,13 @@ class GroupUserHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/GroupUser'
         """
         data = self.get_json()
         try:
@@ -723,7 +722,7 @@ class GroupUserHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, group_id, user_id):
+    async def delete(self, group_id: int, user_id: int):
         """
         ---
         summary: Delete a group user
@@ -793,7 +792,7 @@ class GroupUserHandler(BaseHandler):
 
 class GroupUsersFromOtherGroupsHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, group_id, *ignored_args):
+    async def post(self, group_id: int, *ignored_args):
         """
         ---
         summary: Add users from other group(s)
@@ -824,7 +823,13 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/GroupUser'
         """
         try:
             group_id = int(group_id)
@@ -895,7 +900,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
 
 class GroupStreamHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, group_id, *ignored_args):
+    async def post(self, group_id: int, *ignored_args):
         """
         ---
         summary: Add alert stream to group
@@ -1005,7 +1010,7 @@ class GroupStreamHandler(BaseHandler):
             return self.success(data={"group_id": group_id, "stream_id": stream_id})
 
     @permissions(["Upload data"])
-    async def delete(self, group_id, stream_id):
+    async def delete(self, group_id: int, stream_id: int):
         """
         ---
         summary: Delete alert stream from group
@@ -1070,7 +1075,7 @@ class GroupStreamHandler(BaseHandler):
 
 class ObjGroupsHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Get an object's groups

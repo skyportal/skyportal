@@ -13,7 +13,7 @@ from ...models.schema import (
     MMADetectorSpectrumPost,
 )
 from ..base import BaseHandler
-from .spectrum import parse_id_list, parse_id_list_async
+from .spectrum import parse_id_list
 
 
 class MMADetectorHandler(BaseHandler):
@@ -76,7 +76,7 @@ class MMADetectorHandler(BaseHandler):
             return self.success(data={"id": mmadetector.id})
 
     @auth_or_token
-    async def get(self, mmadetector_id=None):
+    async def get(self, mmadetector_id: int | None = None):
         """
         ---
         single:
@@ -149,7 +149,7 @@ class MMADetectorHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Manage allocations"])
-    async def patch(self, mmadetector_id):
+    async def patch(self, mmadetector_id: int):
         """
         ---
         summary: Update an MMA Detector
@@ -170,7 +170,13 @@ class MMADetectorHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetector'
           400:
             content:
               application/json:
@@ -224,7 +230,7 @@ class MMADetectorHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage allocations"])
-    async def delete(self, mmadetector_id):
+    async def delete(self, mmadetector_id: int):
         """
         ---
         summary: Delete an MMA Detector
@@ -372,7 +378,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success(data={"id": spec.id})
 
     @auth_or_token
-    async def get(self, spectrum_id=None):
+    async def get(self, spectrum_id: int | None = None):
         """
         ---
         single:
@@ -474,10 +480,8 @@ class MMADetectorSpectrumHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                detector_ids = await parse_id_list_async(
-                    detector_ids, MMADetector, session
-                )
-                group_ids = await parse_id_list_async(group_ids, Group, session)
+                detector_ids = await parse_id_list(detector_ids, MMADetector, session)
+                group_ids = await parse_id_list(group_ids, Group, session)
             except (ValueError, AccessError) as e:
                 return self.error(str(e))
 
@@ -514,7 +518,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success(data=spectra)
 
     @permissions(["Upload data"])
-    async def patch(self, spectrum_id):
+    async def patch(self, spectrum_id: int):
         """
         ---
         summary: Update an MMA Detector Spectrum
@@ -535,7 +539,13 @@ class MMADetectorSpectrumHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetectorSpectrum'
           400:
             content:
               application/json:
@@ -605,7 +615,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    async def delete(self, spectrum_id):
+    async def delete(self, spectrum_id: int):
         """
         ---
         summary: Delete an MMA Detector Spectrum
@@ -777,7 +787,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             )
 
     @auth_or_token
-    async def get(self, time_interval_id=None):
+    async def get(self, time_interval_id: int | None = None):
         """
         ---
         single:
@@ -890,10 +900,8 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                detector_ids = await parse_id_list_async(
-                    detector_ids, MMADetector, session
-                )
-                group_ids = await parse_id_list_async(group_ids, Group, session)
+                detector_ids = await parse_id_list(detector_ids, MMADetector, session)
+                group_ids = await parse_id_list(group_ids, Group, session)
             except (ValueError, AccessError) as e:
                 return self.error(str(e))
 
@@ -947,7 +955,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Upload data"])
-    async def patch(self, time_interval_id):
+    async def patch(self, time_interval_id: int):
         """
         ---
         summary: Update an MMA Detector Time Interval
@@ -968,7 +976,13 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetectorTimeInterval'
           400:
             content:
               application/json:
@@ -1029,7 +1043,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    async def delete(self, time_interval_id):
+    async def delete(self, time_interval_id: int):
         """
         ---
         summary: Delete an MMA Detector Time Interval

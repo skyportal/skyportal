@@ -65,7 +65,12 @@ class AnnotationHandler(BaseHandler):
         return associated_resource_types[associated_resource_type]
 
     @auth_or_token
-    async def get(self, associated_resource_type, resource_id, annotation_id=None):
+    async def get(
+        self,
+        associated_resource_type: str,
+        resource_id: str,
+        annotation_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -213,7 +218,7 @@ class AnnotationHandler(BaseHandler):
             return self.success(data=query_output)
 
     @permissions(["Annotate"])
-    async def post(self, associated_resource_type, resource_id):
+    async def post(self, associated_resource_type: str, resource_id: str):
         """
         ---
         summary: Post an annotation
@@ -432,7 +437,9 @@ class AnnotationHandler(BaseHandler):
             return self.success(data={"annotation_id": annotation.id})
 
     @permissions(["Annotate"])
-    async def put(self, associated_resource_type, resource_id, annotation_id):
+    async def put(
+        self, associated_resource_type: str, resource_id: str, annotation_id: int
+    ):
         """
         ---
         summary: Update an annotation
@@ -564,7 +571,9 @@ class AnnotationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Annotate"])
-    async def delete(self, associated_resource_type, resource_id, annotation_id):
+    async def delete(
+        self, associated_resource_type: str, resource_id: str, annotation_id: int
+    ):
         """
         ---
         summary: Delete an annotation

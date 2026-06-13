@@ -134,7 +134,7 @@ async def create_scan_report_item(session, report, sources_by_obj):
 
 class ScanReportItemHandler(BaseHandler):
     @auth_or_token
-    async def patch(self, report_id, item_id):
+    async def patch(self, report_id: int, item_id: int):
         """
         ---
         summary: Update an item from a scanning report
@@ -165,7 +165,13 @@ class ScanReportItemHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/ScanReportItem'
           400:
             content:
               application/json:
@@ -202,7 +208,7 @@ class ScanReportItemHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def get(self, report_id, _):
+    async def get(self, report_id: int, _):
         """
         ---
         summary: Retrieve all items in a scanning report
@@ -219,7 +225,7 @@ class ScanReportItemHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: ArrayOfCandidateScanReport
+                schema: ArrayOfScanReportItems
           400:
             content:
               application/json:

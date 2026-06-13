@@ -1,5 +1,3 @@
-from datetime import UTC, datetime, timezone
-
 import numpy as np
 import sqlalchemy as sa
 from astropy.utils.masked import MaskedNDArray
@@ -20,6 +18,7 @@ from ...models import (
     User,
 )
 from ...models.schema import ObservingRunGetWithAssignments, ObservingRunPost
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 log = make_log("api/observing_run")
@@ -111,7 +110,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data={"id": run_id})
 
     @auth_or_token
-    async def get(self, run_id=None):
+    async def get(self, run_id: int | None = None):
         """
         ---
         single:
@@ -264,7 +263,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data=runs_list)
 
     @permissions(["Manage observing runs"])
-    async def put(self, run_id):
+    async def put(self, run_id: int):
         """
         ---
         summary: Update an observing run
@@ -285,7 +284,13 @@ class ObservingRunHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/ObservingRun'
           400:
             content:
               application/json:
@@ -338,7 +343,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, run_id):
+    async def delete(self, run_id: int):
         """
         ---
         summary: Delete an observing run
@@ -387,10 +392,7 @@ class ObservingRunHandler(BaseHandler):
                     )
 
             # don't allow deleting past runs, unless they have no assignments
-            if (
-                orun.run_end_utc < datetime.now(UTC).replace(tzinfo=None)
-                and len(assignments) > 0
-            ):
+            if orun.run_end_utc < utcnow_naive() and len(assignments) > 0:
                 return self.error(
                     "Cannot delete an observing run that has ended and had targets assigned to it."
                 )
@@ -407,7 +409,7 @@ class ObservingRunHandler(BaseHandler):
 
 class ObservingRunBulkEditHandler(BaseHandler):
     @auth_or_token
-    async def put(self, run_id):
+    async def put(self, run_id: int):
         """
         ---
         summary: Bulk update observing run assignments

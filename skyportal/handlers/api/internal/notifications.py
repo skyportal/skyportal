@@ -8,7 +8,7 @@ from ...base import BaseHandler
 
 class NotificationHandler(BaseHandler):
     @auth_or_token
-    async def get(self, notification_id=None):
+    async def get(self, notification_id: int | None = None):
         """Fetch notification(s)"""
 
         if notification_id is not None:
@@ -37,7 +37,7 @@ class NotificationHandler(BaseHandler):
             return self.success(data=result.all())
 
     @auth_or_token
-    async def patch(self, notification_id):
+    async def patch(self, notification_id: int):
         """Update a notification"""
 
         try:
@@ -73,7 +73,7 @@ class NotificationHandler(BaseHandler):
             return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
     @auth_or_token
-    async def delete(self, notification_id):
+    async def delete(self, notification_id: int):
         """Delete a notification"""
         if notification_id is None:
             return self.error("Missing required notification_id")

@@ -32,7 +32,7 @@ mpcheck_url = urllib.parse.urljoin(MPC_ENDPOINT, "cgi-bin/mpcheck.cgi")
 
 class ObjMPCHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id):
+    async def post(self, obj_id: str):
         """
         ---
         summary: Crossmatch an object with MPC

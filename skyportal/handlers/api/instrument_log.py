@@ -15,7 +15,7 @@ from ..base import BaseHandler
 
 class InstrumentLogHandler(BaseHandler):
     @auth_or_token
-    async def post(self, instrument_id):
+    async def post(self, instrument_id: int):
         """
         ---
         summary: Add instrument logs
@@ -124,7 +124,7 @@ class InstrumentLogHandler(BaseHandler):
             return self.success(data={"id": instrument_log.id})
 
     @auth_or_token
-    async def get(self, instrument_id):
+    async def get(self, instrument_id: int):
         try:
             instrument_id_int = int(instrument_id)
         except (TypeError, ValueError):
@@ -170,7 +170,7 @@ class InstrumentLogHandler(BaseHandler):
 
 class InstrumentLogExternalAPIHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def get(self, allocation_id):
+    async def get(self, allocation_id: int):
         """
         ---
         summary: Get instrument logs from external API
@@ -269,7 +269,7 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
 
 class InstrumentStatusHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def put(self, instrument_id):
+    async def put(self, instrument_id: int):
         """
         ---
         summary: Update instrument status

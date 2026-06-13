@@ -1006,7 +1006,7 @@ class AnalysisServiceHandler(BaseHandler):
             return self.success(data={"id": analysis_service.id})
 
     @auth_or_token
-    async def get(self, analysis_service_id=None):
+    async def get(self, analysis_service_id: int | None = None):
         """
         ---
         single:
@@ -1100,7 +1100,7 @@ class AnalysisServiceHandler(BaseHandler):
         ANALYSIS_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_TYPES),
         ANALYSIS_INPUT_TYPES=", ".join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES),
     )
-    async def patch(self, analysis_service_id):
+    async def patch(self, analysis_service_id: int):
         """
         ---
         summary: Update an Analysis Service.
@@ -1261,7 +1261,7 @@ class AnalysisServiceHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage Analysis Services"])
-    async def delete(self, analysis_service_id):
+    async def delete(self, analysis_service_id: int):
         """
         ---
         summary: Delete an Analysis Service.
@@ -1303,7 +1303,9 @@ class AnalysisServiceHandler(BaseHandler):
 
 class AnalysisHandler(BaseHandler):
     @permissions(["Run Analyses"])
-    async def post(self, analysis_resource_type, resource_id, analysis_service_id):
+    async def post(
+        self, analysis_resource_type: str, resource_id: str, analysis_service_id: int
+    ):
         """
         ---
         summary: Run an analysis
@@ -1512,7 +1514,7 @@ class AnalysisHandler(BaseHandler):
                     return self.error(f"Error posting analysis: {e}")
 
     @auth_or_token
-    async def get(self, analysis_resource_type, analysis_id=None):
+    async def get(self, analysis_resource_type: str, analysis_id: int | None = None):
         """
         ---
         single:
@@ -1581,7 +1583,7 @@ class AnalysisHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleObjAnalysis
+                  schema: SingleObjAnalysisDetail
             400:
               content:
                 application/json:
@@ -1595,7 +1597,7 @@ class AnalysisHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfObjAnalysiss
+                  schema: ArrayOfObjAnalysisDetails
             400:
               content:
                 application/json:
@@ -1731,7 +1733,7 @@ class AnalysisHandler(BaseHandler):
             return self.success(data=ret_array)
 
     @permissions(["Run Analyses"])
-    async def delete(self, analysis_resource_type, analysis_id):
+    async def delete(self, analysis_resource_type: str, analysis_id: int):
         """
         ---
         summary: Delete an Analysis.
@@ -1812,7 +1814,11 @@ class AnalysisHandler(BaseHandler):
 class AnalysisProductsHandler(BaseHandler):
     @auth_or_token
     async def get(
-        self, analysis_resource_type, analysis_id, product_type, plot_number=0
+        self,
+        analysis_resource_type: str,
+        analysis_id: int,
+        product_type: str,
+        plot_number: int = 0,
     ):
         """
         ---
@@ -1986,7 +1992,9 @@ class AnalysisProductsHandler(BaseHandler):
 
 class AnalysisUploadOnlyHandler(BaseHandler):
     @permissions(["Run Analyses"])
-    async def post(self, analysis_resource_type, resource_id, analysis_service_id):
+    async def post(
+        self, analysis_resource_type: str, resource_id: str, analysis_service_id: int
+    ):
         """
         ---
         summary: Upload an upload_only analysis result
@@ -2138,9 +2146,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                         ),
                         status=403,
                     )
-                invalid_after = utcnow_naive() + datetime.timedelta(
-                    seconds=10
-                )
+                invalid_after = utcnow_naive() + datetime.timedelta(seconds=10)
                 analysis = ObjAnalysis(
                     obj=obj,
                     author=author,
@@ -2187,7 +2193,7 @@ class DefaultAnalysisHandler(BaseHandler):
     # for a default analysis to be run on an object
 
     @auth_or_token
-    async def get(self, analysis_service_id, default_analysis_id):
+    async def get(self, analysis_service_id: int, default_analysis_id: int):
         """
         ---
         single:
@@ -2297,7 +2303,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 )
 
     @auth_or_token
-    async def post(self, analysis_service_id, *ignored_args):
+    async def post(self, analysis_service_id: int, *ignored_args):
         """
         ---
         summary: Create a new default analysis
@@ -2410,9 +2416,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 stats = {
                     "daily_limit": daily_limit,
                     "daily_count": 0,
-                    "last_run": utcnow_naive().strftime(
-                        "%Y-%m-%dT%H:%M:%S.%f"
-                    ),
+                    "last_run": utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S.%f"),
                 }
 
                 if not isinstance(source_filter, dict):
@@ -2515,7 +2519,7 @@ class DefaultAnalysisHandler(BaseHandler):
                 )
 
     @auth_or_token
-    async def delete(self, analysis_service_id, default_analysis_id):
+    async def delete(self, analysis_service_id: int, default_analysis_id: int):
         """
         ---
         summary: Delete a default analysis

@@ -15,7 +15,7 @@ _, cfg = load_env()
 
 class TaxonomyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, taxonomy_id=None):
+    async def get(self, taxonomy_id: int | None = None):
         """
         ---
         single:
@@ -263,7 +263,7 @@ class TaxonomyHandler(BaseHandler):
             return self.success(data={"taxonomy_id": taxonomy.id})
 
     @permissions(["Post taxonomy"])
-    async def put(self, taxonomy_id):
+    async def put(self, taxonomy_id: int):
         """
         ---
         summary: Update a taxonomy
@@ -333,7 +333,7 @@ class TaxonomyHandler(BaseHandler):
             return self.success()
 
     @permissions(["Delete taxonomy"])
-    async def delete(self, taxonomy_id):
+    async def delete(self, taxonomy_id: int):
         """
         ---
         summary: Delete a taxonomy

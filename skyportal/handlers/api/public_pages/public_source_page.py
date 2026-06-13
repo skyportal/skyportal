@@ -257,7 +257,7 @@ def delete_auto_published_page(source_id, remaining_group_ids):
 
 class PublicSourcePageHandler(BaseHandler):
     @permissions(["Manage sources"])
-    async def post(self, source_id):
+    async def post(self, source_id: str):
         """
         ---
           summary: Create a public page for a source
@@ -348,7 +348,7 @@ class PublicSourcePageHandler(BaseHandler):
                 return self.error(str(e))
 
     @auth_or_token
-    async def get(self, source_id):
+    async def get(self, source_id: str):
         """
         ---
           summary: Retrieve all public pages for a source
@@ -367,7 +367,15 @@ class PublicSourcePageHandler(BaseHandler):
             200:
               content:
                 application/json:
-                    schema: Success
+                    schema:
+                      allOf:
+                        - $ref: '#/components/schemas/Success'
+                        - type: object
+                          properties:
+                            data:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/PublicSourcePage'
             400:
               content:
                 application/json:
@@ -394,7 +402,7 @@ class PublicSourcePageHandler(BaseHandler):
             return self.success(data=result.all())
 
     @permissions(["Manage sources"])
-    async def delete(self, page_id):
+    async def delete(self, page_id: int):
         """
         ---
         summary: Delete a public source page

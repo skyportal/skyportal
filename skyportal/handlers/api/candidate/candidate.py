@@ -49,7 +49,7 @@ from ....models import (
 )
 from ....utils.cache import Cache, array_to_bytes
 from ....utils.calculations import great_circle_distance
-from ....utils.data_access import accessible_group_and_filter_ids_async
+from ....utils.data_access import accessible_group_and_filter_ids
 from ....utils.parse import get_page_and_n_per_page
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...base import BaseHandler
@@ -339,7 +339,7 @@ class CandidateHandler(BaseHandler):
             )
 
     @auth_or_token
-    async def get(self, obj_id=None):
+    async def get(self, obj_id: str = None):
         """
         ---
         single:
@@ -905,7 +905,7 @@ class CandidateHandler(BaseHandler):
         async with self.AsyncSession() as session:
             # first, we get the list of group IDs and filter IDs
             # that the user has access to
-            group_ids, filter_ids = await accessible_group_and_filter_ids_async(
+            group_ids, filter_ids = await accessible_group_and_filter_ids(
                 session,
                 session.user_or_token,
                 group_ids,
@@ -1620,7 +1620,7 @@ class CandidateHandler(BaseHandler):
             return self.success(data={"ids": ids})
 
     @permissions(["Upload data"])
-    async def delete(self, obj_id, filter_id):
+    async def delete(self, obj_id: str, filter_id: int):
         """
         ---
         summary: Delete candidate(s)
@@ -1642,7 +1642,13 @@ class CandidateHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
         """
 
         try:

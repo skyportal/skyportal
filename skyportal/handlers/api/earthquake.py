@@ -34,8 +34,8 @@ log = make_log("earthquake")
 _ = set_attribute  # silence unused-import lint
 
 
-async def post_earthquake_from_xml_async(payload, user_id, session):
-    """Async: Post Earthquake to database from quakeml xml."""
+async def post_earthquake_from_xml(payload, user_id, session):
+    """Post Earthquake to database from quakeml xml."""
     user = await session.scalar(sa.select(User).where(User.id == user_id))
 
     event = obspy.core.event.read_events(io.StringIO(payload), format="QUAKEML")[0]
@@ -105,8 +105,8 @@ async def post_earthquake_from_xml_async(payload, user_id, session):
     return event_id
 
 
-async def post_earthquake_from_dictionary_async(payload, user_id, session):
-    """Async: Post Earthquake to database from dictionary."""
+async def post_earthquake_from_dictionary(payload, user_id, session):
+    """Post Earthquake to database from dictionary."""
     user = await session.scalar(sa.select(User).where(User.id == user_id))
 
     date = payload["date"]
@@ -146,118 +146,6 @@ async def post_earthquake_from_dictionary_async(payload, user_id, session):
     return event_id
 
 
-def post_earthquake_from_xml(payload, user_id, session):
-    """Sync: Post Earthquake to database from quakeml xml."""
-    user = session.query(User).get(user_id)
-
-    event = obspy.core.event.read_events(io.StringIO(payload), format="QUAKEML")[0]
-    event_uri = event.resource_id.id.replace("/", "-")
-
-    split_strings = ["1-query?eventid=", "-EVENT-", "-Event-", "-event-", "-geofon-"]
-    event_id = None
-    for split_string in split_strings:
-        str_split = event_uri.split(split_string)
-        if len(str_split) > 1:
-            event_id = str_split[-1]
-            break
-    if event_id is None:
-        event_id = event_uri
-
-    event_type = event.event_type
-    if event_type == "not existing":
-        event = session.scalars(
-            EarthquakeEvent.select(user, mode="update").where(
-                EarthquakeEvent.event_id == event_id
-            )
-        ).first()
-        if event is not None:
-            event.status = "canceled"
-            session.add(event)
-            session.commit()
-            return event.id
-        return None
-
-    magnitudes = event.magnitudes
-    if len(magnitudes) == 0:
-        raise ValueError("Must have magnitude information to create Earthquake.")
-
-    mag = magnitudes[-1].mag
-    origin = event.origins[-1]
-
-    event = session.scalars(
-        EarthquakeEvent.select(user).where(EarthquakeEvent.event_id == event_id)
-    ).first()
-
-    if event is None:
-        event = EarthquakeEvent(
-            event_id=event_id, event_uri=event_uri, sent_by_id=user.id
-        )
-        session.add(event)
-    else:
-        if not event.is_accessible_by(user, mode="update"):
-            raise AccessError(
-                "Insufficient permissions: Earthquake event can only be updated by original poster"
-            )
-
-    country = get_country(origin.latitude, origin.longitude)
-    earthquake_notice = EarthquakeNotice(
-        content=payload.encode("utf-8"),
-        event_id=event_id,
-        lat=origin.latitude,
-        lon=origin.longitude,
-        depth=origin.depth,
-        magnitude=mag,
-        country=country,
-        date=origin.time.datetime,
-        sent_by_id=user.id,
-    )
-    session.add(earthquake_notice)
-    session.commit()
-
-    return event_id
-
-
-def post_earthquake_from_dictionary(payload, user_id, session):
-    """Sync: Post Earthquake to database from dictionary."""
-    user = session.query(User).get(user_id)
-
-    date = payload["date"]
-    event_id = payload["event_id"]
-    latitude = payload["latitude"]
-    longitude = payload["longitude"]
-    depth = payload["depth"]
-    magnitude = payload["magnitude"]
-
-    event = session.scalars(
-        EarthquakeEvent.select(user).where(EarthquakeEvent.event_id == event_id)
-    ).first()
-
-    if event is None:
-        event = EarthquakeEvent(event_id=event_id, sent_by_id=user.id)
-        session.add(event)
-    else:
-        if not event.is_accessible_by(user, mode="update"):
-            raise ValueError(
-                "Insufficient permissions: Earthquake event can only be updated by original poster"
-            )
-
-    country = get_country(latitude, longitude)
-    earthquake_notice = EarthquakeNotice(
-        event_id=event_id,
-        lat=latitude,
-        lon=longitude,
-        depth=depth,
-        magnitude=magnitude,
-        country=country,
-        date=date,
-        sent_by_id=user.id,
-    )
-    session.add(earthquake_notice)
-    session.commit()
-
-    return event_id
-
-
 class EarthquakeStatusHandler(BaseHandler):
     @auth_or_token
     async def get(self):
@@ -271,7 +159,15 @@ class EarthquakeStatusHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            type: string
           400:
             content:
               application/json:
@@ -331,18 +227,18 @@ class EarthquakeHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             if "xml" in data:
-                event_id = await post_earthquake_from_xml_async(
+                event_id = await post_earthquake_from_xml(
                     data["xml"], self.associated_user_object.id, session
                 )
             else:
-                event_id = await post_earthquake_from_dictionary_async(
+                event_id = await post_earthquake_from_dictionary(
                     data, self.associated_user_object.id, session
                 )
 
             return self.success(data={"id": event_id})
 
     @auth_or_token
-    async def get(self, event_id=None):
+    async def get(self, event_id: str | None = None):
         """
         ---
         single:
@@ -419,7 +315,20 @@ class EarthquakeHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfEarthquakeEvents
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              events:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/EarthquakeEvent'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:
@@ -560,7 +469,7 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data=query_results)
 
     @auth_or_token
-    async def delete(self, event_id):
+    async def delete(self, event_id: str):
         """
         ---
         summary: Delete an Earthquake event
@@ -577,7 +486,13 @@ class EarthquakeHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -600,7 +515,7 @@ class EarthquakeHandler(BaseHandler):
 
 class EarthquakePredictionHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id, mma_detector_id):
+    async def post(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Run a prediction analysis for the earthquake.
@@ -622,7 +537,13 @@ class EarthquakePredictionHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakePrediction'
         """
         try:
             mma_detector_id = int(mma_detector_id)
@@ -750,7 +671,7 @@ def compute_traveltimes(earthquake, detector):
 
 class EarthquakeMeasurementHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id, mma_detector_id):
+    async def post(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Post a ground velocity measurement for the earthquake.
@@ -772,7 +693,13 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakeMeasured'
         """
         try:
             mma_detector_id = int(mma_detector_id)
@@ -835,7 +762,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def get(self, earthquake_id, mma_detector_id):
+    async def get(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Retrieve a ground velocity measurement for the earthquake.
@@ -889,7 +816,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success(data=measurement)
 
     @auth_or_token
-    async def patch(self, earthquake_id, mma_detector_id):
+    async def patch(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Update a ground velocity measurement for the earthquake.
@@ -911,7 +838,13 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakeMeasured'
         """
         try:
             mma_detector_id = int(mma_detector_id)
@@ -965,7 +898,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, earthquake_id, mma_detector_id):
+    async def delete(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Delete a ground velocity measurement for the earthquake.
@@ -987,7 +920,13 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
         """
         try:
             mma_detector_id = int(mma_detector_id)

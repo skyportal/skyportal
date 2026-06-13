@@ -139,67 +139,8 @@ def detect_priority_alias(payload):
     return "priority"
 
 
-def post_assignment(data, session):
+async def post_assignment(data, session):
     """Post assignment to database.
-    data: dict
-        Assignment dictionary
-    session: sqlalchemy.Session
-        Database session for this transaction
-    """
-
-    try:
-        assignment = ClassicalAssignment(**AssignmentSchema.load(data=data))
-    except ValidationError as e:
-        raise ValidationError(
-            f'Error parsing followup request: "{e.normalized_messages()}"'
-        )
-
-    run_id = assignment.run_id
-    data["priority"] = assignment.priority.name
-    run = session.scalars(
-        ObservingRun.select(session.user_or_token).where(ObservingRun.id == run_id)
-    ).first()
-    if run is None:
-        raise ValueError("Observing run is not accessible.")
-
-    predecessor = session.scalars(
-        ClassicalAssignment.select(session.user_or_token).where(
-            ClassicalAssignment.obj_id == assignment.obj_id,
-            ClassicalAssignment.run_id == run_id,
-        )
-    ).first()
-
-    if predecessor is not None:
-        raise ValueError("Object is already assigned to this run.")
-
-    assignment = ClassicalAssignment(**data)
-
-    if hasattr(session.user_or_token, "created_by"):
-        user_id = session.user_or_token.created_by.id
-    else:
-        user_id = session.user_or_token.id
-
-    assignment.requester_id = user_id
-    assignment.last_modified_by_id = user_id
-    session.add(assignment)
-    session.commit()
-
-    flow = Flow()
-    flow.push(
-        "*",
-        "skyportal/REFRESH_SOURCE",
-        payload={"obj_key": assignment.obj.internal_key},
-    )
-    flow.push(
-        "*",
-        "skyportal/REFRESH_OBSERVING_RUN",
-        payload={"run_id": assignment.run_id},
-    )
-    return assignment.id
-
-
-async def post_assignment_async(data, session):
-    """Async equivalent of ``post_assignment``.
 
     Posts a ClassicalAssignment using an ``AsyncSession``.
     """
@@ -263,7 +204,7 @@ async def post_assignment_async(data, session):
 
 class AssignmentHandler(BaseHandler):
     @auth_or_token
-    async def get(self, assignment_id=None):
+    async def get(self, assignment_id: int | None = None):
         """
         ---
         single:
@@ -387,7 +328,7 @@ class AssignmentHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                assignment_id = await post_assignment_async(data, session)
+                assignment_id = await post_assignment(data, session)
             except ValidationError as e:
                 return self.error(
                     f'Error posting followup request: "{e.normalized_messages()}"'
@@ -400,7 +341,7 @@ class AssignmentHandler(BaseHandler):
             return self.success(data={"id": assignment_id})
 
     @permissions(["Upload data"])
-    async def put(self, assignment_id):
+    async def put(self, assignment_id: int):
         """
         ---
         summary: Update an assignment
@@ -479,7 +420,7 @@ class AssignmentHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    async def delete(self, assignment_id):
+    async def delete(self, assignment_id: int):
         """
         ---
         summary: Delete an assignment
@@ -1312,7 +1253,7 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
 class FollowupRequestHandler(BaseHandler):
     @auth_or_token
     @format_doc(MAX_FOLLOWUP_REQUESTS=MAX_FOLLOWUP_REQUESTS)
-    async def get(self, followup_request_id=None):
+    async def get(self, followup_request_id: int | None = None):
         """
         ---
         single:
@@ -1431,7 +1372,24 @@ class FollowupRequestHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfFollowupRequests
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              followup_requests:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/FollowupRequest'
+                              totalMatches:
+                                type: integer
+                              pageNumber:
+                                type: integer
+                              numPerPage:
+                                type: integer
             400:
               content:
                 application/json:
@@ -1775,7 +1733,7 @@ class FollowupRequestHandler(BaseHandler):
                 )
 
     @permissions(["Upload data"])
-    async def put(self, request_id):
+    async def put(self, request_id: int):
         """
         ---
         summary: Update a follow-up request
@@ -1796,7 +1754,13 @@ class FollowupRequestHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/FollowupRequest'
           400:
             content:
               application/json:
@@ -1931,7 +1895,7 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    async def delete(self, request_id):
+    async def delete(self, request_id: int):
         """
         ---
         summary: Delete a follow-up request
@@ -2009,7 +1973,7 @@ class FollowupRequestHandler(BaseHandler):
 
 class FollowupRequestCommentHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def put(self, followup_request_id):
+    async def put(self, followup_request_id: int):
         """
         ---
         summary: Update a follow-up request comment
@@ -2032,7 +1996,13 @@ class FollowupRequestCommentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/FollowupRequest'
           400:
             content:
               application/json:
@@ -2487,7 +2457,7 @@ def observation_schedule(
 
 class FollowupRequestSchedulerHandler(BaseHandler):
     @auth_or_token
-    async def get(self, instrument_id):
+    async def get(self, instrument_id: int):
         """
         ---
         summary: Retrieve followup requests schedule
@@ -2809,7 +2779,13 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/FollowupRequest'
           400:
             content:
               application/json:
@@ -3129,7 +3105,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
             return self.success(data={"id": default_followup_request.id})
 
     @auth_or_token
-    async def get(self, default_followup_request_id=None):
+    async def get(self, default_followup_request_id: int | None = None):
         """
         ---
         single:
@@ -3210,7 +3186,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
             return self.success(data=default_followup_request_data)
 
     @auth_or_token
-    async def delete(self, default_followup_request_id):
+    async def delete(self, default_followup_request_id: int):
         """
         ---
         summary: Delete a default follow-up request
@@ -3256,7 +3232,7 @@ class DefaultFollowupRequestHandler(BaseHandler):
 
 class FollowupRequestWatcherHandler(BaseHandler):
     @auth_or_token
-    async def post(self, followup_request_id):
+    async def post(self, followup_request_id: int):
         """
         ---
         summary: Add follow-up request to watch list
@@ -3335,7 +3311,7 @@ class FollowupRequestWatcherHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, followup_request_id):
+    async def delete(self, followup_request_id: int):
         """
         ---
         summary: Delete follow-up request from watch list

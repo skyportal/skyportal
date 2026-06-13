@@ -51,7 +51,9 @@ class ObjTagOptionHandler(BaseHandler):
                             $ref: '#/components/schemas/ObjTagOption'
         """
         async with self.AsyncSession() as session:
-            tags = (await session.scalars(ObjTagOption.select(session.user_or_token))).all()
+            tags = (
+                await session.scalars(ObjTagOption.select(session.user_or_token))
+            ).all()
             return self.success(data=tags)
 
     @permissions(["Manage sources"])
@@ -458,9 +460,11 @@ class ObjTagHandler(BaseHandler):
             requested_group_ids = set(group_ids)
             if self.current_user.is_system_admin:
                 existing_group_ids = set(
-                    (await session.scalars(
-                        sa.select(Group.id).where(Group.id.in_(requested_group_ids))
-                    )).all()
+                    (
+                        await session.scalars(
+                            sa.select(Group.id).where(Group.id.in_(requested_group_ids))
+                        )
+                    ).all()
                 )
                 if len(existing_group_ids) != len(requested_group_ids):
                     return self.error(
@@ -487,11 +491,13 @@ class ObjTagHandler(BaseHandler):
 
             if existing_assoc_id:
                 existing_group_ids = set(
-                    (await session.scalars(
-                        sa.select(GroupObjTag.group_id).where(
-                            GroupObjTag.obj_tag_id == existing_assoc_id
+                    (
+                        await session.scalars(
+                            sa.select(GroupObjTag.group_id).where(
+                                GroupObjTag.obj_tag_id == existing_assoc_id
+                            )
                         )
-                    )).all()
+                    ).all()
                 )
 
                 groups_to_add = valid_group_ids - existing_group_ids
@@ -515,9 +521,11 @@ class ObjTagHandler(BaseHandler):
                     {"id": existing_assoc_id, "message": "Groups added to existing tag"}
                 )
 
-            groups = (await session.scalars(
-                sa.select(Group).where(Group.id.in_(valid_group_ids))
-            )).all()
+            groups = (
+                await session.scalars(
+                    sa.select(Group).where(Group.id.in_(valid_group_ids))
+                )
+            ).all()
 
             new_assoc = ObjTag(
                 objtagoption_id=objtagoption_id,
@@ -630,12 +638,14 @@ class ObjTagHandler(BaseHandler):
                     )
 
             stmt = GroupObjTag.select(session.user_or_token, mode="delete")
-            group_obj_tags = (await session.scalars(
-                stmt.where(
-                    GroupObjTag.obj_tag_id == association_id,
-                    GroupObjTag.group_id.in_(groups_to_remove),
+            group_obj_tags = (
+                await session.scalars(
+                    stmt.where(
+                        GroupObjTag.obj_tag_id == association_id,
+                        GroupObjTag.group_id.in_(groups_to_remove),
+                    )
                 )
-            )).all()
+            ).all()
             for group_obj_tag in group_obj_tags:
                 await session.delete(group_obj_tag)
 

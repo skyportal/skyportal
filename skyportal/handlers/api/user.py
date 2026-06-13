@@ -98,73 +98,6 @@ def set_default_group(user, session):
                     session.add(StreamUser(stream_id=stream.id, user_id=user.id))
 
 
-def add_user_and_setup_groups(
-    session,
-    username,
-    first_name=None,
-    last_name=None,
-    affiliations=None,
-    contact_phone=None,
-    contact_email=None,
-    role_ids=[],
-    group_ids_and_admin=[],
-    oauth_uid=None,
-    expiration_date=None,
-):
-    try:
-        # the roles come from the association_proxy
-        # in baselayer/app/models.py line 1851
-        # they are queried from a different session
-        # in the "creator" lambda. Until we figure out
-        # how to do this in the same session, this should
-        # solve the problem.
-        roles = session.scalars(sa.select(Role).where(Role.id.in_(role_ids))).all()
-        user = User(
-            username=username.lower(),
-            roles=roles,
-            first_name=first_name,
-            last_name=last_name,
-            affiliations=affiliations,
-            contact_phone=contact_phone,
-            contact_email=contact_email,
-            oauth_uid=oauth_uid,
-            expiration_date=expiration_date,
-        )
-        session.add(user)
-        session.flush()
-
-        if role_ids == []:
-            set_default_role(user, session)
-
-        if group_ids_and_admin == []:
-            set_default_group(user, session)
-        else:
-            for group_id, admin in group_ids_and_admin:
-                session.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
-                group = session.scalars(
-                    sa.select(Group).where(Group.id == group_id)
-                ).first()
-                if group.streams:
-                    for stream in group.streams:
-                        session.add(StreamUser(stream_id=stream.id, user_id=user.id))
-
-            # Add user to sitewide public group
-            if cfg["misc.public_group_name"] is not None:
-                public_group = session.scalars(
-                    sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
-                ).first()
-                if public_group is not None:
-                    session.add(GroupUser(group_id=public_group.id, user_id=user.id))
-
-        set_default_acls(user, session)
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        log(str(e))
-        raise e
-    return user.id
-
-
 # --- Async variants of the helpers above ----------------------------------
 # These exist because UserHandler is now async, but the sync versions are
 # still used by skyportal/onboarding.py (which runs inside the synchronous
@@ -217,7 +150,7 @@ async def set_default_group_async(user, session):
                 session.add(StreamUser(stream_id=stream.id, user_id=user.id))
 
 
-async def add_user_and_setup_groups_async(
+async def add_user_and_setup_groups(
     session,
     username,
     first_name=None,
@@ -287,7 +220,7 @@ async def add_user_and_setup_groups_async(
 
 class UserHandler(BaseHandler):
     @auth_or_token
-    async def get(self, user_id=None):
+    async def get(self, user_id: int | None = None):
         """
         ---
         single:
@@ -649,7 +582,7 @@ class UserHandler(BaseHandler):
             return self.error("Affiliations must be a list of strings")
         async with self.AsyncSession() as session:
             try:
-                user_id = await add_user_and_setup_groups_async(
+                user_id = await add_user_and_setup_groups(
                     session=session,
                     username=data["username"],
                     first_name=data.get("first_name"),
@@ -670,7 +603,7 @@ class UserHandler(BaseHandler):
         return self.success(data={"id": user_id})
 
     @permissions(["Manage users"])
-    async def patch(self, user_id):
+    async def patch(self, user_id: int):
         """
         ---
         summary: Update a user
@@ -739,7 +672,7 @@ class UserHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage users"])
-    async def delete(self, user_id=None):
+    async def delete(self, user_id: int | None = None):
         """
         ---
         summary: Delete a user

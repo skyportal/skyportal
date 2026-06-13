@@ -781,7 +781,7 @@ class PhotometricSeriesHandler(BaseHandler):
             " " * 10,
         ).lstrip()
     )
-    async def patch(self, photometric_series_id):
+    async def patch(self, photometric_series_id: int):
         """
         ---
         summary: Update a photometric series.
@@ -869,7 +869,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
-    async def get(self, photometric_series_id=None):
+    async def get(self, photometric_series_id: int | None = None):
         """
         ---
         single:
@@ -1883,7 +1883,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data=results)
 
     @permissions(["Upload data"])
-    async def delete(self, photometric_series_id):
+    async def delete(self, photometric_series_id: int):
         """
         ---
         summary: Delete a photometric series

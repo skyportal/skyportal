@@ -232,7 +232,7 @@ class SpatialCatalogHandler(BaseHandler):
             return self.success(data={"id": catalog.id})
 
     @auth_or_token
-    async def get(self, catalog_id=None):
+    async def get(self, catalog_id: int | None = None):
         """
         ---
         single:
@@ -246,11 +246,43 @@ class SpatialCatalogHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            $ref: '#/components/schemas/SpatialCatalog'
+            400:
+              content:
+                application/json:
+                  schema: Error
         multiple:
           summary: Get all Spatial Catalogs
           description: Retrieve all SpatialCatalogs
           tags:
             - spatial catalogs
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/SpatialCatalog'
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
         catalog_name = self.get_query_argument("catalog_name", None)
@@ -290,7 +322,7 @@ class SpatialCatalogHandler(BaseHandler):
             return self.success(data=data)
 
     @auth_or_token
-    async def delete(self, catalog_id):
+    async def delete(self, catalog_id: int):
         """
         ---
         summary: Delete a Spatial Catalog

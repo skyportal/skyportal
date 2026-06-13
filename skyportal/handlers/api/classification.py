@@ -163,7 +163,7 @@ async def post_classification(data, user_id, session):
 
 class ClassificationHandler(BaseHandler):
     @auth_or_token
-    async def get(self, classification_id=None):
+    async def get(self, classification_id: int | None = None):
         """
         ---
         single:
@@ -430,7 +430,7 @@ class ClassificationHandler(BaseHandler):
                 return self.success(data={"classification_id": classification_id})
 
     @permissions(["Classify"])
-    async def put(self, classification_id):
+    async def put(self, classification_id: int):
         """
         ---
         summary: Update a classification
@@ -537,7 +537,7 @@ class ClassificationHandler(BaseHandler):
             return self.success()
 
     @permissions(["Classify"])
-    async def delete(self, classification_id):
+    async def delete(self, classification_id: int):
         """
         ---
         summary: Delete a classification
@@ -628,7 +628,7 @@ class ClassificationHandler(BaseHandler):
 
 class ObjClassificationHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Get an object's classifications
@@ -701,7 +701,7 @@ class ObjClassificationHandler(BaseHandler):
             return self.success(data=classifications_json)
 
     @auth_or_token
-    async def delete(self, obj_id):
+    async def delete(self, obj_id: str):
         """
         ---
         summary: Delete all classifications for an object
@@ -865,7 +865,7 @@ class ObjClassificationQueryHandler(BaseHandler):
 
 class ClassificationVotesHandler(BaseHandler):
     @auth_or_token
-    async def post(self, classification_id):
+    async def post(self, classification_id: int):
         """
         ---
         summary: Vote for a classification
@@ -965,7 +965,7 @@ class ClassificationVotesHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, classification_id):
+    async def delete(self, classification_id: int):
         """
         ---
         summary: Delete a classification vote

@@ -15,7 +15,6 @@ from ....models import (
 )
 from ....utils.data_access import (
     accessible_group_and_filter_ids,
-    accessible_group_and_filter_ids_async,
 )
 from ....utils.parse import get_page_and_n_per_page
 from ...base import BaseHandler
@@ -25,7 +24,7 @@ log = make_log("api/candidate_filter")
 # Back-compat aliases (the *_sync/no-suffix names were used by call sites
 # before the helpers moved to skyportal.utils.data_access).
 get_user_accessible_group_and_filter_ids_sync = accessible_group_and_filter_ids
-get_user_accessible_group_and_filter_ids = accessible_group_and_filter_ids_async
+get_user_accessible_group_and_filter_ids = accessible_group_and_filter_ids
 
 
 def get_subquery_for_saved_status(session, stmt, saved_status, group_ids, user):

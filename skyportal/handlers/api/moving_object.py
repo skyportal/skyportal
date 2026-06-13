@@ -21,7 +21,7 @@ _, cfg = load_env()
 
 class MovingObjectFollowupHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_name):
+    async def post(self, obj_name: str):
         """
         ---
         summary: Find a continuous sequence of observations for a moving object

@@ -19,7 +19,7 @@ _, cfg = load_env()
 
 
 class AnalysisWebhookHandler(BaseHandler):
-    async def post(self, analysis_resource_type, token):
+    async def post(self, analysis_resource_type: str, token: str):
         """
         ---
         summary: Return the results of an analysis

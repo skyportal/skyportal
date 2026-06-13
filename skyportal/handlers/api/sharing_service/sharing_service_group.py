@@ -18,7 +18,7 @@ log = make_log("api/sharing_service_group")
 
 class SharingServiceGroupHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    async def put(self, sharing_service_id, group_id=None):
+    async def put(self, sharing_service_id: int, group_id: int | None = None):
         """
         ---
         summary: Add or edit a group for an external sharing service
@@ -63,7 +63,13 @@ class SharingServiceGroupHandler(BaseHandler):
             200:
                 content:
                     application/json:
-                        schema: Success
+                        schema:
+                            allOf:
+                                - $ref: '#/components/schemas/Success'
+                                - type: object
+                                  properties:
+                                    data:
+                                      $ref: '#/components/schemas/SharingServiceGroup'
             400:
                 content:
                     application/json:
@@ -217,7 +223,7 @@ class SharingServiceGroupHandler(BaseHandler):
                 return self.success(data={"id": sharing_service_group.id})
 
     @permissions(["Manage sharing services"])
-    async def delete(self, sharing_service_id, group_id):
+    async def delete(self, sharing_service_id: int, group_id: int):
         """
         ---
         summary: Delete a group from an external sharing service

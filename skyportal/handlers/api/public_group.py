@@ -9,7 +9,7 @@ env, cfg = load_env()
 
 class PublicGroupHandler(BaseHandler):
     @auth_or_token
-    async def get(self, group_id=None):
+    async def get(self, group_id: int | None = None):
         """
         ---
         single:

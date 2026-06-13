@@ -90,7 +90,7 @@ EXTENSION_TO_CONTENT_TYPE = {
 }
 
 
-async def users_mentioned_async(text, session):
+async def users_mentioned(text, session):
     punctuation = string.punctuation.replace("-", "").replace("@", "")
     usernames = []
     for word in text.replace(",", " ").split():
@@ -110,7 +110,7 @@ async def users_mentioned_async(text, session):
     return result.unique().all()
 
 
-async def instruments_mentioned_async(text, session):
+async def instruments_mentioned(text, session):
     punctuation = string.punctuation.replace("-", "").replace("#", "")
     instrument_names = []
     for word in text.replace(",", " ").split():
@@ -167,7 +167,12 @@ def _coerce_comment_resource_id(associated_resource_type, resource_id):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    async def get(self, associated_resource_type, resource_id=None, comment_id=None):
+    async def get(
+        self,
+        associated_resource_type: str,
+        resource_id: str = None,
+        comment_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -434,7 +439,7 @@ class CommentHandler(BaseHandler):
             return self.success(data=comment_data)
 
     @permissions(["Comment"])
-    async def post(self, associated_resource_type, resource_id, *ignore_args):
+    async def post(self, associated_resource_type: str, resource_id: str, *ignore_args):
         """
         ---
         summary: Post a comment
@@ -809,7 +814,7 @@ class CommentHandler(BaseHandler):
                         f'Unknown resource type "{associated_resource_type}".'
                     )
 
-                users_mentioned_in_comment = await users_mentioned_async(
+                users_mentioned_in_comment = await users_mentioned(
                     comment_text, session
                 )
                 if users_mentioned_in_comment:
@@ -823,8 +828,8 @@ class CommentHandler(BaseHandler):
                             )
                         )
 
-                users_mentioned_in_instrument_comment = (
-                    await instruments_mentioned_async(comment_text, session)
+                users_mentioned_in_instrument_comment = await instruments_mentioned(
+                    comment_text, session
                 )
                 if users_mentioned_in_instrument_comment:
                     for user_mentioned in users_mentioned_in_instrument_comment:
@@ -903,7 +908,9 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
-    async def put(self, associated_resource_type, resource_id, comment_id):
+    async def put(
+        self, associated_resource_type: str, resource_id: str, comment_id: int
+    ):
         """
         ---
         summary: Update a comment
@@ -955,7 +962,13 @@ class CommentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Comment'
           400:
             content:
               application/json:
@@ -1141,7 +1154,9 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
-    async def delete(self, associated_resource_type, resource_id, comment_id):
+    async def delete(
+        self, associated_resource_type: str, resource_id: str, comment_id: int
+    ):
         """
         ---
         summary: Delete a comment
@@ -1316,7 +1331,9 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
-    async def get(self, associated_resource_type, resource_id, comment_id):
+    async def get(
+        self, associated_resource_type: str, resource_id: str, comment_id: int
+    ):
         """
         ---
         summary: Download/Preview comment attachment

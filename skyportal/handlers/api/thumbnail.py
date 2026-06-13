@@ -16,7 +16,7 @@ from ...models import Obj, Thumbnail, User
 from ..base import BaseHandler
 
 
-async def post_thumbnail_async(data, user_id, session):
+async def post_thumbnail(data, user_id, session):
     """Post thumbnail to database (async).
     data: dict
         Thumbnail dictionary
@@ -82,71 +82,6 @@ async def post_thumbnail_async(data, user_id, session):
     return t.id
 
 
-def post_thumbnail(data, user_id, session):
-    """Post thumbnail to database (sync).
-    data: dict
-        Thumbnail dictionary
-    user_id : int
-        SkyPortal ID of User posting the Thumbnail
-    session: sqlalchemy.orm.Session
-        Database session for this transaction
-    """
-
-    user = session.scalar(sa.select(User).where(User.id == user_id))
-
-    obj = session.scalars(Obj.select(user).where(Obj.id == data["obj_id"])).first()
-
-    if obj is None:
-        raise AttributeError(f"Invalid obj_id: {data['obj_id']}")
-
-    basedir = Path(os.path.dirname(__file__)) / ".." / ".."
-    obj_hash = hashlib.sha256(data["obj_id"].encode("utf-8")).hexdigest()
-
-    required_depth = 2
-    subfolders = "/".join(obj_hash[i * 2 : (i + 1) * 2] for i in range(required_depth))
-
-    if os.path.abspath(basedir).endswith("skyportal/skyportal"):
-        basedir = basedir / ".."
-    file_uri = os.path.abspath(
-        basedir / f"static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png"
-    )
-    if not os.path.exists(os.path.dirname(file_uri)):
-        Path(os.path.dirname(file_uri)).mkdir(parents=True)
-
-    file_bytes = base64.b64decode(data["data"])
-    try:
-        im = Image.open(io.BytesIO(file_bytes))
-    except UnidentifiedImageError as e:
-        raise UnidentifiedImageError(f"Invalid file type: {e}")
-
-    if im.format != "PNG":
-        raise ValueError("Invalid thumbnail image type. Only PNG are supported.")
-    if not all(16 <= x <= 500 for x in im.size):
-        raise ValueError(
-            "Invalid thumbnail size. Only thumbnails "
-            "between (16, 16) and (500, 500) allowed."
-        )
-    try:
-        t = Thumbnail(
-            obj_id=data["obj_id"],
-            type=data["ttype"],
-            file_uri=file_uri,
-            public_url=f"/static/thumbnails/{subfolders}/{data['obj_id']}_{data['ttype']}.png",
-        )
-        with open(file_uri, "wb") as f:
-            f.write(file_bytes)
-
-        session.add(t)
-        session.commit()
-
-    except (LookupError, StatementError) as e:
-        if "enum" in str(e):
-            raise LookupError(f"Invalid ttype: {e}")
-        raise StatementError(f"Error creating new thumbnail: {e}")
-
-    return t.id
-
-
 class ThumbnailHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(self):
@@ -201,7 +136,7 @@ class ThumbnailHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                thumbnail_id = await post_thumbnail_async(
+                thumbnail_id = await post_thumbnail(
                     data, self.associated_user_object.id, session
                 )
             except Exception as e:
@@ -209,7 +144,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success(data={"id": thumbnail_id})
 
     @auth_or_token
-    async def get(self, thumbnail_id):
+    async def get(self, thumbnail_id: int):
         """
         ---
         summary: Get a thumbnail
@@ -247,7 +182,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success(data=t)
 
     @permissions(["Manage sources"])
-    async def put(self, thumbnail_id):
+    async def put(self, thumbnail_id: int):
         """
         ---
         summary: Update a thumbnail
@@ -268,7 +203,13 @@ class ThumbnailHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Thumbnail'
           400:
             content:
               application/json:
@@ -305,7 +246,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success()
 
     @permissions(["Manage sources"])
-    async def delete(self, thumbnail_id):
+    async def delete(self, thumbnail_id: int):
         """
         ---
         summary: Delete a thumbnail
@@ -422,9 +363,7 @@ class ThumbnailPathHandler(BaseHandler):
                 total_matches,
                 good_matches,
                 bad_matches,
-            ) = await count_thumbnails_in_folders_async(
-                session, types, good_like, bad_like
-            )
+            ) = await count_thumbnails_in_folders(session, types, good_like, bad_like)
 
         return self.success(
             data={
@@ -544,11 +483,11 @@ class ThumbnailPathHandler(BaseHandler):
                     continue
 
                 if alert_available:
-                    ok = await check_thumbnail_file_async(
+                    ok = await check_thumbnail_file(
                         t, self.associated_user_object.id, session
                     )
                     if not ok:
-                        # the delete is committed in check_thumbnail_file_async
+                        # the delete is committed in check_thumbnail_file
                         continue
                 obj_hash = hashlib.sha256(t.obj_id.encode("utf-8")).hexdigest()
                 subfolders = "/".join(
@@ -593,9 +532,7 @@ class ThumbnailPathHandler(BaseHandler):
                 total_matches,
                 good_matches,
                 bad_matches,
-            ) = await count_thumbnails_in_folders_async(
-                session, types, good_like, bad_like
-            )
+            ) = await count_thumbnails_in_folders(session, types, good_like, bad_like)
 
         return self.success(
             data={
@@ -642,7 +579,7 @@ class ThumbnailPathHandler(BaseHandler):
         return self.success()
 
 
-async def count_thumbnails_in_folders_async(session, types, good_like, bad_like):
+async def count_thumbnails_in_folders(session, types, good_like, bad_like):
     """Async version: Count the number of thumbnails in the correct and incorrect folders."""
     stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
     total_matches = await session.scalar(
@@ -667,52 +604,7 @@ async def count_thumbnails_in_folders_async(session, types, good_like, bad_like)
     return total_matches, good_matches, bad_matches
 
 
-def count_thumbnails_in_folders(session, types, good_like, bad_like):
-    """Count the number of thumbnails in the correct and incorrect folders.
-
-    Parameters
-    ----------
-    session : `sqlalchemy.orm.session.Session`
-        The database session.
-    types : list of str
-        The types of thumbnails to count.
-        Usually this is ['new', 'ref', 'sub']
-        for all the thumbnail types stored locally.
-
-    Returns
-    -------
-    total_matches : int
-        The total number of thumbnails in the database
-        of the types specified.
-    good_matches : int
-        The number of thumbnails in the correct folder.
-    bad_matches : int
-        The number of thumbnails in the incorrect folder.
-
-    """
-    stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
-    count_stmt = sa.select(func.count()).select_from(stmt)
-    total_matches = session.execute(count_stmt).scalar()
-    good_stmt = stmt.where(
-        Thumbnail.file_uri.like(good_like), ~Thumbnail.file_uri.like(bad_like)
-    )
-    good_matches = session.execute(
-        sa.select(func.count()).select_from(good_stmt)
-    ).scalar()
-    bad_stmt = stmt.where(
-        sa.or_(
-            ~Thumbnail.file_uri.like(good_like),
-            Thumbnail.file_uri.like(bad_like),
-        )
-    )
-    bad_matches = session.execute(
-        sa.select(func.count()).select_from(bad_stmt)
-    ).scalar()
-
-    return total_matches, good_matches, bad_matches
-
-
-async def check_thumbnail_file_async(thumbnail, user_id, session):
+async def check_thumbnail_file(thumbnail, user_id, session):
     """Async version: Check if a thumbnail file exists on disk and recreate via
     alerts if missing. Should NOT BE CALLED if alerts are not available.
     """
@@ -736,42 +628,6 @@ async def check_thumbnail_file_async(thumbnail, user_id, session):
 
         # post_alert is overridden by Fritz; if it's been made async there, it
         # should be awaited; the base stub is a no-op.
-        post_alert(
-            object_id=thumbnail.obj_id,
-            candid=None,
-            group_ids="all",
-            user_id=user_id,
-            session=session,
-            thumbnails_only=True,
-        )
-
-        return False
-
-    return True
-
-
-def check_thumbnail_file(thumbnail, user_id, session):
-    """Check if a thumbnail file exists on disk and recreate via alerts if
-    missing. Should NOT BE CALLED if alerts are not available.
-    """
-    # need to import this here because alert.py might import this file
-    from .alert import alert_available, post_alert
-
-    if not alert_available:
-        raise RuntimeError("Cannot recreate thumbnails without alerts!")
-
-    if (
-        not os.path.isfile(thumbnail.file_uri)
-        or os.stat(thumbnail.file_uri).st_size == 0
-    ):
-        try:
-            os.remove(thumbnail.file_uri)
-        except Exception:
-            pass
-        finally:
-            session.delete(thumbnail)
-            session.commit()
-
         post_alert(
             object_id=thumbnail.obj_id,
             candid=None,

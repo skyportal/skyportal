@@ -16,7 +16,7 @@ from ...models import (
     UserNotification,
 )
 from ..base import BaseHandler
-from .group import has_admin_access_for_group_async
+from .group import has_admin_access_for_group
 
 
 class ShiftHandler(BaseHandler):
@@ -120,7 +120,7 @@ class ShiftHandler(BaseHandler):
             return self.success(data={"id": shift.id})
 
     @auth_or_token
-    async def get(self, shift_id=None):
+    async def get(self, shift_id: int | None = None):
         """
         ---
         single:
@@ -139,7 +139,7 @@ class ShiftHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: Shift
+                  schema: SingleShift
             400:
               content:
                 application/json:
@@ -208,7 +208,7 @@ class ShiftHandler(BaseHandler):
                         return self.error(
                             f"Could not load shift with ID {shift_id}.", status=404
                         )
-                    has_admin_access = await has_admin_access_for_group_async(
+                    has_admin_access = await has_admin_access_for_group(
                         self.associated_user_object, shift.group.id, session
                     )
                     data = {
@@ -292,7 +292,7 @@ class ShiftHandler(BaseHandler):
                 return self.error(f"Failed to get shift(s): {e}")
 
     @permissions(["Manage shifts"])
-    async def patch(self, shift_id):
+    async def patch(self, shift_id: int):
         """
         ---
         summary: Update a shift
@@ -313,7 +313,13 @@ class ShiftHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Shift'
           400:
             content:
               application/json:
@@ -384,7 +390,7 @@ class ShiftHandler(BaseHandler):
                 return self.error(f"Could not update shift: {e}")
 
     @permissions(["Manage shifts"])
-    async def delete(self, shift_id):
+    async def delete(self, shift_id: int):
         """
         ---
         summary: Delete a shift
@@ -432,7 +438,7 @@ class ShiftHandler(BaseHandler):
 
 class ShiftUserHandler(BaseHandler):
     @auth_or_token
-    async def post(self, shift_id, *ignored_args):
+    async def post(self, shift_id: int, *ignored_args):
         """
         ---
         summary: Add a shift user
@@ -568,7 +574,7 @@ class ShiftUserHandler(BaseHandler):
             )
 
     @auth_or_token
-    async def patch(self, shift_id, user_id):
+    async def patch(self, shift_id: int, user_id: int):
         """
         ---
         summary: Update a shift user
@@ -605,7 +611,13 @@ class ShiftUserHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/ShiftUser'
         """
         data = self.get_json()
         try:
@@ -685,7 +697,7 @@ class ShiftUserHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, shift_id, user_id):
+    async def delete(self, shift_id: int, user_id: int):
         """
         ---
         summary: Delete a shift user
@@ -750,7 +762,7 @@ class ShiftSummary(BaseHandler):
     """
 
     @auth_or_token
-    async def get(self, shift_id=None):
+    async def get(self, shift_id: int | None = None):
         """
         ---
         summary: Get a summary of a shift

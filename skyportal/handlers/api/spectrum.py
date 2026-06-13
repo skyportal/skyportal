@@ -47,7 +47,7 @@ _, cfg = load_env()
 log = make_log("api/spectrum")
 
 
-async def parse_id_list_async(id_list, model_class, session):
+async def parse_id_list(id_list, model_class, session):
     """Async equivalent of ``parse_id_list``."""
     if id_list is None:
         return
@@ -55,47 +55,6 @@ async def parse_id_list_async(id_list, model_class, session):
     try:
         result = await session.scalars(model_class.select(session.user_or_token))
         accessible_rows = result.unique().all()
-        validated_ids = []
-        for id in id_list.split(","):
-            id = int(id)
-            if id not in [row.id for row in accessible_rows]:
-                raise AccessError(
-                    f'Invalid {model_class.__name__} IDs field ("{id_list}"); '
-                    f"Not all {model_class.__name__} IDs are valid/accessible"
-                )
-            validated_ids.append(id)
-    except ValueError:
-        raise ValueError(
-            f'Invalid {model_class.__name__} IDs field ("{id_list}"); '
-            f"Could not parse all elements to integers"
-        )
-
-    return validated_ids
-
-
-def parse_id_list(id_list, model_class, session):
-    """
-    Return a list of integer IDs from the comma separated
-    string of IDs given by the query argument, and the
-    model/table to be queried.
-
-    Parameters
-    ----------
-    id_list: string
-        Comma separated list of integer values.
-    model_class: class
-        A skyportal data model class, e.g., Group, Instrument.
-    session: sqlalchemy.Session
-        Database session for this transaction
-    """
-
-    if id_list is None:
-        return  # silently pass through any None values
-
-    try:
-        accessible_rows = (
-            session.scalars(model_class.select(session.user_or_token)).unique().all()
-        )
         validated_ids = []
         for id in id_list.split(","):
             id = int(id)
@@ -131,7 +90,7 @@ def parse_string_list(str_list):
         raise TypeError("Must input a string!")
 
 
-async def post_spectrum_async(data, user_id, session):
+async def post_spectrum(data, user_id, session):
     """Async equivalent of ``post_spectrum``."""
     user = await session.scalar(sa.select(User).where(User.id == user_id))
 
@@ -241,121 +200,6 @@ async def post_spectrum_async(data, user_id, session):
     return spec.id
 
 
-def post_spectrum(data, user_id, session):
-    """Post spectrum to database.
-    data: dict
-        Spectrum dictionary
-    user_id : int
-        SkyPortal ID of User posting the GcnEvent
-    session: sqlalchemy.Session
-        Database session for this transaction
-    """
-
-    user = session.scalar(sa.select(User).where(User.id == user_id))
-
-    stmt = Instrument.select(user).where(Instrument.id == data["instrument_id"])
-    instrument = session.scalars(stmt).first()
-    if instrument is None:
-        raise ValueError(f"Cannot find instrument with ID: {data['instrument_id']}")
-
-    if "units" in data:
-        if not data["units"] in ["Jy", "AB", "erg/s/cm/cm/AA"]:
-            raise ValueError("units must be Jy, AB, or erg/s/cm/cm/AA")
-
-    pis = []
-    external_pi = data.pop("external_pi", None)
-    pi_ids = data.pop("pi", [])
-    if external_pi is not None and len(pi_ids) == 0:
-        raise ValueError(
-            "When specifying an external PI, at least one valid user must be provided as a PI point of contact via the 'pi' parameter."
-        )
-    for pi_id in pi_ids:
-        stmt = User.select(user).where(User.id == pi_id)
-        pi = session.scalars(stmt).first()
-        if pi is None:
-            raise ValueError(f"Invalid pi ID: {pi_id}.")
-        pi_association = SpectrumPI(external_pi=external_pi)
-        pi_association.user = pi
-        pis.append(pi_association)
-
-    reducers = []
-    external_reducer = data.pop("external_reducer", None)
-    reducer_ids = data.pop("reduced_by", [])
-    if external_reducer is not None and len(reducer_ids) == 0:
-        raise ValueError(
-            "When specifying an external reducer, at least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
-        )
-    for reducer_id in reducer_ids:
-        stmt = User.select(user).where(User.id == reducer_id)
-        reducer = session.scalars(stmt).first()
-        if reducer is None:
-            raise ValueError(f"Invalid reducer ID: {reducer_id}.")
-        reducer_association = SpectrumReducer(external_reducer=external_reducer)
-        reducer_association.user = reducer
-        reducers.append(reducer_association)
-
-    observers = []
-    external_observer = data.pop("external_observer", None)
-    observer_ids = data.pop("observed_by", [])
-    if external_observer is not None and len(observer_ids) == 0:
-        raise ValueError(
-            "When specifying an external observer, at least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
-        )
-    for observer_id in observer_ids:
-        stmt = User.select(user).where(User.id == observer_id)
-        observer = session.scalars(stmt).first()
-        if observer is None:
-            raise ValueError(f"Invalid observer ID: {observer_id}.")
-        observer_association = SpectrumObserver(external_observer=external_observer)
-        observer_association.user = observer
-        observers.append(observer_association)
-
-    group_ids = data.pop("group_ids", None)
-    groups = (
-        session.scalars(Group.select(user).where(Group.id.in_(group_ids)))
-        .unique()
-        .all()
-    )
-    if {g.id for g in groups} != set(group_ids):
-        raise ValueError(f"Cannot find one or more groups with IDs: {group_ids}.")
-
-    spec = Spectrum(**data)
-    spec.instrument = instrument
-
-    spec.groups = groups
-    spec.owner_id = user_id
-    if spec.type is None:
-        spec.type = default_spectrum_type
-    session.add(spec)
-
-    for pi in pis:
-        pi.spectrum = spec
-        session.add(pi)
-    for reducer in reducers:
-        reducer.spectrum = spec
-        session.add(reducer)
-    for observer in observers:
-        observer.spectrum = spec
-        session.add(observer)
-
-    session.commit()
-
-    flow = Flow()
-    flow.push(
-        "*",
-        "skyportal/REFRESH_SOURCE",
-        payload={"obj_key": spec.obj.internal_key},
-    )
-
-    flow.push(
-        "*",
-        "skyportal/REFRESH_SOURCE_SPECTRA",
-        payload={"obj_internal_key": spec.obj.internal_key},
-    )
-
-    return spec.id
-
-
 class SpectrumHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(self):
@@ -417,7 +261,7 @@ class SpectrumHandler(BaseHandler):
 
                 data["group_ids"] = group_ids
 
-                spectrum_id = await post_spectrum_async(
+                spectrum_id = await post_spectrum(
                     data,
                     self.associated_user_object.id,
                     session,
@@ -427,7 +271,7 @@ class SpectrumHandler(BaseHandler):
                 return self.error(f"Failed to post spectrum: {str(e)}")
 
     @auth_or_token
-    async def get(self, spectrum_id=None):
+    async def get(self, spectrum_id: int | None = None):
         """
         ---
         single:
@@ -749,14 +593,14 @@ class SpectrumHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                instrument_ids = await parse_id_list_async(
+                instrument_ids = await parse_id_list(
                     instrument_ids, Instrument, session
                 )
-                group_ids = await parse_id_list_async(group_ids, Group, session)
-                followup_ids = await parse_id_list_async(
+                group_ids = await parse_id_list(group_ids, Group, session)
+                followup_ids = await parse_id_list(
                     followup_ids, FollowupRequest, session
                 )
-                assignment_ids = await parse_id_list_async(
+                assignment_ids = await parse_id_list(
                     assignment_ids, ClassicalAssignment, session
                 )
             except (ValueError, AccessError) as e:
@@ -1035,7 +879,7 @@ class SpectrumHandler(BaseHandler):
             return self.success(data=result_spectra)
 
     @permissions(["Upload data"])
-    async def put(self, spectrum_id):
+    async def put(self, spectrum_id: int):
         """
         ---
         summary: Update a spectrum
@@ -1056,7 +900,13 @@ class SpectrumHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Spectrum'
           400:
             content:
               application/json:
@@ -1220,7 +1070,7 @@ class SpectrumHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    async def delete(self, spectrum_id):
+    async def delete(self, spectrum_id: int):
         """
         ---
         summary: Delete a spectrum
@@ -1237,7 +1087,13 @@ class SpectrumHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -1538,7 +1394,13 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
           200:
             content:
               application/json:
-                schema: SpectrumNoID
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/SpectrumNoID'
           400:
             content:
               application/json:
@@ -1554,7 +1416,7 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
 
 class ObjSpectraHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Get spectra for an object
@@ -1867,7 +1729,7 @@ class SpectrumRangeHandler(BaseHandler):
 
 class SyntheticPhotometryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, spectrum_id):
+    async def post(self, spectrum_id: int):
         """
         ---
         summary: Create synthetic photometry from a spectrum

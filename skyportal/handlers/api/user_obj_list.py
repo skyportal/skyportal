@@ -31,7 +31,7 @@ def check_list_name(name):
 
 class UserObjListHandler(BaseHandler):
     @auth_or_token
-    async def get(self, user_id=None):
+    async def get(self, user_id: int | None = None):
         """
         ---
         summary: Get user object listings
@@ -242,7 +242,7 @@ class UserObjListHandler(BaseHandler):
             return self.success(data={"id": listing.id})
 
     @auth_or_token
-    async def patch(self, listing_id):
+    async def patch(self, listing_id: int):
         """
         ---
         summary: Update a listing
@@ -346,7 +346,7 @@ class UserObjListHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, listing_id=None):
+    async def delete(self, listing_id: int | None = None):
         """
         ---
         summary: Remove a listing

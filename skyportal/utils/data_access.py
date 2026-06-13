@@ -981,49 +981,7 @@ async def accessible_group_ids_async(user_or_token, session):
     return list(result.all())
 
 
-def accessible_group_and_filter_ids(session, user, group_ids, filter_ids):
-    """Sync equivalent of ``accessible_group_and_filter_ids_async``. Resolves
-    ``group_ids``/``filter_ids`` query-arg strings into validated integer
-    lists, using the user's ``accessible_groups`` as the fallback.
-    """
-    from .parse import get_list_typed
-
-    user_accessible_group_ids = [g.id for g in user.accessible_groups]
-
-    if isinstance(group_ids, str):
-        group_ids = get_list_typed(
-            group_ids,
-            int,
-            error_msg="Invalid groupIDs value -- select at least one group",
-        )
-        filters = session.scalars(
-            Filter.select(user).where(Filter.group_id.in_(group_ids))
-        ).all()
-        filter_ids = [f.id for f in filters]
-    elif isinstance(filter_ids, str):
-        filter_ids = get_list_typed(
-            filter_ids,
-            int,
-            error_msg="Invalid filterIDs value -- select at least one filter",
-        )
-        filters = session.scalars(
-            Filter.select(user).where(Filter.id.in_(filter_ids))
-        ).all()
-        filter_ids = [f.id for f in filters]
-        group_ids = [f.group_id for f in filters]
-    else:
-        group_ids = user_accessible_group_ids
-        filter_ids = list(
-            session.scalars(
-                Filter.select(user, columns=[Filter.id]).where(
-                    Filter.group_id.in_(user_accessible_group_ids)
-                )
-            ).all()
-        )
-    return group_ids, filter_ids
-
-
-async def accessible_group_and_filter_ids_async(session, user, group_ids, filter_ids):
+async def accessible_group_and_filter_ids(session, user, group_ids, filter_ids):
     """Async equivalent of ``accessible_group_and_filter_ids``. Resolves the
     user's accessible group IDs without touching the lazy
     ``user.accessible_groups`` property.

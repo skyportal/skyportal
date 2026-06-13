@@ -1,6 +1,6 @@
 import json
 import time
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import timedelta
 
 from astropy.time import Time
 
@@ -9,6 +9,7 @@ from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.models import DBSession, RecurringAPI, User, UserNotification
 from skyportal.tests import api
+from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import HOST, check_loaded
 
 env, cfg = load_env()
@@ -23,7 +24,7 @@ MAX_RETRIES = 10
 
 def perform_api_calls():
     sleep_time = MAX_SLEEP
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = utcnow_naive()
     with DBSession() as session:
         try:
             user = session.query(User).where(User.id == 1).first()

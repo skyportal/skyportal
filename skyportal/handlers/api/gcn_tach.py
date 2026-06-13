@@ -268,7 +268,7 @@ def post_aliases(dateobs, tach_id, user_id):
 
 class GcnTachHandler(BaseHandler):
     @permissions(["Manage GCNs"])
-    async def post(self, dateobs):
+    async def post(self, dateobs: str):
         """
         ---
         summary: Retrieve GCN Event aliases from TACH
@@ -347,7 +347,7 @@ class GcnTachHandler(BaseHandler):
             return self.error(f"Error scraping aliases: {e}")
 
     @auth_or_token
-    async def get(self, dateobs):
+    async def get(self, dateobs: str):
         # gets the circulars and aliases of a GCN event
         try:
             dateobs_parsed = arrow.get(dateobs).naive

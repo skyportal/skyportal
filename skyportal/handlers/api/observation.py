@@ -1210,7 +1210,7 @@ class ObservationHandler(BaseHandler):
             return self.success(data=data)
 
     @auth_or_token
-    async def delete(self, observation_id):
+    async def delete(self, observation_id: int):
         """
         ---
         summary: Delete an observation
@@ -1464,7 +1464,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    async def get(self, allocation_id):
+    async def get(self, allocation_id: int):
         """
         ---
         summary: Retrieve queued observations from external API
@@ -1569,7 +1569,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    async def delete(self, allocation_id):
+    async def delete(self, allocation_id: int):
         """
         ---
         summary: Delete queued observations from external API
@@ -1645,7 +1645,7 @@ class ObservationExternalAPIHandler(BaseHandler):
 
 class ObservationTreasureMapHandler(BaseHandler):
     @auth_or_token
-    async def post(self, instrument_id):
+    async def post(self, instrument_id: int):
         """
         ---
         summary: Submit observations to TreasureMap
@@ -1893,7 +1893,7 @@ class ObservationTreasureMapHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, instrument_id):
+    async def delete(self, instrument_id: int):
         """
         ---
         summary: Remove observations from TreasureMap
@@ -2175,7 +2175,7 @@ def retrieve_observations_and_simsurvey(
 
 class ObservationSimSurveyHandler(BaseHandler):
     @auth_or_token
-    async def get(self, instrument_id):
+    async def get(self, instrument_id: int):
         """
         ---
         summary: Perform SimSurvey efficiency calculation
@@ -2466,7 +2466,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             return self.success(data={"id": sea_id})
 
-    async def delete(self, survey_efficiency_analysis_id):
+    async def delete(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Delete a SimSurvey efficiency calculation
@@ -2519,7 +2519,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
 class ObservationSimSurveyPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, survey_efficiency_analysis_id):
+    async def get(self, survey_efficiency_analysis_id: int):
         """
         ---
         summary: Create summary plot for SimSurvey

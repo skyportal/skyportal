@@ -115,7 +115,7 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
 
 class GcnGraceDBHandler(BaseHandler):
     @permissions(["Manage GCNs"])
-    async def post(self, dateobs):
+    async def post(self, dateobs: str):
         """
         ---
         summary: Retrieve GW Event data from GraceDB

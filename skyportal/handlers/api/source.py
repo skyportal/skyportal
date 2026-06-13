@@ -1255,7 +1255,7 @@ class SourceHandler(BaseHandler):
                 self.finish()
 
     @auth_or_token
-    async def get(self, obj_id=None):
+    async def get(self, obj_id: str = None):
         """
         ---
         single:
@@ -2360,7 +2360,7 @@ class SourceHandler(BaseHandler):
                 return self.error(f"Failed to post source: {str(e)}")
 
     @permissions(["Upload data"])
-    async def patch(self, obj_id):
+    async def patch(self, obj_id: str):
         """
         ---
         summary: Update a source
@@ -2381,7 +2381,13 @@ class SourceHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Obj'
           400:
             content:
               application/json:
@@ -2442,7 +2448,7 @@ class SourceHandler(BaseHandler):
         return self.success()
 
     @permissions(["Manage sources"])
-    async def delete(self, obj_id):
+    async def delete(self, obj_id: str):
         """
         ---
         summary: Delete a source
@@ -2497,7 +2503,7 @@ class SourceHandler(BaseHandler):
 
 class SourceOffsetsHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Retrieve offset stars
@@ -2907,7 +2913,7 @@ def get_finding_chart_callable(
 
 class SourceFinderHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Retrieve finding chart
@@ -3281,9 +3287,7 @@ class SurveyThumbnailHandler(BaseHandler):
 
             for obj in objs:
                 try:
-                    await obj.add_linked_thumbnails_async(
-                        ["sdss", "ps1", "ls"], session
-                    )
+                    await obj.add_linked_thumbnails(["sdss", "ps1", "ls"], session)
                 except Exception:
                     await session.rollback()
                     return self.error(f"Error adding thumbnails for {obj.id}")
@@ -3293,7 +3297,7 @@ class SurveyThumbnailHandler(BaseHandler):
 
 class SourceObservabilityPlotHandler(BaseHandler):
     @auth_or_token
-    async def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Generate observability plot for a source
@@ -3410,7 +3414,7 @@ class SourceObservabilityPlotHandler(BaseHandler):
 
 class SourceCopyPhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, target_id):
+    async def post(self, target_id: str):
         """
         ---
         summary: Copy photometry from one source to another

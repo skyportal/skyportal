@@ -246,7 +246,7 @@ class InstrumentHandler(BaseHandler):
             return self.success(data={"id": instrument.id})
 
     @auth_or_token
-    async def get(self, instrument_id=None):
+    async def get(self, instrument_id: int | None = None):
         """
         ---
         single:
@@ -699,7 +699,7 @@ class InstrumentHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Manage instruments"])
-    async def put(self, instrument_id):
+    async def put(self, instrument_id: int):
         """
         ---
         summary: Update an instrument
@@ -720,7 +720,13 @@ class InstrumentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Instrument'
           400:
             content:
               application/json:
@@ -941,7 +947,7 @@ class InstrumentHandler(BaseHandler):
             return self.success()
 
     @permissions(["Delete instrument"])
-    async def delete(self, instrument_id):
+    async def delete(self, instrument_id: int):
         """
         ---
         summary: Delete an instrument
@@ -966,7 +972,13 @@ class InstrumentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
@@ -1470,7 +1482,7 @@ def add_tiles(
 
 class InstrumentFieldHandler(BaseHandler):
     @permissions(["Delete instrument"])
-    async def delete(self, instrument_id):
+    async def delete(self, instrument_id: int):
         """
         ---
         summary: Delete an instrument's fields
@@ -1487,7 +1499,13 @@ class InstrumentFieldHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
