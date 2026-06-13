@@ -1,7 +1,7 @@
 [submodule "baselayer"]
 	path = baselayer
-	url = https://github.com/cesium-ml/baselayer.git
-	branch = main
+	url = https://github.com/mcoughlin/baselayer.git
+	branch = fastapi-migration
 [submodule "skyportal-data"]
 	path = skyportal-data
 	url = https://github.com/skyportal/skyportal-data.git
