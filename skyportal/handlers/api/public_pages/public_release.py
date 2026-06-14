@@ -180,7 +180,11 @@ class PublicReleaseHandler(BaseHandler):
             public_release = await session.scalar(
                 PublicRelease.select(session.user_or_token, mode="update")
                 .options(
-                    selectinload(PublicRelease.source_pages),
+                    # source_page.remove_from_cache() reads source_page.release
+                    # below; eager-load it so it doesn't lazy-load (MissingGreenlet).
+                    selectinload(PublicRelease.source_pages).selectinload(
+                        PublicSourcePage.release
+                    ),
                     selectinload(PublicRelease.groups),
                 )
                 .where(PublicRelease.id == release_id)

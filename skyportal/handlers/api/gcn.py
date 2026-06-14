@@ -5147,6 +5147,12 @@ class LocalizationDownloadHandler(BaseHandler):
                         options=[
                             undefer(Localization.uniq),
                             undefer(Localization.probdensity),
+                            # 3D distance columns are deferred; undefer them so
+                            # is_3d / table don't trigger a lazy load (which
+                            # raises MissingGreenlet under the async session).
+                            undefer(Localization.distmu),
+                            undefer(Localization.distsigma),
+                            undefer(Localization.distnorm),
                         ],
                     ).where(
                         Localization.dateobs == dateobs_parsed,

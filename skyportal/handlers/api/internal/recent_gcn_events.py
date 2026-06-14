@@ -47,6 +47,9 @@ class RecentGcnEventsHandler(BaseHandler):
                             Localization.tags
                         ),
                         selectinload(GcnEvent.gcn_triggers),
+                        # event.tags reads the _tags relationship below; eager-load
+                        # it so the property doesn't lazy-load (MissingGreenlet) here.
+                        selectinload(GcnEvent._tags),
                     ],
                 )
                 .order_by(GcnEvent.dateobs.desc())
