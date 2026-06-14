@@ -79,6 +79,7 @@ from ...utils.asynchronous import run_async
 from ...utils.calculations import great_circle_distance
 from ...utils.data_access import (
     accessible_group_ids_async,
+    any_group_auto_publishes,
     auto_source_publishing,
     auto_source_publishing_async,
 )
@@ -747,12 +748,15 @@ async def post_source_async(data, user_id, session, refresh_source=True):
         raise AttributeError("RA/Declination must not be null for a new Obj")
 
     # Resolve user groups via SQL (avoid the lazy `user.groups`/
-    # `user.accessible_groups` properties under async).
-    user_group_ids_result = await session.scalars(
-        sa.select(GroupUser.group_id).where(GroupUser.user_id == user.id)
-    )
-    user_group_ids = list(user_group_ids_result.all())
-    user_accessible_group_ids = await accessible_group_ids_async(user, session)
+    # `user.accessible_groups` properties under async). Load the full GroupUser
+    # rows once: we need both the group_id set (to validate requested groups)
+    # and the rows themselves (for the per-group can_save check below), so
+    # fetching them together saves a round-trip. A plain self-read is always
+    # permitted, so it avoids the access-controlled query too.
+    user_group_users = (
+        await session.scalars(sa.select(GroupUser).where(GroupUser.user_id == user.id))
+    ).all()
+    user_group_ids = [gu.group_id for gu in user_group_users]
     if not user_group_ids:
         raise AttributeError(
             "You must belong to one or more groups before you can add sources."
@@ -762,9 +766,14 @@ async def post_source_async(data, user_id, session, refresh_source=True):
     if group_ids is None:
         group_ids = user_group_ids
     else:
+        # A non-admin's accessible groups are exactly their memberships, and an
+        # admin may save to any group, so validate against user_group_ids +
+        # is_admin rather than running a separate accessible-groups query (which
+        # cost two extra round-trips per save). Non-existent group_ids are still
+        # caught by the Group.select load below.
         group_ids_tmp = []
         for id in group_ids:
-            if int(id) in user_accessible_group_ids:
+            if user.is_admin or int(id) in user_group_ids:
                 group_ids_tmp.append(int(id))
             else:
                 raise ValueError(
@@ -897,16 +906,9 @@ async def post_source_async(data, user_id, session, refresh_source=True):
     }
     group_users_by_group = {}
     if not user.is_admin:
+        group_id_set = set(group_ids)
         group_users_by_group = {
-            gu.group_id: gu
-            for gu in (
-                await session.scalars(
-                    GroupUser.select(user).where(
-                        GroupUser.user_id == user.id,
-                        GroupUser.group_id.in_(group_ids),
-                    )
-                )
-            ).all()
+            gu.group_id: gu for gu in user_group_users if gu.group_id in group_id_set
         }
 
     not_saved_to_group_ids = []
@@ -959,15 +961,18 @@ async def post_source_async(data, user_id, session, refresh_source=True):
     await session.commit()
 
     groups = [group for group in groups if group.id not in not_saved_to_group_ids]
-    publish_to = ["TNS", "Hermes", "Public page"]
-    for group in groups:
-        await auto_source_publishing_async(
-            session=session,
-            saver=saver_per_group_id[group.id],
-            obj=obj,
-            group_id=group.id,
-            publish_to=publish_to,
-        )
+    # Skip the per-group publishing checks (two queries each) unless some
+    # auto-publishing is actually configured for these groups.
+    if await any_group_auto_publishes(session, [group.id for group in groups]):
+        publish_to = ["TNS", "Hermes", "Public page"]
+        for group in groups:
+            await auto_source_publishing_async(
+                session=session,
+                saver=saver_per_group_id[group.id],
+                obj=obj,
+                group_id=group.id,
+                publish_to=publish_to,
+            )
 
     if refresh_source:
         flow = Flow()

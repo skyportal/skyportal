@@ -824,6 +824,40 @@ async def is_existing_submission_request_async(
     return await session.scalar(stmt)
 
 
+async def any_group_auto_publishes(session, group_ids):
+    """Cheap pre-check: could `auto_source_publishing_async` publish anything
+    for any of these groups?
+
+    Most instances have no auto-publishing configured, yet
+    `auto_source_publishing_async` issues two queries *per group* to find out.
+    This collapses that to a single EXISTS round-trip so callers can skip the
+    per-group loop entirely when nothing is configured. The conditions here are
+    a deliberate superset of the loop's (they ignore the saver/auto-publisher
+    and bot checks), so a True result never wrongly skips a real publish.
+    """
+    if not group_ids:
+        return False
+    return bool(
+        await session.scalar(
+            sa.select(
+                sa.or_(
+                    sa.exists().where(
+                        SharingServiceGroup.group_id.in_(group_ids),
+                        sa.or_(
+                            SharingServiceGroup.auto_share_to_tns,
+                            SharingServiceGroup.auto_share_to_hermes,
+                        ),
+                    ),
+                    sa.exists().where(
+                        PublicRelease.auto_publish_enabled,
+                        PublicRelease.groups.any(Group.id.in_(group_ids)),
+                    ),
+                )
+            )
+        )
+    )
+
+
 async def auto_source_publishing_async(session, saver, group_id, obj, publish_to):
     """Async equivalent of `auto_source_publishing`."""
     tns, hermes = "TNS", "Hermes"

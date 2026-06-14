@@ -877,11 +877,24 @@ async def standardize_photometry_data(data, session):
         df["ref_standardized_flux"] = ref_standardized.flux
         df["ref_standardized_fluxerr"] = ref_standardized.fluxerr
 
+    # Fetch all referenced instruments/objects in one query each (instead of
+    # one per unique id) so multi-instrument / multi-object batches stay at a
+    # constant two round-trips. Keep the cache keyed by the original id values
+    # and preserve the per-id "Invalid ... ID" validation errors.
+    unique_iids = df["instrument_id"].unique()
+    instruments_by_id = {
+        inst.id: inst
+        for inst in (
+            await session.scalars(
+                sa.select(Instrument).where(
+                    Instrument.id.in_([int(iid) for iid in unique_iids])
+                )
+            )
+        ).all()
+    }
     instrument_cache = {}
-    for iid in df["instrument_id"].unique():
-        instrument = await session.scalar(
-            sa.select(Instrument).where(Instrument.id == int(iid))
-        )
+    for iid in unique_iids:
+        instrument = instruments_by_id.get(int(iid))
         if not instrument:
             raise ValidationError(f"Invalid instrument ID: {iid}")
         instrument_cache[iid] = instrument
@@ -889,9 +902,12 @@ async def standardize_photometry_data(data, session):
     # convert the object IDs to str datatype
     df["obj_id"] = df["obj_id"].astype(str)
 
-    for oid in df["obj_id"].unique():
-        obj = await session.scalar(sa.select(Obj).where(Obj.id == str(oid)))
-        if not obj:
+    unique_oids = [str(oid) for oid in df["obj_id"].unique()]
+    existing_oids = set(
+        (await session.scalars(sa.select(Obj.id).where(Obj.id.in_(unique_oids)))).all()
+    )
+    for oid in unique_oids:
+        if oid not in existing_oids:
             raise ValidationError(f"Invalid object ID: {oid}")
 
     return df, instrument_cache

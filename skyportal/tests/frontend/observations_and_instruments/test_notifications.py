@@ -1,6 +1,7 @@
 import os
 import uuid
 from datetime import UTC, datetime
+from urllib.parse import urljoin
 
 import pytest
 from playwright.sync_api import expect
@@ -29,25 +30,29 @@ def _enable_switch(page, name):
     ).to_be_visible()
 
 
-def _wait_for_unread_badge(page, count, attempts=15, per_attempt_ms=6000):
-    """Wait for the unread-notification badge, reloading between attempts.
+def _wait_for_notification(page, substring, attempts=60, interval_ms=2000):
+    """Poll the notifications API (as the become_user'd user) until a
+    notification whose text contains ``substring`` has been created server-side.
 
-    Notifications are created asynchronously (event processing -> notification
-    service) and the badge normally updates via a single FETCH_NOTIFICATIONS
-    websocket push. If that push is missed (e.g. it fires during navigation),
-    the page won't re-fetch on its own and a plain ``expect`` hangs until
-    timeout. Reloading re-fetches the notifications, so the badge appears once
-    the notification lands regardless of push timing. Total wait is roughly
-    ``attempts * per_attempt_ms`` (kept ~= the global expect timeout).
+    Notifications are produced by a fire-and-forget chain (event ingestion ->
+    notification service) and surfaced via a single FETCH_NOTIFICATIONS
+    websocket push. Under CI load that chain can lag past the badge-reload
+    window, and reload-polling is both slow to re-check and sensitive to push
+    timing. Polling the API directly is cheap, frequent, decoupled from the
+    push, and fails clearly if the notification is genuinely never created.
     """
-    badge = page.locator(f"//span[text()='{count}']").first
-    for _ in range(attempts - 1):
-        try:
-            expect(badge).to_be_visible(timeout=per_attempt_ms)
-            return
-        except AssertionError:
-            page.reload()
-    expect(badge).to_be_visible(timeout=per_attempt_ms)
+    url = urljoin(page.url, "/api/internal/notifications")
+    for _ in range(attempts):
+        resp = page.request.get(url)
+        if resp.ok:
+            data = (resp.json() or {}).get("data") or []
+            if any(substring in (n.get("text") or "") for n in data):
+                return
+        page.wait_for_timeout(interval_ms)
+    raise AssertionError(
+        f"Notification containing {substring!r} was not created within "
+        f"{attempts * interval_ms // 1000}s"
+    )
 
 
 @pytest.mark.flaky(reruns=2)
@@ -403,9 +408,11 @@ def test_new_gcn_event_triggers_notification(page, user, super_admin_token):
     page.goto(f"/become_user/{user.id}")
     page.goto("/")
     # The GCN-event notification is delivered asynchronously after the (heavy)
-    # event processing; reload until the unread badge appears rather than
-    # depending on catching the single websocket push.
-    _wait_for_unread_badge(page, "1")
+    # event processing. Confirm it exists server-side first (robust to
+    # websocket/badge timing under load), then reload so the page renders it.
+    _wait_for_notification(page, "New GCN Event")
+    page.reload()
+    expect(page.locator("//span[text()='1']").first).to_be_visible()
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(page.locator('//*[contains(text(), "New GCN Event")]').first).to_be_visible()
 
