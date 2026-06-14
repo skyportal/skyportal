@@ -1241,6 +1241,13 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                         selectinload(GcnEvent.observationplan_requests).selectinload(
                             ObservationPlanRequest.requester
                         ),
+                        # to_dict() only serializes loaded attributes, so eager-load
+                        # the localization (dateobs/name) — otherwise it's omitted
+                        # from each request and the frontend skymap can't fetch its
+                        # contour (spins).
+                        selectinload(GcnEvent.observationplan_requests).selectinload(
+                            ObservationPlanRequest.localization
+                        ),
                         selectinload(GcnEvent.observationplan_requests)
                         .selectinload(ObservationPlanRequest.observation_plans)
                         .selectinload(EventObservationPlan.statistics),
@@ -1671,12 +1678,13 @@ class GcnEventHandler(BaseHandler):
                     undefer(GcnEvent.gracedb_log),
                     undefer(GcnEvent.gracedb_labels),
                 ]
-                if no_notice_content:
-                    options.append(selectinload(GcnEvent.gcn_notices))
-                else:
-                    options.append(
-                        selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
-                    )
+                # event.lightcurve / gracesa parse notice.content (a deferred
+                # column), so it must be loaded even when excludeNoticeContent
+                # keeps it out of the response (handled below). Lazy-loading it
+                # here would raise MissingGreenlet under the async session.
+                options.append(
+                    selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                )
                 event = await session.scalar(
                     GcnEvent.select(
                         session.user_or_token,
@@ -2345,6 +2353,19 @@ def add_tiles_and_properties_and_contour(
         localization = get_contour(localization)
         session.add(localization)
         session.commit()
+
+        # The contour is generated in this background task after the event is
+        # ingested, so the page initially fetches the localization with a null
+        # contour and the skymap spins. Emit a refresh now that the contour is
+        # committed so the frontend re-fetches and renders it.
+        # isoformat() to match the frontend's dateobs query arg (the per-id
+        # GcnEvent cache tag is keyed on it); str(datetime) uses a space, not
+        # the "T" the page uses, and would miss the per-id invalidation.
+        Flow().push(
+            "*",
+            "skyportal/REFRESH_GCN_EVENT",
+            payload={"gcnEvent_dateobs": localization.dateobs.isoformat()},
+        )
 
         if url is not None:
             log(f"Fetching and saving raw skymap data to disk {localization_id}")

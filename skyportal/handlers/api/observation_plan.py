@@ -1630,7 +1630,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
             finally:
                 await session.commit()
             self.push_all(
-                action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTST",
+                action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
                 payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
             )
 

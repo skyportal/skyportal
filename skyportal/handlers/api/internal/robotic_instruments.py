@@ -1,4 +1,5 @@
 import sqlalchemy as sa
+from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 
@@ -25,9 +26,12 @@ class RoboticInstrumentsHandler(BaseHandler):
                     }
                 elif apitype == "api_classname_obsplan":
                     result = await session.scalars(
-                        Instrument.select(session.user_or_token).where(
-                            Instrument.api_classname_obsplan.isnot(None)
-                        )
+                        Instrument.select(session.user_or_token)
+                        # custom_json_schema reads instrument.telescope
+                        # (next_twilight_morning_nautical); eager-load it so it
+                        # doesn't lazy-load (MissingGreenlet) under async.
+                        .options(joinedload(Instrument.telescope))
+                        .where(Instrument.api_classname_obsplan.isnot(None))
                     )
                     instruments = result.all()
 

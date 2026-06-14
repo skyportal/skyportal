@@ -882,6 +882,33 @@ async def post_source_async(data, user_id, session, refresh_source=True):
 
     update_redshift_history_if_relevant(data, obj, user)
 
+    # Batch the per-group lookups into one query each (instead of two queries
+    # per group in the loop below) so saving to N groups stays ~constant in
+    # round-trips.
+    sources_by_group = {
+        s.group_id: s
+        for s in (
+            await session.scalars(
+                Source.select(user).where(
+                    Source.obj_id == obj.id, Source.group_id.in_(group_ids)
+                )
+            )
+        ).all()
+    }
+    group_users_by_group = {}
+    if not user.is_admin:
+        group_users_by_group = {
+            gu.group_id: gu
+            for gu in (
+                await session.scalars(
+                    GroupUser.select(user).where(
+                        GroupUser.user_id == user.id,
+                        GroupUser.group_id.in_(group_ids),
+                    )
+                )
+            ).all()
+        }
+
     not_saved_to_group_ids = []
     for group in groups:
         if (
@@ -904,18 +931,10 @@ async def post_source_async(data, user_id, session, refresh_source=True):
                 not_saved_to_group_ids.append(group.id)
                 continue
 
-        source = await session.scalar(
-            Source.select(user)
-            .where(Source.obj_id == obj.id)
-            .where(Source.group_id == group.id)
-        )
+        source = sources_by_group.get(group.id)
 
         if not user.is_admin:
-            group_user = await session.scalar(
-                GroupUser.select(user)
-                .where(GroupUser.user_id == user.id)
-                .where(GroupUser.group_id == group.id)
-            )
+            group_user = group_users_by_group.get(group.id)
             if group_user is None:
                 raise AttributeError(
                     f"User is not a member of the group with ID {group.id}."
