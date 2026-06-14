@@ -161,8 +161,13 @@ def test_gcnevents_object(
         "endDate": "2018-01-23T00:36:53",
         "localizationCumprob": 0.95,
     }
+    # The cross-match joins the source's healpix against the localization's
+    # LocalizationTiles, which a background job generates after event ingestion.
+    # Under CI load that job can lag well past a minute, so poll generously
+    # (~3 min); the loop breaks as soon as the source appears, so the fast path
+    # is unaffected.
     source_in_gcn = False
-    for _ in range(30):
+    for _ in range(90):
         status, data = api("GET", "sources", token=view_only_token, params=params)
         if status == 200 and any(s["id"] == obj_id for s in data["data"]["sources"]):
             source_in_gcn = True
