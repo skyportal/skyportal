@@ -4,9 +4,10 @@ import time
 import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
+from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.app.models import async_plain_session_factory, init_db
+from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.models import (
     Obj,
@@ -87,7 +88,10 @@ async def _run_loop():
             log("Thumbnail queue heartbeat.")
         try:
             internal_key = None
-            async with async_plain_session_factory() as session:
+            # Access via the module: init_db() (above) rebinds the factory after
+            # this module is imported, so a direct `from ... import` would keep
+            # the pre-init None and call None() ('NoneType' object is not callable).
+            async with models.async_plain_session_factory() as session:
                 obj, err = await fetch_obj(session)
                 if err is not None:
                     log(f"Error fetching object with missing thumbnails: {str(err)}")

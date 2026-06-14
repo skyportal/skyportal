@@ -40,6 +40,7 @@ from sqlalchemy.orm import (
     undefer,
 )
 from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy.orm.exc import ObjectDeletedError
 from sqlalchemy.sql.expression import cast
 from tabulate import tabulate
 from tornado.ioloop import IOLoop
@@ -2385,6 +2386,12 @@ def add_tiles_and_properties_and_contour(
             f"Generated tiles / properties / contour for localization {localization_id}"
         )
         return
+    except ObjectDeletedError:
+        # Localization was deleted (e.g. event removed) mid-generation; benign race.
+        log(
+            f"Localization {localization_id} was deleted during contour generation; skipping."
+        )
+        session.rollback()
     except Exception as e:
         traceback.print_exc()
         log(
@@ -2549,6 +2556,11 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
         localization = session.scalars(
             sa.select(Localization).where(Localization.id == localization_id)
         ).first()
+        if localization is None:
+            # Localization was deleted (e.g. event removed) while this
+            # background job ran; nothing to plan for.
+            log(f"Localization {localization_id} no longer exists; skipping obs plans.")
+            return
         dateobs = localization.dateobs
         localization_tags = [
             tags.text

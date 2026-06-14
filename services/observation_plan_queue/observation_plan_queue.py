@@ -6,9 +6,10 @@ import traceback
 import arrow
 import sqlalchemy as sa
 
+from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.app.models import async_plain_session_factory, init_db
+from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.observation_plan import (
     post_survey_efficiency_analysis,
@@ -325,7 +326,9 @@ def service(*args, **kwargs):
                                     # bridge to the async impl on a fresh async
                                     # session (this sync poller has no event loop)
                                     async def _send(rid=obsplan_request_id):
-                                        async with async_plain_session_factory() as s:
+                                        async with (
+                                            models.async_plain_session_factory() as s
+                                        ):
                                             await send_observation_plan(
                                                 rid,
                                                 s,
@@ -347,7 +350,7 @@ def service(*args, **kwargs):
                                             rid=obsplan_request_id,
                                         ):
                                             async with (
-                                                async_plain_session_factory() as s
+                                                models.async_plain_session_factory() as s
                                             ):
                                                 await post_survey_efficiency_analysis(
                                                     data,

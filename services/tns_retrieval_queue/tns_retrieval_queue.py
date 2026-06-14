@@ -14,9 +14,10 @@ import tornado.ioloop
 import tornado.web
 from sqlalchemy.orm import scoped_session, sessionmaker
 
+from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.app.models import async_plain_session_factory, init_db
+from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import add_external_photometry
 from skyportal.handlers.api.source import post_source_async
@@ -187,7 +188,7 @@ def add_tns_photometry(tns_name, tns_source, tns_source_data, public_group_id, s
             try:
                 # bridge to the async impl on a fresh async session (sync poller)
                 async def _add_external_photometry(d=data_out):
-                    async with async_plain_session_factory() as s:
+                    async with models.async_plain_session_factory() as s:
                         u = await s.scalar(sa.select(User).where(User.id == USER_ID))
                         await add_external_photometry(d, u, s)
 
@@ -242,7 +243,7 @@ def add_tns_spectra(tns_name, tns_source, tns_source_data, public_group_id, sess
 
         # bridge to the async impl on a fresh async session (sync poller)
         async def _post_spectrum(d=data):
-            async with async_plain_session_factory() as s:
+            async with models.async_plain_session_factory() as s:
                 await post_spectrum(d, USER_ID, s)
 
         asyncio.run(_post_spectrum())
@@ -453,7 +454,7 @@ def process_queue(queue):
                         }
 
                         async def _post_source(d=new_source_data):
-                            async with async_plain_session_factory() as s:
+                            async with models.async_plain_session_factory() as s:
                                 await post_source_async(d, USER_ID, s)
 
                         asyncio.run(_post_source())

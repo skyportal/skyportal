@@ -9,8 +9,9 @@ import sqlalchemy as sa
 import xmlschema
 from gcn_kafka import Consumer
 
+from baselayer.app import models
 from baselayer.app.env import load_env
-from baselayer.app.models import async_plain_session_factory, init_db
+from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.gcn import (
     get_json_tags,
@@ -189,7 +190,7 @@ def poll_events(*args, **kwargs):
 
                 async def _ingest():
                     dateobs, notice_id = None, None
-                    async with async_plain_session_factory() as session:
+                    async with models.async_plain_session_factory() as session:
                         # check if the user exists in the DB, assign to session
                         user = await session.scalar(
                             sa.select(User).where(User.id == user_id)

@@ -29,6 +29,27 @@ def _enable_switch(page, name):
     ).to_be_visible()
 
 
+def _wait_for_unread_badge(page, count, attempts=15, per_attempt_ms=6000):
+    """Wait for the unread-notification badge, reloading between attempts.
+
+    Notifications are created asynchronously (event processing -> notification
+    service) and the badge normally updates via a single FETCH_NOTIFICATIONS
+    websocket push. If that push is missed (e.g. it fires during navigation),
+    the page won't re-fetch on its own and a plain ``expect`` hangs until
+    timeout. Reloading re-fetches the notifications, so the badge appears once
+    the notification lands regardless of push timing. Total wait is roughly
+    ``attempts * per_attempt_ms`` (kept ~= the global expect timeout).
+    """
+    badge = page.locator(f"//span[text()='{count}']").first
+    for _ in range(attempts - 1):
+        try:
+            expect(badge).to_be_visible(timeout=per_attempt_ms)
+            return
+        except AssertionError:
+            page.reload()
+    expect(badge).to_be_visible(timeout=per_attempt_ms)
+
+
 @pytest.mark.flaky(reruns=2)
 def test_mention_generates_notification_then_mark_read_and_delete(
     page, user, public_source
@@ -381,7 +402,10 @@ def test_new_gcn_event_triggers_notification(page, user, super_admin_token):
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/")
-    expect(page.locator("//span[text()='1']").first).to_be_visible()
+    # The GCN-event notification is delivered asynchronously after the (heavy)
+    # event processing; reload until the unread badge appears rather than
+    # depending on catching the single websocket push.
+    _wait_for_unread_badge(page, "1")
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(page.locator('//*[contains(text(), "New GCN Event")]').first).to_be_visible()
 

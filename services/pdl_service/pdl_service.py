@@ -4,8 +4,9 @@ import os
 from watchdog.events import LoggingEventHandler
 from watchdog.observers import Observer
 
+from baselayer.app import models
 from baselayer.app.env import load_env
-from baselayer.app.models import async_plain_session_factory, init_db
+from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.earthquake import post_earthquake_from_xml
 
@@ -34,7 +35,7 @@ def service():
                             # The watchdog callback is sync (runs on the
                             # observer thread); drive the async ingest on a
                             # fresh event loop with its own async session.
-                            async with async_plain_session_factory() as session:
+                            async with models.async_plain_session_factory() as session:
                                 await post_earthquake_from_xml(
                                     payload, user_id, session
                                 )
