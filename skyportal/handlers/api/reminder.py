@@ -41,7 +41,7 @@ def _coerce_resource_id(associated_resource_type, resource_id):
         )
 
 
-def post_reminder(
+async def post_reminder(
     session,
     associated_resource_type,
     resource_id,
@@ -83,9 +83,9 @@ def post_reminder(
     reminders = []
     resource_name = None
     if associated_resource_type.lower() == "source":
-        source = session.scalars(
+        source = await session.scalar(
             Source.select(session.user_or_token).where(Source.obj_id == resource_id)
-        ).first()
+        )
         if not source:
             raise AccessError(f"Could not find source {resource_id}")
         for user in users:
@@ -103,9 +103,9 @@ def post_reminder(
             )
         resource_name = source.obj_id
     elif associated_resource_type.lower() == "spectra":
-        spectrum = session.scalars(
+        spectrum = await session.scalar(
             Spectrum.select(session.user_or_token).where(Spectrum.id == resource_id)
-        ).first()
+        )
         if not spectrum:
             raise ValueError(f"Could not find spectrum {resource_id}.")
         for user in users:
@@ -124,9 +124,9 @@ def post_reminder(
             )
         resource_name = spectrum.obj_id
     elif associated_resource_type.lower() == "gcn_event":
-        gcn_event = session.scalars(
+        gcn_event = await session.scalar(
             GcnEvent.select(session.user_or_token).where(GcnEvent.id == resource_id)
-        ).first()
+        )
         if not gcn_event:
             raise ValueError(f"Could not find GcnEvent {resource_id}.")
         for user in users:
@@ -144,11 +144,11 @@ def post_reminder(
             )
         resource_name = str(gcn_event.dateobs).replace(" ", "T")
     elif associated_resource_type.lower() == "earthquake":
-        earthquake = session.scalars(
+        earthquake = await session.scalar(
             EarthquakeEvent.select(session.user_or_token).where(
                 EarthquakeEvent.id == resource_id
             )
-        ).first()
+        )
         if not earthquake:
             raise ValueError(f"Could not find EarthquakeEvent {resource_id}.")
         for user in users:
@@ -166,9 +166,9 @@ def post_reminder(
             )
         resource_name = earthquake.event_id
     elif associated_resource_type.lower() == "shift":
-        shift = session.scalars(
+        shift = await session.scalar(
             Shift.select(session.user_or_token).where(Shift.id == resource_id)
-        ).first()
+        )
         if not shift:
             raise ValueError(f"Could not find Shift {resource_id}.")
         for user in users:
@@ -193,7 +193,7 @@ def post_reminder(
 
 class ReminderHandler(BaseHandler):
     @auth_or_token
-    def get(
+    async def get(
         self,
         associated_resource_type: str,
         resource_id: str,
@@ -287,7 +287,7 @@ class ReminderHandler(BaseHandler):
         if err is not None:
             return self.error(err)
         try:
-            with self.Session() as session:
+            async with self.AsyncSession() as session:
                 if reminder_id is None:
                     if associated_resource_type.lower() == "source":
                         stmt = Reminder.select(session.user_or_token).where(
@@ -313,8 +313,9 @@ class ReminderHandler(BaseHandler):
                         return self.error(
                             f'Unsupported associated resource type "{associated_resource_type}".'
                         )
-                    reminders = session.scalars(stmt).all()
-                    session.commit()
+                    list_result = await session.scalars(stmt)
+                    reminders = list_result.all()
+                    await session.commit()
                     return self.success(
                         data={
                             "resourceId": resource_id,
@@ -358,7 +359,7 @@ class ReminderHandler(BaseHandler):
                             f'Unsupported associated_resource_type "{associated_resource_type}".'
                         )
 
-                    reminder = session.scalar(stmt).first()
+                    reminder = await session.scalar(stmt)
 
                     if reminder is None:
                         return self.error(f"Could not find reminder {reminder_id}.")
@@ -382,7 +383,9 @@ class ReminderHandler(BaseHandler):
             return self.error(str(e))
 
     @permissions(["Reminder"])
-    def post(self, associated_resource_type: str, resource_id: str, *ignored_args):
+    async def post(
+        self, associated_resource_type: str, resource_id: str, *ignored_args
+    ):
         """
         ---
         summary: Post a reminder
@@ -456,7 +459,7 @@ class ReminderHandler(BaseHandler):
         next_reminder = arrow.get(next_reminder).datetime.replace(tzinfo=None)
         reminder_delay = data.get("reminder_delay", 1)
         number_of_reminders = data.get("number_of_reminders", 1)
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 group_ids = data.pop("group_ids", None)
                 if not group_ids:
@@ -467,29 +470,31 @@ class ReminderHandler(BaseHandler):
                     return self.error(
                         "cannot find some of the requested groups", status=403
                     )
-                groups = session.scalars(
+                groups_result = await session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-                ).all()
+                )
+                groups = groups_result.all()
 
                 user_ids = data.pop("user_ids", None)
                 if not user_ids:
                     user_ids = [self.associated_user_object.id]
                 else:
-                    accessible_users = session.scalars(
+                    accessible_result = await session.scalars(
                         User.select(session.user_or_token)
-                    ).all()
-                    accessible_user_ids = [u.id for u in accessible_users]
+                    )
+                    accessible_user_ids = [u.id for u in accessible_result.all()]
                     if not set(user_ids).issubset(set(accessible_user_ids)):
                         return self.error(
                             "cannot find some of the requested users", status=403
                         )
-                users = session.scalars(
+                users_result = await session.scalars(
                     User.select(session.user_or_token).where(User.id.in_(user_ids))
-                ).all()
+                )
+                users = users_result.all()
 
                 is_bot_reminder = isinstance(self.current_user, Token)
                 try:
-                    reminders, resource_name = post_reminder(
+                    reminders, resource_name = await post_reminder(
                         session,
                         associated_resource_type,
                         coerced_resource_id,
@@ -554,17 +559,19 @@ class ReminderHandler(BaseHandler):
                     )
                     ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")
 
-                session.commit()
+                await session.commit()
                 self.push_all(action, payload)
                 return self.success(
                     data={"reminder_ids": [reminder.id for reminder in reminders]}
                 )
             except Exception as e:
-                session.rollback()
+                await session.rollback()
                 return self.error(str(e))
 
     @permissions(["Reminder"])
-    def patch(self, associated_resource_type: str, resource_id: str, reminder_id: int):
+    async def patch(
+        self, associated_resource_type: str, resource_id: str, reminder_id: int
+    ):
         """
         ---
         summary: Update a reminder
@@ -622,6 +629,11 @@ class ReminderHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            reminder_id = int(reminder_id)
+        except (TypeError, ValueError):
+            return self.error("Must provide a valid (scalar integer) reminder ID. ")
+
         coerced_resource_id, err = _coerce_resource_id(
             associated_resource_type, resource_id
         )
@@ -630,7 +642,7 @@ class ReminderHandler(BaseHandler):
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 group_ids = data.pop("group_ids", None)
                 if not group_ids:
@@ -641,31 +653,33 @@ class ReminderHandler(BaseHandler):
                     return self.error(
                         "cannot find some of the requested groups", status=403
                     )
-                groups = session.scalars(
+                groups_result = await session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-                ).all()
+                )
+                groups = groups_result.all()
                 data["groups"] = groups
 
                 user_ids = data.pop("user_ids", None)
                 if not user_ids:
                     user_ids = [self.associated_user_object.id]
                 else:
-                    accessible_users = session.scalars(
+                    accessible_result = await session.scalars(
                         User.select(session.user_or_token)
-                    ).all()
-                    accessible_user_ids = [u.id for u in accessible_users]
+                    )
+                    accessible_user_ids = [u.id for u in accessible_result.all()]
                     if not set(user_ids).issubset(set(accessible_user_ids)):
                         return self.error(
                             "cannot find some of the requested users", status=403
                         )
-                users = session.scalars(
+                users_result = await session.scalars(
                     User.select(session.user_or_token).where(User.id.in_(user_ids))
-                ).all()
+                )
+                users = users_result.all()
                 data["users"] = users
                 data["id"] = reminder_id
 
                 if associated_resource_type.lower() == "source":
-                    source = session.scalars(
+                    source = await session.scalar(
                         Source.select(session.user_or_token).where(
                             Source.obj_id == coerced_resource_id
                         )
@@ -673,14 +687,14 @@ class ReminderHandler(BaseHandler):
                     if not source:
                         raise AccessError(f"Could not find source {resource_id}")
                     schema = Reminder.__schema__()
-                    reminder = session.scalars(
+                    reminder = await session.scalar(
                         Reminder.select(session.user_or_token).where(
                             Reminder.id == reminder_id
                         )
-                    ).first()
+                    )
 
                 elif associated_resource_type.lower() == "spectra":
-                    spectrum = session.scalars(
+                    spectrum = await session.scalar(
                         Spectrum.select(session.user_or_token).where(
                             Spectrum.obj_id == coerced_resource_id
                         )
@@ -688,14 +702,14 @@ class ReminderHandler(BaseHandler):
                     if not spectrum:
                         raise AccessError(f"Could not find spectrum {resource_id}")
                     schema = ReminderOnSpectrum.__schema__()
-                    reminder = session.scalars(
+                    reminder = await session.scalar(
                         ReminderOnSpectrum.select(session.user_or_token).where(
                             ReminderOnSpectrum.id == reminder_id
                         )
-                    ).first()
+                    )
 
                 elif associated_resource_type.lower() == "gcn_event":
-                    gcn_event = session.scalars(
+                    gcn_event = await session.scalar(
                         GcnEvent.select(session.user_or_token).where(
                             GcnEvent.id == coerced_resource_id
                         )
@@ -703,13 +717,13 @@ class ReminderHandler(BaseHandler):
                     if not gcn_event:
                         raise AccessError(f"Could not find gcn event {resource_id}")
                     schema = ReminderOnGCN.__schema__()
-                    reminder = session.scalars(
+                    reminder = await session.scalar(
                         ReminderOnGCN.select(session.user_or_token).where(
                             ReminderOnGCN.id == reminder_id
                         )
-                    ).first()
+                    )
                 elif associated_resource_type.lower() == "earthquake":
-                    earthquake = session.scalars(
+                    earthquake = await session.scalar(
                         EarthquakeEvent.select(session.user_or_token).where(
                             EarthquakeEvent.id == coerced_resource_id
                         )
@@ -717,13 +731,13 @@ class ReminderHandler(BaseHandler):
                     if not earthquake:
                         raise AccessError(f"Could not find earthquake {resource_id}")
                     schema = ReminderOnEarthquake.__schema__()
-                    reminder = session.scalars(
+                    reminder = await session.scalar(
                         ReminderOnEarthquake.select(session.user_or_token).where(
                             ReminderOnEarthquake.id == reminder_id
                         )
-                    ).first()
+                    )
                 elif associated_resource_type.lower() == "shift":
-                    shift = session.scalars(
+                    shift = await session.scalar(
                         Shift.select(session.user_or_token).where(
                             Shift.id == coerced_resource_id
                         )
@@ -731,11 +745,11 @@ class ReminderHandler(BaseHandler):
                     if not shift:
                         raise AccessError(f"Could not find shift {resource_id}")
                     schema = ReminderOnShift.__schema__()
-                    reminder = session.scalars(
+                    reminder = await session.scalar(
                         ReminderOnShift.select(session.user_or_token).where(
                             ReminderOnShift.id == reminder_id
                         )
-                    ).first()
+                    )
                 # add more options using elif
                 else:
                     return self.error(
@@ -766,7 +780,7 @@ class ReminderHandler(BaseHandler):
                         f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
 
-                session.commit()
+                await session.commit()
 
                 if isinstance(reminder, Reminder):
                     self.push_all(
@@ -799,7 +813,9 @@ class ReminderHandler(BaseHandler):
                 return self.error(str(e))
 
     @permissions(["Reminder"])
-    def delete(self, associated_resource_type: str, resource_id: str, reminder_id: int):
+    async def delete(
+        self, associated_resource_type: str, resource_id: str, reminder_id: int
+    ):
         """
         ---
         summary: Delete a reminder
@@ -839,82 +855,86 @@ class ReminderHandler(BaseHandler):
                 schema: Success
         """
 
+        try:
+            reminder_id = int(reminder_id)
+        except (TypeError, ValueError):
+            return self.error("Must provide a valid (scalar integer) reminder ID.")
         coerced_resource_id, err = _coerce_resource_id(
             associated_resource_type, resource_id
         )
         if err is not None:
             return self.error(err)
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 if associated_resource_type.lower() == "source":
-                    source = session.scalars(
+                    source = await session.scalar(
                         Source.select(session.user_or_token).where(
                             Source.obj_id == coerced_resource_id
                         )
                     )
                     if not source:
                         raise AccessError(f"Could not find source {resource_id}")
-                    reminder = session.scalars(
+                    reminder = await session.scalar(
                         Reminder.select(session.user_or_token).where(
                             Reminder.id == reminder_id
                         )
-                    ).first()
+                    )
 
                 elif associated_resource_type.lower() == "spectra":
-                    spectrum = session.scalars(
+                    spectrum = await session.scalar(
                         Spectrum.select(session.user_or_token).where(
                             Spectrum.obj_id == coerced_resource_id
                         )
                     )
                     if not spectrum:
                         raise AccessError(f"Could not find spectrum {resource_id}")
-                    reminder = session.scalars(
+                    reminder = await session.scalar(
                         ReminderOnSpectrum.select(session.user_or_token).where(
                             ReminderOnSpectrum.id == reminder_id
                         )
-                    ).first()
+                    )
 
                 elif associated_resource_type.lower() == "gcn_event":
-                    gcn_event = session.scalars(
+                    gcn_event = await session.scalar(
                         GcnEvent.select(session.user_or_token).where(
                             GcnEvent.id == coerced_resource_id
                         )
                     )
                     if not gcn_event:
                         raise AccessError(f"Could not find gcn event {resource_id}")
-                    reminder = session.scalars(
+                    reminder = await session.scalar(
                         ReminderOnGCN.select(session.user_or_token).where(
                             ReminderOnGCN.id == reminder_id
                         )
-                    ).first()
+                    )
 
                 elif associated_resource_type.lower() == "earthquake":
-                    earthquake = session.scalars(
+                    earthquake = await session.scalar(
                         EarthquakeEvent.select(session.user_or_token).where(
                             EarthquakeEvent.id == coerced_resource_id
                         )
                     )
                     if not earthquake:
                         raise AccessError(f"Could not find gcn event {resource_id}")
-                    reminder = session.scalars(
+                    reminder = await session.scalar(
                         ReminderOnEarthquake.select(session.user_or_token).where(
                             ReminderOnEarthquake.id == reminder_id
                         )
-                    ).first()
+                    )
 
                 elif associated_resource_type.lower() == "shift":
-                    shift = session.scalars(
+                    shift = await session.scalar(
                         Shift.select(session.user_or_token).where(
                             Shift.id == coerced_resource_id
                         )
                     )
                     if not shift:
                         raise AccessError(f"Could not find shift {resource_id}")
-                    reminder = session.scalars(
+                    reminder = await session.scalar(
                         ReminderOnShift.select(session.user_or_token).where(
                             ReminderOnShift.id == reminder_id
                         )
-                    ).first()
+                    )
                 # add more options using elif
                 else:
                     return self.error(
@@ -938,8 +958,8 @@ class ReminderHandler(BaseHandler):
                         f"Reminder resource ID does not match resource ID given in path ({resource_id})"
                     )
 
-                session.delete(reminder)
-                session.commit()
+                await session.delete(reminder)
+                await session.commit()
 
                 if isinstance(reminder, Reminder):
                     self.push_all(

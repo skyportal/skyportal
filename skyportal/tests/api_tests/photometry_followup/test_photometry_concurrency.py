@@ -257,3 +257,73 @@ def test_concurrent_post_disjoint_keys(
         f"expected {N_WORKERS} distinct row IDs, got {len(inserted_ids)} "
         "(some inserts may have collided)"
     )
+
+
+def test_concurrent_posts_phot_stat_no_double_count(
+    upload_data_token, public_group, ztf_camera
+):
+    """N concurrent PUTs to one fresh object, each re-sending a shared block of
+    points (heavy ON CONFLICT collisions) plus its own unique points.
+
+    The incremental PhotStat path must add only the rows a given writer actually
+    inserted (RETURNING xmax=0) under the per-object FOR UPDATE lock, so after the
+    race PhotStat.num_obs_global must equal the distinct photometry count — no
+    double-count, no loss — even though the workers also race to create the
+    object's very first PhotStat row.
+    """
+    source_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": source_id,
+            "ra": 12.3,
+            "dec": -4.5,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    base_mjds = [59700.0 + i for i in range(10)]  # shared across workers -> collisions
+    n_unique = 5
+
+    def _put(worker):
+        unique = [59800.0 + worker * 100 + i for i in range(n_unique)]
+        mjds = base_mjds + unique
+        n = len(mjds)
+        payload = {
+            "obj_id": source_id,
+            "instrument_id": ztf_camera.id,
+            "mjd": mjds,
+            "mag": [19.0] * n,
+            "magerr": [0.05] * n,
+            "limiting_mag": [21.0] * n,
+            "magsys": ["ab"] * n,
+            "filter": ["ztfr"] * n,
+            "origin": ["concurrency-photstat"] * n,
+            "group_ids": [public_group.id],
+        }
+        return _put_photometry(upload_data_token, payload)
+
+    with ThreadPoolExecutor(max_workers=N_WORKERS) as executor:
+        results = list(executor.map(_put, range(N_WORKERS)))
+    for status, data in results:
+        assert status == 200, f"PUT failed: {data}"
+
+    expected = len(base_mjds) + N_WORKERS * n_unique
+
+    status, data = api(
+        "GET", f"sources/{source_id}/photometry", token=upload_data_token
+    )
+    assert status == 200
+    assert len(data["data"]) == expected, (
+        f"expected {expected} distinct photometry rows, got {len(data['data'])}"
+    )
+
+    status, data = api("GET", f"sources/{source_id}/phot_stat", token=upload_data_token)
+    assert status == 200
+    assert data["data"]["num_obs_global"] == expected, (
+        f"PhotStat num_obs_global={data['data']['num_obs_global']} != distinct "
+        f"photometry count {expected} (double-count or loss under concurrency)"
+    )

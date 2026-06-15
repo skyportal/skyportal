@@ -16,32 +16,29 @@ from ...models import Obj, Thumbnail, User
 from ..base import BaseHandler
 
 
-def post_thumbnail(data, user_id, session):
-    """Post thumbnail to database.
+async def post_thumbnail(data, user_id, session):
+    """Post thumbnail to database (async).
     data: dict
         Thumbnail dictionary
     user_id : int
         SkyPortal ID of User posting the Thumbnail
-    session: sqlalchemy.Session
-        Database session for this transaction
+    session: sqlalchemy.ext.asyncio.AsyncSession
+        Async DB session for this transaction
     """
 
-    user = session.scalar(sa.select(User).where(User.id == user_id))
+    user = await session.scalar(sa.select(User).where(User.id == user_id))
 
-    obj = session.scalars(Obj.select(user).where(Obj.id == data["obj_id"])).first()
+    obj = await session.scalar(Obj.select(user).where(Obj.id == data["obj_id"]))
 
     if obj is None:
         raise AttributeError(f"Invalid obj_id: {data['obj_id']}")
 
     basedir = Path(os.path.dirname(__file__)) / ".." / ".."
-    hash = hashlib.sha256(data["obj_id"].encode("utf-8")).hexdigest()
+    obj_hash = hashlib.sha256(data["obj_id"].encode("utf-8")).hexdigest()
 
     # can someday make this a configurable parameter
     required_depth = 2
-    subfolders = []
-    for i in range(required_depth):
-        subfolders.append(hash[i * 2 : (i + 1) * 2])
-    subfolders = "/".join(subfolders)
+    subfolders = "/".join(obj_hash[i * 2 : (i + 1) * 2] for i in range(required_depth))
 
     if os.path.abspath(basedir).endswith("skyportal/skyportal"):
         basedir = basedir / ".."
@@ -75,7 +72,7 @@ def post_thumbnail(data, user_id, session):
             f.write(file_bytes)
 
         session.add(t)
-        session.commit()
+        await session.commit()
 
     except (LookupError, StatementError) as e:
         if "enum" in str(e):
@@ -87,7 +84,7 @@ def post_thumbnail(data, user_id, session):
 
 class ThumbnailHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload thumbnails
@@ -137,15 +134,17 @@ class ThumbnailHandler(BaseHandler):
         if "obj_id" not in data:
             return self.error("Missing required parameter: obj_id")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                obj_id = post_thumbnail(data, self.associated_user_object.id, session)
+                thumbnail_id = await post_thumbnail(
+                    data, self.associated_user_object.id, session
+                )
             except Exception as e:
                 return self.error(f"Thumbnail failed to post: {str(e)}")
-            return self.success(data={"id": obj_id})
+            return self.success(data={"id": thumbnail_id})
 
     @auth_or_token
-    def get(self, thumbnail_id: int):
+    async def get(self, thumbnail_id: int):
         """
         ---
         summary: Get a thumbnail
@@ -168,18 +167,18 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            t = session.scalars(
+        async with self.AsyncSession() as session:
+            t = await session.scalar(
                 Thumbnail.select(session.user_or_token).where(
                     Thumbnail.id == thumbnail_id
                 )
-            ).first()
+            )
             if t is None:
                 return self.error(f"Cannot find Thumbnail with ID: {thumbnail_id}")
             return self.success(data=t)
 
     @permissions(["Manage sources"])
-    def put(self, thumbnail_id: int):
+    async def put(self, thumbnail_id: int):
         """
         ---
         summary: Update a thumbnail
@@ -212,12 +211,12 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            t = session.scalars(
+        async with self.AsyncSession() as session:
+            t = await session.scalar(
                 Thumbnail.select(session.user_or_token, mode="update").where(
                     Thumbnail.id == thumbnail_id
                 )
-            ).first()
+            )
             if t is None:
                 return self.error(f"Cannot find Thumbnail with ID: {thumbnail_id}")
 
@@ -235,11 +234,11 @@ class ThumbnailHandler(BaseHandler):
             for k in data:
                 setattr(t, k, data[k])
 
-            session.commit()
+            await session.commit()
             return self.success()
 
     @permissions(["Manage sources"])
-    def delete(self, thumbnail_id: int):
+    async def delete(self, thumbnail_id: int):
         """
         ---
         summary: Delete a thumbnail
@@ -262,25 +261,24 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        with self.Session() as session:
-            t = session.scalars(
+        async with self.AsyncSession() as session:
+            t = await session.scalar(
                 Thumbnail.select(session.user_or_token, mode="delete").where(
                     Thumbnail.id == thumbnail_id
                 )
-            ).first()
+            )
             if t is None:
                 return self.error(f"Cannot find Thumbnail with ID: {thumbnail_id}")
 
-            session.delete(t)
-            session.commit()
+            await session.delete(t)
+            await session.commit()
 
             return self.success()
 
 
 class ThumbnailPathHandler(BaseHandler):
     @permissions(["System admin"])
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Check thumbnail paths
@@ -338,28 +336,22 @@ class ThumbnailPathHandler(BaseHandler):
 
         """
         types = self.get_query_argument("types", ["new", "ref", "sub"])
-        required_depth = self.get_query_argument("requiredDepth", 2)
-        try:
-            required_depth = int(required_depth)
-        except ValueError:
+        required_depth = self.get_query_argument("requiredDepth", 2, type=int)
+        if required_depth is None:
             return self.error("requiredDepth must be an integer")
 
         if required_depth < 0 or required_depth > 32:
             return self.error("requiredDepth must be between 0 and 32")
 
-        # a string glob to match the required depth:
-        # e.g., if required_depth is 2, then a good match is:
-        # skyportal/static/thumbnails/ab/cd/ZTF20aabcde_new.png
-        # This will accept anything with AT LEAST the number of
-        # subfolders but will also match too many subfolders.
         good_like = f"%thumbnails{'/__' * required_depth}/%"
-        # anything that matches with too many subfolders is rejected.
         bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"
 
-        with self.Session() as session:
-            total_matches, good_matches, bad_matches = count_thumbnails_in_folders(
-                session, types, good_like, bad_like
-            )
+        async with self.AsyncSession() as session:
+            (
+                total_matches,
+                good_matches,
+                bad_matches,
+            ) = await count_thumbnails_in_folders(session, types, good_like, bad_like)
 
         return self.success(
             data={
@@ -370,7 +362,7 @@ class ThumbnailPathHandler(BaseHandler):
         )
 
     @permissions(["System admin"])
-    def patch(self):
+    async def patch(self):
         """
         ---
         summary: Update thumbnail paths
@@ -444,37 +436,25 @@ class ThumbnailPathHandler(BaseHandler):
         from .alert import alert_available
 
         types = self.get_query_argument("types", ["new", "ref", "sub"])
-        required_depth = self.get_query_argument("requiredDepth", 2)
-        try:
-            required_depth = int(required_depth)
-        except ValueError:
+        required_depth = self.get_query_argument("requiredDepth", 2, type=int)
+        if required_depth is None:
             return self.error("requiredDepth must be an integer")
 
         if required_depth <= 0 or required_depth > 32:
             return self.error("requiredDepth must be at least 0 and no bigger than 31.")
-        try:
-            page_number = int(self.get_query_argument("pageNumber", 1))
-            num_per_page = min(
-                int(self.get_query_argument("numPerPage", 100)),
-                1000,
-            )
-        except ValueError:
+        page_number = self.get_query_argument("pageNumber", 1, type=int)
+        num_per_page = self.get_query_argument("numPerPage", 100, type=int)
+        if page_number is None or num_per_page is None:
             return self.error(
-                f"Cannot parse inputs pageNumber ({page_number}) "
-                f"or numPerPage ({num_per_page}) as an integers."
+                "Cannot parse inputs pageNumber or numPerPage as integers."
             )
+        num_per_page = min(num_per_page, 1000)
 
-        # a string glob to match the required depth:
-        # e.g., if required_depth is 2, then a good match is:
-        # skyportal/static/thumbnails/ab/cd/ZTF20aabcde_new.png
-        # This will accept anything with AT LEAST the number of
-        # subfolders but will also match too many subfolders.
         good_like = f"%thumbnails{'/__' * required_depth}/%"
-        # anything that matches with too many subfolders is rejected.
         bad_like = f"%thumbnails{'/__' * (required_depth + 1)}/%"
 
         num_moved = 0
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
             stmt = stmt.where(
                 sa.or_(
@@ -484,25 +464,23 @@ class ThumbnailPathHandler(BaseHandler):
             )
             stmt = stmt.offset((page_number - 1) * num_per_page)
             stmt = stmt.limit(num_per_page)
-            thumbnails = session.execute(stmt).scalars().unique().all()
+            result = await session.scalars(stmt)
+            thumbnails = result.unique().all()
             for t in thumbnails:
                 if t.file_uri is None:
                     continue
 
                 if alert_available:
-                    # check file exists and non-empty
-                    # if not, delete and repost thumbnail from alerts
-                    ok = check_thumbnail_file(
+                    ok = await check_thumbnail_file(
                         t, self.associated_user_object.id, session
                     )
                     if not ok:
                         # the delete is committed in check_thumbnail_file
                         continue
-                hash = hashlib.sha256(t.obj_id.encode("utf-8")).hexdigest()
-                subfolders = []
-                for i in range(required_depth):
-                    subfolders.append(hash[i * 2 : (i + 1) * 2])
-                subfolders = "/".join(subfolders)
+                obj_hash = hashlib.sha256(t.obj_id.encode("utf-8")).hexdigest()
+                subfolders = "/".join(
+                    obj_hash[i * 2 : (i + 1) * 2] for i in range(required_depth)
+                )
                 path = (
                     "thumbnails".join(t.file_uri.split("thumbnails")[:-1])
                     + "thumbnails"
@@ -523,29 +501,26 @@ class ThumbnailPathHandler(BaseHandler):
                         f"Could not move {old_file_uri} to {new_file_uri}: {e}"
                     )
 
-                # in case the old file is missing but also the new...
                 if not os.path.isfile(new_file_uri):
                     return self.error(f"File {new_file_uri} does not exist!")
 
-                # only if the move was successful
-                # (or the file already existed)
-                # do we change the thumbnail's file_uri
                 try:
                     t.file_uri = new_file_uri
                     t.public_url = new_public_url
                     session.add(t)
-                    session.commit()
+                    await session.commit()
                 except Exception as e:
-                    session.rollback()
-                    # make sure to move the files back as well
+                    await session.rollback()
                     os.rename(new_file_uri, old_file_uri)
                     return self.error(f"Could not update database row: {e}")
 
                 num_moved += 1
 
-            total_matches, good_matches, bad_matches = count_thumbnails_in_folders(
-                session, types, good_like, bad_like
-            )
+            (
+                total_matches,
+                good_matches,
+                bad_matches,
+            ) = await count_thumbnails_in_folders(session, types, good_like, bad_like)
 
         return self.success(
             data={
@@ -561,7 +536,7 @@ class ThumbnailPathHandler(BaseHandler):
     # of moving them to the correct folder
 
     @permissions(["System admin"])
-    def delete(self):
+    async def delete(self):
         """
         ---
         summary: Delete empty thumbnail folders
@@ -582,7 +557,7 @@ class ThumbnailPathHandler(BaseHandler):
             os.path.dirname(__file__), "../../../", "static", "thumbnails"
         )
         basepath = os.path.abspath(basepath)
-        for root, dirs, files in os.walk(basepath, topdown=False):
+        for root, dirs, _files in os.walk(basepath, topdown=False):
             for d in dirs:
                 try:
                     os.removedirs(os.path.join(root, d))
@@ -592,75 +567,34 @@ class ThumbnailPathHandler(BaseHandler):
         return self.success()
 
 
-def count_thumbnails_in_folders(session, types, good_like, bad_like):
-    """
-    Count the number of thumbnails in the correct and incorrect folders.
-
-    Parameters
-    ----------
-    session : `sqlalchemy.orm.session.Session`
-        The database session.
-    types : list of str
-        The types of thumbnails to count.
-        Usually this is ['new', 'ref', 'sub']
-        for all the thumbnail types stored locally.
-
-    Returns
-    -------
-    total_matches : int
-        The total number of thumbnails in the database
-        of the types specified.
-    good_matches : int
-        The number of thumbnails in the correct folder.
-    bad_matches : int
-        The number of thumbnails in the incorrect folder.
-
-    """
+async def count_thumbnails_in_folders(session, types, good_like, bad_like):
+    """Async version: Count the number of thumbnails in the correct and incorrect folders."""
     stmt = sa.select(Thumbnail).where(Thumbnail.type.in_(types))
-    count_stmt = sa.select(func.count()).select_from(stmt)
-    total_matches = session.execute(count_stmt).scalar()
+    total_matches = await session.scalar(
+        sa.select(func.count()).select_from(stmt.subquery())
+    )
     good_stmt = stmt.where(
         Thumbnail.file_uri.like(good_like), ~Thumbnail.file_uri.like(bad_like)
     )
-    good_matches = session.execute(
-        sa.select(func.count()).select_from(good_stmt)
-    ).scalar()
+    good_matches = await session.scalar(
+        sa.select(func.count()).select_from(good_stmt.subquery())
+    )
     bad_stmt = stmt.where(
         sa.or_(
             ~Thumbnail.file_uri.like(good_like),
             Thumbnail.file_uri.like(bad_like),
         )
     )
-    bad_matches = session.execute(
-        sa.select(func.count()).select_from(bad_stmt)
-    ).scalar()
+    bad_matches = await session.scalar(
+        sa.select(func.count()).select_from(bad_stmt.subquery())
+    )
 
     return total_matches, good_matches, bad_matches
 
 
-def check_thumbnail_file(thumbnail, user_id, session):
-    """
-    Check if a thumbnail file exists on disk
-    and if not, delete the thumbnail and
-    post a new one from alerts.
-    Should NOT BE CALLED if alerts are not available.
-
-    Parameters
-    ----------
-    thumbnail : `baselayer.app.models.Thumbnail`
-        The thumbnail to check.
-    user_id : int
-        The ID of the user to post the new thumbnail as.
-    session : `sqlalchemy.orm.session.Session`
-        The database session.
-
-    Returns
-    -------
-    bool:
-    True if the thumbnail file was ok.
-    False if the thumbnail was deleted and a new one was posted.
-
-
+async def check_thumbnail_file(thumbnail, user_id, session):
+    """Async version: Check if a thumbnail file exists on disk and recreate via
+    alerts if missing. Should NOT BE CALLED if alerts are not available.
     """
     # need to import this here because alert.py might import this file
     from .alert import alert_available, post_alert
@@ -672,16 +606,16 @@ def check_thumbnail_file(thumbnail, user_id, session):
         not os.path.isfile(thumbnail.file_uri)
         or os.stat(thumbnail.file_uri).st_size == 0
     ):
-        # Thumbnail file is missing or empty, delete the thumbnail
         try:
             os.remove(thumbnail.file_uri)
         except Exception:
-            pass  # if the file isn't there, don't worry about it
+            pass
         finally:
-            session.delete(thumbnail)
-            session.commit()
+            await session.delete(thumbnail)
+            await session.commit()
 
-        # Post a new one from alerts
+        # post_alert is overridden by Fritz; if it's been made async there, it
+        # should be awaited; the base stub is a no-op.
         post_alert(
             object_id=thumbnail.obj_id,
             candid=None,

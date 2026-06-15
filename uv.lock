@@ -478,7 +478,7 @@ dependencies = [
     { name = "requests" },
     { name = "simplejson" },
     { name = "social-auth-core" },
-    { name = "sqlalchemy" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "sqlalchemy-utils" },
     { name = "supervisor" },
     { name = "tornado" },
@@ -515,7 +515,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.25.1" },
     { name = "simplejson", specifier = ">=3.17.2" },
     { name = "social-auth-core", specifier = "==4.2.0" },
-    { name = "sqlalchemy", specifier = ">=2.0.38,<3" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.38,<3" },
     { name = "sqlalchemy-utils", specifier = ">=0.36.8" },
     { name = "supervisor", specifier = ">=4.3" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.1.0" },
@@ -4700,6 +4700,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/4b/44/1d257d9f9556661e7bdc83667cc414ba210acfc110c82938cb3611eea58f/sqlalchemy-2.0.48-cp312-cp312-win32.whl", hash = "sha256:908a3fa6908716f803b86896a09a2c4dde5f5ce2bb07aacc71ffebb57986ce99", size = 2115546, upload-time = "2026-03-02T15:54:31.591Z" },
     { url = "https://files.pythonhosted.org/packages/f2/af/c3c7e1f3a2b383155a16454df62ae8c62a30dd238e42e68c24cebebbfae6/sqlalchemy-2.0.48-cp312-cp312-win_amd64.whl", hash = "sha256:68549c403f79a8e25984376480959975212a670405e3913830614432b5daa07a", size = 2142484, upload-time = "2026-03-02T15:54:34.072Z" },
     { url = "https://files.pythonhosted.org/packages/46/2c/9664130905f03db57961b8980b05cab624afd114bf2be2576628a9f22da4/sqlalchemy-2.0.48-py3-none-any.whl", hash = "sha256:a66fe406437dd65cacd96a72689a3aaaecaebbcd62d81c5ac1c0fdbeac835096", size = 1940202, upload-time = "2026-03-02T15:52:43.285Z" },
+]
+
+[package.optional-dependencies]
+asyncio = [
+    { name = "greenlet" },
 ]
 
 [[package]]
