@@ -155,25 +155,20 @@ const Instrument = ({ route }: InstrumentProps) => {
             <Typography variant="h5">Instrument Log Display</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div>
-              {loading && <CircularProgress />}
-              {!loading && !instrument["log_exists"] && (
-                <div> No logs exist </div>
-              )}
-              {!loading && instrument["log_exists"] && logs?.length === 0 && (
-                <div> No logs exist in the specified time range </div>
-              )}
-              {!loading && instrument["log_exists"] && !!logs?.length && (
-                <InstrumentLogsPlot instrument_logs={logs ?? []} />
-              )}
-            </div>
-            <div>
-              <Form
-                schema={InstrumentSummaryFormSchema as any}
-                validator={validator}
-                onSubmit={handleSubmit as any}
-              />
-            </div>
+            {loading ? (
+              <CircularProgress />
+            ) : !instrument["log_exists"] ? (
+              "No logs exist"
+            ) : !logs?.length ? (
+              "No logs exist in the specified time range"
+            ) : (
+              <InstrumentLogsPlot instrument_logs={logs} />
+            )}
+            <Form
+              schema={InstrumentSummaryFormSchema as any}
+              validator={validator}
+              onSubmit={handleSubmit as any}
+            />
           </AccordionDetails>
         </Accordion>
         <Accordion defaultExpanded>
