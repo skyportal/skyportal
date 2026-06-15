@@ -3,9 +3,10 @@ import { useState } from "react";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
+import Alert from "@mui/material/Alert";
+import AlertTitle from "@mui/material/AlertTitle";
 
 import { showNotification } from "baselayer/components/Notifications";
-import UninitializedDBMessage from "../UninitializedDBMessage";
 import SourceTable from "./SourceTable";
 import Spinner from "../Spinner";
 import ProgressIndicator from "../ProgressIndicators";
@@ -25,9 +26,6 @@ const SourceList = () => {
   const sourceTableEmpty = (useGetDbInfoQuery().data as any)
     ?.source_table_empty;
 
-  const [rowsPerPage, setRowsPerPage] = useState(100);
-  const [sorting, setSorting] = useState<any>(null);
-  const [filtering, setFiltering] = useState<any>(null);
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
@@ -37,7 +35,6 @@ const SourceList = () => {
     sortData: any,
     filterData: any,
   ) => {
-    setRowsPerPage(numPerPage);
     const data: any = {
       ...filterData,
       pageNumber,
@@ -50,10 +47,6 @@ const SourceList = () => {
     setQueryParams(data);
     fetchSourcesTrigger(data)
       .unwrap()
-      .then(() => {
-        setSorting(sortData);
-        setFiltering(filterData);
-      })
       .catch(() => {
         handleSourceTablePagination(pageNumber, numPerPage, null, null);
       });
@@ -63,14 +56,12 @@ const SourceList = () => {
     const data = {
       ...filterData,
       pageNumber: 1,
-      rowsPerPage,
+      numPerPage: queryParams.numPerPage,
       sortBy: sortData.name,
       sortOrder: sortData.direction,
     };
     setQueryParams(data);
     fetchSourcesTrigger(data);
-    setSorting(sortData);
-    setFiltering(filterData);
   };
 
   const handleSourcesDownload = async () => {
@@ -85,14 +76,10 @@ const SourceList = () => {
         i += 1
       ) {
         const data: any = {
-          ...filtering,
+          ...queryParams,
           pageNumber: i,
           numPerPage: sourcesState.numPerPage,
         };
-        if (sorting) {
-          data.sortBy = sorting.name;
-          data.sortOrder = sorting.direction;
-        }
         /* eslint-disable no-await-in-loop */
         try {
           const result: any = await fetchSourcesTrigger(data).unwrap();
@@ -130,32 +117,31 @@ const SourceList = () => {
     return sourceAll;
   };
 
-  if (!sourceTableEmpty && !sourcesState?.sources) {
-    return <Spinner />;
-  }
+  if (!sourcesState?.sources) return <Spinner />;
 
   return (
     <>
       {sourceTableEmpty && (
-        <div>
-          <UninitializedDBMessage />
-          <br />
-        </div>
+        <Alert severity="warning">
+          <AlertTitle>The Sources table is currently empty</AlertTitle>
+          For help with initializing the database, see the{" "}
+          <a href="https://skyportal.io/docs/setup.html">
+            getting started documentation
+          </a>
+          . Or click the <b>+</b> icon in the upper right corner of the table to
+          add a source.
+        </Alert>
       )}
-      {sourcesState?.sources ? (
-        <SourceTable
-          sources={sourcesState.sources}
-          paginateCallback={handleSourceTablePagination}
-          totalMatches={sourcesState.totalMatches}
-          pageNumber={sourcesState.pageNumber}
-          numPerPage={sourcesState.numPerPage}
-          sortingCallback={handleSourceTableSorting}
-          downloadCallback={handleSourcesDownload}
-          fixedHeader={true}
-        />
-      ) : (
-        <Spinner />
-      )}
+      <SourceTable
+        sources={sourcesState.sources}
+        paginateCallback={handleSourceTablePagination}
+        totalMatches={sourcesState.totalMatches}
+        pageNumber={sourcesState.pageNumber}
+        numPerPage={sourcesState.numPerPage}
+        sortingCallback={handleSourceTableSorting}
+        downloadCallback={handleSourcesDownload}
+        fixedHeader={true}
+      />
       <Dialog open={downloadProgressTotal > 0} maxWidth="md">
         <DialogContent
           style={{

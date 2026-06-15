@@ -11,18 +11,12 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Typography from "@mui/material/Typography";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarExport,
-} from "@mui/x-data-grid";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import StyledDataGridBase from "../StyledDataGrid";
-import QuickFilter from "../QuickFilter";
+import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 
 import { useDeleteAnnotationMutation as useDeleteSourceAnnotationMutation } from "../../ducks/source";
@@ -116,12 +110,10 @@ const AnnotationsTable = ({
     () =>
       function AnnotationsTableToolbar() {
         return (
-          <GridToolbarContainer>
-            <GridToolbarColumnsButton />
-            <GridToolbarExport />
-            <div data-testid="annotations-quick-filter">
-              <QuickFilter />
-            </div>
+          <DataGridToolbar
+            showExport
+            quickFilterTestId="annotations-quick-filter"
+          >
             {canExpand && (
               <IconButton
                 name="expand_annotations"
@@ -130,7 +122,7 @@ const AnnotationsTable = ({
                 <OpenInFullIcon />
               </IconButton>
             )}
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
     [canExpand],

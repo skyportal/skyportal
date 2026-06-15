@@ -9,8 +9,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export type GcnProperties = string[];
+import type { RouteData } from "../types/routeSchemaMap";
 
 export interface FetchGcnPropertiesArgs {
   [key: string]: unknown;
@@ -18,17 +17,18 @@ export interface FetchGcnPropertiesArgs {
 
 export const gcnPropertiesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getGcnProperties: build.query<GcnProperties, FetchGcnPropertiesArgs | void>(
-      {
-        query: (filterParams) => {
-          const params = new URLSearchParams(
-            (filterParams as Record<string, string>) ?? {},
-          ).toString();
-          return `api/gcn_event/properties${params ? `?${params}` : ""}`;
-        },
-        providesTags: ["GcnProperties"],
+    getGcnProperties: build.query<
+      RouteData<"GET /api/gcn_event/properties">,
+      FetchGcnPropertiesArgs | void
+    >({
+      query: (filterParams) => {
+        const params = new URLSearchParams(
+          (filterParams as Record<string, string>) ?? {},
+        ).toString();
+        return `api/gcn_event/properties${params ? `?${params}` : ""}`;
       },
-    ),
+      providesTags: ["GcnProperties"],
+    }),
   }),
 });
 

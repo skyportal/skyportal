@@ -1581,6 +1581,63 @@ def test_token_user_update_photometry(
     np.testing.assert_allclose(data["data"]["flux"], 11.0 * 10 ** (-0.4 * (25 - 23.9)))
 
 
+def test_token_user_update_photometry_mag_to_nondetection(
+    upload_data_token, public_source, ztf_camera, public_group
+):
+    # Upload a magnitude-space detection.
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": 18.5,
+            "magerr": 0.1,
+            "limiting_mag": 22.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    photometry_id = data["data"]["ids"][0]
+
+    # The photometry-edit form sends mag/magerr cleared (null) with a limiting_mag
+    # and, for a point not tied to an observing-run assignment, omits the optional
+    # assignment_id / ra_unc / dec_unc keys entirely. This used to 500 with a
+    # KeyError because parse_mag/parse_flux read those keys directly under a
+    # partial load.
+    status, data = api(
+        "PATCH",
+        f"photometry/{photometry_id}",
+        data={
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": None,
+            "magerr": None,
+            "limiting_mag": 22.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api(
+        "GET", f"photometry/{photometry_id}?format=mag", token=upload_data_token
+    )
+    assert status == 200
+    # mag+magerr removed -> it is now a non-detection with the limiting magnitude.
+    assert data["data"]["mag"] is None
+    assert data["data"]["magerr"] is None
+    np.testing.assert_allclose(data["data"]["limiting_mag"], 22.0)
+
+
 def test_token_user_cannot_update_unowned_photometry(
     upload_data_token, manage_sources_token, public_source, ztf_camera, public_group
 ):

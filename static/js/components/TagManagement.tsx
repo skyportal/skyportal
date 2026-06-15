@@ -14,16 +14,11 @@ import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
 import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarFilterButton,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
-import StyledDataGrid from "./StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "./StyledDataGrid";
 import {
   useGetTagOptionsQuery,
   useCreateTagOptionMutation,
@@ -283,9 +278,7 @@ const TagManagement = () => {
 
   function CustomToolbar() {
     return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
-        <GridToolbarFilterButton />
+      <DataGridToolbar showFilter showQuickFilter={false}>
         <Tooltip title="Create new tag">
           <IconButton
             onClick={handleCreateClick}
@@ -305,7 +298,7 @@ const TagManagement = () => {
             <DownloadIcon />
           </IconButton>
         </Tooltip>
-      </GridToolbarContainer>
+      </DataGridToolbar>
     );
   }
 

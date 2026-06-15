@@ -290,7 +290,26 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 200:
                     content:
                         application/json:
-                            schema: ArrayOfSharingServiceSubmissions
+                            schema:
+                                allOf:
+                                  - $ref: '#/components/schemas/Success'
+                                  - type: object
+                                    properties:
+                                      data:
+                                        type: object
+                                        properties:
+                                          sharing_service_id:
+                                            type: integer
+                                          submissions:
+                                            type: array
+                                            items:
+                                              $ref: '#/components/schemas/SharingServiceSubmission'
+                                          pageNumber:
+                                            type: integer
+                                          numPerPage:
+                                            type: integer
+                                          totalMatches:
+                                            type: integer
                 400:
                     content:
                         application/json:

@@ -140,7 +140,12 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SingleAllocation"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                allocation?: components["schemas"]["Allocation"];
+                                totalMatches?: number;
+                            };
+                        };
                     };
                 };
                 400: {
@@ -940,7 +945,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SingleObjAnalysis"];
+                        "application/json": components["schemas"]["SingleObjAnalysisDetail"];
                     };
                 };
                 400: {
@@ -1010,7 +1015,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfObjAnalysiss"];
+                        "application/json": components["schemas"]["ArrayOfObjAnalysisDetails"];
                     };
                 };
                 400: {
@@ -1163,7 +1168,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SingleObjAnalysis"];
+                        "application/json": components["schemas"]["SingleObjAnalysisDetail"];
                     };
                 };
                 400: {
@@ -1233,7 +1238,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfObjAnalysiss"];
+                        "application/json": components["schemas"]["ArrayOfObjAnalysisDetails"];
                     };
                 };
                 400: {
@@ -4051,7 +4056,14 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfFollowupRequests"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                followup_requests?: components["schemas"]["FollowupRequest"][];
+                                totalMatches?: number;
+                                pageNumber?: number;
+                                numPerPage?: number;
+                            };
+                        };
                     };
                 };
                 400: {
@@ -4416,7 +4428,17 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfGalaxys"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                galaxies?: components["schemas"]["Galaxy"][];
+                                totalMatches?: number;
+                                sortBy?: string;
+                                sortOrder?: string;
+                                page?: number;
+                                numPerPage?: number;
+                                geojson?: Record<string, never>;
+                            };
+                        };
                     };
                 };
                 400: {
@@ -5881,7 +5903,12 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfEarthquakeEvents"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                events?: components["schemas"]["EarthquakeEvent"][];
+                                totalMatches?: number;
+                            };
+                        };
                     };
                 };
                 400: {
@@ -6601,7 +6628,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["GcnTag"][];
+                            data?: string[];
                         };
                     };
                 };
@@ -10764,7 +10791,17 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfExecutedObservations"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                observations?: components["schemas"]["ExecutedObservation"][];
+                                totalMatches?: number;
+                                geojson?: Record<string, never>[] | null;
+                                field_ids?: number[] | null;
+                                probability?: number | null;
+                                area?: number | null;
+                                min_observations_per_field?: number | null;
+                            };
+                        };
                     };
                 };
                 400: {
@@ -11727,7 +11764,12 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfObservationPlanRequests"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                requests?: components["schemas"]["ObservationPlanRequest"][];
+                                totalMatches?: number;
+                            };
+                        };
                     };
                 };
                 400: {
@@ -20187,7 +20229,15 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfSharingServiceSubmissions"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                sharing_service_id?: number;
+                                submissions?: components["schemas"]["SharingServiceSubmission"][];
+                                pageNumber?: number;
+                                numPerPage?: number;
+                                totalMatches?: number;
+                            };
+                        };
                     };
                 };
                 400: {
@@ -21281,6 +21331,11 @@ export interface paths {
                                 weather?: Record<string, never>;
                                 /** @description Datetime (UTC) when the weather was fetched */
                                 weather_retrieved_at?: string;
+                                /**
+                                 * @description Datetime (UTC) when the API call was made,
+                                 *     even if no data was returned
+                                 */
+                                weather_fetch_at?: string;
                                 /** @description URL for more weather info */
                                 weather_link?: string;
                                 /** @description Name of the telescope */
@@ -21293,6 +21348,14 @@ export interface paths {
                                 message?: string;
                             };
                         };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -30789,6 +30852,44 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["ObjAnalysis"][];
+        };
+        ObjAnalysisDetail: {
+            /** @description Unique identifier for the analysis. */
+            id?: number;
+            /** @description ID of the Obj this analysis was run on. */
+            obj_id?: string;
+            /** @description ID of the AnalysisService used to produce this analysis. */
+            analysis_service_id?: number;
+            /** @description Display name of the AnalysisService, injected by the handler. */
+            analysis_service_name?: string;
+            /** @description Description of the AnalysisService, injected by the handler. */
+            analysis_service_description?: string;
+            /** @description Number of plots in this analysis's data. Single-analysis responses only. */
+            num_plots?: number;
+            /** @description Groups with access to this analysis. */
+            groups?: Record<string, never>[];
+            /** @description Server-side filename for the analysis payload. Present only when ``includeFilename=true``. */
+            filename?: string;
+            /** @description Raw analysis payload (results/plots/inference_data). Present only when ``includeAnalysisData=true`` on single-analysis requests. */
+            data?: Record<string, never>;
+            /** @description Parameters passed to the analysis service (sensitive keys stripped). */
+            analysis_parameters?: Record<string, never>;
+            /** @description Current status of the analysis run. */
+            status?: string;
+            /** @description Human-readable status detail. */
+            status_message?: string;
+        };
+        SingleObjAnalysisDetail: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["ObjAnalysisDetail"];
+        };
+        ArrayOfObjAnalysisDetails: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["ObjAnalysisDetail"][];
         };
         ObjAnalysisNoID: {
             /** @description The ObjAnalysis's Obj. */

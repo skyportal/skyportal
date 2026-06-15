@@ -380,8 +380,8 @@ const ObservationPlanRequestLists = ({
                   <StyledDataGrid
                     autoHeight
                     rows={(
-                      fetchedObservationPlan.observation_plans[0]
-                        .planned_observations || []
+                      fetchedObservationPlan.observation_plans?.[0]
+                        ?.planned_observations ?? []
                     ).map((row: any, i: number) => ({
                       ...row,
                       __rowid: row.id ?? i,
@@ -510,21 +510,23 @@ const ObservationPlanRequestLists = ({
         field: "skymap",
         headerName: "Skymap",
         flex: 1,
-        minWidth: 520,
+        minWidth: 360,
         sortable: false,
         renderCell: (params: any) => {
           const observationplanRequest = params.row;
           if (
-            !["complete", "running", "submitted to telescope queue"].includes(
+            !["complete", "submitted to telescope queue"].includes(
               observationplanRequest?.status,
             )
           ) {
             return null;
           }
           return (
-            <Box sx={{ minWidth: "500px" }}>
+            <Box sx={{ minWidth: "350px" }}>
               <ObservationPlanGlobe
                 observationplanRequest={observationplanRequest}
+                size={350}
+                retrieveLocalization
               />
             </Box>
           );
@@ -614,6 +616,9 @@ const ObservationPlanRequestLists = ({
       >
         <StyledDataGrid
           autoHeight
+          // Let rows grow to fit the embedded skymap cell; without this the
+          // default ~52px row height clips the localization plot to a sliver.
+          getRowHeight={() => "auto"}
           data-testid={`${instLookUp[instrument_id].name}_grid`}
           rows={requestsGroupedByInstId[instrument_id]}
           columns={getDataTableColumns(instrument_id)}

@@ -11,10 +11,14 @@
  */
 import { skyportalApi } from "../../api/skyportalApi";
 import { invalidateOnMessage } from "../../api/wsInvalidation";
+import type { RouteData } from "../../types/routeSchemaMap";
 
 export const publicSourcePageApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    fetchPublicSourcePages: build.query({
+    fetchPublicSourcePages: build.query<
+      RouteData<"GET /api/public_pages/source/{source_id}">,
+      string
+    >({
       query: (sourceId) => `api/public_pages/source/${sourceId}`,
       // Tag per source id so a REFRESH_PUBLIC_SOURCE_PAGES message can invalidate
       // exactly the matching source's query (replaces the old global

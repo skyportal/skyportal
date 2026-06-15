@@ -8,10 +8,14 @@
  */
 import { skyportalApi } from "../../api/skyportalApi";
 import { invalidateOnMessage } from "../../api/wsInvalidation";
+import type { RouteData } from "../../types/routeSchemaMap";
 
 export const scanReportsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getScanReports: build.query({
+    getScanReports: build.query<
+      RouteData<"GET /api/candidates/scan_reports">,
+      Record<string, any> | undefined
+    >({
       query: (params) => {
         const queryString = new URLSearchParams(params ?? {}).toString();
         return queryString
@@ -20,7 +24,10 @@ export const scanReportsApi = skyportalApi.injectEndpoints({
       },
       providesTags: ["ScanReport"],
     }),
-    generateScanReport: build.mutation({
+    generateScanReport: build.mutation<
+      RouteData<"POST /api/candidates/scan_reports">,
+      Record<string, any> | undefined
+    >({
       query: (payload) => ({
         url: "api/candidates/scan_reports",
         method: "POST",

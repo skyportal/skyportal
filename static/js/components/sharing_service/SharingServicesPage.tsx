@@ -28,12 +28,11 @@ import FormLabel from "@mui/material/FormLabel";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import FormControl from "@mui/material/FormControl";
-import { GridToolbarContainer } from "@mui/x-data-grid";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGridBase from "../StyledDataGrid";
+import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
 import TransferList from "../TransferList";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import {
@@ -1165,7 +1164,7 @@ const SharingServicesPage = () => {
   ];
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
+    <DataGridToolbar showColumns={false} showQuickFilter={false}>
       {managePermission && (
         <IconButton
           name="new_sharing_service"
@@ -1179,7 +1178,7 @@ const SharingServicesPage = () => {
           <AddIcon />
         </IconButton>
       )}
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (
@@ -1285,9 +1284,6 @@ const SharingServicesPage = () => {
               },
             }}
             onSubmit={submitSharingService}
-            onError={(errors: any) =>
-              console.log("Form validation errors: ", errors)
-            }
             validator={validator}
             {...({ customValidate: validate } as any)}
           />

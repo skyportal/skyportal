@@ -14,6 +14,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
 interface CommentAttachment {
   commentId: number | string;
@@ -40,11 +41,17 @@ function fileReaderPromise(
 
 export const earthquakeApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getEarthquake: build.query<any, number | string>({
+    getEarthquake: build.query<
+      RouteData<"GET /api/earthquake/{event_id}">,
+      number | string
+    >({
       query: (id) => `api/earthquake/${id}`,
       providesTags: ["Earthquake"],
     }),
-    getEarthquakes: build.query<any, Record<string, unknown> | void>({
+    getEarthquakes: build.query<
+      RouteData<"GET /api/earthquake">,
+      Record<string, unknown> | void
+    >({
       query: (params) => {
         const search = new URLSearchParams(
           (params as Record<string, string>) ?? {},
@@ -67,7 +74,7 @@ export const earthquakeApi = skyportalApi.injectEndpoints({
       query: ({ earthquakeID, commentID }) =>
         `api/earthquake/${earthquakeID}/comments/${commentID}/attachment?download=false&preview=false`,
     }),
-    submitEarthquake: build.mutation<unknown, any>({
+    submitEarthquake: build.mutation<RouteData<"POST /api/earthquake">, any>({
       query: (run) => ({
         url: "api/earthquake",
         method: "POST",
@@ -76,7 +83,7 @@ export const earthquakeApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Earthquakes"],
     }),
     submitPrediction: build.mutation<
-      unknown,
+      RouteData<"POST /api/earthquake/{earthquake_id}/mmadetector/{mma_detector_id}/predictions">,
       {
         id: number | string;
         mmadetector_id: number | string;

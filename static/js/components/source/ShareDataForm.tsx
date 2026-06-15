@@ -22,14 +22,9 @@ import Paper from "@mui/material/Paper";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 import { showNotification } from "baselayer/components/Notifications";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGridBase from "../StyledDataGrid";
-import QuickFilter from "../QuickFilter";
+import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
 
 import FormValidationError from "../FormValidationError";
 import CommentList from "../comment/CommentList";
@@ -56,12 +51,7 @@ const StyledDataGrid: any = StyledDataGridBase;
 // Toolbar for the Share-data spectrum grid: exposes a quick-filter search box
 // (wrapped with a stable test id) so tests can filter rows by typing a value.
 const SpectrumGridToolbar = () => (
-  <GridToolbarContainer>
-    <GridToolbarColumnsButton />
-    <div data-testid="spectrum-quick-filter">
-      <QuickFilter />
-    </div>
-  </GridToolbarContainer>
+  <DataGridToolbar quickFilterTestId="spectrum-quick-filter" />
 );
 
 interface DeleteSpectrumButtonProps {

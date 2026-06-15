@@ -107,7 +107,7 @@ const QuickSearchBar = () => {
       if (type === "GCN Events") {
         return dispatch(
           GET(
-            `/api/gcn_event?partialdateobs=${val}&pageNumber=1&numPerPage=25&totalMatches=25`,
+            `/api/gcn_event?partialdateobs=${encodeURIComponent(val)}&pageNumber=1&numPerPage=25&totalMatches=25`,
             "skyportal/FETCH_AUTOCOMPLETE_GCN_EVENTS",
           ),
         );
@@ -115,7 +115,7 @@ const QuickSearchBar = () => {
       if (type === "Sources") {
         return dispatch(
           GET(
-            `/api/sources?sourceID=${val}&pageNumber=1&numPerPage=25&totalMatches=25&includeComments=false&removeNested=true`,
+            `/api/sources?sourceID=${encodeURIComponent(val)}&pageNumber=1&numPerPage=25&totalMatches=25&includeComments=false&removeNested=true`,
             "skyportal/FETCH_AUTOCOMPLETE_SOURCES",
           ),
         );
@@ -123,7 +123,7 @@ const QuickSearchBar = () => {
       if (type === "Source comments") {
         return dispatch(
           GET(
-            `/api/sources/comments?text=${val}&pageNumber=1&numPerPage=25&totalMatches=25`,
+            `/api/sources/comments?text=${encodeURIComponent(val)}&pageNumber=1&numPerPage=25&totalMatches=25`,
             "skyportal/FETCH_AUTOCOMPLETE_SOURCE_COMMENTS",
           ),
         );
@@ -131,7 +131,7 @@ const QuickSearchBar = () => {
       if (type === "GCN comments") {
         return dispatch(
           GET(
-            `/api/gcn_event/comments?text=${val}&pageNumber=1&numPerPage=25&totalMatches=25`,
+            `/api/gcn_event/comments?text=${encodeURIComponent(val)}&pageNumber=1&numPerPage=25&totalMatches=25`,
             "skyportal/FETCH_AUTOCOMPLETE_SOURCE_COMMENTS",
           ),
         );

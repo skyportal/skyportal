@@ -14,24 +14,12 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export interface SpatialCatalogEntry {
-  id: number;
-  entry_name: string;
-  [key: string]: unknown;
-}
-
-export interface SpatialCatalog {
-  id: number;
-  catalog_name: string;
-  entries?: SpatialCatalogEntry[] | undefined;
-  [key: string]: unknown;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const spatialCatalogsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getSpatialCatalogs: build.query<
-      SpatialCatalog[],
+      RouteData<"GET /api/spatial_catalog">,
       Record<string, unknown> | void
     >({
       query: (filterParams) => {
@@ -42,7 +30,10 @@ export const spatialCatalogsApi = skyportalApi.injectEndpoints({
       },
       providesTags: ["SpatialCatalogs"],
     }),
-    getSpatialCatalog: build.query<SpatialCatalog, number | string>({
+    getSpatialCatalog: build.query<
+      RouteData<"GET /api/spatial_catalog/{catalog_id}">,
+      number | string
+    >({
       query: (id) => `api/spatial_catalog/${id}`,
       providesTags: ["SpatialCatalog"],
     }),

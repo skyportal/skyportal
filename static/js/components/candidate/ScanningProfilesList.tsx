@@ -14,8 +14,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 
 import { makeStyles } from "tss-react/mui";
-import { GridToolbarContainer } from "@mui/x-data-grid";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
@@ -96,14 +95,14 @@ const ScanningProfilesList = ({
     () =>
       function ScanningProfilesToolbar() {
         return (
-          <GridToolbarContainer>
+          <DataGridToolbar showColumns={false} showQuickFilter={false}>
             <IconButton
               name="new_scanning_profile"
               onClick={() => setNewDialogOpen(true)}
             >
               <AddIcon />
             </IconButton>
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
     [],

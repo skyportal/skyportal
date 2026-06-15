@@ -13,10 +13,11 @@ import {
   GridActionsCellItem,
   GridRowEditStopReasons,
   GridRowModes,
-  GridToolbarContainer,
 } from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
+
+import { DataGridToolbar } from "../StyledDataGrid";
 
 import { useAppDispatch } from "../../types/hooks";
 import { usePatchGcnEventReportMutation } from "../../ducks/gcnEvent";
@@ -57,11 +58,11 @@ function EditSourceToolbar(props: EditSourceToolbarProps) {
   };
 
   return (
-    <GridToolbarContainer>
+    <DataGridToolbar showColumns={false} showQuickFilter={false}>
       <Button color="primary" startIcon={<AddIcon />} onClick={handleClick}>
         Add Source Manually (by name)
       </Button>
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 }
 

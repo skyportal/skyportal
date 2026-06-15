@@ -6,6 +6,7 @@
  * The mutations invalidate the `PhotometryValidation` tag.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import type { RouteData } from "../types/routeSchemaMap";
 
 interface PhotometryValidationArg {
   id: number | string;
@@ -15,7 +16,7 @@ interface PhotometryValidationArg {
 export const photometryValidationApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     submitPhotometryValidation: build.mutation<
-      unknown,
+      RouteData<"POST /api/photometry/{photometry_id}/validation">,
       PhotometryValidationArg
     >({
       query: ({ id, data = {} }) => ({
@@ -25,16 +26,17 @@ export const photometryValidationApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["PhotometryValidation"],
     }),
-    patchPhotometryValidation: build.mutation<unknown, PhotometryValidationArg>(
-      {
-        query: ({ id, data = {} }) => ({
-          url: `api/photometry/${id}/validation`,
-          method: "PATCH",
-          body: data,
-        }),
-        invalidatesTags: ["PhotometryValidation"],
-      },
-    ),
+    patchPhotometryValidation: build.mutation<
+      RouteData<"PATCH /api/photometry/{photometry_id}/validation">,
+      PhotometryValidationArg
+    >({
+      query: ({ id, data = {} }) => ({
+        url: `api/photometry/${id}/validation`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["PhotometryValidation"],
+    }),
     deletePhotometryValidation: build.mutation<
       unknown,
       PhotometryValidationArg

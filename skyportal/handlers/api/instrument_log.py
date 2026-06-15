@@ -312,7 +312,7 @@ class InstrumentStatusHandler(BaseHandler):
 
                 allocations = session.scalars(
                     Allocation.select(session.user_or_token).where(
-                        Allocation.instrument_id == instrument_id
+                        Allocation.instrument_id == int(instrument_id)
                     )
                 ).all()
                 if len(allocations) == 0:

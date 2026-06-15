@@ -462,7 +462,6 @@ const MultipleClassificationsForm = ({
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="classifications-content"
-            id="classifications-header"
           >
             <Typography
               variant="subtitle1"

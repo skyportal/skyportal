@@ -22,10 +22,6 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { makeStyles } from "tss-react/mui";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -34,7 +30,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 import FormValidationError from "../FormValidationError";
 import UserInvitations from "./UserInvitations";
@@ -212,8 +208,7 @@ const UserManagement = () => {
     () =>
       function UserManagementToolbar() {
         return (
-          <GridToolbarContainer>
-            <GridToolbarColumnsButton />
+          <DataGridToolbar showQuickFilter={false}>
             <Tooltip title="Filter Table">
               <IconButton
                 size="small"
@@ -243,7 +238,7 @@ const UserManagement = () => {
                 onDelete={() => handleFilterChipDelete(chip)}
               />
             ))}
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1321,7 +1316,10 @@ const UserManagement = () => {
                     value={value}
                     onChange={(newValue) => onChange(newValue)}
                     slotProps={{
-                      textField: { variant: "outlined" },
+                      textField: {
+                        variant: "outlined",
+                        sx: { mt: 1 },
+                      },
                       field: { clearable: true } as any,
                     }}
                     label="Expiration date (UTC)"
@@ -1353,7 +1351,6 @@ const UserManagement = () => {
                   setRemoveExpirationConfirmDialogOpen(true);
                 }}
                 name="removeExpirationDateButton"
-                data-testid="removeExpirationDateButton"
               >
                 Remove Expiration Date
               </Button>

@@ -11,13 +11,9 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 import { useAppDispatch } from "../types/hooks";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
-import StyledDataGrid from "./StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "./StyledDataGrid";
 
 import NewRecurringAPI from "./NewRecurringAPI";
 
@@ -150,15 +146,14 @@ const RecurringAPIPage = () => {
   }
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
+    <DataGridToolbar showQuickFilter={false}>
       <IconButton
         name="new_recurring_api_form"
         onClick={() => setOpenNewForm(true)}
       >
         <AddIcon />
       </IconButton>
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

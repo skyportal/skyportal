@@ -9,8 +9,7 @@
  * `groupApi.util.invalidateTags`), so they carry no `invalidatesTags` here.
  */
 import { skyportalApi } from "../api/skyportalApi";
-
-export type Filter = Record<string, any>;
+import type { RouteData } from "../types/routeSchemaMap";
 
 export interface AddGroupFilterArg {
   name: string;
@@ -24,7 +23,10 @@ export interface DeleteGroupFilterArg {
 
 export const filterApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getFilter: build.query<Filter, number | string>({
+    getFilter: build.query<
+      RouteData<"GET /api/filters/{filter_id}">,
+      number | string
+    >({
       query: (id) => `api/filters/${id}`,
       providesTags: ["Filters"],
     }),

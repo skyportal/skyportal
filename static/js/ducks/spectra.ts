@@ -12,6 +12,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_SPECTRA = "skyportal/REFRESH_SOURCE_SPECTRA";
 
@@ -40,7 +41,10 @@ export const spectraApi = skyportalApi.injectEndpoints({
         data?.spectra ?? [],
       providesTags: ["Spectra"],
     }),
-    parseASCIISpectrum: build.mutation<{ [key: string]: any }, any>({
+    parseASCIISpectrum: build.mutation<
+      RouteData<"POST /api/spectrum/parse/ascii">,
+      any
+    >({
       query: (data) => ({
         url: "/api/spectrum/parse/ascii",
         method: "POST",
@@ -48,7 +52,7 @@ export const spectraApi = skyportalApi.injectEndpoints({
       }),
     }),
     addSyntheticPhotometry: build.mutation<
-      unknown,
+      RouteData<"POST /api/spectra/synthphot/{spectrum_id}">,
       { id: number | string; formData?: { [key: string]: any } }
     >({
       query: ({ id, formData = {} }) => ({
@@ -58,7 +62,10 @@ export const spectraApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Spectra"],
     }),
-    deleteSpectrum: build.mutation<unknown, number | string>({
+    deleteSpectrum: build.mutation<
+      RouteData<"DELETE /api/spectrum/{spectrum_id}">,
+      number | string
+    >({
       query: (id) => ({
         url: `/api/spectrum/${id}`,
         method: "DELETE",

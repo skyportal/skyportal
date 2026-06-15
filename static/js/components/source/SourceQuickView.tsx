@@ -167,6 +167,7 @@ const SourceQuickView = ({ sourceId, className }: SourceQuickViewProps) => {
 
   // Only load detailed source info once the dialog is opened.
   const { data: source } = useGetSourceQuery(open ? sourceId : skipToken);
+  const sourceAny = source as any;
   const isCached = source?.id === sourceId;
 
   const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
@@ -176,7 +177,7 @@ const SourceQuickView = ({ sourceId, className }: SourceQuickViewProps) => {
     return (
       <div
         className={className}
-        data-testid={`quickViewButton_${source?.["obj_id"]}`}
+        data-testid={`quickViewButton_${sourceAny?.["obj_id"]}`}
       >
         <Button
           primary
@@ -222,7 +223,7 @@ const SourceQuickView = ({ sourceId, className }: SourceQuickViewProps) => {
   return (
     <div
       className={className}
-      data-testid={`quickViewButton_${source?.["obj_id"]}`}
+      data-testid={`quickViewButton_${sourceAny?.["obj_id"]}`}
     >
       <Button primary size="small" onClick={handleClickOpen}>
         QUICK VIEW

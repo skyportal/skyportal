@@ -99,7 +99,7 @@ def test_earthquake_predictions_and_measurements(super_admin_token, view_only_to
 
 
 def test_earthquake_quakeml(super_admin_token, view_only_token):
-    datafile = f"{os.path.dirname(__file__)}/../data/quakeml.xml"
+    datafile = f"{os.path.dirname(__file__)}/../../data/quakeml.xml"
     with open(datafile, "rb") as fid:
         payload = fid.read()
     data = {"xml": payload}

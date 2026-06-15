@@ -300,14 +300,20 @@ def get_skymap_url(root, notice_type, timeout=10):
                     break
 
     if url is not None:
-        # we have a URL, but is it available? We don't want to download the file here,
-        # so we'll just check the HTTP status code.
-        try:
-            response = requests.head(url, timeout=timeout, allow_redirects=True)
-            if response.status_code == 200:
-                available = True
-        except requests.exceptions.RequestException:
-            pass
+        if url.startswith(("http://", "https://")):
+            # we have a URL, but is it available? We don't want to download the file here,
+            # so we'll just check the HTTP status code.
+            try:
+                response = requests.head(url, timeout=timeout, allow_redirects=True)
+                if response.status_code == 200:
+                    available = True
+            except requests.exceptions.RequestException:
+                pass
+        else:
+            # A local path (tests and demo data use this to avoid an external
+            # fetch); read_sky_map/Table.read read it directly, so it is
+            # "available" as long as the file exists.
+            available = os.path.exists(url)
 
     return url, available
 
