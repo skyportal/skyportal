@@ -24,7 +24,7 @@ interface GroupUsersProps {
   group: {
     id?: number;
     name?: string;
-    nickname?: string;
+    nickname?: string | null;
     users?: any[];
   };
   classes: Record<string, any>;

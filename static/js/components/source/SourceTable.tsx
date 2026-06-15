@@ -45,16 +45,11 @@ import Collapse from "@mui/material/Collapse";
 import List from "@mui/material/List";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
-
 import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGridBase from "../StyledDataGrid";
+import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
@@ -620,7 +615,7 @@ const SourceTable = ({
   paginateCallback,
   pageNumber = 1,
   totalMatches = 0,
-  numPerPage = 10,
+  numPerPage = 30,
   sortingCallback = null,
   downloadCallback = null,
   includeGcnStatus = false,
@@ -1698,8 +1693,7 @@ const SourceTable = ({
     () =>
       function SourceTableToolbar() {
         return (
-          <GridToolbarContainer>
-            <GridToolbarColumnsButton />
+          <DataGridToolbar showQuickFilter={false}>
             <Tooltip title="Filter Table">
               <IconButton
                 size="small"
@@ -1752,7 +1746,7 @@ const SourceTable = ({
                 </IconButton>
               </Tooltip>
             )}
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
     // eslint-disable-next-line react-hooks/exhaustive-deps

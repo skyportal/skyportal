@@ -1373,7 +1373,7 @@ def add_tiles(
 
         instrument = session.scalars(
             sa.select(Instrument).where(
-                Instrument.id == instrument_id,
+                Instrument.id == int(instrument_id),
             )
         ).first()
         if instrument is not None and len(instrument.fields) > 0:
@@ -1448,7 +1448,7 @@ class InstrumentFieldHandler(BaseHandler):
 
             instrument = session.scalars(
                 sa.select(Instrument).where(
-                    Instrument.id == instrument_id,
+                    Instrument.id == int(instrument_id),
                 )
             ).first()
             if instrument is not None and len(instrument.fields) > 0:

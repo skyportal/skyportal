@@ -220,6 +220,7 @@ const FilterCandidateList = ({
   const defaultScanningProfile = scanningProfiles?.find(
     (profile: any) => profile.default,
   );
+  const [searchCount, setSearchCount] = useState(0);
   const [selectedScanningProfile, setSelectedScanningProfile] = useState<any>(
     defaultScanningProfile,
   );
@@ -246,9 +247,12 @@ const FilterCandidateList = ({
   }, [defaultScanningProfile]);
 
   const defaultStartDate = new Date();
+  // The DateTimePicker only exposes minute precision
+  defaultStartDate.setSeconds(0, 0);
   let defaultEndDate = null;
   if (selectedScanningProfile?.timeRange) {
     defaultEndDate = new Date();
+    defaultEndDate.setSeconds(0, 0);
     defaultStartDate.setHours(
       defaultStartDate.getHours() -
         parseInt(selectedScanningProfile.timeRange, 10),
@@ -394,15 +398,35 @@ const FilterCandidateList = ({
 
   useEffect(() => {
     resetFormFields(defaultStartDate, defaultEndDate, selectedScanningProfile);
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    reset,
-    selectedScanningProfile,
-    userAccessibleGroups,
-    availableAnnotationsInfo,
-  ]);
+  }, [selectedScanningProfile]);
+
+  // Populate the group/annotation-sort options when those queries land, WITHOUT
+  // resetting the form.
+  useEffect(() => {
+    if (selectedScanningProfile?.groupIDs && userAccessibleGroups.length > 0) {
+      setFilterGroups(
+        userAccessibleGroups.filter((group) =>
+          selectedScanningProfile.groupIDs.includes(group.id),
+        ),
+      );
+    }
+  }, [userAccessibleGroups, selectedScanningProfile]);
+
+  useEffect(() => {
+    if (availableAnnotationsInfo) {
+      setAnnotationSortingKeyOptions(
+        selectedScanningProfile?.sortingOrigin
+          ? (
+              availableAnnotationsInfo[selectedScanningProfile.sortingOrigin] ||
+              []
+            )
+              .map((annotation: any) => Object.keys(annotation || {}))
+              .flat()
+          : [],
+      );
+    }
+  }, [availableAnnotationsInfo, selectedScanningProfile]);
 
   // Set initial form values in the redux state
   useEffect(() => {
@@ -469,7 +493,7 @@ const FilterCandidateList = ({
       data.endDate = formData.endDate.toISOString();
     }
     if (selectedClassifications.length > 0) {
-      if (classificationsWith === false) {
+      if (!classificationsWith) {
         data.classificationsReject = selectedClassifications;
       } else {
         data.classifications = selectedClassifications;
@@ -515,7 +539,7 @@ const FilterCandidateList = ({
       data.sortByAnnotationOrder = formData.sortingOrder;
     } else {
       // Clear annotation sort params, if a default sort is not defined
-      await dispatch(setCandidatesAnnotationSortOptions(null));
+      dispatch(setCandidatesAnnotationSortOptions(null));
       setSortOrder(null);
     }
 
@@ -530,7 +554,7 @@ const FilterCandidateList = ({
 
     if (data.sortByAnnotationOrigin) {
       setSortOrder(data.sortByAnnotationOrder);
-      await dispatch(
+      dispatch(
         setCandidatesAnnotationSortOptions({
           key: data.sortByAnnotationKey,
           origin: data.sortByAnnotationOrigin,
@@ -540,479 +564,475 @@ const FilterCandidateList = ({
     }
 
     // Save form-specific data, formatted for the API query
-    await dispatch(setFilterFormData(data));
+    dispatch(setFilterFormData(data));
 
-    // Trigger a new search (resets to page 1). The query result drives the
-    // loading state in the parent CandidateList.
+    // Trigger a new search in CandidateList when the search button is clicked and reset to page 1.
+    const nextSearchCount = searchCount + 1;
+    setSearchCount(nextSearchCount);
     setSearchParams({
       pageNumber: 1,
       numPerPage,
       ...fetchParams,
+      _searchCount: nextSearchCount,
     });
   };
 
   return (
-    <div>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div className={classes.headerRow}>
-          <Typography variant="h5">
-            <b>Scan candidates for sources</b>
-          </Typography>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              columnGap: "0.75rem",
-            }}
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <div className={classes.headerRow}>
+        <Typography variant="h5">
+          <b>Scan candidates for sources</b>
+        </Typography>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            columnGap: "0.75rem",
+          }}
+        >
+          <Tooltip
+            title="Reset all filters and search parameters to default (or selected profile)"
+            className={classes.reset}
           >
-            <Tooltip
-              title="Reset all filters and search parameters to default (or selected profile)"
-              className={classes.reset}
-            >
-              <IconButton
-                onClick={() => {
-                  resetFormFields(
-                    defaultStartDate,
-                    defaultEndDate,
-                    selectedScanningProfile,
-                  );
-                }}
-              >
-                <RestartAltIcon />
-              </IconButton>
-            </Tooltip>
-            <CandidatesPreferences
-              selectedScanningProfile={selectedScanningProfile}
-              setSelectedScanningProfile={setSelectedScanningProfile}
-            />
-            <Tooltip title="Generate a report of saved candidates">
-              <Button
-                secondary
-                onClick={() => setGenerateReportDialogOpen(true)}
-              >
-                Generate report
-              </Button>
-            </Tooltip>
-            <GenerateReportForm
-              dialogOpen={generateReportDialogOpen}
-              setDialogOpen={setGenerateReportDialogOpen}
-            />
-            <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
-              <div>
-                <Button primary type="submit" endIcon={<SearchIcon />}>
-                  Search
-                </Button>
-              </div>
-            </Tooltip>
-          </div>
-        </div>
-        <Grid container columnSpacing={{ xs: 0, lg: 1.5 }} rowSpacing={1.5}>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <Paper
-              variant="outlined"
-              className={classes.simplePadding}
-              style={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
+            <IconButton
+              onClick={() => {
+                resetFormFields(
+                  defaultStartDate,
+                  defaultEndDate,
+                  selectedScanningProfile,
+                );
               }}
             >
-              <div className={classes.formRow} style={{ marginTop: 0 }}>
-                <Typography variant="h6" className={classes.title}>
-                  Selected scanning profile:&nbsp;
-                  {selectedScanningProfile
-                    ? selectedScanningProfile.name || "No name"
-                    : "None"}
-                </Typography>
-                <Typography variant="subtitle2">
-                  <i>
-                    Click <q>Manage Scanning Profiles</q> to select a new
-                    profile.
-                  </i>
-                </Typography>
-              </div>
-              <div>
-                {(errors["startDate"] || errors["endDate"]) && (
-                  <FormValidationError message="Invalid date range." />
-                )}
-                <div className={classes.timeRange}>
-                  <Controller
-                    render={({ field: { onChange, value } }) => (
-                      <LocalizationProvider dateAdapter={AdapterDateFns}>
-                        <DateTimePicker
-                          value={value}
-                          onChange={(newValue) => onChange(newValue)}
-                          label="Start (Local Time)"
-                          ampm={useAMPM}
-                          slotProps={{ textField: { variant: "outlined" } }}
-                        />
-                      </LocalizationProvider>
-                    )}
-                    rules={{ validate: validateDates }}
-                    name="startDate"
-                    control={control}
-                    defaultValue={defaultStartDate}
-                  />
-                  <Controller
-                    render={({ field: { onChange, value } }) => (
-                      <LocalizationProvider dateAdapter={AdapterDateFns}>
-                        <DateTimePicker
-                          value={value}
-                          onChange={(newValue) => onChange(newValue)}
-                          label="End (Local Time)"
-                          ampm={useAMPM}
-                          slotProps={{ textField: { variant: "outlined" } }}
-                        />
-                      </LocalizationProvider>
-                    )}
-                    rules={{ validate: validateDates }}
-                    name="endDate"
-                    control={control}
-                    defaultValue={defaultEndDate}
-                  />
-                </div>
-              </div>
-              <div className={classes.savedFiltering}>
-                <div className={classes.savedStatusSelect}>
-                  <Typography variant="h6" className={classes.title}>
-                    Show candidates...
-                  </Typography>
-                  <Controller
-                    name="savedStatus"
-                    control={control}
-                    {...({
-                      input: <Input data-testid="savedStatusSelect" />,
-                    } as any)}
-                    render={({ field: { onChange } }) => (
-                      <Select
-                        key={
-                          selectedScanningProfile?.savedStatus
-                            ? "notLoadedYet"
-                            : "loaded"
-                        }
-                        onChange={onChange}
-                        defaultValue={
-                          selectedScanningProfile?.savedStatus || "all"
-                        }
-                        data-testid="savedStatusSelect"
-                        style={{ minWidth: "100%" }}
-                      >
-                        {savedStatusSelectOptions?.map((option) => (
-                          <MenuItem key={option.value} value={option.value}>
-                            {option.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    )}
-                  />
-                </div>
-                <div className={classes.rejectCandidatesSelect}>
-                  <InputLabel id="rejectedCandidatesLabel">
-                    Hide Rejected
-                  </InputLabel>
-                  <Controller
-                    name="rejectedStatus"
-                    control={control}
-                    defaultValue={
-                      selectedScanningProfile?.rejectedStatus || "show"
-                    }
-                    render={({ field: { onChange, value } }) => (
-                      <Switch
-                        checked={value === "hide"}
-                        onChange={(event) =>
-                          onChange(event.target.checked ? "hide" : "show")
-                        }
-                        inputProps={{ "aria-label": "controlled" }}
-                        data-testid="rejectedStatusSelect"
+              <RestartAltIcon />
+            </IconButton>
+          </Tooltip>
+          <CandidatesPreferences
+            selectedScanningProfile={selectedScanningProfile}
+            setSelectedScanningProfile={setSelectedScanningProfile}
+          />
+          <Tooltip title="Generate a report of saved candidates">
+            <Button secondary onClick={() => setGenerateReportDialogOpen(true)}>
+              Generate report
+            </Button>
+          </Tooltip>
+          <GenerateReportForm
+            dialogOpen={generateReportDialogOpen}
+            setDialogOpen={setGenerateReportDialogOpen}
+          />
+          <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
+            <div>
+              <Button primary type="submit" endIcon={<SearchIcon />}>
+                Search
+              </Button>
+            </div>
+          </Tooltip>
+        </div>
+      </div>
+      <Grid container columnSpacing={{ xs: 0, lg: 1.5 }} rowSpacing={1.5}>
+        <Grid size={{ xs: 12, lg: 6 }}>
+          <Paper
+            variant="outlined"
+            className={classes.simplePadding}
+            style={{
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div className={classes.formRow} style={{ marginTop: 0 }}>
+              <Typography variant="h6" className={classes.title}>
+                Selected scanning profile:&nbsp;
+                {selectedScanningProfile
+                  ? selectedScanningProfile.name || "No name"
+                  : "None"}
+              </Typography>
+              <Typography variant="subtitle2">
+                <i>
+                  Click <q>Manage Scanning Profiles</q> to select a new profile.
+                </i>
+              </Typography>
+            </div>
+            <div>
+              {(errors["startDate"] || errors["endDate"]) && (
+                <FormValidationError message="Invalid date range." />
+              )}
+              <div className={classes.timeRange}>
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <DateTimePicker
+                        value={value}
+                        onChange={(newValue) => {
+                          if (newValue) newValue.setSeconds(0, 0);
+                          onChange(newValue);
+                        }}
+                        label="Start (Local Time)"
+                        ampm={useAMPM}
+                        slotProps={{ textField: { variant: "outlined" } }}
                       />
-                    )}
-                  />
-                </div>
-              </div>
-              <div
-                className={classes.formRow}
-                style={{
-                  marginTop: 0,
-                  marginBottom: 0,
-                  paddingTop: "1rem",
-                  display: "flex",
-                  flexDirection: "column",
-                  height: "100%",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <Typography variant="h6" className={classes.title}>
-                    Program Selection
-                  </Typography>
-                  {/* we want an eye (show/hide) icon to quickly show/hide the groups that are not selected */}
-                  <Tooltip title="Show/Hide unselected groups, useful to only see selected groups">
-                    <IconButton
-                      onClick={() => setShowAllGroups(!showAllGroups)}
-                      size="small"
-                      style={{ marginLeft: "0.25rem" }}
-                    >
-                      {showAllGroups ? (
-                        <VisibilityIcon />
-                      ) : (
-                        <VisibilityOffIcon />
-                      )}
-                    </IconButton>
-                  </Tooltip>
-                  {getValues().groupIDs?.length === 0 && (
-                    <FormValidationError message="Select at least one group." />
+                    </LocalizationProvider>
                   )}
-                </div>
-                <Paper
-                  variant="outlined"
-                  className={classes.simplePadding}
-                  style={{ height: "100%" }}
-                >
-                  <TextField
-                    label="Search"
-                    variant="outlined"
-                    style={{ minWidth: "100%", marginBottom: "0.5rem" }}
-                    size="small"
-                    onChange={(event) =>
-                      setFilterGroupsInput(event.target.value)
-                    }
-                  />
-                  <div
-                    style={{
-                      height: "10rem",
-                      overflowY: "auto",
-                    }}
-                  >
-                    <div className={classes.groupOptions}>
-                      {filterGroupOptions.map((group) => (
-                        // if the group.id is not in getValues().groupIDs, then we want to hide it
-                        <div
-                          key={group.id}
-                          style={{
-                            display:
-                              !showAllGroups &&
-                              !getValues().groupIDs.includes(group.id)
-                                ? "none"
-                                : "flex",
-                            alignItems: "center",
-                            justifyContent: "flex-start",
-                          }}
-                        >
-                          <Checkbox
-                            key={`filteringFormGroupCheckbox-${group.id}`}
-                            onChange={(event) => {
-                              const selectedGroupIDs = getValues().groupIDs;
-                              if (
-                                selectedGroupIDs.includes(group.id) &&
-                                !event.target.checked
-                              ) {
-                                const newSelectedGroupIDs =
-                                  selectedGroupIDs.filter(
-                                    (id: any) => id !== group.id,
-                                  );
-                                setFilterGroups(
-                                  userAccessibleGroups.filter((g) =>
-                                    newSelectedGroupIDs.includes(g.id),
-                                  ),
-                                );
-                                reset({
-                                  ...getValues(),
-                                  groupIDs: newSelectedGroupIDs,
-                                });
-                              } else if (
-                                !selectedGroupIDs.includes(group.id) &&
-                                event.target.checked
-                              ) {
-                                const newSelectedGroupIDs = [
-                                  ...selectedGroupIDs,
-                                  group.id,
-                                ];
-                                setFilterGroups(
-                                  userAccessibleGroups.filter((g) =>
-                                    newSelectedGroupIDs.includes(g.id),
-                                  ),
-                                );
-                                reset({
-                                  ...getValues(),
-                                  groupIDs: newSelectedGroupIDs,
-                                });
-                              }
-                            }}
-                            checked={getValues().groupIDs.includes(group.id)}
-                            data-testid={`filteringFormGroupCheckbox-${group.id}`}
-                            style={{
-                              margin: 0,
-                              padding: 0,
-                              marginRight: "0.2rem",
-                            }}
-                          />
-                          <Typography
-                            variant="body1"
-                            className={classes.body}
-                            key={`filteringFormGroupLabel-${group.id}`}
-                          >
-                            {group.name}
-                          </Typography>
-                        </div>
+                  rules={{ validate: validateDates }}
+                  name="startDate"
+                  control={control}
+                  defaultValue={defaultStartDate}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <DateTimePicker
+                        value={value}
+                        onChange={(newValue) => {
+                          if (newValue) newValue.setSeconds(0, 0);
+                          onChange(newValue);
+                        }}
+                        label="End (Local Time)"
+                        ampm={useAMPM}
+                        slotProps={{ textField: { variant: "outlined" } }}
+                      />
+                    </LocalizationProvider>
+                  )}
+                  rules={{ validate: validateDates }}
+                  name="endDate"
+                  control={control}
+                  defaultValue={defaultEndDate}
+                />
+              </div>
+            </div>
+            <div className={classes.savedFiltering}>
+              <div className={classes.savedStatusSelect}>
+                <Typography variant="h6" className={classes.title}>
+                  Show candidates...
+                </Typography>
+                <Controller
+                  name="savedStatus"
+                  control={control}
+                  {...({
+                    input: <Input data-testid="savedStatusSelect" />,
+                  } as any)}
+                  render={({ field: { onChange } }) => (
+                    <Select
+                      key={
+                        selectedScanningProfile?.savedStatus
+                          ? "notLoadedYet"
+                          : "loaded"
+                      }
+                      onChange={onChange}
+                      defaultValue={
+                        selectedScanningProfile?.savedStatus || "all"
+                      }
+                      data-testid="savedStatusSelect"
+                      style={{ minWidth: "100%" }}
+                    >
+                      {savedStatusSelectOptions?.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
                       ))}
-                    </div>
-                  </div>
-                </Paper>
+                    </Select>
+                  )}
+                />
               </div>
-            </Paper>
-          </Grid>
-          <Grid size={{ xs: 12, lg: 6 }}>
-            <Paper variant="outlined" className={classes.simplePadding}>
-              <div className={classes.savedFiltering} style={{ marginTop: 0 }}>
-                <div className={classes.savedStatusSelect}>
-                  <Typography
-                    variant="h6"
-                    className={classes.title}
-                    style={{ marginBottom: "0.5rem" }}
+              <div className={classes.rejectCandidatesSelect}>
+                <InputLabel id="rejectedCandidatesLabel">
+                  Hide Rejected
+                </InputLabel>
+                <Controller
+                  name="rejectedStatus"
+                  control={control}
+                  defaultValue={
+                    selectedScanningProfile?.rejectedStatus || "show"
+                  }
+                  render={({ field: { onChange, value } }) => (
+                    <Switch
+                      checked={value === "hide"}
+                      onChange={(event) =>
+                        onChange(event.target.checked ? "hide" : "show")
+                      }
+                      inputProps={{ "aria-label": "controlled" }}
+                      data-testid="rejectedStatusSelect"
+                    />
+                  )}
+                />
+              </div>
+            </div>
+            <div
+              className={classes.formRow}
+              style={{
+                marginTop: 0,
+                marginBottom: 0,
+                paddingTop: "1rem",
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <Typography variant="h6" className={classes.title}>
+                  Program Selection
+                </Typography>
+                {/* we want an eye (show/hide) icon to quickly show/hide the groups that are not selected */}
+                <Tooltip title="Show/Hide unselected groups, useful to only see selected groups">
+                  <IconButton
+                    onClick={() => setShowAllGroups(!showAllGroups)}
+                    size="small"
+                    style={{ marginLeft: "0.25rem" }}
                   >
-                    Classification(s)
-                  </Typography>
-                  <ClassificationSelect
-                    selectedClassifications={selectedClassifications}
-                    setSelectedClassifications={setSelectedClassifications}
-                    showShortcuts
-                  />
-                </div>
-                <div className={classes.rejectCandidatesSelect}>
-                  <Switch
-                    checked={classificationsWith}
-                    onChange={(event) =>
-                      setClassificationsWith(event.target.checked)
-                    }
-                  />
-                  <InputLabel>
-                    {`${
-                      classificationsWith ? "With" : "Without"
-                    } classification(s)`}
-                  </InputLabel>
-                </div>
+                    {showAllGroups ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                  </IconButton>
+                </Tooltip>
+                {getValues().groupIDs?.length === 0 && (
+                  <FormValidationError message="Select at least one group." />
+                )}
               </div>
-              <div className={classes.formRow}>
-                <Typography variant="h6" className={classes.title}>
-                  Redshift
-                </Typography>
-                <div className={classes.redshiftFiltering}>
-                  <Controller
-                    render={({ field: { onChange, value } }) => (
-                      <TextField
-                        id="minimum-redshift"
-                        label="Minimum"
-                        type="number"
-                        inputProps={{ step: 0.001 }}
-                        margin="dense"
-                        style={{ minWidth: "100%" }}
-                        onChange={(event) => onChange(event.target.value)}
-                        value={value}
-                        InputLabelProps={{
-                          shrink: true,
+              <Paper
+                variant="outlined"
+                className={classes.simplePadding}
+                style={{ height: "100%" }}
+              >
+                <TextField
+                  label="Search"
+                  variant="outlined"
+                  style={{ minWidth: "100%", marginBottom: "0.5rem" }}
+                  size="small"
+                  onChange={(event) => setFilterGroupsInput(event.target.value)}
+                />
+                <div
+                  style={{
+                    height: "10rem",
+                    overflowY: "auto",
+                  }}
+                >
+                  <div className={classes.groupOptions}>
+                    {filterGroupOptions.map((group) => (
+                      // if the group.id is not in getValues().groupIDs, then we want to hide it
+                      <div
+                        key={group.id}
+                        style={{
+                          display:
+                            !showAllGroups &&
+                            !getValues().groupIDs.includes(group.id)
+                              ? "none"
+                              : "flex",
+                          alignItems: "center",
+                          justifyContent: "flex-start",
                         }}
-                      />
-                    )}
-                    name="redshiftMinimum"
-                    control={control}
-                    defaultValue=""
-                  />
-                  <Controller
-                    render={({ field: { onChange, value } }) => (
-                      <TextField
-                        id="maximum-redshift"
-                        label="Maximum"
-                        type="number"
-                        inputProps={{ step: 0.001 }}
-                        margin="dense"
-                        style={{ minWidth: "100%" }}
-                        onChange={(event) => onChange(event.target.value)}
-                        value={value}
-                        InputLabelProps={{
-                          shrink: true,
-                        }}
-                      />
-                    )}
-                    name="redshiftMaximum"
-                    control={control}
-                    defaultValue=""
-                  />
-                </div>
-              </div>
-              <div className={classes.formRow} style={{ marginBottom: 0 }}>
-                <Typography variant="h6" className={classes.title}>
-                  GCN Events
-                </Typography>
-                <div className={classes.gcnGrid}>
-                  <Controller
-                    render={() => (
-                      <Autocomplete
-                        id="gcn-event-filtering"
-                        options={gcnEvents?.events || []}
-                        getOptionLabel={(option: any) =>
-                          `${option?.dateobs}${
-                            option?.aliases?.length > 0
-                              ? ` (${option?.aliases})`
-                              : ""
-                          }` || ""
-                        }
-                        className={classes.select}
-                        onInputChange={(event, value) => {
-                          if (
-                            ((event?.type === "change" ||
-                              event?.type === "clear") &&
-                              value !== null &&
-                              value !== "") ||
-                            (event?.type === "click" && value === "")
-                          ) {
-                            setGcnEventsParams({ partialdateobs: value });
-                          }
-                        }}
-                        onChange={(_event, newValue: any) => {
-                          if (newValue !== null) {
-                            reset({
-                              ...getValues(),
-                              gcneventid: newValue.id === -1 ? "" : newValue.id,
-                              localizationid:
-                                newValue.id === -1
-                                  ? ""
-                                  : gcnEventsLookUp[newValue.id]
-                                      ?.localizations[0]?.id || "",
-                            });
-                            setSelectedGcnEventId(newValue.id);
-                          } else {
-                            reset({
-                              ...getValues(),
-                              gcneventid: "",
-                              localizationid: "",
-                            });
-                            setSelectedGcnEventId("");
-                          }
-                        }}
-                        renderInput={(params) => (
-                          <TextField {...params} label="Dateobs/Name" />
-                        )}
-                      />
-                    )}
-                    name="gcneventid"
-                    control={control}
-                  />
-                  <Controller
-                    render={({ field: { onChange, value } }) => (
-                      <Select
-                        inputProps={{
-                          MenuProps: { disableScrollLock: true },
-                        }}
-                        labelId="localizationSelectLabel"
-                        value={value || ""}
-                        onChange={(event) => {
-                          onChange(event.target.value);
-                        }}
-                        className={classes.select}
-                        disabled={!selectedGcnEventId}
                       >
-                        {gcnEventsLookUp[
-                          selectedGcnEventId
-                        ]?.localizations?.map((localization: any) => (
+                        <Checkbox
+                          key={`filteringFormGroupCheckbox-${group.id}`}
+                          onChange={(event) => {
+                            const selectedGroupIDs = getValues().groupIDs;
+                            if (
+                              selectedGroupIDs.includes(group.id) &&
+                              !event.target.checked
+                            ) {
+                              const newSelectedGroupIDs =
+                                selectedGroupIDs.filter(
+                                  (id: any) => id !== group.id,
+                                );
+                              setFilterGroups(
+                                userAccessibleGroups.filter((g) =>
+                                  newSelectedGroupIDs.includes(g.id),
+                                ),
+                              );
+                              reset({
+                                ...getValues(),
+                                groupIDs: newSelectedGroupIDs,
+                              });
+                            } else if (
+                              !selectedGroupIDs.includes(group.id) &&
+                              event.target.checked
+                            ) {
+                              const newSelectedGroupIDs = [
+                                ...selectedGroupIDs,
+                                group.id,
+                              ];
+                              setFilterGroups(
+                                userAccessibleGroups.filter((g) =>
+                                  newSelectedGroupIDs.includes(g.id),
+                                ),
+                              );
+                              reset({
+                                ...getValues(),
+                                groupIDs: newSelectedGroupIDs,
+                              });
+                            }
+                          }}
+                          checked={getValues().groupIDs.includes(group.id)}
+                          data-testid={`filteringFormGroupCheckbox-${group.id}`}
+                          style={{
+                            margin: 0,
+                            padding: 0,
+                            marginRight: "0.2rem",
+                          }}
+                        />
+                        <Typography
+                          variant="body1"
+                          className={classes.body}
+                          key={`filteringFormGroupLabel-${group.id}`}
+                        >
+                          {group.name}
+                        </Typography>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Paper>
+            </div>
+          </Paper>
+        </Grid>
+        <Grid size={{ xs: 12, lg: 6 }}>
+          <Paper variant="outlined" className={classes.simplePadding}>
+            <div className={classes.savedFiltering} style={{ marginTop: 0 }}>
+              <div className={classes.savedStatusSelect}>
+                <Typography
+                  variant="h6"
+                  className={classes.title}
+                  style={{ marginBottom: "0.5rem" }}
+                >
+                  Classification(s)
+                </Typography>
+                <ClassificationSelect
+                  selectedClassifications={selectedClassifications}
+                  setSelectedClassifications={setSelectedClassifications}
+                  showShortcuts
+                />
+              </div>
+              <div className={classes.rejectCandidatesSelect}>
+                <Switch
+                  checked={classificationsWith}
+                  onChange={(event) =>
+                    setClassificationsWith(event.target.checked)
+                  }
+                />
+                <InputLabel>
+                  {`${
+                    classificationsWith ? "With" : "Without"
+                  } classification(s)`}
+                </InputLabel>
+              </div>
+            </div>
+            <div className={classes.formRow}>
+              <Typography variant="h6" className={classes.title}>
+                Redshift
+              </Typography>
+              <div className={classes.redshiftFiltering}>
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="minimum-redshift"
+                      label="Minimum"
+                      type="number"
+                      inputProps={{ step: 0.001 }}
+                      margin="dense"
+                      style={{ minWidth: "100%" }}
+                      onChange={(event) => onChange(event.target.value)}
+                      value={value}
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                    />
+                  )}
+                  name="redshiftMinimum"
+                  control={control}
+                  defaultValue=""
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="maximum-redshift"
+                      label="Maximum"
+                      type="number"
+                      inputProps={{ step: 0.001 }}
+                      margin="dense"
+                      style={{ minWidth: "100%" }}
+                      onChange={(event) => onChange(event.target.value)}
+                      value={value}
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                    />
+                  )}
+                  name="redshiftMaximum"
+                  control={control}
+                  defaultValue=""
+                />
+              </div>
+            </div>
+            <div className={classes.formRow} style={{ marginBottom: 0 }}>
+              <Typography variant="h6" className={classes.title}>
+                GCN Events
+              </Typography>
+              <div className={classes.gcnGrid}>
+                <Controller
+                  render={() => (
+                    <Autocomplete
+                      id="gcn-event-filtering"
+                      options={gcnEvents?.events || []}
+                      getOptionLabel={(option: any) =>
+                        `${option?.dateobs}${
+                          option?.aliases?.length > 0
+                            ? ` (${option?.aliases})`
+                            : ""
+                        }` || ""
+                      }
+                      className={classes.select}
+                      onInputChange={(event, value) => {
+                        if (
+                          ((event?.type === "change" ||
+                            event?.type === "clear") &&
+                            value !== null &&
+                            value !== "") ||
+                          (event?.type === "click" && value === "")
+                        ) {
+                          setGcnEventsParams({ partialdateobs: value });
+                        }
+                      }}
+                      onChange={(_event, newValue: any) => {
+                        if (newValue !== null) {
+                          reset({
+                            ...getValues(),
+                            gcneventid: newValue.id === -1 ? "" : newValue.id,
+                            localizationid:
+                              newValue.id === -1
+                                ? ""
+                                : gcnEventsLookUp[newValue.id]?.localizations[0]
+                                    ?.id || "",
+                          });
+                          setSelectedGcnEventId(newValue.id);
+                        } else {
+                          reset({
+                            ...getValues(),
+                            gcneventid: "",
+                            localizationid: "",
+                          });
+                          setSelectedGcnEventId("");
+                        }
+                      }}
+                      renderInput={(params) => (
+                        <TextField {...params} label="Dateobs/Name" />
+                      )}
+                    />
+                  )}
+                  name="gcneventid"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <Select
+                      inputProps={{
+                        MenuProps: { disableScrollLock: true },
+                      }}
+                      labelId="localizationSelectLabel"
+                      value={value || ""}
+                      onChange={(event) => {
+                        onChange(event.target.value);
+                      }}
+                      className={classes.select}
+                      disabled={!selectedGcnEventId}
+                    >
+                      {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
+                        (localization: any) => (
                           <MenuItem
                             value={localization.id}
                             key={localization.id}
@@ -1020,250 +1040,250 @@ const FilterCandidateList = ({
                           >
                             {`${localization.localization_name}`}
                           </MenuItem>
-                        ))}
-                      </Select>
-                    )}
-                    name="localizationid"
-                    control={control}
-                    defaultValue=""
-                  />
-                  <Controller
-                    render={({ field: { onChange } }) => (
-                      <TextField
-                        id="cumprob"
-                        label="Cumulative Probability"
-                        type="number"
-                        inputProps={{ step: 0.01, min: 0, max: 1 }}
-                        onChange={(event) => onChange(event.target.value)}
-                        defaultValue={0.95}
-                      />
-                    )}
-                    name="localizationCumprob"
-                    control={control}
-                  />
-                  <Controller
-                    render={({ field: { onChange, value } }) => (
-                      <TextField
-                        type="text"
-                        value={value || " "}
-                        onChange={(event) => onChange(event.target.value)}
-                        label="First Detection After (UTC)"
-                      />
-                    )}
-                    name="firstDetectionAfter"
-                    control={control}
-                  />
-                  <Controller
-                    render={({ field: { onChange, value } }) => (
-                      <TextField
-                        type="text"
-                        value={value || " "}
-                        onChange={(event) => onChange(event.target.value)}
-                        label="Last Detection Before (UTC)"
-                      />
-                    )}
-                    name="lastDetectionBefore"
-                    control={control}
-                  />
-                  <Controller
-                    render={({ field: { onChange } }) => (
-                      <TextField
-                        id="minNbDect"
-                        label="Minimum Number of Detections"
-                        type="number"
-                        inputProps={{ step: 1, min: 1 }}
-                        onChange={(event) => onChange(event.target.value)}
-                        defaultValue={1}
-                      />
-                    )}
-                    name="numberDetections"
-                    control={control}
-                  />
-                </div>
-                <Tooltip title="If unchecked, ignore all constraints on detections.">
-                  <FormControlLabel
-                    control={
-                      <Controller
-                        render={({ field: { onChange, value } }) => (
-                          <Checkbox
-                            onChange={(event) => {
-                              onChange(event.target.checked);
-                            }}
-                            checked={value}
-                          />
-                        )}
-                        name="requireDetections"
-                        control={control}
-                        defaultValue
-                      />
-                    }
-                    label="Require detections"
-                  />
-                </Tooltip>
-                <Tooltip title="If checked, do not account for forced photometry when applying detections constraints">
-                  <FormControlLabel
-                    control={
-                      <Controller
-                        render={({ field: { onChange, value } }) => (
-                          <Checkbox
-                            onChange={(event) => {
-                              onChange(event.target.checked);
-                            }}
-                            checked={value}
-                          />
-                        )}
-                        name="excludeForcedPhotometry"
-                        control={control}
-                        defaultValue={false}
-                      />
-                    }
-                    label="Ignore Forced Photometry"
-                  />
-                </Tooltip>
+                        ),
+                      )}
+                    </Select>
+                  )}
+                  name="localizationid"
+                  control={control}
+                  defaultValue=""
+                />
+                <Controller
+                  render={({ field: { onChange } }) => (
+                    <TextField
+                      id="cumprob"
+                      label="Cumulative Probability"
+                      type="number"
+                      inputProps={{ step: 0.01, min: 0, max: 1 }}
+                      onChange={(event) => onChange(event.target.value)}
+                      defaultValue={0.95}
+                    />
+                  )}
+                  name="localizationCumprob"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      type="text"
+                      value={value || " "}
+                      onChange={(event) => onChange(event.target.value)}
+                      label="First Detection After (UTC)"
+                    />
+                  )}
+                  name="firstDetectionAfter"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      type="text"
+                      value={value || " "}
+                      onChange={(event) => onChange(event.target.value)}
+                      label="Last Detection Before (UTC)"
+                    />
+                  )}
+                  name="lastDetectionBefore"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange } }) => (
+                    <TextField
+                      id="minNbDect"
+                      label="Minimum Number of Detections"
+                      type="number"
+                      inputProps={{ step: 1, min: 1 }}
+                      onChange={(event) => onChange(event.target.value)}
+                      defaultValue={1}
+                    />
+                  )}
+                  name="numberDetections"
+                  control={control}
+                />
               </div>
-              <div
-                className={classes.formRow}
-                style={{ marginTop: "0.5rem", marginBottom: 0 }}
-              >
-                <Typography variant="h6" className={classes.title}>
-                  Annotation Sorting
-                </Typography>
-                {errors["sortingOrigin"] && (
-                  <FormValidationError message="All sorting fields must be left empty or all filled out" />
-                )}
-                <div className={classes.annotationSorting}>
-                  <div style={{ minWidth: "100%" }}>
+              <Tooltip title="If unchecked, ignore all constraints on detections.">
+                <FormControlLabel
+                  control={
                     <Controller
-                      name="sortingOrigin"
-                      control={control}
-                      defaultValue={
-                        selectedScanningProfile?.sortingOrigin || null
-                      }
                       render={({ field: { onChange, value } }) => (
-                        <Autocomplete
-                          id="annotationSortingOriginSelect"
-                          data-testid="annotationSortingOriginSelect"
-                          options={Object.keys(availableAnnotationsInfo || [])}
-                          style={{ minWidth: "100%" }}
-                          value={value}
-                          onChange={(_event, newValue) => {
-                            if (newValue === null) {
-                              reset({
-                                ...getValues(),
-                                sortingOrigin: newValue,
-                                sortingKey: null,
-                                sortingOrder: null,
-                              });
-                              setAnnotationSortingKeyOptions([]);
-                            } else {
-                              onChange(newValue);
-                              const newOptions = (
-                                availableAnnotationsInfo[newValue] || []
-                              )
-                                .map((annotation: any) =>
-                                  Object.keys(annotation || {}),
-                                )
-                                .flat();
-                              setAnnotationSortingKeyOptions(newOptions);
-                            }
+                        <Checkbox
+                          onChange={(event) => {
+                            onChange(event.target.checked);
                           }}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Origin"
-                              variant="outlined"
-                            />
-                          )}
+                          checked={value}
                         />
                       )}
-                      rules={{ validate: validateSorting }}
-                    />
-                  </div>
-                  <div style={{ minWidth: "100%" }}>
-                    <Controller
-                      name="sortingKey"
+                      name="requireDetections"
                       control={control}
-                      defaultValue={selectedScanningProfile?.sortingKey || null}
+                      defaultValue
+                    />
+                  }
+                  label="Require detections"
+                />
+              </Tooltip>
+              <Tooltip title="If checked, do not account for forced photometry when applying detections constraints">
+                <FormControlLabel
+                  control={
+                    <Controller
                       render={({ field: { onChange, value } }) => (
-                        <Autocomplete
-                          id="annotationSortingKeySelect"
-                          data-testid="annotationSortingKeySelect"
-                          options={annotationSortingKeyOptions}
-                          style={{ minWidth: "100%" }}
-                          value={value}
-                          onChange={(_event, newValue) => {
-                            if (newValue === null) {
-                              reset({
-                                ...getValues(),
-                                sortingKey: newValue,
-                                sortingOrder: null,
-                              });
-                            } else if (getValues().sortingOrder === null) {
-                              reset({
-                                ...getValues(),
-                                sortingKey: newValue,
-                                sortingOrder: "asc",
-                              });
-                            } else {
-                              onChange(newValue);
-                            }
+                        <Checkbox
+                          onChange={(event) => {
+                            onChange(event.target.checked);
                           }}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Key"
-                              variant="outlined"
-                            />
-                          )}
+                          checked={value}
                         />
                       )}
-                      rules={{ validate: validateSorting }}
-                    />
-                  </div>
-                  <div style={{ minWidth: "100%" }}>
-                    <Controller
-                      name="sortingOrder"
+                      name="excludeForcedPhotometry"
                       control={control}
-                      defaultValue={
-                        selectedScanningProfile?.sortingOrder || "asc"
-                      }
-                      render={({ field: { onChange, value } }) => (
-                        <Autocomplete
-                          id="annotationSortingOrderSelect"
-                          data-testid="annotationSortingOrderSelect"
-                          options={["asc", "desc"]}
-                          style={{ minWidth: "100%" }}
-                          value={value}
-                          getOptionLabel={(option) => {
-                            if (option === "asc") {
-                              return "Ascending";
-                            }
-                            if (option === "desc") {
-                              return "Descending";
-                            }
-                            return "None";
-                          }}
-                          onChange={(_event, newValue) => {
+                      defaultValue={false}
+                    />
+                  }
+                  label="Ignore Forced Photometry"
+                />
+              </Tooltip>
+            </div>
+            <div
+              className={classes.formRow}
+              style={{ marginTop: "0.5rem", marginBottom: 0 }}
+            >
+              <Typography variant="h6" className={classes.title}>
+                Annotation Sorting
+              </Typography>
+              {errors["sortingOrigin"] && (
+                <FormValidationError message="All sorting fields must be left empty or all filled out" />
+              )}
+              <div className={classes.annotationSorting}>
+                <div style={{ minWidth: "100%" }}>
+                  <Controller
+                    name="sortingOrigin"
+                    control={control}
+                    defaultValue={
+                      selectedScanningProfile?.sortingOrigin || null
+                    }
+                    render={({ field: { onChange, value } }) => (
+                      <Autocomplete
+                        id="annotationSortingOriginSelect"
+                        data-testid="annotationSortingOriginSelect"
+                        options={Object.keys(availableAnnotationsInfo || [])}
+                        style={{ minWidth: "100%" }}
+                        value={value}
+                        onChange={(_event, newValue) => {
+                          if (newValue === null) {
+                            reset({
+                              ...getValues(),
+                              sortingOrigin: newValue,
+                              sortingKey: null,
+                              sortingOrder: null,
+                            });
+                            setAnnotationSortingKeyOptions([]);
+                          } else {
                             onChange(newValue);
-                          }}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Order"
-                              variant="outlined"
-                            />
-                          )}
-                        />
-                      )}
-                    />
-                  </div>
+                            const newOptions = (
+                              availableAnnotationsInfo[newValue] || []
+                            )
+                              .map((annotation: any) =>
+                                Object.keys(annotation || {}),
+                              )
+                              .flat();
+                            setAnnotationSortingKeyOptions(newOptions);
+                          }
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Origin"
+                            variant="outlined"
+                          />
+                        )}
+                      />
+                    )}
+                    rules={{ validate: validateSorting }}
+                  />
+                </div>
+                <div style={{ minWidth: "100%" }}>
+                  <Controller
+                    name="sortingKey"
+                    control={control}
+                    defaultValue={selectedScanningProfile?.sortingKey || null}
+                    render={({ field: { onChange, value } }) => (
+                      <Autocomplete
+                        id="annotationSortingKeySelect"
+                        data-testid="annotationSortingKeySelect"
+                        options={annotationSortingKeyOptions}
+                        style={{ minWidth: "100%" }}
+                        value={value}
+                        onChange={(_event, newValue) => {
+                          if (newValue === null) {
+                            reset({
+                              ...getValues(),
+                              sortingKey: newValue,
+                              sortingOrder: null,
+                            });
+                          } else if (getValues().sortingOrder === null) {
+                            reset({
+                              ...getValues(),
+                              sortingKey: newValue,
+                              sortingOrder: "asc",
+                            });
+                          } else {
+                            onChange(newValue);
+                          }
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Key"
+                            variant="outlined"
+                          />
+                        )}
+                      />
+                    )}
+                    rules={{ validate: validateSorting }}
+                  />
+                </div>
+                <div style={{ minWidth: "100%" }}>
+                  <Controller
+                    name="sortingOrder"
+                    control={control}
+                    defaultValue={
+                      selectedScanningProfile?.sortingOrder || "asc"
+                    }
+                    render={({ field: { onChange, value } }) => (
+                      <Autocomplete
+                        id="annotationSortingOrderSelect"
+                        data-testid="annotationSortingOrderSelect"
+                        options={["asc", "desc"]}
+                        style={{ minWidth: "100%" }}
+                        value={value}
+                        getOptionLabel={(option) => {
+                          if (option === "asc") {
+                            return "Ascending";
+                          }
+                          if (option === "desc") {
+                            return "Descending";
+                          }
+                          return "None";
+                        }}
+                        onChange={(_event, newValue) => {
+                          onChange(newValue);
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Order"
+                            variant="outlined"
+                          />
+                        )}
+                      />
+                    )}
+                  />
                 </div>
               </div>
-            </Paper>
-          </Grid>
+            </div>
+          </Paper>
         </Grid>
-      </form>
-    </div>
+      </Grid>
+    </form>
   );
 };
 

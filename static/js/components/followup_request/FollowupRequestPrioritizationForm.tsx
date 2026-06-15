@@ -73,12 +73,15 @@ const FollowupRequestPrioritizationForm = ({
   }
 
   if (
-    instrumentList.length === 0 ||
-    telescopeList.length === 0 ||
-    followupRequestList.length === 0 ||
-    Object.keys(instrumentFormParams).length === 0
+    !instrumentList.length ||
+    !telescopeList.length ||
+    !Object.keys(instrumentFormParams).length
   ) {
-    return <p>No robotic followup requests found...</p>;
+    return <p>No instruments or telescopes found...</p>;
+  }
+
+  if (!followupRequestList.length) {
+    return <p>No robotic followup requests fetched...</p>;
   }
 
   if (!selectedGcnEventId) {
@@ -230,62 +233,54 @@ const FollowupRequestPrioritizationForm = ({
 
   return (
     <div>
-      <div>
-        <Form
-          schema={FollowupRequestPrioritizationFormSchema as any}
-          validator={validator}
-          onSubmit={handleSubmitPrioritization as any}
-          {...({ validate: validatePrioritization } as any)}
-          disabled={isSubmittingPrioritization}
-          liveValidate
-        />
-        {isSubmittingPrioritization && (
-          <div>
-            <CircularProgress />
-          </div>
-        )}
-      </div>
-      <div>
-        <InputLabel id="gcnEventSelectLabel">GCN Event</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="gcnEventSelectLabel"
-          value={selectedGcnEventId}
-          onChange={handleSelectedGcnEventChange}
-          name="followupRequestGcnEventSelect"
-          className={classes.select}
-        >
-          {gcnEvents?.events.map((gcnEvent: any) => (
+      <Form
+        schema={FollowupRequestPrioritizationFormSchema as any}
+        validator={validator}
+        onSubmit={handleSubmitPrioritization as any}
+        {...({ validate: validatePrioritization } as any)}
+        disabled={isSubmittingPrioritization}
+        liveValidate
+      />
+      {isSubmittingPrioritization && <CircularProgress />}
+      <InputLabel id="gcnEventSelectLabel">GCN Event</InputLabel>
+      <Select
+        inputProps={{ MenuProps: { disableScrollLock: true } }}
+        labelId="gcnEventSelectLabel"
+        value={selectedGcnEventId}
+        onChange={handleSelectedGcnEventChange}
+        name="followupRequestGcnEventSelect"
+        className={classes.select}
+      >
+        {gcnEvents?.events.map((gcnEvent: any) => (
+          <MenuItem
+            value={gcnEvent.id}
+            key={gcnEvent.id}
+            className={classes.selectItem}
+          >
+            {`${gcnEvent.dateobs}`}
+          </MenuItem>
+        ))}
+      </Select>
+      <Select
+        inputProps={{ MenuProps: { disableScrollLock: true } }}
+        labelId="localizationSelectLabel"
+        value={selectedLocalizationId || ""}
+        onChange={handleSelectedLocalizationChange}
+        name="observationPlanRequestLocalizationSelect"
+        className={classes.select}
+      >
+        {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
+          (localization: any) => (
             <MenuItem
-              value={gcnEvent.id}
-              key={gcnEvent.id}
+              value={localization.id}
+              key={localization.id}
               className={classes.selectItem}
             >
-              {`${gcnEvent.dateobs}`}
+              {`${localization.localization_name}`}
             </MenuItem>
-          ))}
-        </Select>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="localizationSelectLabel"
-          value={selectedLocalizationId || ""}
-          onChange={handleSelectedLocalizationChange}
-          name="observationPlanRequestLocalizationSelect"
-          className={classes.select}
-        >
-          {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
-            (localization: any) => (
-              <MenuItem
-                value={localization.id}
-                key={localization.id}
-                className={classes.selectItem}
-              >
-                {`${localization.localization_name}`}
-              </MenuItem>
-            ),
-          )}
-        </Select>
-      </div>
+          ),
+        )}
+      </Select>
     </div>
   );
 };

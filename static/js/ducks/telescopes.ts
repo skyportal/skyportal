@@ -12,16 +12,18 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export type Telescope = Record<string, any>;
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const telescopesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getTelescopes: build.query<Telescope[], void>({
+    getTelescopes: build.query<RouteData<"GET /api/telescope">, void>({
       query: () => "api/telescope",
       providesTags: ["Telescope"],
     }),
-    getTelescope: build.query<Telescope, number | string>({
+    getTelescope: build.query<
+      RouteData<"GET /api/telescope/{telescope_id}">,
+      number | string
+    >({
       query: (id) => `api/telescope/${id}`,
       providesTags: ["Telescope"],
     }),

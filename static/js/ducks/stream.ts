@@ -8,12 +8,14 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export type Stream = Record<string, any>;
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const streamApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getStream: build.query<Stream, number | string>({
+    getStream: build.query<
+      RouteData<"GET /api/streams/{stream_id}">,
+      number | string
+    >({
       query: (id) => `api/streams/${id}`,
       providesTags: ["Stream"],
     }),

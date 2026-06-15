@@ -354,7 +354,7 @@ def post_gcnevent_from_xml(
     if gracedb_id is not None:
         if asynchronous:
             try:
-                loop = asyncio.get_event_loop()
+                asyncio.get_event_loop()
             except Exception:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -973,7 +973,7 @@ class GcnEventTagsHandler(BaseHandler):
                         data:
                           type: array
                           items:
-                            $ref: '#/components/schemas/GcnTag'
+                            type: string
           400:
             content:
               application/json:
@@ -1248,6 +1248,13 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
                         .joinedload(Allocation.group),
                         joinedload(GcnEvent.observationplan_requests).joinedload(
                             ObservationPlanRequest.requester
+                        ),
+                        # Eager-load the localization so each serialized request
+                        # carries localization.dateobs/localization_name. The
+                        # frontend skymap globe needs those to fetch the contour;
+                        # without them it skips the fetch and spins forever.
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.localization
                         ),
                         joinedload(GcnEvent.observationplan_requests)
                         .joinedload(ObservationPlanRequest.observation_plans)

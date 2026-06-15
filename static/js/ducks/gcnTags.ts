@@ -7,8 +7,6 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
-export type GcnTags = string[];
-
 interface PostGcnTagArg {
   dateobs: string;
   text: string;
@@ -21,7 +19,7 @@ interface DeleteGcnTagArg {
 
 export const gcnTagsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getGcnTags: build.query<GcnTags, Record<string, unknown> | void>({
+    getGcnTags: build.query<string[], Record<string, unknown> | void>({
       query: (filterParams) => {
         const params = new URLSearchParams(
           (filterParams as Record<string, string>) ?? {},

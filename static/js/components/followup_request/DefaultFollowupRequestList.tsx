@@ -10,17 +10,13 @@ import DialogContent from "@mui/material/DialogContent";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import { JSONTree } from "react-json-tree";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 import { useDeleteDefaultFollowupRequestMutation } from "../../ducks/default_followup_requests";
 import { useGetGroupsQuery } from "../../ducks/groups";
@@ -222,15 +218,14 @@ const DefaultFollowupRequestList = ({
   ];
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
+    <DataGridToolbar showQuickFilter={false}>
       <IconButton
         name="new_default_followup_request"
         onClick={() => openNewDialog()}
       >
         <AddIcon />
       </IconButton>
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

@@ -14,23 +14,20 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export interface TagOption {
-  id: number;
-  name: string;
-  color?: string | undefined;
-  created_at?: string | undefined;
-  [key: string]: unknown;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const objectTagsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getTagOptions: build.query<TagOption[], void>({
+    getTagOptions: build.query<RouteData<"GET /api/objtagoption">, void>({
       query: () => "api/objtagoption",
-      transformResponse: (data: TagOption[]) => data ?? [],
+      transformResponse: (data: RouteData<"GET /api/objtagoption">) =>
+        data ?? [],
       providesTags: ["ObjTagOption"],
     }),
-    createTagOption: build.mutation<TagOption, Record<string, unknown>>({
+    createTagOption: build.mutation<
+      RouteData<"POST /api/objtagoption">,
+      Record<string, unknown>
+    >({
       query: (data) => ({
         url: "api/objtagoption",
         method: "POST",
@@ -60,7 +57,10 @@ export const objectTagsApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["ObjTagOption", "ObjTag", "SourceTag"],
     }),
-    addObjectTag: build.mutation<unknown, Record<string, unknown>>({
+    addObjectTag: build.mutation<
+      RouteData<"POST /api/objtag">,
+      Record<string, unknown>
+    >({
       query: (data) => ({
         url: "api/objtag",
         method: "POST",

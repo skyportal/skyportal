@@ -1285,7 +1285,7 @@ class AnalysisHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: SingleObjAnalysis
+                  schema: SingleObjAnalysisDetail
             400:
               content:
                 application/json:
@@ -1299,7 +1299,7 @@ class AnalysisHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfObjAnalysiss
+                  schema: ArrayOfObjAnalysisDetails
             400:
               content:
                 application/json:

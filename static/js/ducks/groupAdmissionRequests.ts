@@ -11,12 +11,12 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import { GroupAdmissionRequest } from "../types/domain";
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const groupAdmissionRequestsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getGroupAdmissionRequests: build.query<
-      GroupAdmissionRequest[],
+      RouteData<"GET /api/group_admission_requests">,
       number | string
     >({
       query: (groupID) => `api/group_admission_requests?groupID=${groupID}`,

@@ -13,13 +13,16 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-export type Instrument = Record<string, any>;
 export type InstrumentFormParams = Record<string, any>;
 
 export const instrumentsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getInstruments: build.query<Instrument[], Record<string, any> | void>({
+    getInstruments: build.query<
+      RouteData<"GET /api/instrument">,
+      Record<string, any> | void
+    >({
       query: (filterParams) => ({
         url: "api/instrument",
         params: filterParams || {},
@@ -41,7 +44,7 @@ export const instrumentsApi = skyportalApi.injectEndpoints({
       providesTags: ["InstrumentObsplanForms"],
     }),
     getGcnEventInstruments: build.query<
-      Instrument[],
+      RouteData<"GET /api/instrument">,
       { dateobs: string; filterParams?: Record<string, any> | undefined }
     >({
       query: ({ dateobs, filterParams = {} }) => ({

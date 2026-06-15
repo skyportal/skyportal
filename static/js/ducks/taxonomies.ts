@@ -7,8 +7,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export type TaxonomyList = any[];
+import type { RouteData } from "../types/routeSchemaMap";
 
 interface ModifyTaxonomyArg {
   id: number | string;
@@ -17,7 +16,7 @@ interface ModifyTaxonomyArg {
 
 export const taxonomiesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getTaxonomies: build.query<TaxonomyList, void>({
+    getTaxonomies: build.query<RouteData<"GET /api/taxonomy">, void>({
       query: () => "api/taxonomy",
       providesTags: ["Taxonomy"],
     }),

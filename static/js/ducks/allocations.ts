@@ -12,8 +12,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export type Allocation = Record<string, any>;
+import type { RouteData } from "../types/routeSchemaMap";
 
 export type AllocationQueryParams = Record<string, unknown>;
 
@@ -37,12 +36,15 @@ const buildAllocationUrl = (params?: AllocationQueryParams): string => {
 
 export const allocationsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getAllocations: build.query<Allocation[], AllocationQueryParams | void>({
+    getAllocations: build.query<
+      RouteData<"GET /api/allocation">,
+      AllocationQueryParams | void
+    >({
       query: (params) => buildAllocationUrl(params || undefined),
       providesTags: ["Allocation"],
     }),
     getAllocationsApiObsplan: build.query<
-      Allocation[],
+      RouteData<"GET /api/allocation">,
       AllocationQueryParams | void
     >({
       query: (params) =>
@@ -53,7 +55,7 @@ export const allocationsApi = skyportalApi.injectEndpoints({
       providesTags: ["Allocation"],
     }),
     getAllocationsApiClassname: build.query<
-      Allocation[],
+      RouteData<"GET /api/allocation">,
       AllocationQueryParams | void
     >({
       query: (params) =>

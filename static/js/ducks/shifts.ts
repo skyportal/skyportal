@@ -13,13 +13,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-interface Shift {
-  id: number;
-  start_date: string | Date;
-  end_date: string | Date;
-  [key: string]: unknown;
-}
+import type { RouteData } from "../types/routeSchemaMap";
 
 interface ShiftSummaryArg {
   shiftID?: number | string | undefined;
@@ -46,7 +40,9 @@ interface CommentAttachmentArg {
   commentID: number | string;
 }
 
-function shiftStringDateToDate(shift: Shift): Shift {
+function shiftStringDateToDate<
+  T extends { start_date?: string | Date; end_date?: string | Date },
+>(shift: T): T {
   return {
     ...shift,
     start_date: new Date(`${shift.start_date}Z`),
@@ -67,19 +63,26 @@ function fileReaderPromise(
 
 export const shiftsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getShift: build.query<Shift, number | string>({
+    getShift: build.query<
+      RouteData<"GET /api/shifts/{shift_id}">,
+      number | string
+    >({
       query: (id) => `api/shifts/${id}`,
-      transformResponse: (data: Shift) => shiftStringDateToDate(data),
+      transformResponse: (data: RouteData<"GET /api/shifts/{shift_id}">) =>
+        shiftStringDateToDate(data),
       providesTags: ["Shift"],
     }),
-    getShifts: build.query<Shift[], Record<string, unknown> | void>({
+    getShifts: build.query<
+      RouteData<"GET /api/shifts">,
+      Record<string, unknown> | void
+    >({
       query: (params) => {
         const search = new URLSearchParams(
           (params as Record<string, string>) ?? {},
         ).toString();
         return search ? `api/shifts?${search}` : "api/shifts";
       },
-      transformResponse: (data: Shift[]) =>
+      transformResponse: (data: RouteData<"GET /api/shifts">) =>
         (data ?? []).map((shift) => shiftStringDateToDate(shift)),
       providesTags: ["Shift"],
     }),
@@ -106,7 +109,7 @@ export const shiftsApi = skyportalApi.injectEndpoints({
       query: ({ shiftID, commentID }) =>
         `api/shift/${shiftID}/comments/${commentID}/attachment?download=false&preview=false`,
     }),
-    submitShift: build.mutation<unknown, any>({
+    submitShift: build.mutation<RouteData<"POST /api/shifts">, any>({
       query: (run) => ({
         url: "api/shifts",
         method: "POST",
@@ -114,16 +117,17 @@ export const shiftsApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Shift"],
     }),
-    updateShift: build.mutation<unknown, { id: number | string; payload: any }>(
-      {
-        query: ({ id, payload }) => ({
-          url: `api/shifts/${id}`,
-          method: "PATCH",
-          body: payload,
-        }),
-        invalidatesTags: ["Shift"],
-      },
-    ),
+    updateShift: build.mutation<
+      RouteData<"PATCH /api/shifts/{shift_id}">,
+      { id: number | string; payload: any }
+    >({
+      query: ({ id, payload }) => ({
+        url: `api/shifts/${id}`,
+        method: "PATCH",
+        body: payload,
+      }),
+      invalidatesTags: ["Shift"],
+    }),
     deleteShift: build.mutation<unknown, number | string>({
       query: (shiftID) => ({
         url: `api/shifts/${shiftID}`,
@@ -131,7 +135,10 @@ export const shiftsApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Shift"],
     }),
-    addShiftUser: build.mutation<unknown, ShiftUserArg>({
+    addShiftUser: build.mutation<
+      RouteData<"POST /api/shifts/{shift_id}/users">,
+      ShiftUserArg
+    >({
       query: ({ userID, shiftID, admin }) => ({
         url: `api/shifts/${shiftID}/users`,
         method: "POST",
@@ -139,7 +146,10 @@ export const shiftsApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Shift"],
     }),
-    updateShiftUser: build.mutation<unknown, ShiftUserArg>({
+    updateShiftUser: build.mutation<
+      RouteData<"PATCH /api/shifts/{shift_id}/users/{user_id}">,
+      ShiftUserArg
+    >({
       query: ({ shiftID, userID, admin, needs_replacement }) => ({
         url: `api/shifts/${shiftID}/users/${userID}`,
         method: "PATCH",

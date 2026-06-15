@@ -110,7 +110,7 @@ const Group = () => {
 
   const handleDeleteGroup = async () => {
     try {
-      await deleteGroup(group?.["id"]).unwrap();
+      await deleteGroup(group?.["id"] as number).unwrap();
       setConfirmDeleteOpen(false);
       navigate("/groups");
     } catch {
@@ -136,7 +136,7 @@ const Group = () => {
       (group_user: any) => group_user.id === aUser.id,
     )[0];
     return (
-      (currentGroupUser && currentGroupUser.admin) ||
+      (currentGroupUser && (currentGroupUser as any)?.["admin"]) ||
       aUser.permissions?.includes("System admin") ||
       aUser.permissions?.includes("Manage groups")
     );

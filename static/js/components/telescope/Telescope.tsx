@@ -42,10 +42,10 @@ const Telescope = ({ route }: TelescopeProps) => {
   const { data: telescope, isError: telescopeError } = useGetTelescopeQuery(
     route.id,
   );
-  const { data: weather } = useGetWeatherQuery(
-    telescope?.["id"] ? parseInt(telescope["id"], 10) : null,
-    { skip: !telescope?.["id"] },
-  );
+  const telescopeAny = telescope as any;
+  const { data: weather } = useGetWeatherQuery(telescope?.["id"] ?? null, {
+    skip: !telescope?.["id"],
+  });
 
   useEffect(() => {
     if (telescopeError) {
@@ -77,8 +77,7 @@ const Telescope = ({ route }: TelescopeProps) => {
             <Typography className={classes.title} color="textSecondary">
               Weather
             </Typography>
-            {weather &&
-            weather["telescope_id"] === parseInt(telescope["id"], 10) ? (
+            {weather && weather["telescope_id"] === telescope["id"] ? (
               <WeatherView weather={weather} />
             ) : (
               <Spinner />
@@ -100,10 +99,10 @@ const Telescope = ({ route }: TelescopeProps) => {
           )}
         </Grid>
         <Grid size={12}>
-          {telescope["allocations"] ? (
+          {telescopeAny["allocations"] ? (
             <AllocationTable
               instruments={instrumentList}
-              allocations={telescope["allocations"]}
+              allocations={telescopeAny["allocations"]}
               groups={groups}
               telescopeInfo={false}
             />

@@ -11,11 +11,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 import CircularProgress from "@mui/material/CircularProgress";
 import ReactJson from "react-json-view";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
@@ -23,7 +18,7 @@ import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewAnalysisService from "./NewAnalysisService";
 
@@ -283,9 +278,7 @@ const AnalysisServiceList = ({
     () =>
       function AnalysisServiceToolbar() {
         return (
-          <GridToolbarContainer>
-            <GridToolbarColumnsButton />
-            <GridToolbarQuickFilter />
+          <DataGridToolbar>
             {deletePermission && (
               <IconButton
                 name="new_analysis_service"
@@ -294,7 +287,7 @@ const AnalysisServiceList = ({
                 <AddIcon />
               </IconButton>
             )}
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
 

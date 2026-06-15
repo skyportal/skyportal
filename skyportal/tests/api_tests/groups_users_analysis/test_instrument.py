@@ -27,8 +27,8 @@ def test_token_user_post_get_instrument(super_admin_token):
     assert data["status"] == "success"
     telescope_id = data["data"]["id"]
 
-    fielddatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv"
-    regionsdatafile = f"{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg"
+    fielddatafile = f"{os.path.dirname(__file__)}/../../../../data/ZTF_Fields.csv"
+    regionsdatafile = f"{os.path.dirname(__file__)}/../../../../data/ZTF_Region.reg"
 
     instrument_name = str(uuid.uuid4())
     status, data = api(

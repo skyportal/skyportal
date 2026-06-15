@@ -11,14 +11,21 @@
 import { skyportalApi } from "../../api/skyportalApi";
 import { invalidateOnMessage } from "../../api/wsInvalidation";
 import type { RootState } from "../../types/store";
+import type { RouteData } from "../../types/routeSchemaMap";
 
 export const scanReportItemApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getScanReportItems: build.query({
+    getScanReportItems: build.query<
+      RouteData<"GET /api/candidates/scan_reports/{report_id}/items/{_}">,
+      number
+    >({
       query: (reportId) => `api/candidates/scan_reports/${reportId}/items`,
       providesTags: ["ScanReportItem"],
     }),
-    updateScanReportItem: build.mutation({
+    updateScanReportItem: build.mutation<
+      RouteData<"PATCH /api/candidates/scan_reports/{report_id}/items/{item_id}">,
+      { reportId: number; itemId: number; payload: Record<string, unknown> }
+    >({
       query: ({ reportId, itemId, payload }) => ({
         url: `api/candidates/scan_reports/${reportId}/items/${itemId}`,
         method: "PATCH",
@@ -41,7 +48,7 @@ invalidateOnMessage(
     )(getState() as RootState).data;
     if (
       items?.length &&
-      Number(report_id) === Number(items[0].scan_report_id)
+      Number(report_id) === Number(items[0]?.scan_report_id)
     ) {
       return ["ScanReportItem"];
     }

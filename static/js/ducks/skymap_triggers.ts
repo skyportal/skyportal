@@ -7,6 +7,7 @@
  * the `Localizations`/`Observations` tags so dependent listings refetch.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import type { RouteData } from "../types/routeSchemaMap";
 
 export interface SkymapTriggers {
   trigger_names?: string[] | undefined;
@@ -42,13 +43,14 @@ const buildQueryString = (params: Record<string, unknown>): string => {
 
 export const skymapTriggersApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getApiSkymapTriggers: build.query<SkymapTriggers, RequestSkymapTriggersArg>(
-      {
-        query: ({ id, params = { triggersOnly: true } }) =>
-          `api/skymap_trigger/${id}${buildQueryString(params)}`,
-        providesTags: ["Localizations", "Observations"],
-      },
-    ),
+    getApiSkymapTriggers: build.query<
+      RouteData<"GET /api/skymap_trigger/{allocation_id}">,
+      RequestSkymapTriggersArg
+    >({
+      query: ({ id, params = { triggersOnly: true } }) =>
+        `api/skymap_trigger/${id}${buildQueryString(params)}`,
+      providesTags: ["Localizations", "Observations"],
+    }),
     postApiSkymapTrigger: build.mutation<unknown, PostSkymapTriggerArg>({
       query: (data) => ({
         url: "api/skymap_trigger",

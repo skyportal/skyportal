@@ -319,7 +319,10 @@ const ObservationPlanRequestForm = ({
       fetchInstrumentSkymap({
         id: instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]
           ?.id,
-        localization: obsplanLoc,
+        localization: obsplanLoc as {
+          dateobs: string;
+          localization_name: string;
+        },
         airmassTime: airmassTime.toJSON(),
       })
         .unwrap()
@@ -374,6 +377,7 @@ const ObservationPlanRequestForm = ({
   }, [
     dispatch,
     gcnEvent,
+    allocationListApiObsplan,
     setSelectedAllocationId,
     setSelectedGroupIds,
     setSelectedLocalizationId,
@@ -388,15 +392,11 @@ const ObservationPlanRequestForm = ({
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationListApiObsplan is not
   // empty.
-  if (
-    allocationListApiObsplan.length === 0 ||
-    !selectedAllocationId ||
-    Object.keys(instrumentObsplanFormParams).length === 0
-  ) {
+  if (!allocationListApiObsplan.length) {
     return <h3>No allocations with an observation plan API...</h3>;
   }
 
-  if (filteredAllocationListApiObsplan.length === 0) {
+  if (!filteredAllocationListApiObsplan.length) {
     return (
       <h3>
         No allocations with an observation plan API and observation plan type
@@ -406,18 +406,14 @@ const ObservationPlanRequestForm = ({
   }
 
   if (
-    !allGroups ||
-    allGroups.length === 0 ||
-    telescopeList.length === 0 ||
-    instrumentList.length === 0 ||
+    !selectedAllocationId ||
+    !Object.keys(instrumentObsplanFormParams).length ||
+    !allGroups?.length ||
+    !telescopeList.length ||
+    !instrumentList.length ||
     dateobs !== gcnEvent?.dateobs
-  ) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  )
+    return <CircularProgress />;
 
   const handleSelectedAllocationChange = (e: any) => {
     setSelectedAllocationId(e.target.value);
@@ -699,8 +695,8 @@ const ObservationPlanRequestForm = ({
                 secondary
                 href={`/api/localization/${selectedLocalizationId}/airmass/${
                   instLookUp[
-                    allocationLookUp[selectedAllocationId].instrument_id
-                  ].telescope_id
+                    allocationLookUp[selectedAllocationId]?.instrument_id
+                  ]?.telescope_id
                 }`}
                 download={`airmassChartRequest-${selectedAllocationId}`}
                 size="small"
@@ -758,7 +754,7 @@ const ObservationPlanRequestForm = ({
                 className={classes.SelectItem}
               >
                 {`${
-                  telLookUp[instLookUp[allocation.instrument_id].telescope_id]
+                  telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]
                     ?.name
                 } / ${instLookUp[allocation.instrument_id]?.name} - ${
                   groupLookUp[allocation.group_id]?.name
@@ -799,7 +795,7 @@ const ObservationPlanRequestForm = ({
               schema={
                 (instrumentObsplanFormParams
                   ? instrumentObsplanFormParams[
-                      allocationLookUp[selectedAllocationId].instrument_id
+                      allocationLookUp[selectedAllocationId]?.instrument_id
                     ]?.formSchema
                   : {}) as any
               }
@@ -809,7 +805,7 @@ const ObservationPlanRequestForm = ({
               uiSchema={
                 instrumentObsplanFormParams
                   ? instrumentObsplanFormParams[
-                      allocationLookUp[selectedAllocationId].instrument_id
+                      allocationLookUp[selectedAllocationId]?.instrument_id
                     ]?.uiSchema
                   : {}
               }
@@ -840,7 +836,7 @@ const ObservationPlanRequestForm = ({
             <Chip
               key={plan.payload.queue_name}
               label={`${
-                instLookUp[allocationLookUp[plan.allocation_id].instrument_id]
+                instLookUp[allocationLookUp[plan.allocation_id]?.instrument_id]
                   ?.name
               }: ${plan.payload.queue_name}`}
               data-testid={`queueName_${plan.payload.queue_name}`}

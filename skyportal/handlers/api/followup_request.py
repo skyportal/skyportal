@@ -1198,7 +1198,24 @@ class FollowupRequestHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfFollowupRequests
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              followup_requests:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/FollowupRequest'
+                              totalMatches:
+                                type: integer
+                              pageNumber:
+                                type: integer
+                              numPerPage:
+                                type: integer
             400:
               content:
                 application/json:
@@ -1242,6 +1259,12 @@ class FollowupRequestHandler(BaseHandler):
                 allocationID = int(allocationID)
             except ValueError:
                 return self.error("Allocation ID must be an integer.")
+
+        if instrumentID is not None:
+            try:
+                instrumentID = int(instrumentID)
+            except ValueError:
+                return self.error("Instrument ID must be an integer.")
 
         with self.Session() as session:
             if allocationID is not None:
@@ -2110,10 +2133,16 @@ def observation_schedule(
     # Initialize a Schedule object, to contain the new schedule
     priority_schedule = Schedule(observation_start, observation_end)
 
+    if len(blocks) == 0:
+        raise ValueError("Scheduling failed: there are probably no observable targets.")
+
     # Call the schedule with the observing blocks and schedule to schedule the blocks
     prior_scheduler(blocks, priority_schedule)
 
     log(f"Generated schedule for {instrument.name} in {time.time() - start_time} s")
+
+    if len(priority_schedule.observing_blocks) == 0:
+        raise ValueError("Scheduling failed: there are probably no observable targets.")
 
     if output_format in ["png", "pdf"]:
         matplotlib.use("Agg")
@@ -2328,6 +2357,12 @@ class FollowupRequestSchedulerHandler(BaseHandler):
         """
 
         with self.Session() as session:
+            try:
+                instrument_id = int(instrument_id)
+            except (TypeError, ValueError):
+                return self.error(
+                    f"Invalid instrument_id: {instrument_id}; must be an integer"
+                )
             instrument = session.scalars(
                 Instrument.select(
                     session.user_or_token,

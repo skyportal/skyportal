@@ -91,17 +91,21 @@ const InstrumentForm = ({
     }
   };
 
-  if (instrumentList.length === 0 || telescopeList.length === 0) {
-    return <h3>No instruments available...</h3>;
+  if (!telescopeList.length) {
+    return (
+      <h3>
+        No telescopes available. Add a telescope before creating an instrument.
+      </h3>
+    );
   } else if (enum_types == null) {
-    return <CircularProgress color="secondary" />;
+    return <CircularProgress />;
   }
 
   const api_classnames = [...enum_types["ALLOWED_API_CLASSNAMES"]].sort();
   const filters = [...enum_types["ALLOWED_BANDPASSES"]].sort();
 
   const instrumentToEdit = instrumentId
-    ? instrumentList.find((inst: any) => inst.id === instrumentId)
+    ? (instrumentList.find((inst: any) => inst.id === instrumentId) as any)
     : null;
   if (instrumentId && !instrumentToEdit) {
     return <h3>Instrument not found !</h3>;
@@ -293,8 +297,9 @@ const InstrumentForm = ({
                   .properties,
               },
               default:
-                instrumentToEdit?.["configuration_data"]
-                  ?.specific_configuration || {},
+                instrumentToEdit?.["configuration_data"]?.[
+                  "specific_configuration"
+                ] || {},
             },
           }
         : {}),

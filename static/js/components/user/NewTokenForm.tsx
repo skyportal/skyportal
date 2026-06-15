@@ -36,7 +36,7 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
 
   useEffect(() => {
     reset({
-      acls: Array(availableAcls.length).fill(false),
+      acls: Array(availableAcls?.length ?? 0).fill(false),
     });
   }, [reset, availableAcls]);
 

@@ -13,19 +13,24 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-export type ObservingRun = Record<string, any>;
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const observingRunApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getObservingRun: build.query<ObservingRun, number | string>({
+    getObservingRun: build.query<
+      RouteData<"GET /api/observing_run/{run_id}">,
+      number | string
+    >({
       query: (id) => `api/observing_run/${id}`,
       providesTags: (_result, _error, id) => [
         { type: "ObservingRun", id },
         "ObservingRun",
       ],
     }),
-    submitObservingRun: build.mutation<unknown, Record<string, any>>({
+    submitObservingRun: build.mutation<
+      RouteData<"POST /api/observing_run">,
+      Record<string, any>
+    >({
       query: (run) => ({
         url: "api/observing_run",
         method: "POST",
@@ -34,7 +39,7 @@ export const observingRunApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["ObservingRun"],
     }),
     modifyObservingRun: build.mutation<
-      unknown,
+      RouteData<"PUT /api/observing_run/{run_id}">,
       { id: number | string; run: Record<string, any> }
     >({
       query: ({ id, run }) => ({

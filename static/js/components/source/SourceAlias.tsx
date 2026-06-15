@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import EditIcon from "@mui/icons-material/Edit";
+import AddIcon from "@mui/icons-material/Add";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import DeleteIcon from "@mui/icons-material/Delete";
 import DialogTitle from "@mui/material/DialogTitle";
+import Chip from "@mui/material/Chip";
+import Tooltip from "@mui/material/Tooltip";
 import { makeStyles } from "tss-react/mui";
 import SaveIcon from "@mui/icons-material/Save";
 import TextField from "@mui/material/TextField";
@@ -16,28 +17,29 @@ import FormValidationError from "../FormValidationError";
 import { useUpdateSourceMutation } from "../../ducks/source";
 
 const useStyles = makeStyles()(() => ({
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
-  },
-  editIcon: {
-    height: "0.75rem",
-    cursor: "pointer",
-  },
-  aliasItem: {
+  container: {
     display: "flex",
+    flexWrap: "wrap",
     alignItems: "center",
-    justifyContent: "space-between",
-    borderRadius: "0px",
-    position: "relative",
-    lineHeight: 1,
-    "&:hover $deleteButton": {
+    gap: "0.4rem",
+  },
+  chip: {
+    maxWidth: "100%",
+  },
+  none: {
+    fontStyle: "italic",
+    opacity: 0.6,
+  },
+  addButton: {
+    opacity: 0.5,
+    transition: "opacity 0.2s",
+    "&:hover": {
       opacity: 1,
     },
   },
-  deleteButton: {
-    opacity: 0,
-    transition: "opacity 0.2s",
+  saveButton: {
+    textAlign: "center",
+    margin: "1rem",
   },
 }));
 
@@ -54,14 +56,13 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
   const [updateSource] = useUpdateSourceMutation();
   const [alias, setAlias] = useState<string | null>(null);
 
-  const [hovering, setHovering] = useState<boolean | null>(null);
-
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invalid, setInvalid] = useState(true);
 
   useEffect(() => {
-    setInvalid(!!source?.alias?.includes(alias as string));
+    // Invalid when empty or a duplicate of an existing alias.
+    setInvalid(!alias || !!source?.alias?.includes(alias));
   }, [source, setInvalid, alias]);
 
   const handleChange = (e: any) => {
@@ -70,13 +71,15 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    const newState: any = {};
-    newState.alias = [...(source.alias || []), alias];
-
+    const newAliasList = [...(source.alias || []), alias];
     try {
-      await updateSource({ id: source.id, payload: { ...newState } }).unwrap();
+      await updateSource({
+        id: source.id,
+        payload: { alias: newAliasList },
+      }).unwrap();
       dispatch(showNotification("Source alias successfully updated."));
       setDialogOpen(false);
+      setAlias(null);
     } catch {
       // error notification handled by the baseQuery
     }
@@ -101,54 +104,33 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
     setIsSubmitting(false);
   };
 
-  const handleHover = () => {
-    setHovering(true);
-  };
-
-  const handleStopHover = () => {
-    // here we only trigger if we stopped hovering the currently hovered item
-    setHovering(null);
-  };
+  const aliases = source.alias || [];
 
   return (
     <>
-      <div
-        onMouseEnter={() => handleHover()}
-        onMouseLeave={() => handleStopHover()}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "0px" as any,
-            gap: "0px",
-            alignItems: "center",
-          }}
-        >
-          <b>Aliases: &nbsp;</b>
-          {(source.alias || []).map((a, idx) => (
-            <div key={idx} className={classes.aliasItem}>
-              <span>{a}</span>
-              <IconButton
-                size="small"
-                onClick={() => handleDelete(a)}
-                className={classes.deleteButton}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </div>
-          ))}
-          {hovering && (
-            <IconButton
-              data-testid="updateAliasIconButton"
-              onClick={() => {
-                setDialogOpen(true);
-              }}
-              size="small"
-            >
-              <EditIcon className={classes.editIcon} />
-            </IconButton>
-          )}
-        </div>
+      <div className={classes.container}>
+        <b>Aliases:</b>
+        {aliases.length === 0 && <span className={classes.none}>none</span>}
+        {aliases.map((a, idx) => (
+          <Chip
+            key={`${a}-${idx}`}
+            className={classes.chip}
+            label={a}
+            size="small"
+            variant="outlined"
+            onDelete={() => handleDelete(a)}
+          />
+        ))}
+        <Tooltip title="Add alias">
+          <IconButton
+            data-testid="updateAliasIconButton"
+            onClick={() => setDialogOpen(true)}
+            size="small"
+            className={classes.addButton}
+          >
+            <AddIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </div>
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Add Alias</DialogTitle>

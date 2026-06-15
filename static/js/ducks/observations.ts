@@ -21,6 +21,16 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
+
+// Extras returned alongside the wrapper that RouteData does not encode.
+type ObservationListResponse = RouteData<"GET /api/observation"> & {
+  geojson?: object[] | null;
+  field_ids?: number[] | null;
+  probability?: number | null;
+  area?: number | null;
+  min_observations_per_field?: number | null;
+};
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -30,7 +40,11 @@ type FilterParams = Record<string, unknown>;
 const buildQueryString = (filterParams: FilterParams): string => {
   const params = new URLSearchParams(
     Object.fromEntries(
-      Object.entries(filterParams).map(([key, value]) => [key, String(value)]),
+      Object.entries(filterParams)
+        // Drop empty values: String(undefined) would send "instrumentName=undefined",
+        // which the backend tries to resolve as an instrument and 500s.
+        .filter(([, v]) => v !== undefined && v !== null && v !== "")
+        .map(([key, value]) => [key, String(value)]),
     ),
   ).toString();
   return params ? `api/observation?${params}` : "api/observation";
@@ -94,12 +108,15 @@ interface RequestAPIQueuedObservationsArg {
 
 export const observationsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getObservations: build.query<any, FilterParams | void>({
+    getObservations: build.query<ObservationListResponse, FilterParams | void>({
       query: (filterParams) =>
         buildQueryString(withObservationDefaults(filterParams ?? {})),
       providesTags: ["Observation"],
     }),
-    getGcnEventObservations: build.query<any, FetchGcnEventObservationsArg>({
+    getGcnEventObservations: build.query<
+      ObservationListResponse,
+      FetchGcnEventObservationsArg
+    >({
       query: ({ dateobs, filterParams }) =>
         buildQueryString(
           withGcnEventObservationDefaults(dateobs, filterParams ?? {}),
@@ -114,7 +131,10 @@ export const observationsApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Observation"],
     }),
-    uploadObservations: build.mutation<any, Record<string, unknown>>({
+    uploadObservations: build.mutation<
+      RouteData<"POST /api/observation/ascii">,
+      Record<string, unknown>
+    >({
       query: (data) => ({
         url: "api/observation/ascii",
         method: "POST",
@@ -122,7 +142,10 @@ export const observationsApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Observation"],
     }),
-    requestAPIObservations: build.mutation<any, Record<string, unknown>>({
+    requestAPIObservations: build.mutation<
+      RouteData<"POST /api/observation/external_api">,
+      Record<string, unknown>
+    >({
       query: (data) => ({
         url: "api/observation/external_api",
         method: "POST",
@@ -131,7 +154,7 @@ export const observationsApi = skyportalApi.injectEndpoints({
       invalidatesTags: ["Observation"],
     }),
     requestAPIQueuedObservations: build.query<
-      any,
+      RouteData<"GET /api/observation/external_api/{allocation_id}">,
       RequestAPIQueuedObservationsArg
     >({
       query: ({ id, data }) => {
