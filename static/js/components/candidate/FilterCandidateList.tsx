@@ -278,7 +278,7 @@ const FilterCandidateList = ({
   );
 
   const [classificationsWith, setClassificationsWith] = useState(
-    selectedScanningProfile?.classificationsWith === false ? false : true,
+    selectedScanningProfile?.classificationsWith !== false,
   );
 
   const [gcnEventsParams, setGcnEventsParams] = useState<Record<string, any>>(
@@ -466,12 +466,8 @@ const FilterCandidateList = ({
   const validateSorting = () => {
     const formState = getValues();
     return (
-      // All left empty
       formState.sortingOrigin === null ||
-      // Or all filled out
-      (formState.sortingOrigin !== null &&
-        formState.sortingKey !== null &&
-        formState.sortingOrder !== null)
+      (formState.sortingKey !== null && formState.sortingOrder !== null)
     );
   };
 

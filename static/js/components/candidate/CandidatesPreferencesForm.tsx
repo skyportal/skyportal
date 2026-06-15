@@ -579,9 +579,7 @@ const CandidatesPreferencesForm = ({
                   <Controller
                     render={({ field: { onChange, value } }) => (
                       <Checkbox
-                        onChange={(event) => {
-                          onChange(event.target.checked);
-                        }}
+                        onChange={(event) => onChange(event.target.checked)}
                         checked={value}
                         data-testid={`profileFilteringFormGroupCheckbox-${group.id}`}
                       />

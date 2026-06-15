@@ -1354,7 +1354,7 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        # if an xml or json notice is not provided, then a dateobs must be specified
+        # if either xml or json notice is not provided, then a dateobs must be specified
         if not any(format in data for format in ["xml", "json"]):
             required_keys = {"dateobs"}
             if not required_keys.issubset(set(data.keys())):
