@@ -106,6 +106,7 @@ from .instrument_log import (
 )
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
+from .metrics import MetricsHandler
 from .mmadetector import (
     MMADetectorHandler,
     MMADetectorSpectrumHandler,

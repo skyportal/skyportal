@@ -653,6 +653,16 @@ external_logging:
     # We recommend adjusting this value in production.
     profiles_sample_rate: 1.0
 
+observability:
+  # Enable OpenTelemetry instrumentation of the Tornado app and expose request
+  # metrics in Prometheus format at /api/internal/metrics. The endpoint requires
+  # a System admin token (scrape with `Authorization: token <id>`). Each app
+  # worker serves its own metrics on its internal port (ports.app_internal +
+  # worker number); point Prometheus at those ports directly rather than the
+  # load-balanced public endpoint. Disabled by default.
+  enabled: False
+  service_name: skyportal
+
 cron:
   # - interval: 60
   #  script: jobs/count_unsaved_candidates.py
