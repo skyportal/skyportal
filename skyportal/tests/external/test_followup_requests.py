@@ -252,7 +252,7 @@ def add_allocation_kait(instrument_id, group_id, token):
     return data["data"]
 
 
-def show_followup_columns(page, instrument_name, *columns):
+def show_followup_columns(page, instrument_id, *columns):
     """Reveal hidden columns in an instrument's follow-up requests DataGrid.
 
     MUI X v8 replaced the old "View Columns" toolbar button with the shared
@@ -260,7 +260,7 @@ def show_followup_columns(page, instrument_name, *columns):
     its header name (the param name).
     """
     table = page.locator(
-        f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]'
+        f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]'
     ).first
     table.locator('[data-testid="datagrid-columns-button"]').first.click()
     for column in columns:
@@ -313,22 +313,22 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
     page.keyboard.press("Escape")
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
-    show_followup_columns(page, instrument_name, "exposure_time")
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
+    show_followup_columns(page, instrument_id, "exposure_time")
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "IFU")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "IFU")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "300")]"""
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]"""
         ).first
     ).to_be_visible()
 
@@ -376,16 +376,16 @@ def add_followup_request_using_frontend_and_verify_KAIT(
     page.keyboard.press("Escape")
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "U")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "U")]'
         ).first
     ).to_be_visible()
     # it should fail, as we don't provide real allocation info
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "failed to submit")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "failed to submit")]"""
         ).first
     ).to_be_visible()
 
@@ -438,31 +438,37 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    # UVOTXRT's API implements no delete method, so the form shows a
+    # confirmation dialog before submitting; accept it.
+    page.locator('//div[@role="dialog"]//button[contains(., "Confirm")]').first.click()
 
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
+
+    # Swift's TOO API isn't reachable in the test environment, so the request
+    # is rejected rather than submitted; assert it renders with that status.
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "rejected")]"""
         ).first
     ).to_be_visible()
 
     show_followup_columns(
-        page, instrument_name, "exposure_time", "obs_type", "source_type"
+        page, instrument_id, "exposure_time", "obs_type", "source_type"
     )
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Light Curve")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "Light Curve")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "4000")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "4000")]"""
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Optical fast transient")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "Optical fast transient")]"""
         ).first
     ).to_be_visible()
 
@@ -505,29 +511,29 @@ def add_followup_request_using_frontend_and_verify_ZTF(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]"""
         ).first
     ).to_be_visible()
 
-    show_followup_columns(page, instrument_name, "exposure_time", "subprogram_name")
+    show_followup_columns(page, instrument_id, "exposure_time", "subprogram_name")
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "GRB")]'
-        ).first
-    ).to_be_visible()
-    expect(
-        page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "GRB")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "g,r,i")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "300")]"""
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "g,r,i")]"""
         ).first
     ).to_be_visible()
 
@@ -568,26 +574,26 @@ def add_followup_request_using_frontend_and_verify_Floyds(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
         ).first
     ).to_be_visible()
 
     show_followup_columns(
-        page, instrument_name, "exposure_time", "minimum_lunar_distance"
+        page, instrument_id, "exposure_time", "minimum_lunar_distance"
     )
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "300")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "30")]'
         ).first
     ).to_be_visible()
 
@@ -628,25 +634,25 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
         ).first
     ).to_be_visible()
 
     show_followup_columns(
-        page, instrument_name, "exposure_time", "minimum_lunar_distance"
+        page, instrument_id, "exposure_time", "minimum_lunar_distance"
     )
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "300")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "30")]'
         ).first
     ).to_be_visible()
 
@@ -691,12 +697,12 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     # the test_server replays a recorded ATLAS forced-photometry queue success
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
         ).first
     ).to_be_visible()
 
@@ -741,11 +747,11 @@ def add_followup_request_using_frontend_and_verify_PS1(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
         ).first
     ).to_be_visible()
 
@@ -792,24 +798,24 @@ def add_followup_request_using_frontend_and_verify_Spectral(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
         ).first
     ).to_be_visible()
 
-    show_followup_columns(page, instrument_name, "exposure_time", "observation_choices")
+    show_followup_columns(page, instrument_id, "exposure_time", "observation_choices")
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "300")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "gp,Y")]'
         ).first
     ).to_be_visible()
 
@@ -856,24 +862,24 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
         ).first
     ).to_be_visible()
 
-    show_followup_columns(page, instrument_name, "exposure_time", "observation_choices")
+    show_followup_columns(page, instrument_id, "exposure_time", "observation_choices")
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "300")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "gp,Y")]'
         ).first
     ).to_be_visible()
 
@@ -929,26 +935,26 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     submit_button.click()
 
     # page.locator(f"//*[@data-testid='SEDM-requests-header']").first.click()
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "u,IFU")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "1")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
         ).first
     ).to_be_visible()
 
@@ -992,7 +998,7 @@ def add_followup_request_using_frontend_and_verify_SLACK(
 
     submit_button.click()
 
-    page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     # we are not pointing to a real slack channel, so it should fail
     expect(
@@ -1156,7 +1162,7 @@ def test_edit_existing_followup_request(
 def test_delete_followup_request_SEDMv2(
     page, super_admin_user, public_source, super_admin_token, public_group
 ):
-    _, instrument_name = add_followup_request_using_frontend_and_verify_SEDMv2(
+    instrument_id, _ = add_followup_request_using_frontend_and_verify_SEDMv2(
         page, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -1164,17 +1170,17 @@ def test_delete_followup_request_SEDMv2(
 
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "IFU")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "IFU")]"""
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "300")]"""
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]"""
         ).first
     ).to_be_hidden()
 
@@ -1183,14 +1189,14 @@ def test_delete_followup_request_SEDMv2(
 def test_delete_followup_request_ZTF(
     page, super_admin_user, public_source, super_admin_token, public_group
 ):
-    _, instrument_name = add_followup_request_using_frontend_and_verify_ZTF(
+    instrument_id, instrument_name = add_followup_request_using_frontend_and_verify_ZTF(
         page, super_admin_user, public_source, super_admin_token, public_group
     )
 
     # The delete button is in the actions column, which the DataGrid virtualizes
     # off-screen on ZTF's wide table; scroll the grid fully right to render it.
     page.locator(
-        f"//div[contains(@data-testid, '{instrument_name}_followupRequestsTable')]//div[contains(@class, 'MuiDataGrid-virtualScroller')]"
+        f"//div[contains(@data-testid, '{instrument_id}_followupRequestsTable')]//div[contains(@class, 'MuiDataGrid-virtualScroller')]"
     ).first.evaluate("el => { el.scrollLeft = el.scrollWidth; }")
     page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
@@ -1215,8 +1221,10 @@ def test_delete_followup_request_ZTF(
 def test_delete_followup_request_SEDM(
     page, super_admin_user, public_source, super_admin_token, public_group
 ):
-    _, instrument_name = add_followup_request_using_frontend_and_verify_SEDM(
-        page, super_admin_user, public_source, super_admin_token, public_group
+    instrument_id, instrument_name = (
+        add_followup_request_using_frontend_and_verify_SEDM(
+            page, super_admin_user, public_source, super_admin_token, public_group
+        )
     )
     delete_button = page.locator(
         '//button[contains(@data-testid, "deleteRequest")]'
@@ -1225,17 +1233,17 @@ def test_delete_followup_request_SEDM(
 
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "u,IFU")]"""
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "1")]"""
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]"""
         ).first
     ).to_be_hidden()
 
@@ -1244,25 +1252,27 @@ def test_delete_followup_request_SEDM(
 def test_delete_followup_request_Sinistro(
     page, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
 ):
-    _, instrument_name = add_followup_request_using_frontend_and_verify_Sinistro(
-        page, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
+    instrument_id, instrument_name = (
+        add_followup_request_using_frontend_and_verify_Sinistro(
+            page, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
+        )
     )
 
     page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "300")]'
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "gp,Y")]"""
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]"""
         ).first
     ).to_be_hidden()
 
@@ -1271,25 +1281,27 @@ def test_delete_followup_request_Sinistro(
 def test_delete_followup_request_Spectral(
     page, super_admin_user, public_source, super_admin_token, public_group
 ):
-    _, instrument_name = add_followup_request_using_frontend_and_verify_Spectral(
-        page, super_admin_user, public_source, super_admin_token, public_group
+    instrument_id, instrument_name = (
+        add_followup_request_using_frontend_and_verify_Spectral(
+            page, super_admin_user, public_source, super_admin_token, public_group
+        )
     )
 
     page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "300")]'
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "gp,Y")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "gp,Y")]"""
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]"""
         ).first
     ).to_be_hidden()
 
@@ -1298,25 +1310,27 @@ def test_delete_followup_request_Spectral(
 def test_delete_followup_request_MUSCAT(
     page, super_admin_user, public_source, super_admin_token, public_group
 ):
-    _, instrument_name = add_followup_request_using_frontend_and_verify_MUSCAT(
-        page, super_admin_user, public_source, super_admin_token, public_group
+    instrument_id, instrument_name = (
+        add_followup_request_using_frontend_and_verify_MUSCAT(
+            page, super_admin_user, public_source, super_admin_token, public_group
+        )
     )
 
     page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "300")]'
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "30")]"""
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]"""
         ).first
     ).to_be_hidden()
 
@@ -1325,25 +1339,27 @@ def test_delete_followup_request_MUSCAT(
 def test_delete_followup_request_Floyds(
     page, super_admin_user, public_source, super_admin_token, public_group
 ):
-    _, instrument_name = add_followup_request_using_frontend_and_verify_Floyds(
-        page, super_admin_user, public_source, super_admin_token, public_group
+    instrument_id, instrument_name = (
+        add_followup_request_using_frontend_and_verify_Floyds(
+            page, super_admin_user, public_source, super_admin_token, public_group
+        )
     )
 
     page.locator('//button[contains(@data-testid, "deleteRequest")]').first.click()
 
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "300")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "300")]'
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "30")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "30")]"""
         ).first
     ).to_be_hidden()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]"""
         ).first
     ).to_be_hidden()
 
@@ -1414,22 +1430,22 @@ def test_submit_new_followup_request_two_groups(
     page.locator("//*[@data-testid='SEDM-requests-header']").first.click()
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "u,IFU")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "u,IFU")]"""
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "1")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "1")]"""
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            f"""//div[contains(@data-testid, "{instrument_name}_followupRequestsTable")]//div[contains(., "submitted")]"""
+            f"""//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]"""
         ).first
     ).to_be_visible()
 

@@ -6,6 +6,7 @@ from email_validator import EmailNotValidError, validate_email
 from phonenumbers.phonenumberutil import NumberParseException
 from slugify import slugify
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
@@ -16,6 +17,7 @@ from ....models import (
     SharingServiceCoauthor,
     SharingServiceGroup,
     SharingServiceGroupAutoPublisher,
+    Token,
     User,
 )
 from ...base import BaseHandler
@@ -23,7 +25,7 @@ from ...base import BaseHandler
 
 class ProfileHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Retrieve user profile
@@ -81,12 +83,17 @@ class ProfileHandler(BaseHandler):
                             preferences:
                               type: object
         """
-        with self.Session() as session:
-            user = session.scalars(
-                User.select(session.user_or_token).where(
-                    User.username == self.associated_user_object.username
+        async with self.AsyncSession() as session:
+            user = await session.scalar(
+                User.select(session.user_or_token)
+                .options(
+                    selectinload(User.acls),
+                    selectinload(User.roles),
+                    selectinload(User.tokens).selectinload(Token.acls),
+                    selectinload(User.group_admission_requests),
                 )
-            ).first()
+                .where(User.username == self.associated_user_object.username)
+            )
             user_roles = sorted(role.id for role in user.roles)
             user_acls = sorted(acl.id for acl in user.acls)
             user_permissions = sorted(user.permissions)
@@ -110,7 +117,7 @@ class ProfileHandler(BaseHandler):
             return self.success(data=user_info)
 
     @auth_or_token
-    def patch(self, user_id: int | None = None):
+    async def patch(self, user_id: int | None = None):
         """
         ---
         description: Update user preferences
@@ -133,7 +140,7 @@ class ProfileHandler(BaseHandler):
                     description: |
                       User's preferred last name
                   affiliations:
-                    type: array
+                    type: list
                     description: |
                       User's list of affiliations
                   contact_email:
@@ -153,7 +160,7 @@ class ProfileHandler(BaseHandler):
                     description: |
                       Whether or not the user account should be flagged as a bot account
                   preferences:
-                    type: object
+                    schema: UpdateUserPreferencesRequestJSON
                     description: JSON describing updates to user preferences dict
         responses:
           200:
@@ -167,10 +174,10 @@ class ProfileHandler(BaseHandler):
         """
         data = self.get_json()
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if user_id is None:
                 user_id = self.associated_user_object.id
-            user = session.scalar(
+            user = await session.scalar(
                 User.select(session.user_or_token, mode="update").where(
                     User.id == user_id
                 )
@@ -186,7 +193,7 @@ class ProfileHandler(BaseHandler):
                 if len(username) < 5:
                     return self.error("Username must be at least five characters long.")
                 user.username = username
-                single_user_group_id = session.scalar(
+                single_user_group_id = await session.scalar(
                     sa.select(Group.id)
                     .join(GroupUser, GroupUser.group_id == Group.id)
                     .where(
@@ -195,7 +202,7 @@ class ProfileHandler(BaseHandler):
                     )
                 )
                 if single_user_group_id is not None:
-                    session.execute(
+                    await session.execute(
                         sa.update(Group)
                         .where(Group.id == single_user_group_id)
                         .values(name=slugify(username))
@@ -249,7 +256,7 @@ class ProfileHandler(BaseHandler):
                     )
 
                 # check that the user isn't in any groups that have auto-publish enabled but do not allow bots to be auto-publishers
-                groups_no_auto_sharing_allow_bots = session.scalars(
+                groups_result = await session.scalars(
                     SharingServiceGroup.select(session.user_or_token).where(
                         SharingServiceGroup.group_id.in_(user.accessible_group_ids),
                         sa.or_(
@@ -258,9 +265,9 @@ class ProfileHandler(BaseHandler):
                         ),
                         SharingServiceGroup.auto_sharing_allow_bots.is_(False),
                     )
-                ).all()
-                for group in groups_no_auto_sharing_allow_bots:
-                    auto_publisher = session.scalars(
+                )
+                for group in groups_result.all():
+                    auto_publisher = await session.scalar(
                         sa.select(SharingServiceGroupAutoPublisher).where(
                             SharingServiceGroupAutoPublisher.sharing_service_group_id
                             == group.id,
@@ -271,17 +278,17 @@ class ProfileHandler(BaseHandler):
                                 )
                             ),
                         )
-                    ).first()
+                    )
                     if auto_publisher:
                         return self.error(
                             "User is an auto-publisher of a group that does not allow bots to be auto-publishers. Please remove the auto-publisher status first, or allow bot auto-publishing."
                         )
                 # check that the user isn't a coauthor of any bot, in which case they can't be a bot
-                bot_coauthors = session.scalars(
+                bot_coauthors = await session.scalar(
                     SharingServiceCoauthor.select(session.user_or_token).where(
                         SharingServiceCoauthor.user_id == user.id
                     )
-                ).first()
+                )
                 if bot_coauthors:
                     return self.error(
                         "User is a coauthor of a sharing service and cannot be flagged as a bot."
@@ -346,7 +353,7 @@ class ProfileHandler(BaseHandler):
             user.preferences = user_prefs
 
             try:
-                session.commit()
+                await session.commit()
             except IntegrityError as e:
                 if "duplicate key value violates unique constraint" in str(e):
                     return self.error(

@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 from sqlalchemy import func
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -150,7 +150,7 @@ def delete_catalog(catalog_id):
 
 class SpatialCatalogHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Ingest a Spatial Catalog
@@ -215,15 +215,15 @@ class SpatialCatalogHandler(BaseHandler):
         ):
             return self.error("error or amaj, amin, and phi required in field_data.")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = SpatialCatalog.select(self.current_user).where(
                 SpatialCatalog.catalog_name == catalog_name
             )
-            catalog = session.scalars(stmt).first()
+            catalog = await session.scalar(stmt)
             if catalog is None:
                 catalog = SpatialCatalog(catalog_name=catalog_name)
                 session.add(catalog)
-                session.commit()
+                await session.commit()
 
             IOLoop.current().run_in_executor(
                 None, lambda: add_catalog(catalog.id, catalog_data)
@@ -287,17 +287,19 @@ class SpatialCatalogHandler(BaseHandler):
 
         catalog_name = self.get_query_argument("catalog_name", None)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if catalog_id is not None:
                 try:
                     catalog_id = int(catalog_id)
                 except ValueError:
                     return self.error("catalog_id must be an integer")
 
-                stmt = SpatialCatalog.select(self.current_user).where(
-                    SpatialCatalog.id == catalog_id
+                stmt = (
+                    SpatialCatalog.select(self.current_user)
+                    .options(selectinload(SpatialCatalog.entries))
+                    .where(SpatialCatalog.id == catalog_id)
                 )
-                catalog = session.scalars(stmt).first()
+                catalog = await session.scalar(stmt)
                 if catalog is None:
                     return self.error(f"No catalog with name: {catalog_name}")
 
@@ -306,21 +308,21 @@ class SpatialCatalogHandler(BaseHandler):
                 return self.success(data=data)
 
             stmt = SpatialCatalog.select(self.current_user)
-            catalogs = session.scalars(stmt).all()
+            result = await session.scalars(stmt)
+            catalogs = result.all()
             data = []
             for catalog in catalogs:
                 count_stmt = SpatialCatalogEntry.select(self.current_user).where(
                     SpatialCatalogEntry.catalog_id == catalog.id
                 )
-
-                entries_count = session.execute(
+                entries_count = await session.scalar(
                     sa.select(func.count()).select_from(count_stmt)
-                ).scalar()
+                )
                 data.append({**catalog.to_dict(), "entries_count": entries_count})
             return self.success(data=data)
 
     @auth_or_token
-    def delete(self, catalog_id: int):
+    async def delete(self, catalog_id: int):
         """
         ---
         summary: Delete a Spatial Catalog
@@ -343,11 +345,11 @@ class SpatialCatalogHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = SpatialCatalog.select(session.user_or_token, mode="delete").where(
-                SpatialCatalog.id == int(catalog_id)
+                SpatialCatalog.id == catalog_id
             )
-            catalog = session.scalars(stmt).first()
+            catalog = await session.scalar(stmt)
             if catalog is None:
                 return self.error(f"Missing catalog with ID {catalog_id}")
 
@@ -359,7 +361,7 @@ class SpatialCatalogHandler(BaseHandler):
 
 class SpatialCatalogASCIIFileHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload a Spatial Catalog from ASCII file
@@ -428,15 +430,15 @@ class SpatialCatalogASCIIFileHandler(BaseHandler):
         ):
             return self.error("error or amaj, amin, and phi required in field_data.")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = SpatialCatalog.select(self.current_user).where(
                 SpatialCatalog.catalog_name == catalog_name
             )
-            catalog = session.scalars(stmt).first()
+            catalog = await session.scalar(stmt)
             if catalog is None:
                 catalog = SpatialCatalog(catalog_name=catalog_name)
                 session.add(catalog)
-                session.commit()
+                await session.commit()
 
             IOLoop.current().run_in_executor(
                 None, lambda: add_catalog(catalog.id, catalog_data)

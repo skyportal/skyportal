@@ -31,7 +31,7 @@ def check_list_name(name):
 
 class UserObjListHandler(BaseHandler):
     @auth_or_token
-    def get(self, user_id: int | None = None):
+    async def get(self, user_id: int | None = None):
         """
         ---
         summary: Get user object listings
@@ -70,22 +70,21 @@ class UserObjListHandler(BaseHandler):
             try:
                 user_id = int(user_id)
             except (TypeError, ValueError):
-                return self.error(f"Invalid user_id {user_id}")
+                return self.error(f"Invalid user_id: {user_id}")
 
         list_name = self.get_query_argument("listName", None)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = Listing.select(self.current_user).where(Listing.user_id == user_id)
 
             if list_name is not None:
                 stmt = stmt.where(Listing.list_name == list_name)
 
-            listings = session.scalars(stmt).all()
-
-            return self.success(data=listings)
+            result = await session.scalars(stmt)
+            return self.success(data=result.all())
 
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Add a listing
@@ -208,7 +207,7 @@ class UserObjListHandler(BaseHandler):
                 ):
                     return self.error("Input `params.end_of_night` must be a boolean")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = Listing.select(self.current_user).where(
                 Listing.user_id == user_id,
                 Listing.list_name == list_name,
@@ -216,7 +215,8 @@ class UserObjListHandler(BaseHandler):
             )
 
             # what to do if listing already exists...
-            if session.scalars(stmt).first() is not None:
+            existing = await session.scalar(stmt)
+            if existing is not None:
                 return self.error(
                     f"Listing already exists with user_id={user_id}, "
                     f"obj_id={obj_id} and list_name={list_name}"
@@ -229,7 +229,7 @@ class UserObjListHandler(BaseHandler):
             session.add(listing)
 
             try:
-                session.commit()
+                await session.commit()
             except AccessError as e:
                 return self.error(str(e))
 
@@ -242,7 +242,7 @@ class UserObjListHandler(BaseHandler):
             return self.success(data={"id": listing.id})
 
     @auth_or_token
-    def patch(self, listing_id: int):
+    async def patch(self, listing_id: int):
         """
         ---
         summary: Update a listing
@@ -285,12 +285,12 @@ class UserObjListHandler(BaseHandler):
                 schema: Success
 
         """
-        with self.Session() as session:
-            listing = session.scalars(
+        async with self.AsyncSession() as session:
+            listing = await session.scalar(
                 Listing.select(self.current_user, mode="update").where(
                     Listing.id == listing_id
                 )
-            ).first()
+            )
             if listing is None:
                 return self.error(f"Cannot find listing with ID: {listing_id}")
 
@@ -314,9 +314,9 @@ class UserObjListHandler(BaseHandler):
                 return self.error("Insufficient permissions.")
 
             obj_id = data.get("obj_id", listing.obj_id)
-            obj_check = session.scalars(
+            obj_check = await session.scalar(
                 Obj.select(self.current_user).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj_check is None:
                 return self.error(f"Cannot find Obj with ID: {obj_id}")
 
@@ -331,7 +331,7 @@ class UserObjListHandler(BaseHandler):
             listing.obj_id = obj_id
             listing.list_name = list_name
 
-            session.commit()
+            await session.commit()
 
             if list_name == "favorites":
                 self.push(action="skyportal/REFRESH_FAVORITES")
@@ -342,7 +342,7 @@ class UserObjListHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, listing_id: int | None = None):
+    async def delete(self, listing_id: int | None = None):
         """
         ---
         summary: Remove a listing
@@ -387,16 +387,16 @@ class UserObjListHandler(BaseHandler):
 
 
         """
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if listing_id is not None:
                 try:
                     listing_id = int(listing_id)
                 except ValueError:
                     return self.error(f"Invalid listing_id {listing_id}")
 
-                listing = session.scalars(
+                listing = await session.scalar(
                     Listing.select(self.current_user).where(Listing.id == listing_id)
-                ).first()
+                )
                 if listing is None:
                     return self.error(f"Cannot find listing with ID: {listing_id}")
             else:
@@ -413,28 +413,28 @@ class UserObjListHandler(BaseHandler):
                     )
 
                 obj_id = data.get("obj_id")
-                obj_test = session.scalars(
+                obj_test = await session.scalar(
                     Obj.select(self.current_user).where(Obj.id == obj_id)
-                ).first()
+                )
                 if obj_test is None:
                     return self.error(f"Cannot find Obj with ID: {obj_id}")
 
                 list_name = data.get("list_name")
-                listing = session.scalars(
+                listing = await session.scalar(
                     Listing.select(self.current_user, mode="delete").where(
                         Listing.user_id == user_id,
                         Listing.obj_id == obj_id,
                         Listing.list_name == list_name,
                     )
-                ).first()
+                )
 
             if listing is None:
                 return self.error("Cannot delete Listing.")
 
             list_name = listing.list_name
 
-            session.delete(listing)
-            session.commit()
+            await session.delete(listing)
+            await session.commit()
 
             if list_name == "favorites":
                 self.push(action="skyportal/REFRESH_FAVORITES")

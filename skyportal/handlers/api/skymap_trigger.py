@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 from astropy.time import Time
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
 
@@ -16,7 +17,7 @@ from ..base import BaseHandler
 
 class SkymapTriggerAPIHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Post a skymap-based trigger
@@ -41,13 +42,19 @@ class SkymapTriggerAPIHandler(BaseHandler):
 
         data = self.get_json()
         integrated_probability = data.get("integrated_probability", 0.95)
+        try:
+            integrated_probability = float(integrated_probability)
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid integrated_probability: {integrated_probability}"
+            )
 
-        with self.Session() as session:
-            allocation = session.scalars(
-                Allocation.select(session.user_or_token).where(
-                    Allocation.id == data["allocation_id"]
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            allocation = await session.scalar(
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == data["allocation_id"])
+                .options(selectinload(Allocation.instrument))
+            )
             if allocation is None:
                 return self.error(
                     f"Cannot find Allocation with ID: {data['allocation_id']}"
@@ -62,17 +69,19 @@ class SkymapTriggerAPIHandler(BaseHandler):
                     "Submitting skymap requests to this Instrument is not available."
                 )
 
-            stmt = Localization.select(session.user_or_token).where(
-                Localization.id == data["localization_id"],
+            localization = await session.scalar(
+                Localization.select(session.user_or_token).where(
+                    Localization.id == data["localization_id"],
+                )
             )
-            localization = session.scalars(stmt).first()
             if localization is None:
                 return self.error("Localization not found", status=404)
 
-            stmt = GcnEvent.select(session.user_or_token).where(
-                GcnEvent.dateobs == localization.dateobs,
+            gcn_event = await session.scalar(
+                GcnEvent.select(session.user_or_token).where(
+                    GcnEvent.dateobs == localization.dateobs,
+                )
             )
-            gcn_event = session.scalars(stmt).first()
             if gcn_event is None:
                 return self.error("GcnEvent not found", status=404)
 
@@ -84,7 +93,6 @@ class SkymapTriggerAPIHandler(BaseHandler):
                     break
 
             partition_key = localization.dateobs
-            # now get the dateobs in the format YYYY_MM
             localizationtile_partition_name = (
                 f"{partition_key.year}_{partition_key.month:02d}"
             )
@@ -96,15 +104,12 @@ class SkymapTriggerAPIHandler(BaseHandler):
                     "def", LocalizationTile
                 )
             else:
-                # check that there is actually a localizationTile with the given localization_id in the partition
-                # if not, use the default partition
-                if not (
-                    session.scalars(
-                        sa.select(localizationtilescls.localization_id).where(
-                            localizationtilescls.localization_id == localization.id
-                        )
-                    ).first()
-                ):
+                partition_check = await session.scalar(
+                    sa.select(localizationtilescls.localization_id).where(
+                        localizationtilescls.localization_id == localization.id
+                    )
+                )
+                if partition_check is None:
                     localizationtilescls = LocalizationTile.partitions.get(
                         "def", LocalizationTile
                     )
@@ -145,7 +150,12 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 .group_by(InstrumentField.field_id)
             )
 
-            field_ids, probs = zip(*session.execute(field_tiles_query).all())
+            field_tiles_result = await session.execute(field_tiles_query)
+            rows = field_tiles_result.all()
+            if not rows:
+                field_ids, probs = (), ()
+            else:
+                field_ids, probs = zip(*rows)
 
             payload = {
                 "trigger_name": gracedb_id
@@ -169,7 +179,7 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    def get(self, allocation_id: int):
+    async def get(self, allocation_id: int):
         """
         ---
         summary: Retrieve skymap-based trigger from external API
@@ -195,17 +205,22 @@ class SkymapTriggerAPIHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            allocation_id_int = int(allocation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid allocation_id: {allocation_id}")
+
         data = {}
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
-        data["allocation_id"] = int(allocation_id)
+        data["allocation_id"] = allocation_id_int
 
-        with self.Session() as session:
-            allocation = session.scalars(
-                Allocation.select(session.user_or_token).where(
-                    Allocation.id == data["allocation_id"]
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            allocation = await session.scalar(
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == data["allocation_id"])
+                .options(selectinload(Allocation.instrument))
+            )
             if allocation is None:
                 return self.error(
                     f"Cannot find Allocation with ID: {data['allocation_id']}"
@@ -222,15 +237,13 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 )
 
             try:
-                # we now retrieve and commit to the database the
-                # executed observations
                 trigger_names = instrument.api_class_obsplan.queued_skymap(allocation)
                 return self.success(data={"trigger_names": trigger_names})
             except Exception as e:
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    def delete(self, allocation_id: int):
+    async def delete(self, allocation_id: int):
         """
         ---
         summary: Delete skymap-based trigger from external API
@@ -261,6 +274,11 @@ class SkymapTriggerAPIHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            allocation_id_int = int(allocation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid allocation_id: {allocation_id}")
+
         data = self.get_json()
 
         if "trigger_name" not in data:
@@ -269,14 +287,14 @@ class SkymapTriggerAPIHandler(BaseHandler):
 
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
-        data["allocation_id"] = allocation_id
+        data["allocation_id"] = allocation_id_int
 
-        with self.Session() as session:
-            allocation = session.scalars(
-                Allocation.select(session.user_or_token).where(
-                    Allocation.id == data["allocation_id"]
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            allocation = await session.scalar(
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == data["allocation_id"])
+                .options(selectinload(Allocation.instrument))
+            )
             if allocation is None:
                 return self.error(
                     f"Cannot find Allocation with ID: {data['allocation_id']}"

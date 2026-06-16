@@ -1,10 +1,11 @@
-from sqlalchemy.orm import contains_eager, scoped_session, sessionmaker
+from sqlalchemy.orm import selectinload
 
+from baselayer.app import models as baselayer_models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...models import DBSession, ObjAnalysis
+from ...models import ObjAnalysis
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 from .candidate.candidate import (
@@ -15,11 +16,9 @@ log = make_log("app/webhook")
 
 _, cfg = load_env()
 
-Session = scoped_session(sessionmaker())
-
 
 class AnalysisWebhookHandler(BaseHandler):
-    def post(self, analysis_resource_type: str, token: str):
+    async def post(self, analysis_resource_type: str, token: str):
         """
         ---
         summary: Return the results of an analysis
@@ -65,121 +64,120 @@ class AnalysisWebhookHandler(BaseHandler):
             f"Received webhook request for Analysis type={analysis_resource_type} token={token}"
         )
 
-        # allowable resources now are [obj]. Can be extended in the future.
         if analysis_resource_type.lower() not in ["obj"]:
             return self.error("Invalid analysis resource type", status=403)
 
-        # Authenticate the token, then lock this analysis, before going on.
-        try:
-            if Session.registry.has():
-                session = Session()
-            else:
-                session = Session(bind=DBSession.session_factory.kw["bind"])
-            analysis = (
-                session.query(ObjAnalysis)
-                .join(ObjAnalysis.analysis_service)
-                .join(ObjAnalysis.obj)
-                .options(contains_eager(ObjAnalysis.analysis_service))
-                .options(contains_eager(ObjAnalysis.obj))
-                .filter(ObjAnalysis.token == token)
-                .first()
-            )
-            if not analysis:
-                return self.error("Invalid token", status=403)
-            last_active = analysis.last_activity
-            if analysis.status not in ["pending", "queued"]:
-                return self.error(
-                    f"Analysis already updated with status='{analysis.status}'"
-                    f" and message={analysis.status_message}",
-                    status=403,
-                )
-            if analysis.invalid_after and utcnow_naive() > analysis.invalid_after:
-                analysis.status = "timed_out"
-                analysis.status_message = (
-                    f"Analysis timed out before webhook call at {str(utcnow_naive())}"
-                )
+        async with baselayer_models.async_plain_session_factory() as session:
+            try:
+                analysis = await session.scalar(sa_select_analysis_by_token(token))
+                if not analysis:
+                    return self.error("Invalid token", status=403)
+                last_active = analysis.last_activity
+                if analysis.status not in ["pending", "queued"]:
+                    return self.error(
+                        f"Analysis already updated with status='{analysis.status}'"
+                        f" and message={analysis.status_message}",
+                        status=403,
+                    )
+                if analysis.invalid_after and utcnow_naive() > analysis.invalid_after:
+                    analysis.status = "timed_out"
+                    analysis.status_message = f"Analysis timed out before webhook call at {str(utcnow_naive())}"
+                    analysis.last_activity = utcnow_naive()
+                    analysis.duration = (
+                        analysis.last_activity - last_active
+                    ).total_seconds()
+                    await session.commit()
+                    return self.error("Token has expired", status=400)
+
+                # lock the analysis associated with this token and commit immediately
+                # to avoid race conditions, so results are not written more than once
+                analysis.status = "completed"
                 analysis.last_activity = utcnow_naive()
                 analysis.duration = (
                     analysis.last_activity - last_active
                 ).total_seconds()
-                session.commit()
-                session.close()
-                return self.error("Token has expired", status=400)
+                await session.commit()
+            except Exception as e:
+                log(f"Trouble accessing Analysis with token {token} {e}.")
+                return self.error("Invalid token", status=403)
 
-            # lock the analysis associated with this token and commit immediately to avoid race conditions,
-            # so that the results are not written more than once
-            analysis.status = "completed"
-            analysis.last_activity = utcnow_naive()
-            analysis.duration = (analysis.last_activity - last_active).total_seconds()
-            session.commit()
-        except Exception as e:
-            log(f"Trouble accessing Analysis with token {token} {e}.")
-            return self.error("Invalid token", status=403)
+            data = self.get_json()
 
-        data = self.get_json()
+            if data.get("status", "error") != "success":
+                analysis.status = "failure"
+            analysis.status_message = data.get("message", "")
 
-        if data.get("status", "error") != "success":
-            analysis.status = "failure"
-        analysis.status_message = data.get("message", "")
-
-        results = data.get("analysis", {})
-        if len(results.keys()) > 0:
-            analysis._data = results
-            analysis.save_data()
-            log(
-                f"Saved webhook data at {analysis.filename}. Message: {analysis.status_message}"
-            )
-        else:
-            log(
-                f"Note: empty analysis results for this webhook. Message: {analysis.status_message}"
-            )
-
-        session.commit()
-
-        # check the analysis type and push to the source
-        # if the analysis type is a summary
-        try:
-            flow = Flow()
-            if analysis.analysis_service.is_summary:
-                if "Incorrect API key provided" in analysis.status_message:
-                    try:
-                        flow.push(
-                            analysis.author_id,
-                            "baselayer/SHOW_NOTIFICATION",
-                            payload={
-                                "note": "Invalid OpenAI API key for this summary. If you provided your own key, please correct it and try again.",
-                                "type": "error",
-                            },
-                        )
-                    except Exception:
-                        pass
-                try:
-                    summary = {"summary": analysis.serialize_results_data()["summary"]}
-                except Exception as e:
-                    raise ValueError(f"Error serializing summary: {e}")
-                summary["created_at"] = analysis.created_at
-                summary["is_bot"] = True
-                summary["analysis_id"] = analysis.id
-                update_summary_history_if_relevant(
-                    summary, analysis.obj, analysis.author
-                )
-                session.commit()
-                log("analysis is a summary. Pushing to source.")
-                flow.push(
-                    "*",
-                    "skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": analysis.obj.internal_key},
+            results = data.get("analysis", {})
+            if len(results.keys()) > 0:
+                analysis._data = results
+                analysis.save_data()
+                log(
+                    f"Saved webhook data at {analysis.filename}. Message: {analysis.status_message}"
                 )
             else:
-                if analysis_resource_type.lower() == "obj":
+                log(
+                    f"Note: empty analysis results for this webhook. Message: {analysis.status_message}"
+                )
+
+            await session.commit()
+
+            try:
+                flow = Flow()
+                if analysis.analysis_service.is_summary:
+                    if "Incorrect API key provided" in analysis.status_message:
+                        try:
+                            flow.push(
+                                analysis.author_id,
+                                "baselayer/SHOW_NOTIFICATION",
+                                payload={
+                                    "note": "Invalid OpenAI API key for this summary. If you provided your own key, please correct it and try again.",
+                                    "type": "error",
+                                },
+                            )
+                        except Exception:
+                            pass
+                    try:
+                        summary = {
+                            "summary": analysis.serialize_results_data()["summary"]
+                        }
+                    except Exception as e:
+                        raise ValueError(f"Error serializing summary: {e}")
+                    summary["created_at"] = analysis.created_at
+                    summary["is_bot"] = True
+                    summary["analysis_id"] = analysis.id
+                    update_summary_history_if_relevant(
+                        summary, analysis.obj, analysis.author
+                    )
+                    await session.commit()
+                    log("analysis is a summary. Pushing to source.")
                     flow.push(
                         "*",
-                        "skyportal/REFRESH_OBJ_ANALYSES",
+                        "skyportal/REFRESH_SOURCE",
                         payload={"obj_key": analysis.obj.internal_key},
                     )
-        except Exception as e:
-            log(f"Error pushing update to source: {e}")
-
-        session.close()
+                else:
+                    if analysis_resource_type.lower() == "obj":
+                        flow.push(
+                            "*",
+                            "skyportal/REFRESH_OBJ_ANALYSES",
+                            payload={"obj_key": analysis.obj.internal_key},
+                        )
+            except Exception as e:
+                log(f"Error pushing update to source: {e}")
 
         return self.success(data={"status": "success"})
+
+
+def sa_select_analysis_by_token(token):
+    """Build the eager-loaded SELECT for the analysis row keyed by token."""
+    import sqlalchemy as sa
+
+    return (
+        sa.select(ObjAnalysis)
+        .where(ObjAnalysis.token == token)
+        .options(
+            selectinload(ObjAnalysis.analysis_service),
+            selectinload(ObjAnalysis.obj),
+            selectinload(ObjAnalysis.author),
+        )
+    )
