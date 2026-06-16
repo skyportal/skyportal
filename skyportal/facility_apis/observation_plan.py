@@ -1,16 +1,16 @@
+import asyncio
 import json
 import os
 import tempfile
 from datetime import timedelta
 
+import aiohttp
 import paramiko
-import requests
 import sqlalchemy as sa
 from astropy.time import Time
 from paramiko import SSHClient
-from requests import Request, Session
 from scp import SCPClient
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -709,7 +709,7 @@ class MMAAPI(FollowUpAPI):
         return form_json_schema
 
     @staticmethod
-    def send(request, session):
+    async def send(request, session):
         """Submit an EventObservationPlan.
 
         Parameters
@@ -718,7 +718,27 @@ class MMAAPI(FollowUpAPI):
             The request to add to the queue and the SkyPortal database.
         """
 
-        from ..models import FacilityTransaction
+        from ..models import (
+            EventObservationPlan,
+            FacilityTransaction,
+            ObservationPlanRequest,
+            PlannedObservation,
+        )
+
+        # Reload with the lazy chains this method (and the payload builder) walks
+        # eager-loaded, since async sessions raise on implicit lazy loads. Returns
+        # the same identity-mapped object, so later request.status mutations persist.
+        request = await session.scalar(
+            sa.select(ObservationPlanRequest)
+            .where(ObservationPlanRequest.id == request.id)
+            .options(
+                selectinload(ObservationPlanRequest.allocation),
+                selectinload(ObservationPlanRequest.requester),
+                selectinload(ObservationPlanRequest.observation_plans)
+                .selectinload(EventObservationPlan.planned_observations)
+                .selectinload(PlannedObservation.field),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -740,21 +760,27 @@ class MMAAPI(FollowUpAPI):
                 json.dump(payload, f, indent=4, sort_keys=True)
                 f.flush()
 
-                ssh = SSHClient()
-                ssh.load_system_host_keys()
-                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                ssh.connect(
-                    hostname=altdata["host"],
-                    port=altdata["port"],
-                    username=altdata["username"],
-                    password=altdata["password"],
-                )
-                scp = SCPClient(ssh.get_transport())
-                scp.put(
-                    f.name,
-                    os.path.join(altdata["directory"], payload["queue_name"] + ".json"),
-                )
-                scp.close()
+                # paramiko/scp do blocking SSH IO; run off the event loop.
+                def _scp_put():
+                    ssh = SSHClient()
+                    ssh.load_system_host_keys()
+                    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    ssh.connect(
+                        hostname=altdata["host"],
+                        port=altdata["port"],
+                        username=altdata["username"],
+                        password=altdata["password"],
+                    )
+                    scp = SCPClient(ssh.get_transport())
+                    scp.put(
+                        f.name,
+                        os.path.join(
+                            altdata["directory"], payload["queue_name"] + ".json"
+                        ),
+                    )
+                    scp.close()
+
+                await asyncio.to_thread(_scp_put)
 
                 request.status = "submitted"
 
@@ -769,25 +795,32 @@ class MMAAPI(FollowUpAPI):
                 f"http://{cfg['hosts.slack']}:{cfg['slack.microservice_port']}"
             )
 
-            data = json.dumps(
-                {
-                    "url": f"{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}",
-                    "text": str(payload),
-                }
-            )
+            slack_data = {
+                "url": f"{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}",
+                "text": str(payload),
+            }
+            data = json.dumps(slack_data)
+            headers = {"Content-Type": "application/json"}
 
-            r = requests.post(
-                slack_microservice_url,
-                data=data,
-                headers={"Content-Type": "application/json"},
-            )
-            r.raise_for_status()
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.post(
+                    slack_microservice_url, data=data, headers=headers
+                ) as r:
+                    content = await r.text()
+                    status = r.status
+
+            if status >= 400:
+                raise ValueError(
+                    f"Error submitting to Slack: status {status}: {content}"
+                )
 
             request.status = "submitted"
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_aiohttp_request(
+                    "POST", slack_microservice_url, headers, slack_data
+                ),
+                response=await http.serialize_aiohttp_response(r, content),
                 observation_plan_request=request,
                 initiator_id=request.last_modified_by_id,
             )
@@ -822,18 +855,18 @@ class MMAAPI(FollowUpAPI):
                 + altdata["port"]
                 + "/api/obsplans"
             )
-            s = Session()
-            genericreq = Request("PUT", url, json=payload, headers=headers)
-            prepped = genericreq.prepare()
-            r = s.send(prepped)
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.put(url, json=payload, headers=headers) as r:
+                    content = await r.text()
+                    status = r.status
 
-            if r.status_code == 200:
+            if status == 200:
                 request.status = "submitted to telescope queue"
             else:
-                request.status = f"rejected from telescope queue: {r.content}"
+                request.status = f"rejected from telescope queue: {content}"
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
+                request=http.serialize_aiohttp_request("PUT", url, headers, payload),
                 response=None,
                 observation_plan_request=request,
                 initiator_id=request.last_modified_by_id,
