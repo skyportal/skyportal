@@ -849,7 +849,6 @@ def add_followup_request_using_frontend_and_verify_SEDM(
 
     submit_button.click()
 
-    # page.locator(f"//*[@data-testid='SEDM-requests-header']").first.click()
     page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
 
     expect(
@@ -1026,7 +1025,7 @@ def test_submit_new_followup_request_Floyds(
 def test_edit_existing_followup_request(
     page, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify_SEDM(
+    instrument_id, _ = add_followup_request_using_frontend_and_verify_SEDM(
         page, super_admin_user, public_source, super_admin_token, public_group
     )
     edit_button = page.locator('//button[contains(@data-testid, "editRequest")]').first
@@ -1039,26 +1038,30 @@ def test_edit_existing_followup_request(
     mix_n_match_option = page.locator("""//li[@data-value="2"]""").first
     mix_n_match_option.click()
 
+    # The observation-type menu doesn't auto-close on selection; close it so its
+    # backdrop stops intercepting the submit click.
+    page.keyboard.press("Escape")
+
     submit_button = page.locator(
         '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     ).first
 
     submit_button.click()
 
-    page.locator("//*[@data-testid='SEDM-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
     expect(
         page.locator(
-            '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "IFU")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "IFU")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]"""
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "1")]'
         ).first
     ).to_be_visible()
     expect(
         page.locator(
-            """//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]"""
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
         ).first
     ).to_be_visible()
 
@@ -1324,7 +1327,7 @@ def test_submit_new_followup_request_two_groups(
     page.locator('//input[@id="root_observation_choices-4"]').first.click()
     submit_button.click()
 
-    page.locator("//*[@data-testid='SEDM-requests-header']").first.click()
+    page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
