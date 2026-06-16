@@ -15,7 +15,8 @@ from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload  # noqa: F401
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.sql import Values, bindparam, column, text
 from sqlalchemy.sql.expression import case, cast, func
 from sqlalchemy.types import Boolean, Float, Integer, String
@@ -48,12 +49,12 @@ from ....models import (
 )
 from ....utils.cache import Cache, array_to_bytes
 from ....utils.calculations import great_circle_distance
+from ....utils.data_access import accessible_group_and_filter_ids
 from ....utils.parse import get_page_and_n_per_page
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...base import BaseHandler
 from .candidate_filter import (
     get_subquery_for_saved_status,
-    get_user_accessible_group_and_filter_ids,
 )
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
@@ -150,23 +151,22 @@ def create_photometry_annotations_query(
     return photometry_annotations_query
 
 
-def fetch_obj_data(model, options, obj_id, session):
-    return (
-        session.scalars(
-            model.select(session.user_or_token, options=options).where(
-                model.obj_id == obj_id
-            )
+async def fetch_obj_data(model, options, obj_id, session):
+    """Async fetch of all rows of ``model`` for ``obj_id``."""
+    result = await session.scalars(
+        model.select(session.user_or_token, options=options).where(
+            model.obj_id == obj_id
         )
-        .unique()
-        .all()
     )
+    return result.unique().all()
 
 
-def include_requested_obj_data(
+async def include_requested_obj_data(
     obj_id, candidate, get_query_argument, session, include_phot_annotations
 ):
-    """
-    Add object data to the candidate dictionary based on the query parameters
+    """Add object data to the candidate dictionary based on the query
+    parameters. Async equivalent of the previous sync version — uses
+    ``selectinload`` to avoid lazy loads on the merged objects.
 
     Parameters
     ----------
@@ -176,8 +176,7 @@ def include_requested_obj_data(
         The candidate dictionary
     get_query_argument : func
         The function to get query arguments
-    session : `baselayer.app.models.Session`
-        Database session
+    session : ``sqlalchemy.ext.asyncio.AsyncSession``
     include_phot_annotations : bool
         Whether to include photometry annotations
 
@@ -187,11 +186,11 @@ def include_requested_obj_data(
         The updated candidate dictionary
     """
     if get_query_argument("includePhotometry", False):
-        phot_options = [joinedload(Photometry.instrument)]
+        phot_options = [selectinload(Photometry.instrument)]
 
         if include_phot_annotations:
-            phot_options.append(joinedload(Photometry.annotations))
-            candidate["photometry"] = fetch_obj_data(
+            phot_options.append(selectinload(Photometry.annotations))
+            candidate["photometry"] = await fetch_obj_data(
                 Photometry, phot_options, obj_id, session
             )
             candidate["photometry"] = [
@@ -204,47 +203,48 @@ def include_requested_obj_data(
                 for phot in candidate["photometry"]
             ]
         else:
-            candidate["photometry"] = fetch_obj_data(
+            candidate["photometry"] = await fetch_obj_data(
                 Photometry, phot_options, obj_id, session
             )
 
     if get_query_argument("includeSpectra", False):
-        candidate["spectra"] = fetch_obj_data(
-            Spectrum, [joinedload(Spectrum.instrument)], obj_id, session
+        candidate["spectra"] = await fetch_obj_data(
+            Spectrum, [selectinload(Spectrum.instrument)], obj_id, session
         )
 
     if get_query_argument("includeComments", False):
         candidate["comments"] = sorted(
-            fetch_obj_data(Comment, [joinedload(Comment.author)], obj_id, session),
+            await fetch_obj_data(
+                Comment, [selectinload(Comment.author)], obj_id, session
+            ),
             key=lambda x: x.created_at,
             reverse=True,
         )
     if get_query_argument("includeFollowupRequests", False):
-        candidate["followup_requests"] = fetch_obj_data(
+        candidate["followup_requests"] = await fetch_obj_data(
             FollowupRequest,
             [
-                joinedload(FollowupRequest.allocation).joinedload(
+                selectinload(FollowupRequest.allocation).selectinload(
                     Allocation.instrument
                 ),
-                joinedload(FollowupRequest.allocation).joinedload(
+                selectinload(FollowupRequest.allocation).selectinload(
                     Allocation.group,
                 ),
-                joinedload(FollowupRequest.requester),
+                selectinload(FollowupRequest.requester),
             ],
             obj_id,
             session,
         )
 
     if get_query_argument("includeAssociatedObjs", True):
-        # For each associated obj, we include the same info as for duplicates (obj_id, ra, dec, separation),
-        # but we also include the super_obj_id (and name) through which it is associated to the current obj
-        super_objs = (
-            session.scalars(
-                sa.select(SuperObj).where(SuperObj.objs.any(Obj.id == obj_id))
-            )
-            .unique()
-            .all()
+        # For each associated obj, we include the same info as for duplicates
+        # (obj_id, ra, dec, separation), plus super_obj_{id,name}.
+        super_objs_result = await session.scalars(
+            sa.select(SuperObj)
+            .options(selectinload(SuperObj.objs))
+            .where(SuperObj.objs.any(Obj.id == obj_id))
         )
+        super_objs = super_objs_result.unique().all()
         associated_objs = []
         for super_obj in super_objs:
             super_obj_id = super_obj.id
@@ -270,7 +270,9 @@ def include_requested_obj_data(
         )
 
     candidate["annotations"] = sorted(
-        fetch_obj_data(Annotation, [], obj_id, session),
+        await fetch_obj_data(
+            Annotation, [selectinload(Annotation.groups)], obj_id, session
+        ),
         key=lambda x: x.origin,
     )
     return candidate
@@ -292,7 +294,7 @@ def add_computed_fields(candidate_info, obj):
 
 class CandidateHandler(BaseHandler):
     @auth_or_token
-    def head(self, obj_id=None):
+    async def head(self, obj_id=None):
         """
         ---
         single:
@@ -316,7 +318,7 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             query_params = [bindparam("objID", value=obj_id, type_=sa.String)]
             stmt = "SELECT id FROM candidates WHERE obj_id = :objID"
             if not self.associated_user_object.is_admin:
@@ -325,13 +327,11 @@ class CandidateHandler(BaseHandler):
                         "userID", value=self.associated_user_object.id, type_=sa.Integer
                     )
                 )
-                # inner join between filters and group_users (on group_id) to get filters accessible by user
                 stmt += " AND filter_id IN (SELECT DISTINCT(filters.id) FROM filters INNER JOIN group_users ON filters.group_id = group_users.group_id WHERE group_users.user_id = :userID)"
             stmt += " LIMIT 1"
 
             stmt = text(stmt).bindparams(*query_params).columns(id=sa.Integer)
-            connection = session.connection()
-            result = connection.execute(stmt)
+            result = await session.execute(stmt)
             if result.fetchone():
                 return self.success()
             return self.error(
@@ -339,7 +339,7 @@ class CandidateHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, obj_id: str = None):
+    async def get(self, obj_id: str = None):
         """
         ---
         single:
@@ -706,24 +706,28 @@ class CandidateHandler(BaseHandler):
         include_alerts = self.get_query_argument("includeAlerts", False)
 
         if obj_id is not None:
-            with self.Session() as session:
-                query_options = [joinedload(Obj.thumbnails), joinedload(Obj.photstats)]
+            async with self.AsyncSession() as session:
+                query_options = [
+                    selectinload(Obj.thumbnails),
+                    selectinload(Obj.photstats),
+                ]
 
-                c = session.scalars(
+                c = await session.scalar(
                     Obj.select(session.user_or_token, options=query_options).where(
                         Obj.id == obj_id
                     )
-                ).first()
+                )
                 if c is None:
                     return self.error("Invalid ID")
                 candidate_info = recursive_to_dict(c)
 
                 if include_alerts:
-                    accessible_candidates = session.scalars(
+                    accessible_candidates_result = await session.scalars(
                         Candidate.select(session.user_or_token).where(
                             Candidate.obj_id == obj_id
                         )
-                    ).all()
+                    )
+                    accessible_candidates = accessible_candidates_result.unique().all()
                     filter_ids = [cand.filter_id for cand in accessible_candidates]
 
                     passing_alerts = [
@@ -737,7 +741,7 @@ class CandidateHandler(BaseHandler):
                     candidate_info["filter_ids"] = filter_ids
                     candidate_info["passing_alerts"] = passing_alerts
 
-                candidate_info = include_requested_obj_data(
+                candidate_info = await include_requested_obj_data(
                     obj_id,
                     candidate_info,
                     self.get_query_argument,
@@ -748,8 +752,10 @@ class CandidateHandler(BaseHandler):
                 stmt = Source.select(session.user_or_token).where(
                     Source.obj_id == obj_id
                 )
-                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-                candidate_info["is_source"] = session.execute(count_stmt).scalar()
+                count_stmt = sa.select(func.count()).select_from(
+                    stmt.distinct().subquery()
+                )
+                candidate_info["is_source"] = await session.scalar(count_stmt)
                 if candidate_info["is_source"]:
                     source_subquery = (
                         Source.select(session.user_or_token)
@@ -757,23 +763,19 @@ class CandidateHandler(BaseHandler):
                         .where(Source.active.is_(True))
                         .subquery()
                     )
-                    candidate_info["saved_groups"] = (
-                        session.scalars(
-                            Group.select(session.user_or_token).join(
-                                source_subquery, Group.id == source_subquery.c.group_id
-                            )
+                    saved_groups_result = await session.scalars(
+                        Group.select(session.user_or_token).join(
+                            source_subquery, Group.id == source_subquery.c.group_id
                         )
-                        .unique()
-                        .all()
+                    )
+                    candidate_info["saved_groups"] = saved_groups_result.unique().all()
+                    classifications_result = await session.scalars(
+                        Classification.select(session.user_or_token).where(
+                            Classification.obj_id == obj_id
+                        )
                     )
                     candidate_info["classifications"] = (
-                        session.scalars(
-                            Classification.select(session.user_or_token).where(
-                                Classification.obj_id == obj_id
-                            )
-                        )
-                        .unique()
-                        .all()
+                        classifications_result.unique().all()
                     )
                 add_computed_fields(candidate_info, c)
                 candidate_info = recursive_to_dict(candidate_info)
@@ -820,13 +822,8 @@ class CandidateHandler(BaseHandler):
         photometry_annotations_filter_before = self.get_query_argument(
             "photometryAnnotationsFilterBefore", None
         )
-        photometry_annotations_filter_min_count = self.get_query_argument(
-            "photometryAnnotationsFilterMinCount", 1
-        )
-
-        # Coerce the date filters to datetimes before they reach the
-        # AnnotationOnPhotometry.created_at (timestamp) comparison -- psycopg3
-        # rejects a "timestamp = varchar" comparison if these stay strings.
+        # Parse to naive datetimes so the query compares against the timestamp
+        # column rather than a string (Postgres has no timestamp >= text op).
         if photometry_annotations_filter_after is not None:
             try:
                 photometry_annotations_filter_after = arrow.get(
@@ -847,6 +844,9 @@ class CandidateHandler(BaseHandler):
                     f"Invalid photometryAnnotationsFilterBefore: "
                     f"{photometry_annotations_filter_before}"
                 )
+        photometry_annotations_filter_min_count = self.get_query_argument(
+            "photometryAnnotationsFilterMinCount", 1
+        )
 
         first_detected_date = self.get_query_argument("firstDetectionAfter", None)
         last_detected_date = self.get_query_argument("lastDetectionBefore", None)
@@ -902,10 +902,10 @@ class CandidateHandler(BaseHandler):
         except ValueError as e:
             return self.error(str(e))
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             # first, we get the list of group IDs and filter IDs
             # that the user has access to
-            group_ids, filter_ids = get_user_accessible_group_and_filter_ids(
+            group_ids, filter_ids = await accessible_group_and_filter_ids(
                 session,
                 session.user_or_token,
                 group_ids,
@@ -1282,18 +1282,18 @@ class CandidateHandler(BaseHandler):
                     )
             if localization_dateobs is not None:
                 if localization_name is None:
-                    localization = session.scalars(
+                    localization = await session.scalar(
                         Localization.select(self.associated_user_object)
                         .where(Localization.dateobs == localization_dateobs)
                         .order_by(Localization.created_at.desc())
-                    ).first()
+                    )
                 else:
-                    localization = session.scalars(
+                    localization = await session.scalar(
                         Localization.select(self.associated_user_object)
                         .where(Localization.dateobs == localization_dateobs)
                         .where(Localization.localization_name == localization_name)
                         .order_by(Localization.modified.desc())
-                    ).first()
+                    )
                 if localization is None:
                     if localization_name is not None:
                         return self.error(
@@ -1319,15 +1319,12 @@ class CandidateHandler(BaseHandler):
                         "def", LocalizationTile
                     )
                 else:
-                    # check that there is actually a localizationTile with the given localization_id in the partition
-                    # if not, use the default partition
-                    if not (
-                        session.scalars(
-                            localizationtilescls.select(session.user_or_token).where(
-                                localizationtilescls.localization_id == localization.id
-                            )
-                        ).first()
-                    ):
+                    existing_tile = await session.scalar(
+                        localizationtilescls.select(session.user_or_token).where(
+                            localizationtilescls.localization_id == localization.id
+                        )
+                    )
+                    if not existing_tile:
                         localizationtilescls = LocalizationTile.partitions.get(
                             "def", LocalizationTile
                         )
@@ -1356,12 +1353,13 @@ class CandidateHandler(BaseHandler):
                     )
                 ).scalar_subquery()
 
-                tile_ids = session.scalars(
+                tile_ids_result = await session.scalars(
                     sa.select(localizationtilescls.id).where(
                         localizationtilescls.localization_id == localization.id,
                         localizationtilescls.probdensity >= min_probdensity,
                     )
-                ).all()
+                )
+                tile_ids = tile_ids_result.all()
 
                 tiles_subquery = (
                     sa.select(Obj.id)
@@ -1377,7 +1375,7 @@ class CandidateHandler(BaseHandler):
                 )
 
             try:
-                query_results = grab_query_results(
+                query_results = await grab_query_results(
                     session,
                     q,
                     page_number,
@@ -1393,23 +1391,21 @@ class CandidateHandler(BaseHandler):
                     return self.error("Page number out of range.")
                 raise
 
-            matching_source_ids = (
-                session.scalars(
-                    Source.select(session.user_or_token, columns=[Source.obj_id]).where(
-                        Source.obj_id.in_(
-                            [obj.id for (obj,) in query_results["candidates"]]
-                        )
+            matching_source_ids_result = await session.scalars(
+                Source.select(session.user_or_token, columns=[Source.obj_id]).where(
+                    Source.obj_id.in_(
+                        [obj.id for (obj,) in query_results["candidates"]]
                     )
                 )
-                .unique()
-                .all()
             )
+            matching_source_ids = matching_source_ids_result.unique().all()
             candidate_list = []
             if autosave:
-                from ..source import post_source
+                from ..source import post_source_async
 
             for (obj,) in query_results["candidates"]:
-                with session.no_autoflush:
+                # AsyncSession.no_autoflush is a property; use the proxy.
+                with session.sync_session.no_autoflush:
                     obj.is_source = obj.id in matching_source_ids
                     if obj.is_source:
                         source_subquery = (
@@ -1418,44 +1414,53 @@ class CandidateHandler(BaseHandler):
                             .where(Source.active.is_(True))
                             .subquery()
                         )
-                        obj.saved_groups = session.scalars(
+                        saved_groups_result = await session.scalars(
                             Group.select(session.user_or_token).join(
                                 source_subquery, Group.id == source_subquery.c.group_id
                             )
-                        ).all()
-                        obj.classifications = (
-                            session.scalars(
-                                Classification.select(self.current_user).where(
-                                    Classification.obj_id == obj.id
-                                )
-                            )
-                            .unique()
-                            .all()
                         )
-                    obj.passing_group_ids = [
-                        f.group_id
-                        for f in session.scalars(
-                            Filter.select(session.user_or_token).where(
-                                Filter.id.in_(
-                                    session.scalars(
-                                        Candidate.select(
-                                            session.user_or_token,
-                                            columns=[Candidate.filter_id],
-                                        ).where(Candidate.obj_id == obj.id)
-                                    ).all()
-                                )
+                        obj.saved_groups = saved_groups_result.unique().all()
+                        classifications_result = await session.scalars(
+                            Classification.select(self.current_user).where(
+                                Classification.obj_id == obj.id
                             )
-                        ).all()
-                    ]
+                        )
+                        # Direct assignment would lazy-load the existing
+                        # `Obj.classifications` collection before replace,
+                        # which trips MissingGreenlet under async. Use
+                        # set_committed_value to set it without trigger.
+                        set_committed_value(
+                            obj,
+                            "classifications",
+                            classifications_result.unique().all(),
+                        )
+                    candidate_filter_ids_result = await session.scalars(
+                        Candidate.select(
+                            session.user_or_token,
+                            columns=[Candidate.filter_id],
+                        ).where(Candidate.obj_id == obj.id)
+                    )
+                    candidate_filter_ids = candidate_filter_ids_result.all()
+                    passing_filters_result = await session.scalars(
+                        Filter.select(session.user_or_token).where(
+                            Filter.id.in_(candidate_filter_ids)
+                        )
+                    )
+                    passing_filters = passing_filters_result.all()
+                    obj.passing_group_ids = [f.group_id for f in passing_filters]
                     if autosave:
                         source = {
                             "id": obj.id,
                             "group_ids": autosave_group_ids,
                         }
-                        post_source(source, self.associated_user_object.id, session)
+                        await post_source_async(
+                            source,
+                            self.associated_user_object.id,
+                            session,
+                        )
 
                     candidate_list.append(recursive_to_dict(obj))
-                    candidate_list[-1] = include_requested_obj_data(
+                    candidate_list[-1] = await include_requested_obj_data(
                         obj.id,
                         candidate_list[-1],
                         self.get_query_argument,
@@ -1491,7 +1496,7 @@ class CandidateHandler(BaseHandler):
             return self.success(data=query_results)
 
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create new candidate(s)
@@ -1542,10 +1547,10 @@ class CandidateHandler(BaseHandler):
         """
         data = self.get_json()
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == data["id"])
-            ).first()
+            )
             obj_already_exists = obj is not None
             schema = Obj.__schema__()
 
@@ -1576,20 +1581,26 @@ class CandidateHandler(BaseHandler):
                         f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
                 session.add(obj)
+                await session.flush()
 
-            filters = session.scalars(
+            filters_result = await session.scalars(
                 Filter.select(session.user_or_token).where(Filter.id.in_(filter_ids))
-            ).all()
+            )
+            filters = filters_result.unique().all()
             if not filters:
                 return self.error("At least one valid filter ID must be provided.")
 
             update_redshift_history_if_relevant(data, obj, self.associated_user_object)
             update_healpix_if_relevant(data, obj)
 
+            # Capture obj.id BEFORE the commit attempt so that we can still
+            # build an error message after a rollback (which detaches obj).
+            obj_id_str = obj.id
+
             candidates = [
                 Candidate(
-                    obj=obj,
-                    filter=filter,
+                    obj_id=obj_id_str,
+                    filter_id=filter.id,
                     passing_alert_id=passing_alert_id,
                     passed_at=passed_at,
                     uploader_id=self.associated_user_object.id,
@@ -1598,18 +1609,18 @@ class CandidateHandler(BaseHandler):
             ]
             session.add_all(candidates)
             try:
-                session.commit()
+                await session.commit()
                 ids = [c.id for c in candidates]
             except IntegrityError as e:
-                session.rollback()
+                await session.rollback()
                 return self.error(
-                    f"Failed to post candidate for object {obj.id}: {e.args[0]}"
+                    f"Failed to post candidate for object {obj_id_str}: {e.args[0]}"
                 )
 
             return self.success(data={"ids": ids})
 
     @permissions(["Upload data"])
-    def delete(self, obj_id: str, filter_id: int):
+    async def delete(self, obj_id: str, filter_id: int):
         """
         ---
         summary: Delete candidate(s)
@@ -1640,19 +1651,20 @@ class CandidateHandler(BaseHandler):
                           $ref: '#/components/schemas/Success'
         """
 
-        with self.Session() as session:
-            cands_to_delete = session.scalars(
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
                 Candidate.select(session.user_or_token, mode="delete")
                 .where(Candidate.obj_id == obj_id)
                 .where(Candidate.filter_id == filter_id)
-            ).all()
+            )
+            cands_to_delete = result.all()
             if not cands_to_delete:
                 return self.error(
                     "Invalid (obj_id, filter_id) pairing - no matching candidates"
                 )
             for cand in cands_to_delete:
-                session.delete(cand)
-            session.commit()
+                await session.delete(cand)
+            await session.commit()
             return self.success()
 
 
@@ -1681,7 +1693,7 @@ def get_obj_id_values(obj_ids):
     return values_table
 
 
-def grab_query_results(
+async def grab_query_results(
     session,
     q,
     page,
@@ -1698,44 +1710,17 @@ def grab_query_results(
     If there are no matching Objs, an empty list [] is returned instead.
     include_detection_stats is added to the pagination query directly here.
     """
-    # The query will return multiple rows per candidate object if it has multiple
-    # annotations associated with it, with rows appearing at the end of the query
-    # for any annotations with origins not equal to the one being sorted on (if applicable).
-    # We want to essentially grab only the candidate objects as they first appear
-    # in the query results, and ignore these other irrelevant annotation entries.
-
-    # Add a "row_num" column to the desired query that explicitly encodes the ordering
-    # of the query results - remember that these query rows are essentially
-    # (Obj, Annotation) tuples, so the earliest row numbers for a given Obj is
-    # the one we want to adhere to (and the later ones are annotation records for
-    # the candidate that are not being sorted/filtered on right now)
-    #
-    # The row number must be preserved like this in order to remember the desired
-    # ordering info even while using the passed in query as a subquery to select
-    # from. This is because subqueries provide a set of results to query from,
-    # losing any order_by information.
     row = func.row_number().over(order_by=order_by).label("row_num")
     full_query = q.add_columns(row)
 
     info = {}
     full_query = full_query.subquery()
-    # Using the PostgreSQL DISTINCT ON keyword, we grab the candidate Obj ids
-    # in the order that they first appear in the query (per the row_num values)
-    # NOTE: It is probably possible to grab the full Obj records here instead of
-    # just the ID values, but querying "full_query" here means we lost the original
-    # ORM mappings, so we would have to explicitly re-label the columns here.
-    # It is much more straightforward to just get an ordered list of Obj ID
-    # values here and get the corresponding n_items_per_page full Obj objects
-    # at the end, I think, for minimal additional overhead.
     ids_with_row_nums = (
         sa.select(full_query.c.id, full_query.c.row_num)
         .distinct(full_query.c.id)
         .order_by(full_query.c.id, full_query.c.row_num)
         .subquery()
     )
-    # Grouping and getting the first distinct obj_id above messed up the order
-    # in the query set, so re-order by the row_num we used to remember the
-    # original ordering
     ordered_ids = sa.select(
         ids_with_row_nums.c.id,
     ).order_by(ids_with_row_nums.c.row_num)
@@ -1746,9 +1731,9 @@ def grab_query_results(
             if cache_filename is not None:
                 all_ids = np.load(cache_filename)
             else:
-                # Cache expired/removed/non-existent; create new cache file
                 query_id = str(uuid.uuid4())
-                all_ids = session.scalars(ordered_ids).unique().all()
+                all_result = await session.scalars(ordered_ids)
+                all_ids = all_result.unique().all()
                 cache[query_id] = array_to_bytes(all_ids)
             total_matches = len(all_ids)
             obj_ids_in_page = all_ids[
@@ -1756,23 +1741,21 @@ def grab_query_results(
             ]
             info["queryID"] = query_id
         else:
-            count_stmt = sa.select(func.count()).select_from(ordered_ids)
-            total_matches = session.execute(count_stmt).scalar()
-            obj_ids_in_page = (
-                session.scalars(
-                    ordered_ids.limit(n_items_per_page).offset(
-                        (page - 1) * n_items_per_page
-                    )
+            count_stmt = sa.select(func.count()).select_from(ordered_ids.subquery())
+            total_matches = await session.scalar(count_stmt)
+            page_result = await session.scalars(
+                ordered_ids.limit(n_items_per_page).offset(
+                    (page - 1) * n_items_per_page
                 )
-                .unique()
-                .all()
             )
+            obj_ids_in_page = page_result.unique().all()
         info["pageNumber"] = page
         info["numPerPage"] = n_items_per_page
     else:
-        count_stmt = sa.select(func.count()).select_from(ordered_ids)
-        total_matches = session.execute(count_stmt).scalar()
-        obj_ids_in_page = session.execute(ordered_ids).unique().all()
+        count_stmt = sa.select(func.count()).select_from(ordered_ids.subquery())
+        total_matches = await session.scalar(count_stmt)
+        page_result = await session.execute(ordered_ids)
+        obj_ids_in_page = page_result.unique().all()
 
     info["totalMatches"] = total_matches
 
@@ -1796,26 +1779,21 @@ def grab_query_results(
 
     options = []
     if include_thumbnails:
-        options.append(joinedload(Obj.thumbnails))
+        options.append(selectinload(Obj.thumbnails))
     if include_detection_stats:
-        options.append(joinedload(Obj.photstats))
+        options.append(selectinload(Obj.photstats))
 
     items = []
     if len(obj_ids_in_page) > 0:
-        # If there are no values, the VALUES statement above will cause a syntax error,
-        # so only filter on the values if they exist
         obj_ids_values = get_obj_id_values(obj_ids_in_page)
 
-        items = (
-            session.execute(
-                sa.select(Obj)
-                .options(*options)
-                .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                .order_by(obj_ids_values.c.ordering)
-            )
-            .unique()
-            .all()
+        items_result = await session.execute(
+            sa.select(Obj)
+            .options(*options)
+            .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+            .order_by(obj_ids_values.c.ordering)
         )
+        items = items_result.unique().all()
 
     info[items_name] = items
     return info

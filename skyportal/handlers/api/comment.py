@@ -6,12 +6,15 @@ import unicodedata
 
 import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ...models import (
+    Allocation,
+    AllocationUser,
     Comment,
     CommentOnEarthquake,
     CommentOnGCN,
@@ -87,59 +90,66 @@ EXTENSION_TO_CONTENT_TYPE = {
 }
 
 
-def users_mentioned(text, session):
+async def users_mentioned(text, session):
     punctuation = string.punctuation.replace("-", "").replace("@", "")
     usernames = []
     for word in text.replace(",", " ").split():
         word = word.strip(punctuation)
         if word.startswith("@"):
             usernames.append(word.replace("@", ""))
-    users = session.scalars(
+    if not usernames:
+        return []
+    result = await session.scalars(
         User.select(session.user_or_token).where(
             User.username.in_(usernames),
             User.preferences["notifications"]["mention"]["active"]
             .astext.cast(sa.Boolean)
             .is_(True),
         )
-    ).all()
+    )
+    return result.unique().all()
 
-    return users
 
-
-def instruments_mentioned(text, session):
+async def instruments_mentioned(text, session):
     punctuation = string.punctuation.replace("-", "").replace("#", "")
-    instruments = []
+    instrument_names = []
     for word in text.replace(",", " ").split():
         word = word.strip(punctuation)
         if word.startswith("#"):
-            instruments.append(word.replace("#", ""))
+            instrument_names.append(word.replace("#", ""))
+    if not instrument_names:
+        return []
 
-    instruments = session.scalars(
+    instruments_result = await session.scalars(
         Instrument.select(session.user_or_token).where(
-            Instrument.name.in_(instruments),
+            Instrument.name.in_(instrument_names),
         )
-    ).all()
+    )
+    instruments = instruments_result.unique().all()
+    if not instruments:
+        return []
 
-    usernames = []
-    for instrument in instruments:
-        allocations = instrument.allocations
-        for allocation in allocations:
-            allocation_users = [
-                user.user.username for user in allocation.allocation_users
-            ]
-            usernames = usernames + allocation_users
-    usernames = list(set(usernames))
+    instrument_ids = [i.id for i in instruments]
+    # Pull allocation users for those instruments via explicit join
+    user_ids_result = await session.scalars(
+        sa.select(AllocationUser.user_id)
+        .join(Allocation, Allocation.id == AllocationUser.allocation_id)
+        .where(Allocation.instrument_id.in_(instrument_ids))
+        .distinct()
+    )
+    user_ids = list(user_ids_result.all())
+    if not user_ids:
+        return []
 
-    users = session.scalars(
+    users_result = await session.scalars(
         User.select(session.user_or_token).where(
-            User.username.in_(usernames),
+            User.id.in_(user_ids),
             User.preferences["notifications"]["mention"]["active"]
             .astext.cast(sa.Boolean)
             .is_(True),
         )
-    ).all()
-
-    return users
+    )
+    return users_result.unique().all()
 
 
 def _coerce_comment_resource_id(associated_resource_type, resource_id):
@@ -157,7 +167,7 @@ def _coerce_comment_resource_id(associated_resource_type, resource_id):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(
+    async def get(
         self,
         associated_resource_type: str,
         resource_id: str = None,
@@ -259,15 +269,15 @@ class CommentHandler(BaseHandler):
         """
 
         text = self.get_query_argument("text", None)
-        pageNumber = self.get_query_argument("pageNumber", 1)
-        numPerPage = self.get_query_argument("numPerPage", 25)
+        pageNumber = self.get_query_argument("pageNumber", 1, type=int)
+        numPerPage = self.get_query_argument("numPerPage", 25, type=int)
         pageNumber, numPerPage = get_page_and_n_per_page(
             pageNumber, numPerPage, MAX_COMMENTS_NO_RESOURCE_ID
         )
 
         start = time.time()
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if comment_id is None:
                 if resource_id is None and (text is None or str(text).strip() == ""):
                     return self.error(
@@ -302,7 +312,10 @@ class CommentHandler(BaseHandler):
                     ).order_by(table.created_at.desc())
                     stmt = stmt.offset((pageNumber - 1) * numPerPage).limit(numPerPage)
 
-                comments = session.scalars(stmt).unique().all()
+                if associated_resource_type.lower() == "gcn_event":
+                    stmt = stmt.options(selectinload(CommentOnGCN.gcn))
+                result = await session.scalars(stmt)
+                comments = result.unique().all()
 
                 if associated_resource_type in [
                     "sources",
@@ -345,13 +358,12 @@ class CommentHandler(BaseHandler):
             except (TypeError, ValueError):
                 return self.error("Must provide a valid (scalar integer) comment ID. ")
 
-            # the default is to comment on an object
             if associated_resource_type.lower() == "sources":
-                comment = session.scalars(
+                comment = await session.scalar(
                     Comment.select(session.user_or_token).where(
                         Comment.id == comment_id
                     )
-                ).first()
+                )
                 if comment is None:
                     return self.error(
                         "Could not find any accessible comments.", status=403
@@ -359,50 +371,49 @@ class CommentHandler(BaseHandler):
                 comment_resource_id_str = str(comment.obj_id)
 
             elif associated_resource_type.lower() == "spectra":
-                comment = session.scalars(
+                comment = await session.scalar(
                     CommentOnSpectrum.select(session.user_or_token).where(
                         CommentOnSpectrum.id == comment_id
                     )
-                ).first()
+                )
                 if comment is None:
                     return self.error(
                         "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(comment.spectrum_id)
             elif associated_resource_type.lower() == "gcn_event":
-                comment = session.scalars(
+                comment = await session.scalar(
                     CommentOnGCN.select(session.user_or_token).where(
                         CommentOnGCN.id == comment_id
                     )
-                ).first()
+                )
                 if comment is None:
                     return self.error(
                         "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(comment.gcn_id)
             elif associated_resource_type.lower() == "earthquake":
-                comment = session.scalars(
+                comment = await session.scalar(
                     CommentOnEarthquake.select(session.user_or_token).where(
                         CommentOnEarthquake.id == comment_id
                     )
-                ).first()
+                )
                 if comment is None:
                     return self.error(
                         "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(comment.gcn_id)
             elif associated_resource_type.lower() == "shift":
-                comment = session.scalars(
+                comment = await session.scalar(
                     CommentOnShift.select(session.user_or_token).where(
                         CommentOnShift.id == comment_id
                     )
-                ).first()
+                )
                 if comment is None:
                     return self.error(
                         "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(comment.shift_id)
-            # add more options using elif
             else:
                 return self.error(
                     f'Unsupported associated_resource_type "{associated_resource_type}".'
@@ -428,7 +439,7 @@ class CommentHandler(BaseHandler):
             return self.success(data=comment_data)
 
     @permissions(["Comment"])
-    def post(self, associated_resource_type: str, resource_id: str, *ignore_args):
+    async def post(self, associated_resource_type: str, resource_id: str, *ignore_args):
         """
         ---
         summary: Post a comment
@@ -492,7 +503,11 @@ class CommentHandler(BaseHandler):
                     - type: object
                       properties:
                         data:
-                          $ref: '#/components/schemas/Comment'
+                          type: object
+                          properties:
+                            comment_id:
+                              type: integer
+                              description: New comment ID
         """
         data = self.get_json()
 
@@ -515,14 +530,15 @@ class CommentHandler(BaseHandler):
             else:
                 return self.error("Malformed comment attachment")
 
-        author = self.associated_user_object
+        author_id = self.associated_user_object.id
+        author_username = self.associated_user_object.username
         is_bot_request = isinstance(self.current_user, Token)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 group_ids = data.pop("group_ids", None)
                 if not isinstance(group_ids, list) or len(group_ids) == 0:
-                    public_group = session.scalar(
+                    public_group = await session.scalar(
                         sa.select(Group.id).where(
                             Group.name == cfg["misc.public_group_name"]
                         )
@@ -532,26 +548,38 @@ class CommentHandler(BaseHandler):
                             f'No group_ids were specified and the public group "{cfg["misc.public_group_name"]}" does not exist. Cannot post comment'
                         )
                     group_ids = [public_group]
-                groups = session.scalars(
+                groups_result = await session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-                ).all()
+                )
+                groups = list(groups_result.all())
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
                         f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
+                comment = None
+                existing = None
+                obj_id = None
+                spectrum_id = None
+                gcnevent_id = None
+                earthquake_id = None
+                shift_id = None
+
                 if associated_resource_type.lower() == "sources":
                     obj_id = resource_id
-                    existing = session.scalars(
-                        Comment.select(session.user_or_token).where(
+                    existing_result = await session.scalars(
+                        Comment.select(session.user_or_token)
+                        .options(selectinload(Comment.groups))
+                        .where(
                             Comment.text == comment_text,
                             Comment.obj_id == obj_id,
                             Comment.attachment_bytes == attachment_bytes,
                             Comment.attachment_name == attachment_name,
-                            Comment.author_id == author.id,
+                            Comment.author_id == author_id,
                             Comment.bot == is_bot_request,
                         )
-                    ).first()
+                    )
+                    existing = existing_result.first()
                     if existing is not None:
                         if {g.id for g in existing.groups} != set(group_ids):
                             existing = None
@@ -561,7 +589,7 @@ class CommentHandler(BaseHandler):
                             obj_id=obj_id,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
-                            author=author,
+                            author_id=author_id,
                             groups=groups,
                             bot=is_bot_request,
                         )
@@ -570,25 +598,28 @@ class CommentHandler(BaseHandler):
                         spectrum_id = int(resource_id)
                     except (TypeError, ValueError):
                         return self.error(f"Invalid spectrum id: {resource_id}")
-                    spectrum = session.scalars(
+                    spectrum = await session.scalar(
                         Spectrum.select(session.user_or_token).where(
                             Spectrum.id == spectrum_id
                         )
-                    ).first()
+                    )
                     if spectrum is None:
                         return self.error(
                             f"Could not find any accessible spectra with ID {spectrum_id}."
                         )
-                    existing = session.scalars(
-                        CommentOnSpectrum.select(session.user_or_token).where(
+                    existing_result = await session.scalars(
+                        CommentOnSpectrum.select(session.user_or_token)
+                        .options(selectinload(CommentOnSpectrum.groups))
+                        .where(
                             CommentOnSpectrum.text == comment_text,
                             CommentOnSpectrum.spectrum_id == spectrum_id,
                             CommentOnSpectrum.attachment_bytes == attachment_bytes,
                             CommentOnSpectrum.attachment_name == attachment_name,
-                            CommentOnSpectrum.author_id == author.id,
+                            CommentOnSpectrum.author_id == author_id,
                             CommentOnSpectrum.bot == is_bot_request,
                         )
-                    ).first()
+                    )
+                    existing = existing_result.first()
                     if existing is not None:
                         if {g.id for g in existing.groups} != set(group_ids):
                             existing = None
@@ -598,7 +629,7 @@ class CommentHandler(BaseHandler):
                             spectrum_id=spectrum_id,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
-                            author=author,
+                            author_id=author_id,
                             groups=groups,
                             bot=is_bot_request,
                             obj_id=spectrum.obj_id,
@@ -609,25 +640,28 @@ class CommentHandler(BaseHandler):
                         gcnevent_id = int(resource_id)
                     except (TypeError, ValueError):
                         return self.error(f"Invalid gcn event id: {resource_id}")
-                    gcn_event = session.scalars(
+                    gcn_event = await session.scalar(
                         GcnEvent.select(session.user_or_token).where(
                             GcnEvent.id == gcnevent_id
                         )
-                    ).first()
+                    )
                     if gcn_event is None:
                         return self.error(
                             f"Could not find any accessible gcn events with ID {gcnevent_id}."
                         )
-                    existing = session.scalars(
-                        CommentOnGCN.select(session.user_or_token).where(
+                    existing_result = await session.scalars(
+                        CommentOnGCN.select(session.user_or_token)
+                        .options(selectinload(CommentOnGCN.groups))
+                        .where(
                             CommentOnGCN.text == comment_text,
                             CommentOnGCN.gcn_id == gcnevent_id,
                             CommentOnGCN.attachment_bytes == attachment_bytes,
                             CommentOnGCN.attachment_name == attachment_name,
-                            CommentOnGCN.author_id == author.id,
+                            CommentOnGCN.author_id == author_id,
                             CommentOnGCN.bot == is_bot_request,
                         )
-                    ).first()
+                    )
+                    existing = existing_result.first()
                     if existing is not None:
                         if {g.id for g in existing.groups} != set(group_ids):
                             existing = None
@@ -637,7 +671,7 @@ class CommentHandler(BaseHandler):
                             gcn_id=gcn_event.id,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
-                            author=author,
+                            author_id=author_id,
                             groups=groups,
                             bot=is_bot_request,
                         )
@@ -646,25 +680,28 @@ class CommentHandler(BaseHandler):
                         earthquake_id = int(resource_id)
                     except (TypeError, ValueError):
                         return self.error(f"Invalid earthquake id: {resource_id}")
-                    earthquake = session.scalars(
+                    earthquake = await session.scalar(
                         EarthquakeEvent.select(session.user_or_token).where(
                             EarthquakeEvent.id == earthquake_id
                         )
-                    ).first()
+                    )
                     if earthquake is None:
                         return self.error(
                             f"Could not find any accessible earthquakes with ID {earthquake_id}."
                         )
-                    existing = session.scalars(
-                        CommentOnEarthquake.select(session.user_or_token).where(
+                    existing_result = await session.scalars(
+                        CommentOnEarthquake.select(session.user_or_token)
+                        .options(selectinload(CommentOnEarthquake.groups))
+                        .where(
                             CommentOnEarthquake.text == comment_text,
                             CommentOnEarthquake.earthquake_id == earthquake_id,
                             CommentOnEarthquake.attachment_bytes == attachment_bytes,
                             CommentOnEarthquake.attachment_name == attachment_name,
-                            CommentOnEarthquake.author_id == author.id,
+                            CommentOnEarthquake.author_id == author_id,
                             CommentOnEarthquake.bot == is_bot_request,
                         )
-                    ).first()
+                    )
+                    existing = existing_result.first()
                     if existing is not None:
                         if {g.id for g in existing.groups} != set(group_ids):
                             existing = None
@@ -674,7 +711,7 @@ class CommentHandler(BaseHandler):
                             earthquake_id=earthquake.id,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
-                            author=author,
+                            author_id=author_id,
                             groups=groups,
                             bot=is_bot_request,
                         )
@@ -683,23 +720,26 @@ class CommentHandler(BaseHandler):
                         shift_id = int(resource_id)
                     except (TypeError, ValueError):
                         return self.error(f"Invalid shift id: {resource_id}")
-                    shift = session.scalars(
+                    shift = await session.scalar(
                         Shift.select(session.user_or_token).where(Shift.id == shift_id)
-                    ).first()
+                    )
                     if shift is None:
                         return self.error(
-                            f"Could not access Shift {shift.id}.", status=403
+                            f"Could not access Shift {shift_id}.", status=403
                         )
-                    existing = session.scalars(
-                        CommentOnShift.select(session.user_or_token).where(
+                    existing_result = await session.scalars(
+                        CommentOnShift.select(session.user_or_token)
+                        .options(selectinload(CommentOnShift.groups))
+                        .where(
                             CommentOnShift.text == comment_text,
                             CommentOnShift.shift_id == shift_id,
                             CommentOnShift.attachment_bytes == attachment_bytes,
                             CommentOnShift.attachment_name == attachment_name,
-                            CommentOnShift.author_id == author.id,
+                            CommentOnShift.author_id == author_id,
                             CommentOnShift.bot == is_bot_request,
                         )
-                    ).first()
+                    )
+                    existing = existing_result.first()
                     if existing is not None:
                         if {g.id for g in existing.groups} != set(group_ids):
                             existing = None
@@ -709,7 +749,7 @@ class CommentHandler(BaseHandler):
                             shift_id=shift.id,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
-                            author=author,
+                            author_id=author_id,
                             groups=groups,
                             bot=is_bot_request,
                         )
@@ -726,97 +766,87 @@ class CommentHandler(BaseHandler):
                         }
                     )
 
-                users_mentioned_in_comment = users_mentioned(comment_text, session)
+                # Build per-resource text + notification URL for mention pushes.
                 if associated_resource_type.lower() == "sources":
-                    text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{obj_id}*"
+                    mention_text = (
+                        f"*@{author_username}* mentioned you in a comment on *{obj_id}*"
+                    )
                     url_endpoint = f"/source/{obj_id}"
+                    instrument_text = (
+                        f"*@{author_username}* "
+                        "mentioned an instrument you have an "
+                        f"allocation on in a comment on *{obj_id}*"
+                    )
                 elif associated_resource_type.lower() == "spectra":
-                    text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{spectrum_id}*"
+                    mention_text = f"*@{author_username}* mentioned you in a comment on *{spectrum_id}*"
                     url_endpoint = f"/source/{spectrum_id}"
+                    instrument_text = (
+                        f"*@{author_username}* "
+                        "mentioned an instrument you have an "
+                        f"allocation on in a comment on *{spectrum_id}*"
+                    )
                 elif associated_resource_type.lower() == "gcn_event":
-                    text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{gcnevent_id}*"
+                    mention_text = f"*@{author_username}* mentioned you in a comment on *{gcnevent_id}*"
                     url_endpoint = f"/gcn_events/{gcnevent_id}"
+                    instrument_text = (
+                        f"*@{author_username}* "
+                        "mentioned an instrument you have an "
+                        f"allocation on in a comment on *{gcnevent_id}*"
+                    )
                 elif associated_resource_type.lower() == "shift":
-                    text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *shift {shift_id}*"
+                    mention_text = f"*@{author_username}* mentioned you in a comment on *shift {shift_id}*"
                     url_endpoint = "/shifts"
+                    instrument_text = (
+                        f"*@{author_username}* "
+                        "mentioned an instrument you have an "
+                        f"allocation on in a comment on *shift {shift_id}*"
+                    )
                 elif associated_resource_type.lower() == "earthquake":
-                    text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{earthquake_id}*"
+                    mention_text = f"*@{author_username}* mentioned you in a comment on *{earthquake_id}*"
                     url_endpoint = f"/earthquakes/{earthquake_id}"
+                    instrument_text = (
+                        f"*@{author_username}* "
+                        "mentioned an instrument you have an "
+                        f"allocation on in a comment on *{earthquake_id}*"
+                    )
                 else:
                     return self.error(
                         f'Unknown resource type "{associated_resource_type}".'
                     )
 
+                users_mentioned_in_comment = await users_mentioned(
+                    comment_text, session
+                )
                 if users_mentioned_in_comment:
                     for user_mentioned in users_mentioned_in_comment:
                         session.add(
                             UserNotification(
-                                user=user_mentioned,
-                                text=text_to_send,
+                                user_id=user_mentioned.id,
+                                text=mention_text,
                                 notification_type="mention",
                                 url=url_endpoint,
                             )
                         )
 
-                users_mentioned_in_instrument_comment = instruments_mentioned(
+                users_mentioned_in_instrument_comment = await instruments_mentioned(
                     comment_text, session
                 )
-                if associated_resource_type.lower() == "sources":
-                    text_to_send = (
-                        f"*@{self.associated_user_object.username}* "
-                        "mentioned an instrument you have an "
-                        f"allocation on in a comment on *{obj_id}*"
-                    )
-                    url_endpoint = f"/source/{obj_id}"
-                elif associated_resource_type.lower() == "spectra":
-                    text_to_send = (
-                        f"*@{self.associated_user_object.username}* "
-                        "mentioned an instrument you have an "
-                        f"allocation on in a comment on *{spectrum_id}*"
-                    )
-                    url_endpoint = f"/source/{spectrum_id}"
-                elif associated_resource_type.lower() == "gcn_event":
-                    text_to_send = (
-                        f"*@{self.associated_user_object.username}* "
-                        "mentioned an instrument you have an "
-                        f"allocation on in a comment on *{gcnevent_id}*"
-                    )
-                    url_endpoint = f"/gcn_events/{gcnevent_id}"
-                elif associated_resource_type.lower() == "shift":
-                    text_to_send = (
-                        f"*@{self.associated_user_object.username}* "
-                        "mentioned an instrument you have an "
-                        "allocation on in a comment on *shift {shift_id}*"
-                    )
-                    url_endpoint = "/shifts"
-                elif associated_resource_type.lower() == "earthquake":
-                    text_to_send = (
-                        f"*@{self.associated_user_object.username}* "
-                        "mentioned an instrument you have an "
-                        "allocation on in a comment on *{earthquake_id}*"
-                    )
-                    url_endpoint = f"/earthquakes/{earthquake_id}"
-                else:
-                    return self.error(
-                        f'Unknown resource type "{associated_resource_type}".'
-                    )
-
                 if users_mentioned_in_instrument_comment:
                     for user_mentioned in users_mentioned_in_instrument_comment:
                         session.add(
                             UserNotification(
-                                user=user_mentioned,
-                                text=text_to_send,
+                                user_id=user_mentioned.id,
+                                text=instrument_text,
                                 notification_type="mention",
                                 url=url_endpoint,
                             )
                         )
 
                 session.add(comment)
-                session.commit()
+                await session.commit()
                 if data_to_disk is not None:
                     comment.save_data(attachment_name, data_to_disk)
-                    session.commit()
+                    await session.commit()
 
                 if users_mentioned_in_comment:
                     for user_mentioned in users_mentioned_in_comment:
@@ -824,29 +854,46 @@ class CommentHandler(BaseHandler):
                             user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {}
                         )
 
-                if hasattr(
-                    comment, "obj"
-                ):  # comment on object, or object related resources
-                    self.push_all(
-                        action="skyportal/REFRESH_SOURCE",
-                        payload={"obj_key": comment.obj.internal_key},
+                # Compute push-target keys/IDs via async reads on the freshly
+                # committed comment instead of lazy relationship access.
+                if isinstance(comment, Comment | CommentOnSpectrum):
+                    from ...models import Obj
+
+                    target_obj_id = comment.obj_id
+                    target_obj = await session.scalar(
+                        sa.select(Obj).where(Obj.id == target_obj_id)
                     )
+                    if target_obj is not None:
+                        self.push_all(
+                            action="skyportal/REFRESH_SOURCE",
+                            payload={"obj_key": target_obj.internal_key},
+                        )
+                        if isinstance(comment, CommentOnSpectrum):
+                            self.push_all(
+                                action="skyportal/REFRESH_SOURCE_SPECTRA",
+                                payload={"obj_internal_key": target_obj.internal_key},
+                            )
 
                 if isinstance(comment, CommentOnGCN):
-                    self.push_all(
-                        action="skyportal/REFRESH_GCN_EVENT",
-                        payload={"gcnEvent_dateobs": comment.gcn.dateobs},
+                    gcn_target = await session.scalar(
+                        sa.select(GcnEvent).where(GcnEvent.id == comment.gcn_id)
                     )
+                    if gcn_target is not None:
+                        self.push_all(
+                            action="skyportal/REFRESH_GCN_EVENT",
+                            payload={"gcnEvent_dateobs": gcn_target.dateobs},
+                        )
                 elif isinstance(comment, CommentOnEarthquake):
-                    self.push_all(
-                        action="skyportal/REFRESH_EARTHQUAKE",
-                        payload={"earthquake_event_id": comment.earthquake.event_id},
+                    eq_target = await session.scalar(
+                        sa.select(EarthquakeEvent).where(
+                            EarthquakeEvent.id == comment.earthquake_id
+                        )
                     )
-                elif isinstance(comment, CommentOnSpectrum):
-                    self.push_all(
-                        action="skyportal/REFRESH_SOURCE_SPECTRA",
-                        payload={"obj_internal_key": comment.obj.internal_key},
-                    )
+                    if eq_target is not None:
+                        self.push_all(
+                            action="skyportal/REFRESH_EARTHQUAKE",
+                            payload={"earthquake_event_id": eq_target.event_id},
+                        )
                 elif isinstance(comment, CommentOnShift):
                     self.push_all(
                         action="skyportal/REFRESH_SHIFT",
@@ -855,13 +902,15 @@ class CommentHandler(BaseHandler):
 
                 return self.success(data={"comment_id": comment.id})
             except Exception as e:
-                session.rollback()
+                await session.rollback()
                 return self.error(
                     f"Error posting comment for {associated_resource_type} {resource_id}: {str(e)}"
                 )
 
     @permissions(["Comment"])
-    def put(self, associated_resource_type: str, resource_id: str, comment_id: int):
+    async def put(
+        self, associated_resource_type: str, resource_id: str, comment_id: int
+    ):
         """
         ---
         summary: Update a comment
@@ -926,15 +975,20 @@ class CommentHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
+        try:
+            comment_id = int(comment_id)
+        except (TypeError, ValueError):
+            return self.error("Must provide a valid (scalar integer) comment ID. ")
+
+        async with self.AsyncSession() as session:
             try:
                 if associated_resource_type.lower() == "sources":
                     schema = Comment.__schema__()
-                    c = session.scalars(
-                        Comment.select(session.user_or_token, mode="update").where(
-                            Comment.id == comment_id
-                        )
-                    ).first()
+                    c = await session.scalar(
+                        Comment.select(session.user_or_token, mode="update")
+                        .options(selectinload(Comment.groups))
+                        .where(Comment.id == comment_id)
+                    )
                     if c is None:
                         return self.error(
                             "Could not find any accessible comments.", status=403
@@ -943,11 +997,11 @@ class CommentHandler(BaseHandler):
 
                 elif associated_resource_type.lower() == "spectra":
                     schema = CommentOnSpectrum.__schema__()
-                    c = session.scalars(
-                        CommentOnSpectrum.select(
-                            session.user_or_token, mode="update"
-                        ).where(CommentOnSpectrum.id == comment_id)
-                    ).first()
+                    c = await session.scalar(
+                        CommentOnSpectrum.select(session.user_or_token, mode="update")
+                        .options(selectinload(CommentOnSpectrum.groups))
+                        .where(CommentOnSpectrum.id == comment_id)
+                    )
                     if c is None:
                         return self.error(
                             "Could not find any accessible comments.", status=403
@@ -956,11 +1010,11 @@ class CommentHandler(BaseHandler):
 
                 elif associated_resource_type.lower() == "gcn_event":
                     schema = CommentOnGCN.__schema__()
-                    c = session.scalars(
-                        CommentOnGCN.select(session.user_or_token, mode="update").where(
-                            CommentOnGCN.id == comment_id
-                        )
-                    ).first()
+                    c = await session.scalar(
+                        CommentOnGCN.select(session.user_or_token, mode="update")
+                        .options(selectinload(CommentOnGCN.groups))
+                        .where(CommentOnGCN.id == comment_id)
+                    )
                     if c is None:
                         return self.error(
                             "Could not find any accessible comments.", status=403
@@ -968,11 +1022,11 @@ class CommentHandler(BaseHandler):
                     comment_resource_id_str = str(c.gcn_id)
                 elif associated_resource_type.lower() == "earthquake":
                     schema = CommentOnEarthquake.__schema__()
-                    c = session.scalars(
-                        CommentOnEarthquake.select(
-                            session.user_or_token, mode="update"
-                        ).where(CommentOnEarthquake.id == comment_id)
-                    ).first()
+                    c = await session.scalar(
+                        CommentOnEarthquake.select(session.user_or_token, mode="update")
+                        .options(selectinload(CommentOnEarthquake.groups))
+                        .where(CommentOnEarthquake.id == comment_id)
+                    )
                     if c is None:
                         return self.error(
                             "Could not find any accessible comments.", status=403
@@ -980,17 +1034,16 @@ class CommentHandler(BaseHandler):
                     comment_resource_id_str = str(c.gcn_id)
                 elif associated_resource_type.lower() == "shift":
                     schema = CommentOnShift.__schema__()
-                    c = session.scalars(
-                        CommentOnShift.select(
-                            session.user_or_token, mode="update"
-                        ).where(CommentOnShift.id == comment_id)
-                    ).first()
+                    c = await session.scalar(
+                        CommentOnShift.select(session.user_or_token, mode="update")
+                        .options(selectinload(CommentOnShift.groups))
+                        .where(CommentOnShift.id == comment_id)
+                    )
                     if c is None:
                         return self.error(
                             "Could not find any accessible comments.", status=403
                         )
                     comment_resource_id_str = str(c.shift_id)
-                # add more options using elif
                 else:
                     return self.error(
                         f'Unsupported associated_resource_type "{associated_resource_type}".'
@@ -1028,11 +1081,12 @@ class CommentHandler(BaseHandler):
                     c.attachment_name = attachment_name
 
                 if isinstance(group_ids, list) and len(group_ids) > 0:
-                    groups = session.scalars(
+                    groups_result = await session.scalars(
                         Group.select(session.user_or_token).where(
                             Group.id.in_(group_ids)
                         )
-                    ).all()
+                    )
+                    groups = list(groups_result.all())
                     if {g.id for g in groups} != set(group_ids):
                         return self.error(
                             f"Cannot find one or more groups with IDs: {group_ids}."
@@ -1045,32 +1099,49 @@ class CommentHandler(BaseHandler):
                     )
 
                 session.add(c)
-                session.commit()
+                await session.commit()
                 if data_to_disk is not None:
                     c.save_data(attachment_name, data_to_disk)
-                    session.commit()
+                    await session.commit()
 
-                if hasattr(c, "obj"):  # comment on object, or object related resources
-                    self.push_all(
-                        action="skyportal/REFRESH_SOURCE",
-                        payload={"obj_key": c.obj.internal_key},
+                # Push refreshes using async lookups instead of lazy relationships.
+                if isinstance(c, Comment | CommentOnSpectrum):
+                    from ...models import Obj
+
+                    target_obj = await session.scalar(
+                        sa.select(Obj).where(Obj.id == c.obj_id)
                     )
-                if isinstance(c, CommentOnSpectrum):  # also update the spectrum
-                    self.push_all(
-                        action="skyportal/REFRESH_SOURCE_SPECTRA",
-                        payload={"obj_internal_key": c.obj.internal_key},
+                    if target_obj is not None:
+                        self.push_all(
+                            action="skyportal/REFRESH_SOURCE",
+                            payload={"obj_key": target_obj.internal_key},
+                        )
+                        if isinstance(c, CommentOnSpectrum):
+                            self.push_all(
+                                action="skyportal/REFRESH_SOURCE_SPECTRA",
+                                payload={"obj_internal_key": target_obj.internal_key},
+                            )
+                elif isinstance(c, CommentOnGCN):
+                    gcn_target = await session.scalar(
+                        sa.select(GcnEvent).where(GcnEvent.id == c.gcn_id)
                     )
-                elif isinstance(c, CommentOnGCN):  # also update the gcn
-                    self.push_all(
-                        action="skyportal/REFRESH_GCN_EVENT",
-                        payload={"gcnEvent_dateobs": c.gcn.dateobs},
+                    if gcn_target is not None:
+                        self.push_all(
+                            action="skyportal/REFRESH_GCN_EVENT",
+                            payload={"gcnEvent_dateobs": gcn_target.dateobs},
+                        )
+                elif isinstance(c, CommentOnEarthquake):
+                    eq_target = await session.scalar(
+                        sa.select(EarthquakeEvent).where(
+                            EarthquakeEvent.id == c.earthquake_id
+                        )
                     )
-                elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
-                    self.push_all(
-                        action="skyportal/REFRESH_EARTHQUAKE",
-                        payload={"earthquake_id": c.earthquake.event_id},
-                    )
-                elif isinstance(c, CommentOnShift):  # also update the shift
+                    if eq_target is not None:
+                        self.push_all(
+                            action="skyportal/REFRESH_EARTHQUAKE",
+                            payload={"earthquake_id": eq_target.event_id},
+                        )
+                elif isinstance(c, CommentOnShift):
                     self.push_all(
                         action="skyportal/REFRESH_SHIFT",
                         payload={"shift_id": c.shift_id},
@@ -1083,7 +1154,9 @@ class CommentHandler(BaseHandler):
                 )
 
     @permissions(["Comment"])
-    def delete(self, associated_resource_type: str, resource_id: str, comment_id: int):
+    async def delete(
+        self, associated_resource_type: str, resource_id: str, comment_id: int
+    ):
         """
         ---
         summary: Delete a comment
@@ -1123,111 +1196,134 @@ class CommentHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
+        try:
+            comment_id = int(comment_id)
+        except (TypeError, ValueError):
+            return self.error("Must provide a valid (scalar integer) comment ID.")
+
+        async with self.AsyncSession() as session:
             if associated_resource_type.lower() == "sources":
-                c = session.scalars(
+                c = await session.scalar(
                     Comment.select(session.user_or_token, mode="delete").where(
                         Comment.id == comment_id
                     )
-                ).first()
+                )
                 if c is None:
                     return self.error(
                         "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(c.obj_id)
             elif associated_resource_type.lower() == "spectra":
-                c = session.scalars(
+                c = await session.scalar(
                     CommentOnSpectrum.select(
                         session.user_or_token, mode="delete"
                     ).where(CommentOnSpectrum.id == comment_id)
-                ).first()
+                )
                 if c is None:
                     return self.error(
                         "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(c.spectrum_id)
             elif associated_resource_type.lower() == "gcn_event":
-                c = session.scalars(
+                c = await session.scalar(
                     CommentOnGCN.select(session.user_or_token, mode="delete").where(
                         CommentOnGCN.id == comment_id
                     )
-                ).first()
+                )
                 if c is None:
                     return self.error(
                         "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(c.gcn_id)
             elif associated_resource_type.lower() == "earthquake":
-                c = session.scalars(
+                c = await session.scalar(
                     CommentOnEarthquake.select(
                         session.user_or_token, mode="delete"
                     ).where(CommentOnEarthquake.id == comment_id)
-                ).first()
+                )
                 if c is None:
                     return self.error(
                         "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(c.earthquake_id)
             elif associated_resource_type.lower() == "shift":
-                c = session.scalars(
+                c = await session.scalar(
                     CommentOnShift.select(session.user_or_token, mode="delete").where(
                         CommentOnShift.id == comment_id
                     )
-                ).first()
+                )
                 if c is None:
                     return self.error(
                         "Could not find any accessible comments.", status=403
                     )
                 comment_resource_id_str = str(c.shift_id)
-
-            # add more options using elif
             else:
                 return self.error(
                     f'Unsupported associated_resource_type "{associated_resource_type}".'
                 )
 
+            # Resolve push-refresh targets BEFORE deletion using async lookups
+            # (avoid lazy relationship access).
+            gcnevent_dateobs = None
+            event_id = None
+            shift_target_id = None
+            obj_key = None
             if isinstance(c, CommentOnGCN):
-                gcnevent_dateobs = c.gcn.dateobs
+                gcn_target = await session.scalar(
+                    sa.select(GcnEvent).where(GcnEvent.id == c.gcn_id)
+                )
+                gcnevent_dateobs = gcn_target.dateobs if gcn_target else None
             elif isinstance(c, CommentOnEarthquake):
-                event_id = c.earthquake.event_id
+                eq_target = await session.scalar(
+                    sa.select(EarthquakeEvent).where(
+                        EarthquakeEvent.id == c.earthquake_id
+                    )
+                )
+                event_id = eq_target.event_id if eq_target else None
             elif isinstance(c, CommentOnShift):
-                shift_id = c.shift_id
+                shift_target_id = c.shift_id
             else:
-                obj_key = c.obj.internal_key
+                from ...models import Obj
+
+                target_obj = await session.scalar(
+                    sa.select(Obj).where(Obj.id == c.obj_id)
+                )
+                obj_key = target_obj.internal_key if target_obj else None
 
             if comment_resource_id_str != resource_id:
                 return self.error(
                     f"Comment resource ID does not match resource ID given in path ({resource_id})"
                 )
 
-            session.delete(c)
-            session.commit()
+            comment_type = type(c)
+            await session.delete(c)
+            await session.commit()
 
-            if hasattr(c, "obj"):  # comment on object, or object related resources
+            if comment_type in (Comment, CommentOnSpectrum) and obj_key is not None:
                 self.push_all(
                     action="skyportal/REFRESH_SOURCE",
                     payload={"obj_key": obj_key},
                 )
 
-            if isinstance(c, CommentOnGCN):  # also update the GcnEvent
+            if comment_type is CommentOnGCN and gcnevent_dateobs is not None:
                 self.push_all(
                     action="skyportal/REFRESH_GCN_EVENT",
                     payload={"gcnEvent_dateobs": gcnevent_dateobs},
                 )
-            elif isinstance(c, CommentOnEarthquake):  # also update the earthquake
+            elif comment_type is CommentOnEarthquake and event_id is not None:
                 self.push_all(
                     action="skyportal/REFRESH_EARTHQUAKE",
                     payload={"earthquake_event_id": event_id},
                 )
-            elif isinstance(c, CommentOnSpectrum):  # also update the spectrum
+            elif comment_type is CommentOnSpectrum and obj_key is not None:
                 self.push_all(
                     action="skyportal/REFRESH_SOURCE_SPECTRA",
                     payload={"obj_internal_key": obj_key},
                 )
-            elif isinstance(c, CommentOnShift):  # also update the shift
+            elif comment_type is CommentOnShift and shift_target_id is not None:
                 self.push_all(
                     action="skyportal/REFRESH_SHIFT",
-                    payload={"shift_id": shift_id},
+                    payload={"shift_id": shift_target_id},
                 )
 
             return self.success()
@@ -1235,7 +1331,9 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type: str, resource_id: str, comment_id: int):
+    async def get(
+        self, associated_resource_type: str, resource_id: str, comment_id: int
+    ):
         """
         ---
         summary: Download/Preview comment attachment
@@ -1305,6 +1403,11 @@ class CommentAttachmentHandler(BaseHandler):
                               description: The attachment file contents decoded as a string
 
         """
+        try:
+            comment_id = int(comment_id)
+        except (TypeError, ValueError):
+            return self.error("Must provide a valid (scalar integer) comment ID. ")
+
         download = self.get_query_argument("download", True)
         preview = self.get_query_argument("preview", False)
 
@@ -1328,10 +1431,12 @@ class CommentAttachmentHandler(BaseHandler):
                 f'Unsupported associated resource type "{associated_resource_type}".'
             )
 
-        with self.Session() as session:
-            comment = session.scalars(
-                table.select(session.user_or_token).where(table.id == comment_id)
-            ).first()
+        async with self.AsyncSession() as session:
+            comment = await session.scalar(
+                table.select(session.user_or_token)
+                .options(undefer(table.attachment_bytes))
+                .where(table.id == comment_id)
+            )
             if comment is None:
                 return self.error("Could not find any accessible comments.", status=403)
 
@@ -1366,8 +1471,6 @@ class CommentAttachmentHandler(BaseHandler):
                 for c in unicodedata.normalize("NFD", comment.attachment_name)
                 if unicodedata.category(c) != "Mn"
             )
-            # we remove all non-ascii characters from the attachment name, which tornado does not like
-            # as they can't be encoded in latin-1
             attachment_name = "".join(
                 [i if ord(i) < 128 else " " for i in attachment_name]
             )

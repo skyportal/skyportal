@@ -16,7 +16,7 @@ MAX_SOURCES_PER_PAGE = 500
 
 class HealpixUpdateHandler(BaseHandler):
     @permissions(["System admin"])
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Get a count of sources w/ and w/o Healpix values
@@ -45,15 +45,15 @@ class HealpixUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = sa.select(Obj).where(Obj.healpix.is_(None))
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_missing = session.execute(count_stmt).scalar()
+            total_missing = await session.scalar(count_stmt)
 
             # get the number of Objs with Healpix
             stmt = sa.select(Obj).where(Obj.healpix.isnot(None))
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_healpix = session.execute(count_stmt).scalar()
+            total_healpix = await session.scalar(count_stmt)
 
         results = {
             "totalWithoutHealpix": total_missing,
@@ -62,7 +62,7 @@ class HealpixUpdateHandler(BaseHandler):
         return self.success(data=results)
 
     @permissions(["System admin"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Calculate Healpix values for sources w/o them
@@ -107,32 +107,31 @@ class HealpixUpdateHandler(BaseHandler):
                   schema: Error
         """
 
-        try:
-            page_number = int(self.get_query_argument("pageNumber", 1))
-            num_per_page = min(
-                int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
-                MAX_SOURCES_PER_PAGE,
-            )
-        except ValueError:
+        page_number = self.get_query_argument("pageNumber", 1, type=int)
+        num_per_page = self.get_query_argument(
+            "numPerPage", DEFAULT_SOURCES_PER_PAGE, type=int
+        )
+        if page_number is None or num_per_page is None:
             return self.error(
-                f"Cannot parse inputs pageNumber ({page_number}) "
-                f"or numPerPage ({num_per_page}) as an integers."
+                "Cannot parse inputs pageNumber or numPerPage as integers."
             )
+        num_per_page = min(num_per_page, MAX_SOURCES_PER_PAGE)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = sa.select(Obj).where(Obj.healpix.is_(None))
             # select only objects that don't have a Healpix value
             count_stmt = sa.select(func.count()).select_from(stmt)
-            total_matches = session.execute(count_stmt).scalar()
+            total_matches = await session.scalar(count_stmt)
             stmt = stmt.offset((page_number - 1) * num_per_page)
             stmt = stmt.limit(num_per_page)
-            objects = session.execute(stmt).scalars().unique().all()
+            result = await session.scalars(stmt)
+            objects = result.unique().all()
 
             for i, obj in enumerate(objects):
                 obj.healpix = ha.constants.HPX.lonlat_to_healpix(
                     obj.ra * u.deg, obj.dec * u.deg
                 )
-            session.commit()
+            await session.commit()
 
         results = {
             "totalMatches": total_matches,

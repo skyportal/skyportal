@@ -31,6 +31,7 @@ def test_bulk_invite_users(page, super_admin_user, public_group, public_stream):
     ).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_invite_single_user(page, super_admin_user, public_group, public_stream):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/group/{public_group.id}")

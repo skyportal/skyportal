@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import os
 import re
@@ -5,7 +6,9 @@ import time
 import uuid
 
 import pytest
+import sqlalchemy as sa
 
+from baselayer.app.models import async_plain_session_factory
 from skyportal.models import DBSession, Obj, Thumbnail
 from skyportal.tests import api, assert_api
 
@@ -32,9 +35,12 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
     # Don't wait for the thumbnail_queue background service — it fetches the
     # most-recent unprocessed obj and a busy test suite keeps pushing newer
     # objs to the front of the line. Call the same method synchronously.
-    session = DBSession()
-    obj = session.query(Obj).filter(Obj.id == obj_id).first()
-    obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
+    async def _backfill_thumbnails():
+        async with async_plain_session_factory() as session:
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            await obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
+
+    asyncio.run(_backfill_thumbnails())
 
     status, data = api(
         "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
@@ -105,18 +111,21 @@ def test_thumbnail_queue_fetch_obj_finds_unprocessed_source(
     )
     assert status == 200
 
-    # The new obj has no (sdss, ls, ps1) thumbnails, so fetch_obj's
-    # most-recent-missing query must surface it.
-    session = DBSession()
-    obj, err = fetch_obj(session)
-    assert err is None
-    assert obj is not None and obj.id == obj_id
+    async def _fetch_backfill_fetch():
+        async with async_plain_session_factory() as session:
+            # The new obj has no (sdss, ls, ps1) thumbnails, so fetch_obj's
+            # most-recent-missing query must surface it.
+            obj, err = await fetch_obj(session)
+            assert err is None
+            assert obj is not None and obj.id == obj_id
 
-    # After backfill the same query must no longer return it.
-    obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
-    obj, err = fetch_obj(session)
-    assert err is None
-    assert obj is None or obj.id != obj_id
+            # After backfill the same query must no longer return it.
+            await obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
+            obj, err = await fetch_obj(session)
+            assert err is None
+            assert obj is None or obj.id != obj_id
+
+    asyncio.run(_fetch_backfill_fetch())
 
 
 def test_cannot_post_thumbnail_invalid_ttype(
