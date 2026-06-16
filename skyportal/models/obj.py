@@ -468,31 +468,28 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sharing submissions associated with this obj.",
     )
 
-    def add_linked_thumbnails(self, thumbnails, session=None):
+    async def add_linked_thumbnails(self, thumbnails, session):
         """Determine the URLs of the SDSS, Legacy Survey DR10, and
         thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
-        if session is None:
-            session = DBSession()
-
-        # first we create and commit the thumbnails that don't require any request
-        # to external services to get their URLs
-        # that way we don't end up committing nothing if one of the external requests
-        # fails for some reason, and we provide the user with as many thumbnails as
-        # possible, as quickly as possible
         if "sdss" in thumbnails:
-            session.add(Thumbnail(obj=self, public_url=self.sdss_url, type="sdss"))
+            session.add(
+                Thumbnail(obj_id=self.id, public_url=self.sdss_url, type="sdss")
+            )
         if "ls" in thumbnails:
             session.add(
-                Thumbnail(obj=self, public_url=self.legacysurvey_dr10_url, type="ls")
+                Thumbnail(
+                    obj_id=self.id,
+                    public_url=self.legacysurvey_dr10_url,
+                    type="ls",
+                )
             )
-        session.commit()
+        await session.commit()
 
-        # now we create the thumbnails that require external requests
         if "ps1" in thumbnails:
             url = self.panstarrs_url
-            session.add(Thumbnail(obj=self, public_url=url, type="ps1"))
-            session.commit()
+            session.add(Thumbnail(obj_id=self.id, public_url=url, type="ps1"))
+            await session.commit()
 
     @property
     def sdss_url(self):

@@ -32,8 +32,6 @@ from baselayer.app.models import (
 
 from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from ..utils.hdf5_files import dump_dataframe_to_bytestream
-from ..utils.photometry import mag2flux as _mag2flux
-from ..utils.photometry import magerr2fluxerr as _magerr2fluxerr
 
 # Cast literal "NaN" once at module import — comparing a double-precision
 # column against the bare string "NaN" works under psycopg2 but fails under
@@ -511,11 +509,41 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     @staticmethod
     def mag2flux(mags):
-        return _mag2flux(mags)
+        """
+        Convert AB magnitudes to fluxes in micro Janskies
+
+        Parameters
+        ----------
+        mags: float array
+            Magnitudes array or list in the AB system.
+
+        Returns
+        -------
+        float array
+            Array of fluxes in units of micro Jansky.
+        """
+        return 10 ** (-0.4 * (mags - PHOT_ZP))
 
     @staticmethod
     def magerr2fluxerr(mags, magerr):
-        return _magerr2fluxerr(mags, magerr)
+        """
+        Convert magnitude errors to flux errors in micro Janskies
+
+        Parameters
+        ----------
+        mags: float array
+            Magnitudes array in the AB system.
+        magerr: float array
+            Array or list of errors on the magnitudes.
+
+        Returns
+        -------
+        float array
+            Array of fluxes in units of micro Jansky.
+        """
+
+        fluxes = PhotometricSeries.mag2flux(mags)
+        return fluxes * magerr * np.log(10) / 2.5
 
     def calc_flux_mag(self):
         """

@@ -47,15 +47,18 @@ def test_group_admission_read_access(
     )
     assert_api(status, data)
 
-    # Regular user (upload_data_token) should not be able to see the request
-    # as they are neither a group admin nor the requesting user
+    # Regular user (view_only_token) should not be able to see the request
+    # as they are neither a group admin nor the requesting user. RLS now
+    # filters them out at the .select() layer, so the handler reports the
+    # request as not found rather than running its explicit visibility
+    # check.
     status, data = api(
         "GET",
         f"group_admission_requests/{request_id}",
         token=view_only_token,
     )
     assert_api_fail(
-        status, data, 400, "User must be group admin or requester to see request"
+        status, data, 400, "Could not find an admission request with the ID"
     )
 
 
@@ -105,7 +108,10 @@ def test_group_admission_patch_permissions(
     assert data["status"] == "success"
     request_id = data["data"]["id"]
 
-    # Regular user is not a group admin and cannot approve the request
+    # Regular user is not a group admin and cannot approve the request.
+    # RLS filters the request out at the .select(mode="update") layer, so
+    # the handler reports it as not updatable (same code path as the
+    # requesting user trying to approve themselves below).
     status, data = api(
         "PATCH",
         f"group_admission_requests/{request_id}",
@@ -113,7 +119,10 @@ def test_group_admission_patch_permissions(
         token=upload_data_token,
     )
     assert status == 400
-    assert "Insufficient permissions for operation" in data["message"]
+    assert (
+        "Insufficient permissions: group admission request status can only be changed by group admins."
+        in data["message"]
+    )
 
     # Nor can the requesting user do so
     status, data = api(

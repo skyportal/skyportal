@@ -268,7 +268,7 @@ def post_aliases(dateobs, tach_id, user_id):
 
 class GcnTachHandler(BaseHandler):
     @permissions(["Manage GCNs"])
-    def post(self, dateobs: str):
+    async def post(self, dateobs: str):
         """
         ---
         summary: Retrieve GCN Event aliases from TACH
@@ -307,11 +307,17 @@ class GcnTachHandler(BaseHandler):
         except Exception:
             return self.error(f"Invalid dateobs: {dateobs}")
         try:
-            with self.Session() as session:
-                stmt = GcnEvent.select(session.user_or_token).where(
-                    GcnEvent.dateobs == dateobs_parsed
+            async with self.AsyncSession() as session:
+                from sqlalchemy.orm import selectinload
+
+                from ...models import GcnEvent as GcnEventModel  # noqa
+
+                stmt = (
+                    GcnEvent.select(session.user_or_token)
+                    .where(GcnEvent.dateobs == dateobs_parsed)
+                    .options(selectinload(GcnEvent._tags))
                 )
-                gcn_event = session.scalars(stmt).first()
+                gcn_event = await session.scalar(stmt)
                 if gcn_event is None:
                     return self.error(f"No GCN event found for {dateobs}")
 
@@ -341,18 +347,22 @@ class GcnTachHandler(BaseHandler):
             return self.error(f"Error scraping aliases: {e}")
 
     @auth_or_token
-    def get(self, dateobs: str):
+    async def get(self, dateobs: str):
         # gets the circulars and aliases of a GCN event
         try:
             dateobs_parsed = arrow.get(dateobs).naive
         except Exception:
             return self.error(f"Invalid dateobs: {dateobs}")
         try:
-            with self.Session() as session:
-                stmt = GcnEvent.select(session.user_or_token).where(
-                    GcnEvent.dateobs == dateobs_parsed
+            async with self.AsyncSession() as session:
+                # circulars is a deferred column; eager-load it (and aliases)
+                # so accessing them below doesn't lazy-load under async.
+                stmt = (
+                    GcnEvent.select(session.user_or_token)
+                    .where(GcnEvent.dateobs == dateobs_parsed)
+                    .options(sa.orm.undefer(GcnEvent.circulars))
                 )
-                gcn_event = session.scalars(stmt).first()
+                gcn_event = await session.scalar(stmt)
                 if gcn_event is None:
                     return self.error(f"No GCN event found for {dateobs}")
 

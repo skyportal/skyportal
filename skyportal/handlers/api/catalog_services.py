@@ -11,7 +11,7 @@ import swifttools.ukssdc.query as uq
 from astropy.table import Table
 from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
@@ -42,6 +42,7 @@ from ...models import (
 )
 from ...models.schema import CatalogQueryPost
 from ...utils.catalog import get_conesearch_centers, query_fink, query_kowalski
+from ...utils.data_access import accessible_group_ids_async
 from ..base import BaseHandler
 from .photometric_series import post_photometric_series, update_photometric_series
 from .photometry import add_external_photometry
@@ -96,8 +97,8 @@ class CatalogQueryHandler(BaseHandler):
         if "catalogName" not in data["payload"]:
             return self.error("catalogName required in query payload")
 
-        with self.Session() as session:
-            allocation = session.scalar(
+        async with self.AsyncSession() as session:
+            allocation = await session.scalar(
                 sa.select(Allocation).where(Allocation.id == data["allocation_id"])
             )
 
@@ -376,7 +377,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
 
 class SwiftLSXPSQueryHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Post Swift LSXPS objects as sources
@@ -420,15 +421,16 @@ class SwiftLSXPSQueryHandler(BaseHandler):
 
         telescope_name = data.get("telescope_name", "Swift")
         group_ids = data.get("groupIDs", None)
-        if group_ids is None:
-            group_ids = [g.id for g in self.current_user.accessible_groups]
 
-        with self.Session() as session:
-            telescope = session.scalars(
-                Telescope.select(session.user_or_token).where(
-                    Telescope.nickname == telescope_name
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            if group_ids is None:
+                group_ids = await accessible_group_ids_async(self.current_user, session)
+
+            telescope = await session.scalar(
+                Telescope.select(session.user_or_token)
+                .options(selectinload(Telescope.instruments))
+                .where(Telescope.nickname == telescope_name)
+            )
             if telescope is None:
                 return self.error(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
@@ -596,7 +598,7 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
 
 class GaiaPhotometricAlertsQueryHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Post Gaia Photometric Alert as sources
@@ -649,8 +651,6 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         group_ids = data.get("groupIDs", None)
-        if group_ids is None:
-            group_ids = [g.id for g in self.current_user.accessible_groups]
 
         if start_date is not None:
             start_date = Time(arrow.get(start_date.strip()).datetime)
@@ -659,12 +659,15 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
 
         payload = {"start_date": start_date, "end_date": end_date}
 
-        with self.Session() as session:
-            telescope = session.scalars(
-                Telescope.select(session.user_or_token).where(
-                    Telescope.nickname == telescope_name
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            if group_ids is None:
+                group_ids = await accessible_group_ids_async(self.current_user, session)
+
+            telescope = await session.scalar(
+                Telescope.select(session.user_or_token)
+                .options(selectinload(Telescope.instruments))
+                .where(Telescope.nickname == telescope_name)
+            )
             if telescope is None:
                 return self.error(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
@@ -816,7 +819,7 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
 
 class TessTransientsQueryHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Post TESS transients as sources
@@ -870,8 +873,6 @@ class TessTransientsQueryHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         group_ids = data.get("groupIDs", None)
-        if group_ids is None:
-            group_ids = [g.id for g in self.current_user.accessible_groups]
 
         if start_date is not None:
             start_date = Time(arrow.get(start_date.strip()).datetime)
@@ -880,12 +881,15 @@ class TessTransientsQueryHandler(BaseHandler):
 
         payload = {"start_date": start_date, "end_date": end_date}
 
-        with self.Session() as session:
-            telescope = session.scalars(
-                Telescope.select(session.user_or_token).where(
-                    Telescope.nickname == telescope_name
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            if group_ids is None:
+                group_ids = await accessible_group_ids_async(self.current_user, session)
+
+            telescope = await session.scalar(
+                Telescope.select(session.user_or_token)
+                .options(selectinload(Telescope.instruments))
+                .where(Telescope.nickname == telescope_name)
+            )
             if telescope is None:
                 return self.error(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]

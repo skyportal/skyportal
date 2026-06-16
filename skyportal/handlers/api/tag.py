@@ -9,6 +9,7 @@ import re
 
 import sqlalchemy as sa
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
@@ -28,7 +29,7 @@ class ObjTagOptionHandler(BaseHandler):
     """
 
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve all tag options
@@ -49,12 +50,14 @@ class ObjTagOptionHandler(BaseHandler):
                           items:
                             $ref: '#/components/schemas/ObjTagOption'
         """
-        with self.Session() as session:
-            tags = session.scalars(ObjTagOption.select(session.user_or_token)).all()
+        async with self.AsyncSession() as session:
+            tags = (
+                await session.scalars(ObjTagOption.select(session.user_or_token))
+            ).all()
             return self.success(data=tags)
 
     @permissions(["Manage sources"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create a new tag option
@@ -114,12 +117,12 @@ class ObjTagOptionHandler(BaseHandler):
                 status=400,
             )
 
-        with self.Session() as session:
-            existing_tag = session.scalars(
+        async with self.AsyncSession() as session:
+            existing_tag = await session.scalar(
                 ObjTagOption.select(session.user_or_token).where(
                     func.lower(ObjTagOption.name) == name.lower()
                 )
-            ).first()
+            )
 
             if existing_tag:
                 return self.error(
@@ -129,13 +132,13 @@ class ObjTagOptionHandler(BaseHandler):
 
             new_tag = ObjTagOption(name=name, color=color)
             session.add(new_tag)
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/FETCH_TAG_OPTIONS")
             return self.success(new_tag)
 
     @auth_or_token
-    def patch(self, tag_id: int):
+    async def patch(self, tag_id: int):
         """
         ---
         summary: Update a tag option
@@ -200,33 +203,33 @@ class ObjTagOptionHandler(BaseHandler):
                 status=400,
             )
 
-        with self.Session() as session:
-            tag = session.scalars(
+        async with self.AsyncSession() as session:
+            tag = await session.scalar(
                 ObjTagOption.select(session.user_or_token).where(
                     ObjTagOption.id == tag_id
                 )
-            ).first()
+            )
 
             if not tag:
                 return self.error("Tag not found", status=404)
 
-            if session.scalars(
+            if await session.scalar(
                 ObjTagOption.select(session.user_or_token)
                 .where(ObjTagOption.name == new_name)
                 .where(ObjTagOption.id != tag_id)
-            ).first():
+            ):
                 return self.error("This tag name already exists for another tag")
 
             tag.name = new_name
             if new_color:
                 tag.color = new_color
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/FETCH_TAG_OPTIONS")
             return self.success()
 
     @permissions(["Manage sources"])
-    def delete(self, tag_id: int):
+    async def delete(self, tag_id: int):
         """
         ---
         summary: Delete a tag option
@@ -254,18 +257,18 @@ class ObjTagOptionHandler(BaseHandler):
         except Exception:
             raise ValueError("Invalid tag ID")
 
-        with self.Session() as session:
-            tag = session.scalars(
+        async with self.AsyncSession() as session:
+            tag = await session.scalar(
                 ObjTagOption.select(session.user_or_token).where(
                     ObjTagOption.id == tag_id
                 )
-            ).first()
+            )
 
             if not tag:
                 return self.error("Tag not found", status=404)
 
-            session.delete(tag)
-            session.commit()
+            await session.delete(tag)
+            await session.commit()
 
             self.push_all(action="skyportal/FETCH_TAG_OPTIONS")
             return self.success(f"Successfully deleted tag {tag}")
@@ -279,7 +282,7 @@ class ObjTagHandler(BaseHandler):
     """
 
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve object-tag associations
@@ -328,7 +331,7 @@ class ObjTagHandler(BaseHandler):
             self.get_query_argument("includeSuperObjs", "false"), default=False
         )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             query = ObjTag.select(session.user_or_token)
 
             if obj_id:
@@ -340,9 +343,11 @@ class ObjTagHandler(BaseHandler):
                 obj_ids = {obj_id}
                 if include_super_objs:
                     super_objs = (
-                        session.scalars(
-                            sa.select(SuperObj).where(
-                                SuperObj.objs.any(Obj.id == obj_id)
+                        (
+                            await session.scalars(
+                                sa.select(SuperObj)
+                                .options(selectinload(SuperObj.objs))
+                                .where(SuperObj.objs.any(Obj.id == obj_id))
                             )
                         )
                         .unique()
@@ -354,11 +359,11 @@ class ObjTagHandler(BaseHandler):
             if objtagoption_id:
                 query = query.where(ObjTag.objtagoption_id == objtagoption_id)
 
-            associations = session.scalars(query).all()
+            associations = (await session.scalars(query)).all()
             return self.success(associations)
 
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create object-tag association
@@ -425,9 +430,9 @@ class ObjTagHandler(BaseHandler):
             else:
                 group_ids = None
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if group_ids is None:
-                public_group_id = session.scalar(
+                public_group_id = await session.scalar(
                     sa.select(Group.id).where(
                         Group.name == cfg["misc.public_group_name"]
                     )
@@ -441,13 +446,13 @@ class ObjTagHandler(BaseHandler):
                 group_ids = [public_group_id]
 
             # Verify tag option exists
-            if not session.scalar(
+            if not await session.scalar(
                 sa.select(ObjTagOption.id).where(ObjTagOption.id == objtagoption_id)
             ):
                 return self.error("Specified tag option does not exist", status=404)
 
             # Verify obj exists
-            obj = session.scalars(sa.select(Obj).where(Obj.id == obj_id)).first()
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
             if not obj:
                 return self.error("Specified obj does not exist", status=404)
 
@@ -455,8 +460,10 @@ class ObjTagHandler(BaseHandler):
             requested_group_ids = set(group_ids)
             if self.current_user.is_system_admin:
                 existing_group_ids = set(
-                    session.scalars(
-                        sa.select(Group.id).where(Group.id.in_(requested_group_ids))
+                    (
+                        await session.scalars(
+                            sa.select(Group.id).where(Group.id.in_(requested_group_ids))
+                        )
                     ).all()
                 )
                 if len(existing_group_ids) != len(requested_group_ids):
@@ -476,7 +483,7 @@ class ObjTagHandler(BaseHandler):
                     )
 
             # Check if association already exists
-            existing_assoc_id = session.scalar(
+            existing_assoc_id = await session.scalar(
                 sa.select(ObjTag.id)
                 .where(ObjTag.objtagoption_id == objtagoption_id)
                 .where(ObjTag.obj_id == obj_id)
@@ -484,9 +491,11 @@ class ObjTagHandler(BaseHandler):
 
             if existing_assoc_id:
                 existing_group_ids = set(
-                    session.scalars(
-                        sa.select(GroupObjTag.group_id).where(
-                            GroupObjTag.obj_tag_id == existing_assoc_id
+                    (
+                        await session.scalars(
+                            sa.select(GroupObjTag.group_id).where(
+                                GroupObjTag.obj_tag_id == existing_assoc_id
+                            )
                         )
                     ).all()
                 )
@@ -502,7 +511,7 @@ class ObjTagHandler(BaseHandler):
                         obj_tag_id=existing_assoc_id,
                     )
                     session.add(group_obj_tag)
-                session.commit()
+                await session.commit()
 
                 self.push_all(
                     action="skyportal/REFRESH_SOURCE",
@@ -512,8 +521,10 @@ class ObjTagHandler(BaseHandler):
                     {"id": existing_assoc_id, "message": "Groups added to existing tag"}
                 )
 
-            groups = session.scalars(
-                sa.select(Group).where(Group.id.in_(valid_group_ids))
+            groups = (
+                await session.scalars(
+                    sa.select(Group).where(Group.id.in_(valid_group_ids))
+                )
             ).all()
 
             new_assoc = ObjTag(
@@ -523,7 +534,7 @@ class ObjTagHandler(BaseHandler):
             )
             new_assoc.groups = groups
             session.add(new_assoc)
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
@@ -532,7 +543,7 @@ class ObjTagHandler(BaseHandler):
             return self.success(new_assoc)
 
     @auth_or_token
-    def delete(self, association_id: int):
+    async def delete(self, association_id: int):
         """
         ---
         summary: Delete object-tag association
@@ -588,10 +599,12 @@ class ObjTagHandler(BaseHandler):
         ):
             return self.error("`group_ids` cannot be an empty list", status=400)
 
-        with self.Session() as session:
-            obj_tag = session.scalars(
-                sa.select(ObjTag).where(ObjTag.id == association_id)
-            ).first()
+        async with self.AsyncSession() as session:
+            obj_tag = await session.scalar(
+                sa.select(ObjTag)
+                .options(selectinload(ObjTag.obj), selectinload(ObjTag.groups))
+                .where(ObjTag.id == association_id)
+            )
 
             if not obj_tag:
                 return self.error("Association not found", status=404)
@@ -625,23 +638,25 @@ class ObjTagHandler(BaseHandler):
                     )
 
             stmt = GroupObjTag.select(session.user_or_token, mode="delete")
-            group_obj_tags = session.scalars(
-                stmt.where(
-                    GroupObjTag.obj_tag_id == association_id,
-                    GroupObjTag.group_id.in_(groups_to_remove),
+            group_obj_tags = (
+                await session.scalars(
+                    stmt.where(
+                        GroupObjTag.obj_tag_id == association_id,
+                        GroupObjTag.group_id.in_(groups_to_remove),
+                    )
                 )
             ).all()
             for group_obj_tag in group_obj_tags:
-                session.delete(group_obj_tag)
+                await session.delete(group_obj_tag)
 
             remaining_count = len(current_tag_group_ids) - len(
                 groups_to_remove & current_tag_group_ids
             )
 
             if remaining_count == 0:
-                session.delete(obj_tag)
+                await session.delete(obj_tag)
 
-            session.commit()
+            await session.commit()
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
                 payload={"obj_key": obj_key},

@@ -1,3 +1,5 @@
+from sqlalchemy.orm import selectinload
+
 from baselayer.app.access import permissions
 
 from ...models import Group, Photometry, Spectrum
@@ -6,7 +8,7 @@ from ..base import BaseHandler
 
 class SharingHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Share data with additional groups/users
@@ -60,12 +62,13 @@ class SharingHandler(BaseHandler):
                 "One of either `photometryIDs` or `spectrumIDs` must be provided."
             )
 
-        with self.Session() as session:
-            valid_groups = session.scalars(
+        async with self.AsyncSession() as session:
+            valid_groups_result = await session.scalars(
                 Group.select(session.user_or_token)
                 .where(Group.id.in_(group_ids))
                 .distinct()
-            ).all()
+            )
+            valid_groups = valid_groups_result.all()
             valid_group_ids = [g.id for g in valid_groups]
             invalid_group_ids = [gid for gid in group_ids if gid not in valid_group_ids]
 
@@ -77,11 +80,12 @@ class SharingHandler(BaseHandler):
             spec_obj_internal_keys = []
 
             if phot_ids:
-                valid_phot = session.scalars(
-                    Photometry.select(session.user_or_token).where(
-                        Photometry.id.in_(phot_ids)
-                    )
-                ).all()
+                valid_phot_result = await session.scalars(
+                    Photometry.select(session.user_or_token)
+                    .options(selectinload(Photometry.groups))
+                    .where(Photometry.id.in_(phot_ids))
+                )
+                valid_phot = valid_phot_result.all()
                 valid_phot_ids = [op.id for op in valid_phot]
                 invalid_phot_ids = [
                     pid for pid in phot_ids if pid not in valid_phot_ids
@@ -106,11 +110,15 @@ class SharingHandler(BaseHandler):
                     phot_obj_ids.append(phot.obj_id)
 
             if spec_ids:
-                valid_spec = session.scalars(
-                    Spectrum.select(session.user_or_token, mode="update").where(
-                        Spectrum.id.in_(spec_ids)
+                valid_spec_result = await session.scalars(
+                    Spectrum.select(session.user_or_token, mode="update")
+                    .options(
+                        selectinload(Spectrum.groups),
+                        selectinload(Spectrum.obj),
                     )
-                ).all()
+                    .where(Spectrum.id.in_(spec_ids))
+                )
+                valid_spec = valid_spec_result.all()
                 valid_spec_ids = [os.id for os in valid_spec]
                 invalid_spec_ids = [
                     sid for sid in spec_ids if sid not in valid_spec_ids
@@ -128,7 +136,7 @@ class SharingHandler(BaseHandler):
                             spec.groups.append(group)
                     spec_obj_internal_keys.append(spec.obj.internal_key)
 
-            session.commit()
+            await session.commit()
 
             phot_obj_ids = set(phot_obj_ids)
             spec_obj_internal_keys = set(spec_obj_internal_keys)
