@@ -1,4 +1,5 @@
 import React, { Suspense, useEffect, useState } from "react";
+import type { ShiftSummaryArgs } from "./ShiftSummary";
 import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
@@ -13,8 +14,7 @@ import ShiftManagement from "./ShiftManagement";
 import ShiftSummary from "./ShiftSummary";
 import Reminders from "../Reminders";
 import ManageRecurringShifts from "./ManageRecurringShifts";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as shiftsActions from "../../ducks/shifts";
+import { useGetShiftsQuery, useGetShiftQuery } from "../../ducks/shifts";
 
 const CommentList = React.lazy(() => import("../comment/CommentList"));
 
@@ -47,29 +47,29 @@ interface ShiftPageProps {
 
 const ShiftPage = ({ route = null }: ShiftPageProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
-  const shiftList = useAppSelector((state) => state["shifts"].shiftList);
-  const currentShift = useAppSelector((state) => state["shifts"].currentShift);
+  const [endDateLimit, setEndDateLimit] = useState(() =>
+    getLastDayOfMonthTwoMonthsAgo(new Date()).toISOString(),
+  );
+  const { data: shiftList } = useGetShiftsQuery({
+    end_date_limit: endDateLimit,
+  });
+  const [currentShiftId, setCurrentShiftId] = useState<number | null>(null);
+  const { data: currentShift } = useGetShiftQuery(currentShiftId as number, {
+    skip: currentShiftId == null,
+  });
+  const [summaryArgs, setSummaryArgs] = useState<ShiftSummaryArgs | null>(null);
   const [preSelectedRange, setPreSelectedRange] = useState<any>(null);
   // show "new shift", "manage shift" or "manage recurring shifts"
   const [show, setShow] = useState("new shift");
 
   useEffect(() => {
-    dispatch(
-      shiftsActions.fetchShifts({
-        end_date_limit: getLastDayOfMonthTwoMonthsAgo(new Date()).toISOString(),
-      }),
-    );
-  }, [dispatch]);
-
-  useEffect(() => {
     const shiftId = parseInt(route?.id as string, 10);
     if (!isNaN(shiftId)) {
-      dispatch(shiftsActions.setCurrentShift(shiftId));
-      dispatch(shiftsActions.getShiftsSummary({ shiftID: shiftId }));
+      setCurrentShiftId(shiftId);
+      setSummaryArgs({ shiftID: shiftId });
       setShow("manage shift");
     }
-  }, [route?.id, dispatch]);
+  }, [route?.id]);
 
   const isNewShift = show === "new shift";
   const isRecurring = show === "manage recurring shifts";
@@ -81,6 +81,10 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
           {shiftList ? (
             <MyCalendar
               shifts={shiftList}
+              currentShift={currentShift}
+              setCurrentShiftId={setCurrentShiftId}
+              setSummaryArgs={setSummaryArgs}
+              setEndDateLimit={setEndDateLimit}
               setShow={setShow}
               preSelectedRange={preSelectedRange}
               setPreSelectedRange={setPreSelectedRange}
@@ -223,7 +227,10 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
         )}
       </Grid>
       <Grid size={{ md: 12, sm: 12 }}>
-        <ShiftSummary />
+        <ShiftSummary
+          summaryArgs={summaryArgs}
+          setSummaryArgs={setSummaryArgs}
+        />
       </Grid>
     </Grid>
   );

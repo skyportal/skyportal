@@ -1,9 +1,8 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import embed from "vega-embed";
 import { useTheme } from "@mui/material/styles";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as spectraActions from "../../ducks/spectra";
+import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 
 const spec = (
   dataUrl: string | null,
@@ -177,24 +176,12 @@ const VegaSpectrum = (props: VegaSpectrumProps) => {
     legendOrient = "right",
     normalization = "median",
   } = props;
-  const dispatch = useAppDispatch();
-  const spectra = useAppSelector((state) => state["spectra"][sourceId]);
-  const [loading, setLoading] = useState(false);
+  const { data: spectra, isLoading } = useFetchSourceSpectraQuery({
+    id: sourceId,
+    normalization,
+  });
 
-  useEffect(() => {
-    async function fetchSpectra() {
-      if (!spectra && !loading) {
-        setLoading(true);
-        await dispatch(
-          spectraActions.fetchSourceSpectra(sourceId, normalization),
-        );
-        setLoading(false);
-      }
-    }
-    fetchSpectra();
-  }, [sourceId, spectra, dispatch]);
-
-  if (loading) return <CircularProgress />;
+  if (isLoading) return <CircularProgress />;
 
   if (!spectra?.length) return "No spectra found";
 

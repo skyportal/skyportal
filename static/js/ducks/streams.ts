@@ -1,106 +1,95 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Streams.
+ *
+ * RTK Query conversion of the old `FETCH_STREAMS` duck. The list query provides
+ * the "Streams" tag; all mutations (add/delete stream, add/remove a stream from
+ * a group, add/remove a user on a stream) invalidate it so the list refetches.
+ *
+ * The old websocket handler refetched streams on a FETCH_STREAMS message; here
+ * we invalidate the "Streams" tag so the active query refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
-
-const FETCH_STREAMS = "skyportal/FETCH_STREAMS";
-const FETCH_STREAMS_OK = "skyportal/FETCH_STREAMS_OK";
-
-const ADD_STREAM = "skyportal/ADD_STREAM";
-
-const DELETE_STREAM = "skyportal/DELETE_STREAM";
-
-const ADD_GROUP_STREAM = "skyportal/ADD_GROUP_STREAM";
-
-const DELETE_GROUP_STREAM = "skyportal/DELETE_GROUP_STREAM";
-
-const ADD_STREAM_USER = "skyportal/ADD_STREAM_USER";
-
-const DELETE_STREAM_USER = "skyportal/DELETE_STREAM_USER";
-
-export function fetchStreams() {
-  return API.GET("/api/streams", FETCH_STREAMS);
-}
-
-export function addNewStream(form_data: any) {
-  return API.POST("/api/streams", ADD_STREAM, form_data);
-}
-
-export function deleteStream(stream_id: number | string) {
-  return API.DELETE(`/api/streams/${stream_id}`, DELETE_STREAM);
-}
-
-export function addGroupStream({
-  group_id,
-  stream_id,
-}: {
-  group_id: number | string;
-  stream_id: number | string;
-}) {
-  return API.POST(`/api/groups/${group_id}/streams`, ADD_GROUP_STREAM, {
-    stream_id,
-  });
-}
-
-export function deleteGroupStream({
-  group_id,
-  stream_id,
-}: {
-  group_id: number | string;
-  stream_id: number | string;
-}) {
-  return API.DELETE(
-    `/api/groups/${group_id}/streams/${stream_id}`,
-    DELETE_GROUP_STREAM,
-  );
-}
-
-export function addStreamUser({
-  user_id,
-  stream_id,
-}: {
-  user_id: number | string;
-  stream_id: number | string;
-}) {
-  return API.POST(`/api/streams/${stream_id}/users`, ADD_STREAM_USER, {
-    user_id,
-  });
-}
-
-export function deleteStreamUser({
-  user_id,
-  stream_id,
-}: {
-  user_id: number | string;
-  stream_id: number | string;
-}) {
-  return API.DELETE(
-    `/api/streams/${stream_id}/users/${user_id}`,
-    DELETE_STREAM_USER,
-  );
-}
-
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === FETCH_STREAMS) {
-    dispatch(fetchStreams());
-  }
+export const streamsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getStreams: build.query<RouteData<"GET /api/streams">, void>({
+      query: () => "api/streams",
+      providesTags: ["Streams"],
+    }),
+    addNewStream: build.mutation<
+      RouteData<"POST /api/streams">,
+      Record<string, unknown>
+    >({
+      query: (form_data) => ({
+        url: "api/streams",
+        method: "POST",
+        body: form_data,
+      }),
+      invalidatesTags: ["Streams"],
+    }),
+    deleteStream: build.mutation<unknown, number | string>({
+      query: (stream_id) => ({
+        url: `api/streams/${stream_id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Streams"],
+    }),
+    addGroupStream: build.mutation<
+      RouteData<"POST /api/groups/{group_id}/streams">,
+      { group_id: number | string; stream_id: number | string }
+    >({
+      query: ({ group_id, stream_id }) => ({
+        url: `api/groups/${group_id}/streams`,
+        method: "POST",
+        body: { stream_id },
+      }),
+      invalidatesTags: ["Streams"],
+    }),
+    deleteGroupStream: build.mutation<
+      unknown,
+      { group_id: number | string; stream_id: number | string }
+    >({
+      query: ({ group_id, stream_id }) => ({
+        url: `api/groups/${group_id}/streams/${stream_id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Streams"],
+    }),
+    addStreamUser: build.mutation<
+      RouteData<"POST /api/streams/{stream_id}/users">,
+      { user_id: number | string; stream_id: number | string }
+    >({
+      query: ({ user_id, stream_id }) => ({
+        url: `api/streams/${stream_id}/users`,
+        method: "POST",
+        body: { user_id },
+      }),
+      invalidatesTags: ["Streams"],
+    }),
+    deleteStreamUser: build.mutation<
+      unknown,
+      { user_id: number | string; stream_id: number | string }
+    >({
+      query: ({ user_id, stream_id }) => ({
+        url: `api/streams/${stream_id}/users/${user_id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Streams"],
+    }),
+  }),
 });
 
-interface StreamsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
+// Websocket: old handler refetched streams on FETCH_STREAMS.
+invalidateOnMessage("skyportal/FETCH_STREAMS", () => ["Streams"]);
 
-function reducer(state: any = null, action: StreamsAction): any {
-  switch (action.type) {
-    case FETCH_STREAMS_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-}
-
-store.injectReducer("streams", reducer);
+export const {
+  useGetStreamsQuery,
+  useAddNewStreamMutation,
+  useDeleteStreamMutation,
+  useAddGroupStreamMutation,
+  useDeleteGroupStreamMutation,
+  useAddStreamUserMutation,
+  useDeleteStreamUserMutation,
+} = streamsApi;

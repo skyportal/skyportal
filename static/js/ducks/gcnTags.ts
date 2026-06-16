@@ -1,48 +1,57 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * GCN event tags.
+ *
+ * RTK Query conversion of the old `FETCH_GCN_TAGS` duck. Websocket-driven
+ * invalidation refetches the tag list; mutations post/delete a tag on an event.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-
-const FETCH_GCN_TAGS = "skyportal/FETCH_GCN_TAGS";
-const FETCH_GCN_TAGS_OK = "skyportal/FETCH_GCN_TAGS_OK";
-
-const POST_GCN_TAG = "skyportal/POST_GCNTAG";
-const DELETE_GCN_TAG = "skyportal/DELETE_GCNTAG";
-
-export const fetchGcnTags = (filterParams: Record<string, any> = {}) =>
-  API.GET("/api/gcn_event/tags", FETCH_GCN_TAGS, filterParams);
-
-export function postGcnTag(data: any) {
-  return API.POST(`/api/gcn_event/tags`, POST_GCN_TAG, data);
+interface PostGcnTagArg {
+  dateobs: string;
+  text: string;
 }
 
-export function deleteGcnTag(gcnEventID: number | string, tag: string) {
-  return API.DELETE(`/api/gcn_event/tags/${gcnEventID}`, DELETE_GCN_TAG, {
-    tag,
-  });
+interface DeleteGcnTagArg {
+  gcnEventID: number | string;
+  tag: string;
 }
 
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === FETCH_GCN_TAGS) {
-    dispatch(fetchGcnTags());
-  }
+export const gcnTagsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getGcnTags: build.query<string[], Record<string, unknown> | void>({
+      query: (filterParams) => {
+        const params = new URLSearchParams(
+          (filterParams as Record<string, string>) ?? {},
+        ).toString();
+        return params ? `api/gcn_event/tags?${params}` : "api/gcn_event/tags";
+      },
+      providesTags: ["GcnTags"],
+    }),
+    postGcnTag: build.mutation<unknown, PostGcnTagArg>({
+      query: (data) => ({
+        url: "api/gcn_event/tags",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["GcnTags"],
+    }),
+    deleteGcnTag: build.mutation<unknown, DeleteGcnTagArg>({
+      query: ({ gcnEventID, tag }) => ({
+        url: `api/gcn_event/tags/${gcnEventID}`,
+        method: "DELETE",
+        body: { tag },
+      }),
+      invalidatesTags: ["GcnTags"],
+    }),
+  }),
 });
 
-interface GcnTagsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
+// Websocket: the old handler refetched the full tag list on FETCH_GCN_TAGS.
+invalidateOnMessage("skyportal/FETCH_GCN_TAGS", () => ["GcnTags"]);
 
-const reducer = (state: any = null, action: GcnTagsAction): any => {
-  switch (action.type) {
-    case FETCH_GCN_TAGS_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("gcnTags", reducer);
+export const {
+  useGetGcnTagsQuery,
+  usePostGcnTagMutation,
+  useDeleteGcnTagMutation,
+} = gcnTagsApi;

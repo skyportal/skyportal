@@ -1,42 +1,45 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Earthquake statuses (list of available status tags).
+ *
+ * RTK Query conversion of the old `FETCH_EARTHQUAKE_STATUSES` duck. The endpoint
+ * is injected into the central `skyportalApi`, so caching, loading and error
+ * state are handled by RTK Query instead of a hand-written reducer.
+ *
+ * The old websocket handler re-fetched the statuses whenever a
+ * `FETCH_EARTHQUAKE_STATUSES` message arrived, unconditionally. The RTK Query
+ * equivalent invalidates the `EarthquakeStatus` tag so any active query refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+export type EarthquakeStatuses = string[];
 
-const FETCH_EARTHQUAKE_STATUSES = "skyportal/FETCH_EARTHQUAKE_STATUSES";
-const FETCH_EARTHQUAKE_STATUSES_OK = "skyportal/FETCH_EARTHQUAKE_STATUSES_OK";
-
-export const fetchEarthquakeStatuses = (filterParams = {}) =>
-  API.GET("/api/earthquake/status", FETCH_EARTHQUAKE_STATUSES, filterParams);
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === FETCH_EARTHQUAKE_STATUSES) {
-      dispatch(fetchEarthquakeStatuses());
-    }
-  },
-);
-
-type EarthquakeStatusesState = any;
-
-interface EarthquakeStatusesAction {
-  type: string;
-  data?: any;
+export interface EarthquakeStatusesArg {
+  [key: string]: unknown;
 }
 
-const reducer = (
-  state: EarthquakeStatusesState = null,
-  action: EarthquakeStatusesAction,
-): EarthquakeStatusesState => {
-  switch (action.type) {
-    case FETCH_EARTHQUAKE_STATUSES_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-};
+export const earthquakeStatusesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getEarthquakeStatuses: build.query<
+      EarthquakeStatuses,
+      EarthquakeStatusesArg | void
+    >({
+      query: (filterParams) => {
+        const params = new URLSearchParams(
+          (filterParams as Record<string, string>) ?? {},
+        ).toString();
+        return params
+          ? `api/earthquake/status?${params}`
+          : "api/earthquake/status";
+      },
+      providesTags: ["EarthquakeStatus"],
+    }),
+  }),
+});
 
-store.injectReducer("earthquakeStatuses", reducer);
+export const { useGetEarthquakeStatusesQuery } = earthquakeStatusesApi;
+
+// Websocket message handler: refresh the statuses list on any push.
+invalidateOnMessage("skyportal/FETCH_EARTHQUAKE_STATUSES", () => [
+  "EarthquakeStatus",
+]);

@@ -6,8 +6,10 @@ import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 
 import { makeStyles } from "tss-react/mui";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import CustomizeOpenAIParameters from "./CustomizeOpenAIParameters";
 
@@ -23,8 +25,9 @@ const useStyles = makeStyles()((theme) => ({
 
 const OpenAIPreferences = () => {
   const { classes } = useStyles();
-  const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const dispatch = useAppDispatch();
+  const { data: profileData } = useGetProfileQuery();
+  const profile = (profileData?.preferences ?? {}) as any;
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const [OpenAIapikey, setOpenAIapikey] = useState(
     profile.summary?.OpenAI?.openai_apikey,
   );
@@ -44,7 +47,7 @@ const OpenAIPreferences = () => {
           },
         },
       };
-      dispatch(profileActions.updateUserPreferences(prefs));
+      updateUserPreferences(prefs);
     } else {
       setOpenAIapikeyerror(true);
     }
@@ -58,7 +61,7 @@ const OpenAIPreferences = () => {
         },
       },
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   return (

@@ -1,3 +1,5 @@
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 
 import SaveIcon from "@mui/icons-material/Save";
@@ -5,8 +7,8 @@ import { showNotification } from "baselayer/components/Notifications";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
+import { useAppDispatch } from "../../types/hooks";
+import { useSaveSourceMutation } from "../../ducks/source";
 import Button from "../Button";
 
 interface QuickSaveButtonProps {
@@ -19,11 +21,10 @@ const QuickSaveButton = ({
   alreadySavedGroups = [],
 }: QuickSaveButtonProps) => {
   const dispatch = useAppDispatch();
-  const profile = useAppSelector((state) => state.profile);
-  const userAccessibleGroups = useAppSelector(
-    (state) => state.groups.userAccessible,
-  );
-  const { hydratedList } = useAppSelector((state) => state["hydration"]);
+  const [saveSource] = useSaveSourceMutation();
+  const { data: profile } = useGetProfileQuery();
+  const { data: groupsData, isSuccess: groupsLoaded } = useGetGroupsQuery();
+  const userAccessibleGroups = groupsData?.userAccessible ?? [];
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -41,19 +42,20 @@ const QuickSaveButton = ({
       id: sourceId,
       group_ids: saveGroups,
     };
-    dispatch(sourceActions.saveSource(data)).then((response: any) => {
-      if (response.status === "success") {
+    saveSource(data)
+      .unwrap()
+      .then(() => {
         dispatch(
           showNotification(
             `Source quick saved to ${quickSaveGroupsSet.size} group(s)`,
           ),
         );
         setIsSaving(false);
-      } else {
+      })
+      .catch(() => {
         setIsSaving(false);
         dispatch(showNotification("Error saving source", "error"));
-      }
-    });
+      });
   };
 
   if (!((profile?.preferences as any)?.quicksave_group_ids?.length > 0)) {
@@ -68,11 +70,6 @@ const QuickSaveButton = ({
     return null;
   }
 
-  const groupsLoaded =
-    typeof hydratedList === "object" &&
-    Array.isArray(hydratedList) &&
-    hydratedList.includes("groups");
-
   if (userAccessibleGroups?.length === 0) {
     return null;
   }
@@ -82,7 +79,7 @@ const QuickSaveButton = ({
     : `Quick Save Source to: ${[...quickSaveGroupsSet]
         .map((groupId) => {
           const group = userAccessibleGroups.find((g) => g.id === groupId);
-          return group?.nickname || group?.name;
+          return group?.["nickname"] || group?.name;
         })
         .join(", ")}`;
 

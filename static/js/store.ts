@@ -10,6 +10,7 @@ import {
   withReduxStateSync,
 } from "redux-state-sync";
 
+import { skyportalApi } from "./api/skyportalApi";
 import type { AppStore } from "./types/store";
 
 declare global {
@@ -56,7 +57,12 @@ const composeWithDevTools =
 function configureStore(): AppStore {
   const nullReducer: Reducer = (state = null) => state;
 
-  const middlewares = [thunk, logger, createStateSyncMiddleware(syncConfig)];
+  const middlewares = [
+    thunk,
+    skyportalApi.middleware,
+    logger,
+    createStateSyncMiddleware(syncConfig),
+  ];
 
   const store = createStore(
     nullReducer,
@@ -81,5 +87,10 @@ const store = configureStore();
 
 // Add the notifications reducer from baselayer
 store.injectReducer("notifications", notificationsReducer);
+
+// Add the RTK Query cache reducer. Endpoints injected by individual ducks all
+// live under this single `skyportalApi` reducer. Its actions are not in the
+// `syncConfig` whitelist, so the cache is intentionally not synced across tabs.
+store.injectReducer(skyportalApi.reducerPath, skyportalApi.reducer);
 
 export default store;

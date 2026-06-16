@@ -1,5 +1,6 @@
 import SelectWithChips from "../SelectWithChips";
-import { useAppSelector } from "../../types/hooks";
+
+import { useGetConfigQuery } from "../../ducks/config";
 
 interface GcnNoticeTypesSelectProps {
   selectedGcnNoticeTypes: string[];
@@ -10,9 +11,7 @@ const GcnNoticeTypesSelect = ({
   selectedGcnNoticeTypes,
   setSelectedGcnNoticeTypes,
 }: GcnNoticeTypesSelectProps) => {
-  const gcn_notice_types = useAppSelector(
-    (state) => state["config"].gcnNoticeTypes,
-  );
+  const gcn_notice_types = (useGetConfigQuery().data as any)?.gcnNoticeTypes;
   if (!gcn_notice_types?.length) return null;
 
   return (

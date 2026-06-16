@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
@@ -9,7 +9,7 @@ import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
+import { useAppDispatch } from "../../../types/hooks";
 import Button from "../../Button";
 
 import GcnNoticeTypesSelect from "../../gcn/GcnNoticeTypesSelect";
@@ -17,7 +17,10 @@ import GcnTagsSelect from "../../gcn/GcnTagsSelect";
 import GcnPropertiesSelect from "../../gcn/GcnPropertiesSelect";
 import LocalizationTagsSelect from "../../localization/LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "../../localization/LocalizationPropertiesSelect";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 
 const conversions: Record<string, any> = {
   FAR: {
@@ -103,11 +106,11 @@ const useStyles = makeStyles()((theme) => ({
 
 const NotificationGcnEvent = () => {
   const { classes } = useStyles();
-  const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const { notifications } = useAppSelector(
-    (state) => state.profile.preferences,
-  ) as any;
+  const { data: profileData } = useGetProfileQuery();
+  const profile = (profileData?.preferences ?? {}) as any;
+  const { notifications } = profile;
   const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const {
     handleSubmit,
     reset,
@@ -130,37 +133,42 @@ const NotificationGcnEvent = () => {
   const [manageProfileOpen, setManageProfileOpen] = useState(false);
   const [newProfileOpen, setNewProfileOpen] = useState(false);
 
-  // Convert the existing notifications to a list format, so that they can be easily modified
-  if (!notifications?.gcn_events?.properties) {
-    const default_properties: Record<string, any> = {};
-    if (
-      notifications?.gcn_events?.gcn_notice_types ||
-      notifications?.gcn_events?.gcn_tags ||
-      notifications?.gcn_events?.gcn_properties ||
-      notifications?.gcn_events?.localization_tags ||
-      notifications?.gcn_events?.localization_properties
-    ) {
-      default_properties["original"] = {
-        gcn_notice_types: notifications?.gcn_events?.gcn_notice_types,
-        gcn_tags: notifications?.gcn_events?.gcn_tags,
-        gcn_properties: notifications?.gcn_events?.gcn_properties,
-        localization_tags: notifications?.gcn_events?.localization_tags,
-        localization_properties:
-          notifications?.gcn_events?.localization_properties,
-      };
-    }
+  // Convert the existing notifications to a list format, so that they can be
+  // easily modified. This runs as an effect (not in the render body) so the
+  // mutation doesn't dispatch on every render — which caused an infinite
+  // PATCH/render loop ("Cannot update a component while rendering").
+  useEffect(() => {
+    if (!notifications?.gcn_events?.properties) {
+      const default_properties: Record<string, any> = {};
+      if (
+        notifications?.gcn_events?.gcn_notice_types ||
+        notifications?.gcn_events?.gcn_tags ||
+        notifications?.gcn_events?.gcn_properties ||
+        notifications?.gcn_events?.localization_tags ||
+        notifications?.gcn_events?.localization_properties
+      ) {
+        default_properties["original"] = {
+          gcn_notice_types: notifications?.gcn_events?.gcn_notice_types,
+          gcn_tags: notifications?.gcn_events?.gcn_tags,
+          gcn_properties: notifications?.gcn_events?.gcn_properties,
+          localization_tags: notifications?.gcn_events?.localization_tags,
+          localization_properties:
+            notifications?.gcn_events?.localization_properties,
+        };
+      }
 
-    const prefs = {
-      notifications: {
-        gcn_events: {
-          active: true,
-          properties: default_properties,
+      const prefs = {
+        notifications: {
+          gcn_events: {
+            active: true,
+            properties: default_properties,
+          },
         },
-      },
-    };
+      };
 
-    dispatch(profileActions.updateUserPreferences(prefs));
-  }
+      updateUserPreferences(prefs);
+    }
+  }, [notifications, updateUserPreferences]);
 
   const openManageProfile = (key: any) => {
     setSelectedNotification(key);
@@ -197,20 +205,19 @@ const NotificationGcnEvent = () => {
       },
     };
 
-    dispatch(profileActions.updateUserPreferences(prefs)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("GCN notice preferences migrated"));
-        } else {
-          dispatch(
-            showNotification(
-              "Cannot automatically migrate GCN notice preferences",
-              "error",
-            ),
-          );
-        }
-      },
-    );
+    updateUserPreferences(prefs)
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("GCN notice preferences migrated"));
+      })
+      .catch(() => {
+        dispatch(
+          showNotification(
+            "Cannot automatically migrate GCN notice preferences",
+            "error",
+          ),
+        );
+      });
 
     setSelectedGcnNoticeTypes([]);
     setSelectedGcnTags([]);
@@ -238,17 +245,16 @@ const NotificationGcnEvent = () => {
     };
     setSelectedNotification(null);
     closeManageProfile();
-    dispatch(profileActions.updateUserPreferences(prefs)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("GCN notice preference deleted"));
-        } else {
-          dispatch(
-            showNotification("Can not delete gcn notice preference", "error"),
-          );
-        }
-      },
-    );
+    updateUserPreferences(prefs)
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("GCN notice preference deleted"));
+      })
+      .catch(() => {
+        dispatch(
+          showNotification("Can not delete gcn notice preference", "error"),
+        );
+      });
   };
 
   return (

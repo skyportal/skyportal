@@ -1,724 +1,764 @@
-import messageHandler from "baselayer/MessageHandler";
-
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+/**
+ * Source (the single loaded source detail + all its sub-resources and the many
+ * mutations that act on a source).
+ *
+ * RTK Query conversion of the old composite `source` duck. The old reducer
+ * built ONE `source` slice out of many independent sub-fetches (the main source
+ * object via `fetchSource`, the adjusted position, the associated GCNs, the
+ * analyses list, and a comment attachment), and registered ~40 thunks that
+ * POST/PATCH/PUT/DELETE against the source. Here each read becomes its own
+ * `build.query`, keyed by its own argument and cached independently, and every
+ * write becomes its own `build.mutation`.
+ *
+ * Consumers that used to read `state.source.<subfield>` now call the matching
+ * query hook. Queries that surface source data provide the `Source` tag;
+ * mutations that change source data invalidate it. The websocket `REFRESH_*`
+ * messages are bridged to cache invalidation via `invalidateOnMessage`, so only
+ * the active (currently-loaded) source's queries refetch.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
 export const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
+export const REFRESH_SOURCE_POSITION = "skyportal/REFRESH_SOURCE_POSITION";
 export const REFRESH_OBJ_ANALYSES = "skyportal/REFRESH_OBJ_ANALYSES";
 
-const FETCH_LOADED_SOURCE = "skyportal/FETCH_LOADED_SOURCE";
-const FETCH_LOADED_SOURCE_OK = "skyportal/FETCH_LOADED_SOURCE_OK";
-const FETCH_LOADED_SOURCE_ERROR = "skyportal/FETCH_LOADED_SOURCE_ERROR";
-const FETCH_LOADED_SOURCE_FAIL = "skyportal/FETCH_LOADED_SOURCE_FAIL";
-
-const ADD_CLASSIFICATION = "skyportal/ADD_CLASSIFICATION";
-
-const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
-
-const ADD_CLASSIFICATION_VOTE = "skyportal/ADD_CLASSIFICATION_VOTE";
-
-const DELETE_CLASSIFICATIONS = "skyportal/DELETE_CLASSIFICATIONS";
-
-const ADD_COMMENT = "skyportal/ADD_COMMENT";
-
-const ADD_ANNOTATION = "skyportal/ADD_ANNOTATION";
-
-const DELETE_ANNOTATION = "skyportal/DELETE_ANNOTATION";
-
-const EDIT_COMMENT = "skyportal/EDIT_COMMENT";
-
-const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
-const DELETE_COMMENT_ON_SPECTRUM = "skyportal/DELETE_COMMENT_ON_SPECTRUM";
-const GET_COMMENT_ATTACHMENT_OK = "skyportal/GET_COMMENT_ATTACHMENT_OK";
-
-const GET_COMMENT_ATTACHMENT_PREVIEW =
-  "skyportal/GET_COMMENT_ATTACHMENT_PREVIEW";
-const GET_COMMENT_ATTACHMENT_PREVIEW_OK =
-  "skyportal/GET_COMMENT_ATTACHMENT_PREVIEW_OK";
-
-const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK =
-  "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK";
-
-const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW =
-  "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW";
-const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK =
-  "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK";
-
-const ADD_SOURCE_VIEW = "skyportal/ADD_SOURCE_VIEW";
-
-const ADD_SOURCE_LABEL = "skyportal/ADD_SOURCE_LABEL";
-
-const DELETE_SOURCE_LABEL = "skyportal/DELETE_SOURCE_LABEL";
-
-const SUBMIT_FOLLOWUP_REQUEST = "skyportal/SUBMIT_FOLLOWUP_REQUEST";
-
-const EDIT_FOLLOWUP_REQUEST = "skyportal/EDIT_FOLLOWUP_REQUEST";
-
-const SUBMIT_ASSIGNMENT = "skyportal/SUBMIT_ASSIGNMENT";
-
-const EDIT_ASSIGNMENT = "skyportal/EDIT_ASSIGNMENT";
-
-const DELETE_ASSIGNMENT = "skyportal/DELETE_ASSIGNMENT";
-
-const SAVE_SOURCE = "skyportal/SAVE_SOURCE";
-
-const TRANSFER_SOURCE_OR_REQUEST_SAVE =
-  "skyportal/TRANSFER_SOURCE_OR_REQUEST_SAVE";
-
-const UPDATE_SOURCE = "skyportal/UPDATE_SOURCE";
-
-const DELETE_FOLLOWUP_REQUEST = "skyportal/DELETE_FOLLOWUP_REQUEST";
-
-const GET_PHOTOMETRY_REQUEST = "skyportal/GET_PHOTOMETRY_REQUEST";
-
-const UPLOAD_PHOTOMETRY = "skyportal/UPLOAD_PHOTOMETRY";
-
-const SHARE_DATA = "skyportal/SHARE_DATA";
-
-const SEND_ALERT = "skyportal/SEND_ALERT";
-
-const FETCH_GAIA = "skyportal/FETCH_GAIA";
-
-const FETCH_WISE = "skyportal/FETCH_WISE";
-
-const FETCH_VIZIER = "skyportal/FETCH_VIZIER";
-
-const FETCH_PHOTOZ = "skyportal/FETCH_PHOTOZ";
-
-const FETCH_PS1 = "skyportal/FETCH_PS1";
-
-const CHECK_SOURCE = "skyportal/CHECK_SOURCE";
-
-const FETCH_ASSOCIATED_GCNS = "skyportal/FETCH_ASSOCIATED_GCNS";
-const FETCH_ASSOCIATED_GCNS_OK = "skyportal/FETCH_ASSOCIATED_GCNS_OK";
-const START_ANALYSIS_FOR_OBJ = "skyportal/START_SERVICE_FOR_OBJ";
-const DELETE_ANALYSIS = "skyportal/DELETE_ANALYSIS";
-
-const FETCH_ANALYSES_FOR_OBJ = "skyportal/FETCH_ANALYSES_FOR_OBJ";
-const FETCH_ANALYSES_FOR_OBJ_OK = "skyportal/FETCH_ANALYSES_FOR_OBJ_OK";
-const FETCH_ANALYSIS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
-const FETCH_ANALYSIS_RESULTS_FOR_OBJ = "skyportal/FETCH_ANALYSIS_FOR_OBJ";
-
-const COPY_SOURCE_PHOTOMETRY = "skyportal/COPY_SOURCE_PHOTOMETRY";
-
-const ADD_TNS = "skyportal/ADD_TNS";
-
-const ADD_HOST = "skyportal/ADD_HOST";
-
-const REMOVE_HOST = "skyportal/REMOVE_HOST";
-
-const ADD_MPC = "skyportal/ADD_MPC";
-
-const ADD_GCN_CROSSMATCH = "skyportal/ADD_GCN_CROSSMATCH";
-
-const FETCH_LOADED_SOURCE_POSITION = "skyportal/FETCH_LOADED_SOURCE_POSITION";
-const FETCH_LOADED_SOURCE_POSITION_OK =
-  "skyportal/FETCH_LOADED_SOURCE_POSITION_OK";
-const REFRESH_SOURCE_POSITION = "skyportal/REFRESH_SOURCE_POSITION";
-
-const FETCH_SOURCE_FINDER_CHART = "skyportal/FETCH_SOURCE_FINDER_CHART";
-
-export function fetchSourceFinderChart(
-  id: number | string,
-  formData: Record<string, any>,
-) {
-  return API.GET(
-    `/api/sources/${id}/finder`,
-    FETCH_SOURCE_FINDER_CHART,
-    formData,
-  );
-}
-
-export function fetchPosition(id: number | string) {
-  return API.GET(`/api/sources/${id}/position`, FETCH_LOADED_SOURCE_POSITION);
-}
-
-export function addGCNCrossmatch(
-  id: number | string,
-  formData: Record<string, any>,
-) {
-  return API.POST(`/api/sources/${id}/gcn_event`, ADD_GCN_CROSSMATCH, formData);
-}
-
-export function addMPC(id: number | string, formData: Record<string, any>) {
-  return API.POST(`/api/sources/${id}/mpc`, ADD_MPC, formData);
-}
-
-export function addHost(id: number | string, formData: Record<string, any>) {
-  return API.POST(`/api/sources/${id}/host`, ADD_HOST, formData);
-}
-
-export function removeHost(id: number | string) {
-  return API.DELETE(`/api/sources/${id}/host`, REMOVE_HOST);
-}
-
-export function addTNS(id: number | string, formData: Record<string, any>) {
-  return API.GET(`/api/sources/${id}/tns`, ADD_TNS, formData);
-}
-
-export const shareData = (data: Record<string, any>) =>
-  API.POST("/api/sharing", SHARE_DATA, data);
-
-export const uploadPhotometry = (data: Record<string, any>) =>
-  API.POST("/api/photometry?refresh=true", UPLOAD_PHOTOMETRY, data);
-
-export function copySourcePhotometry(
-  id: number | string,
-  formData: Record<string, any> = {},
-) {
-  return API.POST(
-    `/api/sources/${id}/copy_photometry`,
-    COPY_SOURCE_PHOTOMETRY,
-    formData,
-  );
-}
-
-export function addClassification(formData: Record<string, any>) {
-  return API.POST(`/api/classification`, ADD_CLASSIFICATION, formData);
-}
-
-export function addClassificationVote(
-  classification_id: number | string,
-  data: Record<string, any> = {},
-) {
-  return API.POST(
-    `/api/classification/votes/${classification_id}`,
-    ADD_CLASSIFICATION_VOTE,
-    data,
-  );
-}
-
-export function startAnalysis(
-  id: number | string,
-  analysis_service_id: number | string,
-  formData: Record<string, any> = {},
-) {
-  return API.POST(
-    `/api/obj/${id}/analysis/${analysis_service_id}`,
-    START_ANALYSIS_FOR_OBJ,
-    formData,
-  );
-}
-
-export function deleteAnalysis(
-  analysis_id: number | string,
-  formData: Record<string, any> = {},
-) {
-  return API.DELETE(
-    `/api/obj/analysis/${analysis_id}`,
-    DELETE_ANALYSIS,
-    formData,
-  );
-}
-
-export function fetchAnalyses(
-  analysis_resource_type = "obj",
-  params: Record<string, any> = {},
-) {
-  return API.GET(
-    `/api/${analysis_resource_type}/analysis`,
-    FETCH_ANALYSES_FOR_OBJ,
-    params,
-  );
-}
-
-export function fetchAnalysis(
-  analysis_id: number | string,
-  analysis_resource_type = "obj",
-  params: Record<string, any> = {},
-) {
-  return API.GET(
-    `/api/${analysis_resource_type}/analysis/${analysis_id}`,
-    FETCH_ANALYSIS_FOR_OBJ,
-    params,
-  );
-}
-
-export function fetchAnalysisResults(
-  analysis_id: number | string,
-  analysis_resource_type = "obj",
-  params: Record<string, any> = {},
-) {
-  return API.GET(
-    `/api/${analysis_resource_type}/analysis/${analysis_id}/results`,
-    FETCH_ANALYSIS_RESULTS_FOR_OBJ,
-    params,
-  );
-}
-
-export function deleteClassification(classification_id: number | string) {
-  return API.DELETE(
-    `/api/classification/${classification_id}`,
-    DELETE_CLASSIFICATION,
-  );
-}
-
-export function deleteClassifications(source_id: number | string) {
-  return API.DELETE(
-    `/api/sources/${source_id}/classifications`,
-    DELETE_CLASSIFICATIONS,
-  );
-}
-
-export function addComment(formData: Record<string, any>) {
-  function fileReaderPromise(file: File) {
-    return new Promise((resolve) => {
-      const filereader = new FileReader();
-      filereader.readAsDataURL(file);
-      filereader.onloadend = () =>
-        resolve({ body: filereader.result, name: file.name });
-    });
-  }
-  if (formData["attachment"]) {
-    return (dispatch: AppDispatch) => {
-      fileReaderPromise(formData["attachment"]).then((fileData) => {
-        formData["attachment"] = fileData;
-
-        if (formData["spectrum_id"]) {
-          dispatch(
-            API.POST(
-              `/api/spectra/${formData["spectrum_id"]}/comments`,
-              ADD_COMMENT,
-              formData,
-            ),
-          );
-        } else {
-          dispatch(
-            API.POST(
-              `/api/sources/${formData["obj_id"]}/comments`,
-              ADD_COMMENT,
-              formData,
-            ),
-          );
-        }
-      });
-    };
-  }
-  if (formData["spectrum_id"]) {
-    return API.POST(
-      `/api/spectra/${formData["spectrum_id"]}/comments`,
-      ADD_COMMENT,
-      formData,
-    );
-  }
-  return API.POST(
-    `/api/sources/${formData["obj_id"]}/comments`,
-    ADD_COMMENT,
-    formData,
-  );
-}
-
-export function addAnnotation(
-  sourceID: number | string,
-  formData: Record<string, any>,
-) {
-  return API.POST(
-    `/api/sources/${sourceID}/annotations`,
-    ADD_ANNOTATION,
-    formData,
-  );
-}
-
-export function deleteAnnotation(
-  sourceID: number | string,
-  annotationID: number | string,
-) {
-  return API.DELETE(
-    `/api/sources/${sourceID}/annotations/${annotationID}`,
-    DELETE_ANNOTATION,
-  );
-}
-
-export function deleteComment(
-  sourceID: number | string,
-  commentID: number | string,
-) {
-  return API.DELETE(
-    `/api/sources/${sourceID}/comments/${commentID}`,
-    DELETE_COMMENT,
-  );
-}
-
-export function deleteCommentOnSpectrum(
-  spectrumID: number | string,
-  commentID: number | string,
-) {
-  return API.DELETE(
-    `/api/spectra/${spectrumID}/comments/${commentID}`,
-    DELETE_COMMENT_ON_SPECTRUM,
-  );
-}
-
-export function editComment(
-  commentID: number | string,
-  formData: Record<string, any>,
-) {
-  function fileReaderPromise(file: File) {
-    return new Promise((resolve) => {
-      const filereader = new FileReader();
-      filereader.readAsDataURL(file);
-      filereader.onloadend = () =>
-        resolve({ body: filereader.result, name: file.name });
-    });
-  }
-  if (formData["attachment"]) {
-    return (dispatch: AppDispatch) => {
-      fileReaderPromise(formData["attachment"]).then((fileData) => {
-        formData["attachment"] = fileData;
-
-        if (formData["spectrum_id"]) {
-          dispatch(
-            API.PUT(
-              `/api/spectra/${formData["spectrum_id"]}/comments/${commentID}`,
-              EDIT_COMMENT,
-              formData,
-            ),
-          );
-        } else {
-          dispatch(
-            API.PUT(
-              `/api/sources/${formData["obj_id"]}/comments/${commentID}`,
-              EDIT_COMMENT,
-              formData,
-            ),
-          );
-        }
-      });
-    };
-  }
-  if (formData["spectrum_id"]) {
-    return API.PUT(
-      `/api/spectra/${formData["spectrum_id"]}/comments/${commentID}`,
-      EDIT_COMMENT,
-      formData,
-    );
-  }
-  return API.PUT(
-    `/api/sources/${formData["obj_id"]}/comments/${commentID}`,
-    EDIT_COMMENT,
-    formData,
-  );
-}
-
-export function getCommentTextAttachment(
-  sourceID: number | string,
-  commentID: number | string,
-) {
-  return API.GET(
-    `/api/sources/${sourceID}/comments/${commentID}/attachment?download=false&preview=false`,
-    GET_COMMENT_ATTACHMENT_PREVIEW,
-  );
-}
-
-export function getCommentOnSpectrumTextAttachment(
-  spectrumID: number | string,
-  commentID: number | string,
-) {
-  return API.GET(
-    `/api/spectra/${spectrumID}/comments/${commentID}/attachment?download=false&preview=false`,
-    GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW,
-  );
-}
-
-export function fetchSource(
-  id: number | string,
-  actionType = FETCH_LOADED_SOURCE,
-) {
-  const urlParams = {
-    includeComments: true,
-    includeColorMagnitude: true,
-    includeThumbnails: true,
-    includePhotometryExists: true,
-    includeSpectrumExists: true,
-    includeLabellers: true,
-    includeDetectionStats: true,
-    includeGCNCrossmatches: true,
-    includeGCNNotes: true,
-    includeCandidates: true,
-    // Aggregate classifications across meta-object (SuperObj) members, with
-    // per-source provenance. No-ops for non-meta sources (mirrors the
-    // includeSuperObjsPhotometry flag on the photometry endpoint).
-    includeSuperObjs: true,
-  };
-  const queryString = new URLSearchParams(
-    urlParams as unknown as Record<string, string>,
-  ).toString();
-  return API.GET(`/api/sources/${id}?${queryString}`, actionType);
-}
-
-export function checkSource(
-  id: number | string,
-  params: Record<string, any>,
-  actionType = CHECK_SOURCE,
-) {
-  const queryParams = params["nameOnly"]
-    ? ""
-    : `?ra=${params["ra"]}&dec=${params["dec"]}&radius=0.0003`;
-  return API.GET(`/api/source_exists/${id}${queryParams}`, actionType);
-}
-
-export function addSourceView(id: number | string) {
-  return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
-}
-
-export function addSourceLabels(
-  id: number | string,
-  data: Record<string, any>,
-) {
-  return API.POST(`/api/sources/${id}/labels`, ADD_SOURCE_LABEL, data);
-}
-
-export function deleteSourceLabels(
-  id: number | string,
-  data: Record<string, any>,
-) {
-  return API.DELETE(`/api/sources/${id}/labels`, DELETE_SOURCE_LABEL, data);
-}
-
-export const updateSource = (
-  id: number | string,
-  payload: Record<string, any>,
-) => API.PATCH(`/api/sources/${id}`, UPDATE_SOURCE, payload);
-
-export const saveSource = (payload: Record<string, any>) =>
-  API.POST(`/api/sources`, SAVE_SOURCE, payload);
-
-export const acceptSaveRequest = ({
-  sourceID,
-  groupID,
-}: {
-  sourceID: number | string;
-  groupID: number | string;
-}) =>
-  API.PATCH(`/api/source_groups/${sourceID}`, SAVE_SOURCE, {
-    groupID,
-    active: true,
-    requested: false,
-  });
-
-export const declineSaveRequest = ({
-  sourceID,
-  groupID,
-}: {
-  sourceID: number | string;
-  groupID: number | string;
-}) =>
-  API.PATCH(`/api/source_groups/${sourceID}`, SAVE_SOURCE, {
-    groupID,
-    active: false,
-    requested: false,
-  });
-
-export const updateSourceGroups = (payload: Record<string, any>) =>
-  API.POST(`/api/source_groups`, TRANSFER_SOURCE_OR_REQUEST_SAVE, payload);
-
-export const submitFollowupRequest = (params: Record<string, any>) => {
-  const { instrument_name, ...paramsToSubmit } = params;
-  return API.POST(
-    "/api/followup_request",
-    SUBMIT_FOLLOWUP_REQUEST,
-    paramsToSubmit,
-  );
-};
-
-export const editFollowupRequest = (
-  params: Record<string, any>,
-  requestID: number | string,
-) => {
-  const { instrument_name, ...paramsToSubmit } = params;
-  return API.PUT(
-    `/api/followup_request/${requestID}`,
-    EDIT_FOLLOWUP_REQUEST,
-    paramsToSubmit,
-  );
-};
-
-export const deleteFollowupRequest = (
-  id: number | string,
-  params: Record<string, any> = {},
-) => API.DELETE(`/api/followup_request/${id}`, DELETE_FOLLOWUP_REQUEST, params);
-
-export const getPhotometryRequest = (
-  id: number | string,
-  params: Record<string, any> = {},
-) => API.GET(`/api/photometry_request/${id}`, GET_PHOTOMETRY_REQUEST, params);
-
-export const submitAssignment = (params: Record<string, any>) =>
-  API.POST("/api/assignment", SUBMIT_ASSIGNMENT, params);
-
-export const editAssignment = (
-  params: Record<string, any>,
-  assignmentID: number | string,
-) => API.PUT(`/api/assignment/${assignmentID}`, EDIT_ASSIGNMENT, params);
-
-export const deleteAssignment = (id: number | string) =>
-  API.DELETE(`/api/assignment/${id}`, DELETE_ASSIGNMENT);
-
-export const sendAlert = (params: Record<string, any>) =>
-  API.POST(`/api/source_notifications`, SEND_ALERT, params);
-
-export const fetchGaia = (sourceID: number | string) =>
-  API.POST(`/api/sources/${sourceID}/annotations/gaia`, FETCH_GAIA);
-
-export const fetchWise = (sourceID: number | string) =>
-  API.POST(`/api/sources/${sourceID}/annotations/irsa`, FETCH_WISE);
-
-export const fetchVizier = (sourceID: number | string, catalog = "VII/290") =>
-  API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER, {
-    catalog,
-  });
-
-export const fetchPhotoz = (sourceID: number | string) =>
-  API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);
-
-export const fetchPS1 = (sourceID: number | string) =>
-  API.POST(`/api/sources/${sourceID}/annotations/ps1`, FETCH_PS1);
-
-export const fetchAssociatedGCNs = (sourceID: number | string) =>
-  API.GET(`/api/associated_gcns/${sourceID}`, FETCH_ASSOCIATED_GCNS);
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: any, payload: any, dispatch: any, getState: any) => {
-    const { source } = getState();
-    if (actionType === REFRESH_SOURCE) {
-      const loaded_obj_key = source?.internal_key;
-      if (loaded_obj_key === payload.obj_key) {
-        dispatch(fetchSource(source.id));
-      }
-    } else if (actionType === REFRESH_SOURCE_POSITION) {
-      const loaded_obj_key = source?.internal_key;
-      if (loaded_obj_key === payload.obj_key) {
-        dispatch(fetchPosition(source.id));
-      }
-    } else if (actionType === REFRESH_OBJ_ANALYSES) {
-      const loaded_obj_key = source?.internal_key;
-      if (loaded_obj_key === payload.obj_key) {
-        dispatch(fetchAnalyses("obj", { obj_id: source.id }));
-      }
-    }
-  },
-);
-
-interface SourceAction {
-  type: string;
-  data?: any;
-  message?: string;
+export interface SourcePosition {
+  ra?: number | undefined;
+  dec?: number | undefined;
+  gal_lon?: number | undefined;
+  gal_lat?: number | undefined;
+  ebv?: number | undefined;
+  separation?: number | undefined;
   [key: string]: any;
 }
 
-// Reducer for currently displayed source
-const reducer = (
-  state: Record<string, any> = {
-    source: null,
-    loadError: false,
-    associatedGCNs: null,
-    analyses: null,
-  },
-  action: SourceAction,
-): Record<string, any> => {
-  switch (action.type) {
-    case FETCH_LOADED_SOURCE_OK: {
-      const source = action.data;
-      return {
-        ...state,
-        host: null,
-        host_offset: null,
-        ...source,
-        loadError: "",
-      };
-    }
-    case FETCH_LOADED_SOURCE_ERROR:
-      return {
-        ...state,
-        loadError: action.message,
-      };
+export interface AssociatedGcns {
+  gcns?: string[] | undefined;
+  [key: string]: any;
+}
 
-    case FETCH_LOADED_SOURCE_FAIL:
-      return {
-        ...state,
-        loadError: `Error while loading source: ${action.message}`,
-      };
-    case GET_COMMENT_ATTACHMENT_OK: {
-      const { commentId, text, attachment, attachment_name } = action.data;
-      return {
-        ...state,
-        commentAttachment: {
-          commentId,
-          text,
-          attachment,
-          attachment_name,
-        },
-      };
-    }
-    case GET_COMMENT_ATTACHMENT_PREVIEW_OK: {
-      const { commentId, text, attachment, attachment_name } = action.data;
-      return {
-        ...state,
-        commentAttachment: {
-          commentId,
-          text,
-          attachment,
-          attachment_name,
-        },
-      };
-    }
-    case GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK: {
-      const { commentId, text, attachment, attachment_name } = action.data;
-      return {
-        ...state,
-        commentAttachment: {
-          commentId,
-          text,
-          attachment,
-          attachment_name,
-        },
-      };
-    }
-    case GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK: {
-      const { commentId, text, attachment, attachment_name } = action.data;
-      return {
-        ...state,
-        commentAttachment: {
-          commentId,
-          text,
-          attachment,
-          attachment_name,
-        },
-      };
-    }
-    case FETCH_ASSOCIATED_GCNS_OK: {
-      const { gcns } = action.data;
-      return {
-        ...state,
-        associatedGCNs: gcns,
-      };
-    }
-    case FETCH_ANALYSES_FOR_OBJ_OK: {
-      const { data } = action;
-      return {
-        ...state,
-        analyses: data,
-      };
-    }
-    case FETCH_LOADED_SOURCE_POSITION_OK: {
-      const { ra, dec, gal_lon, gal_lat, ebv, separation } = action.data;
-      return {
-        ...state,
-        adjusted_position: {
-          ra,
-          dec,
-          gal_lon,
-          gal_lat,
-          ebv,
-          separation,
-        },
-      };
-    }
-    default:
-      return state;
-  }
+export interface CommentAttachment {
+  commentId: number | string;
+  text: string;
+  attachment: string;
+  attachment_name: string;
+  [key: string]: any;
+}
+
+function fileReaderPromise(
+  file: File,
+): Promise<{ body: string | ArrayBuffer | null; name: string }> {
+  return new Promise((resolve) => {
+    const filereader = new FileReader();
+    filereader.readAsDataURL(file);
+    filereader.onloadend = () =>
+      resolve({ body: filereader.result, name: file.name });
+  });
+}
+
+// The big include-flags query string used by `getSource`. Preserved verbatim
+// from the old `fetchSource` thunk.
+const sourceIncludeParams = {
+  includeComments: true,
+  includeColorMagnitude: true,
+  includeThumbnails: true,
+  includePhotometryExists: true,
+  includeSpectrumExists: true,
+  includeLabellers: true,
+  includeDetectionStats: true,
+  includeGCNCrossmatches: true,
+  includeGCNNotes: true,
+  includeCandidates: true,
+  // Aggregate classifications across meta-object (SuperObj) members, with
+  // per-source provenance. No-ops for non-meta sources (mirrors the
+  // includeSuperObjsPhotometry flag on the photometry endpoint).
+  includeSuperObjs: true,
 };
 
-store.injectReducer("source", reducer);
+export const sourceApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    // ----- Main source + read-only sub-fetches -----
+    getSource: build.query<
+      RouteData<"GET /api/sources/{obj_id}">,
+      number | string
+    >({
+      query: (id) => {
+        const queryString = new URLSearchParams(
+          sourceIncludeParams as unknown as Record<string, string>,
+        ).toString();
+        return `api/sources/${id}?${queryString}`;
+      },
+      // Provides both the broad "Source" tag (so the existing mutations, which
+      // invalidate ["Source"], keep refetching) and a per-id tag so a websocket
+      // REFRESH for one source invalidates only that source's cache entry.
+      providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
+    }),
+    getSourcePosition: build.query<SourcePosition, number | string>({
+      query: (id) => `api/sources/${id}/position`,
+      // Position has its own REFRESH_SOURCE_POSITION event, so it gets its own
+      // per-id tag (a REFRESH_SOURCE from e.g. a comment must NOT refetch it).
+      // The broad "Source" tag is kept so source mutations still refetch it.
+      providesTags: (_result, _error, id) => [
+        "Source",
+        { type: "SourcePosition", id },
+      ],
+    }),
+    getAssociatedGcns: build.query<AssociatedGcns, number | string>({
+      query: (id) => `api/associated_gcns/${id}`,
+      // Broad tag only: matching the pre-migration behavior, associated GCNs are
+      // not refetched by the per-id REFRESH_SOURCE websocket (they refresh on
+      // source mutations via the "Source" tag).
+      providesTags: ["Source"],
+    }),
+    getAnalyses: build.query<
+      RouteData<"GET /api/{analysis_resource_type}/analysis">,
+      {
+        analysis_resource_type?: string | undefined;
+        params?: Record<string, any> | undefined;
+      }
+    >({
+      query: ({ analysis_resource_type = "obj", params = {} }) => ({
+        url: `api/${analysis_resource_type}/analysis`,
+        params,
+      }),
+      providesTags: ["Source"],
+    }),
+    getAnalysis: build.query<
+      RouteData<"GET /api/{analysis_resource_type}/analysis/{analysis_id}">,
+      {
+        analysis_id: number | string;
+        analysis_resource_type?: string | undefined;
+        params?: Record<string, any> | undefined;
+      }
+    >({
+      query: ({
+        analysis_id,
+        analysis_resource_type = "obj",
+        params = {},
+      }) => ({
+        url: `api/${analysis_resource_type}/analysis/${analysis_id}`,
+        params,
+      }),
+    }),
+    getAnalysisResults: build.query<
+      any,
+      {
+        analysis_id: number | string;
+        analysis_resource_type?: string | undefined;
+        params?: Record<string, any> | undefined;
+      }
+    >({
+      query: ({
+        analysis_id,
+        analysis_resource_type = "obj",
+        params = {},
+      }) => ({
+        url: `api/${analysis_resource_type}/analysis/${analysis_id}/results`,
+        params,
+      }),
+    }),
+    // An imperative one-off existence check (used in submit handlers via
+    // `await checkSource(...).unwrap()`), so it's a mutation, not a lazy query:
+    // a lazy-query trigger's `.unwrap()` in a handler can reject on subscription
+    // teardown, which the callers' empty `catch` swallows — silently aborting
+    // the subsequent saveSource.
+    checkSource: build.mutation<
+      any,
+      { id: number | string; params: Record<string, any> }
+    >({
+      query: ({ id, params }) => {
+        const queryParams = params["nameOnly"]
+          ? ""
+          : `?ra=${params["ra"]}&dec=${params["dec"]}&radius=0.0003`;
+        return {
+          url: `api/source_exists/${id}${queryParams}`,
+          method: "GET",
+        };
+      },
+    }),
+    getPhotometryRequest: build.query<
+      any,
+      { id: number | string; params?: Record<string, any> | undefined }
+    >({
+      query: ({ id, params = {} }) => ({
+        url: `api/photometry_request/${id}`,
+        params,
+      }),
+    }),
+    getSourceFinderChart: build.query<
+      any,
+      { id: number | string; params: Record<string, any> }
+    >({
+      query: ({ id, params }) => ({
+        url: `api/sources/${id}/finder`,
+        params,
+      }),
+    }),
+    getCommentTextAttachment: build.query<
+      CommentAttachment,
+      { sourceID: number | string; commentID: number | string }
+    >({
+      query: ({ sourceID, commentID }) =>
+        `api/sources/${sourceID}/comments/${commentID}/attachment?download=false&preview=false`,
+    }),
+    getCommentOnSpectrumTextAttachment: build.query<
+      CommentAttachment,
+      { spectrumID: number | string; commentID: number | string }
+    >({
+      query: ({ spectrumID, commentID }) =>
+        `api/spectra/${spectrumID}/comments/${commentID}/attachment?download=false&preview=false`,
+    }),
+
+    // ----- Save / update / transfer -----
+    saveSource: build.mutation<any, Record<string, any>>({
+      query: (payload) => ({
+        url: "api/sources",
+        method: "POST",
+        body: payload,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    updateSource: build.mutation<
+      RouteData<"PATCH /api/sources/{obj_id}">,
+      { id: number | string; payload: Record<string, any> }
+    >({
+      query: ({ id, payload }) => ({
+        url: `api/sources/${id}`,
+        method: "PATCH",
+        body: payload,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    updateSourceGroups: build.mutation<any, Record<string, any>>({
+      query: (payload) => ({
+        url: "api/source_groups",
+        method: "POST",
+        body: payload,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    acceptSaveRequest: build.mutation<
+      any,
+      { sourceID: number | string; groupID: number | string }
+    >({
+      query: ({ sourceID, groupID }) => ({
+        url: `api/source_groups/${sourceID}`,
+        method: "PATCH",
+        body: { groupID, active: true, requested: false },
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    declineSaveRequest: build.mutation<
+      any,
+      { sourceID: number | string; groupID: number | string }
+    >({
+      query: ({ sourceID, groupID }) => ({
+        url: `api/source_groups/${sourceID}`,
+        method: "PATCH",
+        body: { groupID, active: false, requested: false },
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    addSourceView: build.mutation<any, number | string>({
+      query: (id) => ({
+        url: `api/internal/source_views/${id}`,
+        method: "POST",
+      }),
+    }),
+
+    // ----- Classifications -----
+    addClassification: build.mutation<any, Record<string, any>>({
+      query: (formData) => ({
+        url: "api/classification",
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    deleteClassification: build.mutation<any, number | string>({
+      query: (classificationID) => ({
+        url: `api/classification/${classificationID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    deleteClassifications: build.mutation<any, number | string>({
+      query: (sourceID) => ({
+        url: `api/sources/${sourceID}/classifications`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    addClassificationVote: build.mutation<
+      any,
+      {
+        classification_id: number | string;
+        data?: Record<string, any> | undefined;
+      }
+    >({
+      query: ({ classification_id, data = {} }) => ({
+        url: `api/classification/votes/${classification_id}`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+
+    // ----- Comments -----
+    addComment: build.mutation<
+      RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
+      Record<string, any>
+    >({
+      queryFn: async (formData, _api, _extra, baseQuery) => {
+        const body = { ...formData };
+        if (body["attachment"]) {
+          body["attachment"] = await fileReaderPromise(body["attachment"]);
+        }
+        const url = body["spectrum_id"]
+          ? `api/spectra/${body["spectrum_id"]}/comments`
+          : `api/sources/${body["obj_id"]}/comments`;
+        const result = await baseQuery({ url, method: "POST", body });
+        if (result.error) {
+          return { error: result.error };
+        }
+        return {
+          data: result.data as RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
+        };
+      },
+      invalidatesTags: ["Source"],
+    }),
+    editComment: build.mutation<
+      RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
+      { commentID: number | string; formData: Record<string, any> }
+    >({
+      queryFn: async ({ commentID, formData }, _api, _extra, baseQuery) => {
+        const body = { ...formData };
+        if (body["attachment"]) {
+          body["attachment"] = await fileReaderPromise(body["attachment"]);
+        }
+        const url = body["spectrum_id"]
+          ? `api/spectra/${body["spectrum_id"]}/comments/${commentID}`
+          : `api/sources/${body["obj_id"]}/comments/${commentID}`;
+        const result = await baseQuery({ url, method: "PUT", body });
+        if (result.error) {
+          return { error: result.error };
+        }
+        return {
+          data: result.data as RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
+        };
+      },
+      invalidatesTags: ["Source"],
+    }),
+    deleteComment: build.mutation<
+      any,
+      { sourceID: number | string; commentID: number | string }
+    >({
+      query: ({ sourceID, commentID }) => ({
+        url: `api/sources/${sourceID}/comments/${commentID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    deleteCommentOnSpectrum: build.mutation<
+      any,
+      { spectrumID: number | string; commentID: number | string }
+    >({
+      query: ({ spectrumID, commentID }) => ({
+        url: `api/spectra/${spectrumID}/comments/${commentID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Source"],
+    }),
+
+    // ----- Annotations -----
+    addAnnotation: build.mutation<
+      any,
+      { sourceID: number | string; formData: Record<string, any> }
+    >({
+      query: ({ sourceID, formData }) => ({
+        url: `api/sources/${sourceID}/annotations`,
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    deleteAnnotation: build.mutation<
+      any,
+      { sourceID: number | string; annotationID: number | string }
+    >({
+      query: ({ sourceID, annotationID }) => ({
+        url: `api/sources/${sourceID}/annotations/${annotationID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Source"],
+    }),
+
+    // ----- Labels -----
+    addSourceLabels: build.mutation<
+      any,
+      { id: number | string; data: Record<string, any> }
+    >({
+      query: ({ id, data }) => ({
+        url: `api/sources/${id}/labels`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    deleteSourceLabels: build.mutation<
+      any,
+      { id: number | string; data: Record<string, any> }
+    >({
+      query: ({ id, data }) => ({
+        url: `api/sources/${id}/labels`,
+        method: "DELETE",
+        body: data,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+
+    // ----- Follow-up requests -----
+    submitFollowupRequest: build.mutation<
+      RouteData<"POST /api/followup_request">,
+      Record<string, any>
+    >({
+      query: (params) => {
+        const { instrument_name, ...paramsToSubmit } = params;
+        return {
+          url: "api/followup_request",
+          method: "POST",
+          body: paramsToSubmit,
+        };
+      },
+      invalidatesTags: ["Source"],
+    }),
+    editFollowupRequest: build.mutation<
+      RouteData<"PUT /api/followup_request/{request_id}">,
+      { params: Record<string, any>; requestID: number | string }
+    >({
+      query: ({ params, requestID }) => {
+        const { instrument_name, ...paramsToSubmit } = params;
+        return {
+          url: `api/followup_request/${requestID}`,
+          method: "PUT",
+          body: paramsToSubmit,
+        };
+      },
+      invalidatesTags: ["Source"],
+    }),
+    deleteFollowupRequest: build.mutation<
+      any,
+      { id: number | string; params?: Record<string, any> | undefined }
+    >({
+      query: ({ id, params = {} }) => ({
+        url: `api/followup_request/${id}`,
+        method: "DELETE",
+        body: params,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+
+    // ----- Assignments -----
+    submitAssignment: build.mutation<any, Record<string, any>>({
+      query: (params) => ({
+        url: "api/assignment",
+        method: "POST",
+        body: params,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    editAssignment: build.mutation<
+      any,
+      { params: Record<string, any>; assignmentID: number | string }
+    >({
+      query: ({ params, assignmentID }) => ({
+        url: `api/assignment/${assignmentID}`,
+        method: "PUT",
+        body: params,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    deleteAssignment: build.mutation<any, number | string>({
+      query: (id) => ({
+        url: `api/assignment/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Source"],
+    }),
+
+    // ----- Notifications / sharing / photometry -----
+    sendAlert: build.mutation<
+      RouteData<"POST /api/source_notifications">,
+      Record<string, any>
+    >({
+      query: (params) => ({
+        url: "api/source_notifications",
+        method: "POST",
+        body: params,
+      }),
+    }),
+    shareData: build.mutation<any, Record<string, any>>({
+      query: (data) => ({
+        url: "api/sharing",
+        method: "POST",
+        body: data,
+      }),
+    }),
+    uploadPhotometry: build.mutation<any, Record<string, any>>({
+      query: (data) => ({
+        url: "api/photometry?refresh=true",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    copySourcePhotometry: build.mutation<
+      any,
+      { id: number | string; formData?: Record<string, any> | undefined }
+    >({
+      query: ({ id, formData = {} }) => ({
+        url: `api/sources/${id}/copy_photometry`,
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+
+    // ----- External-catalog annotations -----
+    fetchGaia: build.mutation<
+      RouteData<"POST /api/sources/{obj_id}/annotations/gaia">,
+      number | string
+    >({
+      query: (sourceID) => ({
+        url: `api/sources/${sourceID}/annotations/gaia`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    fetchWise: build.mutation<
+      RouteData<"POST /api/sources/{obj_id}/annotations/irsa">,
+      number | string
+    >({
+      query: (sourceID) => ({
+        url: `api/sources/${sourceID}/annotations/irsa`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    fetchVizier: build.mutation<
+      RouteData<"POST /api/sources/{obj_id}/annotations/vizier">,
+      { sourceID: number | string; catalog?: string | undefined }
+    >({
+      query: ({ sourceID, catalog = "VII/290" }) => ({
+        url: `api/sources/${sourceID}/annotations/vizier`,
+        method: "POST",
+        body: { catalog },
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    fetchPhotoz: build.mutation<any, number | string>({
+      query: (sourceID) => ({
+        url: `api/sources/${sourceID}/annotations/datalab`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    fetchPS1: build.mutation<
+      RouteData<"POST /api/sources/{obj_id}/annotations/ps1">,
+      number | string
+    >({
+      query: (sourceID) => ({
+        url: `api/sources/${sourceID}/annotations/ps1`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Source"],
+    }),
+
+    // ----- TNS / host / MPC / GCN crossmatch -----
+    addTNS: build.mutation<
+      any,
+      { id: number | string; formData: Record<string, any> }
+    >({
+      query: ({ id, formData }) => ({
+        url: `api/sources/${id}/tns`,
+        params: formData,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    addHost: build.mutation<
+      any,
+      { id: number | string; formData: Record<string, any> }
+    >({
+      query: ({ id, formData }) => ({
+        url: `api/sources/${id}/host`,
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    removeHost: build.mutation<any, number | string>({
+      query: (id) => ({
+        url: `api/sources/${id}/host`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    addMPC: build.mutation<
+      any,
+      { id: number | string; formData: Record<string, any> }
+    >({
+      query: ({ id, formData }) => ({
+        url: `api/sources/${id}/mpc`,
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    addGCNCrossmatch: build.mutation<
+      any,
+      { id: number | string; formData: Record<string, any> }
+    >({
+      query: ({ id, formData }) => ({
+        url: `api/sources/${id}/gcn_event`,
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+
+    // ----- Analyses (start / delete) -----
+    startAnalysis: build.mutation<
+      RouteData<"POST /api/{analysis_resource_type}/{resource_id}/analysis/{analysis_service_id}">,
+      {
+        id: number | string;
+        analysis_service_id: number | string;
+        formData?: Record<string, any> | undefined;
+      }
+    >({
+      query: ({ id, analysis_service_id, formData = {} }) => ({
+        url: `api/obj/${id}/analysis/${analysis_service_id}`,
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+    deleteAnalysis: build.mutation<
+      any,
+      {
+        analysis_id: number | string;
+        formData?: Record<string, any> | undefined;
+      }
+    >({
+      query: ({ analysis_id, formData = {} }) => ({
+        url: `api/obj/analysis/${analysis_id}`,
+        method: "DELETE",
+        body: formData,
+      }),
+      invalidatesTags: ["Source"],
+    }),
+  }),
+});
+
+// Websocket-driven invalidation. The old handler conditionally re-fetched the
+// loaded source (and its sub-resources) when a REFRESH message matched the
+// loaded source's internal_key.
+//
+// REFRESH_SOURCE is broadcast to every connected client (`push_all`) carrying
+// the changed source's `internal_key` as `obj_key`. We translate that to the
+// obj id of the matching cached `getSource` entry and invalidate only that
+// source's per-id tag — so a change to one source no longer forces every other
+// client to refetch its own (heavy) source object. When no cached source
+// matches (this client isn't viewing that source), there is nothing to refetch,
+// which restores the original "only if it matches the loaded source" gate.
+invalidateOnMessage(REFRESH_SOURCE, (payload, getState) => {
+  const objKey = payload?.obj_key;
+  if (!objKey) {
+    return ["Source"];
+  }
+  const objId = findCachedQueryArg(
+    getState,
+    "getSource",
+    (data) => data?.internal_key === objKey,
+  ) as string | number | null;
+  return objId != null ? [{ type: "Source", id: objId }] : null;
+});
+// REFRESH_SOURCE_POSITION is likewise broadcast to all clients with the
+// changed source's internal_key; translate to the obj id and invalidate only
+// that source's position cache entry (its own tag, so the heavy source object
+// is not refetched on a position change).
+invalidateOnMessage(REFRESH_SOURCE_POSITION, (payload, getState) => {
+  const objKey = payload?.obj_key;
+  if (!objKey) {
+    return ["Source"];
+  }
+  const objId = findCachedQueryArg(
+    getState,
+    "getSource",
+    (data) => data?.internal_key === objKey,
+  ) as string | number | null;
+  return objId != null ? [{ type: "SourcePosition", id: objId }] : null;
+});
+invalidateOnMessage(REFRESH_OBJ_ANALYSES, () => ["Source"]);
+
+export const {
+  useGetSourceQuery,
+  useLazyGetSourceQuery,
+  useGetSourcePositionQuery,
+  useGetAssociatedGcnsQuery,
+  useGetAnalysesQuery,
+  useGetAnalysisQuery,
+  useLazyGetAnalysisQuery,
+  useGetAnalysisResultsQuery,
+  useLazyGetAnalysisResultsQuery,
+  useCheckSourceMutation,
+  useGetPhotometryRequestQuery,
+  useLazyGetPhotometryRequestQuery,
+  useGetSourceFinderChartQuery,
+  useLazyGetSourceFinderChartQuery,
+  useGetCommentTextAttachmentQuery,
+  useLazyGetCommentTextAttachmentQuery,
+  useGetCommentOnSpectrumTextAttachmentQuery,
+  useLazyGetCommentOnSpectrumTextAttachmentQuery,
+  useSaveSourceMutation,
+  useUpdateSourceMutation,
+  useUpdateSourceGroupsMutation,
+  useAcceptSaveRequestMutation,
+  useDeclineSaveRequestMutation,
+  useAddSourceViewMutation,
+  useAddClassificationMutation,
+  useDeleteClassificationMutation,
+  useDeleteClassificationsMutation,
+  useAddClassificationVoteMutation,
+  useAddCommentMutation,
+  useEditCommentMutation,
+  useDeleteCommentMutation,
+  useDeleteCommentOnSpectrumMutation,
+  useAddAnnotationMutation,
+  useDeleteAnnotationMutation,
+  useAddSourceLabelsMutation,
+  useDeleteSourceLabelsMutation,
+  useSubmitFollowupRequestMutation,
+  useEditFollowupRequestMutation,
+  useDeleteFollowupRequestMutation,
+  useSubmitAssignmentMutation,
+  useEditAssignmentMutation,
+  useDeleteAssignmentMutation,
+  useSendAlertMutation,
+  useShareDataMutation,
+  useUploadPhotometryMutation,
+  useCopySourcePhotometryMutation,
+  useFetchGaiaMutation,
+  useFetchWiseMutation,
+  useFetchVizierMutation,
+  useFetchPhotozMutation,
+  useFetchPS1Mutation,
+  useAddTNSMutation,
+  useAddHostMutation,
+  useRemoveHostMutation,
+  useAddMPCMutation,
+  useAddGCNCrossmatchMutation,
+  useStartAnalysisMutation,
+  useDeleteAnalysisMutation,
+} = sourceApi;

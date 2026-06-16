@@ -8,8 +8,10 @@ import StyledDataGrid from "../StyledDataGrid";
 import UpdateTokenACLs from "./UpdateTokenACLs";
 import SharePage from "../SharePage";
 
-import * as Action from "../../ducks/profile";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import {
+  useDeleteTokenMutation,
+  useGetProfileQuery,
+} from "../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -30,16 +32,16 @@ interface TokenListProps {
 
 const TokenList = ({ tokens }: TokenListProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [deleteTokenMutation] = useDeleteTokenMutation();
 
-  const profile = useAppSelector((state) => state.profile);
+  const { data: profile } = useGetProfileQuery();
 
   if (!tokens) {
     return <div />;
   }
 
   const deleteToken = (token_id: any) => {
-    dispatch(Action.deleteToken(token_id));
+    deleteTokenMutation(token_id);
   };
 
   const renderValue = (value: any) => (
@@ -67,7 +69,7 @@ const TokenList = ({ tokens }: TokenListProps) => {
           <UpdateTokenACLs
             tokenId={tokenId}
             currentACLs={tokenACLs}
-            availableACLs={profile.permissions}
+            availableACLs={profile?.permissions ?? []}
           />
         </div>
       </div>

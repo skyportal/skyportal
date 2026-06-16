@@ -1,77 +1,67 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Group admission requests.
+ *
+ * RTK Query conversion of the old `FETCH_GROUP_ADMISSION_REQUESTS` duck. The
+ * endpoints are injected into the central `skyportalApi`. The query is keyed by
+ * `groupID`; mutations (request / delete / update status) invalidate the
+ * `GroupAdmissionRequest` tag so the list refetches.
+ *
+ * The websocket `FETCH_GROUP_ADMISSION_REQUESTS` message is bridged to cache
+ * invalidation via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
-
-const FETCH_GROUP_ADMISSION_REQUESTS =
-  "skyportal/FETCH_GROUP_ADMISSION_REQUESTS";
-const FETCH_GROUP_ADMISSION_REQUESTS_OK =
-  "skyportal/FETCH_GROUP_ADMISSION_REQUESTS_OK";
-
-const DELETE_GROUP_ADMISSION_REQUEST =
-  "skyportal/DELETE_GROUP_ADMISSION_REQUEST";
-
-const REQUEST_GROUP_ADMISSION = "skyportal/REQUEST_GROUP_ADMISSION";
-
-const UPDATE_ADMISSION_REQUEST_STATUS =
-  "skyportal/UPDATE_ADMISSION_REQUEST_STATUS";
-
-export function fetchGroupAdmissionRequests(groupID: number | string) {
-  return API.GET(
-    `/api/group_admission_requests?groupID=${groupID}`,
-    FETCH_GROUP_ADMISSION_REQUESTS,
-  );
-}
-
-export const requestGroupAdmission = (
-  userID: number | string,
-  groupID: number | string,
-) =>
-  API.POST("/api/group_admission_requests", REQUEST_GROUP_ADMISSION, {
-    userID,
-    groupID,
-  });
-
-export const deleteAdmissionRequest = (ID: number | string) =>
-  API.DELETE(
-    `/api/group_admission_requests/${ID}`,
-    DELETE_GROUP_ADMISSION_REQUEST,
-  );
-
-export const updateAdmissionRequestStatus = ({
-  requestID,
-  status,
-}: {
-  requestID: number | string;
-  status: string;
-}) =>
-  API.PATCH(
-    `/api/group_admission_requests/${requestID}`,
-    UPDATE_ADMISSION_REQUEST_STATUS,
-    { status },
-  );
-
-// Websocket message handler
-messageHandler.add((actionType: any, payload: any, dispatch: any) => {
-  if (actionType === FETCH_GROUP_ADMISSION_REQUESTS) {
-    dispatch(fetchGroupAdmissionRequests(payload.group_id));
-  }
+export const groupAdmissionRequestsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getGroupAdmissionRequests: build.query<
+      RouteData<"GET /api/group_admission_requests">,
+      number | string
+    >({
+      query: (groupID) => `api/group_admission_requests?groupID=${groupID}`,
+      providesTags: ["GroupAdmissionRequest"],
+    }),
+    requestGroupAdmission: build.mutation<
+      unknown,
+      { userID: number | string; groupID: number | string }
+    >({
+      query: ({ userID, groupID }) => ({
+        url: "api/group_admission_requests",
+        method: "POST",
+        body: { userID, groupID },
+      }),
+      invalidatesTags: ["GroupAdmissionRequest"],
+    }),
+    deleteAdmissionRequest: build.mutation<unknown, number | string>({
+      query: (ID) => ({
+        url: `api/group_admission_requests/${ID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["GroupAdmissionRequest"],
+    }),
+    updateAdmissionRequestStatus: build.mutation<
+      unknown,
+      { requestID: number | string; status: string }
+    >({
+      query: ({ requestID, status }) => ({
+        url: `api/group_admission_requests/${requestID}`,
+        method: "PATCH",
+        body: { status },
+      }),
+      invalidatesTags: ["GroupAdmissionRequest"],
+    }),
+  }),
 });
 
-const reducer = (
-  state: any = null,
-  action: { type: string; data?: any },
-): any => {
-  switch (action.type) {
-    case FETCH_GROUP_ADMISSION_REQUESTS_OK: {
-      const { data } = action;
-      // action.data is an array of records
-      const groupID = data[0]?.group_id;
-      return { [groupID]: action.data };
-    }
-    default:
-      return state;
-  }
-};
+// Websocket-driven invalidation: refresh admission requests on push.
+invalidateOnMessage("skyportal/FETCH_GROUP_ADMISSION_REQUESTS", () => [
+  "GroupAdmissionRequest",
+]);
 
-store.injectReducer("groupAdmissionRequests", reducer);
+export const {
+  useGetGroupAdmissionRequestsQuery,
+  useRequestGroupAdmissionMutation,
+  useDeleteAdmissionRequestMutation,
+  useUpdateAdmissionRequestStatusMutation,
+} = groupAdmissionRequestsApi;

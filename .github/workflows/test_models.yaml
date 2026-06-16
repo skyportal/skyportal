@@ -40,6 +40,9 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
+          # Pull the skyportal-data submodule's LFS payload (SFD dust maps);
+          # bandpasses are plain git and come down with the submodule itself.
+          lfs: true
 
       - name: Cache dependencies
         uses: ./.github/actions/cache-dependencies
@@ -59,9 +62,9 @@ jobs:
           node-version: "22.x"
           package-manager-cache: false
 
-      - uses: browser-actions/setup-geckodriver@latest
+      - uses: oven-sh/setup-bun@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          bun-version-file: package.json
 
       - name: Write SkyPortal configs
         run: |
@@ -97,26 +100,16 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update -y
-
-          ### firefox installation
-          sudo snap remove firefox
-          sudo install -d -m 0755 /etc/apt/keyrings
-          wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
-          echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
-          printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' | sudo tee /etc/apt/preferences.d/mozilla > /dev/null
-          sudo apt update -y
-
-          sudo apt install -y wget unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
+          sudo apt install -y wget unzip nginx libcurl4-gnutls-dev libgnutls28-dev
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
           which python; python --version
-          echo npm $(npm --version)
+          echo bun $(bun --version)
           echo node $(node --version)
           nginx -v
-          firefox --version
 
       - name: Initialize SkyPortal
         run: |
@@ -137,7 +130,7 @@ jobs:
           uv sync --inexact --group dev
           make db_init
 
-          npm ls --depth 0 || true
+          bun pm ls || true
 
       - name: Refresh SkyPortal dependencies for tested version
         run: |
@@ -149,10 +142,6 @@ jobs:
         if: github.ref != 'refs/heads/main'
         run: |
           uvx pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
-
-      - name: Pre-warm sncosmo bandpass cache
-        run: |
-          source .venv/bin/activate && PYTHONPATH=. python tools/warm_sncosmo_cache.py || true
 
       - name: Save dependency caches
         uses: ./.github/actions/cache-dependencies-save

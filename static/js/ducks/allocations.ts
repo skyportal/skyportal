@@ -1,94 +1,78 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Allocations.
+ *
+ * RTK Query conversion of the old `FETCH_ALLOCATIONS` duck. Three GET variants
+ * hit the same `/api/allocation` endpoint with different `apiType` filters:
+ *   - getAllocations: the full list (optionally paginated/sorted/filtered).
+ *   - getAllocationsApiObsplan: allocations with an observation-plan API class.
+ *   - getAllocationsApiClassname: allocations with a follow-up API class.
+ *
+ * The old websocket `REFRESH_ALLOCATIONS` handler refetched all three lists;
+ * here we invalidate the "Allocation" tag so any active variant refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
+export type AllocationQueryParams = Record<string, unknown>;
 
-const FETCH_ALLOCATIONS = "skyportal/FETCH_ALLOCATIONS";
-const FETCH_ALLOCATIONS_OK = "skyportal/FETCH_ALLOCATIONS_OK";
-
-const FETCH_ALLOCATIONS_API_OBSPLAN = "skyportal/FETCH_ALLOCATIONS_API_OBSPLAN";
-const FETCH_ALLOCATIONS_API_OBSPLAN_OK =
-  "skyportal/FETCH_ALLOCATIONS_API_OBSPLAN_OK";
-
-const FETCH_ALLOCATIONS_API_CLASSNAME =
-  "skyportal/FETCH_ALLOCATIONS_API_CLASSNAME";
-const FETCH_ALLOCATIONS_API_CLASSNAME_OK =
-  "skyportal/FETCH_ALLOCATIONS_API_CLASSNAME_OK";
-
-const REFRESH_ALLOCATIONS = "skyportal/REFRESH_ALLOCATIONS";
-
-export const fetchAllocations = () =>
-  API.GET("/api/allocation", FETCH_ALLOCATIONS);
-
-export function fetchAllocationsApiObsplan(params: Record<string, any> = {}) {
-  const apiQueryDefaults = { apiType: "api_classname_obsplan" };
-  return API.GET("/api/allocation", FETCH_ALLOCATIONS_API_OBSPLAN, {
-    ...apiQueryDefaults,
-    ...params,
-  });
-}
-
-export function fetchAllocationsApiClassname(params: Record<string, any> = {}) {
-  const apiQueryDefaults = { apiType: "api_classname" };
-  return API.GET("/api/allocation", FETCH_ALLOCATIONS_API_CLASSNAME, {
-    ...apiQueryDefaults,
-    ...params,
-  });
-}
-
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === REFRESH_ALLOCATIONS) {
-    dispatch(fetchAllocations());
-    dispatch(fetchAllocationsApiObsplan());
-    dispatch(fetchAllocationsApiClassname());
+const buildAllocationUrl = (params?: AllocationQueryParams): string => {
+  if (!params || Object.keys(params).length === 0) {
+    return "api/allocation";
   }
-});
-
-interface AllocationsState {
-  allocationList: any[];
-  allocationListApiObsplan: any[];
-  allocationListApiClassname: any[];
-}
-
-interface AllocationsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-const reducer = (
-  state: AllocationsState = {
-    allocationList: [],
-    allocationListApiObsplan: [],
-    allocationListApiClassname: [],
-  },
-  action: AllocationsAction,
-): AllocationsState => {
-  switch (action.type) {
-    case FETCH_ALLOCATIONS_OK: {
-      const allocationList = action.data;
-      return {
-        ...state,
-        allocationList,
-      };
+  const filtered: Record<string, string> = {};
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") {
+      return;
     }
-    case FETCH_ALLOCATIONS_API_OBSPLAN_OK: {
-      const allocationListApiObsplan = action.data;
-      return {
-        ...state,
-        allocationListApiObsplan,
-      };
+    if (Array.isArray(value) && value.length === 0) {
+      return;
     }
-    case FETCH_ALLOCATIONS_API_CLASSNAME_OK: {
-      const allocationListApiClassname = action.data;
-      return {
-        ...state,
-        allocationListApiClassname,
-      };
-    }
-    default:
-      return state;
-  }
+    filtered[key] = String(value);
+  });
+  const queryString = new URLSearchParams(filtered).toString();
+  return queryString ? `api/allocation?${queryString}` : "api/allocation";
 };
 
-store.injectReducer("allocations", reducer);
+export const allocationsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getAllocations: build.query<
+      RouteData<"GET /api/allocation">,
+      AllocationQueryParams | void
+    >({
+      query: (params) => buildAllocationUrl(params || undefined),
+      providesTags: ["Allocation"],
+    }),
+    getAllocationsApiObsplan: build.query<
+      RouteData<"GET /api/allocation">,
+      AllocationQueryParams | void
+    >({
+      query: (params) =>
+        buildAllocationUrl({
+          apiType: "api_classname_obsplan",
+          ...(params || {}),
+        }),
+      providesTags: ["Allocation"],
+    }),
+    getAllocationsApiClassname: build.query<
+      RouteData<"GET /api/allocation">,
+      AllocationQueryParams | void
+    >({
+      query: (params) =>
+        buildAllocationUrl({
+          apiType: "api_classname",
+          ...(params || {}),
+        }),
+      providesTags: ["Allocation"],
+    }),
+  }),
+});
+
+// Websocket: old handler refetched all allocation lists on REFRESH_ALLOCATIONS.
+invalidateOnMessage("skyportal/REFRESH_ALLOCATIONS", () => ["Allocation"]);
+
+export const {
+  useGetAllocationsQuery,
+  useGetAllocationsApiObsplanQuery,
+  useGetAllocationsApiClassnameQuery,
+} = allocationsApi;

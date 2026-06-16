@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Paper from "@mui/material/Paper";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
@@ -10,8 +10,7 @@ import { Controller, useForm } from "react-hook-form";
 
 import Button from "../Button";
 
-import * as gcnEventsActions from "../../ducks/gcnEvents";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 
 interface GalaxyTableFilterFormProps {
   handleFilterSubmit: (formData: any) => void;
@@ -102,17 +101,9 @@ const GalaxyTableFilterForm = ({
   handleFilterSubmit,
 }: GalaxyTableFilterFormProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
 
-  const gcnEvents = useAppSelector((state) => state["gcnEvents"]);
+  const { data: gcnEvents } = useGetGcnEventsQuery() as { data: any };
   const [selectedGcnEventId, setSelectedGcnEventId] = useState<any>(null);
-
-  useEffect(() => {
-    if (gcnEvents?.length > 0 || !gcnEvents) {
-      dispatch(gcnEventsActions.fetchGcnEvents());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const { handleSubmit, register, control, reset, getValues } = useForm();
 

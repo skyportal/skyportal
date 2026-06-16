@@ -6,18 +6,20 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import { fetchEarthquakes, submitEarthquake } from "../../ducks/earthquake";
+import { useSubmitEarthquakeMutation } from "../../ducks/earthquake";
 
 dayjs.extend(utc);
 
 const NewEarthquake = () => {
   const dispatch = useAppDispatch();
+  const [submitEarthquake] = useSubmitEarthquakeMutation();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
-    const result: any = await dispatch(submitEarthquake(formData));
-    if (result.status === "success") {
+    try {
+      await submitEarthquake(formData).unwrap();
       dispatch(showNotification("Earthquake saved"));
-      dispatch(fetchEarthquakes());
+    } catch {
+      // error notification handled by the base query
     }
   };
 

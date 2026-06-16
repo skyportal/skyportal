@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -13,7 +13,9 @@ from .scan_report_item import create_scan_report_item
 log = make_log("api/scan_report")
 
 
-def get_sources_by_objs_in_range(session, group_ids, passed_filters_range, saved_range):
+async def get_sources_by_objs_in_range(
+    session, group_ids, passed_filters_range, saved_range
+):
     """
     Retrieve all candidates saved as source in given range by object
     Parameters
@@ -31,7 +33,7 @@ def get_sources_by_objs_in_range(session, group_ids, passed_filters_range, saved
     list of tuples (obj_id, source_ids)
     """
     try:
-        return session.execute(
+        result = await session.execute(
             sa.select(
                 Source.obj_id,
                 sa.func.array_agg(sa.func.distinct(Source.id)).label("source_ids"),
@@ -52,7 +54,8 @@ def get_sources_by_objs_in_range(session, group_ids, passed_filters_range, saved
                 Source.active.is_(True),
             )
             .group_by(Source.obj_id)
-        ).all()
+        )
+        return result.all()
     except Exception as e:
         log(f"Error while retrieving saved candidates: {e}")
         return []
@@ -60,7 +63,7 @@ def get_sources_by_objs_in_range(session, group_ids, passed_filters_range, saved
 
 class ScanReportHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Populate the candidate scanning report with all saved candidates in a given range
@@ -103,7 +106,13 @@ class ScanReportHandler(BaseHandler):
             200:
                 content:
                   application/json:
-                    schema: Success
+                    schema:
+                      allOf:
+                        - $ref: '#/components/schemas/Success'
+                        - type: object
+                          properties:
+                            data:
+                              $ref: '#/components/schemas/ScanReport'
             400:
                 content:
                   application/json:
@@ -111,7 +120,7 @@ class ScanReportHandler(BaseHandler):
         """
         data = self.get_json()
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             group_ids = data.get("group_ids")
             if not group_ids:
                 return self.error("No groups provided")
@@ -125,14 +134,16 @@ class ScanReportHandler(BaseHandler):
                 return self.error("No saved candidates range provided")
 
             # Check if this report already exists
-            existing_report = session.scalars(
-                ScanReport.select(session.user_or_token).where(
+            existing_result = await session.scalars(
+                ScanReport.select(session.user_or_token)
+                .options(selectinload(ScanReport.groups))
+                .where(
                     ScanReport.groups.any(Group.id.in_(group_ids)),
                     ScanReport.options["passed_filters_range"] == passed_filters_range,
                     ScanReport.options["saved_candidates_range"] == saved_range,
                 )
-            ).all()
-            for report in existing_report:
+            )
+            for report in existing_result.all():
                 existing_report_group_ids = [g.id for g in report.groups]
                 if set(existing_report_group_ids) == set(group_ids):
                     return self.error(
@@ -140,21 +151,22 @@ class ScanReportHandler(BaseHandler):
                     )
 
             try:
-                sources_by_objs = get_sources_by_objs_in_range(
+                sources_by_objs = await get_sources_by_objs_in_range(
                     session,
                     group_ids,
                     passed_filters_range,
                     saved_range,
                 )
             except Exception:
-                return self.error(f"Error while retrieving candidates")
+                return self.error("Error while retrieving candidates")
 
             if not sources_by_objs:
                 return self.error("No saved sources found for the given options")
 
-            groups = session.scalars(
+            groups_result = await session.scalars(
                 Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-            ).all()
+            )
+            groups = groups_result.all()
 
             if len(groups) != len(group_ids):
                 return self.error("Some groups provided do not exist")
@@ -171,7 +183,7 @@ class ScanReportHandler(BaseHandler):
             session.add(scan_report)
 
             for sources_by_obj in sources_by_objs:
-                scan_report_item = create_scan_report_item(
+                scan_report_item = await create_scan_report_item(
                     session, scan_report, sources_by_obj
                 )
 
@@ -181,14 +193,14 @@ class ScanReportHandler(BaseHandler):
                 session.add(scan_report_item)
                 scan_report.items.append(scan_report_item)
 
-            session.commit()
+            await session.commit()
 
             self.push_all("skyportal/REFRESH_SCAN_REPORTS")
 
             return self.success()
 
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve multiple scanning reports
@@ -209,31 +221,27 @@ class ScanReportHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: ArrayOfCandidateScanReport
+                schema: ArrayOfScanReports
           400:
             content:
               application/json:
                 schema: Error
         """
-        try:
-            rows = int(self.get_query_argument("numPerPage", default="10"))
-            page = int(self.get_query_argument("page", default="1"))
-        except ValueError:
-            rows = 10
-            page = 1
+        rows = self.get_query_argument("numPerPage", 10, type=int) or 10
+        page = self.get_query_argument("page", 1, type=int) or 1
 
-        with self.Session() as session:
-            items = (
-                session.scalars(
-                    ScanReport.select(session.user_or_token, mode="read")
-                    .options(joinedload(ScanReport.groups))
-                    .order_by(ScanReport.created_at.desc())
-                    .limit(rows)
-                    .offset(rows * (page - 1))
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
+                ScanReport.select(session.user_or_token, mode="read")
+                .options(
+                    selectinload(ScanReport.groups),
+                    selectinload(ScanReport.author),
                 )
-                .unique()
-                .all()
+                .order_by(ScanReport.created_at.desc())
+                .limit(rows)
+                .offset(rows * (page - 1))
             )
+            items = result.unique().all()
 
             # Add the author username to each scanning report
             items_dict = [

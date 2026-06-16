@@ -5,8 +5,13 @@ import Button from "../Button";
 
 import SourceAnnotationButtonPlugins from "./SourceAnnotationButtonPlugins";
 
-import { useAppDispatch } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
+import {
+  useFetchGaiaMutation,
+  useFetchWiseMutation,
+  useFetchVizierMutation,
+  useFetchPhotozMutation,
+  useFetchPS1Mutation,
+} from "../../ducks/source";
 import type { Source } from "../../types";
 
 interface SourceAnnotationButtonsProps {
@@ -14,13 +19,17 @@ interface SourceAnnotationButtonsProps {
 }
 
 const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
-  const dispatch = useAppDispatch();
+  const [fetchGaia] = useFetchGaiaMutation();
+  const [fetchWise] = useFetchWiseMutation();
+  const [fetchVizier] = useFetchVizierMutation();
+  const [fetchPhotoz] = useFetchPhotozMutation();
+  const [fetchPS1] = useFetchPS1Mutation();
 
   const [isSubmittingAnnotationGaia, setIsSubmittingAnnotationGaia] =
     useState<any>(null);
   const handleAnnotationGaia = async (id: string) => {
     setIsSubmittingAnnotationGaia(id);
-    await dispatch(sourceActions.fetchGaia(id));
+    await fetchGaia(id);
     setIsSubmittingAnnotationGaia(null);
   };
 
@@ -28,7 +37,7 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
     useState<any>(null);
   const handleAnnotationWise = async (id: string) => {
     setIsSubmittingAnnotationWise(id);
-    await dispatch(sourceActions.fetchWise(id));
+    await fetchWise(id);
     setIsSubmittingAnnotationWise(null);
   };
 
@@ -36,7 +45,7 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
     useState<any>(null);
   const handleAnnotationQuasar = async (id: string) => {
     setIsSubmittingAnnotationQuasar(id);
-    await dispatch(sourceActions.fetchVizier(id, "VII/290"));
+    await fetchVizier({ sourceID: id, catalog: "VII/290" });
     setIsSubmittingAnnotationQuasar(null);
   };
 
@@ -44,7 +53,7 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
     useState<any>(null);
   const handleAnnotationGalex = async (id: string) => {
     setIsSubmittingAnnotationGalex(id);
-    await dispatch(sourceActions.fetchVizier(id, "II/335/galex_ais"));
+    await fetchVizier({ sourceID: id, catalog: "II/335/galex_ais" });
     setIsSubmittingAnnotationGalex(null);
   };
 
@@ -52,7 +61,7 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
     useState<any>(null);
   const handleAnnotationPhotoz = async (id: string) => {
     setIsSubmittingAnnotationPhotoz(id);
-    await dispatch(sourceActions.fetchPhotoz(id));
+    await fetchPhotoz(id);
     setIsSubmittingAnnotationPhotoz(null);
   };
 
@@ -60,7 +69,7 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
     useState<any>(null);
   const handleAnnotationPS1 = async (id: string) => {
     setIsSubmittingAnnotationPS1(id);
-    await dispatch(sourceActions.fetchPS1(id));
+    await fetchPS1(id);
     setIsSubmittingAnnotationPS1(null);
   };
 

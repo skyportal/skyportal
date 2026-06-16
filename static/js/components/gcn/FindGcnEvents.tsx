@@ -1,12 +1,11 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { makeStyles } from "tss-react/mui";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -57,16 +56,14 @@ const FindGcnEvents = ({
   setSelectedLocalizationId,
 }: FindGcnEventsProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
-  const gcnEvents = useAppSelector((state) => state["gcnEvents"]) as any;
+  const [searchParams, setSearchParams] = React.useState<Record<string, any>>(
+    {},
+  );
+  const { data: gcnEvents } = useGetGcnEventsQuery(searchParams) as {
+    data: any;
+  };
 
   const [selectedEvent, setSelectedEvent] = React.useState<any>(null);
-
-  useEffect(() => {
-    if (!gcnEvents?.events || gcnEvents?.events?.length === 0) {
-      dispatch(gcnEventsActions.fetchGcnEvents());
-    }
-  }, []);
 
   const gcnEventsLookUp: Record<string, any> = {};
 
@@ -109,11 +106,7 @@ const FindGcnEvents = ({
             ) {
               setSelectedEvent(null);
               setSelectedGcnEventId(null);
-              dispatch(
-                gcnEventsActions.fetchGcnEvents({
-                  partialdateobs: value,
-                }),
-              );
+              setSearchParams({ partialdateobs: value });
             }
           }}
           onChange={(_event, newValue: any) => {

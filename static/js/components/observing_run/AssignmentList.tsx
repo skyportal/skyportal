@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -10,12 +10,14 @@ import DialogContent from "@mui/material/DialogContent";
 import dayjs from "dayjs";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyAssignment from "./ModifyAssignment";
 import StyledDataGrid from "../StyledDataGrid";
-import * as Actions from "../../ducks/source";
-import * as UserActions from "../../ducks/users";
+import { useDeleteAssignmentMutation } from "../../ducks/source";
+import { useGetUsersQuery } from "../../ducks/users";
+import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   assignmentManage: {
@@ -33,26 +35,19 @@ interface AssignmentListProps {
 const AssignmentList = ({ assignments }: AssignmentListProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [deleteAssignmentMutation] = useDeleteAssignmentMutation();
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assignmentToEditDelete, setAssignmentToEditDelete] =
     useState<any>(null);
 
-  const { users: allUsers } = useAppSelector((state) => state["users"]) as any;
-  const { observingRunList } = useAppSelector(
-    (state) => state["observingRuns"],
-  ) as any;
-  const { instrumentList } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
-
-  // use useEffect to only send 1 fetchUser per User
-  useEffect(() => {
-    if (allUsers.length === 0) {
-      dispatch(UserActions.fetchUsers());
-    }
-  }, [allUsers, dispatch]);
+  const { data: usersData } = useGetUsersQuery();
+  const allUsers = usersData?.users ?? [];
+  const { data: observingRunList = [] } = useGetObservingRunsQuery();
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
 
   const openEditDialog = (id: any) => {
     setEditDialogOpen(true);
@@ -73,14 +68,15 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
   };
 
   const deleteAssignment = () => {
-    dispatch(Actions.deleteAssignment(assignmentToEditDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Unassigned target from observing run"));
-          closeDeleteDialog();
-        }
-      },
-    );
+    deleteAssignmentMutation(assignmentToEditDelete)
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("Unassigned target from observing run"));
+        closeDeleteDialog();
+      })
+      .catch(() => {
+        // error notification handled by the baseQuery
+      });
   };
 
   if (allUsers.length === 0) {
@@ -108,7 +104,8 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
     observingRunDict[run.id] = run;
   });
 
-  assignments.sort((a, b) =>
+  // `assignments` is frozen RTK Query data, so copy before sorting in place.
+  assignments = [...assignments].sort((a, b) =>
     observingRunDict[a.run_id]?.calendar_date &&
     observingRunDict[b.run_id]?.calendar_date
       ? dayjs(observingRunDict[a.run_id].calendar_date).unix() -
@@ -149,7 +146,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       valueGetter: (_value: any, row: any) => {
         const run = runForRow(row);
         const instrument = instrumentList?.filter(
-          (i: any) => i.id === run?.instrument_id,
+          (i: any) => i.id === run?.["instrument_id"],
         )[0];
         return instrument?.name || "Loading...";
       },
@@ -161,7 +158,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       minWidth: 120,
       sortable: false,
       valueGetter: (_value: any, row: any) =>
-        runForRow(row)?.calendar_date || "Loading...",
+        runForRow(row)?.["calendar_date"] || "Loading...",
     },
     {
       field: "pi",
@@ -170,7 +167,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       minWidth: 120,
       sortable: false,
       valueGetter: (_value: any, row: any) =>
-        runForRow(row)?.pi || "Loading...",
+        runForRow(row)?.["pi"] || "Loading...",
     },
     {
       field: "priority",

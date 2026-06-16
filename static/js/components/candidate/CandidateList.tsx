@@ -1,5 +1,12 @@
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import {
+  useGetCandidatesQuery,
+  useGetAnnotationsInfoQuery,
+  useGenerateSurveyThumbnailMutation,
+} from "../../ducks/candidate/candidates";
 
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
@@ -36,7 +43,7 @@ import CandidatePlugins from "./CandidatePlugins";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 import * as candidatesActions from "../../ducks/candidate/candidates";
-import { clearPhotometryMinimal } from "../../ducks/photometry_minimal";
+import { photometryMinimalApi } from "../../ducks/photometry_minimal";
 
 const numPerPage = 50;
 
@@ -170,6 +177,7 @@ interface CustomSortToolbarProps {
   loaded: boolean;
   sortOrder?: string | null;
   setSortOrder: (...a: any[]) => void;
+  setSearchParams: (params: Record<string, any>) => void;
 }
 
 const CustomSortToolbar = ({
@@ -179,6 +187,7 @@ const CustomSortToolbar = ({
   loaded,
   sortOrder = null,
   setSortOrder,
+  setSearchParams,
 }: CustomSortToolbarProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
@@ -234,9 +243,8 @@ const CustomSortToolbar = ({
       }),
     );
 
-    dispatch(candidatesActions.fetchCandidates(data)).then(() => {
-      setQueryInProgress(false);
-    });
+    // Trigger a new search; the query result drives the loading state.
+    setSearchParams(data);
   };
 
   // Wait until sorted data is received before rendering the toolbar
@@ -277,17 +285,20 @@ const CandidateThumbnails = ({
   thumbnails = null,
 }: CandidateThumbnailsProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [generateSurveyThumbnailMutation] =
+    useGenerateSurveyThumbnailMutation();
 
   const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
     useState<any[]>([]);
   const generateSurveyThumbnail = (objID: string) => {
     setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
-    dispatch(candidatesActions.generateSurveyThumbnail(objID)).then(() => {
-      setPS1GenerationInProgressList(
-        ps1GenerationInProgressList.filter((ps1_id) => ps1_id !== objID),
-      );
-    });
+    generateSurveyThumbnailMutation(objID)
+      .unwrap()
+      .finally(() => {
+        setPS1GenerationInProgressList(
+          ps1GenerationInProgressList.filter((ps1_id) => ps1_id !== objID),
+        );
+      });
   };
 
   const hasPS1 = thumbnails?.map((t: any) => t.type)?.includes("ps1");
@@ -352,12 +363,10 @@ const CandidateInfo = ({
 }: CandidateInfoProps) => {
   const { classes } = useStyles();
 
-  const allGroups = (useAppSelector((state) => state.groups.all) || []).filter(
-    (g) => !g.single_user_group,
+  const allGroups = (useGetGroupsQuery().data?.all ?? []).filter(
+    (g) => !g["single_user_group"],
   );
-  const userAccessibleGroups = useAppSelector(
-    (state) => state.groups.userAccessible,
-  );
+  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const candidateHasAnnotationWithSelectedKey = (obj: any) => {
     const annotation = obj.annotations.find(
@@ -741,33 +750,41 @@ const CandidateList = () => {
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [filterGroups, setFilterGroups] = useState<any[]>([]);
   const { classes } = useStyles();
-  const {
-    candidates,
-    pageNumber,
-    totalMatches,
-    queryID,
-    selectedAnnotationSortOptions,
-  } = useAppSelector((state) => state["candidates"]);
+
+  // The active query args for `getCandidates`. `null` until the first search is
+  // submitted; setting it (with a new `pageNumber`) drives a refetch.
+  const [searchParams, setSearchParams] = useState<Record<string, any> | null>(
+    null,
+  );
+
+  const { selectedAnnotationSortOptions } = useAppSelector(
+    (state) => state["candidates"],
+  );
+
+  // Server list, paged + accumulated by the RTK Query `merge` in the duck.
+  const { data: candidatesData, isFetching: candidatesFetching } =
+    useGetCandidatesQuery(searchParams ?? {}, { skip: searchParams === null });
+  const candidates = candidatesData?.candidates ?? null;
+  const pageNumber = candidatesData?.pageNumber ?? 1;
+  const totalMatches = candidatesData?.totalMatches ?? 0;
+  const queryID = candidatesData?.queryID ?? null;
 
   const [sortOrder, setSortOrder] = useState(
     selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null,
   );
 
-  const { scanningProfiles } = useAppSelector(
-    (state) => state.profile.preferences as any,
-  );
+  const scanningProfiles = (useGetProfileQuery().data?.preferences as any)
+    ?.scanningProfiles;
 
   const defaultScanningProfile = scanningProfiles?.find(
     (profile: any) => profile.default,
   );
 
-  const userAccessibleGroups = useAppSelector(
-    (state) => state.groups.userAccessible,
-  );
+  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
 
-  const availableAnnotationsInfo = useAppSelector(
-    (state) => state["candidates"].annotationsInfo,
-  );
+  // Prefetch the annotation-info cache so child components (filter form,
+  // preferences) read it from the shared RTK Query cache.
+  useGetAnnotationsInfoQuery(undefined);
 
   const filterFormData = useAppSelector(
     (state) => state["candidates"].filterFormData,
@@ -775,12 +792,11 @@ const CandidateList = () => {
 
   const dispatch = useAppDispatch();
 
+  // Mirror the query's loading state into `queryInProgress` so the existing
+  // spinners (also toggled by the filter/sort handlers) stay in sync.
   useEffect(() => {
-    // Grab the available annotation fields for filtering
-    if (!availableAnnotationsInfo) {
-      dispatch(candidatesActions.fetchAnnotationsInfo());
-    }
-  }, [dispatch, availableAnnotationsInfo]);
+    setQueryInProgress(candidatesFetching);
+  }, [candidatesFetching]);
 
   useEffect(() => {
     if (defaultScanningProfile?.sortingOrder) {
@@ -795,32 +811,19 @@ const CandidateList = () => {
     }
   }, [dispatch, defaultScanningProfile]);
 
-  // Clear photometry cache on page change
+  // Refresh photometry cache on page change
   useEffect(() => {
-    dispatch(clearPhotometryMinimal());
+    dispatch(photometryMinimalApi.util.invalidateTags(["Photometry"]));
   }, [pageNumber, dispatch]);
 
-  const groupIds: any[] = [];
-  filterGroups?.forEach((g) => {
-    groupIds.push(g.id);
-  });
-
   const fetchPage = (offset: number) => {
-    if (!queryInProgress && candidates?.length < totalMatches) {
-      setQueryInProgress(true); // prevent multiple queries
+    if (!queryInProgress && (candidates?.length ?? 0) < totalMatches) {
       dispatch(showNotification("Loading more candidates..."));
-      dispatch(
-        candidatesActions.fetchCandidates({
-          pageNumber: pageNumber + offset,
-          numPerPage,
-          queryID,
-          filterGroups,
-          sortOrder,
-          annotationsInfo: availableAnnotationsInfo,
-          filterFormData,
-        }),
-      ).then(() => {
-        setQueryInProgress(false);
+      setSearchParams({
+        ...(searchParams ?? {}),
+        pageNumber: pageNumber + offset,
+        numPerPage,
+        queryID,
       });
     }
   };
@@ -835,18 +838,11 @@ const CandidateList = () => {
           numPerPage={numPerPage}
           annotationFilterList=""
           setSortOrder={setSortOrder}
+          setSearchParams={setSearchParams}
         />
-        <Box
-          display={queryInProgress ? "block" : "none"}
-          className={classes.spinnerDiv}
-        >
-          <Spinner />
-        </Box>
         <Box style={{ marginTop: "0.75rem" }}>
           {queryInProgress ? (
-            <div>
-              <Spinner />
-            </div>
+            <Spinner />
           ) : (
             <div>
               <Paper
@@ -870,6 +866,7 @@ const CandidateList = () => {
                     loaded={!queryInProgress}
                     sortOrder={sortOrder}
                     setSortOrder={setSortOrder}
+                    setSearchParams={setSearchParams}
                   />
                 </div>
               </Paper>
@@ -883,7 +880,7 @@ const CandidateList = () => {
                       <Candidate
                         candidate={candidates[index]}
                         filterGroups={filterGroups}
-                        index={index + (pageNumber - 1) * numPerPage + 1}
+                        index={index + 1}
                         totalMatches={totalMatches}
                       />
                     </div>

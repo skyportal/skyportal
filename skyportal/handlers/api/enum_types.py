@@ -16,7 +16,7 @@ from ..base import BaseHandler
 
 class EnumTypesHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Get enum types in the DB
@@ -37,30 +37,48 @@ class EnumTypesHandler(BaseHandler):
                           properties:
                             ALLOWED_SPECTRUM_TYPES:
                               type: array
+                              items:
+                                type: string
                               description: list of allowed spectrum types
                             ALLOWED_MAGSYSTEMS:
                               type: array
+                              items:
+                                type: string
                               description: list of allowed magnitude systems
                             ALLOWED_BANDPASSES:
                               type: array
+                              items:
+                                type: string
                               description: list of allowed bandpasses
                             THUMBNAIL_TYPES:
                               type: array
+                              items:
+                                type: string
                               description: list of allowed thumbnail types
                             FOLLOWUP_PRIORITIES:
                               type: array
+                              items:
+                                type: string
                               description: list of allowed followup priorities
                             ALLOWED_API_CLASSNAMES:
                               type: array
+                              items:
+                                type: string
                               description: list of allowed API classnames
                             ANALYSIS_TYPES:
                               type: array
+                              items:
+                                type: string
                               description: list of analysis types
                             ANALYSIS_INPUT_TYPES:
                               type: array
+                              items:
+                                type: string
                               description: list of analysis input types
                             AUTHENTICATION_TYPES:
                               type: array
+                              items:
+                                type: string
                               description: list of authentication types
         """
         data = {}

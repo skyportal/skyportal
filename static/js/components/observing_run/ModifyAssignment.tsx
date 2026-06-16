@@ -10,9 +10,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import * as Actions from "../../ducks/source";
+import { useEditAssignmentMutation } from "../../ducks/source";
 
 dayjs.extend(utc);
 
@@ -46,7 +45,7 @@ const ModifyAssignment = ({
   assignment,
   onClose = null,
 }: ModifyAssignmentProps) => {
-  const dispatch = useAppDispatch();
+  const [editAssignment] = useEditAssignmentMutation();
   const { classes } = useStyles();
 
   const { handleSubmit, getValues, reset, register, control } = useForm();
@@ -75,16 +74,17 @@ const ModifyAssignment = ({
     if (newValues["comment"] !== assignment.comment) {
       formData.comment = newValues["comment"];
     }
-    (dispatch(Actions.editAssignment(formData, assignment.id)) as any).then(
-      (response: any) => {
-        if (response.status === "success") {
-          showNotification("Assignment updated successfully", "success");
-          if (typeof onClose === "function") {
-            onClose();
-          }
+    editAssignment({ params: formData, assignmentID: assignment.id })
+      .unwrap()
+      .then(() => {
+        showNotification("Assignment updated successfully", "success");
+        if (typeof onClose === "function") {
+          onClose();
         }
-      },
-    );
+      })
+      .catch(() => {
+        // error notification handled by the baseQuery
+      });
   };
 
   return (

@@ -1,3 +1,7 @@
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
+import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import React, {
   useEffect,
   useState,
@@ -29,7 +33,6 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import withRouter from "../withRouter";
 
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
@@ -75,9 +78,15 @@ import Button from "../Button";
 
 import SourcePlugins from "./SourcePlugins";
 import ObjectTags from "../ObjectTags";
-import * as photometryActions from "../../ducks/photometry";
-import * as spectraActions from "../../ducks/spectra";
-import * as sourceActions from "../../ducks/source";
+import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
+import {
+  useGetSourceQuery,
+  useGetAssociatedGcnsQuery,
+  useGetSourcePositionQuery,
+  useAddHostMutation,
+  useRemoveHostMutation,
+  useAddSourceViewMutation,
+} from "../../ducks/source";
 
 import PhotometryPlot from "../plot/PhotometryPlot";
 import SpectraPlot from "../plot/SpectraPlot";
@@ -86,6 +95,10 @@ import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
 import SharingServicesDialog from "../sharing_service/SharingServicesForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
+import {
+  useGetInstrumentFormsQuery,
+  useGetInstrumentsQuery,
+} from "../../ducks/instruments";
 
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
@@ -215,25 +228,22 @@ interface SourceContentProps {
 }
 
 const SourceContent = ({ source }: SourceContentProps) => {
-  const dispatch = useAppDispatch();
   const { classes } = useSourceStyles() as { classes: any };
 
-  const currentUser = useAppSelector((state) => state.profile);
-  const groups = (useAppSelector((state) => state.groups.all) || []).filter(
+  const { data: currentUser } = useGetProfileQuery();
+  const groups = ((useGetGroupsQuery().data?.all ?? null) || []).filter(
     (g: any) => !g.single_user_group,
   );
-  const spectra = useAppSelector((state) => state["spectra"])[source.id];
-  const associatedGCNs = useAppSelector(
-    (state) => (state as any).source.associatedGCNs,
-  );
+  const { data: spectra } = useFetchSourceSpectraQuery({ id: source.id });
+  const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
+  const associatedGCNs = associatedGcnsData?.["gcns"];
+  const [addHost] = useAddHostMutation();
+  const [removeHostMutation] = useRemoveHostMutation();
 
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
-  const { observingRunList } = useAppSelector(
-    (state) => state["observingRuns"],
-  );
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
+  const { data: observingRunList = [] } = useGetObservingRunsQuery();
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
@@ -278,8 +288,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
   if (spectra) {
     spectra.forEach((spec: any) => {
       spec.annotations.forEach((annotation: any) => {
-        annotation.spectrum_observed_at = spec.observed_at;
-        spectrumAnnotations.push(annotation);
+        // `annotation` is frozen RTK Query cache data — build a new object with
+        // the extra field rather than mutating it (`Object is not extensible`).
+        spectrumAnnotations.push({
+          ...annotation,
+          spectrum_observed_at: spec.observed_at,
+        });
       });
     });
   }
@@ -315,22 +329,21 @@ const SourceContent = ({ source }: SourceContentProps) => {
     )
     .sort((a: any, b: any) => new Date(b).getTime() - new Date(a).getTime());
 
-  useEffect(() => {
-    dispatch(photometryActions.fetchSourcePhotometry(source.id, { magsys }));
-    dispatch(spectraActions.fetchSourceSpectra(source.id));
-    dispatch(sourceActions.fetchPosition(source.id));
-    dispatch(sourceActions.fetchAssociatedGCNs(source.id));
-  }, [source.id, magsys, dispatch]);
+  const { data: adjustedPosition } = useGetSourcePositionQuery(source.id);
+  const sourceWithPosition = useMemo(
+    () => ({ ...source, adjusted_position: adjustedPosition }),
+    [source, adjustedPosition],
+  );
 
   const getZRound = (redshift_error: any) =>
     redshift_error ? ceil(abs(log10(redshift_error))) : 4;
 
   const setHost = (galaxyName: any) => {
-    dispatch(sourceActions.addHost(source.id, { galaxyName }));
+    addHost({ id: source.id, formData: { galaxyName } });
   };
 
   const removeHost = () => {
-    dispatch(sourceActions.removeHost(source.id));
+    removeHostMutation(source.id);
   };
 
   const handleHover = (type: any) => {
@@ -436,7 +449,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
             }}
           >
             <Suspense fallback={<CircularProgress />}>
-              <CommentList maxHeightList={downLarge ? "28.5vh" : "350px"} />
+              <CommentList
+                objID={source.id}
+                maxHeightList={downLarge ? "28.5vh" : "350px"}
+              />
             </Suspense>
           </AccordionDetails>
         </Accordion>
@@ -446,25 +462,23 @@ const SourceContent = ({ source }: SourceContentProps) => {
           defaultExpanded
           disableGutters
           className={classes.flexColumn}
+          data-testid="source-classifications"
         >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="classifications-content"
-            id="classifications-header"
           >
             <Typography className={classes.accordionHeading}>
               Classifications
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={classes.classifications}>
-              <ClassificationList />
-              <ClassificationForm
-                obj_id={source.id}
-                taxonomyList={taxonomyList}
-                {...({ action: "createNew" } as any)}
-              />
-            </div>
+            <ClassificationList obj={source} />
+            <ClassificationForm
+              obj_id={source.id}
+              taxonomyList={taxonomyList}
+              {...({ action: "createNew" } as any)}
+            />
           </AccordionDetails>
         </Accordion>
       </Grid>
@@ -494,11 +508,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
         </Accordion>
       </Grid>
       <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 9, lg: 13 }}>
-        <Accordion
-          defaultExpanded
-          disableGutters
-          className={classes.classifications}
-        >
+        <Accordion defaultExpanded disableGutters>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="hr-diagram-content"
@@ -620,7 +630,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             <div style={{ marginBottom: "0.25rem" }}>
               <ObjectTags source={source} />
             </div>
-            <SourceCoordinates classes={classes} source={source} />
+            <SourceCoordinates classes={classes} source={sourceWithPosition} />
             <div
               className={classes.flexRow}
               style={{
@@ -1014,7 +1024,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
-              currentUser?.preferences?.["hideSourceSummary"] !== true && (
+              !currentUser?.preferences?.["hideSourceSummary"] && (
                 <Paper
                   className={classes.flexColumn}
                   style={{
@@ -1070,15 +1080,15 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         }
                       />
                       {source.comments?.length > 0 ||
-                      source.classifications?.length > 0 ? (
-                        <StartBotSummary obj_id={source.id} />
-                      ) : null}
-                      {source.summary_history?.length > 0 ? (
+                        (source.classifications?.length > 0 && (
+                          <StartBotSummary obj_id={source.id} />
+                        ))}
+                      {source.summary_history?.length > 0 && (
                         <ShowSummaryHistory
                           summaries={source.summary_history}
                           obj_id={source.id}
                         />
-                      ) : null}
+                      )}
                     </div>
                   </div>
                 </Paper>
@@ -1346,7 +1356,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     (!spectra || spectra?.length === 0) && (
                       <CircularProgress color="secondary" />
                     )}
-                  {source?.spectrum_exists && spectra?.length > 0 && (
+                  {source?.spectrum_exists && (spectra?.length ?? 0) > 0 && (
                     <Suspense
                       fallback={
                         <div>
@@ -1355,7 +1365,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       }
                     >
                       <SpectraPlot
-                        spectra={spectra}
+                        spectra={spectra ?? []}
                         redshift={source.redshift || 0}
                         plotStyle={{
                           height: rightPanelVisible ? "55vh" : "70vh",
@@ -1504,28 +1514,25 @@ interface SourceProps {
 }
 
 const Source = ({ route }: SourceProps) => {
-  const dispatch = useAppDispatch();
-  const source = useAppSelector((state) => state["source"]);
-  const cachedSourceId = source ? source.id : null;
-  const isCached = route.id === cachedSourceId;
+  const {
+    data: source,
+    isError,
+    error,
+    isLoading,
+    isSuccess,
+  } = useGetSourceQuery(route.id);
+  const [addSourceView] = useAddSourceViewMutation();
 
   useEffect(() => {
-    const fetchSource = async () => {
-      const data: any = await dispatch(sourceActions.fetchSource(route.id));
-      if (data.status === "success") {
-        dispatch(sourceActions.addSourceView(route.id));
-      }
-    };
-
-    if (!isCached) {
-      fetchSource();
+    if (isSuccess && source?.id !== undefined) {
+      addSourceView(route.id);
     }
-  }, [dispatch, isCached, route.id]);
+  }, [isSuccess, source?.id, route.id, addSourceView]);
 
-  if (source.loadError) {
-    return <div>{source.loadError}</div>;
+  if (isError) {
+    return <div>{(error as any)?.error ?? "Error while loading source"}</div>;
   }
-  if (!isCached) {
+  if (isLoading || !source) {
     return (
       <div>
         <Spinner />

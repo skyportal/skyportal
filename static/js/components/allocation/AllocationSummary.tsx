@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useState } from "react";
 
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
@@ -27,15 +27,21 @@ import { makeStyles } from "tss-react/mui";
 import { JSONTree } from "react-json-tree";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import { allocationTitle } from "./AllocationPage";
 import withRouter from "../withRouter";
 
-import * as SourceAction from "../../ducks/source";
-import * as Action from "../../ducks/allocation";
-import * as ObservationPlansAction from "../../ducks/observationPlans";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useEditFollowupRequestMutation } from "../../ducks/source";
+import {
+  useGetAllocationQuery,
+  useEditFollowupRequestCommentMutation,
+} from "../../ducks/allocation";
+import { useGetAllocationObservationPlansQuery } from "../../ducks/observationPlans";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 import ObservationPlanGlobe from "../observation_plan/ObservationPlanGlobe";
@@ -69,6 +75,7 @@ interface SimpleMenuProps {
 const SimpleMenu = ({ request }: SimpleMenuProps) => {
   const [anchorEl, setAnchorEl] = React.useState<any>(null);
   const dispatch = useAppDispatch();
+  const [editFollowupRequestMutation] = useEditFollowupRequestMutation();
 
   const handleClick = (event: any) => {
     setAnchorEl(event.currentTarget);
@@ -80,13 +87,16 @@ const SimpleMenu = ({ request }: SimpleMenuProps) => {
 
   const updateRequestStatus = async (status: string) => {
     handleClose();
-    const result: any = await dispatch(
-      SourceAction.editFollowupRequest({ status }, request.id),
-    );
-    if (result.status === "success") {
+    try {
+      await editFollowupRequestMutation({
+        params: { status },
+        requestID: request.id,
+      }).unwrap();
       dispatch(
         showNotification("Follow-up request status successfully updated"),
       );
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 
@@ -170,21 +180,9 @@ interface AllocationSummaryProps {
 }
 
 const AllocationSummary = ({ route }: AllocationSummaryProps) => {
-  const dispatch = useAppDispatch();
-  const { instrumentList } = useAppSelector(
-    (state) => (state as any).instruments,
-  );
-  const { telescopeList } = useAppSelector(
-    (state) => (state as any).telescopes,
-  );
-  const groups = useAppSelector((state) => (state as any).groups.all);
-  const { allocation, totalMatches: totalMatchesAllocations } = useAppSelector(
-    (state) => (state as any).allocation,
-  );
-  const {
-    observation_plan_requests,
-    totalMatches: totalMatchesObservationPlans,
-  } = useAppSelector((state) => (state as any).observation_plans);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const groups = useGetGroupsQuery().data?.all ?? null;
 
   const [fetchAllocationParams, setFetchAllocationParams] = useState<any>({
     pageNumber: 1,
@@ -192,6 +190,13 @@ const AllocationSummary = ({ route }: AllocationSummaryProps) => {
     sortBy: "created_at",
     sortOrder: "desc",
   });
+
+  const { data: allocationData } = useGetAllocationQuery({
+    id: route.id,
+    params: fetchAllocationParams,
+  });
+  const allocation = allocationData?.allocation;
+  const totalMatchesAllocations = allocationData?.totalMatches ?? 0;
 
   const [fetchObservationPlansParams, setFetchObservationPlansParams] =
     useState<any>({
@@ -201,26 +206,19 @@ const AllocationSummary = ({ route }: AllocationSummaryProps) => {
       sortOrder: "desc",
     });
 
-  // Load the allocation and its follow-up requests if needed
-  useEffect(() => {
-    dispatch(Action.fetchAllocation(route.id, fetchAllocationParams));
-  }, [route.id, dispatch]);
-
-  // Load the allocation and its observation plans if needed
-  useEffect(() => {
-    dispatch(
-      ObservationPlansAction.fetchAllocationObservationPlans(
-        route.id,
-        fetchObservationPlansParams,
-      ),
-    );
-  }, [route.id, dispatch]);
+  const {
+    observation_plan_requests,
+    totalMatches: totalMatchesObservationPlans,
+  } = useGetAllocationObservationPlansQuery({
+    id: route.id,
+    params: fetchObservationPlansParams,
+  }).data ?? { observation_plan_requests: undefined, totalMatches: undefined };
 
   if (
     !(
       allocation &&
       "id" in allocation &&
-      allocation.id === parseInt(route.id, 10)
+      allocation["id"] === parseInt(route.id, 10)
     )
   ) {
     // Don't need to do this for assignments -- we can just let the page be blank for a short time
@@ -267,8 +265,8 @@ const AllocationSummary = ({ route }: AllocationSummaryProps) => {
 };
 
 interface AllocationObservationPlansTableProps {
-  observation_plan_requests: any[];
-  totalMatches: number;
+  observation_plan_requests?: any[] | undefined;
+  totalMatches?: number | undefined;
   fetchParams: any;
   setFetchParams: (...a: any[]) => void;
 }
@@ -279,24 +277,17 @@ const AllocationObservationPlansTable = ({
   fetchParams,
   setFetchParams,
 }: AllocationObservationPlansTableProps) => {
-  const dispatch = useAppDispatch();
   const { classes } = useStyles();
   const { classes: styles } = useStyles();
 
-  const handlePageChange = async (page: number, numPerPage: number) => {
+  const handlePageChange = (page: number, numPerPage: number) => {
     const params = {
       ...fetchParams,
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future
+    // Save state for future; the parent's query refetches when params change.
     setFetchParams(params);
-    await dispatch(
-      ObservationPlansAction.fetchAllocationObservationPlans(
-        observation_plan_requests[0].allocation_id,
-        params,
-      ),
-    );
   };
 
   const handlePaginationModelChange = (model: any) => {
@@ -383,7 +374,7 @@ const AllocationObservationPlansTable = ({
       <Box sx={{ width: "100%" }}>
         <StyledDataGrid
           autoHeight
-          rows={observation_plan_requests}
+          rows={observation_plan_requests || []}
           columns={columns}
           getRowId={(row: any) => row.id}
           paginationMode="server"
@@ -413,23 +404,22 @@ const AllocationSummaryTable = ({
   fetchParams,
   setFetchParams,
 }: AllocationSummaryTableProps) => {
-  const dispatch = useAppDispatch();
   const { classes: styles } = useStyles();
+  const [editFollowupRequestComment] = useEditFollowupRequestCommentMutation();
   const { requests } = allocation;
 
   const [dialogOpen, setDialogOpen] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [commentContent, setCommentContent] = useState("");
 
-  const handlePageChange = async (page: number, numPerPage: number) => {
+  const handlePageChange = (page: number, numPerPage: number) => {
     const params = {
       ...fetchParams,
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future
+    // Save state for future; the query refetches when params change.
     setFetchParams(params);
-    await dispatch(Action.fetchAllocation(allocation.id, params));
   };
 
   const handlePaginationModelChange = (model: any) => {
@@ -457,7 +447,14 @@ const AllocationSummaryTable = ({
     const json = {
       comment: commentContent,
     };
-    dispatch(Action.editFollowupRequestComment(json, dialogOpen));
+    try {
+      await editFollowupRequestComment({
+        id: dialogOpen,
+        params: json,
+      }).unwrap();
+    } catch {
+      // error notification handled by the baseQuery
+    }
     setDialogOpen(null);
     setIsSubmitting(false);
   };

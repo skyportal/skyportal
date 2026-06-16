@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import TextField from "@mui/material/TextField";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import Typography from "@mui/material/Typography";
@@ -6,9 +6,9 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as groupsActions from "../../ducks/groups";
-import * as usersActions from "../../ducks/users";
+import { useAppDispatch } from "../../types/hooks";
+import { useAddGroupUserMutation } from "../../ducks/groups";
+import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
 
 const filter = createFilterOptions<any>();
@@ -38,28 +38,24 @@ interface NewGroupUserFormProps {
 
 const NewGroupUserForm = ({ group_id }: NewGroupUserFormProps) => {
   const dispatch = useAppDispatch();
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
+  const [addGroupUser] = useAddGroupUserMutation();
+  const { data: usersData } = useGetUsersQuery();
+  const allUsers = usersData?.users ?? [];
   const [formState, setFormState] = useState<FormState>(defaultState);
   const { classes } = useStyles();
-
-  useEffect(() => {
-    if (allUsers.length === 0) {
-      dispatch(usersActions.fetchUsers());
-    }
-  }, [dispatch, allUsers]);
 
   const handleClickSubmit = async () => {
     if (!formState.userID) {
       dispatch(showNotification("Please select a user", "error"));
     } else {
-      const result = (await dispatch(
-        groupsActions.addGroupUser({
+      try {
+        await addGroupUser({
           group_id,
           ...formState,
-        } as any),
-      )) as any;
-      if (result.status === "success") {
+        } as any).unwrap();
         setFormState(defaultState);
+      } catch {
+        // error notification handled by the API layer
       }
     }
   };

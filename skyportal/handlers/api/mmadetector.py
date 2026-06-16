@@ -1,8 +1,9 @@
 import arrow
+import sqlalchemy as sa
 from arrow import ParserError
 from marshmallow.exceptions import ValidationError
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
@@ -17,7 +18,7 @@ from .spectrum import parse_id_list
 
 class MMADetectorHandler(BaseHandler):
     @permissions(["Manage allocations"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create an MMA Detector
@@ -50,7 +51,7 @@ class MMADetectorHandler(BaseHandler):
         """
         data = self.get_json()
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             schema = MMADetector.__schema__()
             try:
                 mmadetector = schema.load(data)
@@ -69,13 +70,13 @@ class MMADetectorHandler(BaseHandler):
                         "Latitude must be between -90 and 90, longitude between -180 and 180"
                     )
             session.add(mmadetector)
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_MMADETECTOR_LIST")
             return self.success(data={"id": mmadetector.id})
 
     @auth_or_token
-    def get(self, mmadetector_id: int | None = None):
+    async def get(self, mmadetector_id: int | None = None):
         """
         ---
         single:
@@ -120,13 +121,18 @@ class MMADetectorHandler(BaseHandler):
                   schema: Error
         """
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if mmadetector_id is not None:
-                t = session.scalars(
+                try:
+                    mmadetector_id_int = int(mmadetector_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid mmadetector_id: {mmadetector_id}")
+                t = await session.scalar(
                     MMADetector.select(
-                        session.user_or_token, options=[joinedload(MMADetector.events)]
-                    ).where(MMADetector.id == int(mmadetector_id))
-                ).first()
+                        session.user_or_token,
+                        options=[selectinload(MMADetector.events)],
+                    ).where(MMADetector.id == mmadetector_id_int)
+                )
                 if t is None:
                     return self.error(
                         f"Could not load MMA Detector with ID {mmadetector_id}"
@@ -138,11 +144,12 @@ class MMADetectorHandler(BaseHandler):
             if det_name is not None:
                 stmt = stmt.where(MMADetector.name.contains(det_name))
 
-            data = session.scalars(stmt).all()
+            result = await session.scalars(stmt)
+            data = result.all()
             return self.success(data=data)
 
     @permissions(["Manage allocations"])
-    def patch(self, mmadetector_id: int):
+    async def patch(self, mmadetector_id: int):
         """
         ---
         summary: Update an MMA Detector
@@ -163,23 +170,34 @@ class MMADetectorHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetector'
           400:
             content:
               application/json:
                 schema: Error
         """
 
-        with self.Session() as session:
-            t = session.scalars(
+        try:
+            mmadetector_id_int = int(mmadetector_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid mmadetector_id: {mmadetector_id}")
+
+        async with self.AsyncSession() as session:
+            t = await session.scalar(
                 MMADetector.select(session.user_or_token, mode="update").where(
-                    MMADetector.id == int(mmadetector_id)
+                    MMADetector.id == mmadetector_id_int
                 )
-            ).first()
+            )
             if t is None:
                 return self.error("Invalid MMA Detector ID.")
             data = self.get_json()
-            data["id"] = int(mmadetector_id)
+            data["id"] = mmadetector_id_int
 
             schema = MMADetector.__schema__()
             try:
@@ -206,13 +224,13 @@ class MMADetectorHandler(BaseHandler):
             if "type" in data:
                 t.type = data["type"]
 
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_MMADETECTOR_LIST")
             return self.success()
 
     @permissions(["Manage allocations"])
-    def delete(self, mmadetector_id: int):
+    async def delete(self, mmadetector_id: int):
         """
         ---
         summary: Delete an MMA Detector
@@ -236,23 +254,28 @@ class MMADetectorHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            t = session.scalars(
+        try:
+            mmadetector_id_int = int(mmadetector_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid mmadetector_id: {mmadetector_id}")
+
+        async with self.AsyncSession() as session:
+            t = await session.scalar(
                 MMADetector.select(session.user_or_token, mode="delete").where(
-                    MMADetector.id == int(mmadetector_id)
+                    MMADetector.id == mmadetector_id_int
                 )
-            ).first()
+            )
             if t is None:
                 return self.error("Invalid MMA Detector ID.")
-            session.delete(t)
-            session.commit()
+            await session.delete(t)
+            await session.commit()
             self.push_all(action="skyportal/REFRESH_MMADETECTOR_LIST")
             return self.success()
 
 
 class MMADetectorSpectrumHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload an MMA Detector Spectrum
@@ -291,11 +314,14 @@ class MMADetectorSpectrumHandler(BaseHandler):
                 f"Invalid / missing parameters; {e.normalized_messages()}"
             )
 
-        with self.Session() as session:
-            stmt = MMADetector.select(self.current_user).where(
-                MMADetector.id == data["detector_id"]
+        async with self.AsyncSession() as session:
+            from ...utils.data_access import accessible_group_ids_async
+
+            mmadetector = await session.scalar(
+                MMADetector.select(self.current_user).where(
+                    MMADetector.id == data["detector_id"]
+                )
             )
-            mmadetector = session.scalars(stmt).first()
             if mmadetector is None:
                 return self.error(
                     f"Cannot find mmadetector with ID: {data['detector_id']}"
@@ -303,25 +329,29 @@ class MMADetectorSpectrumHandler(BaseHandler):
 
             owner_id = self.associated_user_object.id
 
-            # always append the single user group
-            single_user_group = self.associated_user_object.single_user_group
+            single_user_group_id = await session.scalar(
+                sa.select(Group.id).where(
+                    Group.single_user_group.is_(True),
+                    Group.users.any(id=owner_id),
+                )
+            )
 
             group_ids = data.pop("group_ids", None)
             if group_ids == [] or group_ids is None:
-                group_ids = [single_user_group.id]
+                group_ids = [single_user_group_id]
             elif group_ids == "all":
-                group_ids = [g.id for g in self.current_user.accessible_groups]
+                group_ids = await accessible_group_ids_async(self.current_user, session)
 
-            if single_user_group.id not in group_ids:
-                group_ids.append(single_user_group.id)
+            if (
+                single_user_group_id is not None
+                and single_user_group_id not in group_ids
+            ):
+                group_ids.append(single_user_group_id)
 
-            groups = (
-                session.scalars(
-                    Group.select(self.current_user).where(Group.id.in_(group_ids))
-                )
-                .unique()
-                .all()
+            groups_result = await session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
             )
+            groups = groups_result.unique().all()
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
                     f"Cannot find one or more groups with IDs: {group_ids}."
@@ -333,22 +363,22 @@ class MMADetectorSpectrumHandler(BaseHandler):
             spec.owner_id = owner_id
             session.add(spec)
 
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_MMADETECTOR",
-                payload={"detector_id": spec.detector.id},
+                payload={"detector_id": mmadetector.id},
             )
 
             self.push_all(
                 action="skyportal/REFRESH_MMADETECTOR_SPECTRA",
-                payload={"detector_id": spec.detector.id},
+                payload={"detector_id": mmadetector.id},
             )
 
             return self.success(data={"id": spec.id})
 
     @auth_or_token
-    def get(self, spectrum_id: int | None = None):
+    async def get(self, spectrum_id: int | None = None):
         """
         ---
         single:
@@ -413,12 +443,16 @@ class MMADetectorSpectrumHandler(BaseHandler):
         """
 
         if spectrum_id is not None:
-            with self.Session() as session:
-                spectrum = session.scalars(
+            try:
+                spectrum_id_int = int(spectrum_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid spectrum_id: {spectrum_id}")
+            async with self.AsyncSession() as session:
+                spectrum = await session.scalar(
                     MMADetectorSpectrum.select(session.user_or_token).where(
-                        MMADetectorSpectrum.id == int(spectrum_id)
+                        MMADetectorSpectrum.id == spectrum_id_int
                     )
-                ).first()
+                )
                 if spectrum is None:
                     return self.error(
                         f"Could not access spectrum {spectrum_id}.", status=403
@@ -444,10 +478,10 @@ class MMADetectorSpectrumHandler(BaseHandler):
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_after}".')
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                detector_ids = parse_id_list(detector_ids, MMADetector, session)
-                group_ids = parse_id_list(group_ids, Group, session)
+                detector_ids = await parse_id_list(detector_ids, MMADetector, session)
+                group_ids = await parse_id_list(group_ids, Group, session)
             except (ValueError, AccessError) as e:
                 return self.error(str(e))
 
@@ -478,12 +512,13 @@ class MMADetectorSpectrumHandler(BaseHandler):
                     MMADetectorSpectrum.start_time >= observed_after
                 )
 
-            spectra = session.scalars(spec_query).unique().all()
+            result = await session.scalars(spec_query)
+            spectra = result.unique().all()
 
             return self.success(data=spectra)
 
     @permissions(["Upload data"])
-    def patch(self, spectrum_id: int):
+    async def patch(self, spectrum_id: int):
         """
         ---
         summary: Update an MMA Detector Spectrum
@@ -504,7 +539,13 @@ class MMADetectorSpectrumHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetectorSpectrum'
           400:
             content:
               application/json:
@@ -513,7 +554,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
 
         try:
             spectrum_id = int(spectrum_id)
-        except TypeError:
+        except (TypeError, ValueError):
             return self.error("Could not convert spectrum id to int.")
 
         data = self.get_json()
@@ -524,23 +565,27 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.error(f"Invalid/missing parameters: {e.normalized_messages()}")
 
         group_ids = data.pop("group_ids", None)
-        if group_ids == "all":
-            group_ids = [g.id for g in self.current_user.accessible_groups]
 
-        with self.Session() as session:
-            stmt = MMADetectorSpectrum.select(self.current_user).where(
-                MMADetectorSpectrum.id == spectrum_id
+        async with self.AsyncSession() as session:
+            from ...utils.data_access import accessible_group_ids_async
+
+            if group_ids == "all":
+                group_ids = await accessible_group_ids_async(self.current_user, session)
+
+            spectrum = await session.scalar(
+                MMADetectorSpectrum.select(self.current_user)
+                .where(MMADetectorSpectrum.id == spectrum_id)
+                .options(
+                    selectinload(MMADetectorSpectrum.groups),
+                    selectinload(MMADetectorSpectrum.detector),
+                )
             )
-            spectrum = session.scalars(stmt).first()
 
             if group_ids:
-                groups = (
-                    session.scalars(
-                        Group.select(self.current_user).where(Group.id.in_(group_ids))
-                    )
-                    .unique()
-                    .all()
+                groups_result = await session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
                 )
+                groups = groups_result.unique().all()
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
                         f"Cannot find one or more groups with IDs: {group_ids}."
@@ -555,7 +600,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             for k in data:
                 setattr(spectrum, k, data[k])
 
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_MMADETECTOR",
@@ -570,7 +615,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, spectrum_id: int):
+    async def delete(self, spectrum_id: int):
         """
         ---
         summary: Delete an MMA Detector Spectrum
@@ -593,18 +638,18 @@ class MMADetectorSpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            spectrum = session.scalars(
-                MMADetectorSpectrum.select(self.current_user, mode="delete").where(
-                    MMADetectorSpectrum.id == int(spectrum_id)
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            spectrum = await session.scalar(
+                MMADetectorSpectrum.select(self.current_user, mode="delete")
+                .where(MMADetectorSpectrum.id == spectrum_id)
+                .options(selectinload(MMADetectorSpectrum.detector))
+            )
             if spectrum is None:
                 return self.error(f"Cannot find spectrum with ID {spectrum_id}")
 
             detector_id = spectrum.detector.id
-            session.delete(spectrum)
-            session.commit()
+            await session.delete(spectrum)
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_MMADETECTOR",
@@ -621,7 +666,7 @@ class MMADetectorSpectrumHandler(BaseHandler):
 
 class MMADetectorTimeIntervalHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload an MMA Detector Time Interval
@@ -664,11 +709,14 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         if "detector_id" not in json:
             return self.error("detector_id required in json")
 
-        with self.Session() as session:
-            stmt = MMADetector.select(self.current_user).where(
-                MMADetector.id == json["detector_id"]
+        async with self.AsyncSession() as session:
+            from ...utils.data_access import accessible_group_ids_async
+
+            mmadetector = await session.scalar(
+                MMADetector.select(self.current_user).where(
+                    MMADetector.id == json["detector_id"]
+                )
             )
-            mmadetector = session.scalars(stmt).first()
             if mmadetector is None:
                 return self.error(
                     f"Cannot find mmadetector with ID: {json['detector_id']}"
@@ -676,25 +724,29 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
 
             owner_id = self.associated_user_object.id
 
-            # always append the single user group
-            single_user_group = self.associated_user_object.single_user_group
+            single_user_group_id = await session.scalar(
+                sa.select(Group.id).where(
+                    Group.single_user_group.is_(True),
+                    Group.users.any(id=owner_id),
+                )
+            )
 
             group_ids = json.pop("group_ids", None)
             if group_ids == [] or group_ids is None:
-                group_ids = [single_user_group.id]
+                group_ids = [single_user_group_id]
             elif group_ids == "all":
-                group_ids = [g.id for g in self.current_user.accessible_groups]
+                group_ids = await accessible_group_ids_async(self.current_user, session)
 
-            if single_user_group.id not in group_ids:
-                group_ids.append(single_user_group.id)
+            if (
+                single_user_group_id is not None
+                and single_user_group_id not in group_ids
+            ):
+                group_ids.append(single_user_group_id)
 
-            groups = (
-                session.scalars(
-                    Group.select(self.current_user).where(Group.id.in_(group_ids))
-                )
-                .unique()
-                .all()
+            groups_result = await session.scalars(
+                Group.select(self.current_user).where(Group.id.in_(group_ids))
             )
+            groups = groups_result.unique().all()
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
                     f"Cannot find one or more groups with IDs: {group_ids}."
@@ -714,16 +766,16 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                 time_interval_list.append(time_interval)
 
             session.add_all(time_interval_list)
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_MMASEGMENT",
-                payload={"detector_id": time_interval.detector.id},
+                payload={"detector_id": mmadetector.id},
             )
 
             self.push_all(
                 action="skyportal/REFRESH_MMASEGMENT_SEGMENTS",
-                payload={"detector_id": time_interval.detector.id},
+                payload={"detector_id": mmadetector.id},
             )
 
             return self.success(
@@ -731,7 +783,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, time_interval_id: int | None = None):
+    async def get(self, time_interval_id: int | None = None):
         """
         ---
         single:
@@ -794,12 +846,20 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                 If provided, filter only time_interval saved to one of these group IDs.
         """
         if time_interval_id is not None:
-            with self.Session() as session:
-                time_interval = session.scalars(
-                    MMADetectorTimeInterval.select(session.user_or_token).where(
-                        MMADetectorTimeInterval.id == int(time_interval_id)
+            try:
+                time_interval_id_int = int(time_interval_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid time_interval_id: {time_interval_id}")
+            async with self.AsyncSession() as session:
+                time_interval = await session.scalar(
+                    MMADetectorTimeInterval.select(session.user_or_token)
+                    .where(MMADetectorTimeInterval.id == time_interval_id_int)
+                    .options(
+                        selectinload(MMADetectorTimeInterval.owner),
+                        selectinload(MMADetectorTimeInterval.groups),
+                        selectinload(MMADetectorTimeInterval.detector),
                     )
-                ).first()
+                )
                 if time_interval is None:
                     return self.error(
                         f"Could not access time_interval {time_interval_id}.",
@@ -834,15 +894,21 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
         except (TypeError, ParserError):
             return self.error(f'Cannot parse time input value "{observed_after}".')
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                detector_ids = parse_id_list(detector_ids, MMADetector, session)
-                group_ids = parse_id_list(group_ids, Group, session)
+                detector_ids = await parse_id_list(detector_ids, MMADetector, session)
+                group_ids = await parse_id_list(group_ids, Group, session)
             except (ValueError, AccessError) as e:
                 return self.error(str(e))
 
             # filter the time_interval
-            time_interval_query = MMADetectorTimeInterval.select(session.user_or_token)
+            time_interval_query = MMADetectorTimeInterval.select(
+                session.user_or_token
+            ).options(
+                selectinload(MMADetectorTimeInterval.owner),
+                selectinload(MMADetectorTimeInterval.groups),
+                selectinload(MMADetectorTimeInterval.detector),
+            )
             if detector_ids:
                 time_interval_query = time_interval_query.where(
                     MMADetectorTimeInterval.detector_id.in_(detector_ids)
@@ -868,7 +934,8 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
                     MMADetectorTimeInterval.start_time >= observed_after
                 )
 
-            time_intervals = session.scalars(time_interval_query).unique().all()
+            result = await session.scalars(time_interval_query)
+            time_intervals = result.unique().all()
             data = []
             for time_interval in time_intervals:
                 seg = time_interval.time_interval
@@ -884,7 +951,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Upload data"])
-    def patch(self, time_interval_id: int):
+    async def patch(self, time_interval_id: int):
         """
         ---
         summary: Update an MMA Detector Time Interval
@@ -905,7 +972,13 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/MMADetectorTimeInterval'
           400:
             content:
               application/json:
@@ -914,28 +987,32 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
 
         try:
             time_interval_id = int(time_interval_id)
-        except TypeError:
+        except (TypeError, ValueError):
             return self.error("Could not convert time_interval id to int.")
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
-        if group_ids == "all":
-            group_ids = [g.id for g in self.current_user.accessible_groups]
 
-        with self.Session() as session:
-            stmt = MMADetectorTimeInterval.select(self.current_user).where(
-                MMADetectorTimeInterval.id == time_interval_id
+        async with self.AsyncSession() as session:
+            from ...utils.data_access import accessible_group_ids_async
+
+            if group_ids == "all":
+                group_ids = await accessible_group_ids_async(self.current_user, session)
+
+            time_interval = await session.scalar(
+                MMADetectorTimeInterval.select(self.current_user)
+                .where(MMADetectorTimeInterval.id == time_interval_id)
+                .options(
+                    selectinload(MMADetectorTimeInterval.groups),
+                    selectinload(MMADetectorTimeInterval.detector),
+                )
             )
-            time_interval = session.scalars(stmt).first()
 
             if group_ids:
-                groups = (
-                    session.scalars(
-                        Group.select(self.current_user).where(Group.id.in_(group_ids))
-                    )
-                    .unique()
-                    .all()
+                groups_result = await session.scalars(
+                    Group.select(self.current_user).where(Group.id.in_(group_ids))
                 )
+                groups = groups_result.unique().all()
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
                         f"Cannot find one or more groups with IDs: {group_ids}."
@@ -947,7 +1024,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             if "time_interval" in data:
                 time_interval.time_interval = data["time_interval"]
 
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_MMADETECTOR",
@@ -962,7 +1039,7 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, time_interval_id: int):
+    async def delete(self, time_interval_id: int):
         """
         ---
         summary: Delete an MMA Detector Time Interval
@@ -985,20 +1062,20 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            time_interval = session.scalars(
-                MMADetectorTimeInterval.select(self.current_user, mode="delete").where(
-                    MMADetectorTimeInterval.id == int(time_interval_id)
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            time_interval = await session.scalar(
+                MMADetectorTimeInterval.select(self.current_user, mode="delete")
+                .where(MMADetectorTimeInterval.id == time_interval_id)
+                .options(selectinload(MMADetectorTimeInterval.detector))
+            )
             if time_interval is None:
                 return self.error(
                     f"Cannot find time_interval with ID {time_interval_id}"
                 )
 
             detector_id = time_interval.detector.id
-            session.delete(time_interval)
-            session.commit()
+            await session.delete(time_interval)
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_MMADETECTOR",

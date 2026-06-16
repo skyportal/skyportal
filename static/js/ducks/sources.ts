@@ -1,251 +1,145 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Sources (paginated source listings).
+ *
+ * RTK Query conversion of the old `FETCH_SOURCES` family of ducks. All six list
+ * queries hit `/api/sources` with a different `filterParams` object; the object
+ * becomes the query's cache key automatically, so each distinct page/filter is
+ * cached independently.
+ *
+ * The websocket handlers (`REFRESH_FAVORITE_SOURCES`, `FETCH_GCNEVENT_SOURCES`,
+ * `REFRESH_SOURCE`) are bridged to `Sources` tag invalidation via
+ * `invalidateOnMessage`, preserving the conditional refresh logic of the old
+ * `messageHandler.add(...)` callbacks.
+ */
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch, RootState } from "../types/store";
-import * as sourceActions from "./source";
+
+import { filterOutEmptyValues } from "../API";
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const FETCH_SOURCES = "skyportal/FETCH_SOURCES";
-const FETCH_SOURCES_OK = "skyportal/FETCH_SOURCES_OK";
-const FETCH_SOURCES_FAIL = "skyportal/FETCH_SOURCES_FAIL";
-
-const FETCH_SAVED_GROUP_SOURCES = "skyportal/FETCH_SAVED_GROUP_SOURCES";
-const FETCH_SAVED_GROUP_SOURCES_OK = "skyportal/FETCH_SAVED_GROUP_SOURCES_OK";
-
-const FETCH_PENDING_GROUP_SOURCES = "skyportal/FETCH_PENDING_GROUP_SOURCES";
-const FETCH_PENDING_GROUP_SOURCES_OK =
-  "skyportal/FETCH_PENDING_GROUP_SOURCES_OK";
-
-const FETCH_FAVORITE_SOURCES = "skyportal/FETCH_FAVORITE_SOURCES";
-const FETCH_FAVORITE_SOURCES_OK = "skyportal/FETCH_FAVORITE_SOURCES_OK";
-
+const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
 const REFRESH_FAVORITE_SOURCES = "skyportal/REFRESH_FAVORITE_SOURCES";
-
-const FETCH_SOURCE_AND_MERGE = "skyportal/FETCH_SOURCE_AND_MERGE";
-const FETCH_SOURCE_AND_MERGE_OK = "skyportal/FETCH_SOURCE_AND_MERGE_OK";
-
 const FETCH_GCNEVENT_SOURCES = "skyportal/FETCH_GCNEVENT_SOURCES";
-const FETCH_GCNEVENT_SOURCES_OK = "skyportal/FETCH_GCNEVENT_SOURCES_OK";
 
-const FETCH_SPATIAL_CATALOG_SOURCES = "skyportal/FETCH_SPATIAL_CATALOG_SOURCES";
-const FETCH_SPATIAL_CATALOG_SOURCES_OK =
-  "skyportal/FETCH_SPATIAL_CATALOG_SOURCES_OK";
+export type FilterParams = Record<string, any>;
 
-const addFilterParamDefaults = (filterParams: Record<string, any>) => {
-  if (!Object.keys(filterParams).includes("numPerPage")) {
-    filterParams["numPerPage"] = 10;
-  }
-  filterParams["includeColorMagnitude"] = true;
-  filterParams["includeThumbnails"] = true;
-  filterParams["includeDetectionStats"] = true;
-  filterParams["includeLabellers"] = true;
-  filterParams["includeHosts"] = true;
-};
-
-export function fetchSources(filterParams: Record<string, any> = {}) {
-  addFilterParamDefaults(filterParams);
-  return API.GET("/api/sources", FETCH_SOURCES, filterParams);
-}
-
-export function fetchSavedGroupSources(filterParams: Record<string, any> = {}) {
-  addFilterParamDefaults(filterParams);
-  return API.GET("/api/sources", FETCH_SAVED_GROUP_SOURCES, filterParams);
-}
-
-export function fetchPendingGroupSources(
-  filterParams: Record<string, any> = {},
-) {
-  addFilterParamDefaults(filterParams);
-  filterParams["pendingOnly"] = true;
-  return API.GET("/api/sources", FETCH_PENDING_GROUP_SOURCES, filterParams);
-}
-
-export function fetchFavoriteSources(filterParams: Record<string, any> = {}) {
-  addFilterParamDefaults(filterParams);
-  filterParams["listName"] = "favorites";
-  return API.GET("/api/sources", FETCH_FAVORITE_SOURCES, filterParams);
-}
-
-export function fetchGcnEventSources(
-  dateobs: any,
-  filterParams: Record<string, any> = {},
-) {
-  addFilterParamDefaults(filterParams);
-  filterParams["localizationDateobs"] = dateobs;
-  if (dateobs) {
-    // operator ??= is a nullish coalescing operator, which assigns a value to a variable if it is null or undefined
-    filterParams["startDate"] ??= dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
-    filterParams["endDate"] ??= dayjs(dateobs)
-      .add(7, "day")
-      .format("YYYY-MM-DD HH:mm:ss");
-    filterParams["includeLocalizationStatus"] ??= true;
-  }
-  filterParams["includeSourcesInGcn"] = true;
-  filterParams["includeGeoJSON"] = true;
-  return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams, false);
-}
-
-export function fetchSpatialCatalogSources(
-  catalogName: string,
-  entryName: string,
-  filterParams: Record<string, any> = {},
-) {
-  addFilterParamDefaults(filterParams);
-  filterParams["spatialCatalogName"] = catalogName;
-  filterParams["spatialCatalogEntryName"] = entryName;
-  return API.GET("/api/sources", FETCH_SPATIAL_CATALOG_SOURCES, filterParams);
-}
-
-const initialState: any = {
-  sources: null,
-  totalMatches: 0,
-  numPerPage: 10,
-};
-
-// Websocket message handler
-messageHandler.add(
-  (
-    actionType: string,
-    payload: any,
-    dispatch: AppDispatch,
-    getState: () => RootState,
-  ) => {
-    const { sources } = getState();
-    if (actionType === REFRESH_FAVORITE_SOURCES) {
-      if (window.location.pathname === "/favorites") {
-        dispatch(fetchFavoriteSources());
-      }
-    }
-
-    const { gcnEvent } = getState();
-    if (actionType === FETCH_GCNEVENT_SOURCES) {
-      if (gcnEvent && gcnEvent.id === payload.gcnEvent.id) {
-        dispatch(fetchGcnEventSources(gcnEvent.dateobs));
-      }
-    }
-
-    if (actionType === sourceActions.REFRESH_SOURCE) {
-      let fetched = false;
-      [
-        "latest",
-        "savedGroupSources",
-        "favorites",
-        "pendingGroupSources",
-      ].forEach((branchName) => {
-        if (sources[branchName]?.sources && !fetched) {
-          sources[branchName].sources.forEach((obj: any) => {
-            if (obj.internal_key === payload.obj_key && !fetched) {
-              dispatch(
-                sourceActions.fetchSource(obj.id, FETCH_SOURCE_AND_MERGE),
-              );
-              fetched = true;
-            }
-          });
-        }
-      });
-    }
-  },
-);
-
-type SourcesState = Record<string, any>;
-
-interface SourcesAction {
-  type: string;
-  data?: any;
-  parameters?: any;
+export interface SourcesResult {
+  sources: { [key: string]: any }[] | null;
+  totalMatches: number;
+  pageNumber: number;
+  numPerPage: number;
   [key: string]: any;
 }
 
-const reducer = (
-  state: SourcesState = {
-    latest: initialState,
-    savedGroupSources: initialState,
-    pendingGroupSources: initialState,
-  },
-  action: SourcesAction,
-): SourcesState => {
-  switch (action.type) {
-    case FETCH_SOURCES: {
-      return {
-        ...state,
-        latest: {
-          ...state["latest"],
-          queryInProgress: action.parameters.body.pageNumber === undefined,
-        },
-      };
-    }
-    case FETCH_SOURCES_OK: {
-      return {
-        ...state,
-        latest: { ...action.data, queryInProgress: false },
-      };
-    }
-    case FETCH_SOURCES_FAIL: {
-      return {
-        ...state,
-        latest: { ...state["latest"], queryInProgress: false },
-      };
-    }
-    case FETCH_SAVED_GROUP_SOURCES_OK: {
-      return {
-        ...state,
-        savedGroupSources: action.data,
-      };
-    }
-    case FETCH_PENDING_GROUP_SOURCES_OK: {
-      return {
-        ...state,
-        pendingGroupSources: action.data,
-      };
-    }
-    case FETCH_FAVORITE_SOURCES_OK: {
-      return {
-        ...state,
-        favorites: action.data,
-      };
-    }
-    case FETCH_SOURCE_AND_MERGE_OK: {
-      const newState: Record<string, any> = {};
-      [
-        "latest",
-        "savedGroupSources",
-        "favorites",
-        "pendingGroupSources",
-      ].forEach((branchName) => {
-        if (state[branchName]?.sources?.length) {
-          newState[branchName] = {
-            ...state[branchName],
-            sources: state[branchName].sources.map((obj: any) =>
-              obj.id === action.data.id ? action.data : obj,
-            ),
-          };
-        }
-      });
-      return {
-        ...state,
-        ...newState,
-      };
-    }
-    case FETCH_GCNEVENT_SOURCES_OK: {
-      return {
-        ...state,
-        gcnEventSources: action.data,
-      };
-    }
-    case FETCH_SPATIAL_CATALOG_SOURCES_OK: {
-      return {
-        ...state,
-        spatialCatalogSources: action.data,
-      };
-    }
-    default:
-      return state;
+const addFilterParamDefaults = (filterParams: FilterParams): FilterParams => {
+  const params = { ...filterParams };
+  if (!Object.keys(params).includes("numPerPage")) {
+    params["numPerPage"] = 30;
   }
+  params["includeColorMagnitude"] = true;
+  params["includeThumbnails"] = true;
+  params["includeDetectionStats"] = true;
+  params["includeLabellers"] = true;
+  params["includeHosts"] = true;
+  return params;
 };
 
-store.injectReducer("sources", reducer);
+/** Build a `/api/sources?...` URL from a filterParams object. */
+const buildSourcesUrl = (params: FilterParams, removeFalse = true): string => {
+  const filtered = filterOutEmptyValues(params, true, removeFalse);
+  const queryString = new URLSearchParams(
+    filtered as Record<string, string>,
+  ).toString();
+  return `/api/sources?${queryString}`;
+};
+
+export const sourcesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    fetchSources: build.query<SourcesResult, FilterParams | void>({
+      query: (filterParams) =>
+        buildSourcesUrl(addFilterParamDefaults(filterParams ?? {})),
+      providesTags: ["Sources"],
+    }),
+    fetchSavedGroupSources: build.query<SourcesResult, FilterParams | void>({
+      query: (filterParams) =>
+        buildSourcesUrl(addFilterParamDefaults(filterParams ?? {})),
+      providesTags: ["Sources"],
+    }),
+    fetchPendingGroupSources: build.query<SourcesResult, FilterParams | void>({
+      query: (filterParams) => {
+        const params = addFilterParamDefaults(filterParams ?? {});
+        params["pendingOnly"] = true;
+        return buildSourcesUrl(params);
+      },
+      providesTags: ["Sources"],
+    }),
+    fetchFavoriteSources: build.query<SourcesResult, FilterParams | void>({
+      query: (filterParams) => {
+        const params = addFilterParamDefaults(filterParams ?? {});
+        params["listName"] = "favorites";
+        return buildSourcesUrl(params);
+      },
+      providesTags: ["Sources"],
+    }),
+    fetchGcnEventSources: build.query<
+      SourcesResult,
+      { dateobs: any; filterParams?: FilterParams }
+    >({
+      query: ({ dateobs, filterParams = {} }) => {
+        const params = addFilterParamDefaults(filterParams);
+        params["localizationDateobs"] = dateobs;
+        if (dateobs) {
+          params["startDate"] ??= dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+          params["endDate"] ??= dayjs(dateobs)
+            .add(7, "day")
+            .format("YYYY-MM-DD HH:mm:ss");
+          params["includeLocalizationStatus"] ??= true;
+        }
+        params["includeSourcesInGcn"] = true;
+        params["includeGeoJSON"] = true;
+        return buildSourcesUrl(params, false);
+      },
+      providesTags: ["Sources"],
+    }),
+    fetchSpatialCatalogSources: build.query<
+      SourcesResult,
+      { catalogName: string; entryName: string; filterParams?: FilterParams }
+    >({
+      query: ({ catalogName, entryName, filterParams = {} }) => {
+        const params = addFilterParamDefaults(filterParams);
+        params["spatialCatalogName"] = catalogName;
+        params["spatialCatalogEntryName"] = entryName;
+        return buildSourcesUrl(params);
+      },
+      providesTags: ["Sources"],
+    }),
+  }),
+});
+
+// Websocket-driven invalidation. Each handler preserves the old conditional
+// refresh logic, returning the `Sources` tag to refetch active list queries or
+// `null` to ignore the message.
+invalidateOnMessage(REFRESH_FAVORITE_SOURCES, () =>
+  window.location.pathname === "/favorites" ? ["Sources"] : null,
+);
+
+invalidateOnMessage(FETCH_GCNEVENT_SOURCES, () => ["Sources"]);
+
+invalidateOnMessage(REFRESH_SOURCE, () => ["Sources"]);
+
+export const {
+  useFetchSourcesQuery,
+  useLazyFetchSourcesQuery,
+  useFetchSavedGroupSourcesQuery,
+  useLazyFetchSavedGroupSourcesQuery,
+  useFetchPendingGroupSourcesQuery,
+  useLazyFetchPendingGroupSourcesQuery,
+  useFetchFavoriteSourcesQuery,
+  useFetchGcnEventSourcesQuery,
+  useFetchSpatialCatalogSourcesQuery,
+} = sourcesApi;

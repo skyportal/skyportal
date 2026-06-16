@@ -12,32 +12,18 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ReactJson from "react-json-view";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyTaxonomy from "./ModifyTaxonomy";
 import NewTaxonomy from "./NewTaxonomy";
-import * as taxonomyActions from "../../ducks/taxonomies";
+import { useDeleteTaxonomyMutation } from "../../ducks/taxonomies";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map are not server-sortable.
-const SERVER_SORT_FIELD: Record<string, string> = {
-  name: "name",
-  id: "id",
-  isLatest: "isLatest",
-  provenance: "provenance",
-  version: "version",
-};
 
 const useStyles = makeStyles()((theme) => ({
   container: {
@@ -75,17 +61,14 @@ interface TaxonomyTableProps {
 
 const TaxonomyTable = ({
   taxonomies,
-  paginateCallback,
-  totalMatches = 0,
   deletePermission,
-  sortingCallback = null,
 }: TaxonomyTableProps) => {
   const { classes } = useStyles();
 
   const dispatch = useAppDispatch();
+  const [deleteTaxonomyMutation] = useDeleteTaxonomyMutation();
 
-  const [rowsPerPage, setRowsPerPage] = useState(100);
-  const [sortModel, setSortModel] = useState<any[]>([]);
+  const [rowsPerPage] = useState(100);
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -127,15 +110,14 @@ const TaxonomyTable = ({
     setTaxonomyToViewEditDelete(null);
   };
 
-  const deleteTaxonomy = () => {
-    dispatch(taxonomyActions.deleteTaxonomy(taxonomyToViewEditDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Taxonomy deleted"));
-          closeDeleteDialog();
-        }
-      },
-    );
+  const deleteTaxonomy = async () => {
+    try {
+      await deleteTaxonomyMutation(taxonomyToViewEditDelete).unwrap();
+      dispatch(showNotification("Taxonomy deleted"));
+      closeDeleteDialog();
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const renderName = (params: any) => {
@@ -211,32 +193,6 @@ const TaxonomyTable = ({
     );
   };
 
-  const currentSortOrder = () =>
-    sortModel.length
-      ? {
-          name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
-          direction: sortModel[0].sort,
-        }
-      : {};
-
-  const handlePaginationModelChange = (model: any) => {
-    setRowsPerPage(model.pageSize);
-    paginateCallback(model.page + 1, model.pageSize, currentSortOrder());
-  };
-
-  const handleSortModelChange = (model: any) => {
-    setSortModel(model);
-    if (!model.length) {
-      paginateCallback(1, rowsPerPage, {});
-      return;
-    }
-    const { field, sort } = model[0];
-    sortingCallback?.({
-      name: SERVER_SORT_FIELD[field] || field,
-      direction: sort,
-    });
-  };
-
   const columns: any[] = [
     {
       field: "name",
@@ -304,8 +260,7 @@ const TaxonomyTable = ({
 
   const CustomToolbar = function TaxonomyTableToolbar() {
     return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
+      <DataGridToolbar showQuickFilter={false}>
         <IconButton
           name="new_taxonomy"
           onClick={() => {
@@ -314,7 +269,7 @@ const TaxonomyTable = ({
         >
           <AddIcon />
         </IconButton>
-      </GridToolbarContainer>
+      </DataGridToolbar>
     );
   };
 
@@ -330,13 +285,9 @@ const TaxonomyTable = ({
             rows={taxonomies}
             columns={columns}
             getRowId={(row: any) => row.id}
-            paginationMode="server"
-            sortingMode="server"
-            rowCount={totalMatches}
-            paginationModel={{ page: 0, pageSize: rowsPerPage }}
-            onPaginationModelChange={handlePaginationModelChange}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
+            initialState={{
+              pagination: { paginationModel: { pageSize: rowsPerPage } },
+            }}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             disableColumnFilter
             slots={{ toolbar: CustomToolbar }}

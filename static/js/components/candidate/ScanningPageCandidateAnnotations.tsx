@@ -67,7 +67,10 @@ const ScanningPageCandidateAnnotations = ({
 
   const dispatch = useAppDispatch();
 
-  annotations?.sort((a, b) => a.origin.localeCompare(b.origin));
+  // `annotations` is frozen RTK Query data, so copy before sorting in place.
+  annotations = [...(annotations ?? [])].sort((a, b) =>
+    a.origin.localeCompare(b.origin),
+  );
   if (filterGroups?.length > 0) {
     // put the filter groups at the top
     annotations.sort((a, b) => {
@@ -92,11 +95,14 @@ const ScanningPageCandidateAnnotations = ({
       return 0;
     });
   }
-  annotations?.forEach((annotation) => {
-    annotation.data = Object.fromEntries(
+  // The annotation objects are frozen RTK Query data, so build new objects
+  // with sorted `data` rather than mutating them in place.
+  annotations = annotations?.map((annotation) => ({
+    ...annotation,
+    data: Object.fromEntries(
       Object.entries(annotation.data).sort((a, b) => a[0].localeCompare(b[0])),
-    );
-  });
+    ),
+  }));
 
   const initState: Record<string, boolean> = {};
   annotations?.forEach((annotation) => {

@@ -11,16 +11,11 @@ import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 
-import { useAppSelector } from "../../types/hooks";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ObservationFilterForm from "./ObservationFilterForm";
 import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -69,7 +64,7 @@ const QueuedObservationsTable = ({
 }: QueuedObservationsTableProps) => {
   const { classes } = useStyles();
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -302,8 +297,7 @@ const QueuedObservationsTable = ({
   };
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
+    <DataGridToolbar>
       <Tooltip title="Filter Table">
         <IconButton
           size="small"
@@ -332,8 +326,7 @@ const QueuedObservationsTable = ({
           <DownloadIcon />
         </IconButton>
       </Tooltip>
-      <GridToolbarQuickFilter />
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

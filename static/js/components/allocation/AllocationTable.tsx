@@ -14,16 +14,11 @@ import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import StyledDataGrid from "../StyledDataGrid";
-import * as allocationActions from "../../ducks/allocation";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import { useDeleteAllocationMutation } from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import AllocationForm from "./AllocationForm";
 import { userLabel } from "../../utils/format";
@@ -105,15 +100,16 @@ const AllocationTable = ({
   const [allocationToEdit, setAllocationToEdit] = useState<any>(null);
   const [allocationToDelete, setAllocationToDelete] = useState<any>(null);
 
-  const deleteAllocation = () => {
-    dispatch(allocationActions.deleteAllocation(allocationToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Allocation deleted"));
-          setAllocationToDelete(null);
-        }
-      },
-    );
+  const [deleteAllocationMutation] = useDeleteAllocationMutation();
+
+  const deleteAllocation = async () => {
+    try {
+      await deleteAllocationMutation(allocationToDelete).unwrap();
+      dispatch(showNotification("Allocation deleted"));
+      setAllocationToDelete(null);
+    } catch {
+      // error notification handled by the baseQuery
+    }
   };
 
   const getInstrument = (allocation: any) =>
@@ -355,8 +351,7 @@ const AllocationTable = ({
   ].filter(Boolean);
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
+    <DataGridToolbar>
       <IconButton
         name="new_allocation"
         size="small"
@@ -364,8 +359,7 @@ const AllocationTable = ({
       >
         <AddIcon />
       </IconButton>
-      <GridToolbarQuickFilter />
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   // mui-datatables ran with pagination:false (show-all). DataGrid mirrors that

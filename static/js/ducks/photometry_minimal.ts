@@ -1,85 +1,75 @@
-import * as API from "../API";
-import store from "../store";
+/**
+ * Minimal source photometry (the "photometry_minimal" slice).
+ *
+ * RTK Query conversion of the old `FETCH_SOURCE_PHOTOMETRY_MINIMAL` duck. The
+ * endpoint is injected into the central `skyportalApi`. The backend returns the
+ * full photometry payload; the query keeps the old slice shape by mapping each
+ * datum to the minimal set of fields consumers expect (id, obj_id, filter,
+ * limiting_mag, mag, magerr, mjd, origin).
+ *
+ * The old duck keyed photometry by source id in a single reducer slice and
+ * exposed `clearPhotometryMinimal` to drop cached entries. With RTK Query each
+ * source's photometry is its own cache entry (keyed by the `sourceId` query
+ * arg), so per-source caching is automatic. There is no websocket refresh for
+ * this duck.
+ */
+import { skyportalApi } from "../api/skyportalApi";
 
-const FETCH_SOURCE_PHOTOMETRY_MINIMAL =
-  "skyportal/FETCH_SOURCE_PHOTOMETRY_MINIMAL";
-const FETCH_SOURCE_PHOTOMETRY_MINIMAL_OK =
-  "skyportal/FETCH_SOURCE_PHOTOMETRY_MINIMAL_OK";
-const CLEAR_PHOTOMETRY_MINIMAL = "skyportal/CLEAR_PHOTOMETRY_MINIMAL";
-
-export function fetchSourcePhotometryMinimal(id: number | string) {
-  return API.GET(
-    `/api/sources/${id}/photometry`,
-    FETCH_SOURCE_PHOTOMETRY_MINIMAL,
-    {
-      format: "plot",
-      magsys: "ab",
-      individualOrSeries: "both",
-      includeSuperObjsPhotometry: true,
-    },
-  );
+export interface MinimalPhotometryDatum {
+  id: number;
+  obj_id: string;
+  filter: string;
+  limiting_mag: number;
+  mag: number | null;
+  magerr: number | null;
+  mjd: number;
+  origin: string | null;
 }
 
-export function clearPhotometryMinimal(sourceIds: any = null) {
-  return {
-    type: CLEAR_PHOTOMETRY_MINIMAL,
-    sourceIds,
-  };
+interface RawPhotometryDatum {
+  id: number;
+  obj_id: string;
+  filter: string;
+  limiting_mag: number;
+  mag: number | null;
+  magerr: number | null;
+  mjd: number;
+  origin?: string | null;
+  [key: string]: unknown;
 }
 
-interface PhotometryMinimalAction {
-  type: string;
-  data?: any;
-  sourceIds?: any;
-  parameters?: any;
-  [key: string]: any;
-}
+export const photometryMinimalApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getSourcePhotometryMinimal: build.query<
+      MinimalPhotometryDatum[],
+      number | string
+    >({
+      query: (id) => ({
+        url: `api/sources/${id}/photometry`,
+        params: {
+          format: "plot",
+          magsys: "ab",
+          individualOrSeries: "both",
+          includeSuperObjsPhotometry: true,
+        },
+      }),
+      // Keep only the fields the old reducer exposed, normalising `origin`.
+      transformResponse: (data: RawPhotometryDatum[]) =>
+        (data ?? []).map((datum) => ({
+          id: datum.id,
+          obj_id: datum.obj_id,
+          filter: datum.filter,
+          limiting_mag: datum.limiting_mag,
+          mag: datum.mag,
+          magerr: datum.magerr,
+          mjd: datum.mjd,
+          origin: ["None", ""].includes(datum.origin ?? "")
+            ? null
+            : (datum.origin ?? null),
+        })),
+      providesTags: ["Photometry"],
+    }),
+  }),
+});
 
-const reducer = (
-  state: Record<string, any> = {},
-  action: PhotometryMinimalAction,
-) => {
-  switch (action.type) {
-    case FETCH_SOURCE_PHOTOMETRY_MINIMAL_OK: {
-      // only keep the following fields: id, obj_id, filter, limiting_mag, mag, magerr, mjd, origin
-      const photometry = (action?.data || []).map((datum: any) => ({
-        id: datum.id,
-        obj_id: datum.obj_id,
-        filter: datum.filter,
-        limiting_mag: datum.limiting_mag,
-        mag: datum.mag,
-        magerr: datum.magerr,
-        mjd: datum.mjd,
-        origin: ["None", ""].includes(datum.origin) ? null : datum.origin,
-      }));
-      // get the sourceID from the parameters of the action
-      const sourceID = action?.parameters?.endpoint?.split("/")[3];
-      if (sourceID) {
-        return {
-          ...state,
-          [sourceID]: photometry,
-        };
-      }
-      return state;
-    }
-    case CLEAR_PHOTOMETRY_MINIMAL: {
-      const { sourceIds } = action;
-      // If no sourceIds provided, clear everything
-      if (!sourceIds) {
-        return {};
-      }
-      // Otherwise clear specific IDs
-      const newState = { ...state };
-      if (Array.isArray(sourceIds)) {
-        sourceIds.forEach((id) => {
-          delete newState[id];
-        });
-      }
-      return newState;
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("photometry_minimal", reducer);
+export const { useGetSourcePhotometryMinimalQuery } = photometryMinimalApi;

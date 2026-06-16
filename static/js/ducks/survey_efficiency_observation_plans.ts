@@ -1,68 +1,65 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Survey efficiency analyses for observation plans.
+ *
+ * RTK Query conversion of the old `FETCH_SURVEY_EFFICIENCY_OBSERVATION_PLANS`
+ * duck. The list query is injected into the central `skyportalApi` and provides
+ * the `SurveyEfficiencyObservationPlan` tag; submit and delete are mutations
+ * that invalidate it so any active list refetches.
+ *
+ * Submit issues a `simsurvey` run (the backend kicks off the analysis); the old
+ * duck used `API.GET` for it, so the mutation keeps the `GET` method with the
+ * form data as query params. The websocket
+ * `REFRESH_SURVEY_EFFICIENCY_OBSERVATION_PLANS` message is bridged to cache
+ * invalidation via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
+export const surveyEfficiencyObservationPlansApi = skyportalApi.injectEndpoints(
+  {
+    endpoints: (build) => ({
+      getSurveyEfficiencyObservationPlans: build.query<
+        RouteData<"GET /api/survey_efficiency/observation_plan">,
+        void
+      >({
+        query: () => "api/survey_efficiency/observation_plan",
+        providesTags: ["SurveyEfficiencyObservationPlan"],
+      }),
+      submitSurveyEfficiencyObservationPlan: build.mutation<
+        unknown,
+        { id: number | string; data?: Record<string, any> | undefined }
+      >({
+        query: ({ id, data = {} }) => ({
+          url: `api/observation_plan/${id}/simsurvey`,
+          method: "GET",
+          params: data,
+        }),
+        invalidatesTags: ["SurveyEfficiencyObservationPlan"],
+      }),
+      deleteSurveyEfficiencyObservationPlan: build.mutation<
+        unknown,
+        number | string
+      >({
+        query: (id) => ({
+          url: `api/observation_plan/${id}/simsurvey`,
+          method: "DELETE",
+        }),
+        invalidatesTags: ["SurveyEfficiencyObservationPlan"],
+      }),
+    }),
+  },
+);
 
-const REFRESH_SURVEY_EFFICIENCY_OBSERVATION_PLANS =
-  "skyportal/REFRESH_SURVEY_EFFICIENCY_OBSERVATION_PLANS";
+// Websocket: old handler refetched on
+// REFRESH_SURVEY_EFFICIENCY_OBSERVATION_PLANS.
+invalidateOnMessage(
+  "skyportal/REFRESH_SURVEY_EFFICIENCY_OBSERVATION_PLANS",
+  () => ["SurveyEfficiencyObservationPlan"],
+);
 
-const FETCH_SURVEY_EFFICIENCY_OBSERVATION_PLANS =
-  "skyportal/FETCH_SURVEY_EFFICIENCY_OBSERVATION_PLANS";
-const FETCH_SURVEY_EFFICIENCY_OBSERVATION_PLANS_OK =
-  "skyportal/FETCH_SURVEY_EFFICIENCY_OBSERVATION_PLANS_OK";
-
-const SUBMIT_SURVEY_EFFICIENCY_OBSERVATION_PLAN =
-  "skyportal/SUBMIT_SURVEY_EFFICIENCY_OBSERVATION_PLAN";
-
-const DELETE_SURVEY_EFFICIENCY_OBSERVATION_PLAN =
-  "skyportal/DELETE_SURVEY_EFFICIENCY_OBSERVATION_PLAN";
-
-export const fetchSurveyEfficiencyObservationPlans = () =>
-  API.GET(
-    "/api/survey_efficiency/observation_plan",
-    FETCH_SURVEY_EFFICIENCY_OBSERVATION_PLANS,
-  );
-
-export function submitSurveyEfficiencyObservationPlan(
-  id: number | string,
-  data: Record<string, any> = {},
-) {
-  return API.GET(
-    `/api/observation_plan/${id}/simsurvey`,
-    SUBMIT_SURVEY_EFFICIENCY_OBSERVATION_PLAN,
-    data,
-  );
-}
-
-export function deleteSurveyEfficiencyObservationPlan(id: number | string) {
-  return API.DELETE(
-    `/api/observation_plan/${id}/simsurvey`,
-    DELETE_SURVEY_EFFICIENCY_OBSERVATION_PLAN,
-  );
-}
-
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === REFRESH_SURVEY_EFFICIENCY_OBSERVATION_PLANS) {
-    dispatch(fetchSurveyEfficiencyObservationPlans());
-  }
-});
-
-const reducer = (
-  state: Record<string, any> = { surveyEfficiencyObservationPlans: [] },
-  action: { type: string; data?: any },
-): Record<string, any> => {
-  switch (action.type) {
-    case FETCH_SURVEY_EFFICIENCY_OBSERVATION_PLANS_OK: {
-      const surveyEfficiencyObservationPlans = action.data;
-      return {
-        ...state,
-        surveyEfficiencyObservationPlans,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("surveyEfficiencyObservationPlans", reducer);
+export const {
+  useGetSurveyEfficiencyObservationPlansQuery,
+  useSubmitSurveyEfficiencyObservationPlanMutation,
+  useDeleteSurveyEfficiencyObservationPlanMutation,
+} = surveyEfficiencyObservationPlansApi;

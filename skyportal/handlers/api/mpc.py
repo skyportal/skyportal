@@ -1,4 +1,3 @@
-import asyncio
 import re
 import urllib
 
@@ -33,7 +32,7 @@ mpcheck_url = urllib.parse.urljoin(MPC_ENDPOINT, "cgi-bin/mpcheck.cgi")
 
 class ObjMPCHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_id: str):
+    async def post(self, obj_id: str):
         """
         ---
         summary: Crossmatch an object with MPC
@@ -63,12 +62,12 @@ class ObjMPCHandler(BaseHandler):
                       Time to check MPC for.
                       Defaults to current time.
                   limiting_magnitude:
-                    type: float
+                    type: number
                     description: |
                       Limiting magnitude down which to search.
                       Defaults to 24.0.
                   search_radius:
-                    type: float
+                    type: number
                     description: |
                       Search radius for MPC [in arcmin].
                       Defaults to 1 arcminute.
@@ -108,10 +107,10 @@ class ObjMPCHandler(BaseHandler):
 
         obscode = data.get("obscode", "500")
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token, mode="update").where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
 
@@ -154,11 +153,6 @@ class ObjMPCHandler(BaseHandler):
             url = f"{mpcheck_url}?{urllib.parse.urlencode(params)}"
             url = url.replace("%2B", "+")
 
-            try:
-                loop = asyncio.get_event_loop()
-            except Exception:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
             IOLoop.current().run_in_executor(
                 None,
                 lambda: query_mpc(obj_id, self.associated_user_object.id, url),

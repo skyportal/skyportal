@@ -10,16 +10,11 @@ import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import { JSONTree } from "react-json-tree";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import * as defaultObservationPlansActions from "../../ducks/default_observation_plans";
-import StyledDataGrid from "../StyledDataGrid";
+import { useDeleteDefaultObservationPlanMutation } from "../../ducks/default_observation_plans";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
@@ -52,6 +47,8 @@ const DefaultObservationPlanTable = ({
   deletePermission = false,
 }: DefaultObservationPlanTableProps) => {
   const dispatch = useAppDispatch();
+  const [deleteDefaultObservationPlanMutation] =
+    useDeleteDefaultObservationPlanMutation();
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [defaultObservationPlanToDelete, setDefaultObservationPlanToDelete] =
@@ -67,17 +64,16 @@ const DefaultObservationPlanTable = ({
     setDefaultObservationPlanToDelete(null);
   };
 
-  const deleteDefaultObservationPlan = () => {
-    dispatch(
-      defaultObservationPlansActions.deleteDefaultObservationPlan(
+  const deleteDefaultObservationPlan = async () => {
+    try {
+      await deleteDefaultObservationPlanMutation(
         defaultObservationPlanToDelete,
-      ),
-    ).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Default observation plan deleted"));
-        closeDeleteDialog();
-      }
-    });
+      ).unwrap();
+      dispatch(showNotification("Default observation plan deleted"));
+      closeDeleteDialog();
+    } catch {
+      // error notification handled by the baseQuery
+    }
   };
 
   const getObservationPlanTitle = (default_observation_plan: any) => {
@@ -196,13 +192,11 @@ const DefaultObservationPlanTable = ({
   ];
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
+    <DataGridToolbar>
       <IconButton size="small" onClick={() => setNewDialogOpen(true)}>
         <AddIcon />
       </IconButton>
-      <GridToolbarQuickFilter />
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

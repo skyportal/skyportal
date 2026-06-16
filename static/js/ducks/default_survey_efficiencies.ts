@@ -1,65 +1,58 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Default survey efficiencies.
+ *
+ * RTK Query conversion of the old `FETCH_DEFAULT_SURVEY_EFFICIENCIES` duck.
+ * Websocket-driven invalidation refetches the list; mutations submit/delete a
+ * default survey efficiency.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
-
-const REFRESH_DEFAULT_SURVEY_EFFICIENCIES =
-  "skyportal/REFRESH_DEFAULT_SURVEY_EFFICIENCIES";
-
-const DELETE_DEFAULT_SURVEY_EFFICIENCY =
-  "skyportal/DELETE_DEFAULT_SURVEY_EFFICIENCY";
-
-const FETCH_DEFAULT_SURVEY_EFFICIENCIES =
-  "skyportal/FETCH_DEFAULT_SURVEY_EFFICIENCIES";
-const FETCH_DEFAULT_SURVEY_EFFICIENCIES_OK =
-  "skyportal/FETCH_DEFAULT_SURVEY_EFFICIENCIES_OK";
-
-const SUBMIT_DEFAULT_SURVEY_EFFICIENCY =
-  "skyportal/SUBMIT_DEFAULT_SURVEY_EFFICIENCY";
-
-export function deleteDefaultSurveyEfficiency(id: number | string) {
-  return API.DELETE(
-    `/api/default_survey_efficiency/${id}`,
-    DELETE_DEFAULT_SURVEY_EFFICIENCY,
-  );
-}
-
-export const fetchDefaultSurveyEfficiencies = () =>
-  API.GET("/api/default_survey_efficiency", FETCH_DEFAULT_SURVEY_EFFICIENCIES);
-
-export const submitDefaultSurveyEfficiency = (
-  default_survey_efficiency: Record<string, any>,
-) =>
-  API.POST(
-    `/api/default_survey_efficiency`,
-    SUBMIT_DEFAULT_SURVEY_EFFICIENCY,
-    default_survey_efficiency,
-  );
-
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === REFRESH_DEFAULT_SURVEY_EFFICIENCIES) {
-    dispatch(fetchDefaultSurveyEfficiencies());
-  }
+export const defaultSurveyEfficienciesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getDefaultSurveyEfficiencies: build.query<
+      RouteData<"GET /api/default_survey_efficiency">,
+      Record<string, unknown> | void
+    >({
+      query: (filterParams) => {
+        const params = new URLSearchParams(
+          (filterParams as Record<string, string>) ?? {},
+        ).toString();
+        return params
+          ? `api/default_survey_efficiency?${params}`
+          : "api/default_survey_efficiency";
+      },
+      providesTags: ["DefaultSurveyEfficiency"],
+    }),
+    submitDefaultSurveyEfficiency: build.mutation<unknown, Record<string, any>>(
+      {
+        query: (data) => ({
+          url: "api/default_survey_efficiency",
+          method: "POST",
+          body: data,
+        }),
+        invalidatesTags: ["DefaultSurveyEfficiency"],
+      },
+    ),
+    deleteDefaultSurveyEfficiency: build.mutation<unknown, number | string>({
+      query: (id) => ({
+        url: `api/default_survey_efficiency/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["DefaultSurveyEfficiency"],
+    }),
+  }),
 });
 
-const reducer = (
-  state: Record<string, any> = {
-    defaultSurveyEfficiencyList: [],
-  },
-  action: { type: string; data?: any },
-): Record<string, any> => {
-  switch (action.type) {
-    case FETCH_DEFAULT_SURVEY_EFFICIENCIES_OK: {
-      const default_survey_efficiencies = action.data;
-      return {
-        ...state,
-        defaultSurveyEfficiencyList: default_survey_efficiencies,
-      };
-    }
-    default:
-      return state;
-  }
-};
+// Websocket: the old handler refetched the full list on
+// REFRESH_DEFAULT_SURVEY_EFFICIENCIES.
+invalidateOnMessage("skyportal/REFRESH_DEFAULT_SURVEY_EFFICIENCIES", () => [
+  "DefaultSurveyEfficiency",
+]);
 
-store.injectReducer("default_survey_efficiencies", reducer);
+export const {
+  useGetDefaultSurveyEfficienciesQuery,
+  useSubmitDefaultSurveyEfficiencyMutation,
+  useDeleteDefaultSurveyEfficiencyMutation,
+} = defaultSurveyEfficienciesApi;

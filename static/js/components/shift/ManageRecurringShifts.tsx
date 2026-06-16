@@ -7,7 +7,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import ShiftUsersSelect from "./ShiftUsersSelect";
 import { useAppDispatch } from "../../types/hooks";
-import * as shiftsActions from "../../ducks/shifts";
+import { useGetShiftQuery, useDeleteShiftMutation } from "../../ducks/shifts";
 
 interface Shift {
   id: number;
@@ -17,30 +17,41 @@ interface Shift {
 }
 
 interface ManageRecurringShiftsProps {
-  shiftList: Shift[];
+  // `shiftList` is forwarded from ShiftPage, which types it via the shifts
+  // duck's own `Shift` interface; accept it loosely to avoid the nominal clash
+  // with this file's local `Shift`.
+  shiftList?: any[] | undefined;
 }
 
-const ManageRecurringShifts = ({ shiftList }: ManageRecurringShiftsProps) => {
+const ManageRecurringShifts = ({
+  shiftList = [],
+}: ManageRecurringShiftsProps) => {
   const [recurringShiftToUpdate, setRecurringShiftToUpdate] =
     useState<Shift | null>(null);
   const [shiftIdSelect, setShiftIdSelect] = useState<number | null>(null);
   const dispatch = useAppDispatch();
+  const [deleteShift] = useDeleteShiftMutation();
   const recurringShift: Record<string, Shift> = {};
+
+  const selectedShift = shiftList.find((shift) => shift.id === shiftIdSelect);
+  // If the selected shift has not the group property, we fetch the shift details
+  const { data: fetchedShift } = useGetShiftQuery(shiftIdSelect as number, {
+    skip: shiftIdSelect == null || Boolean(selectedShift?.group),
+  });
 
   // Load the details of the first shift of the selected recurring group of shifts
   useEffect(() => {
-    if (!shiftIdSelect) setRecurringShiftToUpdate(null);
-
-    const selectedShift = shiftList.find((shift) => shift.id === shiftIdSelect);
-    // If the selected shift has not the group property, we fetch the shift details
-    if (selectedShift && !selectedShift.group) {
-      dispatch(shiftsActions.fetchShift(shiftIdSelect!));
+    if (!shiftIdSelect) {
+      setRecurringShiftToUpdate(null);
+      return;
     }
     // If the selected shift has the group property, we set it as the recurring shift to update
     if (selectedShift?.group) {
       setRecurringShiftToUpdate(selectedShift);
+    } else if (fetchedShift?.["group"] && fetchedShift.id === shiftIdSelect) {
+      setRecurringShiftToUpdate(fetchedShift as unknown as Shift);
     }
-  }, [dispatch, shiftIdSelect, shiftList]);
+  }, [shiftIdSelect, selectedShift, fetchedShift]);
 
   const getBaseName = (shift: Shift) => {
     const match = shift.name.match(/^(.*)\s+(\d+)\/(\d+)$/);
@@ -78,12 +89,13 @@ const ManageRecurringShifts = ({ shiftList }: ManageRecurringShiftsProps) => {
     setShiftIdSelect(null);
     if (!shiftsToDelete?.length) return;
 
-    shiftsToDelete.forEach((shift) => {
-      dispatch(shiftsActions.deleteShift(shift.id)).then((result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Shift deleted"));
-        }
-      });
+    shiftsToDelete.forEach(async (shift) => {
+      try {
+        await deleteShift(shift.id).unwrap();
+        dispatch(showNotification("Shift deleted"));
+      } catch {
+        // error notification handled by the API layer
+      }
     });
   };
 

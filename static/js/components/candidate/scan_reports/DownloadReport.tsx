@@ -1,7 +1,7 @@
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
-import { fetchScanReportItem } from "../../../ducks/candidate/scan_report";
+import { scanReportItemApi } from "../../../ducks/candidate/scan_report";
 import { useAppDispatch } from "../../../types/hooks";
 
 interface DownloadReportProps {
@@ -41,11 +41,16 @@ const DownloadReport = ({ report }: DownloadReportProps) => {
   };
 
   const handleDownload = async () => {
-    dispatch(fetchScanReportItem(report.id)).then((response: any) => {
-      if (response.status === "success" && response.data) {
-        downloadReport(response.data);
+    try {
+      const reportItems = await dispatch(
+        scanReportItemApi.endpoints.getScanReportItems.initiate(report.id),
+      ).unwrap();
+      if (reportItems) {
+        downloadReport(reportItems as any[]);
       }
-    });
+    } catch {
+      // error notification already fired by the base query
+    }
   };
 
   return (

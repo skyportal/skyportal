@@ -9,7 +9,7 @@ from ..base import BaseHandler
 
 class SourceLabelsHandler(BaseHandler):
     @auth_or_token
-    def post(self, obj_id: str):
+    async def post(self, obj_id: str):
         """
         ---
         summary: Label a source
@@ -58,20 +58,20 @@ class SourceLabelsHandler(BaseHandler):
                 "all list items to integers."
             )
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error("Invalid objId")
 
             for group_id in group_ids:
-                source_label = session.scalars(
+                source_label = await session.scalar(
                     SourceLabel.select(session.user_or_token)
                     .where(SourceLabel.obj_id == obj_id)
                     .where(SourceLabel.group_id == group_id)
                     .where(SourceLabel.labeller_id == self.associated_user_object.id)
-                ).first()
+                )
                 if source_label is None:
                     label = SourceLabel(
                         obj_id=obj_id,
@@ -79,7 +79,7 @@ class SourceLabelsHandler(BaseHandler):
                         group_id=group_id,
                     )
                     session.add(label)
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
@@ -87,7 +87,7 @@ class SourceLabelsHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def delete(self, obj_id: str):
+    async def delete(self, obj_id: str):
         """
         ---
         summary: Delete source labels
@@ -134,23 +134,23 @@ class SourceLabelsHandler(BaseHandler):
                 "all list items to integers."
             )
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error("Invalid objId")
 
             for group_id in group_ids:
-                source_label = session.scalars(
+                source_label = await session.scalar(
                     SourceLabel.select(session.user_or_token, mode="delete")
                     .where(SourceLabel.obj_id == obj_id)
                     .where(SourceLabel.group_id == group_id)
                     .where(SourceLabel.labeller_id == self.associated_user_object.id)
-                ).first()
+                )
                 if source_label is not None:
-                    session.delete(source_label)
-            session.commit()
+                    await session.delete(source_label)
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}

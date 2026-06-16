@@ -1,142 +1,109 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Source spectra.
+ *
+ * RTK Query conversion of the old `FETCH_SOURCE_SPECTRA` duck. The query fetches
+ * a source's spectra and is tagged `Spectra`; the mutations that change spectra
+ * (delete, upload, synthetic photometry, delete annotation) invalidate it so the
+ * list refetches. `parseASCIISpectrum` is a mutation whose result the caller
+ * reads via `.unwrap()` (it was never cached in the old reducer beyond `parsed`).
+ *
+ * The websocket `REFRESH_SOURCE_SPECTRA` message is bridged to `Spectra` tag
+ * invalidation via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch, RootState } from "../types/store";
+const REFRESH_SOURCE_SPECTRA = "skyportal/REFRESH_SOURCE_SPECTRA";
 
-export const REFRESH_SOURCE_SPECTRA = "skyportal/REFRESH_SOURCE_SPECTRA";
-export const FETCH_SOURCE_SPECTRA = "skyportal/FETCH_SOURCE_SPECTRA";
-export const FETCH_SOURCE_SPECTRA_OK = "skyportal/FETCH_SOURCE_SPECTRA_OK";
-
-const DELETE_SPECTRUM = "skyportal/DELETE_SPECTRUM";
-const UPLOAD_SPECTRUM = "skyportal/UPLOAD_SPECTRUM";
-const UPLOAD_SPECTRUM_OK = "skyportal/UPLOAD_SPECTRUM_OK";
-
-const DELETE_ANNOTATION_SPECTRUM = "skyportal/DELETE_ANNOTATION_SPECTRUM";
-
-const PARSE_SOURCE_SPECTRUM_ASCII = "skyportal/PARSE_SOURCE_SPECTRUM_ASCII";
-const PARSE_SOURCE_SPECTRUM_ASCII_OK =
-  "skyportal/PARSE_SOURCE_SPECTRUM_ASCII_OK";
-
-export const RESET_PARSED_SPECTRUM = "skyportal/RESET_PARSED_SPECTRUM";
-
-const ADD_SYNTHETIC_PHOTOMETRY = "skyportal/ADD_SYNTHETIC_PHOTOMETRY";
-
-export function fetchSourceSpectra(
-  id: number | string,
-  normalization: string | null = null,
-) {
-  return API.GET(
-    `/api/sources/${id}/spectra${
-      normalization
-        ? `?normalization=${normalization}&sortBy=observed_at&order=asc`
-        : ""
-    }`,
-    FETCH_SOURCE_SPECTRA,
-  );
-}
-
-export function parseASCIISpectrum(data: any) {
-  return API.POST(
-    `/api/spectrum/parse/ascii`,
-    PARSE_SOURCE_SPECTRUM_ASCII,
-    data,
-  );
-}
-
-export function addSyntheticPhotometry(id: number | string, formData = {}) {
-  return API.POST(
-    `/api/spectra/synthphot/${id}`,
-    ADD_SYNTHETIC_PHOTOMETRY,
-    formData,
-  );
-}
-
-export function deleteSpectrum(id: number | string) {
-  return API.DELETE(`/api/spectrum/${id}`, DELETE_SPECTRUM);
-}
-
-export function uploadASCIISpectrum(data: any) {
-  return API.POST(`/api/spectrum/ascii`, UPLOAD_SPECTRUM, data);
-}
-
-export function deleteAnnotation(
-  id: number | string,
-  annotationID: number | string,
-) {
-  return API.DELETE(
-    `/api/spectra/${id}/annotations/${annotationID}`,
-    DELETE_ANNOTATION_SPECTRUM,
-  );
-}
-
-// Websocket message handler
-messageHandler.add(
-  (
-    actionType: string,
-    payload: any,
-    dispatch: AppDispatch,
-    getState: () => RootState,
-  ) => {
-    if (actionType === REFRESH_SOURCE_SPECTRA) {
-      const state = getState()["spectra"];
-
-      Object.entries(state).forEach(([objID, spectra]: [string, any]) => {
-        if (
-          spectra?.[0]?.obj_internal_key === payload.obj_internal_key &&
-          payload?.obj_internal_key !== null
-        ) {
-          dispatch(fetchSourceSpectra(objID));
-        }
-      });
-    }
-  },
-);
-
-type SpectraState = Record<string, any>;
-
-interface SpectraAction {
-  type: string;
-  data?: any;
+export interface Spectrum {
+  id: number;
+  obj_id: string;
   [key: string]: any;
 }
 
-const reducer = (
-  state: SpectraState = { parsed: null },
-  action: SpectraAction,
-): SpectraState => {
-  switch (action.type) {
-    case FETCH_SOURCE_SPECTRA_OK: {
-      const payload = action.data;
-      const sourceID = payload.obj_id;
-      return {
-        ...state,
-        [sourceID]: payload.spectra,
-      };
-    }
-    case PARSE_SOURCE_SPECTRUM_ASCII_OK: {
-      const parsed = action.data;
-      return {
-        ...state,
-        parsed,
-      };
-    }
-    case RESET_PARSED_SPECTRUM: {
-      return {
-        ...state,
-        parsed: null,
-      };
-    }
-    case UPLOAD_SPECTRUM_OK: {
-      return {
-        ...state,
-        parsed: null,
-      };
-    }
+export const spectraApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    // The spectrum shape is highly dynamic across SkyPortal apps; consumers read
+    // many optional fields, so the element type is `any` (the `Spectrum`
+    // interface above documents the stable fields).
+    fetchSourceSpectra: build.query<
+      any[],
+      { id: number | string; normalization?: string | null }
+    >({
+      query: ({ id, normalization = null }) =>
+        `/api/sources/${id}/spectra${
+          normalization
+            ? `?normalization=${normalization}&sortBy=observed_at&order=asc`
+            : ""
+        }`,
+      transformResponse: (data: { spectra?: Spectrum[] }) =>
+        data?.spectra ?? [],
+      providesTags: ["Spectra"],
+    }),
+    parseASCIISpectrum: build.mutation<
+      RouteData<"POST /api/spectrum/parse/ascii">,
+      any
+    >({
+      query: (data) => ({
+        url: "/api/spectrum/parse/ascii",
+        method: "POST",
+        body: data,
+      }),
+    }),
+    addSyntheticPhotometry: build.mutation<
+      RouteData<"POST /api/spectra/synthphot/{spectrum_id}">,
+      { id: number | string; formData?: { [key: string]: any } }
+    >({
+      query: ({ id, formData = {} }) => ({
+        url: `/api/spectra/synthphot/${id}`,
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: ["Spectra"],
+    }),
+    deleteSpectrum: build.mutation<
+      RouteData<"DELETE /api/spectrum/{spectrum_id}">,
+      number | string
+    >({
+      query: (id) => ({
+        url: `/api/spectrum/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Spectra"],
+    }),
+    uploadASCIISpectrum: build.mutation<unknown, any>({
+      query: (data) => ({
+        url: "/api/spectrum/ascii",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Spectra"],
+    }),
+    deleteAnnotation: build.mutation<
+      unknown,
+      { id: number | string; annotationID: number | string }
+    >({
+      query: ({ id, annotationID }) => ({
+        url: `/api/spectra/${id}/annotations/${annotationID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Spectra"],
+    }),
+  }),
+});
 
-    default:
-      return state;
-  }
-};
+// Websocket-driven invalidation: refresh spectra on REFRESH_SOURCE_SPECTRA.
+invalidateOnMessage(REFRESH_SOURCE_SPECTRA, (payload) =>
+  payload?.obj_internal_key != null ? ["Spectra"] : null,
+);
 
-store.injectReducer("spectra", reducer);
+export const {
+  useFetchSourceSpectraQuery,
+  useLazyFetchSourceSpectraQuery,
+  useParseASCIISpectrumMutation,
+  useAddSyntheticPhotometryMutation,
+  useDeleteSpectrumMutation,
+  useUploadASCIISpectrumMutation,
+  useDeleteAnnotationMutation,
+} = spectraApi;

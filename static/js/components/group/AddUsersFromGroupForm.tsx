@@ -5,9 +5,12 @@ import TextField from "@mui/material/TextField";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import { Group } from "../../types";
-import * as groupsActions from "../../ducks/groups";
+import {
+  useAddAllUsersFromGroupsMutation,
+  useGetGroupsQuery,
+} from "../../ducks/groups";
 import FormValidationError from "../FormValidationError";
 import Button from "../Button";
 
@@ -28,7 +31,8 @@ interface AddUsersFromGroupFormProps {
 
 const AddUsersFromGroupForm = ({ groupID }: AddUsersFromGroupFormProps) => {
   const dispatch = useAppDispatch();
-  let { all: groups } = useAppSelector((state) => state.groups);
+  let groups = useGetGroupsQuery().data?.all ?? null;
+  const [addAllUsersFromGroups] = useAddAllUsersFromGroupsMutation();
   const {
     handleSubmit,
     reset,
@@ -47,14 +51,17 @@ const AddUsersFromGroupForm = ({ groupID }: AddUsersFromGroupFormProps) => {
 
   const onSubmit = async (formData: any) => {
     const fromGroupIDs = formData.groups?.map((g: Group) => g.id);
-    const result: any = await dispatch(
-      groupsActions.addAllUsersFromGroups({ toGroupID: groupID, fromGroupIDs }),
-    );
-    if (result.status === "success") {
+    try {
+      await addAllUsersFromGroups({
+        toGroupID: groupID,
+        fromGroupIDs,
+      }).unwrap();
       dispatch(
         showNotification("Successfully added users from specified group(s)"),
       );
       reset({ groups: [] });
+    } catch {
+      // error notification handled by the API layer
     }
   };
 

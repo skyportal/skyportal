@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-
+import { useGetGroupsQuery } from "../../ducks/groups";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -7,9 +6,11 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as queuedObservationActions from "../../ducks/queued_observations";
-import * as allocationActions from "../../ducks/allocations";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useLazyRequestAPIQueuedObservationsQuery } from "../../ducks/observations";
+import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 
@@ -20,14 +21,17 @@ interface NewAPIQueuedObservationProps {
 const NewAPIQueuedObservation = ({
   onClose = null,
 }: NewAPIQueuedObservationProps) => {
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationListApiObsplan } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: allocationListApiObsplan = [] } =
+    useGetAllocationsApiObsplanQuery({
+      apiImplements: "queued",
+    });
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
 
   const dispatch = useAppDispatch();
+  const [requestAPIQueuedObservations] =
+    useLazyRequestAPIQueuedObservationsQuery();
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
@@ -35,25 +39,6 @@ const NewAPIQueuedObservation = ({
     .add(1, "day")
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
-
-  useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      await dispatch(
-        allocationActions.fetchAllocationsApiObsplan({
-          apiImplements: "queued",
-        }),
-      );
-    };
-
-    getAllocations();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-  }, [dispatch]);
 
   if (
     !allGroups ||
@@ -91,13 +76,11 @@ const NewAPIQueuedObservation = ({
       startDate: formData.start_date.replace("+00:00", "").replace(".000Z", ""),
       endDate: formData.end_date.replace("+00:00", "").replace(".000Z", ""),
     };
-    const result: any = await dispatch(
-      queuedObservationActions.requestAPIQueuedObservations(
-        formData.allocation_id,
+    try {
+      await requestAPIQueuedObservations({
+        id: formData.allocation_id,
         data,
-      ),
-    );
-    if (result.status === "success") {
+      }).unwrap();
       dispatch(
         showNotification(
           "Requested API Queued Observation, the list will update shortly.",
@@ -106,6 +89,8 @@ const NewAPIQueuedObservation = ({
       if (typeof onClose === "function") {
         onClose();
       }
+    } catch {
+      // error notification handled by the base query
     }
   };
 
@@ -149,7 +134,7 @@ const NewAPIQueuedObservation = ({
           } (PI ${allocation.pi})`,
         })),
         title: "Allocation",
-        default: allocationListApiObsplan[0]?.id,
+        default: allocationListApiObsplan[0]?.["id"],
       },
     },
     required: ["start_date", "end_date", "allocation_id"],

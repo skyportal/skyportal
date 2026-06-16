@@ -13,7 +13,13 @@ from astropy.time import Time
 from healpix_alchemy import Tile
 from marshmallow.exceptions import ValidationError
 from regions import CircleSkyRegion, PolygonSkyRegion, RectangleSkyRegion, Regions
-from sqlalchemy.orm import joinedload, scoped_session, sessionmaker, undefer
+from sqlalchemy.orm import (
+    joinedload,
+    scoped_session,
+    selectinload,
+    sessionmaker,
+    undefer,
+)
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
@@ -54,7 +60,7 @@ Session = scoped_session(sessionmaker())
 
 class InstrumentHandler(BaseHandler):
     @permissions(["Manage instruments"])
-    def post(self):
+    async def post(self):
         # See bottom of this file for redoc docstring -- moved it there so that
         # it could be made an f-string.
 
@@ -64,11 +70,12 @@ class InstrumentHandler(BaseHandler):
             telescope_id = int(telescope_id) if telescope_id is not None else None
         except (TypeError, ValueError):
             return self.error(f"Invalid telescope_id: {telescope_id}")
-        with self.Session() as session:
-            stmt = Telescope.select(session.user_or_token).filter(
-                Telescope.id == telescope_id
+        async with self.AsyncSession() as session:
+            telescope = await session.scalar(
+                Telescope.select(session.user_or_token).where(
+                    Telescope.id == telescope_id
+                )
             )
-            telescope = session.scalars(stmt).first()
             if not telescope:
                 return self.error(f"No telescope with id {telescope_id}")
 
@@ -187,19 +194,20 @@ class InstrumentHandler(BaseHandler):
                     f"Invalid/missing parameters: {exc.normalized_messages()}"
                 )
 
-            stmt = Instrument.select(session.user_or_token).where(
-                Instrument.name == data.get("name"),
-                Instrument.telescope_id == telescope_id,
+            existing_instrument = await session.scalar(
+                Instrument.select(session.user_or_token).where(
+                    Instrument.name == data.get("name"),
+                    Instrument.telescope_id == telescope_id,
+                )
             )
-            existing_instrument = session.scalars(stmt).first()
             if existing_instrument is not None:
                 return self.error(
                     f"Instrument with name {existing_instrument.name} already exists for telescope {telescope_id}"
                 )
 
-            instrument.telescope = telescope
+            instrument.telescope_id = telescope.id
             session.add(instrument)
-            session.commit()
+            await session.commit()
 
             if references is not None:
                 if not set(references["filter"]).issubset(instrument.filters):
@@ -437,28 +445,42 @@ class InstrumentHandler(BaseHandler):
         else:
             try:
                 airmass_time = Time(arrow.get(airmass_time).datetime)
-            except Exception as e:
+            except Exception:
                 return self.error(
-                    f"Invalid date format for localizationDateobs: '{localization_dateobs}'. Expected ISO 8601 format (YYYY-MM-DDTHH:MM:SS.sss)"
+                    f"Invalid date format for airmassTime: '{airmass_time}'."
                 )
 
         if includeGeoJSON:
-            options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
+            options = [
+                selectinload(Instrument.telescope),
+                selectinload(Instrument.fields).undefer(InstrumentField.contour),
+            ]
         elif includeGeoJSONSummary:
             options = [
-                joinedload(Instrument.fields).undefer(InstrumentField.contour_summary)
+                selectinload(Instrument.telescope),
+                selectinload(Instrument.fields).undefer(
+                    InstrumentField.contour_summary
+                ),
             ]
         else:
-            options = []
+            options = [selectinload(Instrument.telescope)]
         if includeRegion:
             options.append(undefer(Instrument.region))
+        # Instrument.status is a deferred column accessed in the single-GET
+        # response; undefer so async access doesn't trip MissingGreenlet.
+        # Same for Instrument.region (used inline by region_summary property).
+        if instrument_id is not None:
+            options.append(undefer(Instrument.status))
+            if not includeRegion:
+                options.append(undefer(Instrument.region))
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if instrument_id is not None:
-                stmt = Instrument.select(self.current_user, options=options).where(
-                    Instrument.id == int(instrument_id)
+                instrument = await session.scalar(
+                    Instrument.select(self.current_user, options=options).where(
+                        Instrument.id == instrument_id
+                    )
                 )
-                instrument = session.scalars(stmt).first()
                 if instrument is None:
                     return self.error(f"No instrument with ID: {instrument_id}")
 
@@ -466,35 +488,33 @@ class InstrumentHandler(BaseHandler):
 
                 data["status"] = instrument.status
 
-                data["log_exists"] = (
-                    session.scalars(
-                        InstrumentLog.select(self.current_user).where(
-                            InstrumentLog.instrument_id == int(instrument_id)
-                        )
-                    ).first()
-                    is not None
+                instrument_log_count = await session.scalar(
+                    sa.select(sa.func.count())
+                    .select_from(InstrumentLog)
+                    .where(InstrumentLog.instrument_id == instrument_id)
                 )
+                data["log_exists"] = bool(instrument_log_count)
 
                 # optional: slice by GcnEvent localization
                 if localization_dateobs is not None:
                     if localization_name is not None:
-                        localization = session.scalars(
+                        localization = await session.scalar(
                             Localization.select(
                                 self.current_user,
                             )
                             .where(Localization.dateobs == localization_dateobs)
                             .where(Localization.localization_name == localization_name)
-                        ).first()
+                        )
                         if localization is None:
                             return self.error("Localization not found", status=404)
                     else:
-                        event = session.scalars(
+                        event = await session.scalar(
                             GcnEvent.select(
                                 self.current_user,
                             )
+                            .options(selectinload(GcnEvent.localizations))
                             .where(GcnEvent.dateobs == localization_dateobs)
-                            .options(joinedload(GcnEvent.localizations))
-                        ).first()
+                        )
                         if event is None:
                             return self.error("GCN event not found", status=404)
                         localization = event.localizations[-1]
@@ -512,16 +532,12 @@ class InstrumentHandler(BaseHandler):
                             "def", LocalizationTile
                         )
                     else:
-                        # check that there is actually a localizationTile with the given localization_id in the partition
-                        # if not, use the default partition
-                        if not (
-                            session.scalars(
-                                localizationtilescls.select(self.current_user).where(
-                                    localizationtilescls.localization_id
-                                    == localization.id
-                                )
-                            ).first()
-                        ):
+                        existing_tile = await session.scalar(
+                            localizationtilescls.select(self.current_user).where(
+                                localizationtilescls.localization_id == localization.id
+                            )
+                        )
+                        if not existing_tile:
                             localizationtilescls = LocalizationTile.partitions.get(
                                 "def", LocalizationTile
                             )
@@ -560,40 +576,32 @@ class InstrumentHandler(BaseHandler):
                         cache_filename = cache[query_id]
                         if cache_filename is not None and not ignore_cache:
                             field_ids = np.load(cache_filename).tolist()
-                            tiles = (
-                                session.scalars(
-                                    sa.select(InstrumentField)
-                                    .filter(
-                                        InstrumentField.field_id.in_(field_ids),
-                                        InstrumentField.instrument_id == instrument.id,
-                                    )
-                                    .options(undefer(undefer_column))
+                            tiles_result = await session.scalars(
+                                sa.select(InstrumentField)
+                                .filter(
+                                    InstrumentField.field_id.in_(field_ids),
+                                    InstrumentField.instrument_id == instrument.id,
                                 )
-                                .unique()
-                                .all()
+                                .options(undefer(undefer_column))
                             )
+                            tiles = tiles_result.unique().all()
                         else:
-                            tiles = (
-                                session.scalars(
-                                    sa.select(InstrumentField)
-                                    .filter(
-                                        localizationtilescls.localization_id
-                                        == localization.id,
-                                        localizationtilescls.probdensity
-                                        >= min_probdensity,
-                                        InstrumentFieldTile.instrument_id
-                                        == instrument.id,
-                                        InstrumentFieldTile.instrument_field_id
-                                        == InstrumentField.id,
-                                        InstrumentFieldTile.healpix.overlaps(
-                                            localizationtilescls.healpix
-                                        ),
-                                    )
-                                    .options(undefer(undefer_column))
+                            tiles_result = await session.scalars(
+                                sa.select(InstrumentField)
+                                .filter(
+                                    localizationtilescls.localization_id
+                                    == localization.id,
+                                    localizationtilescls.probdensity >= min_probdensity,
+                                    InstrumentFieldTile.instrument_id == instrument.id,
+                                    InstrumentFieldTile.instrument_field_id
+                                    == InstrumentField.id,
+                                    InstrumentFieldTile.healpix.overlaps(
+                                        localizationtilescls.healpix
+                                    ),
                                 )
-                                .unique()
-                                .all()
+                                .options(undefer(undefer_column))
                             )
+                            tiles = tiles_result.unique().all()
                             if len(tiles) > 0:
                                 cache[query_id] = array_to_bytes(
                                     [tile.field_id for tile in tiles]
@@ -602,38 +610,28 @@ class InstrumentHandler(BaseHandler):
                         cache_filename = cache[query_id]
                         if cache_filename is not None and not ignore_cache:
                             field_ids = np.load(cache_filename).tolist()
-                            tiles = (
-                                session.scalars(
-                                    sa.select(InstrumentField).where(
-                                        InstrumentField.field_id.in_(field_ids),
-                                        InstrumentField.instrument_id == instrument.id,
-                                    )
+                            tiles_result = await session.scalars(
+                                sa.select(InstrumentField).where(
+                                    InstrumentField.field_id.in_(field_ids),
+                                    InstrumentField.instrument_id == instrument.id,
                                 )
-                                .unique()
-                                .all()
                             )
+                            tiles = tiles_result.unique().all()
                         else:
-                            tiles = (
-                                (
-                                    session.scalars(
-                                        sa.select(InstrumentField).where(
-                                            localizationtilescls.localization_id
-                                            == localization.id,
-                                            localizationtilescls.probdensity
-                                            >= min_probdensity,
-                                            InstrumentFieldTile.instrument_id
-                                            == instrument.id,
-                                            InstrumentFieldTile.instrument_field_id
-                                            == InstrumentField.id,
-                                            InstrumentFieldTile.healpix.overlaps(
-                                                localizationtilescls.healpix
-                                            ),
-                                        )
-                                    )
+                            tiles_result = await session.scalars(
+                                sa.select(InstrumentField).where(
+                                    localizationtilescls.localization_id
+                                    == localization.id,
+                                    localizationtilescls.probdensity >= min_probdensity,
+                                    InstrumentFieldTile.instrument_id == instrument.id,
+                                    InstrumentFieldTile.instrument_field_id
+                                    == InstrumentField.id,
+                                    InstrumentFieldTile.healpix.overlaps(
+                                        localizationtilescls.healpix
+                                    ),
                                 )
-                                .unique()
-                                .all()
                             )
+                            tiles = tiles_result.unique().all()
                             if len(tiles) > 0:
                                 cache[query_id] = array_to_bytes(
                                     [tile.field_id for tile in tiles]
@@ -661,15 +659,27 @@ class InstrumentHandler(BaseHandler):
                 return self.success(data=data)
 
             inst_name = self.get_query_argument("name", None)
-            if includeRegion:
-                stmt = Instrument.select(self.current_user).options(
-                    undefer(Instrument.region)
-                )
-            else:
-                stmt = Instrument.select(self.current_user)
+            # Always undefer region so the inline `region_summary` property
+            # can read it without a per-instrument lazy load.
+            stmt = Instrument.select(self.current_user).options(
+                selectinload(Instrument.telescope),
+                undefer(Instrument.region),
+            )
             if inst_name is not None:
                 stmt = stmt.filter(Instrument.name == inst_name)
-            instruments = session.scalars(stmt).all()
+            instruments_result = await session.scalars(stmt)
+            instruments = instruments_result.unique().all()
+
+            # Pre-compute log existence with one query keyed by instrument_id.
+            instrument_ids = [i.id for i in instruments]
+            log_exist_ids = set()
+            if instrument_ids:
+                log_ids_result = await session.scalars(
+                    sa.select(InstrumentLog.instrument_id)
+                    .where(InstrumentLog.instrument_id.in_(instrument_ids))
+                    .distinct()
+                )
+                log_exist_ids = set(log_ids_result.all())
 
             data = [
                 {
@@ -677,19 +687,14 @@ class InstrumentHandler(BaseHandler):
                     "telescope": instrument.telescope.to_dict(),
                     "number_of_fields": instrument.number_of_fields,
                     "region_summary": instrument.region_summary,
-                    "log_exists": session.scalars(
-                        InstrumentLog.select(self.current_user).where(
-                            InstrumentLog.instrument_id == instrument.id
-                        )
-                    ).first()
-                    is not None,
+                    "log_exists": instrument.id in log_exist_ids,
                 }
                 for instrument in instruments
             ]
             return self.success(data=data)
 
     @permissions(["Manage instruments"])
-    def put(self, instrument_id: int):
+    async def put(self, instrument_id: int):
         """
         ---
         summary: Update an instrument
@@ -710,20 +715,26 @@ class InstrumentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Instrument'
           400:
             content:
               application/json:
                 schema: Error
         """
         data = self.get_json()
-        data["id"] = int(instrument_id)
-        with self.Session() as session:
-            # permission check
-            stmt = Instrument.select(session.user_or_token, mode="update").where(
-                Instrument.id == int(instrument_id)
+        data["id"] = instrument_id
+        async with self.AsyncSession() as session:
+            instrument = await session.scalar(
+                Instrument.select(session.user_or_token, mode="update")
+                .options(selectinload(Instrument.fields))
+                .where(Instrument.id == instrument_id)
             )
-            instrument = session.scalars(stmt).first()
             if instrument is None:
                 return self.error(f"Missing instrument with ID {instrument_id}")
 
@@ -732,15 +743,16 @@ class InstrumentHandler(BaseHandler):
                 if not set(instrument.filters).issubset(set(filters)):
                     new_filters = list(set(instrument.filters).difference(set(filters)))
                     for filt in new_filters:
-                        stmt = Photometry.select(session.user_or_token).where(
-                            Photometry.filter == filt,
-                            Photometry.instrument_id == instrument.id,
+                        count_stmt = (
+                            sa.select(sa.func.count())
+                            .select_from(Photometry)
+                            .where(
+                                Photometry.filter == filt,
+                                Photometry.instrument_id == instrument.id,
+                            )
                         )
-                        count_stmt = sa.select(sa.func.count()).select_from(
-                            stmt.distinct()
-                        )
-                        total_photometry = session.execute(count_stmt).scalar()
-                        if total_photometry > 0:
+                        total_photometry = await session.scalar(count_stmt)
+                        if total_photometry and total_photometry > 0:
                             return self.error(
                                 f"Cannot remove filter {filt} from instrument {instrument.name}: {total_photometry} photometry points must be first deleted."
                             )
@@ -875,12 +887,18 @@ class InstrumentHandler(BaseHandler):
             # temporary, to migrate old instruments
             if instrument.region is not None or field_region is not None:
                 instrument.has_region = True
-            if (
-                len(instrument.fields) > 0
-            ):  # here we dont validate field_data, as the addition of fields is done later and might fail
+            # Count fields via SQL: CustomUserAccessControl-emitted statements
+            # don't reliably propagate selectinload across to the lazy
+            # `instrument.fields` collection under the async session.
+            field_count = await session.scalar(
+                sa.select(sa.func.count())
+                .select_from(InstrumentField)
+                .where(InstrumentField.instrument_id == instrument.id)
+            )
+            if (field_count or 0) > 0:
                 instrument.has_fields = True
 
-            session.commit()
+            await session.commit()
 
             if (field_data is not None) or (references is not None):
                 if field_data is not None:
@@ -919,7 +937,7 @@ class InstrumentHandler(BaseHandler):
             return self.success()
 
     @permissions(["Delete instrument"])
-    def delete(self, instrument_id: int):
+    async def delete(self, instrument_id: int):
         """
         ---
         summary: Delete an instrument
@@ -944,23 +962,29 @@ class InstrumentHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
                 schema: Error
         """
-
-        with self.Session() as session:
-            stmt = Instrument.select(session.user_or_token, mode="delete").where(
-                Instrument.id == int(instrument_id)
+        async with self.AsyncSession() as session:
+            instrument = await session.scalar(
+                Instrument.select(session.user_or_token, mode="delete").where(
+                    Instrument.id == instrument_id
+                )
             )
-            instrument = session.scalars(stmt).first()
             if instrument is None:
                 return self.error(f"Missing instrument with ID {instrument_id}")
 
-            session.delete(instrument)
-            session.commit()
+            await session.delete(instrument)
+            await session.commit()
 
         self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()
@@ -995,14 +1019,13 @@ InstrumentHandler.post.__doc__ = f"""
                       properties:
                         filter_name:
                           type: object
-                          enum: {list(ALLOWED_BANDPASSES)}
                           properties:
                             limiting_magnitude:
-                              type: float
+                              type: number
                             magsys:
                               type: string
                             exposure_time:
-                              type: float
+                              type: number
                               description: |
                                 Exposure time in seconds.
                       description: |
@@ -1016,19 +1039,19 @@ InstrumentHandler.post.__doc__ = f"""
                           type: object
                           properties:
                             filt_change_time:
-                              type: float
+                              type: number
                               description: |
                                 Time in seconds to change filters
                             readout:
-                              type: float
+                              type: number
                               description: |
                                 Time in seconds to readout camera
                             overhead_per_exposure:
-                              type: float
+                              type: number
                               description: |
                                 Non-readout overheads, e.g. instrument settling times, in seconds.
                             slew_rate:
-                              type: float
+                              type: number
                               description: |
                                 Slew rate for the telescope in deg/s.
                       description: |
@@ -1443,7 +1466,7 @@ def add_tiles(
 
 class InstrumentFieldHandler(BaseHandler):
     @permissions(["Delete instrument"])
-    def delete(self, instrument_id: int):
+    async def delete(self, instrument_id: int):
         """
         ---
         summary: Delete an instrument's fields
@@ -1460,37 +1483,43 @@ class InstrumentFieldHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
                 schema: Error
         """
-
-        with self.Session() as session:
-            stmt = Instrument.select(session.user_or_token, mode="delete").where(
-                Instrument.id == int(instrument_id)
+        async with self.AsyncSession() as session:
+            instrument = await session.scalar(
+                Instrument.select(session.user_or_token, mode="delete").where(
+                    Instrument.id == instrument_id
+                )
             )
-            instrument = session.scalars(stmt).first()
             if instrument is None:
                 return self.error(f"Missing instrument with ID {instrument_id}")
 
-            session.execute(
+            await session.execute(
                 sa.delete(InstrumentField).where(
                     InstrumentFieldTile.instrument_id == instrument.id,
                 )
             )
 
-            instrument = session.scalars(
-                sa.select(Instrument).where(
-                    Instrument.id == instrument_id,
-                )
-            ).first()
+            instrument = await session.scalar(
+                sa.select(Instrument)
+                .options(selectinload(Instrument.fields))
+                .where(Instrument.id == instrument_id)
+            )
             if instrument is not None and len(instrument.fields) > 0:
                 instrument.has_fields = True
             else:
                 instrument.has_fields = False
-            session.commit()
+            await session.commit()
 
         self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()

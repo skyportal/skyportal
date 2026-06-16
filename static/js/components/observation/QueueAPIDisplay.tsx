@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
@@ -9,9 +10,13 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as queuedObservationActions from "../../ducks/queued_observations";
-import * as allocationActions from "../../ducks/allocations";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import {
+  useLazyRequestAPIQueuesQuery,
+  useDeleteAPIQueueMutation,
+} from "../../ducks/queued_observations";
+import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 
@@ -39,53 +44,45 @@ const QueueAPIDisplay = () => {
   const [queueList, setQueueList] = useState<string[]>(["None"]);
   const [selectedQueueName, setSelectedQueueName] = useState("None");
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationListApiObsplan } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: allocationListApiObsplan = [] } =
+    useGetAllocationsApiObsplanQuery({
+      apiImplements: "queued",
+    });
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
 
-  const dispatch = useAppDispatch();
+  const [requestAPIQueues] = useLazyRequestAPIQueuesQuery();
+  const [deleteAPIQueue] = useDeleteAPIQueueMutation();
 
   useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result: any = await dispatch(
-        allocationActions.fetchAllocationsApiObsplan({
-          apiImplements: "queued",
-        }),
-      );
-
-      const { data } = result;
-      setSelectedAllocationId(data[0]?.id);
-    };
-
-    getAllocations();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-  }, [dispatch]);
+    if (allocationListApiObsplan?.length > 0) {
+      setSelectedAllocationId(allocationListApiObsplan[0]?.["id"]);
+    }
+  }, [allocationListApiObsplan]);
 
   useEffect(() => {
     const getQueues = async () => {
       if (selectedAllocationId && allocationListApiObsplan?.length > 0) {
-        const response: any = await dispatch(
-          queuedObservationActions.requestAPIQueues(selectedAllocationId),
-        );
-        if (response?.data?.queue_names?.length > 0) {
-          setQueueList(response.data.queue_names);
-          setSelectedQueueName(response.data.queue_names[0]);
-        } else {
+        try {
+          const response: any = await requestAPIQueues({
+            id: selectedAllocationId,
+          }).unwrap();
+          if (response?.queue_names?.length > 0) {
+            setQueueList(response.queue_names);
+            setSelectedQueueName(response.queue_names[0]);
+          } else {
+            setQueueList(["None"]);
+            setSelectedQueueName("None");
+          }
+        } catch {
           setQueueList(["None"]);
           setSelectedQueueName("None");
         }
       }
     };
     getQueues();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAllocationId]);
 
   if (
@@ -126,11 +123,14 @@ const QueueAPIDisplay = () => {
   });
 
   const handleDelete = async () => {
-    await dispatch(
-      queuedObservationActions.deleteAPIQueue(selectedAllocationId, {
-        queueName: selectedQueueName,
-      }),
-    );
+    try {
+      await deleteAPIQueue({
+        id: selectedAllocationId,
+        data: { queueName: selectedQueueName },
+      }).unwrap();
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const handleSelectedAllocationChange = async (e: any) => {

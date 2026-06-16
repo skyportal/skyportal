@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
-import * as sourceActions from "../../ducks/source";
+import { useAddMPCMutation } from "../../ducks/source";
 import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(utc);
@@ -38,21 +38,19 @@ interface UpdateSourceMPCProps {
 const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [addMPC] = useAddMPCMutation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ss");
   const defaultDate = source.first_detected ? source.first_detected : nowDate;
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
-    dispatch(sourceActions.addMPC(source.id, formData)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Successfully queried the MPC"));
-        } else {
-          dispatch(showNotification("Failed to query the MPC", "error"));
-        }
-      },
-    );
+    try {
+      await addMPC({ id: source.id, formData }).unwrap();
+      dispatch(showNotification("Successfully queried the MPC"));
+    } catch {
+      dispatch(showNotification("Failed to query the MPC", "error"));
+    }
   };
 
   const mpcFormSchema = {

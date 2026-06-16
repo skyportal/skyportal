@@ -1,35 +1,40 @@
-import * as API from "../API";
-import store from "../store";
+/**
+ * System/deployment info (git log + running version).
+ *
+ * Reference RTK Query conversion of the old `FETCH_SYSINFO` duck. The endpoint
+ * is injected into the central `skyportalApi`, so caching, loading and error
+ * state are handled by RTK Query instead of a hand-written reducer.
+ *
+ * `version` is a sibling of `data` on the response envelope (see
+ * `skyportalApi`), so `transformResponse` merges it back onto the payload to
+ * preserve the old slice shape (`{ ...data, version }`).
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import type { SkyportalMeta } from "../api/skyportalApi";
 
-const FETCH_SYSINFO = "skyportal/FETCH_SYSINFO";
-const FETCH_SYSINFO_OK = "skyportal/FETCH_SYSINFO_OK";
-
-export function fetchSystemInfo() {
-  return API.GET("/api/sysinfo", FETCH_SYSINFO);
+export interface GitlogEntry {
+  description: string;
+  time: string;
+  sha: string;
+  [key: string]: unknown;
 }
 
-interface SysInfoAction {
-  type: string;
-  data?: any;
-  version?: any;
-  [key: string]: any;
+export interface SysInfo {
+  gitlog: GitlogEntry[];
+  version?: string | undefined;
 }
 
-function reducer(
-  state: Record<string, any> = {},
-  action: SysInfoAction,
-): Record<string, any> {
-  switch (action.type) {
-    case FETCH_SYSINFO_OK: {
-      const { version, data } = action;
-      return {
-        ...data,
-        version,
-      };
-    }
-    default:
-      return state;
-  }
-}
+export const sysInfoApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getSysInfo: build.query<SysInfo, void>({
+      query: () => "api/sysinfo",
+      transformResponse: (data: unknown, meta: SkyportalMeta | undefined) => ({
+        ...(data as Omit<SysInfo, "version">),
+        version: meta?.version,
+      }),
+      providesTags: ["SysInfo"],
+    }),
+  }),
+});
 
-store.injectReducer("sysInfo", reducer);
+export const { useGetSysInfoQuery } = sysInfoApi;

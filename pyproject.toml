@@ -54,6 +54,9 @@ dependencies = [
     "pyvo==1.8",
     "lxml==6.1.0",
     "suds-py3==1.4.5.0",
+    # aiohttp 3.14 dropped streams.AsyncStreamReaderMixin, which vcrpy 8.1.1's
+    # aiohttp stub imports -- crashing the test_server cassettes. Pin until vcrpy supports 3.14.
+    "aiohttp==3.14.1",
     "vcrpy==8.1.1",
     "aiosmtpd==1.4.6",
     "ligo.skymap==2.5.3",
@@ -104,9 +107,8 @@ dev = [
     "pytest>=9.0.3,<10.0.0",
     "pytest-randomly==4.0.1",
     "pytest-rerunfailures>=14.0",
-    "selenium==4.38.0",
-    "selenium-requests==2.0.4",
-    "webdriver-manager>=4.0.1",
+    "playwright==1.58.0",
+    "pytest-playwright==0.7.2",
 ]
 docs = [
     "sphinx>=9.1.0; python_version >= '3.12'",

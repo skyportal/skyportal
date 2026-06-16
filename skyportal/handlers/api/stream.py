@@ -11,7 +11,7 @@ from ..base import BaseHandler
 
 class StreamHandler(BaseHandler):
     @auth_or_token
-    def get(self, stream_id: int | None = None):
+    async def get(self, stream_id: int | None = None):
         """
         ---
         single:
@@ -49,19 +49,24 @@ class StreamHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        with self.Session() as session:
+        if stream_id is not None:
+            try:
+                stream_id = int(stream_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid stream_id: {stream_id}")
+        async with self.AsyncSession() as session:
             if stream_id is not None:
-                s = session.scalars(
+                s = await session.scalar(
                     Stream.select(session.user_or_token).where(Stream.id == stream_id)
-                ).first()
+                )
                 if s is None:
                     return self.error(f"Could not retrieve stream with ID {stream_id}.")
                 return self.success(data=s)
-            streams = session.scalars(Stream.select(session.user_or_token)).all()
-            return self.success(data=streams)
+            result = await session.scalars(Stream.select(session.user_or_token))
+            return self.success(data=result.all())
 
     @permissions(["System admin"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create a new stream
@@ -97,7 +102,7 @@ class StreamHandler(BaseHandler):
                               description: New stream ID
         """
         data = self.get_json()
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             schema = Stream.__schema__()
             try:
                 stream = schema.load(data)
@@ -106,12 +111,12 @@ class StreamHandler(BaseHandler):
                     f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             session.add(stream)
-            session.commit()
+            await session.commit()
 
             return self.success(data={"id": stream.id})
 
     @permissions(["System admin"])
-    def patch(self, stream_id: int):
+    async def patch(self, stream_id: int):
         """
         ---
         summary: Update a stream
@@ -138,20 +143,30 @@ class StreamHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Stream'
           400:
             content:
               application/json:
                 schema: Error
         """
+        try:
+            stream_id = int(stream_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid stream_id: {stream_id}")
         data = self.get_json()
         data["id"] = stream_id
-        with self.Session() as session:
-            s = session.scalars(
+        async with self.AsyncSession() as session:
+            s = await session.scalar(
                 Stream.select(session.user_or_token, mode="update").where(
                     Stream.id == stream_id
                 )
-            ).first()
+            )
             if s is None:
                 return self.error(f"Could not retrieve stream with ID {stream_id}.")
 
@@ -165,11 +180,11 @@ class StreamHandler(BaseHandler):
             for k in data:
                 setattr(s, k, data[k])
 
-            session.commit()
+            await session.commit()
             return self.success()
 
     @permissions(["System admin"])
-    def delete(self, stream_id: int):
+    async def delete(self, stream_id: int):
         """
         ---
         summary: Delete a stream
@@ -188,23 +203,27 @@ class StreamHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        with self.Session() as session:
-            stream = session.scalars(
+        try:
+            stream_id = int(stream_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid stream_id: {stream_id}")
+        async with self.AsyncSession() as session:
+            stream = await session.scalar(
                 Stream.select(session.user_or_token, mode="delete").where(
                     Stream.id == stream_id
                 )
-            ).first()
+            )
             if stream is None:
                 return self.error(f"Could not retrieve stream with ID {stream_id}.")
-            session.delete(stream)
-            session.commit()
+            await session.delete(stream)
+            await session.commit()
 
             return self.success()
 
 
 class StreamUserHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self, stream_id: int, *ignored_args):
+    async def post(self, stream_id: int, *ignored_args):
         """
         ---
         summary: Grant stream access to a user
@@ -254,22 +273,22 @@ class StreamUserHandler(BaseHandler):
             return self.error("User ID must be specified")
 
         stream_id = int(stream_id)
-        with self.Session() as session:
-            su = session.scalars(
+        async with self.AsyncSession() as session:
+            su = await session.scalar(
                 StreamUser.select(session.user_or_token)
                 .where(StreamUser.stream_id == stream_id)
                 .where(StreamUser.user_id == user_id)
-            ).first()
+            )
             if su is None:
                 session.add(StreamUser(stream_id=stream_id, user_id=user_id))
             else:
                 return self.error("Specified user already has access to this stream.")
-            session.commit()
+            await session.commit()
 
             return self.success(data={"stream_id": stream_id, "user_id": user_id})
 
     @permissions(["System admin"])
-    def delete(self, stream_id: int, user_id: int):
+    async def delete(self, stream_id: int, user_id: int):
         """
         ---
         summary: Revoke stream access from a user
@@ -299,14 +318,14 @@ class StreamUserHandler(BaseHandler):
             user_id = int(user_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid stream_id/user_id: {stream_id}/{user_id}")
-        with self.Session() as session:
-            su = session.scalars(
+        async with self.AsyncSession() as session:
+            su = await session.scalar(
                 StreamUser.select(session.user_or_token, mode="delete")
                 .where(StreamUser.stream_id == stream_id)
                 .where(StreamUser.user_id == user_id)
-            ).first()
+            )
             if su is None:
                 return self.error("Stream user does not exist.")
-            session.delete(su)
-            session.commit()
+            await session.delete(su)
+            await session.commit()
             return self.success()

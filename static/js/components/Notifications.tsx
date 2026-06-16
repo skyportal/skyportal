@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 import Badge from "@mui/material/Badge";
 import MUINotificationsIcon from "@mui/icons-material/NotificationsOutlined";
@@ -11,8 +11,13 @@ import Divider from "@mui/material/Divider";
 import ReactMarkdown from "react-markdown";
 import Button from "./Button";
 
-import { useAppDispatch, useAppSelector } from "../types/hooks";
-import * as userNotificationsActions from "../ducks/userNotifications";
+import {
+  useGetNotificationsQuery,
+  useUpdateNotificationMutation,
+  useUpdateAllNotificationsMutation,
+  useDeleteNotificationMutation,
+  useDeleteAllNotificationsMutation,
+} from "../ducks/userNotifications";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -34,20 +39,15 @@ const useStyles = makeStyles()((theme) => ({
 
 const Notifications = () => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
-  const notifications = useAppSelector((state) => state["userNotifications"]);
+  const { data: notifications } = useGetNotificationsQuery();
+  const [updateNotification] = useUpdateNotificationMutation();
+  const [updateAllNotifications] = useUpdateAllNotificationsMutation();
+  const [deleteNotificationMutation] = useDeleteNotificationMutation();
+  const [deleteAllNotificationsMutation] = useDeleteAllNotificationsMutation();
 
-  const [unreadCount, setUnreadCount] = useState(
-    notifications ? notifications.filter((n: any) => !n.viewed).length : 0,
-  );
-
-  useEffect(() => {
-    if (notifications === null) {
-      dispatch(userNotificationsActions.fetchNotifications());
-    } else {
-      setUnreadCount(notifications.filter((n: any) => !n.viewed).length);
-    }
-  }, [dispatch, notifications]);
+  const unreadCount = notifications
+    ? notifications.filter((n) => !n.viewed).length
+    : 0;
 
   // Popover logic
   const [anchorEl, setAnchorEl] = React.useState<any>(null);
@@ -60,40 +60,34 @@ const Notifications = () => {
   const open = Boolean(anchorEl);
 
   const deleteAllNotifications = () => {
-    dispatch(userNotificationsActions.deleteAllNotifications());
+    deleteAllNotificationsMutation();
     handleClose();
   };
 
   const markAllRead = () => {
-    dispatch(userNotificationsActions.updateAllNotifications({ viewed: true }));
+    updateAllNotifications({ viewed: true });
   };
 
   const markAllUnread = () => {
-    dispatch(
-      userNotificationsActions.updateAllNotifications({ viewed: false }),
-    );
+    updateAllNotifications({ viewed: false });
   };
 
   const markRead = (notificationID: number) => {
-    dispatch(
-      userNotificationsActions.updateNotification({
-        notificationID,
-        data: { viewed: true },
-      }),
-    );
+    updateNotification({
+      notificationID,
+      data: { viewed: true },
+    });
   };
 
   const markUnread = (notificationID: number) => {
-    dispatch(
-      userNotificationsActions.updateNotification({
-        notificationID,
-        data: { viewed: false },
-      }),
-    );
+    updateNotification({
+      notificationID,
+      data: { viewed: false },
+    });
   };
 
   const deleteNotification = (notificationID: number) => {
-    dispatch(userNotificationsActions.deleteNotification(notificationID));
+    deleteNotificationMutation(notificationID);
   };
 
   return (
@@ -130,7 +124,7 @@ const Notifications = () => {
         <div className={classes.root}>
           <List className={classes.root}>
             {notifications &&
-              notifications.map((notification: any) => (
+              notifications.map((notification) => (
                 <div key={notification.id}>
                   <ListItem
                     {...({ button: !!notification.url } as any)}

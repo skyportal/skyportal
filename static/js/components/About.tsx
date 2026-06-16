@@ -4,8 +4,8 @@ import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 
-import { useAppSelector } from "../types/hooks";
 import AboutPlugins from "./AboutPlugins";
+import { useGetConfigQuery } from "../ducks/config";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -45,8 +45,11 @@ const useStyles = makeStyles()(() => ({
 
 const About = () => {
   const { classes } = useStyles();
-  const cosmology = useAppSelector((state) => state["sysInfo"].cosmology);
-  const cosmoref = useAppSelector((state) => state["sysInfo"].cosmoref);
+  // cosmology/cosmoref are served by `/api/config` and live in the `config`
+  // slice; this previously read them from `sysInfo` (where they never existed),
+  // so the block below never rendered. Sourced correctly now.
+  const cosmology = (useGetConfigQuery().data as any)?.cosmology;
+  const cosmoref = (useGetConfigQuery().data as any)?.cosmoref;
 
   const developers = [
     {

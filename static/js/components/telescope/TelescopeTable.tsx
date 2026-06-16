@@ -10,20 +10,17 @@ import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Chip from "@mui/material/Chip";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import * as telescopesActions from "../../ducks/telescopes";
-import { fetchTelescopes, submitTelescope } from "../../ducks/telescopes";
+import {
+  useDeleteTelescopeMutation,
+  useSubmitTelescopeMutation,
+} from "../../ducks/telescopes";
 import { useAppDispatch } from "../../types/hooks";
 
 const useStyles = makeStyles()(() => ({
@@ -48,6 +45,8 @@ const TelescopeTable = ({
 }: TelescopeTableProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [deleteTelescopeMutation] = useDeleteTelescopeMutation();
+  const [submitTelescopeMutation] = useSubmitTelescopeMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -62,23 +61,23 @@ const TelescopeTable = ({
     setTelescopeToEditDelete(null);
   };
 
-  const deleteTelescope = () => {
-    dispatch(telescopesActions.deleteTelescope(telescopeToEditDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Telescope deleted"));
-          closeDeleteDialog();
-        }
-      },
-    );
+  const deleteTelescope = async () => {
+    try {
+      await deleteTelescopeMutation(telescopeToEditDelete).unwrap();
+      dispatch(showNotification("Telescope deleted"));
+      closeDeleteDialog();
+    } catch {
+      // error notification handled by the API base query
+    }
   };
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
-    const result: any = await dispatch(submitTelescope(formData));
-    if (result.status === "success") {
+    try {
+      await submitTelescopeMutation(formData).unwrap();
       dispatch(showNotification("Telescope saved"));
-      dispatch(fetchTelescopes());
       setNewDialogOpen(false);
+    } catch {
+      // error notification handled by the API base query
     }
   };
 
@@ -266,13 +265,11 @@ const TelescopeTable = ({
   ];
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
-      <GridToolbarQuickFilter />
+    <DataGridToolbar>
       <IconButton name="new_telescope" onClick={() => setNewDialogOpen(true)}>
         <AddIcon />
       </IconButton>
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

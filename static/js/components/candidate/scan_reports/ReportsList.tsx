@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
@@ -11,8 +11,7 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import AddIcon from "@mui/icons-material/Add";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import { fetchScanReports } from "../../../ducks/candidate/scan_reports";
+import { useGetScanReportsQuery } from "../../../ducks/candidate/scan_reports";
 import ReportItems from "./ReportItems";
 import GenerateReportForm from "./GenerateReportForm";
 import DownloadReport from "./DownloadReport";
@@ -60,23 +59,14 @@ const Item = styled("div")({
 });
 
 const ReportsList = () => {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const scanReports = useAppSelector((state) => state["scanReports"]);
-  const [loading, setLoading] = useState(false);
+  const { data: scanReports, isFetching: loading } = useGetScanReportsQuery({
+    numPerPage: 10,
+    page: 1,
+  });
   const [idReportOpen, setIdReportOpen] = useState<any>(null);
   const [generateReportDialogOpen, setGenerateReportDialogOpen] =
     useState(false);
-
-  useEffect(() => {
-    setLoading(true);
-    dispatch(
-      fetchScanReports({
-        numPerPage: 10,
-        page: 1,
-      }),
-    ).then(() => setLoading(false));
-  }, [dispatch]);
 
   const displayDate = (date: any) => {
     return new Date(date).toLocaleDateString("en-US", {
@@ -113,7 +103,7 @@ const ReportsList = () => {
               />
             </FieldTitle>
           </FieldsTitle>
-          {scanReports.length > 0 ? (
+          {scanReports && scanReports.length > 0 ? (
             scanReports.map((scanReport: any) => (
               <FieldsAndItems key={scanReport.id}>
                 <Fields>

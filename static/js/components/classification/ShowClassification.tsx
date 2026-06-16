@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState } from "react";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
@@ -8,11 +9,15 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
-import * as sourceActions from "../../ducks/source";
+import {
+  useAddClassificationVoteMutation,
+  useDeleteClassificationMutation,
+} from "../../ducks/source";
+import { useGetConfigQuery } from "../../ducks/config";
 
 // preserve the legacy <font> tag (not a typed JSX intrinsic element)
 const Font: any = "font";
@@ -46,13 +51,17 @@ const ClassificationRow = ({
 }: ClassificationRowProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [addClassificationVote] = useAddClassificationVoteMutation();
+  const [deleteClassificationMutation] = useDeleteClassificationMutation();
 
-  const currentUser = useAppSelector((state) => state.profile);
-  const groupUsers = useAppSelector(
-    (state) => (state as any).group?.group_users,
-  );
+  const { data: currentUser } = useGetProfileQuery();
+  // The old global `group` slice (a single most-recently-fetched group) no
+  // longer exists: the group duck is now RTK Query keyed by id, and no specific
+  // group id is in scope here. As before, when no group is loaded the
+  // membership lookup resolves to undefined.
+  const groupUsers: any = undefined;
   const currentGroupUser = groupUsers?.filter(
-    (groupUser: any) => groupUser.user_id === currentUser.id,
+    (groupUser: any) => groupUser.user_id === currentUser?.id,
   )[0];
 
   useEffect(() => {
@@ -85,13 +94,14 @@ const ClassificationRow = ({
   };
 
   const addVote = (classification_id: any, vote: number) => {
-    dispatch(
-      sourceActions.addClassificationVote(classification_id, { vote }),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    addClassificationVote({ classification_id, data: { vote } })
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("Vote registered"));
-      }
-    });
+      })
+      .catch(() => {
+        // error notification handled by the baseQuery
+      });
   };
 
   const switchVotesVisible = () => {
@@ -99,21 +109,21 @@ const ClassificationRow = ({
   };
 
   const deleteClassification = () => {
-    dispatch(sourceActions.deleteClassification(classificationToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Classification deleted"));
-          closeDialog();
-        }
-      },
-    );
+    deleteClassificationMutation(classificationToDelete)
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("Classification deleted"));
+        closeDialog();
+      })
+      .catch(() => {
+        // error notification handled by the baseQuery
+      });
   };
 
   const classification = classifications[0]!;
 
-  const classifications_classes = useAppSelector(
-    (state) => state["config"].classificationsClasses,
-  );
+  const classifications_classes = (useGetConfigQuery().data as any)
+    ?.classificationsClasses;
 
   const upvoterIds: any[] = [];
   const downvoterIds: any[] = [];
@@ -125,13 +135,13 @@ const ClassificationRow = ({
   classification["votes"]?.forEach((s: any) => {
     if (s.vote === 1) {
       upvoterIds.push(s.id);
-      if (s.voter_id === currentUser.id) {
+      if (s.voter_id === currentUser?.id) {
         upvoteValue = 0;
         upvoteColor = "success";
       }
     } else if (s.vote === -1) {
       downvoterIds.push(s.id);
-      if (s.voter_id === currentUser.id) {
+      if (s.voter_id === currentUser?.id) {
         downvoteValue = 0;
         downvoteColor = "error";
       }
@@ -147,10 +157,10 @@ const ClassificationRow = ({
   };
 
   const permission =
-    currentUser.permissions.includes("System admin") ||
-    currentUser.permissions.includes("Manage groups") ||
+    currentUser?.permissions.includes("System admin") ||
+    currentUser?.permissions.includes("Manage groups") ||
     isGroupAdmin ||
-    currentUser.username === classification["author_name"];
+    currentUser?.username === classification["author_name"];
 
   const clsProb = classification["probability"]
     ? classification["probability"]
@@ -366,7 +376,8 @@ function ShowClassification({
   shortened = false,
   fontSize = "1rem",
 }: ShowClassificationProps) {
-  const sorted_classifications = (classifications || []).sort((a, b) =>
+  // `classifications` is frozen RTK Query data, so copy before sorting in place.
+  const sorted_classifications = [...(classifications || [])].sort((a, b) =>
     a["created_at"] > b["created_at"] ? -1 : 1,
   );
 
@@ -381,16 +392,18 @@ function ShowClassification({
   const keys = Object.keys(classificationsGrouped);
   keys.forEach((key) => {
     const group = classificationsGrouped[key] ?? [];
-    group.forEach((_item: any, index: number) => {
-      let taxname: any = taxonomyList.filter(
-        (i) => i["id"] === group[index].taxonomy_id,
+    // The grouped items are the original frozen RTK Query classification
+    // objects, so build new objects with the added `taxname` rather than
+    // mutating them in place.
+    classificationsGrouped[key] = group.map((item: any) => {
+      const matchingTaxonomies: any = taxonomyList.filter(
+        (i) => i["id"] === item.taxonomy_id,
       );
-      if (taxname.length > 0) {
-        taxname = taxname[0].name;
-      } else {
-        taxname = "Unknown taxonomy";
-      }
-      group[index].taxname = taxname;
+      const taxname =
+        matchingTaxonomies.length > 0
+          ? matchingTaxonomies[0].name
+          : "Unknown taxonomy";
+      return { ...item, taxname };
     });
   });
 

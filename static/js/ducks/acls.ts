@@ -1,39 +1,46 @@
-import * as API from "../API";
-import store from "../store";
+/**
+ * ACLs (access control lists).
+ *
+ * RTK Query conversion of the old `FETCH_ACLS` duck. No websocket, no hydration.
+ */
+import { skyportalApi } from "../api/skyportalApi";
 
-const FETCH_ACLS = "skyportal/FETCH_ACLS";
-const FETCH_ACLS_OK = "skyportal/FETCH_ACLS_OK";
+export type Acls = string[];
 
-const ADD_USER_ACLS = "skyportal/ADD_USER_ACLS";
-
-const DELETE_USER_ACL = "skyportal/DELETE_USER_ACL";
-
-export const fetchACLs = () => API.GET("/api/acls", FETCH_ACLS);
-
-export const addUserACLs = ({
-  userID,
-  aclIds,
-}: {
+interface AddUserAclsArg {
   userID: number | string;
   aclIds: string[];
-}) => API.POST(`/api/user/${userID}/acls`, ADD_USER_ACLS, { aclIds });
-
-export const deleteUserACL = ({
-  userID,
-  acl,
-}: {
-  userID: number | string;
-  acl: string;
-}) => API.DELETE(`/api/user/${userID}/acls/${acl}`, DELETE_USER_ACL);
-
-function reducer(state: any = null, action: { type: string; data?: any }): any {
-  switch (action.type) {
-    case FETCH_ACLS_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
 }
 
-store.injectReducer("acls", reducer);
+interface DeleteUserAclArg {
+  userID: number | string;
+  acl: string;
+}
+
+export const aclsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getAcls: build.query<Acls, void>({
+      query: () => "api/acls",
+      providesTags: ["Acls"],
+    }),
+    addUserAcls: build.mutation<unknown, AddUserAclsArg>({
+      query: ({ userID, aclIds }) => ({
+        url: `api/user/${userID}/acls`,
+        method: "POST",
+        body: { aclIds },
+      }),
+    }),
+    deleteUserAcl: build.mutation<unknown, DeleteUserAclArg>({
+      query: ({ userID, acl }) => ({
+        url: `api/user/${userID}/acls/${acl}`,
+        method: "DELETE",
+      }),
+    }),
+  }),
+});
+
+export const {
+  useGetAclsQuery,
+  useAddUserAclsMutation,
+  useDeleteUserAclMutation,
+} = aclsApi;

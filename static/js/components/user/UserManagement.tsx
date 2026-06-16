@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import Paper from "@mui/material/Paper";
@@ -22,10 +22,6 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { makeStyles } from "tss-react/mui";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -34,25 +30,41 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 import FormValidationError from "../FormValidationError";
 import UserInvitations from "./UserInvitations";
 import UpdateUserParameter from "./UpdateUserParameter";
-import * as groupsActions from "../../ducks/groups";
-import { patchUser } from "../../ducks/users";
 import {
-  fetchUsersManagement,
-  setUsersManagementFetchParams,
-} from "../../ducks/users_management";
-import * as streamsActions from "../../ducks/streams";
-import * as invitationsActions from "../../ducks/invitations";
-import * as aclsActions from "../../ducks/acls";
-import * as rolesActions from "../../ducks/roles";
+  useAddGroupUserMutation,
+  useDeleteGroupUserMutation,
+  useGetGroupsQuery,
+} from "../../ducks/groups";
+import { usePatchUserMutation } from "../../ducks/users";
+import { useGetUsersManagementQuery } from "../../ducks/users_management";
+import { useGetConfigQuery } from "../../ducks/config";
+import {
+  useGetStreamsQuery,
+  useAddStreamUserMutation,
+  useDeleteStreamUserMutation,
+} from "../../ducks/streams";
+import {
+  useGetAclsQuery,
+  useAddUserAclsMutation,
+  useDeleteUserAclMutation,
+} from "../../ducks/acls";
+import {
+  useGetRolesQuery,
+  useAddUserRolesMutation,
+  useDeleteUserRoleMutation,
+} from "../../ducks/roles";
 import Spinner from "../Spinner";
 
-import * as ProfileActions from "../../ducks/profile";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import {
+  useGetProfileQuery,
+  useUpdateBasicUserInfoMutation,
+} from "../../ducks/profile";
+import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(utc);
 
@@ -82,25 +94,40 @@ const defaultNumPerPage = 25;
 const UserManagement = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [patchUser] = usePatchUserMutation();
+  const [updateBasicUserInfo] = useUpdateBasicUserInfoMutation();
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
-  const [queryInProgress, setQueryInProgress] = useState(false);
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
-  const { invitationsEnabled } = useAppSelector((state) => state["config"]);
-  const currentUser = useAppSelector((state) => state.profile);
-  const { users, totalMatches } = useAppSelector(
-    (state) => state["users_management"],
-  );
-  // read the fetchParams from the redux store to
-  // preserve state upon websocket-based updates
-  const fetchParams = useAppSelector(
-    (state) => state["users_management"].fetchParams,
-  );
+  const { invitationsEnabled } = (useGetConfigQuery().data as any) ?? {};
+  const { data: currentUser } = useGetProfileQuery();
+  // fetchParams drive the (server-side) pagination/filter/sort query. They live
+  // in component state and are passed to the RTK Query hook below, which
+  // refetches whenever they change.
+  const [fetchParams, setFetchParams] = useState<any>({
+    pageNumber: 1,
+    numPerPage: defaultNumPerPage,
+  });
+  const {
+    data: usersManagementData,
+    refetch: refetchUsersManagement,
+    isFetching: usersManagementFetching,
+  } = useGetUsersManagementQuery(fetchParams);
+  const users = usersManagementData?.users;
+  const totalMatches = usersManagementData?.totalMatches ?? 0;
   const [tableFilterList, setTableFilterList] = useState<string[]>([]);
-  const streams = useAppSelector((state) => state["streams"]);
-  let { all: allGroups } = useAppSelector((state) => state.groups);
-  const acls = useAppSelector((state) => state["acls"]);
-  const roles = useAppSelector((state) => state["roles"]);
+  const { data: streams } = useGetStreamsQuery();
+  const [addStreamUser] = useAddStreamUserMutation();
+  const [deleteStreamUser] = useDeleteStreamUserMutation();
+  let allGroups = useGetGroupsQuery().data?.all ?? null;
+  const [addGroupUser] = useAddGroupUserMutation();
+  const [deleteGroupUser] = useDeleteGroupUserMutation();
+  const { data: acls } = useGetAclsQuery();
+  const [addUserAcls] = useAddUserAclsMutation();
+  const [deleteUserAcl] = useDeleteUserAclMutation();
+  const { data: roles } = useGetRolesQuery();
+  const [addUserRoles] = useAddUserRolesMutation();
+  const [deleteUserRole] = useDeleteUserRoleMutation();
   const [addUserGroupsDialogOpen, setAddUserGroupsDialogOpen] = useState(false);
   const [addUserRolesDialogOpen, setAddUserRolesDialogOpen] = useState(false);
   const [addUserACLsDialogOpen, setAddUserACLsDialogOpen] = useState(false);
@@ -117,7 +144,6 @@ const UserManagement = () => {
     setRemoveExpirationConfirmDialogOpen,
   ] = useState(false);
   const [clickedUser, setClickedUser] = useState<any>(null);
-  const [dataFetched, setDataFetched] = useState(false);
 
   const {
     handleSubmit,
@@ -130,30 +156,7 @@ const UserManagement = () => {
 
   const filter = createFilterOptions();
 
-  useEffect(() => {
-    const fetchData = () => {
-      dispatch(
-        setUsersManagementFetchParams({
-          pageNumber: 1,
-          numPerPage: 25,
-          ...fetchParams,
-        }),
-      );
-      dispatch(fetchUsersManagement());
-      dispatch(streamsActions.fetchStreams());
-      dispatch(aclsActions.fetchACLs());
-      dispatch(rolesActions.fetchRoles());
-      dispatch(invitationsActions.fetchInvitations());
-    };
-    if (!dataFetched) {
-      fetchData();
-      setDataFetched(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataFetched, dispatch]);
-
   const handleFilterSubmit = async (formData: any) => {
-    setQueryInProgress(true);
     Object.keys(formData).forEach(
       (key) => !formData[key] && delete formData[key],
     );
@@ -166,9 +169,7 @@ const UserManagement = () => {
       numPerPage: rowsPerPage,
       includeExpired: fetchParams.includeExpired || false,
     };
-    dispatch(setUsersManagementFetchParams(params));
-    await dispatch(fetchUsersManagement());
-    setQueryInProgress(false);
+    setFetchParams(params);
     // Close the filter dialog after applying the filter. Otherwise the dialog
     // (and its own "Submit" button) stays mounted, which both blocks the table
     // underneath and causes the unscoped `//*[text()="Submit"]` selectors used
@@ -189,17 +190,12 @@ const UserManagement = () => {
     handleFilterSubmit(data);
   };
 
-  const handleToggleExpiredUsers = async (event: any) => {
+  const handleToggleExpiredUsers = (event: any) => {
     const newValue = event.target.checked;
-    dispatch(
-      setUsersManagementFetchParams({
-        ...fetchParams,
-        includeExpired: newValue,
-      }),
-    );
-    setQueryInProgress(true);
-    await dispatch(fetchUsersManagement());
-    setQueryInProgress(false);
+    setFetchParams({
+      ...fetchParams,
+      includeExpired: newValue,
+    });
   };
 
   // Memoize the toolbar so it keeps a stable component identity across the
@@ -212,8 +208,7 @@ const UserManagement = () => {
     () =>
       function UserManagementToolbar() {
         return (
-          <GridToolbarContainer>
-            <GridToolbarColumnsButton />
+          <DataGridToolbar showQuickFilter={false}>
             <Tooltip title="Filter Table">
               <IconButton
                 size="small"
@@ -243,7 +238,7 @@ const UserManagement = () => {
                 onDelete={() => handleFilterChipDelete(chip)}
               />
             ))}
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,7 +248,7 @@ const UserManagement = () => {
   if (
     !currentUser?.username?.length ||
     !allGroups?.length ||
-    streams === null ||
+    streams == null ||
     !acls?.length ||
     !roles?.length
   ) {
@@ -268,7 +263,7 @@ const UserManagement = () => {
   ) {
     return <div>Access denied: Insufficient permissions.</div>;
   }
-  allGroups = allGroups?.filter((group) => !group.single_user_group);
+  allGroups = allGroups?.filter((group) => !group["single_user_group"]);
 
   const validateGroups = () => {
     const formState = getValues();
@@ -293,103 +288,107 @@ const UserManagement = () => {
   const handleAddUserToGroups = async (formData: any) => {
     const groupIDs = formData.groups?.map((g: any) => g.id);
     const promises = groupIDs?.map((gid: any) =>
-      dispatch(
-        groupsActions.addGroupUser({
-          userID: clickedUser.id,
-          admin: false,
-          group_id: gid,
-        } as any),
-      ),
+      addGroupUser({
+        userID: clickedUser.id,
+        admin: false,
+        group_id: gid,
+      } as any).unwrap(),
     );
-    const results: any[] = await Promise.all(promises);
-    if (results.every((result: any) => result.status === "success")) {
+    try {
+      await Promise.all(promises);
       dispatch(
         showNotification("User successfully added to specified group(s)."),
       );
       reset({ groups: [] });
       setAddUserGroupsDialogOpen(false);
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
       setClickedUser(null);
+    } catch {
+      // error notification handled by the API layer
     }
   };
 
   const handleAddUserToStreams = async (formData: any) => {
     const streamIDs = formData.streams?.map((g: any) => g.id);
-    const promises = streamIDs?.map((sid: any) =>
-      dispatch(
-        streamsActions.addStreamUser({
-          user_id: clickedUser.id,
-          stream_id: sid,
-        }),
-      ),
-    );
-    const results: any[] = await Promise.all(promises);
-    if (results.every((result: any) => result.status === "success")) {
+    try {
+      await Promise.all(
+        (streamIDs ?? []).map((sid: any) =>
+          addStreamUser({
+            user_id: clickedUser.id,
+            stream_id: sid,
+          }).unwrap(),
+        ),
+      );
       dispatch(
         showNotification("User successfully added to specified stream(s)."),
       );
       reset({ streams: [] });
       setAddUserStreamsDialogOpen(false);
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
       setClickedUser(null);
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
   const handleAddUserACLs = async (formData: any) => {
-    const result: any = await dispatch(
-      aclsActions.addUserACLs({
+    try {
+      await addUserAcls({
         userID: clickedUser.id,
         aclIds: formData.acls,
-      }),
-    );
-    if (result.status === "success") {
+      }).unwrap();
       dispatch(showNotification("User successfully granted specified ACL(s)."));
       reset({ acls: [] });
       setAddUserACLsDialogOpen(false);
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
       setClickedUser(null);
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
   const handleAddUserAffiliations = async (formData: any) => {
-    const result: any = await dispatch(
-      ProfileActions.updateBasicUserInfo(formData, clickedUser.id),
-    );
-    if (result.status === "success") {
+    try {
+      await updateBasicUserInfo({
+        formData,
+        user_id: clickedUser.id,
+      }).unwrap();
       dispatch(showNotification("Successfully updated user's affiliations."));
       setAddUserAffiliationsDialogOpen(false);
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
       setClickedUser(null);
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
   const handleAddUserRoles = async (formData: any) => {
-    const result: any = await dispatch(
-      rolesActions.addUserRoles({
+    try {
+      await addUserRoles({
         userID: clickedUser.id,
         roleIds: formData.roles?.map((role: any) => role.id),
-      }),
-    );
-    if (result.status === "success") {
+      }).unwrap();
       dispatch(
         showNotification("User successfully granted specified role(s)."),
       );
       reset({ roles: [] });
       setAddUserRolesDialogOpen(false);
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
       setClickedUser(null);
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
   const handleClickRemoveUserFromGroup = async (userID: any, group_id: any) => {
-    const result: any = await dispatch(
-      groupsActions.deleteGroupUser({ userID, group_id }),
-    );
-    if (result.status === "success") {
+    try {
+      await deleteGroupUser({ userID, group_id }).unwrap();
       dispatch(
         showNotification("User successfully removed from specified group."),
       );
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
+    } catch {
+      // error notification handled by the API layer
     }
   };
 
@@ -397,22 +396,22 @@ const UserManagement = () => {
     user_id: any,
     stream_id: any,
   ) => {
-    const result: any = await dispatch(
-      streamsActions.deleteStreamUser({ user_id, stream_id }),
-    );
-    if (result.status === "success") {
+    try {
+      await deleteStreamUser({ user_id, stream_id }).unwrap();
       dispatch(showNotification("Stream access successfully revoked."));
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
   const handleClickDeleteUserACL = async (userID: any, acl: any) => {
-    const result: any = await dispatch(
-      aclsActions.deleteUserACL({ userID, acl }),
-    );
-    if (result.status === "success") {
+    try {
+      await deleteUserAcl({ userID, acl }).unwrap();
       dispatch(showNotification("User ACL successfully removed."));
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
@@ -425,37 +424,40 @@ const UserManagement = () => {
         (value: any) => value !== affiliation,
       ),
     };
-    const result: any = await dispatch(
-      ProfileActions.updateBasicUserInfo(data, user.id),
-    );
-    if (result.status === "success") {
+    try {
+      await updateBasicUserInfo({ formData: data, user_id: user.id }).unwrap();
       dispatch(showNotification("Successfully deleted user's affiliation."));
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
   const handleClickDeleteUserRole = async (userID: any, role: any) => {
-    const result: any = await dispatch(
-      rolesActions.deleteUserRole({ userID, role }),
-    );
-    if (result.status === "success") {
+    try {
+      await deleteUserRole({ userID, role }).unwrap();
       dispatch(showNotification("User role successfully removed."));
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
+    } catch {
+      // error notification handled centrally by the base query
     }
   };
 
   const handleRemoveUserExpirationDate = async () => {
-    const result: any = await dispatch(
-      patchUser(clickedUser.id, {
-        expirationDate: null,
-      }),
-    );
-    if (result.status === "success") {
+    try {
+      await patchUser({
+        id: clickedUser.id,
+        data: {
+          expirationDate: null,
+        },
+      }).unwrap();
       dispatch(showNotification("User expiration date successfully removed."));
       reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
       setClickedUser(null);
+    } catch {
+      // error notification handled by the base query
     }
   };
 
@@ -469,17 +471,20 @@ const UserManagement = () => {
       );
       return;
     }
-    const result: any = await dispatch(
-      patchUser(clickedUser.id, {
-        expirationDate: dayjs.utc(formData.date).toISOString(),
-      }),
-    );
-    if (result.status === "success") {
+    try {
+      await patchUser({
+        id: clickedUser.id,
+        data: {
+          expirationDate: dayjs.utc(formData.date).toISOString(),
+        },
+      }).unwrap();
       dispatch(showNotification("User expiration date successfully updated."));
       reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
-      await dispatch(fetchUsersManagement());
+      await refetchUsersManagement();
       setClickedUser(null);
+    } catch {
+      // error notification handled by the base query
     }
   };
 
@@ -761,17 +766,13 @@ const UserManagement = () => {
     </div>
   );
 
-  const handlePageChange = async (page: number, numPerPage: number) => {
-    setQueryInProgress(true);
+  const handlePageChange = (page: number, numPerPage: number) => {
     const params = { ...fetchParams, numPerPage, pageNumber: page + 1 };
-    // Save state for future
-    dispatch(setUsersManagementFetchParams(params));
-    await dispatch(fetchUsersManagement());
-    setQueryInProgress(false);
+    // Changing fetchParams triggers an automatic refetch of the query.
+    setFetchParams(params);
   };
 
-  const handleUserTableSorting = async (sortData: any) => {
-    setQueryInProgress(true);
+  const handleUserTableSorting = (sortData: any) => {
     const sortBy = sortData.name === "created_at" ? "createdAt" : "username";
     const sortOrder = sortData.direction;
     const params = {
@@ -780,9 +781,7 @@ const UserManagement = () => {
       sortBy,
       sortOrder,
     };
-    dispatch(setUsersManagementFetchParams(params));
-    await dispatch(fetchUsersManagement());
-    setQueryInProgress(false);
+    setFetchParams(params);
   };
 
   const handlePaginationModelChange = (model: any) => {
@@ -851,7 +850,7 @@ const UserManagement = () => {
       },
     };
 
-    return !queryInProgress ? (
+    return !usersManagementFetching ? (
       <div>
         <Form
           schema={filterFormSchema as any}
@@ -979,7 +978,7 @@ const UserManagement = () => {
             columns={columns}
             rows={users || []}
             getRowId={(row: any) => row.id}
-            loading={queryInProgress}
+            loading={usersManagementFetching}
             paginationMode="server"
             sortingMode="server"
             rowCount={totalMatches}
@@ -1317,7 +1316,10 @@ const UserManagement = () => {
                     value={value}
                     onChange={(newValue) => onChange(newValue)}
                     slotProps={{
-                      textField: { variant: "outlined" },
+                      textField: {
+                        variant: "outlined",
+                        sx: { mt: 1 },
+                      },
                       field: { clearable: true } as any,
                     }}
                     label="Expiration date (UTC)"
@@ -1349,7 +1351,6 @@ const UserManagement = () => {
                   setRemoveExpirationConfirmDialogOpen(true);
                 }}
                 name="removeExpirationDateButton"
-                data-testid="removeExpirationDateButton"
               >
                 Remove Expiration Date
               </Button>

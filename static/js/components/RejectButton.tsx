@@ -5,19 +5,30 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import Tooltip from "@mui/material/Tooltip";
 
-import { useAppDispatch, useAppSelector } from "../types/hooks";
-import * as Actions from "../ducks/rejected_candidates";
+import {
+  useGetRejectedCandidatesQuery,
+  useAddToRejectedMutation,
+  useRemoveFromRejectedMutation,
+} from "../ducks/rejected_candidates";
 
 const ButtonVisible = (objID: string) => {
-  const dispatch = useAppDispatch();
+  const [addToRejected] = useAddToRejectedMutation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    await dispatch(Actions.addToRejected(objID));
+    try {
+      await addToRejected(objID).unwrap();
+    } catch {
+      // error notification handled centrally by the base query
+    }
     setIsSubmitting(false);
   };
   return (
-    <Tooltip title="click to hide candidate from scanning page">
+    <Tooltip
+      placement="right"
+      title="click to hide candidate from scanning page"
+      disableInteractive
+    >
       <IconButton
         onClick={handleSubmit}
         data-testid={`rejected-visible_${objID}`}
@@ -31,16 +42,24 @@ const ButtonVisible = (objID: string) => {
 };
 
 const ButtonInvisible = (objID: string) => {
-  const dispatch = useAppDispatch();
+  const [removeFromRejected] = useRemoveFromRejectedMutation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    await dispatch(Actions.removeFromRejected(objID));
+    try {
+      await removeFromRejected(objID).unwrap();
+    } catch {
+      // error notification handled centrally by the base query
+    }
     setIsSubmitting(false);
   };
 
   return (
-    <Tooltip title="click to make candidate visible on scanning page">
+    <Tooltip
+      placement="right"
+      title="click to make candidate visible on scanning page"
+      disableInteractive
+    >
       <IconButton
         onClick={handleSubmit}
         data-testid={`rejected_invisible_${objID}`}
@@ -58,14 +77,12 @@ interface RejectButtonProps {
 }
 
 const RejectButton = ({ objID }: RejectButtonProps) => {
-  const { rejected_candidates } = useAppSelector(
-    (state) => state["rejected_candidates"],
-  );
+  const { data: rejected_candidates } = useGetRejectedCandidatesQuery();
 
   if (!objID) {
     return null;
   }
-  if (rejected_candidates.includes(objID)) {
+  if ((rejected_candidates ?? []).includes(objID)) {
     return ButtonInvisible(objID);
   }
   return ButtonVisible(objID);

@@ -17,8 +17,10 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Slider from "@mui/material/Slider";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
 
 const useStyles = makeStyles()((theme) => ({
   typography: {
@@ -106,8 +108,9 @@ const NotificationSettingsSelect = ({
 }: NotificationSettingsSelectProps) => {
   const { classes } = useStyles();
   const [open, setOpen] = useState(false);
-  const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const dispatch = useAppDispatch();
+  const { data: profileData } = useGetProfileQuery();
+  const profile = (profileData?.preferences ?? {}) as any;
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const [valueSMS, setValueSMS] = useState<any>();
   const [invertedSMS, setInvertedSMS] = useState(false);
   const [valuePhone, setValuePhone] = useState<any>();
@@ -216,7 +219,7 @@ const NotificationSettingsSelect = ({
         };
       }
 
-      dispatch(profileActions.updateUserPreferences(prefs));
+      updateUserPreferences(prefs);
     }
   };
 
@@ -231,52 +234,53 @@ const NotificationSettingsSelect = ({
       notificationResourceType === "observation_plans"
     ) {
       if (type === "sms") {
+        const reversed = [...valueSMS].reverse();
         const prefs = {
           notifications: {
             [notificationResourceType]: {
               sms: {
-                time_slot: valueSMS,
+                time_slot: reversed,
               },
             },
           },
         };
-        setValueSMS(valueSMS.reverse());
+        setValueSMS(reversed);
         setInvertedSMS(!invertedSMS);
-        dispatch(profileActions.updateUserPreferences(prefs));
+        updateUserPreferences(prefs);
       } else if (type === "phone") {
+        const reversed = [...valuePhone].reverse();
         const prefs = {
           notifications: {
             [notificationResourceType]: {
               phone: {
-                time_slot: valuePhone,
+                time_slot: reversed,
               },
             },
           },
         };
-        setValuePhone(valuePhone.reverse());
+        setValuePhone(reversed);
         setInvertedPhone(!invertedPhone);
-        dispatch(profileActions.updateUserPreferences(prefs));
+        updateUserPreferences(prefs);
       } else if (type === "whatsapp") {
+        const reversed = [...valueWhatsapp].reverse();
         const prefs = {
           notifications: {
             [notificationResourceType]: {
               whatsapp: {
-                time_slot: valueWhatsapp,
+                time_slot: reversed,
               },
             },
           },
         };
-        setValueWhatsapp(valueWhatsapp.reverse());
+        setValueWhatsapp(reversed);
         setInvertedWhatsapp(!invertedWhatsapp);
-        dispatch(profileActions.updateUserPreferences(prefs));
+        updateUserPreferences(prefs);
       }
     }
   };
 
   const handleChecked = (type: string) => {
-    let checked = false;
-    checked = profile?.notifications[notificationResourceType][type]?.active;
-    return checked;
+    return profile?.notifications[notificationResourceType][type]?.active;
   };
 
   const handleSliders = (type: string, slider_type: string) => {
@@ -303,7 +307,7 @@ const NotificationSettingsSelect = ({
     }
   };
 
-  const handleChangeCommitted = () => {
+  const handleChangeCommitted = (type: string, newValue: any) => {
     if (
       notificationResourceType === "gcn_events" ||
       notificationResourceType === "sources" ||
@@ -316,20 +320,14 @@ const NotificationSettingsSelect = ({
       const prefs = {
         notifications: {
           [notificationResourceType]: {
-            sms: {
-              [`time_slot`]: valueSMS,
-            },
-            phone: {
-              [`time_slot`]: valuePhone,
-            },
-            whatsapp: {
-              [`time_slot`]: valueWhatsapp,
+            [type]: {
+              time_slot: newValue,
             },
           },
         },
       };
 
-      dispatch(profileActions.updateUserPreferences(prefs));
+      updateUserPreferences(prefs);
     }
   };
 
@@ -471,7 +469,9 @@ const NotificationSettingsSelect = ({
                         getAriaLabel={() => "time_slot_slider"}
                         value={valueSMS}
                         onChange={handleChange}
-                        onChangeCommitted={handleChangeCommitted}
+                        onChangeCommitted={(_event, newValue) =>
+                          handleChangeCommitted("sms", newValue)
+                        }
                         valueLabelDisplay="on"
                         getAriaValueText={valuetext}
                         min={0}
@@ -482,7 +482,7 @@ const NotificationSettingsSelect = ({
                         name="time_slot_slider_sms"
                       />
                       <Checkbox
-                        checked={invertedSMS === true}
+                        checked={invertedSMS}
                         onChange={() => onChangeInverted("sms")}
                         {...({ label: "Invert" } as any)}
                         name="time_slot_slider_sms"
@@ -572,7 +572,9 @@ const NotificationSettingsSelect = ({
                         getAriaLabel={() => "time_slot_slider"}
                         value={valuePhone}
                         onChange={handleChange}
-                        onChangeCommitted={handleChangeCommitted}
+                        onChangeCommitted={(_event, newValue) =>
+                          handleChangeCommitted("phone", newValue)
+                        }
                         valueLabelDisplay="on"
                         getAriaValueText={valuetext}
                         min={0}
@@ -583,7 +585,7 @@ const NotificationSettingsSelect = ({
                         name="time_slot_slider_phone"
                       />
                       <Checkbox
-                        checked={invertedPhone === true}
+                        checked={invertedPhone}
                         onChange={() => onChangeInverted("phone")}
                         {...({ label: "Invert" } as any)}
                       />
@@ -672,7 +674,9 @@ const NotificationSettingsSelect = ({
                         getAriaLabel={() => "time_slot_slider"}
                         value={valueWhatsapp}
                         onChange={handleChange}
-                        onChangeCommitted={handleChangeCommitted}
+                        onChangeCommitted={(_event, newValue) =>
+                          handleChangeCommitted("whatsapp", newValue)
+                        }
                         valueLabelDisplay="on"
                         getAriaValueText={valuetext}
                         min={0}
@@ -683,7 +687,7 @@ const NotificationSettingsSelect = ({
                         name="time_slot_slider_whatsapp"
                       />
                       <Checkbox
-                        checked={invertedWhatsapp === true}
+                        checked={invertedWhatsapp}
                         onChange={() => onChangeInverted("whatsapp")}
                         {...({ label: "Invert" } as any)}
                       />

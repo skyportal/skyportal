@@ -1,5 +1,6 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+
 import { Link, useParams } from "react-router-dom";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Select from "@mui/material/Select";
@@ -25,7 +26,8 @@ import NewPhotometryForm from "./NewPhotometry";
 
 import GroupShareSelect from "../group/GroupShareSelect";
 import FormValidationError from "../FormValidationError";
-import * as Actions from "../../ducks/source";
+import { useUploadPhotometryMutation } from "../../ducks/source";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 // `font` is a deprecated HTML element not present in JSX.IntrinsicElements.
 const Font: any = "font";
@@ -51,10 +53,12 @@ export const HtmlTooltip = withStyles(Tooltip, (theme) => ({
 }));
 
 const UploadPhotometryForm = () => {
-  const dispatch = useAppDispatch();
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
-  const userGroups = useAppSelector((state) => state.groups.user);
+  const [uploadPhotometry] = useUploadPhotometryMutation();
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const userGroups = useGetGroupsQuery().data?.user ?? [];
   const [showPreview, setShowPreview] = useState(false);
   const [csvData, setCsvData] = useState<any>({});
   const [successMessage, setSuccessMessage] = useState<string | null>("");
@@ -202,14 +206,16 @@ const UploadPhotometryForm = () => {
     if (selectedGroupIds.length >= 0) {
       data.group_ids = selectedGroupIds;
     }
-    const result: any = await dispatch(Actions.uploadPhotometry(data));
-    if (result.status === "success") {
+    try {
+      const result: any = await uploadPhotometry(data).unwrap();
       handleReset();
       const rootURL = `${window.location.protocol}//${window.location.host}`;
-      setSuccessMessage(`Upload successful. Your upload ID is ${result.data.upload_id}
+      setSuccessMessage(`Upload successful. Your upload ID is ${result.upload_id}
                         To delete these data, use a valid token to make a request of the form:
                         curl -X DELETE -i -H "Authorization: token <your_token_id>" \
-                        ${rootURL}/api/photometry/bulk_delete/${result.data.upload_id}`);
+                        ${rootURL}/api/photometry/bulk_delete/${result.upload_id}`);
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 

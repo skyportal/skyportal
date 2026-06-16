@@ -1,84 +1,59 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Multimessenger Astronomical Detectors (MMADetectors).
+ *
+ * RTK Query conversion of the old `FETCH_MMADETECTOR(S)` duck. Endpoints are
+ * injected into the central `skyportalApi`. The single-detector detail query
+ * (`getMMADetector`) provides the `MMADetector` tag; the list query
+ * (`getMMADetectors`) provides the `MMADetectors` tag. Creating a detector is a
+ * mutation that invalidates the `MMADetectors` tag so the list refetches.
+ *
+ * The websocket `REFRESH_MMADETECTOR` / `REFRESH_MMADETECTOR_LIST` messages are
+ * bridged to cache invalidation via `invalidateOnMessage`. The old handler
+ * gated the single-detector refresh on the loaded detector id matching the
+ * pushed one; with RTK Query, invalidating the `MMADetector` tag only refetches
+ * whichever detector detail query is currently mounted.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
+export const mmadetectorApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getMMADetector: build.query<
+      RouteData<"GET /api/mmadetector/{mmadetector_id}">,
+      number | string
+    >({
+      query: (id) => `api/mmadetector/${id}`,
+      providesTags: ["MMADetector"],
+    }),
+    getMMADetectors: build.query<RouteData<"GET /api/mmadetector">, void>({
+      query: () => "api/mmadetector",
+      providesTags: ["MMADetectors"],
+    }),
+    submitMMADetector: build.mutation<
+      RouteData<"POST /api/mmadetector">,
+      Record<string, unknown>
+    >({
+      query: (run) => ({
+        url: "api/mmadetector",
+        method: "POST",
+        body: run,
+      }),
+      invalidatesTags: ["MMADetectors"],
+    }),
+  }),
+});
 
-const REFRESH_MMADETECTOR = "skyportal/REFRESH_MMADETECTOR";
+// Websocket-driven invalidation: the old handler refetched the loaded detector
+// (REFRESH_MMADETECTOR, gated on the loaded id matching the pushed one) or the
+// whole list (REFRESH_MMADETECTOR_LIST).
+invalidateOnMessage("skyportal/REFRESH_MMADETECTOR", () => ["MMADetector"]);
+invalidateOnMessage("skyportal/REFRESH_MMADETECTOR_LIST", () => [
+  "MMADetectors",
+]);
 
-const FETCH_MMADETECTOR = "skyportal/FETCH_MMADETECTOR";
-const FETCH_MMADETECTOR_OK = "skyportal/FETCH_MMADETECTOR_OK";
-
-const SUBMIT_MMADETECTOR = "skyportal/SUBMIT_MMADETECTOR";
-
-const REFRESH_MMADETECTOR_LIST = "skyportal/REFRESH_MMADETECTOR_LIST";
-
-const FETCH_MMADETECTOR_LIST = "skyportal/FETCH_MMADETECTOR_LIST";
-const FETCH_MMADETECTOR_LIST_OK = "skyportal/FETCH_MMADETECTOR_LIST_OK";
-
-export const fetchMMADetector = (id: number | string) =>
-  API.GET(`/api/mmadetector/${id}`, FETCH_MMADETECTOR);
-
-export const submitMMADetector = (run: any) =>
-  API.POST(`/api/mmadetector`, SUBMIT_MMADETECTOR, run);
-
-export const fetchMMADetectors = () =>
-  API.GET("/api/mmadetector", FETCH_MMADETECTOR_LIST);
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, payload: any, dispatch: any, getState: any) => {
-    const { mmadetector } = getState();
-    if (actionType === REFRESH_MMADETECTOR) {
-      const { mmadetector_id } = payload;
-      if (mmadetector_id === mmadetector?.id) {
-        dispatch(fetchMMADetector(mmadetector_id));
-      }
-    }
-    if (actionType === REFRESH_MMADETECTOR_LIST) {
-      dispatch(fetchMMADetectors());
-    }
-  },
-);
-
-interface MMADetectorAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-const reducer_mmadetector = (
-  state: Record<string, any> = {},
-  action: MMADetectorAction,
-) => {
-  switch (action.type) {
-    case FETCH_MMADETECTOR_OK: {
-      const mmadetector = action.data;
-      return {
-        ...state,
-        ...mmadetector,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-const reducer_mmadetectors = (
-  state: Record<string, any> = { mmadetectorList: [] },
-  action: MMADetectorAction,
-) => {
-  switch (action.type) {
-    case FETCH_MMADETECTOR_LIST_OK: {
-      const mmadetectorList = action.data;
-      return {
-        ...state,
-        mmadetectorList,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("mmadetector", reducer_mmadetector);
-store.injectReducer("mmadetectors", reducer_mmadetectors);
+export const {
+  useGetMMADetectorQuery,
+  useGetMMADetectorsQuery,
+  useSubmitMMADetectorMutation,
+} = mmadetectorApi;

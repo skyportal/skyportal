@@ -6,11 +6,16 @@ on:
       - main
       - test-docker
   pull_request:
-    types: [labeled]
+    # Run on PRs that touch docker-related files.
+    paths:
+      - Dockerfile
+      - docker.yaml
+      - docker-compose.yaml
+      - .dockerignore
+      - .github/workflows/test_docker_build.yaml
 
 jobs:
   test:
-    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'docker')
     name: Test Docker build
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -21,14 +26,17 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
+          # `ADD . /skyportal` bakes the skyportal-data submodule into the
+          # image, so its LFS payload (SFD dust maps) must be materialized here.
+          lfs: true
 
       - name: Build Docker image
         run: |
           docker compose build
 
       - name: Start containers
-        run: |
-          docker compose up -d
+        # compose orders this: db (healthcheck) -> db-init (schema) -> web.
+        run: docker compose up -d
 
       - name: Wait for web service to be healthy
         # The old `sleep 30 + ps grep` only proved the container hadn't crashed,

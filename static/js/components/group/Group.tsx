@@ -21,10 +21,10 @@ import Button from "../Button";
 import GroupUsers from "./GroupUsers";
 import GroupFiltersStreams from "./GroupFiltersStreams";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as groupActions from "../../ducks/group";
-import * as groupsActions from "../../ducks/groups";
-import * as streamsActions from "../../ducks/streams";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetGroupQuery } from "../../ducks/group";
+import { useDeleteGroupMutation } from "../../ducks/groups";
+import { useGetStreamsQuery } from "../../ducks/streams";
 
 const useStyles = makeStyles()((theme) => ({
   padding_bottom: {
@@ -68,7 +68,7 @@ const useStyles = makeStyles()((theme) => ({
 
 const Group = () => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [deleteGroup] = useDeleteGroupMutation();
   const theme = useTheme();
   const navigate = useNavigate();
 
@@ -91,39 +91,33 @@ const Group = () => {
 
   const { id } = useParams();
 
-  const group = useAppSelector((state) => (state as any).group);
-  const currentUser = useAppSelector((state) => (state as any).profile);
-  const [dataFetched, setDataFetched] = useState(false);
+  const { data: group, error: groupError } = useGetGroupQuery(id as string, {
+    skip: !id,
+  });
+  const { data: currentUser } = useGetProfileQuery();
+  const { error: streamsError } = useGetStreamsQuery();
 
   useEffect(() => {
-    const fetchGroup = async () => {
-      const result: any = await dispatch(groupActions.fetchGroup(id as string));
-      if (result.status === "error") {
-        setGroupLoadError(result.message);
-      }
-    };
-    if (!dataFetched) {
-      fetchGroup();
-      setDataFetched(true);
+    if (groupError) {
+      setGroupLoadError((groupError as any)?.error ?? "Failed to load group");
     }
-  }, [id, group, dataFetched, dispatch]);
+  }, [groupError]);
 
   useEffect(() => {
-    const fetchStreams = async () => {
-      const data: any = await dispatch(streamsActions.fetchStreams());
-      if (data.status === "error") {
-        setGroupLoadError(data.message);
-      }
-    };
-    fetchStreams();
-  }, [currentUser, dispatch]);
+    if (streamsError) {
+      setGroupLoadError(
+        (streamsError as any)?.error ?? "Failed to load streams",
+      );
+    }
+  }, [streamsError]);
 
   const handleDeleteGroup = async () => {
-    const result: any = await dispatch(groupsActions.deleteGroup(group.id));
-    if (result.status === "success") {
-      dispatch(groupsActions.fetchGroups(true));
+    try {
+      await deleteGroup(group?.["id"] as number).unwrap();
       setConfirmDeleteOpen(false);
       navigate("/groups");
+    } catch {
+      // error notification handled by the API layer
     }
   };
 
@@ -132,7 +126,7 @@ const Group = () => {
   }
 
   // renders
-  if (!group) {
+  if (group == null) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -141,11 +135,11 @@ const Group = () => {
   }
 
   const isAdmin = (aUser: any) => {
-    const currentGroupUser = group?.users?.filter(
+    const currentGroupUser = group?.["users"]?.filter(
       (group_user: any) => group_user.id === aUser.id,
     )[0];
     return (
-      (currentGroupUser && currentGroupUser.admin) ||
+      (currentGroupUser && (currentGroupUser as any)?.["admin"]) ||
       aUser.permissions?.includes("System admin") ||
       aUser.permissions?.includes("Manage groups")
     );
@@ -154,11 +148,11 @@ const Group = () => {
   return (
     <div>
       <Typography variant="h5" style={{ paddingBottom: 10 }}>
-        Group:&nbsp;&nbsp;{group.name}
-        {group.nickname && ` (${group.nickname})`}
+        Group:&nbsp;&nbsp;{group["name"]}
+        {group["nickname"] && ` (${group["nickname"]})`}
       </Typography>
       <Typography variant="h6" data-testid="description">
-        {group.description && `${group.description}`}
+        {group["description"] && `${group["description"]}`}
       </Typography>
 
       <Accordion
@@ -174,7 +168,7 @@ const Group = () => {
           <Typography className={classes.heading}>Sources</Typography>
         </AccordionSummary>
         <AccordionDetails className={classes.accordion_details}>
-          <Link to={`/group_sources/${group.id}`} key={group.id}>
+          <Link to={`/group_sources/${group["id"]}`} key={group["id"]}>
             <Button secondary>Group sources</Button>
           </Link>
         </AccordionDetails>
@@ -182,7 +176,7 @@ const Group = () => {
       <br />
       <GroupUsers
         group={group}
-        currentUser={currentUser}
+        currentUser={currentUser as any}
         classes={classes}
         theme={theme}
         isAdmin={isAdmin}

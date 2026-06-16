@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -5,12 +6,12 @@ import { makeStyles } from "tss-react/mui";
 import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import AddGcnAlias from "./AddGcnAlias";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
-import * as gcnEventActions from "../../ducks/gcnEvent";
+import { useDeleteGcnAliasMutation } from "../../ducks/gcnEvent";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -56,8 +57,9 @@ const GcnAliases = ({ gcnEvent, show_title = false }: GcnAliasesProps) => {
   const { classes: styles } = useStyles();
 
   const dispatch = useAppDispatch();
+  const [deleteGcnAlias] = useDeleteGcnAliasMutation();
 
-  const userProfile = useAppSelector((state) => state.profile);
+  const { data: userProfile } = useGetProfileQuery();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [aliasToDelete, setAliasToDelete] = useState<string | null>(null);
@@ -71,21 +73,23 @@ const GcnAliases = ({ gcnEvent, show_title = false }: GcnAliasesProps) => {
   };
 
   const deleteAlias = () => {
-    dispatch(
-      gcnEventActions.deleteGcnAlias(gcnEvent.dateobs, {
-        alias: aliasToDelete,
-      }),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    deleteGcnAlias({
+      dateobs: gcnEvent.dateobs as string,
+      params: { alias: aliasToDelete },
+    })
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("GCN Event Alias deleted"));
         closeDialog();
-      }
-    });
+      })
+      .catch(() => {
+        // error notification handled by baseQuery
+      });
   };
 
   const permission =
-    userProfile.permissions.includes("System admin") ||
-    userProfile.permissions.includes("Manage GCNs");
+    userProfile?.permissions.includes("System admin") ||
+    userProfile?.permissions.includes("Manage GCNs");
 
   return (
     <div className={styles.root}>

@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
 import { useTheme } from "@mui/material/styles";
@@ -22,14 +22,9 @@ import Paper from "@mui/material/Paper";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 import { showNotification } from "baselayer/components/Notifications";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGridBase from "../StyledDataGrid";
-import QuickFilter from "../QuickFilter";
+import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
 
 import FormValidationError from "../FormValidationError";
 import CommentList from "../comment/CommentList";
@@ -38,10 +33,13 @@ import SyntheticPhotometryForm from "../photometry/SyntheticPhotometryForm";
 
 import withRouter from "../withRouter";
 
-import * as photometryActions from "../../ducks/photometry";
-import * as spectraActions from "../../ducks/spectra";
-import * as sourceActions from "../../ducks/source";
-import { deleteSpectrum } from "../../ducks/spectra";
+import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
+import {
+  useFetchSourceSpectraQuery,
+  useDeleteSpectrumMutation,
+} from "../../ducks/spectra";
+import { useShareDataMutation } from "../../ducks/source";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useSourceStyles } from "./Source";
 
 import SpectraPlot from "../plot/SpectraPlot";
@@ -53,12 +51,7 @@ const StyledDataGrid: any = StyledDataGridBase;
 // Toolbar for the Share-data spectrum grid: exposes a quick-filter search box
 // (wrapped with a stable test id) so tests can filter rows by typing a value.
 const SpectrumGridToolbar = () => (
-  <GridToolbarContainer>
-    <GridToolbarColumnsButton />
-    <div data-testid="spectrum-quick-filter">
-      <QuickFilter />
-    </div>
-  </GridToolbarContainer>
+  <DataGridToolbar quickFilterTestId="spectrum-quick-filter" />
 );
 
 interface DeleteSpectrumButtonProps {
@@ -79,6 +72,7 @@ const DeleteSpectrumButton = ({
   dispatch,
 }: DeleteSpectrumButtonProps) => {
   const [open, setOpen] = useState(false);
+  const [deleteSpectrum] = useDeleteSpectrumMutation();
   return (
     <div>
       <Dialog
@@ -103,9 +97,11 @@ const DeleteSpectrumButton = ({
             <Button
               onClick={async () => {
                 setOpen(false);
-                const result = await dispatch(deleteSpectrum(specid));
-                if (result.status === "success") {
+                try {
+                  await deleteSpectrum(specid).unwrap();
                   dispatch(showNotification("Spectrum deleted."));
+                } catch {
+                  // error notification handled by the baseQuery
                 }
               }}
               data-testid="yes-delete"
@@ -226,7 +222,7 @@ interface SpectrumRowProps {
 
 const SpectrumRow = ({ spectrumID, route, annotations }: SpectrumRowProps) => {
   const { classes: styles } = useSourceStyles() as { classes: any };
-  const spectra = useAppSelector((state) => state["spectra"])[route.id] || [];
+  const { data: spectra = [] } = useFetchSourceSpectraQuery({ id: route.id });
 
   return (
     <div style={{ width: "100%" }}>
@@ -291,14 +287,15 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
   const darkTheme = theme.palette.mode === "dark";
 
   const dispatch = useAppDispatch();
+  const [shareData] = useShareDataMutation();
   const [selectedPhotRows, setSelectedPhotRows] = useState<any[]>([]);
   const [selectedSpecRows, setSelectedSpecRows] = useState<any[]>([]);
   const [openedSpecRows, setOpenedSpecRows] = useState<any[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { all: groups } = useAppSelector((state) => state.groups);
-  const photometry = useAppSelector((state) => state["photometry"]);
-  const spectra = useAppSelector((state) => state["spectra"]);
+  const groups = useGetGroupsQuery().data?.all ?? null;
+  const { data: photometry } = useFetchSourcePhotometryQuery({ id: route.id });
+  const { data: spectra } = useFetchSourceSpectraQuery({ id: route.id });
 
   const {
     handleSubmit,
@@ -308,11 +305,6 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
 
     formState: { errors },
   } = useForm();
-
-  useEffect(() => {
-    dispatch(photometryActions.fetchSourcePhotometry(route.id));
-    dispatch(spectraActions.fetchSourceSpectra(route.id));
-  }, [route.id, dispatch]);
 
   const validateGroups = () => {
     const formState = getValues();
@@ -326,17 +318,19 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
       photometryIDs: selectedPhotRows,
       spectrumIDs: selectedSpecRows,
     };
-    const result: any = await dispatch(sourceActions.shareData(data));
-    if (result.status === "success") {
+    try {
+      await shareData(data).unwrap();
       dispatch(showNotification("Data successfully shared"));
       reset({ groups: [] });
       setSelectedPhotRows([]);
       setSelectedSpecRows([]);
+    } catch {
+      // error notification handled by the baseQuery
     }
     setIsSubmitting(false);
   };
 
-  if ((!photometry[route.id] && !spectra[route.id]) || !groups) {
+  if ((!photometry && !spectra) || !groups) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -344,8 +338,8 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
     );
   }
 
-  const photRows = photometry[route.id]
-    ? photometry[route.id].map((phot: any) =>
+  const photRows = photometry
+    ? photometry.map((phot: any) =>
         createPhotRow(
           phot.id,
           phot.mjd,
@@ -359,7 +353,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
       )
     : [];
 
-  const sourceSpectra = spectra[route.id];
+  const sourceSpectra = spectra ?? [];
   const specRows = sourceSpectra
     ? sourceSpectra.map((spec: any) =>
         createSpecRow(
@@ -526,8 +520,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
               spectrumID={spec.id}
               route={route}
               annotations={
-                spectra[route.id].find((s: any) => s.id === spec.id)
-                  ?.annotations || []
+                spectra?.find((s: any) => s.id === spec.id)?.annotations || []
               }
             />
           );
@@ -698,7 +691,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
       </div>
       <br />
       <div>
-        {!!photometry[route.id] && (
+        {!!photometry?.length && (
           <div>
             <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
               Photometry
@@ -729,7 +722,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
         )}
 
         <br />
-        {!!spectra[route.id] && (
+        {!!spectra && (
           <div data-testid="spectrum-div">
             <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
               Spectra

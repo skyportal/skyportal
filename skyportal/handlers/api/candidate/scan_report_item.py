@@ -1,10 +1,11 @@
 from astropy.time import Time
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
 from .... import facility_apis
-from ....models import Obj, Source
+from ....models import FollowupRequest, Obj, Source
 from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.parse import safe_round
 from ...base import BaseHandler
@@ -12,7 +13,7 @@ from ...base import BaseHandler
 log = make_log("api/scan_report_item")
 
 
-def create_scan_report_item(session, report, sources_by_obj):
+async def create_scan_report_item(session, report, sources_by_obj):
     """
     Parameters
     ----------
@@ -30,8 +31,16 @@ def create_scan_report_item(session, report, sources_by_obj):
     if not obj_id or not source_ids:
         return None
 
-    obj = session.scalar(
-        Obj.select(session.user_or_token, mode="read").where(Obj.id == obj_id)
+    obj = await session.scalar(
+        Obj.select(session.user_or_token, mode="read")
+        .options(
+            selectinload(Obj.photstats),
+            selectinload(Obj.classifications),
+            selectinload(Obj.followup_requests).selectinload(
+                FollowupRequest.instrument
+            ),
+        )
+        .where(Obj.id == obj_id)
     )
 
     if obj.photstats:
@@ -46,11 +55,15 @@ def create_scan_report_item(session, report, sources_by_obj):
         current_age = None
         abs_mag = None
 
-    sources = session.scalars(
-        Source.select(session.user_or_token, mode="read").where(
-            Source.obj_id == obj_id, Source.id.in_(source_ids)
+    sources_result = await session.scalars(
+        Source.select(session.user_or_token, mode="read")
+        .options(
+            selectinload(Source.saved_by),
+            selectinload(Source.group),
         )
-    ).all()
+        .where(Source.obj_id == obj_id, Source.id.in_(source_ids))
+    )
+    sources = sources_result.all()
 
     classifications = None
     if obj.classifications:
@@ -121,7 +134,7 @@ def create_scan_report_item(session, report, sources_by_obj):
 
 class ScanReportItemHandler(BaseHandler):
     @auth_or_token
-    def patch(self, report_id: int, item_id: int):
+    async def patch(self, report_id: int, item_id: int):
         """
         ---
         summary: Update an item from a scanning report
@@ -152,7 +165,13 @@ class ScanReportItemHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/ScanReportItem'
           400:
             content:
               application/json:
@@ -165,8 +184,8 @@ class ScanReportItemHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error(f"Invalid report_id/item_id: {report_id}/{item_id}")
 
-        with self.Session() as session:
-            item = session.scalar(
+        async with self.AsyncSession() as session:
+            item = await session.scalar(
                 ScanReportItem.select(session.user_or_token, mode="read").where(
                     ScanReportItem.id == item_id,
                     ScanReportItem.scan_report_id == report_id,
@@ -180,7 +199,7 @@ class ScanReportItemHandler(BaseHandler):
                 "comment": data.get("comment"),
             }
 
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SCAN_REPORT_ITEM",
@@ -189,7 +208,7 @@ class ScanReportItemHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    def get(self, report_id: int, _):
+    async def get(self, report_id: int, _):
         """
         ---
         summary: Retrieve all items in a scanning report
@@ -206,17 +225,20 @@ class ScanReportItemHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: ArrayOfCandidateScanReport
+                schema: ArrayOfScanReportItems
           400:
             content:
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            items = session.scalars(
+        try:
+            report_id = int(report_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid report_id: {report_id}")
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
                 ScanReportItem.select(session.user_or_token, mode="read").where(
                     ScanReportItem.scan_report_id == report_id
                 )
-            ).all()
-
-            return self.success(data=items)
+            )
+            return self.success(data=result.all())

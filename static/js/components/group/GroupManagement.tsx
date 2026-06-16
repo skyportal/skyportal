@@ -1,8 +1,8 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 import GroupList from "./GroupList";
-import { useAppSelector } from "../../types/hooks";
 
 const useStyles = makeStyles()(() => ({
   // Hide drag handle icon since this isn't the home page
@@ -23,8 +23,8 @@ const useStyles = makeStyles()(() => ({
 
 const GroupManagement = () => {
   const { classes } = useStyles();
-  const allGroups = useAppSelector((state) => state.groups.all)?.filter(
-    (group) => !group.single_user_group,
+  const allGroups = (useGetGroupsQuery().data?.all ?? []).filter(
+    (group) => !group["single_user_group"],
   );
 
   return (

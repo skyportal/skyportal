@@ -1,47 +1,48 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Shifts.
+ *
+ * RTK Query conversion of the old `FETCH_SHIFT(S)` duck. Endpoints are injected
+ * into the central `skyportalApi`. Shift list/detail queries convert the
+ * backend's naive UTC date strings to `Date` objects (the old reducer did this
+ * via `shiftStringDateToDate`). Mutations (create/update/delete a shift, add /
+ * update / remove shift users, and comment CRUD) invalidate the `Shift` tag so
+ * active shift queries refetch.
+ *
+ * The websocket `REFRESH_SHIFT` / `REFRESH_SHIFTS` messages are bridged to cache
+ * invalidation via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+interface ShiftSummaryArg {
+  shiftID?: number | string | undefined;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
+}
 
-const FETCH_SHIFT = "skyportal/FETCH_SHIFT";
-const FETCH_SHIFT_OK = "skyportal/FETCH_SHIFT_OK";
+interface ShiftUserArg {
+  userID: number | string;
+  shiftID: number | string;
+  admin?: boolean | undefined;
+  needs_replacement?: boolean | undefined;
+}
 
-const REFRESH_SHIFT = "skyportal/REFRESH_SHIFT";
+interface CommentAttachment {
+  commentId: number | string;
+  text: string;
+  attachment: string;
+  attachment_name: string;
+}
 
-const SUBMIT_SHIFT = "skyportal/SUBMIT_SHIFT";
+interface CommentAttachmentArg {
+  shiftID: number | string;
+  commentID: number | string;
+}
 
-const UPDATE_SHIFT = "skyportal/UPDATE_SHIFT";
-
-const DELETE_SHIFT = "skyportal/DELETE_SHIFT";
-
-const SET_CURRENT_SHIFT = "skyportal/SET_CURRENT_SHIFT";
-
-const ADD_COMMENT_ON_SHIFT = "skyportal/ADD_COMMENT_ON_SHIFT";
-const DELETE_COMMENT_ON_SHIFT = "skyportal/DELETE_COMMENT_ON_SHIFT";
-const EDIT_COMMENT_ON_SHIFT = "skyportal/EDIT_COMMENT_ON_SHIFT";
-
-const GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW =
-  "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW";
-const GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK =
-  "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK";
-
-const FETCH_SHIFT_SUMMARY = "skyportal/FETCH_SHIFT_SUMMARY";
-
-const FETCH_SHIFT_SUMMARY_OK = "skyportal/FETCH_SHIFT_SUMMARY_OK";
-
-const FETCH_SHIFTS = "skyportal/FETCH_SHIFTS";
-const FETCH_SHIFTS_OK = "skyportal/FETCH_SHIFTS_OK";
-
-const REFRESH_SHIFTS = "skyportal/REFRESH_SHIFTS";
-
-const ADD_SHIFT_USER = "skyportal/ADD_SHIFT_USER";
-
-const UPDATE_SHIFT_USER = "skyportal/UPDATE_SHIFT_USER";
-
-const DELETE_SHIFT_USER = "skyportal/DELETE_SHIFT_USER";
-
-function shiftStringDateToDate(shift: any) {
+function shiftStringDateToDate<
+  T extends { start_date?: string | Date; end_date?: string | Date },
+>(shift: T): T {
   return {
     ...shift,
     start_date: new Date(`${shift.start_date}Z`),
@@ -49,256 +50,192 @@ function shiftStringDateToDate(shift: any) {
   };
 }
 
-export const fetchShift = (id: number | string) =>
-  API.GET(`/api/shifts/${id}`, FETCH_SHIFT);
-
-export const submitShift = (run: any) =>
-  API.POST(`/api/shifts`, SUBMIT_SHIFT, run);
-
-export function deleteShift(shiftID: number | string) {
-  return API.DELETE(`/api/shifts/${shiftID}`, DELETE_SHIFT);
-}
-
-export const updateShift = (id: number | string, payload: any) =>
-  API.PATCH(`/api/shifts/${id}`, UPDATE_SHIFT, payload);
-
-export const fetchShifts = (params = {}) =>
-  API.GET("/api/shifts", FETCH_SHIFTS, params);
-
-export function addShiftUser({ userID, shiftID, admin }: any) {
-  return API.POST(`/api/shifts/${shiftID}/users`, ADD_SHIFT_USER, {
-    userID,
-    shiftID,
-    admin,
+function fileReaderPromise(
+  file: File,
+): Promise<{ body: string | ArrayBuffer | null; name: string }> {
+  return new Promise((resolve) => {
+    const filereader = new FileReader();
+    filereader.readAsDataURL(file);
+    filereader.onloadend = () =>
+      resolve({ body: filereader.result, name: file.name });
   });
 }
 
-export const updateShiftUser = ({
-  shiftID,
-  userID,
-  admin,
-  needs_replacement,
-}: any) =>
-  API.PATCH(`/api/shifts/${shiftID}/users/${userID}`, UPDATE_SHIFT_USER, {
-    admin,
-    needs_replacement,
-  });
+export const shiftsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getShift: build.query<
+      RouteData<"GET /api/shifts/{shift_id}">,
+      number | string
+    >({
+      query: (id) => `api/shifts/${id}`,
+      transformResponse: (data: RouteData<"GET /api/shifts/{shift_id}">) =>
+        shiftStringDateToDate(data),
+      providesTags: ["Shift"],
+    }),
+    getShifts: build.query<
+      RouteData<"GET /api/shifts">,
+      Record<string, unknown> | void
+    >({
+      query: (params) => {
+        const search = new URLSearchParams(
+          (params as Record<string, string>) ?? {},
+        ).toString();
+        return search ? `api/shifts?${search}` : "api/shifts";
+      },
+      transformResponse: (data: RouteData<"GET /api/shifts">) =>
+        (data ?? []).map((shift) => shiftStringDateToDate(shift)),
+      providesTags: ["Shift"],
+    }),
+    getShiftsSummary: build.query<any, ShiftSummaryArg>({
+      query: ({ shiftID, startDate, endDate }) => {
+        if (startDate && endDate) {
+          const search = new URLSearchParams({
+            startDate,
+            endDate,
+          }).toString();
+          return `api/shifts/summary?${search}`;
+        }
+        if (shiftID) {
+          return `api/shifts/summary/${shiftID}`;
+        }
+        return "api/shifts/summary";
+      },
+      providesTags: ["Shift"],
+    }),
+    getCommentOnShiftAttachment: build.query<
+      CommentAttachment,
+      CommentAttachmentArg
+    >({
+      query: ({ shiftID, commentID }) =>
+        `api/shift/${shiftID}/comments/${commentID}/attachment?download=false&preview=false`,
+    }),
+    submitShift: build.mutation<RouteData<"POST /api/shifts">, any>({
+      query: (run) => ({
+        url: "api/shifts",
+        method: "POST",
+        body: run,
+      }),
+      invalidatesTags: ["Shift"],
+    }),
+    updateShift: build.mutation<
+      RouteData<"PATCH /api/shifts/{shift_id}">,
+      { id: number | string; payload: any }
+    >({
+      query: ({ id, payload }) => ({
+        url: `api/shifts/${id}`,
+        method: "PATCH",
+        body: payload,
+      }),
+      invalidatesTags: ["Shift"],
+    }),
+    deleteShift: build.mutation<unknown, number | string>({
+      query: (shiftID) => ({
+        url: `api/shifts/${shiftID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Shift"],
+    }),
+    addShiftUser: build.mutation<
+      RouteData<"POST /api/shifts/{shift_id}/users">,
+      ShiftUserArg
+    >({
+      query: ({ userID, shiftID, admin }) => ({
+        url: `api/shifts/${shiftID}/users`,
+        method: "POST",
+        body: { userID, shiftID, admin },
+      }),
+      invalidatesTags: ["Shift"],
+    }),
+    updateShiftUser: build.mutation<
+      RouteData<"PATCH /api/shifts/{shift_id}/users/{user_id}">,
+      ShiftUserArg
+    >({
+      query: ({ shiftID, userID, admin, needs_replacement }) => ({
+        url: `api/shifts/${shiftID}/users/${userID}`,
+        method: "PATCH",
+        body: { admin, needs_replacement },
+      }),
+      invalidatesTags: ["Shift"],
+    }),
+    deleteShiftUser: build.mutation<unknown, ShiftUserArg>({
+      query: ({ userID, shiftID }) => ({
+        url: `api/shifts/${shiftID}/users/${userID}`,
+        method: "DELETE",
+        body: { userID, shiftID },
+      }),
+      invalidatesTags: ["Shift"],
+    }),
+    addCommentOnShift: build.mutation<unknown, any>({
+      queryFn: async (formData, _api, _extra, baseQuery) => {
+        const body = { ...formData };
+        if (body.attachment) {
+          body.attachment = await fileReaderPromise(body.attachment);
+        }
+        const result = await baseQuery({
+          url: `api/shift/${body.shiftID}/comments`,
+          method: "POST",
+          body,
+        });
+        if (result.error) {
+          return { error: result.error };
+        }
+        return { data: result.data };
+      },
+      invalidatesTags: ["Shift"],
+    }),
+    editCommentOnShift: build.mutation<
+      unknown,
+      { commentID: number | string; formData: any }
+    >({
+      queryFn: async ({ commentID, formData }, _api, _extra, baseQuery) => {
+        const body = { ...formData };
+        if (body.attachment) {
+          body.attachment = await fileReaderPromise(body.attachment);
+        }
+        const result = await baseQuery({
+          url: `api/shift/${body.shift_id}/comments/${commentID}`,
+          method: "PUT",
+          body,
+        });
+        if (result.error) {
+          return { error: result.error };
+        }
+        return { data: result.data };
+      },
+      invalidatesTags: ["Shift"],
+    }),
+    deleteCommentOnShift: build.mutation<
+      unknown,
+      { shiftID: number | string; commentID: number | string }
+    >({
+      query: ({ shiftID, commentID }) => ({
+        url: `api/shift/${shiftID}/comments/${commentID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Shift"],
+    }),
+  }),
+});
 
-export function deleteShiftUser({ userID, shiftID }: any) {
-  return API.DELETE(
-    `/api/shifts/${shiftID}/users/${userID}`,
-    DELETE_SHIFT_USER,
-    { userID, shiftID },
-  );
-}
+// Websocket-driven invalidation: the old handler refetched the affected shift
+// (REFRESH_SHIFT) or the whole list (REFRESH_SHIFTS). Both map to the `Shift`
+// tag, so any active shift query refetches.
+invalidateOnMessage("skyportal/REFRESH_SHIFT", () => ["Shift"]);
+invalidateOnMessage("skyportal/REFRESH_SHIFTS", () => ["Shift"]);
 
-export function addCommentOnShift(formData: any) {
-  function fileReaderPromise(file: any) {
-    return new Promise((resolve) => {
-      const filereader = new FileReader();
-      filereader.readAsDataURL(file);
-      filereader.onloadend = () =>
-        resolve({ body: filereader.result, name: file.name });
-    });
-  }
-  if (formData.attachment) {
-    return (dispatch: AppDispatch) => {
-      fileReaderPromise(formData.attachment).then((fileData) => {
-        formData.attachment = fileData;
-
-        dispatch(
-          API.POST(
-            `/api/shift/${formData.shiftID}/comments`,
-            ADD_COMMENT_ON_SHIFT,
-            formData,
-          ),
-        );
-      });
-    };
-  }
-  return API.POST(
-    `/api/shift/${formData.shiftID}/comments`,
-    ADD_COMMENT_ON_SHIFT,
-    formData,
-  );
-}
-
-export function editCommentOnShift(commentID: number | string, formData: any) {
-  function fileReaderPromise(file: any) {
-    return new Promise((resolve) => {
-      const filereader = new FileReader();
-      filereader.readAsDataURL(file);
-      filereader.onloadend = () =>
-        resolve({ body: filereader.result, name: file.name });
-    });
-  }
-  if (formData.attachment) {
-    return (dispatch: AppDispatch) => {
-      fileReaderPromise(formData.attachment).then((fileData) => {
-        formData.attachment = fileData;
-
-        dispatch(
-          API.PUT(
-            `/api/shift/${formData.shift_id}/comments/${commentID}`,
-            EDIT_COMMENT_ON_SHIFT,
-            formData,
-          ),
-        );
-      });
-    };
-  }
-  return API.PUT(
-    `/api/shift/${formData.shift_id}/comments/${commentID}`,
-    EDIT_COMMENT_ON_SHIFT,
-    formData,
-  );
-}
-
-export function deleteCommentOnShift(
-  shiftID: number | string,
-  commentID: number | string,
-) {
-  return API.DELETE(
-    `/api/shift/${shiftID}/comments/${commentID}`,
-    DELETE_COMMENT_ON_SHIFT,
-  );
-}
-
-export function getCommentOnShiftTextAttachment(
-  shiftID: number | string,
-  commentID: number | string,
-) {
-  return API.GET(
-    `/api/shift/${shiftID}/comments/${commentID}/attachment?download=false&preview=false`,
-    GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW,
-  );
-}
-
-export function getShiftsSummary({ shiftID, startDate, endDate }: any) {
-  let data: any = null;
-  let url = `/api/shifts/summary`;
-  if (startDate && endDate) {
-    data = { startDate, endDate };
-  } else if (shiftID) {
-    url = `/api/shifts/summary/${shiftID}`;
-  }
-  return API.GET(url, FETCH_SHIFT_SUMMARY, data);
-}
-
-export const setCurrentShift =
-  (shiftId: number | string) => async (dispatch: AppDispatch) => {
-    if (!shiftId) {
-      dispatch({
-        type: SET_CURRENT_SHIFT,
-        data: {},
-      });
-      return;
-    }
-    const response: any = await dispatch(fetchShift(shiftId));
-    if (response?.status === "success") {
-      dispatch({
-        type: SET_CURRENT_SHIFT,
-        data: response.data,
-      });
-    }
-  };
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
-    if (actionType === REFRESH_SHIFT) {
-      dispatch(fetchShift(payload?.shift_id));
-    }
-    if (actionType === REFRESH_SHIFTS) {
-      dispatch(fetchShifts());
-    }
-  },
-);
-
-type ShiftsState = Record<string, any>;
-
-interface ShiftsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-const reducer = (
-  state: ShiftsState = { currentShift: {}, shiftsSummary: [], shiftList: [] },
-  action: ShiftsAction,
-): ShiftsState => {
-  switch (action.type) {
-    case SET_CURRENT_SHIFT: {
-      return {
-        ...state,
-        currentShift: action.data,
-      };
-    }
-    case FETCH_SHIFT_OK: {
-      if (!action.data) return state;
-      const newState = { ...state };
-      const shift = action.data;
-
-      // Update or add the shift in shiftList
-      const formatedShift = shiftStringDateToDate(action.data);
-      newState["shiftList"] = state["shiftList"].some(
-        (s: any) => s.id === formatedShift.id,
-      )
-        ? state["shiftList"].map((s: any) =>
-            s.id === formatedShift.id ? formatedShift : s,
-          )
-        : [...state["shiftList"], formatedShift];
-
-      // Sync currentShift with the fetched shift
-      if (shift.id === state["currentShift"]?.id) {
-        newState["currentShift"] = shift;
-      }
-      return {
-        ...newState,
-      };
-    }
-    case FETCH_SHIFTS_OK: {
-      const newState: Record<string, any> = {
-        ...state,
-        shiftList: action.data.map((shift: any) =>
-          shiftStringDateToDate(shift),
-        ),
-      };
-      // reset currentShift if it is not in the new shiftList
-      if (
-        state["currentShift"]?.id &&
-        !newState["shiftList"].some(
-          (s: any) => s.id === state["currentShift"].id,
-        )
-      ) {
-        newState["currentShift"] = {};
-      }
-      return {
-        ...newState,
-      };
-    }
-    case GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK: {
-      const { commentId, text, attachment, attachment_name } = action.data;
-      return {
-        ...state,
-        commentAttachment: {
-          commentId,
-          text,
-          attachment,
-          attachment_name,
-        },
-      };
-    }
-    case FETCH_SHIFT_SUMMARY_OK: {
-      const shiftsSummary = action.data;
-      return {
-        ...state,
-        shiftsSummary,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("shifts", reducer);
+export const {
+  useGetShiftQuery,
+  useGetShiftsQuery,
+  useGetShiftsSummaryQuery,
+  useGetCommentOnShiftAttachmentQuery,
+  useLazyGetCommentOnShiftAttachmentQuery,
+  useSubmitShiftMutation,
+  useUpdateShiftMutation,
+  useDeleteShiftMutation,
+  useAddShiftUserMutation,
+  useUpdateShiftUserMutation,
+  useDeleteShiftUserMutation,
+  useAddCommentOnShiftMutation,
+  useEditCommentOnShiftMutation,
+  useDeleteCommentOnShiftMutation,
+} = shiftsApi;

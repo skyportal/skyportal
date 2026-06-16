@@ -30,6 +30,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as Actions from "../../ducks/sidebar";
+import { useGetProfileQuery } from "../../ducks/profile";
 
 import HeaderContent from "./HeaderContent";
 import hydrate from "../../actions";
@@ -144,7 +145,7 @@ const SidebarAndHeader = () => {
   const { classes } = useStyles() as any;
   const dispatch = useAppDispatch();
   const open = useAppSelector((state) => (state as any).sidebar.open);
-  const currentUser = useAppSelector((state) => (state as any).profile);
+  const { data: currentUser } = useGetProfileQuery();
   const isSmall = useMediaQuery((theme: any) => theme.breakpoints.down("md"));
   {% for group in app.sidebar -%}
     {% if not group.name.startswith('main') %}
@@ -197,7 +198,7 @@ const SidebarAndHeader = () => {
   const hydrateIfDashboardClicked = (url: string) => {
     clearTimeout(timerRef.current);
     if (url === "/") {
-      dispatch(hydrate(true));
+      dispatch(hydrate());
     }
   };
 
@@ -206,7 +207,7 @@ const SidebarAndHeader = () => {
     {% if item.permissions %}
       {(
       {% for permission in item.permissions %}
-        currentUser.permissions?.includes("{{ permission }}") ||
+        currentUser?.permissions?.includes("{{ permission }}") ||
       {% endfor %}
       false) && (
     {% endif %}
@@ -254,7 +255,7 @@ const SidebarAndHeader = () => {
     {% if group.permissions %}
       {(
       {% for permission in group.permissions %}
-        currentUser.permissions?.includes("{{ permission }}") ||
+        currentUser?.permissions?.includes("{{ permission }}") ||
       {% endfor %}
       false) && (
     {% endif %}

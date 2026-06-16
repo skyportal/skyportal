@@ -1,83 +1,54 @@
-import React, { useEffect, useState } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import React, { useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import {
+  useGetInstrumentsQuery,
+  useGetInstrumentFormsQuery,
+} from "../../ducks/instruments";
+import { useGetDefaultFollowupRequestsQuery } from "../../ducks/default_followup_requests";
 import FollowupRequestListsBase from "./FollowupRequestLists";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
 import ProgressIndicator from "../ProgressIndicators";
 import DefaultFollowupRequestList from "./DefaultFollowupRequestList";
+import Paper from "../Paper";
 
-import * as followupRequestActions from "../../ducks/followup_requests";
+import {
+  useGetFollowupRequestsQuery,
+  useLazyGetFollowupRequestsQuery,
+} from "../../ducks/followup_requests";
 
 dayjs.extend(utc);
-
-const useStyles = makeStyles()((theme) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  paperContent: {
-    padding: "1rem",
-  },
-  hover: {
-    "&:hover": {
-      textDecoration: "underline",
-    },
-    color: theme.palette.mode === "dark" ? "#fafafa !important" : undefined,
-  },
-  defaultFollowupRequestDelete: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
-  },
-  defaultFollowupRequestManage: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-  defaultFollowupRequestDeleteDisabled: {
-    opacity: 0,
-  },
-}));
 
 const FollowupRequestLists = FollowupRequestListsBase as any;
 
 const defaultNumPerPage = 10;
 
 const FollowupRequestPage = () => {
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
-  const { followupRequestList, totalMatches } = useAppSelector(
-    (state) => state["followup_requests"],
-  ) as any;
-  const { defaultFollowupRequestList } = useAppSelector(
-    (state) => state["default_followup_requests"],
-  ) as any;
-  const currentUser = useAppSelector((state) => state.profile);
-  const { classes } = useStyles() as any;
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
+  const { data: defaultFollowupRequestList } =
+    useGetDefaultFollowupRequestsQuery();
+  const { data: currentUser } = useGetProfileQuery();
   const dispatch = useAppDispatch();
 
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage allocations");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage allocations") ||
+    false;
 
   const defaultStartDate = dayjs()
     .subtract(1, "day")
@@ -97,18 +68,16 @@ const FollowupRequestPage = () => {
     sortOrder: "desc",
   });
 
+  const { data: followupRequestsData } =
+    useGetFollowupRequestsQuery(fetchParams);
+  const followupRequestList = followupRequestsData?.followup_requests;
+  const totalMatches = followupRequestsData?.totalMatches ?? 0;
+  const [triggerFetchFollowupRequests] = useLazyGetFollowupRequestsQuery();
+
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
   const [tabIndex, setTabIndex] = React.useState(0);
-
-  useEffect(() => {
-    // everytime the list of followup requests is updated, we set the fetchParams in redux
-    dispatch({
-      type: followupRequestActions.UPDATE_FOLLOWUP_FETCH_PARAMS,
-      data: fetchParams,
-    });
-  }, [dispatch, fetchParams]);
 
   const handleChangeTab = (_event: any, newValue: number) => {
     setTabIndex(newValue);
@@ -120,9 +89,8 @@ const FollowupRequestPage = () => {
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future
+    // Updating fetchParams re-keys the followup-requests query, which refetches.
     setFetchParams(params);
-    await dispatch(followupRequestActions.fetchFollowupRequests(params));
   };
 
   const handleTableChange = async (action: string, tableState: any) => {
@@ -167,21 +135,17 @@ const FollowupRequestPage = () => {
           ...currentFetchParams,
           pageNumber: i,
           numPerPage: 100,
-          noRedux: true,
         };
 
-        const response: any = await dispatch(
-          followupRequestActions.fetchFollowupRequests(params),
-        );
-        if (response && response.data && response?.status === "success") {
-          const { data } = response;
+        try {
+          const data: any = await triggerFetchFollowupRequests(params).unwrap();
           allFollowupRequests = [
             ...allFollowupRequests,
             ...data.followup_requests,
           ];
           setDownloadProgressCurrent(allFollowupRequests.length);
           setDownloadProgressTotal(data.totalMatches);
-        } else if (response && response?.status !== "success") {
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
@@ -232,50 +196,41 @@ const FollowupRequestPage = () => {
       {tabIndex === 0 && (
         <Grid container size={12} style={{ paddingTop: 0 }}>
           <Grid size={{ sm: 12, md: 8 }}>
-            <Paper elevation={1}>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">List of Followup Requests</Typography>
-                {!followupRequestList ? (
-                  <div>
-                    <CircularProgress />
-                  </div>
-                ) : (
-                  <div>
-                    <FollowupRequestLists
-                      followupRequests={followupRequestList}
-                      instrumentList={instrumentList}
-                      instrumentFormParams={instrumentFormParams}
-                      pageNumber={fetchParams.pageNumber}
-                      numPerPage={fetchParams.numPerPage}
-                      handleTableChange={handleTableChange as any}
-                      totalMatches={totalMatches}
-                      serverSide
-                      showObject
-                      fetchParams={fetchParams}
-                      onDownload={onDownload as any}
-                    />
-                  </div>
-                )}
-              </div>
+            <Paper>
+              <Typography variant="h6">List of Followup Requests</Typography>
+              {!followupRequestList ? (
+                <CircularProgress />
+              ) : (
+                <FollowupRequestLists
+                  followupRequests={followupRequestList}
+                  instrumentList={instrumentList}
+                  instrumentFormParams={instrumentFormParams}
+                  pageNumber={fetchParams.pageNumber}
+                  numPerPage={fetchParams.numPerPage}
+                  handleTableChange={handleTableChange as any}
+                  totalMatches={totalMatches}
+                  serverSide
+                  showObject
+                  fetchParams={fetchParams}
+                  onDownload={onDownload as any}
+                />
+              )}
             </Paper>
           </Grid>
           <Grid size={{ sm: 12, md: 4 }}>
-            <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">Filter Followup Requests</Typography>
-                <FollowupRequestSelectionForm
-                  fetchParams={fetchParams}
-                  setFetchParams={setFetchParams}
-                />
-              </div>
+            <Paper
+              sx={{ marginBottom: 2 }}
+              data-testid="filter-followup-requests-form"
+            >
+              <Typography variant="h6">Filter Followup Requests</Typography>
+              <FollowupRequestSelectionForm
+                fetchParams={fetchParams}
+                setFetchParams={setFetchParams}
+              />
             </Paper>
             <Paper>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">
-                  Prioritize Followup Requests
-                </Typography>
-                <FollowupRequestPrioritizationForm />
-              </div>
+              <Typography variant="h6">Prioritize Followup Requests</Typography>
+              <FollowupRequestPrioritizationForm fetchParams={fetchParams} />
             </Paper>
             <Dialog open={downloadProgressTotal > 0} maxWidth="md">
               <DialogContent
@@ -314,7 +269,7 @@ const FollowupRequestPage = () => {
         <Grid size={12} style={{ paddingTop: 0 }}>
           <Paper elevation={1}>
             <DefaultFollowupRequestList
-              default_followup_requests={defaultFollowupRequestList}
+              default_followup_requests={defaultFollowupRequestList || []}
               deletePermission={permission}
             />
           </Paper>

@@ -25,7 +25,7 @@ class RecurringAPIHandler(BaseHandler):
     """Handler for recurring APIs."""
 
     @permissions(["Manage Recurring APIs"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create a new Recurring API
@@ -106,7 +106,7 @@ class RecurringAPIHandler(BaseHandler):
             except json.JSONDecodeError:
                 return self.error("payload must be a valid JSON string")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             schema = RecurringAPI.__schema__()
             try:
                 recurring_api = schema.load(data)
@@ -116,13 +116,13 @@ class RecurringAPIHandler(BaseHandler):
                 )
             recurring_api.owner_id = self.associated_user_object.id
             session.add(recurring_api)
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_RECURRING_APIS")
             return self.success(data={"id": recurring_api.id})
 
     @auth_or_token
-    def get(self, recurring_api_id: int | None = None):
+    async def get(self, recurring_api_id: int | None = None):
         """
         ---
         single:
@@ -160,17 +160,18 @@ class RecurringAPIHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        with self.Session() as session:
+        if recurring_api_id is not None:
+            try:
+                recurring_api_id = int(recurring_api_id)
+            except (TypeError, ValueError):
+                return self.error(f"Invalid recurring_api_id: {recurring_api_id}")
+        async with self.AsyncSession() as session:
             if recurring_api_id is not None:
-                try:
-                    recurring_api_id = int(recurring_api_id)
-                except (TypeError, ValueError):
-                    return self.error(f"Invalid recurring_api_id: {recurring_api_id}")
-                s = session.scalars(
+                s = await session.scalar(
                     RecurringAPI.select(session.user_or_token).where(
                         RecurringAPI.id == recurring_api_id
                     )
-                ).first()
+                )
                 if s is None:
                     return self.error("Cannot access this Recurring API.", status=403)
 
@@ -178,9 +179,10 @@ class RecurringAPIHandler(BaseHandler):
                 return self.success(data=recurring_api_dict)
 
             # retrieve multiple services
-            recurring_apis = session.scalars(
+            list_result = await session.scalars(
                 RecurringAPI.select(session.user_or_token)
-            ).all()
+            )
+            recurring_apis = list_result.all()
 
             ret_array = []
             for a in recurring_apis:
@@ -196,7 +198,7 @@ class RecurringAPIHandler(BaseHandler):
             return self.success(data=ret_array)
 
     @permissions(["Manage Recurring APIs"])
-    def delete(self, recurring_api_id: int):
+    async def delete(self, recurring_api_id: int):
         """
         ---
         summary: Delete a Recurring API
@@ -216,16 +218,16 @@ class RecurringAPIHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
-            recurring_api = session.scalars(
+        async with self.AsyncSession() as session:
+            recurring_api = await session.scalar(
                 RecurringAPI.select(session.user_or_token, mode="delete").where(
                     RecurringAPI.id == recurring_api_id
                 )
-            ).first()
+            )
             if recurring_api is None:
                 return self.error("Cannot delete this Recurring API.", status=403)
-            session.delete(recurring_api)
-            session.commit()
+            await session.delete(recurring_api)
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_RECURRING_APIS")
             return self.success()

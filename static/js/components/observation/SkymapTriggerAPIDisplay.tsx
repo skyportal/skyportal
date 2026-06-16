@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
@@ -11,9 +12,14 @@ import Button from "../Button";
 
 import FindGcnEvents from "../gcn/FindGcnEvents";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as skymapTriggerActions from "../../ducks/skymap_triggers";
-import * as allocationActions from "../../ducks/allocations";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import {
+  useGetApiSkymapTriggersQuery,
+  usePostApiSkymapTriggerMutation,
+  useDeleteApiSkymapTriggerMutation,
+} from "../../ducks/skymap_triggers";
+import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 
@@ -48,54 +54,39 @@ const SkymapTriggerAPIDisplay = () => {
   const [selectedLocalizationId, setSelectedLocalizationId] =
     useState<any>(null);
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationListApiObsplan } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: allocationListApiObsplan = [] } =
+    useGetAllocationsApiObsplanQuery({
+      apiImplements: "send_skymap",
+    });
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
 
-  const dispatch = useAppDispatch();
+  const [postApiSkymapTrigger] = usePostApiSkymapTriggerMutation();
+  const [deleteApiSkymapTrigger] = useDeleteApiSkymapTriggerMutation();
 
-  useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result: any = await dispatch(
-        allocationActions.fetchAllocationsApiObsplan({
-          apiImplements: "send_skymap",
-        }),
-      );
-
-      const { data } = result;
-      setSelectedAllocationId(data[0]?.id);
-    };
-
-    getAllocations();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-  }, [dispatch]);
+  const { data: skymapTriggers } = useGetApiSkymapTriggersQuery(
+    { id: selectedAllocationId },
+    {
+      skip: !selectedAllocationId || !(allocationListApiObsplan?.length > 0),
+    },
+  ) as { data?: { trigger_names?: string[] } };
 
   useEffect(() => {
-    const getTriggers = async () => {
-      if (selectedAllocationId && allocationListApiObsplan?.length > 0) {
-        const response: any = await dispatch(
-          skymapTriggerActions.requestAPISkymapTriggers(selectedAllocationId),
-        );
-        if (response?.data?.trigger_names?.length > 0) {
-          setTriggerList(response.data.trigger_names);
-          setSelectedTriggerName(response.data.trigger_names[0]);
-        } else {
-          setTriggerList(["None"]);
-          setSelectedTriggerName("None");
-        }
-      }
-    };
-    getTriggers();
-  }, [selectedAllocationId]);
+    if (allocationListApiObsplan?.length > 0) {
+      setSelectedAllocationId(allocationListApiObsplan[0]?.["id"]);
+    }
+  }, [allocationListApiObsplan]);
+
+  useEffect(() => {
+    if (skymapTriggers?.trigger_names?.length) {
+      setTriggerList(skymapTriggers.trigger_names);
+      setSelectedTriggerName(skymapTriggers.trigger_names[0] ?? "None");
+    } else {
+      setTriggerList(["None"]);
+      setSelectedTriggerName("None");
+    }
+  }, [skymapTriggers]);
 
   if (
     !allGroups ||
@@ -135,20 +126,25 @@ const SkymapTriggerAPIDisplay = () => {
   });
 
   const handleAdd = async () => {
-    const data = {
-      allocation_id: selectedAllocationId,
-      localization_id: selectedLocalizationId,
-    };
-
-    await dispatch(skymapTriggerActions.postAPISkymapTrigger(data));
+    try {
+      await postApiSkymapTrigger({
+        allocation_id: selectedAllocationId,
+        localization_id: selectedLocalizationId,
+      }).unwrap();
+    } catch {
+      // notification handled by baseQuery
+    }
   };
 
   const handleDelete = async () => {
-    await dispatch(
-      skymapTriggerActions.deleteAPISkymapTrigger(selectedAllocationId, {
-        trigger_name: selectedTriggerName,
-      }),
-    );
+    try {
+      await deleteApiSkymapTrigger({
+        id: selectedAllocationId,
+        params: { trigger_name: selectedTriggerName },
+      }).unwrap();
+    } catch {
+      // notification handled by baseQuery
+    }
   };
 
   const handleSelectedAllocationChange = async (e: any) => {

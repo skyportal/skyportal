@@ -13,37 +13,16 @@ import TextField from "@mui/material/TextField";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
-import * as instrumentActions from "../../ducks/instrument";
+import { useDeleteInstrumentMutation } from "../../ducks/instrument";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map are not server-sortable.
-const SERVER_SORT_FIELD: Record<string, string> = {
-  id: "id",
-  instrument_name: "instrument_name",
-  telescope_name: "telescope_name",
-  Latitude: "Latitude",
-  Longitude: "Longitude",
-  filters: "filters",
-  API_classname: "API_classname",
-  API_classname_obsplan: "API_classname_obsplan",
-  Band: "Band",
-  Type: "Type",
-  "FOV Region?": "FOV Region?",
-  Fields: "Fields",
-};
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -76,22 +55,20 @@ const InstrumentTable = ({
   instruments,
   telescopes,
   deletePermission,
-  sortingCallback = null,
   paginateCallback = null,
-  totalMatches = 0,
   numPerPage = 10,
   telescopeInfo = true,
   fixedHeader = false,
 }: InstrumentTableProps) => {
   const { classes } = useStyles() as any;
   const dispatch = useAppDispatch();
+  const [deleteInstrumentMutation] = useDeleteInstrumentMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [instrumentToEditDelete, setInstrumentToEditDelete] =
     useState<any>(null);
-  const [sortModel, setSortModel] = useState<any[]>([]);
   const [searchText, setSearchText] = useState("");
 
   const openNewDialog = () => {
@@ -119,18 +96,17 @@ const InstrumentTable = ({
     setInstrumentToEditDelete(null);
   };
 
-  const deleteInstrument = () => {
-    dispatch(instrumentActions.deleteInstrument(instrumentToEditDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Instrument deleted"));
-          closeDeleteDialog();
-        }
-      },
-    );
+  const deleteInstrument = async () => {
+    try {
+      await deleteInstrumentMutation(instrumentToEditDelete).unwrap();
+      dispatch(showNotification("Instrument deleted"));
+      closeDeleteDialog();
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
-  const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  const [rowsPerPage] = useState(numPerPage);
 
   const renderInstrumentID = (params: any) => {
     const instrument = params.row;
@@ -261,34 +237,6 @@ const InstrumentTable = ({
     paginateCallback(1, rowsPerPage, {}, data);
   };
 
-  const currentSortOrder = () =>
-    sortModel.length
-      ? {
-          name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
-          direction: sortModel[0].sort,
-        }
-      : {};
-
-  const handlePaginationModelChange = (model: any) => {
-    if (!paginateCallback) return;
-    setRowsPerPage(model.pageSize);
-    paginateCallback(model.page + 1, model.pageSize, currentSortOrder());
-  };
-
-  const handleSortModelChange = (model: any) => {
-    if (!paginateCallback || !sortingCallback) return;
-    setSortModel(model);
-    if (!model.length) {
-      paginateCallback(1, rowsPerPage, {});
-      return;
-    }
-    const { field, sort } = model[0];
-    sortingCallback({
-      name: SERVER_SORT_FIELD[field] || field,
-      direction: sort,
-    });
-  };
-
   const columns: any[] = [
     {
       field: "id",
@@ -399,8 +347,7 @@ const InstrumentTable = ({
 
   const CustomToolbar = function InstrumentTableToolbar() {
     return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
+      <DataGridToolbar showQuickFilter={false}>
         <TextField
           variant="standard"
           size="small"
@@ -411,15 +358,10 @@ const InstrumentTable = ({
             handleSearchChange(event.target.value);
           }}
         />
-        <IconButton
-          name="new_instrument"
-          onClick={() => {
-            openNewDialog();
-          }}
-        >
+        <IconButton name="new_instrument" onClick={() => openNewDialog()}>
           <AddIcon />
         </IconButton>
-      </GridToolbarContainer>
+      </DataGridToolbar>
     );
   };
 
@@ -441,13 +383,9 @@ const InstrumentTable = ({
             rows={instruments || []}
             columns={columns}
             getRowId={(row: any) => row.id}
-            paginationMode="server"
-            sortingMode="server"
-            rowCount={totalMatches}
-            paginationModel={{ page: 0, pageSize: rowsPerPage }}
-            onPaginationModelChange={handlePaginationModelChange}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
+            initialState={{
+              pagination: { paginationModel: { pageSize: rowsPerPage } },
+            }}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             disableColumnFilter
             slots={{ toolbar: CustomToolbar }}

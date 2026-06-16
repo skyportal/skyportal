@@ -11,7 +11,7 @@ import GcnTagsSelect from "./GcnTagsSelect";
 import LocalizationTagsSelect from "../localization/LocalizationTagsSelect";
 import { useAppDispatch } from "../../types/hooks";
 
-import * as defaultGcnTagsActions from "../../ducks/default_gcn_tags";
+import { useSubmitDefaultGcnTagMutation } from "../../ducks/default_gcn_tags";
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -39,6 +39,7 @@ const useStyles = makeStyles()(() => ({
 const NewDefaultGcnTag = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [submitDefaultGcnTag] = useSubmitDefaultGcnTagMutation();
 
   const [selectedGcnNoticeTypes, setSelectedGcnNoticeTypes] = useState<any[]>(
     [],
@@ -61,13 +62,12 @@ const NewDefaultGcnTag = () => {
       default_tag_name,
     };
 
-    dispatch(defaultGcnTagsActions.submitDefaultGcnTag(json)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Successfully created default gcn tag"));
-        }
-      },
-    );
+    try {
+      await submitDefaultGcnTag(json).unwrap();
+      dispatch(showNotification("Successfully created default gcn tag"));
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const defaultGcnTagFormSchema = {

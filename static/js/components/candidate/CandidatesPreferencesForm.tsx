@@ -17,9 +17,12 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import * as candidatesActions from "../../ducks/candidate/candidates";
-import * as profileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 import Responsive from "../Responsive";
 import FoldBox from "../FoldBox";
 import FormValidationError from "../FormValidationError";
@@ -112,9 +115,9 @@ const CandidatesPreferencesForm = ({
   setSelectedScanningProfile = null,
 }: CandidatesPreferencesFormProps) => {
   const { classes } = useStyles();
-  const preferences = useAppSelector(
-    (state) => state.profile.preferences as any,
-  );
+  const { data: userProfile } = useGetProfileQuery();
+  const preferences = (userProfile?.preferences ?? {}) as any;
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   const dispatch = useAppDispatch();
   const [selectedClassifications, setSelectedClassifications] = useState<any[]>(
@@ -262,7 +265,7 @@ const CandidatesPreferencesForm = ({
     const prefs = {
       scanningProfiles: currentProfiles,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
 
     if (addOrEdit === "Edit") {
       // If we just edited the selected profile, let the

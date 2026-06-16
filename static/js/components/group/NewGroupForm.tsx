@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 import Box from "@mui/material/Box";
 import Select from "@mui/material/Select";
@@ -12,9 +12,8 @@ import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
 
 import { makeStyles } from "tss-react/mui";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as groupsActions from "../../ducks/groups";
-import * as usersActions from "../../ducks/users";
+import { useAddNewGroupMutation } from "../../ducks/groups";
+import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
 
 const getStyles = (userID: number, userIDs: number[] = [], theme: any) => ({
@@ -25,8 +24,9 @@ const getStyles = (userID: number, userIDs: number[] = [], theme: any) => ({
 });
 
 const NewGroupForm = () => {
-  const dispatch = useAppDispatch();
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
+  const [addNewGroup] = useAddNewGroupMutation();
+  const { data: usersData } = useGetUsersQuery();
+  const allUsers = usersData?.users ?? [];
 
   const [formState, setState] = useState<{
     name: string;
@@ -40,12 +40,6 @@ const NewGroupForm = () => {
     group_admins: [],
   });
 
-  useEffect(() => {
-    if (allUsers.length === 0) {
-      dispatch(usersActions.fetchUsers());
-    }
-  }, [dispatch, allUsers]);
-
   const userIDToName: Record<number, string> = {};
   allUsers?.forEach((u: any) => {
     userIDToName[u.id] = u.username;
@@ -53,15 +47,16 @@ const NewGroupForm = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const result: any = await dispatch(groupsActions.addNewGroup(formState));
-    if (result.status === "success") {
-      dispatch(groupsActions.fetchGroups(true));
+    try {
+      await addNewGroup(formState).unwrap();
       setState({
         name: "",
         nickname: "",
         description: "",
         group_admins: [],
       });
+    } catch {
+      // error notification handled by the API layer
     }
   };
 

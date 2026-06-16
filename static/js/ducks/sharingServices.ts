@@ -1,201 +1,235 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Sharing services (TNS / Hermes publishing configuration + submissions).
+ *
+ * RTK Query conversion of the old `FETCH_SHARING_SERVICES` /
+ * `FETCH_SHARING_SERVICE_SUBMISSIONS` duck. The list and submissions are
+ * queries; everything that creates/edits/deletes a sharing service, its groups,
+ * auto publishers, coauthors, or a submission is a mutation that invalidates the
+ * relevant tag so active queries refetch.
+ *
+ * The old websocket handler refetched the list on `REFRESH_SHARING_SERVICES`
+ * (optionally scoped to a group) and refetched submissions on
+ * `REFRESH_SHARING_SERVICE_SUBMISSIONS`; both are bridged to tag invalidation
+ * via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { components } from "../types/api";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
-
-const FETCH_SHARING_SERVICES = "skyportal/FETCH_SHARING_SERVICES";
-const FETCH_SHARING_SERVICES_OK = "skyportal/FETCH_SHARING_SERVICES_OK";
-
-const ADD_SHARING_SERVICE = "skyportal/ADD_SHARING_SERVICE";
-const EDIT_SHARING_SERVICE = "skyportal/EDIT_SHARING_SERVICE";
-const DELETE_SHARING_SERVICE = "skyportal/DELETE_SHARING_SERVICE";
-const REFRESH_SHARING_SERVICES = "skyportal/REFRESH_SHARING_SERVICES";
-
-const ADD_SHARING_SERVICE_GROUP = "skyportal/ADD_SHARING_SERVICE_GROUP";
-const EDIT_SHARING_SERVICE_GROUP = "skyportal/EDIT_SHARING_SERVICE_GROUP";
-const DELETE_SHARING_SERVICE_GROUP = "skyportal/DELETE_SHARING_SERVICE_GROUP";
-
-const ADD_SHARING_SERVICE_GROUP_AUTO_PUBLISHER =
-  "skyportal/ADD_SHARING_SERVICE_GROUP_AUTO_PUBLISHER";
-const DELETE_SHARING_SERVICE_GROUP_AUTO_PUBLISHERS =
-  "skyportal/DELETE_SHARING_SERVICE_GROUP_AUTO_PUBLISHERS";
-
-const ADD_SHARING_SERVICE_COAUTHOR = "skyportal/ADD_SHARING_SERVICE_COAUTHOR";
-const DELETE_SHARING_SERVICE_COAUTHOR =
-  "skyportal/DELETE_SHARING_SERVICE_COAUTHOR";
-
-const ADD_SHARING_SERVICE_SUBMISSION =
-  "skyportal/ADD_SHARING_SERVICE_SUBMISSION";
-const FETCH_SHARING_SERVICE_SUBMISSIONS =
-  "skyportal/FETCH_SHARING_SERVICE_SUBMISSIONS";
-const FETCH_SHARING_SERVICE_SUBMISSIONS_OK =
-  "skyportal/FETCH_SHARING_SERVICE_SUBMISSIONS_OK";
-const REFRESH_SHARING_SERVICE_SUBMISSIONS =
-  "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS";
-
-export const fetchSharingServices = (params = {}) =>
-  API.GET("/api/sharing_service", FETCH_SHARING_SERVICES, params);
-
-export const addSharingService = (data: any) =>
-  API.PUT("/api/sharing_service", ADD_SHARING_SERVICE, data);
-
-export const editSharingService = (id: number | string, data: any) =>
-  API.PUT(`/api/sharing_service/${id}`, EDIT_SHARING_SERVICE, data);
-
-export const deleteSharingService = (id: number | string) =>
-  API.DELETE(`/api/sharing_service/${id}`, DELETE_SHARING_SERVICE);
-
-export const addSharingServiceGroup = (
-  sharing_service_id: number | string,
-  data: any,
-) =>
-  API.PUT(
-    `/api/sharing_service/${sharing_service_id}/group`,
-    ADD_SHARING_SERVICE_GROUP,
-    data,
-  );
-
-export const editSharingServiceGroup = (
-  sharing_service_id: number | string,
-  group_id: number | string,
-  data: any,
-) =>
-  API.PUT(
-    `/api/sharing_service/${sharing_service_id}/group/${group_id}`,
-    EDIT_SHARING_SERVICE_GROUP,
-    data,
-  );
-
-export const deleteSharingServiceGroup = (
-  sharing_service_id: number | string,
-  group_id: number | string,
-) =>
-  API.DELETE(
-    `/api/sharing_service/${sharing_service_id}/group/${group_id}`,
-    DELETE_SHARING_SERVICE_GROUP,
-  );
-
-export const addSharingServiceGroupAutoPublishers = (
-  sharing_service_id: number | string,
-  group_id: number | string,
-  user_ids: any[] = [],
-) =>
-  API.POST(
-    `/api/sharing_service/${sharing_service_id}/group/${group_id}/auto_publisher`,
-    ADD_SHARING_SERVICE_GROUP_AUTO_PUBLISHER,
-    { user_ids },
-  );
-
-export const deleteSharingServiceGroupAutoPublishers = (
-  sharing_service_id: number | string,
-  group_id: number | string,
-  user_ids: any[] = [],
-) =>
-  API.DELETE(
-    `/api/sharing_service/${sharing_service_id}/group/${group_id}/auto_publisher`,
-    DELETE_SHARING_SERVICE_GROUP_AUTO_PUBLISHERS,
-    { user_ids },
-  );
-
-export const addSharingServiceCoauthor = (
-  sharing_service_id: number | string,
-  user_id: number | string,
-) =>
-  API.POST(
-    `/api/sharing_service/${sharing_service_id}/coauthor/${user_id}`,
-    ADD_SHARING_SERVICE_COAUTHOR,
-  );
-
-export const deleteSharingServiceCoauthor = (
-  sharing_service_id: number | string,
-  user_id: number | string,
-) =>
-  API.DELETE(
-    `/api/sharing_service/${sharing_service_id}/coauthor/${user_id}`,
-    DELETE_SHARING_SERVICE_COAUTHOR,
-  );
-
-export function addSharingServiceSubmission(formData: any) {
-  return API.POST(
-    `/api/sharing_service/submission`,
-    ADD_SHARING_SERVICE_SUBMISSION,
-    formData,
-  );
+export interface SharingServiceSubmissions {
+  sharing_service_id: number | string;
+  submissions: any[];
+  totalMatches: number;
+  [key: string]: unknown;
 }
 
-export const fetchSharingServiceSubmissions = (params = {}) =>
-  API.GET(
-    `/api/sharing_service/submission`,
-    FETCH_SHARING_SERVICE_SUBMISSIONS,
-    {
-      ...params,
-      include_payload: true,
-    },
-  );
-
-messageHandler.add(
-  (actionType: string, payload: any, dispatch: AppDispatch) => {
-    if (actionType === REFRESH_SHARING_SERVICES) {
-      if (payload?.group_id) {
-        dispatch(fetchSharingServices({ group_id: payload.group_id }));
-      } else {
-        dispatch(fetchSharingServices());
-      }
-    } else if (actionType === REFRESH_SHARING_SERVICE_SUBMISSIONS) {
-      dispatch(
-        fetchSharingServiceSubmissions({
-          sharing_service_id: payload.sharing_service_id,
-        }),
-      );
-    }
-  },
-);
-
-type SharingServicesState = Record<string, any>;
-
-interface SharingServicesAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
+interface FetchSharingServicesArg {
+  group_id?: number | string | undefined;
+  [key: string]: unknown;
 }
 
-const reducer = (
-  state: SharingServicesState = {
-    sharingServicesList: [],
-    submissions: {},
-    loading: false,
-  },
-  action: SharingServicesAction,
-): SharingServicesState => {
-  switch (action.type) {
-    case FETCH_SHARING_SERVICES: {
-      return { ...state, loading: true };
-    }
-    case FETCH_SHARING_SERVICES_OK: {
-      const sharingServicesList = action.data;
-      return {
-        ...state,
-        sharingServicesList,
-        loading: false,
-      };
-    }
-    case FETCH_SHARING_SERVICE_SUBMISSIONS_OK: {
-      const { sharing_service_id, submissions, totalMatches } = action.data;
-      return {
-        ...state,
-        submissions: {
-          ...state["submissions"],
-          [sharing_service_id]: {
-            totalMatches,
-            submissions,
-          },
+interface FetchSubmissionsArg {
+  sharing_service_id?: number | string | undefined;
+  pageNumber?: number | undefined;
+  numPerPage?: number | undefined;
+  [key: string]: unknown;
+}
+
+interface AddSharingServiceGroupArg {
+  sharing_service_id: number | string;
+  data: any;
+}
+
+interface EditSharingServiceGroupArg {
+  sharing_service_id: number | string;
+  group_id: number | string;
+  data: any;
+}
+
+interface DeleteSharingServiceGroupArg {
+  sharing_service_id: number | string;
+  group_id: number | string;
+}
+
+interface SharingServiceGroupAutoPublishersArg {
+  sharing_service_id: number | string;
+  group_id: number | string;
+  user_ids?: any[] | undefined;
+}
+
+interface SharingServiceCoauthorArg {
+  sharing_service_id: number | string;
+  user_id: number | string;
+}
+
+interface EditSharingServiceArg {
+  id: number | string;
+  data: any;
+}
+
+export const sharingServicesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getSharingServices: build.query<
+      components["schemas"]["SharingService"][],
+      FetchSharingServicesArg | void
+    >({
+      query: (params) => ({
+        url: "api/sharing_service",
+        params: (params ?? {}) as Record<string, unknown>,
+      }),
+      providesTags: ["SharingService"],
+    }),
+    getSharingServiceSubmissions: build.query<
+      RouteData<"GET /api/sharing_service/submission"> & {
+        sharing_service_id?: number;
+      },
+      FetchSubmissionsArg | void
+    >({
+      query: (params) => ({
+        url: "api/sharing_service/submission",
+        params: {
+          ...((params ?? {}) as Record<string, unknown>),
+          include_payload: true,
         },
-      };
-    }
-    default:
-      return state;
-  }
-};
+      }),
+      providesTags: ["SharingServiceSubmission"],
+    }),
+    addSharingService: build.mutation<unknown, any>({
+      query: (data) => ({
+        url: "api/sharing_service",
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["SharingService"],
+    }),
+    editSharingService: build.mutation<
+      components["schemas"]["SingleSharingService"],
+      EditSharingServiceArg
+    >({
+      query: ({ id, data }) => ({
+        url: `api/sharing_service/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["SharingService"],
+    }),
+    deleteSharingService: build.mutation<unknown, number | string>({
+      query: (id) => ({
+        url: `api/sharing_service/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["SharingService"],
+    }),
+    addSharingServiceGroup: build.mutation<unknown, AddSharingServiceGroupArg>({
+      query: ({ sharing_service_id, data }) => ({
+        url: `api/sharing_service/${sharing_service_id}/group`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["SharingService"],
+    }),
+    editSharingServiceGroup: build.mutation<
+      components["schemas"]["SharingServiceGroup"],
+      EditSharingServiceGroupArg
+    >({
+      query: ({ sharing_service_id, group_id, data }) => ({
+        url: `api/sharing_service/${sharing_service_id}/group/${group_id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["SharingService"],
+    }),
+    deleteSharingServiceGroup: build.mutation<
+      unknown,
+      DeleteSharingServiceGroupArg
+    >({
+      query: ({ sharing_service_id, group_id }) => ({
+        url: `api/sharing_service/${sharing_service_id}/group/${group_id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["SharingService"],
+    }),
+    addSharingServiceGroupAutoPublishers: build.mutation<
+      unknown,
+      SharingServiceGroupAutoPublishersArg
+    >({
+      query: ({ sharing_service_id, group_id, user_ids = [] }) => ({
+        url: `api/sharing_service/${sharing_service_id}/group/${group_id}/auto_publisher`,
+        method: "POST",
+        body: { user_ids },
+      }),
+      invalidatesTags: ["SharingService"],
+    }),
+    deleteSharingServiceGroupAutoPublishers: build.mutation<
+      unknown,
+      SharingServiceGroupAutoPublishersArg
+    >({
+      query: ({ sharing_service_id, group_id, user_ids = [] }) => ({
+        url: `api/sharing_service/${sharing_service_id}/group/${group_id}/auto_publisher`,
+        method: "DELETE",
+        body: { user_ids },
+      }),
+      invalidatesTags: ["SharingService"],
+    }),
+    addSharingServiceCoauthor: build.mutation<
+      components["schemas"]["SharingServiceCoauthor"],
+      SharingServiceCoauthorArg
+    >({
+      query: ({ sharing_service_id, user_id }) => ({
+        url: `api/sharing_service/${sharing_service_id}/coauthor/${user_id}`,
+        method: "POST",
+      }),
+      invalidatesTags: ["SharingService"],
+    }),
+    deleteSharingServiceCoauthor: build.mutation<
+      unknown,
+      SharingServiceCoauthorArg
+    >({
+      query: ({ sharing_service_id, user_id }) => ({
+        url: `api/sharing_service/${sharing_service_id}/coauthor/${user_id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["SharingService"],
+    }),
+    addSharingServiceSubmission: build.mutation<
+      components["schemas"]["SharingServiceSubmission"],
+      any
+    >({
+      query: (formData) => ({
+        url: "api/sharing_service/submission",
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: ["SharingServiceSubmission"],
+    }),
+  }),
+});
 
-store.injectReducer("sharingServices", reducer);
+// Websocket: old handler refetched the list on REFRESH_SHARING_SERVICES and
+// submissions on REFRESH_SHARING_SERVICE_SUBMISSIONS. The conditional scoping
+// (group_id / sharing_service_id) only narrowed *which* fetch ran; invalidating
+// the tag refetches whichever query is currently active.
+invalidateOnMessage("skyportal/REFRESH_SHARING_SERVICES", () => [
+  "SharingService",
+]);
+invalidateOnMessage("skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS", () => [
+  "SharingServiceSubmission",
+]);
+
+export const {
+  useGetSharingServicesQuery,
+  useLazyGetSharingServicesQuery,
+  useGetSharingServiceSubmissionsQuery,
+  useAddSharingServiceMutation,
+  useEditSharingServiceMutation,
+  useDeleteSharingServiceMutation,
+  useAddSharingServiceGroupMutation,
+  useEditSharingServiceGroupMutation,
+  useDeleteSharingServiceGroupMutation,
+  useAddSharingServiceGroupAutoPublishersMutation,
+  useDeleteSharingServiceGroupAutoPublishersMutation,
+  useAddSharingServiceCoauthorMutation,
+  useDeleteSharingServiceCoauthorMutation,
+  useAddSharingServiceSubmissionMutation,
+} = sharingServicesApi;

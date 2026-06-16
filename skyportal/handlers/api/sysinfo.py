@@ -17,7 +17,7 @@ max_log_lines = 100
 
 
 class SysInfoHandler(BaseHandler):
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve system/deployment info
@@ -38,6 +38,8 @@ class SysInfoHandler(BaseHandler):
                           properties:
                             gitlog:
                                 type: array
+                                items:
+                                  type: string
                                 description: Recent git commit lines
 
         """

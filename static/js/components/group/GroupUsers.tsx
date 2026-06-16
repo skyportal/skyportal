@@ -12,19 +12,19 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 
-import { useAppSelector } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
 import ManageUserButtons from "./GroupPageManageUserButtons";
 import NewGroupUserForm from "./NewGroupUserForm";
 import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
 import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
 import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
+import { useGetConfigQuery } from "../../ducks/config";
 
 interface GroupUsersProps {
   group: {
     id?: number;
     name?: string;
-    nickname?: string;
+    nickname?: string | null;
     users?: any[];
   };
   classes: Record<string, any>;
@@ -50,9 +50,7 @@ const GroupUsers = ({
   const [openedPopoverId, setOpenedPopoverId] = React.useState<any>(null);
   const [panelMembersExpanded, setPanelMembersExpanded] =
     React.useState<any>("panel-members");
-  const { invitationsEnabled } = useAppSelector(
-    (state) => state["config"],
-  ) as any;
+  const { invitationsEnabled } = (useGetConfigQuery().data as any) ?? {};
 
   const handlePopoverOpen = (event: any, popoverId: any) => {
     setOpenedPopoverId(popoverId);

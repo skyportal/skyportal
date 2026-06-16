@@ -706,7 +706,7 @@ class PhotometricSeriesHandler(BaseHandler):
             body_schema_docstring.strip("\n"), " " * 10
         ).lstrip()
     )
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload a photometric series.
@@ -781,7 +781,7 @@ class PhotometricSeriesHandler(BaseHandler):
             " " * 10,
         ).lstrip()
     )
-    def patch(self, photometric_series_id: int):
+    async def patch(self, photometric_series_id: int):
         """
         ---
         summary: Update a photometric series.
@@ -865,7 +865,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
-    def get(self, photometric_series_id: int | None = None):
+    async def get(self, photometric_series_id: int | None = None):
         """
         ---
         single:
@@ -1873,7 +1873,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data=results)
 
     @permissions(["Upload data"])
-    def delete(self, photometric_series_id: int):
+    async def delete(self, photometric_series_id: int):
         """
         ---
         summary: Delete a photometric series
@@ -1897,12 +1897,12 @@ class PhotometricSeriesHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            ps = session.scalars(
+        async with self.AsyncSession() as session:
+            ps = await session.scalar(
                 PhotometricSeries.select(session.user_or_token, mode="delete").where(
                     PhotometricSeries.id == photometric_series_id
                 )
-            ).first()
+            )
 
             if ps is None:
                 return self.error(
@@ -1911,8 +1911,8 @@ class PhotometricSeriesHandler(BaseHandler):
 
             obj_id = ps.obj_id
 
-            session.delete(ps)
-            session.commit()
+            await session.delete(ps)
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",

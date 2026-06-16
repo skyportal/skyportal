@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -9,8 +9,7 @@ import { Link } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import EditReportItemForm from "./EditReportItemForm";
-import { fetchScanReportItem } from "../../../ducks/candidate/scan_report";
-import { useAppSelector, useAppDispatch } from "../../../types/hooks";
+import { useGetScanReportItemsQuery } from "../../../ducks/candidate/scan_report";
 
 const List = styled("div")({
   display: "flex",
@@ -48,16 +47,10 @@ interface ReportItemProps {
 }
 
 const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
-  const dispatch = useAppDispatch();
-  const reportItems = useAppSelector((state) => state["scanReportItems"]);
-  const [loading, setLoading] = useState(false);
+  const { data: reportItems, isFetching: loading } =
+    useGetScanReportItemsQuery(reportId);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<any>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    dispatch(fetchScanReportItem(reportId)).then(() => setLoading(false));
-  }, [dispatch, reportId]);
 
   const displayDate = (date: string) => {
     return new Date(date).toLocaleDateString("en-US", {
@@ -96,7 +89,7 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
               </IconButton>
             </FieldTitle>
           </Item>
-          {!loading && reportItems.length ? (
+          {!loading && reportItems?.length ? (
             reportItems.map((reportItem: any) => (
               <Item
                 key={reportItem.id}

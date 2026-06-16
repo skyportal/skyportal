@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 
 import Plotly from "plotly.js-basic-dist";
@@ -9,7 +10,6 @@ import Typography from "@mui/material/Typography";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import { makeStyles } from "tss-react/mui";
-import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
 import {
@@ -113,7 +113,7 @@ const SpectraPlot = ({
   const lastKnownXRangeRef = useRef<any>(null);
   const isSyncingRef = useRef(false);
 
-  const { preferences } = useAppSelector((state) => state.profile);
+  const { preferences } = useGetProfileQuery().data ?? {};
   const spectroscopyButtons = (preferences as any)?.spectroscopyButtons;
 
   // Memoize user custom lines to avoid recreating on every render

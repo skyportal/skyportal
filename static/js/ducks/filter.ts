@@ -1,65 +1,53 @@
-import * as API from "../API";
-import store from "../store";
+/**
+ * Single alert-stream filter (the `/filter/:id` page) plus group filter
+ * add/delete.
+ *
+ * RTK Query conversion of the old `FETCH_FILTER` / `ADD_GROUP_FILTER` /
+ * `DELETE_GROUP_FILTER` duck. The endpoints are injected into the central
+ * `skyportalApi`. The query provides the `Filters` tag; the add/delete
+ * mutations refresh the owning *group* (via the consumer's manual
+ * `groupApi.util.invalidateTags`), so they carry no `invalidatesTags` here.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import type { RouteData } from "../types/routeSchemaMap";
 
-const FETCH_FILTER = "skyportal/FETCH_FILTER";
-const FETCH_FILTER_OK = "skyportal/FETCH_FILTER_OK";
-const FETCH_FILTER_ERROR = "skyportal/FETCH_FILTER_ERROR";
-const FETCH_FILTER_FAIL = "skyportal/FETCH_FILTER_FAIL";
-
-const ADD_GROUP_FILTER = "skyportal/ADD_GROUP_FILTER";
-
-const DELETE_GROUP_FILTER = "skyportal/DELETE_GROUP_FILTER";
-
-export function fetchFilter(id: number | string) {
-  return API.GET(`/api/filters/${id}`, FETCH_FILTER);
-}
-
-export function addGroupFilter({
-  name,
-  group_id,
-  stream_id,
-}: {
+export interface AddGroupFilterArg {
   name: string;
   group_id: number | string;
   stream_id: number | string;
-}) {
-  return API.POST("/api/filters", ADD_GROUP_FILTER, {
-    name,
-    group_id,
-    stream_id,
-  });
 }
 
-export function deleteGroupFilter({
-  filter_id,
-}: {
+export interface DeleteGroupFilterArg {
   filter_id: number | string;
-}) {
-  return API.DELETE(`/api/filters/${filter_id}`, DELETE_GROUP_FILTER);
 }
 
-type FilterState = Record<string, any>;
+export const filterApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getFilter: build.query<
+      RouteData<"GET /api/filters/{filter_id}">,
+      number | string
+    >({
+      query: (id) => `api/filters/${id}`,
+      providesTags: ["Filters"],
+    }),
+    addGroupFilter: build.mutation<unknown, AddGroupFilterArg>({
+      query: ({ name, group_id, stream_id }) => ({
+        url: "api/filters",
+        method: "POST",
+        body: { name, group_id, stream_id },
+      }),
+    }),
+    deleteGroupFilter: build.mutation<unknown, DeleteGroupFilterArg>({
+      query: ({ filter_id }) => ({
+        url: `api/filters/${filter_id}`,
+        method: "DELETE",
+      }),
+    }),
+  }),
+});
 
-interface FilterAction {
-  type: string;
-  data?: any;
-}
-
-const reducer = (
-  state: FilterState = {},
-  action: FilterAction,
-): FilterState => {
-  switch (action.type) {
-    case FETCH_FILTER_OK: {
-      return action.data;
-    }
-    case FETCH_FILTER_FAIL:
-    case FETCH_FILTER_ERROR: {
-      return {};
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("filter", reducer);
+export const {
+  useGetFilterQuery,
+  useAddGroupFilterMutation,
+  useDeleteGroupFilterMutation,
+} = filterApi;
