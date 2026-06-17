@@ -2491,8 +2491,6 @@ def public_annotation_on_spectrum(public_source, public_group, user):
 
 @pytest.fixture()
 def public_catalog_query(public_group, user):
-    from skyportal.models import Allocation, CatalogQuery
-
     # Build an Instrument (+ Telescope) inline via the factory; associate the
     # Allocation with public_group so row-level access is meaningful.
     instrument = InstrumentFactory()
@@ -2687,8 +2685,6 @@ def public_comment_on_shift(public_group, user):
 
 @pytest.fixture()
 def public_comment_on_spectrum(public_source, public_group, user):
-    from skyportal.models import CommentOnSpectrum, Spectrum
-
     instrument = InstrumentFactory()
     spectrum = Spectrum(
         wavelengths=np.array([5000.0, 5100.0, 5200.0]),
@@ -2907,8 +2903,6 @@ def public_default_gcn_tag(user):
 
 @pytest.fixture()
 def public_default_observation_plan_request(public_group, user):
-    from skyportal.models import DefaultObservationPlanRequest
-
     allocation = AllocationFactory(
         group=public_group,
         pi=str(uuid.uuid4()),
@@ -3125,7 +3119,6 @@ def public_earthquake_event(user):
 
 @pytest.fixture()
 def public_earthquake_measured(user):
-    from skyportal.models import EarthquakeEvent, MMADetector
     from skyportal.models.earthquake import EarthquakeMeasured
 
     event = EarthquakeEvent(
@@ -3377,19 +3370,6 @@ def public_event_observation_plan(public_group, user):
 
 @pytest.fixture()
 def public_event_observation_plan_statistics(public_group, super_admin_user):
-    from datetime import datetime, timedelta
-
-    from skyportal.models import (
-        Allocation,
-        EventObservationPlan,
-        EventObservationPlanStatistics,
-        GcnEvent,
-        Instrument,
-        Localization,
-        ObservationPlanRequest,
-        Telescope,
-    )
-
     # Build the full dependency chain inline:
     # Telescope -> Instrument -> Allocation -> GcnEvent -> Localization
     # -> ObservationPlanRequest -> EventObservationPlan -> Statistics
@@ -3738,8 +3718,6 @@ def public_gcnevent(user):
 
 @pytest.fixture()
 def public_gcn_event_mmadetector(user):
-    from datetime import datetime
-
     from skyportal.models.gcn import GcnEvent
     from skyportal.models.mmadetector import GcnEventMMADetector, MMADetector
 
@@ -3968,8 +3946,6 @@ def public_gcn_report(public_group, user):
 @pytest.fixture()
 def public_gcn_summary(public_group, user):
     from datetime import datetime, timezone
-
-    from skyportal.models import GcnEvent, GcnSummary
 
     dateobs = datetime.now(UTC).replace(tzinfo=None)
 
@@ -4439,10 +4415,6 @@ def public_group_comment_on_gcn(public_group, user):
 
 @pytest.fixture()
 def public_group_comment_on_shift(public_group, user):
-    from datetime import datetime, timedelta
-
-    from skyportal.models import CommentOnShift, GroupCommentOnShift, Shift
-
     shift = Shift(
         name=str(uuid.uuid4()),
         group_id=public_group.id,
@@ -4492,9 +4464,6 @@ def public_group_comment_on_shift(public_group, user):
 
 @pytest.fixture()
 def public_group_comment_on_spectrum(public_group, public_source, user):
-    from skyportal.models import CommentOnSpectrum, GroupCommentOnSpectrum
-    from skyportal.tests.fixtures import SpectrumFactory
-
     # Parent 1: a Spectrum on the public_source's obj, visible to public_group.
     # SpectrumFactory creates (and tears down) its own Instrument/Telescope and
     # the reducer/observer users; we just attach the obj, group, and owner.
@@ -4752,8 +4721,6 @@ def public_group_mmadetector_time_interval(public_group, user):
 
 @pytest.fixture()
 def public_group_obj_analysis(public_group, public_source, user):
-    from skyportal.models import AnalysisService, GroupObjAnalysis, ObjAnalysis
-
     # Inline parent: AnalysisService required by ObjAnalysis (analysis_service_id).
     analysis_service = AnalysisService(
         name=str(uuid.uuid4()),
@@ -4975,8 +4942,6 @@ def public_group_public_release(public_group):
 
 @pytest.fixture()
 def public_group_reminder(public_source, public_group, user):
-    from skyportal.models import GroupReminder, Reminder
-
     reminder = Reminder(
         text=str(uuid.uuid4()),
         obj_id=public_source.id,
@@ -5339,8 +5304,6 @@ def public_group_source_notification(public_group, public_source, user):
 
 @pytest.fixture()
 def public_instrument_field():
-    from skyportal.models import InstrumentField
-
     instrument = InstrumentFactory()
     field = InstrumentField(
         instrument_id=instrument.id,
@@ -5368,8 +5331,6 @@ def public_instrument_field():
 
 @pytest.fixture()
 def public_instrument_log():
-    from skyportal.models import Instrument, InstrumentLog, Telescope
-
     telescope = Telescope(
         name=str(uuid.uuid4()),
         nickname=str(uuid.uuid4())[:10],
@@ -5711,8 +5672,6 @@ def public_obj_model(public_group):
 
 @pytest.fixture()
 def public_obj_analysis(public_source, public_group, user):
-    from skyportal.models import AnalysisService, ObjAnalysis
-
     analysis_service = AnalysisService(
         name=str(uuid.uuid4()),
         display_name="Test Analysis Service",
@@ -5849,14 +5808,6 @@ def public_observation_plan_request(public_group, user):
 
 @pytest.fixture()
 def public_observation_plan_request_target_group(public_group, user):
-    from skyportal.models import (
-        Allocation,
-        Instrument,
-        ObservationPlanRequest,
-        ObservationPlanRequestTargetGroup,
-        Telescope,
-    )
-
     # --- Telescope + Instrument (inline parents) ---
     telescope = Telescope(
         name=f"Telescope_{uuid.uuid4().hex}",
@@ -6202,8 +6153,6 @@ def public_reminder_on_earthquake(public_group, user):
 
 @pytest.fixture()
 def public_reminder_on_gcn(public_group, user):
-    from skyportal.models import GcnEvent, ReminderOnGCN
-
     dateobs = datetime.now()
     gcnevent = GcnEvent(
         dateobs=dateobs,
@@ -6244,7 +6193,6 @@ def public_reminder_on_gcn(public_group, user):
 
 @pytest.fixture()
 def public_reminder_on_shift(public_group, user):
-    from skyportal.models import Shift
     from skyportal.models.reminder import ReminderOnShift
 
     shift = Shift(
@@ -6391,8 +6339,6 @@ def public_scan_report_item(public_source, public_group, user):
 
 @pytest.fixture()
 def public_sharing_service(public_group):
-    from skyportal.models import SharingService, SharingServiceGroup
-
     sharing_service = SharingService(
         name=str(uuid.uuid4()),
         acknowledgments="",
@@ -6513,12 +6459,6 @@ def public_sharing_service_group(public_group):
 
 @pytest.fixture()
 def public_sharing_service_group_auto_publisher(public_group, user):
-    from skyportal.models import (
-        SharingService,
-        SharingServiceGroup,
-        SharingServiceGroupAutoPublisher,
-    )
-
     # ensure the user is a member of public_group so a GroupUser row exists
     if public_group not in user.groups:
         user.groups.append(public_group)
@@ -6655,8 +6595,6 @@ def public_sharing_service_submission(public_group, public_source, user):
 
 @pytest.fixture()
 def public_shift(public_group):
-    from datetime import datetime, timedelta
-
     shift = Shift(
         name=str(uuid.uuid4()),
         description="test shift",
@@ -6758,10 +6696,6 @@ def public_source_view(public_source, user):
 
 @pytest.fixture()
 def public_sources_confirmed_in_gcn(public_source, user):
-    from datetime import datetime
-
-    from skyportal.models import GcnEvent, SourcesConfirmedInGCN
-
     dateobs = datetime.utcnow().replace(microsecond=0)
 
     gcnevent = GcnEvent(
@@ -6832,8 +6766,6 @@ def public_spatial_catalog():
 
 @pytest.fixture()
 def public_spectrum_observer(public_source, public_group, user):
-    from skyportal.models import Spectrum, SpectrumObserver
-
     # Build a Spectrum owned by `user`, associated with public_group so that
     # row-level read access is meaningful (user/group_admin_user = insiders,
     # user_group2 = outsider). SpectrumFactory creates its own instrument
@@ -6883,8 +6815,6 @@ def public_spectrum_observer(public_source, public_group, user):
 
 @pytest.fixture()
 def public_spectrum_pi(public_source, public_group, user):
-    from skyportal.models import Spectrum, SpectrumPI
-
     instrument = InstrumentFactory()
     instrument_id = instrument.id
 
@@ -7138,7 +7068,6 @@ def public_stream_photometry(public_stream, public_source):
     # We build a Photometry inline (with its own Instrument), associate it with
     # public_stream so that stream-members can read it, then link it to the
     # stream via StreamPhotometry.
-    from skyportal.models import Photometry, StreamPhotometry
 
     instrument = InstrumentFactory()
     instrument_id = instrument.id
@@ -7254,14 +7183,6 @@ def public_survey_efficiency_for_observation_plan(public_group, user):
     public_group (user, group_admin_user) are insiders and members of
     public_group2 only (user_group2) are outsiders.
     """
-    from skyportal.models import (
-        Allocation,
-        EventObservationPlan,
-        GcnEvent,
-        Localization,
-        ObservationPlanRequest,
-        SurveyEfficiencyForObservationPlan,
-    )
 
     dateobs = datetime.utcnow().replace(microsecond=0)
 
@@ -7376,14 +7297,6 @@ def public_survey_efficiency_for_observation_plan(public_group, user):
 
 @pytest.fixture()
 def public_survey_efficiency_for_observations(public_group, user):
-    from skyportal.models import (
-        GcnEvent,
-        Instrument,
-        Localization,
-        SurveyEfficiencyForObservations,
-        Telescope,
-    )
-
     # Parent GcnEvent (read is public by default)
     gcnevent = GcnEventFactory(sent_by=user)
     dateobs = gcnevent.dateobs
