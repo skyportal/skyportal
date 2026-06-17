@@ -1099,9 +1099,12 @@ class ObservationPlanRequestHandler(BaseHandler):
         rubin_format = self.get_query_argument("rubinFormat", None)
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 100)
-        page_number, n_per_page = get_page_and_n_per_page(
-            page_number, n_per_page, MAX_OBSERVATION_PLAN_REQUESTS
-        )
+        try:
+            page_number, n_per_page = get_page_and_n_per_page(
+                page_number, n_per_page, MAX_OBSERVATION_PLAN_REQUESTS
+            )
+        except ValueError as e:
+            return self.error(str(e))
 
         if include_planned_observations:
             options = [

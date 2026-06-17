@@ -1976,11 +1976,14 @@ class SourceHandler(BaseHandler):
 
         start = time.time()
 
-        page_number, num_per_page = get_page_and_n_per_page(
-            self.get_query_argument("pageNumber", 1),
-            self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE),
-            MAX_SOURCES_PER_PAGE,
-        )
+        try:
+            page_number, num_per_page = get_page_and_n_per_page(
+                self.get_query_argument("pageNumber", 1),
+                self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE),
+                MAX_SOURCES_PER_PAGE,
+            )
+        except ValueError as e:
+            return self.error(str(e))
         ra = self.get_query_argument("ra", None)
         dec = self.get_query_argument("dec", None)
         radius = self.get_query_argument("radius", None)

@@ -334,7 +334,10 @@ class SharingServiceSubmissionHandler(BaseHandler):
         )
         page_number = self.get_query_argument("pageNumber", 1)
         page_size = self.get_query_argument("numPerPage", 100)
-        page_number, page_size = get_page_and_n_per_page(page_number, page_size)
+        try:
+            page_number, page_size = get_page_and_n_per_page(page_number, page_size)
+        except ValueError as e:
+            return self.error(str(e))
         obj_id = self.get_query_argument("objectID", None)
         if obj_id is not None:
             obj_id = obj_id.strip()
