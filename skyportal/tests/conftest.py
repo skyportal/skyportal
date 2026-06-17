@@ -2945,7 +2945,6 @@ def public_default_observation_plan_request(public_group, user):
 @pytest.fixture()
 def public_default_observation_plan_request_target_group(public_group, user):
     from skyportal.models.observation_plan import (
-        DefaultObservationPlanRequest,
         DefaultObservationPlanRequestTargetGroup,
     )
 
@@ -3119,8 +3118,6 @@ def public_earthquake_event(user):
 
 @pytest.fixture()
 def public_earthquake_measured(user):
-    from skyportal.models.earthquake import EarthquakeMeasured
-
     event = EarthquakeEvent(
         event_id=str(uuid.uuid4()),
         status="initial",
@@ -3718,9 +3715,6 @@ def public_gcnevent(user):
 
 @pytest.fixture()
 def public_gcn_event_mmadetector(user):
-    from skyportal.models.gcn import GcnEvent
-    from skyportal.models.mmadetector import GcnEventMMADetector, MMADetector
-
     # GcnEvent.dateobs is unique; use a deterministic-but-unique value
     dateobs = datetime.utcnow().replace(microsecond=int(uuid.uuid4().int % 1000000))
     event = GcnEvent(
@@ -3945,8 +3939,6 @@ def public_gcn_report(public_group, user):
 
 @pytest.fixture()
 def public_gcn_summary(public_group, user):
-    from datetime import datetime, timezone
-
     dateobs = datetime.now(UTC).replace(tzinfo=None)
 
     gcnevent = GcnEvent(
@@ -4982,8 +4974,6 @@ def public_group_reminder(public_source, public_group, user):
 
 @pytest.fixture()
 def public_group_reminder_on_earthquake(public_group, user):
-    from datetime import datetime, timezone
-
     # Parent 1: an EarthquakeEvent (read defaults to public)
     earthquake = EarthquakeEvent(
         event_id=str(uuid.uuid4()),
@@ -5495,9 +5485,6 @@ def public_listing(public_source, user):
 
 @pytest.fixture()
 def public_localization(user):
-    from skyportal.models.gcn import GcnEvent
-    from skyportal.models.localization import Localization
-
     dateobs = utcnow_naive().replace(microsecond=0)
 
     gcnevent = GcnEvent(
@@ -6193,8 +6180,6 @@ def public_reminder_on_gcn(public_group, user):
 
 @pytest.fixture()
 def public_reminder_on_shift(public_group, user):
-    from skyportal.models.reminder import ReminderOnShift
-
     shift = Shift(
         name=str(uuid.uuid4()),
         start_date=datetime.utcnow(),
