@@ -213,7 +213,7 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
             checked={showUpperLimits}
             onChange={() => setShowUpperLimits(!showUpperLimits)}
             name="showUpperLimits"
-            inputProps={{ "aria-label": "show upper limits" }}
+            slotProps={{ input: { "aria-label": "show upper limits" } }}
             size="small"
           />
           <div>Upper limits</div>
@@ -230,7 +230,7 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
               checked={showForcedPhotometry}
               onChange={() => setShowForcedPhotometry(!showForcedPhotometry)}
               name="showForcedPhotometry"
-              inputProps={{ "aria-label": "show forced photometry" }}
+              slotProps={{ input: { "aria-label": "show forced photometry" } }}
               size="small"
             />
             <div>Forced photometry</div>
@@ -248,7 +248,7 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
               checked={showMatches}
               onChange={() => setShowMatches(!showMatches)}
               name="showMatches"
-              inputProps={{ "aria-label": "show matches" }}
+              slotProps={{ input: { "aria-label": "show matches" } }}
               size="small"
             />
             <div>Matches</div>

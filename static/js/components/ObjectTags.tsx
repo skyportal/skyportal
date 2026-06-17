@@ -367,8 +367,10 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
                     "Only letters and numbers, no spaces or special characters"
                   }
                   disabled={isCreatingTag}
-                  inputProps={{
-                    "data-testid": "new-tag-input",
+                  slotProps={{
+                    htmlInput: {
+                      "data-testid": "new-tag-input",
+                    },
                   }}
                 />
                 <div className={styles.colorPicker}>
