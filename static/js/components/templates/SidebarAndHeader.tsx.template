@@ -204,12 +204,19 @@ const SidebarAndHeader = () => {
 
   {% macro add_items_to_menu(group) -%}
     {% for item in group.subitems -%}
-    {% if item.permissions %}
+    {% if item.permissions or not item.anonymous_ok %}
       {(
+      {% if item.permissions %}
+      (
       {% for permission in item.permissions %}
         currentUser?.permissions?.includes("{{ permission }}") ||
       {% endfor %}
-      false) && (
+      false) &&
+      {% endif %}
+      {% if not item.anonymous_ok %}
+      !currentUser?.is_anonymous &&
+      {% endif %}
+      true) && (
     {% endif %}
     {% if item.url.startswith('http') -%}
     <a href="{{ item.url }}" className={classes.link}>
@@ -245,7 +252,7 @@ const SidebarAndHeader = () => {
     {% else %}
     </Link>
     {%- endif %}
-    {% if item.permissions %}
+    {% if item.permissions or not item.anonymous_ok %}
     )}
     {% endif %}
     {%- endfor %}

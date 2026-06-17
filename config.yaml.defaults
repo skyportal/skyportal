@@ -144,8 +144,10 @@ app:
     - path: "/"
       component: templates/HomePage
       exact: True
+      anonymous_ok: true
     - path: "/source/:id"
       component: source/Source
+      anonymous_ok: true
     - path: "/favorites"
       component: listing/FavoritesPage
     - path: "/groups"
@@ -160,16 +162,19 @@ app:
       component: candidate/scan_reports/ReportsList
     - path: "/sources"
       component: source/SourceList
+      anonymous_ok: true
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
       component: photometry/UploadPhotometry
     - path: "/about"
       component: About
+      anonymous_ok: true
     - path: "/run/:id"
       component: observing_run/RunSummary
     - path: "/source/:obj_id/analysis/:analysis_id"
       component: source/SourceAnalysisPage
+      anonymous_ok: true
     - path: "/share_data/:id"
       component: source/ShareDataForm
     - path: "/filter/:fid"
@@ -182,14 +187,18 @@ app:
       component: allocation/AllocationSummary
     - path: "/instrument/:id"
       component: instrument/InstrumentSummary
+      anonymous_ok: true
     - path: "/telescope/:id"
       component: telescope/TelescopeSummary
+      anonymous_ok: true
     - path: "/observations"
       component: observation/ObservationPage
     - path: "/galaxies"
       component: galaxy/GalaxyPage
+      anonymous_ok: true
     - path: "/spatial_catalogs"
       component: spatial_catalog/SpatialCatalogPage
+      anonymous_ok: true
     - path: "/followup_requests"
       component: followup_request/FollowupRequestPage
     - path: "/group_sources/:id"
@@ -200,26 +209,35 @@ app:
       component: spectrum/UploadSpectrum
     - path: "/observability/:id"
       component: source/Observability
+      anonymous_ok: true
     - path: "/source/:id/finder"
       component: FindingChart
+      anonymous_ok: true
     - path: "/source/:id/periodogram"
       component: Periodogram
+      anonymous_ok: true
     - path: "/db_stats"
       component: DBStats
     - path: "/gcn_events"
       component: gcn/GcnEvents
+      anonymous_ok: true
     - path: "/gcn_events/:dateobs"
       component: gcn/GcnEventPage
+      anonymous_ok: true
     - path: "/telescopes"
       component: telescope/TelescopePage
+      anonymous_ok: true
     - path: "/instruments"
       component: instrument/InstrumentPage
+      anonymous_ok: true
     - path: "/mmadetectors"
       component: mma_detector/MMADetectorPage
     - path: "/earthquakes"
       component: earthquake/EarthquakesPage
+      anonymous_ok: true
     - path: "/earthquakes/:event_id"
       component: earthquake/EarthquakePage
+      anonymous_ok: true
     - path: "/services"
       component: analysis/AnalysisServicePage
     - path: "/recurring_apis"
@@ -248,10 +266,12 @@ app:
         - name: Dashboard
           icon: Home
           url: /
+          anonymous_ok: true
 
         - name: Sources
           icon: Storage
           url: /sources
+          anonymous_ok: true
 
         - name: Candidates
           icon: Search
@@ -272,6 +292,7 @@ app:
         - name: GCN Events
           icon: SettingsInputAntenna
           url: /gcn_events
+          anonymous_ok: true
 
         - name: Followup Requests
           icon: WorkOutlined
@@ -288,6 +309,7 @@ app:
         - name: About
           icon: Info
           url: /about
+          anonymous_ok: true
 
     - name: Other
       icon: MoreHoriz
@@ -295,10 +317,12 @@ app:
         - name: Telescopes
           icon: MyLocation
           url: /telescopes
+          anonymous_ok: true
 
         - name: Instruments
           icon: Wifi
           url: /instruments
+          anonymous_ok: true
 
         - name: MMADetectors
           icon: Abc
@@ -323,14 +347,17 @@ app:
         - name: Earthquakes
           icon: PieChart
           url: /earthquakes
+          anonymous_ok: true
 
         - name: Galaxies
           icon: TornadoOutlined
           url: /galaxies
+          anonymous_ok: true
 
         - name: Spatial Catalogs
           icon: PhotoSizeSelectLargeOutlined
           url: /spatial_catalogs
+          anonymous_ok: true
 
         - name: Analysis Services
           icon: SentimentSatisfied
