@@ -131,7 +131,7 @@ const ScanningProfilesList = ({
           onChange={(event) =>
             handleLoadedChange(event.target.checked, dataIndex)
           }
-          inputProps={{ "aria-label": "primary checkbox" }}
+          slotProps={{ input: { "aria-label": "primary checkbox" } }}
         />
       </div>
     ) : (
@@ -177,7 +177,7 @@ const ScanningProfilesList = ({
           onChange={(event) =>
             handleDefaultChange(event.target.checked, dataIndex)
           }
-          inputProps={{ "aria-label": "primary checkbox" }}
+          slotProps={{ input: { "aria-label": "primary checkbox" } }}
         />
       </div>
     ) : (

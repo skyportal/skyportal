@@ -109,8 +109,10 @@ const TransferList = ({
               numberOfChecked(items) !== 0
             }
             disabled={items.length === 0}
-            inputProps={{
-              "aria-label": "all items selected",
+            slotProps={{
+              input: {
+                "aria-label": "all items selected",
+              },
             }}
           />
         }
@@ -144,8 +146,10 @@ const TransferList = ({
                   checked={checked.findIndex((i) => i.id === item.id) !== -1}
                   tabIndex={-1}
                   disableRipple
-                  inputProps={{
-                    "aria-labelledby": labelId,
+                  slotProps={{
+                    input: {
+                      "aria-labelledby": labelId,
+                    },
                   }}
                 />
               </ListItemIcon>

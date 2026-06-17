@@ -1673,7 +1673,7 @@ const PhotometryPlot = ({
                   checked={showNonDetections && !showExtinctionCorrection}
                   onChange={() => setShowNonDetections(!showNonDetections)}
                   disabled={showExtinctionCorrection}
-                  inputProps={{ "aria-label": "controlled" }}
+                  slotProps={{ input: { "aria-label": "controlled" } }}
                   size="small"
                 />
               </div>
@@ -1689,7 +1689,7 @@ const PhotometryPlot = ({
               <Switch
                 checked={showForcedPhotometry}
                 onChange={() => setshowForcedPhotometry(!showForcedPhotometry)}
-                inputProps={{ "aria-label": "controlled" }}
+                slotProps={{ input: { "aria-label": "controlled" } }}
                 size="small"
               />
             </div>
@@ -1712,7 +1712,7 @@ const PhotometryPlot = ({
                       setDisplayXAxisInlog(!displayXAxisSinceT0);
                       setDisplayXAxisSinceT0(!displayXAxisSinceT0);
                     }}
-                    inputProps={{ "aria-label": "controlled" }}
+                    slotProps={{ input: { "aria-label": "controlled" } }}
                     size="small"
                   />
                 </div>
@@ -1730,7 +1730,7 @@ const PhotometryPlot = ({
                 <Switch
                   checked={displayXAxisInlog}
                   onChange={() => setDisplayXAxisInlog(!displayXAxisInlog)}
-                  inputProps={{ "aria-label": "controlled" }}
+                  slotProps={{ input: { "aria-label": "controlled" } }}
                   size="small"
                 />
               </div>
@@ -1748,7 +1748,7 @@ const PhotometryPlot = ({
                   <Switch
                     checked={showOnlyValidated}
                     onChange={() => setShowOnlyValidated(!showOnlyValidated)}
-                    inputProps={{ "aria-label": "controlled" }}
+                    slotProps={{ input: { "aria-label": "controlled" } }}
                     size="small"
                   />
                 </div>
@@ -1795,8 +1795,10 @@ const PhotometryPlot = ({
                 margin="dense"
                 type="text"
                 size="small"
-                inputProps={{
-                  style: { textAlign: "center", padding: "4.5px" },
+                slotProps={{
+                  htmlInput: {
+                    style: { textAlign: "center", padding: "4.5px" },
+                  },
                 }}
                 style={{ width: "3rem", margin: 0 }}
               />
@@ -1901,11 +1903,13 @@ const PhotometryPlot = ({
                 onChange={(e) => setPeriod(e.target.value)}
                 margin="dense"
                 type="number"
-                inputProps={{
-                  step: 0.1,
-                  min: 0.1,
-                  max: 365,
-                  "aria-labelledby": "input-slider",
+                slotProps={{
+                  htmlInput: {
+                    step: 0.1,
+                    min: 0.1,
+                    max: 365,
+                    "aria-labelledby": "input-slider",
+                  },
                 }}
                 style={{ minWidth: "8rem", width: "100%" }}
                 size="small"
@@ -1960,12 +1964,14 @@ const PhotometryPlot = ({
                 onChange={(e) => setSmoothing(e.target.value)}
                 margin="dense"
                 type="number"
-                inputProps={{
-                  step: 1,
-                  min: 0,
-                  max: 100,
-                  type: "number",
-                  "aria-labelledby": "input-slider",
+                slotProps={{
+                  htmlInput: {
+                    step: 1,
+                    min: 0,
+                    max: 100,
+                    type: "number",
+                    "aria-labelledby": "input-slider",
+                  },
                 }}
                 size="small"
               />
@@ -1980,7 +1986,7 @@ const PhotometryPlot = ({
               <Switch
                 checked={phase === 2}
                 onChange={() => setPhase(phase === 2 ? 1 : 2)}
-                inputProps={{ "aria-label": "controlled" }}
+                slotProps={{ input: { "aria-label": "controlled" } }}
               />
               <Typography>2</Typography>
             </div>

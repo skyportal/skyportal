@@ -448,7 +448,7 @@ const MultipleClassificationsForm = ({
             <Switch
               checked={scaleProbabilities || false}
               onChange={handleScaleProbabilitiesSwitchChange}
-              inputProps={{ "aria-label": "controlled" }}
+              slotProps={{ input: { "aria-label": "controlled" } }}
             />
           }
           label="Scale parent/child probabilities"
