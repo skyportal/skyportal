@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import base64
+import json
 import os
 import sys
 import textwrap
@@ -221,10 +222,15 @@ if __name__ == "__main__":
                 elif filename.endswith("log"):
                     with open(filename) as f:
                         return f.read()
+                elif filename.endswith(".json"):
+                    # Inject a JSON file as the field's value (e.g. a
+                    # model_lightcurve for a seeded analysis_upload).
+                    with open(filename) as f:
+                        return json.load(f)
                 else:
                     raise NotImplementedError(
-                        f"{filename}: Only CSV, PNG, xml, reg, and hdf5 files "
-                        "currently supported for extending individual objects"
+                        f"{filename}: Only CSV, PNG, xml, reg, hdf5, log, and json "
+                        "files currently supported for extending individual objects"
                     )
 
             for k, v in obj.items():

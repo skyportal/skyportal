@@ -31,6 +31,7 @@ from ...enum_types import (
     ANALYSIS_TYPES,
     AUTHENTICATION_TYPES,
     DEFAULT_ANALYSIS_FILTER_TYPES,
+    DEFAULT_ANALYSIS_SCALAR_FILTERS,
 )
 from ...models import (
     AnalysisService,
@@ -2378,16 +2379,9 @@ class DefaultAnalysisHandler(BaseHandler):
                         f"Analysis service {analysis_service_id} not found", status=404
                     )
 
-                stmt = DefaultAnalysis.select(self.current_user).where(
-                    DefaultAnalysis.analysis_service_id == analysis_service_id,
-                    DefaultAnalysis.author_id == self.associated_user_object.id,
-                )
-                default_analysis = await session.scalar(stmt)
-                if default_analysis is not None:
-                    return self.error(
-                        "You already have a default analysis for this analysis service. Delete it first, or update it.",
-                        status=400,
-                    )
+                # Multiple default analyses per service are allowed — e.g. one
+                # per classification, or the same trigger with different
+                # parameters. Each matching default runs independently.
 
                 default_analysis_parameters = data.get(
                     "default_analysis_parameters", {}
@@ -2466,14 +2460,22 @@ class DefaultAnalysisHandler(BaseHandler):
                         f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
-                # # check that the keys of the source_filter are valid from the enum DEFAULT_ANALYSIS_SOURCE_FILTERS
+                # check that the source_filter keys are valid: either a
+                # list-of-dicts filter (classifications) or a scalar (group_id).
                 if not set(source_filter.keys()).issubset(
                     set(DEFAULT_ANALYSIS_FILTER_TYPES.keys())
+                    | set(DEFAULT_ANALYSIS_SCALAR_FILTERS.keys())
                 ):
                     return self.error(f"Invalid source_filter: {source_filter}.")
 
                 for key, value in source_filter.items():
-                    if isinstance(value, list):
+                    if key in DEFAULT_ANALYSIS_SCALAR_FILTERS:
+                        if not isinstance(value, DEFAULT_ANALYSIS_SCALAR_FILTERS[key]):
+                            return self.error(
+                                f"Invalid source_filter. Key {key} must be a "
+                                f"{DEFAULT_ANALYSIS_SCALAR_FILTERS[key].__name__}."
+                            )
+                    elif isinstance(value, list):
                         for v in value:
                             if isinstance(v, dict):
                                 if not set(v.keys()).issubset(

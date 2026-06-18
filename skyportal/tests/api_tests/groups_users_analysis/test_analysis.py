@@ -1365,3 +1365,133 @@ def test_source_analysis(
     assert data["status"] == "success"
     assert "analyses" in data["data"]
     assert any(analysis["id"] == analysis_id for analysis in data["data"]["analyses"])
+
+
+def test_default_analysis_on_save(
+    analysis_service_token,
+    analysis_token,
+    upload_data_token,
+    public_group,
+):
+    # A (non-upload_only) analysis service backed by the demo analysis server.
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "test default analysis on save",
+        "description": "A test default analysis (save-to-group trigger)",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": [],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
+    )
+    assert status == 200, data
+    analysis_service_id = data["data"]["id"]
+
+    # A default analysis that triggers when a source is saved to public_group
+    # (source_filter pins a group_id rather than a classification).
+    status, data = api(
+        "POST",
+        f"analysis_service/{analysis_service_id}/default_analysis",
+        data={
+            "default_analysis_parameters": {},
+            "group_ids": [public_group.id],
+            "source_filter": {"group_id": public_group.id},
+            "daily_limit": 5,
+        },
+        token=analysis_token,
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+    # Saving a NEW source to that group should auto-trigger the default analysis.
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 24.6258,
+            "dec": -32.9024,
+            "redshift": 0.1,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    n_retries = 0
+    while n_retries < 20:
+        status, data = api(
+            "GET",
+            "obj/analysis",
+            params={"objID": obj_id, "analysisServiceID": analysis_service_id},
+            token=analysis_token,
+        )
+        if status == 200 and data["status"] == "success" and len(data["data"]) == 1:
+            break
+        time.sleep(1)
+        n_retries += 1
+
+    assert n_retries < 20, (
+        "default analysis was not triggered by saving the source to the group"
+    )
+
+
+def test_default_analysis_multiple_per_service(
+    analysis_service_token,
+    analysis_token,
+    public_group,
+):
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "test multiple default analyses",
+        "description": "A test service allowing multiple default analyses",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": [],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
+    )
+    assert status == 200, data
+    analysis_service_id = data["data"]["id"]
+    url = f"analysis_service/{analysis_service_id}/default_analysis"
+
+    # Multiple default analyses on the SAME service are allowed (repeats):
+    # different triggers, or the same trigger with different parameters.
+    for source_filter in (
+        {"classifications": [{"name": "Algol", "probability": 0.5}]},
+        {"group_id": public_group.id},
+    ):
+        status, data = api(
+            "POST",
+            url,
+            data={
+                "default_analysis_parameters": {},
+                "group_ids": [public_group.id],
+                "source_filter": source_filter,
+                "daily_limit": 5,
+            },
+            token=analysis_token,
+        )
+        assert status == 200, data
+        assert data["status"] == "success"
+
+    status, data = api("GET", url, token=analysis_token)
+    assert status == 200
+    assert len(data["data"]) == 2
