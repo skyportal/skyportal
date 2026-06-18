@@ -1708,6 +1708,18 @@ class AnalysisHandler(BaseHandler):
                     analysis_dict["groups"] = a.groups
                     if include_filename:
                         analysis_dict["filename"] = a._full_name
+                    # Expose the per-filter model light curve (compact) so the
+                    # photometry plot can overlay the fit without a full data load.
+                    try:
+                        analysis_dict["model_lightcurve"] = (a.data or {}).get(
+                            "model_lightcurve"
+                        )
+                        # Model name for the overlay's per-model toggle label
+                        # (real fits use analysis_parameters.source; uploads set this).
+                        analysis_dict["model_name"] = (a.data or {}).get("model_name")
+                    except Exception:
+                        analysis_dict["model_lightcurve"] = None
+                        analysis_dict["model_name"] = None
                     if (
                         summary_only
                         and not service_info["analysis_serivce_display_as_summary"]

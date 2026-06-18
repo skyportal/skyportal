@@ -51,6 +51,22 @@ import {
   rgba,
 } from "../../utils";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useGetAnalysesQuery } from "../../ducks/source";
+import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
+
+// Dash styles cycled across overlaid model fits, with a glyph hint for the
+// toggle buttons so the button matches its line on the plot.
+// Stable empty default for the modelFits prop: a literal `= []` in the
+// destructure is a new array each render, which would invalidate the
+// effectiveModelFits memo every render → setState-in-effect → render loop.
+const EMPTY_MODEL_FITS: ModelFit[] = [];
+const MODEL_DASHES = ["solid", "dash", "dot", "dashdot"];
+const DASH_GLYPH: Record<string, string> = {
+  solid: "──",
+  dash: "– –",
+  dot: "···",
+  dashdot: "–·",
+};
 
 // convert any unit to days
 const periodUnitDividers: Record<string, number> = {
@@ -252,6 +268,9 @@ interface PhotometryPlotProps {
   magsys?: string;
   t0?: number | null;
   showExtinctionCorrection?: boolean;
+  // Analysis-service model fits to overlay on the photometry (e.g. NMMA);
+  // each carries a per-filter model_lightcurve {filter: [[mjd, med, lo, hi]]}.
+  modelFits?: ModelFit[];
 }
 
 const PhotometryPlot = ({
@@ -267,12 +286,53 @@ const PhotometryPlot = ({
   magsys = "ab",
   t0 = null,
   showExtinctionCorrection = false,
+  modelFits = EMPTY_MODEL_FITS,
 }: PhotometryPlotProps) => {
   const { classes } = useStyles();
 
   const { data: profile } = useGetProfileQuery();
   const { data: config } = useGetConfigQuery() as { data: any };
   const [fetchPhotometryTrigger] = useLazyFetchSourcePhotometryQuery();
+
+  // Analysis-service model fits to overlay (self-fetched unless passed in).
+  const { data: objAnalyses } = useGetAnalysesQuery({
+    analysis_resource_type: "obj",
+    params: { objID: obj_id },
+  });
+  const effectiveModelFits = useMemo<ModelFit[]>(() => {
+    const base: ModelFit[] = modelFits?.length
+      ? modelFits
+      : ((objAnalyses as any[]) || [])
+          .filter((a) => a.obj_id === obj_id && a.model_lightcurve)
+          .map((a) => ({
+            id: a.id,
+            // Label by the model: real fits carry analysis_parameters.source;
+            // uploads set model_name; fall back to the service name.
+            label:
+              a.analysis_parameters?.source ||
+              a.model_name ||
+              a.analysis_service_name,
+            model_lightcurve: a.model_lightcurve,
+          }));
+    // Assign a stable id + dash per model so several can be toggled/shown at
+    // once and still be told apart when they share a filter color.
+    return base.map((f, i) => ({
+      ...f,
+      id: f.id ?? i,
+      dash: f.dash || MODEL_DASHES[i % MODEL_DASHES.length],
+    }));
+  }, [objAnalyses, modelFits, obj_id]);
+
+  // Per-model toggle (spectroscopy-style buttons). Default: all OFF — the user
+  // opts a model in rather than overlaying every fit on load.
+  const [shownModelFitIds, setShownModelFitIds] = useState<Set<number>>(
+    new Set(),
+  );
+  const shownModelFits = useMemo<ModelFit[]>(
+    () =>
+      effectiveModelFits.filter((f) => shownModelFitIds.has(f.id as number)),
+    [effectiveModelFits, shownModelFitIds],
+  );
 
   // Params for the main object's photometry query. Duplicate sources are fetched
   // lazily with just `{ magsys }` (mirroring the old duplicate fetch).
@@ -1214,6 +1274,18 @@ const PhotometryPlot = ({
         filter2color,
       );
 
+      // Overlay analysis-service model fits (e.g. NMMA) on the photometry. The
+      // x transform matches the detections trace (MJD, or sec-since-t0 in log).
+      traces.push(
+        ...buildModelLightcurveTraces(
+          shownModelFits,
+          filter2color,
+          (mjd: number) =>
+            t0 && displayXAxisInlog ? daysToSec(mjd - t0) : mjd,
+          tabToPlotType(tabIndex),
+        ),
+      );
+
       if (defaultVisibleFilters?.length > 0 && !appliedDefaultVisibleFilters) {
         const visibleTraces = traces.map((trace: any) => {
           const newTrace = { ...trace };
@@ -1261,6 +1333,7 @@ const PhotometryPlot = ({
     displayXAxisSinceT0,
     displayXAxisInlog,
     showOnlyValidated,
+    shownModelFits,
   ]);
 
   // The main object's photometry (including extinction toggle and magsys) is
@@ -1282,6 +1355,15 @@ const PhotometryPlot = ({
         plotData,
         filter2color,
       );
+      traces.push(
+        ...buildModelLightcurveTraces(
+          shownModelFits,
+          filter2color,
+          (mjd: number) =>
+            t0 && displayXAxisInlog ? daysToSec(mjd - t0) : mjd,
+          tabToPlotType(tabIndex),
+        ),
+      );
       setPlotData(traces);
       const newLayouts = createLayouts(
         tabToPlotType(tabIndex),
@@ -1291,7 +1373,7 @@ const PhotometryPlot = ({
       );
       setLayouts(newLayouts);
     }
-  }, [tabIndex, phase]);
+  }, [tabIndex, phase, shownModelFits]);
 
   useEffect(() => {
     if (initialized && filter2color && layoutReset) {
@@ -1653,6 +1735,45 @@ const PhotometryPlot = ({
           style={{ width: "100%", height: "100%" }}
         />
       </div>
+      {effectiveModelFits.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0.4rem",
+            alignItems: "center",
+            padding: "0.3rem 0.5rem",
+          }}
+        >
+          <Typography variant="caption" style={{ marginRight: 4 }}>
+            Model fits:
+          </Typography>
+          {effectiveModelFits.map((f) => {
+            const shown = shownModelFitIds.has(f.id as number);
+            return (
+              <Chip
+                key={f.id ?? f.label}
+                size="small"
+                clickable
+                variant={shown ? "filled" : "outlined"}
+                color={shown ? "primary" : "default"}
+                label={`${DASH_GLYPH[f.dash || "solid"]}  ${f.label ?? "model"}`}
+                onClick={() =>
+                  setShownModelFitIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(f.id as number)) {
+                      next.delete(f.id as number);
+                    } else {
+                      next.add(f.id as number);
+                    }
+                    return next;
+                  })
+                }
+              />
+            );
+          })}
+        </div>
+      )}
       <div className={classes.gridContainer}>
         <div className={classes.gridItem} style={{ columnGap: 0 }}>
           <div
