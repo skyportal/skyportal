@@ -42,11 +42,13 @@ const describeTrigger = (sourceFilter: any): string => {
 interface DefaultAnalysisListProps {
   analysisService: any;
   deletePermission?: boolean;
+  showForm?: boolean;
 }
 
 const DefaultAnalysisList = ({
   analysisService,
   deletePermission = true,
+  showForm = true,
 }: DefaultAnalysisListProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
@@ -113,11 +115,15 @@ const DefaultAnalysisList = ({
         </Table>
       )}
 
-      <Divider />
-      <Typography className={classes.formHeader} variant="subtitle1">
-        New default analysis
-      </Typography>
-      <NewDefaultAnalysis analysisService={analysisService} />
+      {showForm && (
+        <>
+          <Divider />
+          <Typography className={classes.formHeader} variant="subtitle1">
+            New default analysis
+          </Typography>
+          <NewDefaultAnalysis analysisService={analysisService} />
+        </>
+      )}
 
       <ConfirmDeletionDialog
         deleteFunction={doDelete}

@@ -215,6 +215,8 @@ app:
       component: earthquake/EarthquakePage
     - path: "/services"
       component: analysis/AnalysisServicePage
+    - path: "/analysis_requests"
+      component: analysis/AnalysisRequestPage
     - path: "/recurring_apis"
       component: RecurringAPIPage
     - path: "/shifts"
@@ -269,6 +271,10 @@ app:
         - name: Followup Requests
           icon: WorkOutlined
           url: /followup_requests
+
+        - name: Analysis Requests
+          icon: Assessment
+          url: /analysis_requests
 
         - name: Shifts
           icon: SubwayRounded
