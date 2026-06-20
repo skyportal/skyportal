@@ -18,7 +18,7 @@ from matplotlib import cm
 from matplotlib.colors import LinearSegmentedColormap, rgb2hex
 from sncosmo.photdata import PhotometricData
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
@@ -2395,6 +2395,11 @@ class ObjPhotometryHandler(BaseHandler):
                                 Stream.name,
                             )
                         )
+                    if include_validation_info and USE_PHOTOMETRY_VALIDATION:
+                        # selectinload (not joinedload) so validations load via a
+                        # single WHERE id IN (...) query instead of an N+1 per
+                        # point — the lazy default makes dense sources time out.
+                        options.append(selectinload(Photometry.validations))
 
                 obj_ids = {obj_id}
                 if include_superobjs_photometry:

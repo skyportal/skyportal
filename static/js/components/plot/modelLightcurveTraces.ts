@@ -5,10 +5,15 @@ import { rgba } from "../../utils/calculations";
 export type ModelLightcurve = Record<string, number[][]>;
 
 export interface ModelFit {
-  id?: number;
+  id?: number | string; // grouped fits use a composite `${analysisId}:${model}` id
   label?: string;
   dash?: string; // Plotly line dash, to distinguish models that share a filter color
   model_lightcurve: ModelLightcurve;
+  analysisId?: number; // source analysis id, for the on-demand corner fetch
+  model?: string; // model key into the analysis posteriors
+  baseLabel?: string; // model name before run-disambiguation, for grouping runs
+  createdAt?: string; // run timestamp — disambiguates repeated runs of a model
+  nDet?: number; // detections used in the fit — also disambiguates runs
 }
 
 // Build Plotly traces (credible band + median line) per filter to overlay an

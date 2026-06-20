@@ -1515,7 +1515,12 @@ class AnalysisHandler(BaseHandler):
                     return self.error(f"Error posting analysis: {e}")
 
     @auth_or_token
-    async def get(self, analysis_resource_type: str, analysis_id: int | None = None):
+    async def get(
+        self,
+        analysis_resource_type: str,
+        obj_id_path: str | None = None,
+        analysis_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -1610,7 +1615,20 @@ class AnalysisHandler(BaseHandler):
         include_filename = self.get_query_argument("includeFilename", False)
         summary_only = self.get_query_argument("summaryOnly", False)
 
-        obj_id = self.get_query_argument("objID", None)
+        # This GET serves two routes that pass path captures positionally:
+        #   /api/(obj)/<obj_id>/analysis(/<analysis_id>)  -> (obj_id_path, analysis_id)
+        #   /api/(obj)/analysis(/<analysis_id>)           -> the analysis_id lands in
+        #       the obj_id_path slot (it's the first optional capture).
+        # A bare numeric first capture with no analysis_id is therefore the
+        # analysis_id, not an obj_id (SkyPortal obj ids are non-numeric).
+        if (
+            analysis_id is None
+            and obj_id_path is not None
+            and str(obj_id_path).isdigit()
+        ):
+            analysis_id = int(obj_id_path)
+            obj_id_path = None
+        obj_id = obj_id_path or self.get_query_argument("objID", None)
         analysis_service_id = self.get_query_argument(
             "analysisServiceID", None, type=int
         )
@@ -1712,15 +1730,27 @@ class AnalysisHandler(BaseHandler):
                     # Expose the per-filter model light curve (compact) so the
                     # photometry plot can overlay the fit without a full data load.
                     try:
-                        analysis_dict["model_lightcurve"] = (a.data or {}).get(
+                        adata = a.data or {}
+                        analysis_dict["model_lightcurve"] = adata.get(
                             "model_lightcurve"
+                        )
+                        # Grouped fits pack several models into one analysis:
+                        # {model_name: {filter: [[mjd,med,lo,hi]]}}. The overlay
+                        # expands this into one toggle entry per model.
+                        analysis_dict["model_lightcurves"] = adata.get(
+                            "model_lightcurves"
                         )
                         # Model name for the overlay's per-model toggle label
                         # (real fits use analysis_parameters.source; uploads set this).
-                        analysis_dict["model_name"] = (a.data or {}).get("model_name")
+                        analysis_dict["model_name"] = adata.get("model_name")
+                        # Detections used in the fit — lets the overlay tell apart
+                        # multiple runs of the same model on one source.
+                        analysis_dict["n_detections"] = adata.get("n_detections")
                     except Exception:
                         analysis_dict["model_lightcurve"] = None
+                        analysis_dict["model_lightcurves"] = None
                         analysis_dict["model_name"] = None
+                        analysis_dict["n_detections"] = None
                     if (
                         summary_only
                         and not service_info["analysis_serivce_display_as_summary"]

@@ -71,30 +71,54 @@ const HEALTH_WINDOWS = [
   { key: "1h", label: "1 hour", ms: HOUR_MS },
   { key: "24h", label: "24 hours", ms: DAY_MS },
   { key: "1w", label: "1 week", ms: 7 * DAY_MS },
+  { key: "30d", label: "30 days", ms: 30 * DAY_MS },
   { key: "all", label: "Lifetime", ms: Infinity },
 ];
 
-// Health summary for analysis requests: completed/active/failed split within a
-// selectable time window. Computed client-side from the fetched analyses
-// (status + last_activity timestamp); the numbers and donut update on selection.
+// Per-status buckets for the tiles/donut (analysis status is an enum).
+const STATUS_BUCKETS: { status: string; label: string; color: string }[] = [
+  { status: "completed", label: "Completed", color: COMPLETED_COLOR },
+  { status: "queued", label: "Queued", color: "#0288d1" },
+  { status: "pending", label: "Pending", color: ACTIVE_COLOR },
+  { status: "running", label: "Running", color: "#7e57c2" },
+  { status: "failure", label: "Failed", color: FAILED_COLOR },
+  { status: "cancelled", label: "Cancelled", color: "#757575" },
+  { status: "timed_out", label: "Timed out", color: "#9e6f00" },
+];
+const OTHER_COLOR = "#bdbdbd";
+
+// Health summary for analysis requests: per-status split within a selectable
+// time window. Computed client-side from the fetched analyses (status +
+// last_activity timestamp); the numbers and donut update on selection.
 const AnalysisHealth = ({ analyses }: { analyses: any[] }) => {
   // captured at mount (recomputed on refetch/revisit) — keeps render pure
   const [now] = useState(() => Date.now());
   const [windowKey, setWindowKey] = useState("24h");
   const win =
-    HEALTH_WINDOWS.find((w) => w.key === windowKey) ?? HEALTH_WINDOWS[3];
+    HEALTH_WINDOWS.find((w) => w.key === windowKey) ??
+    HEALTH_WINDOWS[HEALTH_WINDOWS.length - 1];
 
-  let completed = 0;
-  let active = 0;
-  let failed = 0;
+  const counts: Record<string, number> = {};
+  let total = 0;
+  let other = 0;
   analyses.forEach((a: any) => {
     const t = parseUTC(a.last_activity || a.created_at);
     if (win.ms !== Infinity && now - t > win.ms) return;
-    if (a.status === "completed") completed += 1;
-    else if (ACTIVE_STATUSES.includes(a.status)) active += 1;
-    else failed += 1; // failure, cancelled, timed_out
+    total += 1;
+    const bucket = STATUS_BUCKETS.find((b) => b.status === a.status);
+    if (bucket) counts[bucket.status] = (counts[bucket.status] || 0) + 1;
+    else other += 1;
   });
-  const total = completed + active + failed;
+
+  const slices = STATUS_BUCKETS.map((b) => ({
+    label: b.label,
+    value: counts[b.status] || 0,
+    color: b.color,
+  }));
+  if (other > 0) {
+    slices.push({ label: "Other", value: other, color: OTHER_COLOR });
+  }
+  const nonZero = slices.filter((s) => s.value > 0);
 
   return (
     <Paper style={{ padding: "1rem", marginBottom: "1rem" }}>
@@ -132,13 +156,14 @@ const AnalysisHealth = ({ analyses }: { analyses: any[] }) => {
       >
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <HealthTile label="Total" value={total} />
-          <HealthTile
-            label="Completed"
-            value={completed}
-            color={COMPLETED_COLOR}
-          />
-          <HealthTile label="Active" value={active} color={ACTIVE_COLOR} />
-          <HealthTile label="Failed" value={failed} color={FAILED_COLOR} />
+          {nonZero.map((s) => (
+            <HealthTile
+              key={s.label}
+              label={s.label}
+              value={s.value}
+              color={s.color}
+            />
+          ))}
         </div>
         <div style={{ flex: "1 1 260px", minWidth: 240 }}>
           {total === 0 ? (
@@ -151,17 +176,15 @@ const AnalysisHealth = ({ analyses }: { analyses: any[] }) => {
                 {
                   type: "pie",
                   hole: 0.4,
-                  labels: ["Completed", "Active", "Failed"],
-                  values: [completed, active, failed],
-                  marker: {
-                    colors: [COMPLETED_COLOR, ACTIVE_COLOR, FAILED_COLOR],
-                  },
+                  labels: nonZero.map((s) => s.label),
+                  values: nonZero.map((s) => s.value),
+                  marker: { colors: nonZero.map((s) => s.color) },
                   textinfo: "label+value",
                   sort: false,
                 },
               ]}
               layout={{
-                height: 220,
+                height: 230,
                 margin: { t: 10, b: 10, l: 10, r: 10 },
                 showlegend: false,
               }}
