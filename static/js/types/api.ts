@@ -894,7 +894,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/{analysis_resource_type}/{analysis_id}/analysis": {
+    "/api/{analysis_resource_type}/{obj_id_path}/analysis/{analysis_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -965,37 +965,13 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /**
-         * Delete an Analysis.
-         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    analysis_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-            };
-        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/{analysis_resource_type}/{analysis_id}": {
+    "/api/{analysis_resource_type}/{obj_id_path}/analysis": {
         parameters: {
             query?: never;
             header?: never;
@@ -1120,7 +1096,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/{analysis_resource_type}/analysis/{analysis_id}": {
+    "/api/{analysis_resource_type}/{analysis_id}/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an Analysis.
+         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    analysis_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{analysis_resource_type}/analysis/{obj_id_path}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1191,31 +1207,7 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /**
-         * Delete an Analysis.
-         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    analysis_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-            };
-        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1341,6 +1333,46 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{analysis_resource_type}/analysis/{analysis_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an Analysis.
+         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    analysis_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
