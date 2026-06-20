@@ -509,7 +509,7 @@ requires-dist = [
     { name = "packaging", specifier = ">=23.0" },
     { name = "phonenumbers", specifier = ">=8.12.15" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.0" },
-    { name = "pyjwt", specifier = ">=2.13.0" },
+    { name = "pyjwt", specifier = ">=2.0.1" },
     { name = "python-dateutil", specifier = ">=2.8.1" },
     { name = "python-slugify", specifier = ">=4.0.1" },
     { name = "pyyaml", specifier = ">=6.0.1" },
@@ -521,7 +521,7 @@ requires-dist = [
     { name = "sqlalchemy-utils", specifier = ">=0.36.8" },
     { name = "supervisor", specifier = ">=4.3" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.1.0" },
-    { name = "tornado", specifier = ">=6.5.7" },
+    { name = "tornado", specifier = ">=6.0.3" },
 ]
 
 [package.metadata.requires-dev]
@@ -4352,7 +4352,6 @@ docs = [
     { name = "eralchemy2" },
     { name = "jinja2" },
     { name = "jsx-lexer" },
-    { name = "notedown" },
     { name = "numpydoc" },
     { name = "recommonmark" },
     { name = "sphinx" },
@@ -4469,7 +4468,6 @@ docs = [
     { name = "eralchemy2" },
     { name = "jinja2", specifier = "<3.2.0" },
     { name = "jsx-lexer" },
-    { name = "notedown" },
     { name = "numpydoc" },
     { name = "recommonmark" },
     { name = "sphinx", marker = "python_full_version >= '3.12'", specifier = ">=9.1.0" },
