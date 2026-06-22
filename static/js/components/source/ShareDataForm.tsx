@@ -170,7 +170,7 @@ const createPhotRow = (
   mjd: Number(mjd).toFixed(3),
   mag: mag === null ? null : Number(mag).toFixed(4),
   magerr: magerr === null ? null : Number(magerr).toFixed(4),
-  limiting_mag: Number(limiting_mag).toFixed(4),
+  limiting_mag: Number(limiting_mag).toFixed(2),
   instrument,
   filter,
   groups,
@@ -482,22 +482,22 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
   };
 
   const photColumns: any[] = [
-    { field: "id", headerName: "ID", flex: 1, minWidth: 80 },
-    { field: "mjd", headerName: "MJD", flex: 1, minWidth: 100 },
-    { field: "mag", headerName: "Mag", flex: 1, minWidth: 90 },
-    { field: "magerr", headerName: "Mag Error", flex: 1, minWidth: 100 },
+    { field: "id", headerName: "ID", flex: 0.5, minWidth: 40 },
+    { field: "mjd", headerName: "MJD", flex: 0.5, minWidth: 80 },
+    { field: "mag", headerName: "Mag", flex: 0.5, minWidth: 60 },
+    { field: "magerr", headerName: "Mag Error", flex: 0.5, minWidth: 60 },
     {
       field: "limiting_mag",
       headerName: "Limiting Mag",
-      flex: 1,
-      minWidth: 110,
+      flex: 0.5,
+      minWidth: 60,
     },
-    { field: "instrument", headerName: "Instrument", flex: 1, minWidth: 110 },
-    { field: "filter", headerName: "Filter", flex: 1, minWidth: 90 },
+    { field: "instrument", headerName: "Instrument", flex: 0.8, minWidth: 100 },
+    { field: "filter", headerName: "Filter", flex: 0.6, minWidth: 80 },
     {
       field: "groups",
       headerName: "Currently visible to",
-      flex: 1,
+      flex: 2,
       minWidth: 150,
     },
   ];
@@ -708,9 +708,18 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
                   type: "include",
                   ids: new Set(selectedPhotRows),
                 }}
-                onRowSelectionModelChange={(model: any) =>
-                  setSelectedPhotRows(Array.from(model.ids))
-                }
+                onRowSelectionModelChange={(model: any) => {
+                  if (model.type === "exclude") {
+                    const excluded = new Set(model.ids);
+                    setSelectedPhotRows(
+                      photRows
+                        .map((r: any) => r.id)
+                        .filter((id: any) => !excluded.has(id)),
+                    );
+                  } else {
+                    setSelectedPhotRows(Array.from(model.ids));
+                  }
+                }}
                 pageSizeOptions={[10, 25, 50, 100]}
                 initialState={{
                   pagination: { paginationModel: { pageSize: 10, page: 0 } },
@@ -744,9 +753,18 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
                   type: "include",
                   ids: new Set(selectedSpecRows),
                 }}
-                onRowSelectionModelChange={(model: any) =>
-                  setSelectedSpecRows(Array.from(model.ids))
-                }
+                onRowSelectionModelChange={(model: any) => {
+                  if (model.type === "exclude") {
+                    const excluded = new Set(model.ids);
+                    setSelectedSpecRows(
+                      specRows
+                        .map((r: any) => r.id)
+                        .filter((id: any) => !excluded.has(id)),
+                    );
+                  } else {
+                    setSelectedSpecRows(Array.from(model.ids));
+                  }
+                }}
                 columnVisibilityModel={specColumnVisibilityModel}
                 pageSizeOptions={[10, 25, 50, 100]}
                 initialState={{
