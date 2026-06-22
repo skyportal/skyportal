@@ -599,6 +599,79 @@ def test_candidate_date_filtering(
     expect(page.locator('//*[contains(., "Found 5 candidates")]').first).to_be_visible()
 
 
+@pytest.mark.flaky(reruns=2)
+def test_candidate_lightcurve_renders(
+    page,
+    user,
+    public_filter2,
+    public_group2,
+    upload_data_token,
+    super_admin_token,
+    ztf_camera,
+):
+    # Regression test: RTK Query freezes its cached photometry, and Vega mutates
+    # each datum (adds Symbol(vega_id)). If the data isn't copied first, Vega
+    # throws "object is not extensible" and no lightcurve renders. See VegaPhotometry.
+    status, data = api(
+        "POST",
+        f"groups/{public_group2.id}/users",
+        data={"userID": user.id, "admin": False},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    candidate_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": candidate_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter2.id],
+            "passed_at": str(utcnow_naive()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": candidate_id,
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfr",
+            "group_ids": [public_group2.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    page_errors = []
+    page.on("pageerror", lambda exc: page_errors.append(str(exc)))
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group2.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(page.locator(f'//a[@data-testid="{candidate_id}"]').first).to_be_visible()
+
+    # Vega renders the lightcurve into a .vega-embed svg; it never appears if Vega
+    # throws on the frozen photometry data.
+    expect(page.locator(".vega-embed svg.marks").first).to_be_visible()
+    assert not any("not extensible" in err for err in page_errors), page_errors
+
+
 def test_add_scanning_profile(
     page, user, public_group, public_source, annotation_token
 ):
