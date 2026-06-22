@@ -464,6 +464,7 @@ const PhotometryTable = ({
           objId={obj_id}
           usePhotometryValidation={usePhotometryValidation}
           onDownload={handleDownloadClose}
+          t0={t0}
         />
       </div>
     );
