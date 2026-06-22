@@ -12,6 +12,58 @@ from ....utils.naive_datetime import utcnow_naive
 
 
 @pytest.mark.flaky(reruns=2)
+def test_candidate_pagination_replaces_page(
+    page,
+    user,
+    public_filter,
+    public_group,
+    upload_data_token,
+):
+    # Regression test: Previous/Next is discrete pagination. Clicking Next must
+    # replace the list with the next page, not append to it (which made the page
+    # "expand" from 1-50 to 1-100). numPerPage is 50, so 51 candidates span two
+    # pages; page 2 should show only candidate 51.
+    candidate_id = str(uuid.uuid4())
+    for i in range(51):
+        status, data = api(
+            "POST",
+            "candidates",
+            data={
+                "id": f"{candidate_id}_{i}",
+                "ra": 234.22,
+                "dec": -22.33,
+                "redshift": 3,
+                "transient": False,
+                "ra_dis": 2.3,
+                "passed_at": str(utcnow_naive()),
+                "filter_ids": [public_filter.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+
+    expect(
+        page.locator('//*[contains(., "Found 51 candidates.")]').first
+    ).to_be_visible()
+    # Page 1 shows candidate 1 of 51.
+    expect(page.locator('//*[text()="1/51"]').first).to_be_visible()
+
+    page.locator('//button[text()="Next"]').first.click()
+
+    # Page 2 shows candidate 51 of 51; the list was replaced, so candidate 1 of 51
+    # is no longer present (it would still be if Next had appended).
+    expect(page.locator('//*[text()="51/51"]').first).to_be_visible()
+    expect(page.locator('//*[text()="1/51"]')).to_have_count(0)
+
+
+@pytest.mark.flaky(reruns=2)
 def test_candidate_group_filtering(
     page,
     user,
