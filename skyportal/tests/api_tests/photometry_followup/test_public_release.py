@@ -84,7 +84,7 @@ def test_create_release(
     )
     assert_api_fail(status, data, 400)
     assert data["message"] != error_validation_link_name
-    assert data["message"] == "Invalid groups"
+    assert "Invalid groups" in data["message"]
 
     status, data = api(
         "POST",

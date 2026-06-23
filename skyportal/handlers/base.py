@@ -144,6 +144,9 @@ class BaseHandler(BaselayerHandler):
         super().success(*args, **kwargs, extra={"version": __version__})
 
     def error(self, message, *args, **kwargs):
+        # Tag with handler name so users know which endpoint failed.
+        if message and not str(message).startswith("["):
+            message = f"[{self.__class__.__name__}] {message}"
         super().error(message, *args, **kwargs, extra={"version": __version__})
 
     async def send_file(

@@ -473,8 +473,8 @@ def test_admin_save_source_as_other_user(
     )
     assert status == 400
     assert (
-        data["message"]
-        == "Failed to post source: You must be an admin to specify a saver_per_group_id field."
+        "Failed to post source: You must be an admin to specify a saver_per_group_id field."
+        in data["message"]
     )
 
     # now save it to the public group as the view only user, using the super admin token
