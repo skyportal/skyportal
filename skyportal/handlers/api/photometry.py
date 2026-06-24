@@ -2349,6 +2349,44 @@ class PhotometryHandler(BaseHandler):
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id: str):
+        """
+        ---
+        summary: Get photometry of an Obj
+        description: Retrieve all photometry associated with an Obj.
+        tags:
+          - photometry
+          - sources
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+            description: ID of the Obj to retrieve photometry for
+          - in: query
+            name: format
+            schema:
+              type: string
+            description: |
+              Return the photometry in flux or magnitude space ("flux" or
+              "mag"). Defaults to "mag".
+          - in: query
+            name: magsys
+            schema:
+              type: string
+            description: |
+              Magnitude or zeropoint system of the output (e.g. "ab" or "vega").
+              Defaults to "ab".
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfPhotometrys
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         individual_or_series = self.get_query_argument("individualOrSeries", "both")
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
         format = self.get_query_argument("format", "mag")

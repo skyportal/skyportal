@@ -1,0 +1,37 @@
+name: Type-check frontend
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22.x"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      # Type-checks against the committed generated types (static/js/types/*).
+      # The docs workflow separately verifies those stay in sync with the
+      # OpenAPI spec, so together they catch frontend/backend type divergence:
+      # this fails when frontend code stops matching the API's types.
+      - name: Type-check (tsc --noEmit)
+        run: bun run typecheck
