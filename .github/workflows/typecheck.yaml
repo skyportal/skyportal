@@ -16,7 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # submodules: true pulls in baselayer, which tsconfig maps `baselayer/*`
+      # to (baselayer/static/js/*); without it tsc can't resolve those imports.
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - uses: actions/setup-node@v6
         with:
