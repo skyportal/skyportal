@@ -1,9 +1,11 @@
 import uuid
 
+import astropy.units as u
 import numpy as np
 import numpy.testing as npt
 import pytest
 import requests
+from astropy.table import Table
 from requests.exceptions import ConnectionError, HTTPError, MissingSchema, Timeout
 
 from skyportal.models import Photometry
@@ -233,6 +235,77 @@ def test_get_nearby_offset_stars():
             allowed_queries=1,
             queries_issued=2,
         )
+
+
+def test_get_nearby_offset_stars_excludes_high_pm_for_ztfref(monkeypatch):
+    """High-proper-motion stars must not be picked as ZTF-ref offset stars:
+    ZTF-ref positions are not PM-corrected to the obs epoch, so a stale
+    high-PM position can fall off a narrow slit (issue #6247). The
+    PM-corrected Gaia path keeps such stars, and the excluded high-PM stars
+    must remain in the isolation catalog so a blended neighbor stays rejected."""
+    center_ra, center_dec = 10.0, 20.0
+
+    def offset_dec(arcsec):
+        return center_dec + arcsec / 3600.0
+
+    def make_table():
+        # mimics the Gaia query result columns used downstream, with:
+        #   1001 low-PM, isolated      -> selected on both paths
+        #   9999 high-PM, isolated     -> Gaia keeps it, ZTF-ref drops it
+        #   1002 low-PM, blended w/ 9998
+        #   9998 high-PM, blended w/ 1002 (0.8" away, inside min_sep)
+        t = Table()
+        seps = [10.0, 30.0, 50.0, 50.8]
+        t["dist"] = [s / 3600.0 for s in seps] * u.deg
+        t["source_id"] = [1001, 9999, 1002, 9998]
+        t["ra"] = [center_ra] * 4 * u.deg
+        t["dec"] = [offset_dec(s) for s in seps] * u.deg
+        t["ref_epoch"] = [2016.0] * 4
+        t["phot_rp_mean_mag"] = [16.0] * 4
+        t["pmra"] = [5.0, 80.0, 5.0, 80.0] * (u.mas / u.yr)
+        t["pmdec"] = [3.0, 60.0, 3.0, 60.0] * (u.mas / u.yr)
+        t["parallax"] = [1.0] * 4 * u.mas
+        return t
+
+    class _FakeGaia:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def query(self, *args, **kwargs):
+            return make_table()
+
+    monkeypatch.setattr("skyportal.utils.offset.gaia", _FakeGaia())
+    # no ZTF catalog: isolate the PM selection from ZTF position matching
+    monkeypatch.setattr("skyportal.utils.offset.get_ztfcatalog", lambda *a, **k: None)
+
+    def selected_ids(use_ztfref):
+        rez = get_nearby_offset_stars(
+            center_ra,
+            center_dec,
+            "highPMtest",
+            how_many=5,
+            radius_degrees=3 / 60.0,
+            use_ztfref=use_ztfref,
+            allowed_queries=1,  # avoid the relax-and-retry recursion
+        )
+        strs = [e["str"] for e in rez[0]]
+        return rez[3], {
+            i for i in (1001, 9999, 1002, 9998) if f"ID={i}" in " ".join(strs)
+        }
+
+    n_ztfref, ids_ztfref = selected_ids(use_ztfref=True)
+    n_gaia, ids_gaia = selected_ids(use_ztfref=False)
+
+    # Gaia path is PM-corrected: keeps the isolated high-PM star (9999)
+    assert n_gaia == 2
+    assert ids_gaia == {1001, 9999}
+    # ZTF-ref path drops the high-PM star, but keeps it in the isolation
+    # catalog so the low-PM star blended with it (1002) is still rejected
+    assert n_ztfref == 1
+    assert ids_ztfref == {1001}
 
 
 desi_url = (
