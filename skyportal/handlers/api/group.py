@@ -15,6 +15,7 @@ from ...models import (
     GroupUser,
     Obj,
     Source,
+    StreamUser,
     Token,
     User,
     UserNotification,
@@ -593,8 +594,6 @@ class GroupUserHandler(BaseHandler):
             # (avoid lazy `group.streams`/`user.streams`, whose access-controlled
             # load raises AccessError for a requester lacking read access to a
             # stream — same pattern as GroupStreamHandler.post below).
-            from ...models import StreamUser  # local import to avoid cycles
-
             missing_stream_id = await session.scalar(
                 sa.select(GroupStream.stream_id)
                 .where(
@@ -986,8 +985,6 @@ class GroupStreamHandler(BaseHandler):
 
             # Validate every group member has access to the stream via SQL
             # (avoid lazy `group.users`/`user.streams`).
-            from ...models import StreamUser  # local import to avoid cycles
-
             missing_count = await session.scalar(
                 sa.select(sa.func.count())
                 .select_from(GroupUser)
