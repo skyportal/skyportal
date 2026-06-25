@@ -16,6 +16,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ObservationFilterForm from "./ObservationFilterForm";
 import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -63,6 +64,7 @@ const QueuedObservationsTable = ({
   serverSide = true,
 }: QueuedObservationsTableProps) => {
   const { classes } = useStyles();
+  const isReadOnly = useIsReadOnly();
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
@@ -307,15 +309,17 @@ const QueuedObservationsTable = ({
           <FilterListIcon />
         </IconButton>
       </Tooltip>
-      <IconButton
-        name="new_queued_observation"
-        size="small"
-        onClick={() => {
-          openNewDialog();
-        }}
-      >
-        <AddIcon />
-      </IconButton>
+      {!isReadOnly && (
+        <IconButton
+          name="new_queued_observation"
+          size="small"
+          onClick={() => {
+            openNewDialog();
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
       <Tooltip title="Download CSV">
         <IconButton
           size="small"

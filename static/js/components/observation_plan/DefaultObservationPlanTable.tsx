@@ -18,6 +18,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
+import { useIsReadOnly } from "../../ducks/profile";
 
 // Map each DataGrid column `field` to the field name the server expects for
 // sorting. Columns absent from this map fall through to the field itself.
@@ -47,6 +48,7 @@ const DefaultObservationPlanTable = ({
   deletePermission = false,
 }: DefaultObservationPlanTableProps) => {
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [deleteDefaultObservationPlanMutation] =
     useDeleteDefaultObservationPlanMutation();
   const [newDialogOpen, setNewDialogOpen] = useState(false);
@@ -193,9 +195,11 @@ const DefaultObservationPlanTable = ({
 
   const CustomToolbar = () => (
     <DataGridToolbar>
-      <IconButton size="small" onClick={() => setNewDialogOpen(true)}>
-        <AddIcon />
-      </IconButton>
+      {!isReadOnly && (
+        <IconButton size="small" onClick={() => setNewDialogOpen(true)}>
+          <AddIcon />
+        </IconButton>
+      )}
     </DataGridToolbar>
   );
 

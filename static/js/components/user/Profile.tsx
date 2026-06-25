@@ -9,6 +9,13 @@ const Profile = () => {
   const { data: profile } = useGetProfileQuery();
   const { data: groupsData } = useGetGroupsQuery();
   const groups = groupsData?.user ?? [];
+  if (profile?.is_anonymous) {
+    return (
+      <div>
+        Please <a href="/login/google-oauth2">log in</a> to view your profile.
+      </div>
+    );
+  }
   return (
     <div>
       <div>

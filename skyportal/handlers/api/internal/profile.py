@@ -114,6 +114,10 @@ class ProfileHandler(BaseHandler):
             user_info["gravatar_url"] = user.gravatar_url or None
             user_info["preferences"] = user.preferences or {}
             user_info["groupAdmissionRequests"] = user.group_admission_requests
+            # flag the read-only anonymous account so the frontend can hide account UI
+            user_info["is_anonymous"] = bool(
+                self.cfg["app.anonymous_access"]
+            ) and user.username == (self.cfg["app.anonymous_user"] or "anonymous")
             return self.success(data=user_info)
 
     @auth_or_token

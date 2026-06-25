@@ -22,6 +22,7 @@ import {
   useSubmitTelescopeMutation,
 } from "../../ducks/telescopes";
 import { useAppDispatch } from "../../types/hooks";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   telescopeManage: {
@@ -45,6 +46,7 @@ const TelescopeTable = ({
 }: TelescopeTableProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [deleteTelescopeMutation] = useDeleteTelescopeMutation();
   const [submitTelescopeMutation] = useSubmitTelescopeMutation();
 
@@ -266,9 +268,11 @@ const TelescopeTable = ({
 
   const CustomToolbar = () => (
     <DataGridToolbar>
-      <IconButton name="new_telescope" onClick={() => setNewDialogOpen(true)}>
-        <AddIcon />
-      </IconButton>
+      {!isReadOnly && (
+        <IconButton name="new_telescope" onClick={() => setNewDialogOpen(true)}>
+          <AddIcon />
+        </IconButton>
+      )}
     </DataGridToolbar>
   );
 

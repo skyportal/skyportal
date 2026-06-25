@@ -32,6 +32,7 @@ import {
   useSaveSourceMutation,
 } from "../../ducks/source";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -87,6 +88,7 @@ const ExecutedObservationsTable = ({
   const { classes } = useStyles();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [checkSource] = useCheckSourceMutation();
   const [saveSource] = useSaveSourceMutation();
 
@@ -192,7 +194,7 @@ const ExecutedObservationsTable = ({
       ra: observation.field.ra,
       dec: observation.field.dec,
     };
-    if (!observation.target_name) {
+    if (!observation.target_name || isReadOnly) {
       return <div />;
     }
     return (
@@ -436,16 +438,18 @@ const ExecutedObservationsTable = ({
           <FilterListIcon />
         </IconButton>
       </Tooltip>
-      <IconButton
-        name="new_executed_observation"
-        size="small"
-        ref={anchorRef}
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        <AddIcon />
-      </IconButton>
+      {!isReadOnly && (
+        <IconButton
+          name="new_executed_observation"
+          size="small"
+          ref={anchorRef}
+          onClick={() => {
+            setOpen(true);
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
       <Tooltip title="Download CSV">
         <IconButton
           size="small"
