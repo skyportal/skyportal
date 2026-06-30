@@ -467,7 +467,10 @@ const FollowupRequestForm = ({
         {allocationLookUp[selectedAllocationId] !== undefined &&
         allocationLookUp[selectedAllocationId]?.instrument_id in
           instrumentFormParams ? (
+          // Key on the allocation so the form remounts with the new instrument's
+          // defaults instead of leaking stale formData (e.g. exposure_time) across it.
           <Form
+            key={`${selectedAllocationId}-${requestType}`}
             schema={schema as any}
             validator={validator}
             uiSchema={uiSchema}

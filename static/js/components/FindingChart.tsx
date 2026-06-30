@@ -296,12 +296,14 @@ const FindingChart = () => {
                           <Input
                             type="number"
                             margin="dense"
-                            inputProps={{
-                              step: 0.5,
-                              min: 2,
-                              max: 15,
-                              type: "number",
-                              "aria-labelledby": "SizeSelect",
+                            slotProps={{
+                              input: {
+                                step: 0.5,
+                                min: 2,
+                                max: 15,
+                                type: "number",
+                                "aria-labelledby": "SizeSelect",
+                              },
                             }}
                             style={{ minWidth: "100%" }}
                             onChange={onChange}
@@ -325,12 +327,14 @@ const FindingChart = () => {
                           <Input
                             type="number"
                             margin="dense"
-                            inputProps={{
-                              step: 1,
-                              min: 0,
-                              max: 4,
-                              type: "number",
-                              "aria-labelledby": "HowMany",
+                            slotProps={{
+                              input: {
+                                step: 1,
+                                min: 0,
+                                max: 4,
+                                type: "number",
+                                "aria-labelledby": "HowMany",
+                              },
                             }}
                             style={{ minWidth: "100%" }}
                             onChange={onChange}

@@ -4,6 +4,7 @@ import { makeStyles } from "tss-react/mui";
 import TextField from "@mui/material/TextField";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 
@@ -55,13 +56,6 @@ const useStyles = makeStyles()((theme) => ({
   textField: {
     fontWeight: "bold",
     color: "white",
-  },
-  progress: {
-    display: "flex",
-    color: "white",
-    "& > * + *": {
-      marginLeft: theme.spacing(2),
-    },
   },
 }));
 
@@ -296,7 +290,6 @@ const QuickSearchBar = () => {
         color="primary"
         id="quick-search-bar"
         classes={{ root: classes.root, paper: (classes as any).paper }}
-        // isOptionEqualToValue={(option, val) => option.name === val.name}
         getOptionLabel={(option) => option.name || ""}
         filterOptions={filterOptions}
         onInputChange={(_e, val) => setInputValue(val)}
@@ -330,16 +323,16 @@ const QuickSearchBar = () => {
             variant="outlined"
             placeholder="Search"
             fullWidth
-            InputProps={{
-              ...params.InputProps,
-              className: classes.textField,
-              endAdornment: (
-                <div className={classes.progress}>
-                  {loading ? (
+            slotProps={{
+              input: {
+                ...params.InputProps,
+                className: classes.textField,
+                endAdornment: loading && (
+                  <Box sx={{ display: "flex" }}>
                     <CircularProgress size={20} color="inherit" />
-                  ) : null}
-                </div>
-              ),
+                  </Box>
+                ),
+              },
             }}
           />
         )}

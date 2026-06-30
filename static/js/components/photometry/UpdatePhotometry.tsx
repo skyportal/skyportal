@@ -107,10 +107,18 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       }
     } else if (e.target.name === "filter") {
       newState[e.target.name] = e.target.value;
-    } else if (Number.isNaN(parseFloat(e.target.value))) {
-      newState[e.target.name] = e.target.value;
     } else {
-      newState[e.target.name] = parseFloat(e.target.value);
+      // Accept both "." and "," as the decimal separator so values copy-pasted
+      // from the table (which always uses ".") work regardless of locale.
+      const normalized =
+        typeof e.target.value === "string"
+          ? e.target.value.replace(",", ".")
+          : e.target.value;
+      if (Number.isNaN(parseFloat(normalized))) {
+        newState[e.target.name] = e.target.value;
+      } else {
+        newState[e.target.name] = parseFloat(normalized);
+      }
     }
 
     setState({
@@ -227,7 +235,8 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               value={state.mjd}
               name="mjd"
               onChange={handleChange}
-              type="number"
+              type="text"
+              inputProps={{ inputMode: "decimal" }}
               variant="outlined"
             />
           </div>
@@ -240,7 +249,8 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               value={state.mag}
               name="mag"
               onChange={handleChange}
-              type="number"
+              type="text"
+              inputProps={{ inputMode: "decimal" }}
               variant="outlined"
             />
           </div>
@@ -253,7 +263,8 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               value={state.magerr}
               name="magerr"
               onChange={handleChange}
-              type="number"
+              type="text"
+              inputProps={{ inputMode: "decimal" }}
               variant="outlined"
             />
           </div>
@@ -266,7 +277,8 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               value={state.limiting_mag}
               name="limiting_mag"
               onChange={handleChange}
-              type="number"
+              type="text"
+              inputProps={{ inputMode: "decimal" }}
               variant="outlined"
             />
           </div>

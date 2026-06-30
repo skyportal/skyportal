@@ -97,15 +97,21 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
             **df.to_dict(orient="list"),
         }
 
-        from skyportal.handlers.api.photometry import add_external_photometry
+        import asyncio
+
+        from skyportal.handlers.api.photometry import commit_external_photometry
 
         if len(df.index) > 0:
-            ids, _ = add_external_photometry(
-                data_out,
-                request.requester,
-                parent_session=session,
-                duplicates="update",
-                refresh=True,
+            # add_external_photometry is async; bridge to it from this sync
+            # facility worker. The request's obj is already saved, so the
+            # bridge's separate session sees it.
+            ids = asyncio.run(
+                commit_external_photometry(
+                    data_out,
+                    user_id,
+                    duplicates="update",
+                    refresh=True,
+                )
             )
             if ids is None:
                 raise ValueError("Failed to commit photometry")
