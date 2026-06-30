@@ -1632,7 +1632,7 @@ async def add_external_photometry(
         return None, None
 
 
-async def commit_external_photometry(data, user_id):
+async def commit_external_photometry(data, user_id, duplicates="update", refresh=False):
     """Sync-to-async bridge for ``add_external_photometry``.
 
     Opens its own ``async_plain_session_factory()`` session, re-loads the
@@ -1649,6 +1649,10 @@ async def commit_external_photometry(data, user_id):
         ID of the user the photometry should be attributed to. The user
         is re-loaded inside the new async session so callers can pass
         only the id.
+    duplicates : {"error", "ignore", "update"}
+        Forwarded to ``add_external_photometry``.
+    refresh : bool
+        Forwarded to ``add_external_photometry``.
 
     Returns
     -------
@@ -1659,7 +1663,9 @@ async def commit_external_photometry(data, user_id):
 
     async with baselayer_models.async_plain_session_factory() as async_session:
         user = await async_session.get(User, user_id)
-        ids, _ = await add_external_photometry(data, user, async_session)
+        ids, _ = await add_external_photometry(
+            data, user, async_session, duplicates=duplicates, refresh=refresh
+        )
         return ids
 
 
