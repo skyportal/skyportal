@@ -2134,6 +2134,20 @@ class PhotometryHandler(BaseHandler):
             ).first()
 
             if photometry is None:
+                # Update access (owner / "Manage photometry" / admin) is stricter
+                # than read access, so a point can be visible yet not editable.
+                # Distinguish that from a genuinely missing point.
+                readable = session.scalars(
+                    Photometry.select(session.user_or_token).where(
+                        Photometry.id == photometry_id
+                    )
+                ).first()
+                if readable is not None:
+                    return self.error(
+                        f"You do not have permission to update photometry point "
+                        f"{photometry_id}. You must be its owner or have the "
+                        f"'Manage photometry' permission."
+                    )
                 return self.error(
                     f"Cannot find photometry point with ID: {photometry_id}."
                 )
@@ -2290,6 +2304,19 @@ class PhotometryHandler(BaseHandler):
             ).first()
 
             if photometry is None:
+                # Delete access (owner / "Manage photometry" / admin) is stricter
+                # than read access, so a point can be visible yet not deletable.
+                readable = session.scalars(
+                    Photometry.select(session.user_or_token).where(
+                        Photometry.id == photometry_id
+                    )
+                ).first()
+                if readable is not None:
+                    return self.error(
+                        f"You do not have permission to delete photometry point "
+                        f"{photometry_id}. You must be its owner or have the "
+                        f"'Manage photometry' permission."
+                    )
                 return self.error(
                     f"Cannot find photometry point with ID: {photometry_id}."
                 )

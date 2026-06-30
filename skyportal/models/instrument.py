@@ -13,7 +13,7 @@ import healpix_alchemy
 import numpy as np
 import sqlalchemy as sa
 from astropy import coordinates as ap_coord
-from sqlalchemy import cast, event, func
+from sqlalchemy import cast, event
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import deferred, relationship
 
@@ -428,16 +428,6 @@ class Instrument(Base):
     @property
     def listener_class(self):
         return getattr(facility_apis, self.listener_classname)
-
-    @property
-    def number_of_fields(self):
-        if not self.has_fields:
-            return 0
-        stmt = sa.select(InstrumentField).where(
-            InstrumentField.instrument_id == self.id
-        )
-        count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-        return DBSession().execute(count_stmt).scalar()
 
     @property
     def region_summary(self):
