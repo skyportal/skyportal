@@ -53,14 +53,15 @@ const VegaPhotometryMemo = React.memo(
       range: wavelengths,
     };
 
-    // RTK Query data elements are frozen, so build new objects rather than
-    // mutating them in place when adding the folded `phase` field.
+    // RTK Query data elements are frozen, but Vega mutates each datum (it adds a
+    // Symbol(vega_id)), so always pass fresh, extensible copies — not just when
+    // adding the folded `phase` field.
     const plotValues = period
       ? values.map((datum) => ({
           ...datum,
           phase: (datum.mjd % period) / period,
         }))
-      : values;
+      : values.map((datum) => ({ ...datum }));
 
     const plot = period ? (
       <VegaFoldedPlot {...({ values: plotValues, colorScale, style } as any)} />

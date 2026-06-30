@@ -739,6 +739,7 @@ class InstrumentHandler(BaseHandler):
             # Pre-compute log existence with one query keyed by instrument_id.
             instrument_ids = [i.id for i in instruments]
             log_exist_ids = set()
+            field_counts = {}
             if instrument_ids:
                 log_ids_result = await session.scalars(
                     sa.select(InstrumentLog.instrument_id)
@@ -747,11 +748,20 @@ class InstrumentHandler(BaseHandler):
                 )
                 log_exist_ids = set(log_ids_result.all())
 
+                # Field counts in one grouped query instead of a per-instrument
+                # `number_of_fields` lookup (an N+1 across the instrument list).
+                field_count_result = await session.execute(
+                    sa.select(InstrumentField.instrument_id, sa.func.count())
+                    .where(InstrumentField.instrument_id.in_(instrument_ids))
+                    .group_by(InstrumentField.instrument_id)
+                )
+                field_counts = dict(field_count_result.all())
+
             data = [
                 {
                     **instrument.to_dict(),
                     "telescope": instrument.telescope.to_dict(),
-                    "number_of_fields": instrument.number_of_fields,
+                    "number_of_fields": field_counts.get(instrument.id, 0),
                     "region_summary": instrument.region_summary,
                     "log_exists": instrument.id in log_exist_ids,
                 }
