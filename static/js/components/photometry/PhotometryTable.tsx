@@ -30,6 +30,7 @@ import {
 } from "../../ducks/photometry";
 import { mjd_to_utc } from "../../units";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useGetProfileQuery } from "../../ducks/profile";
 
 const DEFAULT_HIDDEN_COLUMNS = [
   "instrument_id",
@@ -94,6 +95,18 @@ const PhotometryTable = ({
   t0 = null,
 }: PhotometryTableProps) => {
   const { usePhotometryValidation } = (useGetConfigQuery().data as any) ?? {};
+
+  const { id: currentUserId, permissions = [] } =
+    (useGetProfileQuery().data as any) ?? {};
+  // Update/delete of a photometry point requires being its owner, holding the
+  // "Manage photometry" ACL, or being a System admin (see
+  // manage_photometry_access_logic in skyportal/models/photometry.py). Read
+  // access is broader, so only show the edit/delete controls when the user can
+  // actually modify the point.
+  const canManagePhotometry = (phot: any) =>
+    permissions.includes("System admin") ||
+    permissions.includes("Manage photometry") ||
+    (phot?.owner?.id != null && phot.owner.id === currentUserId);
 
   const { classes } = useStyles();
   const [deletePhotometry] = useDeletePhotometryMutation();
@@ -320,6 +333,9 @@ const PhotometryTable = ({
       filterable: false,
       renderCell: (params: any) => {
         const phot = params.row;
+        if (!canManagePhotometry(phot)) {
+          return null;
+        }
         return (
           <div className={classes.manage}>
             <div>
@@ -356,6 +372,8 @@ const PhotometryTable = ({
     magsys,
     deleteDialogOpen,
     classes.manage,
+    currentUserId,
+    permissions,
   ]);
 
   const CustomToolbar = useMemo(

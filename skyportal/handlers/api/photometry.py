@@ -1632,7 +1632,7 @@ async def add_external_photometry(
         return None, None
 
 
-async def commit_external_photometry(data, user_id):
+async def commit_external_photometry(data, user_id, duplicates="update", refresh=False):
     """Sync-to-async bridge for ``add_external_photometry``.
 
     Opens its own ``async_plain_session_factory()`` session, re-loads the
@@ -1649,6 +1649,10 @@ async def commit_external_photometry(data, user_id):
         ID of the user the photometry should be attributed to. The user
         is re-loaded inside the new async session so callers can pass
         only the id.
+    duplicates : {"error", "ignore", "update"}
+        Forwarded to ``add_external_photometry``.
+    refresh : bool
+        Forwarded to ``add_external_photometry``.
 
     Returns
     -------
@@ -1659,7 +1663,9 @@ async def commit_external_photometry(data, user_id):
 
     async with baselayer_models.async_plain_session_factory() as async_session:
         user = await async_session.get(User, user_id)
-        ids, _ = await add_external_photometry(data, user, async_session)
+        ids, _ = await add_external_photometry(
+            data, user, async_session, duplicates=duplicates, refresh=refresh
+        )
         return ids
 
 
@@ -2134,6 +2140,20 @@ class PhotometryHandler(BaseHandler):
             ).first()
 
             if photometry is None:
+                # Update access (owner / "Manage photometry" / admin) is stricter
+                # than read access, so a point can be visible yet not editable.
+                # Distinguish that from a genuinely missing point.
+                readable = session.scalars(
+                    Photometry.select(session.user_or_token).where(
+                        Photometry.id == photometry_id
+                    )
+                ).first()
+                if readable is not None:
+                    return self.error(
+                        f"You do not have permission to update photometry point "
+                        f"{photometry_id}. You must be its owner or have the "
+                        f"'Manage photometry' permission."
+                    )
                 return self.error(
                     f"Cannot find photometry point with ID: {photometry_id}."
                 )
@@ -2290,6 +2310,19 @@ class PhotometryHandler(BaseHandler):
             ).first()
 
             if photometry is None:
+                # Delete access (owner / "Manage photometry" / admin) is stricter
+                # than read access, so a point can be visible yet not deletable.
+                readable = session.scalars(
+                    Photometry.select(session.user_or_token).where(
+                        Photometry.id == photometry_id
+                    )
+                ).first()
+                if readable is not None:
+                    return self.error(
+                        f"You do not have permission to delete photometry point "
+                        f"{photometry_id}. You must be its owner or have the "
+                        f"'Manage photometry' permission."
+                    )
                 return self.error(
                     f"Cannot find photometry point with ID: {photometry_id}."
                 )

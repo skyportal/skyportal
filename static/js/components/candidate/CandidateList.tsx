@@ -828,6 +828,11 @@ const CandidateList = () => {
     }
   };
 
+  // ViewportList only knows a candidate's position within the current page, so
+  // add the page offset to get its position in the full result set.
+  const globalIndex = (pageIndex: number) =>
+    (pageNumber - 1) * numPerPage + pageIndex + 1;
+
   return (
     <div style={{ position: "relative" }}>
       <div>
@@ -880,7 +885,7 @@ const CandidateList = () => {
                       <Candidate
                         candidate={candidates[index]}
                         filterGroups={filterGroups}
-                        index={index + 1}
+                        index={globalIndex(index)}
                         totalMatches={totalMatches}
                       />
                     </div>
