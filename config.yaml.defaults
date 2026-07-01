@@ -518,6 +518,22 @@ database:
   user: skyportal
   password:
 
+# Valkey connection. Valkey speaks the redis protocol, so a standard redis
+# client talks to it directly; these keys are the redis client's host/port/db.
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+
+cache:
+  # When false (default), `get_cache()` returns a no-op cache and nothing uses
+  # Valkey — behavior is unchanged until caching is explicitly enabled.
+  enabled: false
+  ttl:
+    # Default time-to-live (seconds) for cached entries when a caller does not
+    # specify one.
+    default: 300
+
 server:
   # From https://console.developers.google.com/
   #
