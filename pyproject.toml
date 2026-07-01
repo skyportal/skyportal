@@ -52,7 +52,7 @@ dependencies = [
     "twilio==9.10.9",
     "numba>=0.59.0",
     "pyvo==1.8",
-    "lxml==6.1.0",
+    "lxml==6.1.1",
     "suds-py3==1.4.5.0",
     "aiohttp==3.14.1",
     # vcrpy >=8.2.1 supports aiohttp 3.14 (8.1.1's aiohttp stub imported the
