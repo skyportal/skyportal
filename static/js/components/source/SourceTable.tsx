@@ -1831,7 +1831,7 @@ const SourceTable = ({
         {openNew && (
           <Dialog open={openNew} onClose={handleClose} maxWidth="md">
             <DialogContent dividers>
-              <NewSource classes={classes} />
+              <NewSource onClose={handleClose} />
             </DialogContent>
           </Dialog>
         )}

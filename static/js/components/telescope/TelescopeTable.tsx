@@ -1,8 +1,6 @@
 import { useState } from "react";
 import Paper from "@mui/material/Paper";
-import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -20,62 +18,65 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import {
   useDeleteTelescopeMutation,
   useSubmitTelescopeMutation,
+  useUpdateTelescopeMutation,
 } from "../../ducks/telescopes";
 import { useAppDispatch } from "../../types/hooks";
 
-const useStyles = makeStyles()(() => ({
-  telescopeManage: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-}));
+import EditIcon from "@mui/icons-material/Edit";
+import Box from "@mui/material/Box";
 
 interface TelescopeTableProps {
   telescopes: any[];
-  deletePermission?: boolean;
+  managePermission?: boolean;
   hideTitle?: boolean;
 }
 
 const TelescopeTable = ({
   telescopes,
-  deletePermission = false,
+  managePermission = false,
   hideTitle = false,
 }: TelescopeTableProps) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [deleteTelescopeMutation] = useDeleteTelescopeMutation();
   const [submitTelescopeMutation] = useSubmitTelescopeMutation();
+  const [updateTelescopeMutation] = useUpdateTelescopeMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [telescopeToEditDelete, setTelescopeToEditDelete] = useState<any>(null);
+  const [telescopeToEdit, setTelescopeToEdit] = useState<any>(null);
+  const [telescopeToDelete, setTelescopeToDelete] = useState<any>(null);
+  const [formData, setFormData] = useState<any>({});
 
-  const openDeleteDialog = (id: any) => {
-    setDeleteDialogOpen(true);
-    setTelescopeToEditDelete(id);
-  };
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setTelescopeToEditDelete(null);
-  };
+  const cleanNulls = (data: any) =>
+    Object.fromEntries(Object.entries(data).filter(([, v]) => v !== null));
 
   const deleteTelescope = async () => {
     try {
-      await deleteTelescopeMutation(telescopeToEditDelete).unwrap();
+      await deleteTelescopeMutation(telescopeToDelete.id).unwrap();
       dispatch(showNotification("Telescope deleted"));
-      closeDeleteDialog();
+      setTelescopeToDelete(null);
     } catch {
       // error notification handled by the API base query
     }
   };
 
-  const handleSubmit = async ({ formData }: { formData: any }) => {
+  const closeDialog = () => {
+    setNewDialogOpen(false);
+    setTelescopeToEdit(null);
+    setFormData({});
+  };
+
+  const handleSubmit = async () => {
     try {
-      await submitTelescopeMutation(formData).unwrap();
+      if (telescopeToEdit) {
+        await updateTelescopeMutation({
+          id: telescopeToEdit.id,
+          data: formData,
+        }).unwrap();
+      } else {
+        await submitTelescopeMutation(formData).unwrap();
+      }
       dispatch(showNotification("Telescope saved"));
-      setNewDialogOpen(false);
+      closeDialog();
     } catch {
       // error notification handled by the API base query
     }
@@ -92,32 +93,20 @@ const TelescopeTable = ({
     },
   };
 
-  function validate(formData: any, errors: any) {
-    telescopes?.forEach((telescope) => {
-      if (formData.name === telescope.name) {
+  function validate(data: any, errors: any) {
+    telescopes.forEach((telescope) => {
+      if (data.id !== telescope.id && data.name === telescope.name) {
         errors.name.addError("Telescope name matches another, please change.");
       }
     });
-    if (formData.fixed_location === true) {
-      if (formData.lon === undefined) {
-        errors.lon.addError(
-          "Longitude must be specified if telescope is fixed.",
-        );
-      } else if (formData.lon < -180 || formData.lon > 180) {
+    if (data.fixed_location) {
+      if (data.lon < -180 || data.lon > 180) {
         errors.lon.addError("Longitude must be between -180 and 180.");
       }
-      if (formData.lat === undefined) {
-        errors.lat.addError(
-          "Latitude must be specified if telescope is fixed.",
-        );
-      } else if (formData.lat < -90 || formData.lat > 90) {
+      if (data.lat < -90 || data.lat > 90) {
         errors.lat.addError("Latitude must be between -90 and 90.");
       }
-      if (formData.elevation === undefined) {
-        errors.elevation.addError(
-          "Elevation must be specified if telescope is fixed.",
-        );
-      } else if (formData.elevation < 0) {
+      if (data.elevation < 0) {
         errors.elevation.addError("Elevation must be positive.");
       }
     }
@@ -169,24 +158,34 @@ const TelescopeTable = ({
         title: "Does this telescope have a fixed location (lon, lat, elev)?",
       },
     },
-    required: ["name", "nickname", "diameter", "robotic", "fixed_location"],
+    required: [
+      "name",
+      "nickname",
+      "diameter",
+      "robotic",
+      "fixed_location",
+    ].concat(formData.fixed_location ? ["lon", "lat", "elevation"] : []),
   };
 
   const renderManage = (params: any) => {
-    if (!deletePermission) {
+    if (!managePermission) {
       return null;
     }
     const telescope = params.row;
     return (
-      <div className={classes.telescopeManage}>
+      <Box sx={{ display: "flex" }}>
         <Button
-          id={`delete_button_${telescope.id}`}
-          onClick={() => openDeleteDialog(telescope.id)}
-          disabled={!deletePermission}
+          onClick={() => {
+            setTelescopeToEdit(telescope);
+            setFormData(cleanNulls(telescope));
+          }}
         >
+          <EditIcon />
+        </Button>
+        <Button onClick={() => setTelescopeToDelete(telescope)} color="error">
           <DeleteIcon />
         </Button>
-      </div>
+      </Box>
     );
   };
 
@@ -205,28 +204,28 @@ const TelescopeTable = ({
       headerName: "Latitude",
       flex: 1,
       minWidth: 100,
-      valueFormatter: (value: any) => value?.toFixed(4) ?? "—",
+      valueFormatter: (value: any) => value?.toFixed(4),
     },
     {
       field: "lon",
       headerName: "Longitude",
       flex: 1,
       minWidth: 100,
-      valueFormatter: (value: any) => value?.toFixed(4) ?? "—",
+      valueFormatter: (value: any) => value?.toFixed(4),
     },
     {
       field: "elevation",
       headerName: "Elevation",
       flex: 1,
       minWidth: 100,
-      valueFormatter: (value: any) => value?.toFixed(1) ?? "—",
+      valueFormatter: (value: any) => value?.toFixed(1),
     },
     {
       field: "diameter",
       headerName: "Diameter",
       flex: 1,
       minWidth: 100,
-      valueFormatter: (value: any) => value?.toFixed(1) ?? "—",
+      valueFormatter: (value: any) => value?.toFixed(1),
     },
     {
       field: "robotic",
@@ -250,9 +249,7 @@ const TelescopeTable = ({
           <a href={params.value} target="_blank" rel="noopener noreferrer">
             View
           </a>
-        ) : (
-          "—"
-        ),
+        ) : null,
     },
     {
       field: "manage",
@@ -274,7 +271,7 @@ const TelescopeTable = ({
 
   return (
     <Paper>
-      {hideTitle !== true && (
+      {!hideTitle && (
         <Typography variant="h6" sx={{ p: 1 }}>
           Telescopes
         </Typography>
@@ -293,14 +290,20 @@ const TelescopeTable = ({
         />
       </Box>
       <Dialog
-        open={newDialogOpen}
-        onClose={() => setNewDialogOpen(false)}
+        open={newDialogOpen || telescopeToEdit !== null}
+        onClose={closeDialog}
         maxWidth="md"
       >
-        <DialogTitle>New Telescope</DialogTitle>
+        <DialogTitle>
+          {telescopeToEdit
+            ? `Edit Telescope: ${telescopeToEdit.name}`
+            : "New Telescope"}
+        </DialogTitle>
         <DialogContent dividers>
           <Form
             schema={telescopeFormSchema as any}
+            formData={formData}
+            onChange={(e) => setFormData(e.formData)}
             validator={validator}
             uiSchema={uiSchema}
             onSubmit={handleSubmit as any}
@@ -310,8 +313,8 @@ const TelescopeTable = ({
       </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteTelescope}
-        dialogOpen={deleteDialogOpen}
-        closeDialog={() => setDeleteDialogOpen(false)}
+        dialogOpen={telescopeToDelete !== null}
+        closeDialog={() => setTelescopeToDelete(null)}
         resourceName="telescope"
       />
     </Paper>

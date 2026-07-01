@@ -174,11 +174,7 @@ const AnalysisServiceList = ({
   const renderDetails = (params: any) => {
     const analysis_service = params.row;
     return (
-      <IconButton
-        key={`details_${analysis_service.id}`}
-        id={`details_button_${analysis_service.id}`}
-        onClick={() => openDetailsDialog(analysis_service.id)}
-      >
+      <IconButton onClick={() => openDetailsDialog(analysis_service.id)}>
         <HistoryEduIcon />
       </IconButton>
     );
@@ -192,7 +188,6 @@ const AnalysisServiceList = ({
     return (
       <div className={classes.analysisServiceManage}>
         <Button
-          id={`delete_button_${analysis_service.id}`}
           onClick={() => openDeleteDialog(analysis_service.id)}
           disabled={!deletePermission}
         >
@@ -287,9 +282,7 @@ const AnalysisServiceList = ({
             {deletePermission && (
               <IconButton
                 name="new_analysis_service"
-                onClick={() => {
-                  openNewDialog();
-                }}
+                onClick={() => openNewDialog()}
               >
                 <AddIcon />
               </IconButton>

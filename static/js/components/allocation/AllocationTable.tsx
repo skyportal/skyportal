@@ -119,20 +119,21 @@ const AllocationTable = ({
     const allocation = params.row;
     const instrument = getInstrument(allocation);
     return (
-      <Link to={`/allocation/${allocation.id}`} role="link">
-        {instrument ? instrument.name : ""}
+      <Link to={`/instrument/${allocation.instrument_id}`}>
+        {instrument?.name || ""}
       </Link>
     );
   };
 
-  const renderTelescopeName = (params: any) => {
+  const renderTelescopeNickname = (params: any) => {
     const allocation = params.row;
     const instrument = getInstrument(allocation);
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+    const telescope = telescopes?.filter(
+      (t) => t.id === instrument?.telescope_id,
+    )[0];
     return (
-      <Link to={`/allocation/${allocation.id}`} role="link">
-        {telescope ? telescope.nickname : ""}
+      <Link to={`/telescope/${telescope?.id}`}>
+        {telescope?.nickname || ""}
       </Link>
     );
   };
@@ -277,7 +278,7 @@ const AllocationTable = ({
     },
     telescopeInfo && {
       field: "telescope_name",
-      headerName: "Telescope Name",
+      headerName: "Telescope Nickname",
       flex: 1,
       minWidth: 150,
       filterable: false,
@@ -288,7 +289,7 @@ const AllocationTable = ({
         )[0];
         return telescope ? telescope.nickname : "";
       },
-      renderCell: renderTelescopeName,
+      renderCell: renderTelescopeNickname,
     },
     {
       field: "PI",

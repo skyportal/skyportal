@@ -118,7 +118,7 @@ const TaxonomyList = () => {
       {taxonomyList && (
         <TaxonomyTable
           taxonomies={taxonomyList}
-          deletePermission={permission}
+          managePermission={permission}
           paginateCallback={handleTaxonomyTablePagination}
           totalMatches={undefined}
           pageNumber={undefined}

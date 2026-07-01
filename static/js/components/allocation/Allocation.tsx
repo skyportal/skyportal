@@ -30,7 +30,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
 import ThumbnailList from "../thumbnail/ThumbnailList";
-import { allocationTitle } from "./AllocationPage";
+import { allocationTitle } from "./AllocationList";
 import withRouter from "../withRouter";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
@@ -175,11 +175,11 @@ const SimpleMenu = ({ request }: SimpleMenuProps) => {
 
 const defaultNumPerPage = 10;
 
-interface AllocationSummaryProps {
+interface AllocationProps {
   route: any;
 }
 
-const AllocationSummary = ({ route }: AllocationSummaryProps) => {
+const Allocation = ({ route }: AllocationProps) => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? null;
@@ -776,4 +776,4 @@ const AllocationSummaryTable = ({
   );
 };
 
-export default withRouter(AllocationSummary);
+export default withRouter(Allocation);
