@@ -1,6 +1,6 @@
 import copy
 
-from matplotlib.cm import get_cmap
+from matplotlib import colormaps
 from matplotlib.colors import rgb2hex
 
 from baselayer.app.access import auth_or_token
@@ -28,7 +28,7 @@ TNS_INSTRUMENTS = list(TNS_INSTRUMENT_IDS.keys())
 
 ALLOWED_INSTRUMENTS_FOR_SHARING = list(TNS_INSTRUMENT_IDS.keys())
 
-cmap = get_cmap(cfg.get("misc.color_palette", "turbo"))
+cmap = colormaps[cfg.get("misc.color_palette", "turbo")]
 
 # we convert it to a list of hex colors
 cmap = [rgb2hex(cmap(i)) for i in range(cmap.N)]
@@ -36,7 +36,7 @@ cmap = [rgb2hex(cmap(i)) for i in range(cmap.N)]
 
 class ConfigHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve instance config

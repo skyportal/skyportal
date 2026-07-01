@@ -56,7 +56,7 @@ class SEDMListener(Listener):
     }
 
     @staticmethod
-    def process_message(handler_instance, session):
+    async def process_message(handler_instance, session):
         """Receive a POSTed message from SEDM.
 
         Parameters
@@ -71,18 +71,18 @@ class SEDMListener(Listener):
 
         data = handler_instance.get_json()
 
-        request = session.scalars(
+        request = await session.scalar(
             FollowupRequest.select(session.user_or_token, mode="update").where(
                 FollowupRequest.id == int(data["followup_request_id"])
             )
-        ).first()
+        )
 
         request.status = data["new_status"]
 
         transaction_record = FacilityTransaction(
             request=http.serialize_tornado_request(handler_instance),
             followup_request=request,
-            initiator=handler_instance.associated_user_object,
+            initiator_id=handler_instance.associated_user_object.id,
         )
 
         session.add(transaction_record)

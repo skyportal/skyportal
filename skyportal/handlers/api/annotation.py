@@ -4,6 +4,7 @@ from collections.abc import Mapping
 
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
@@ -64,7 +65,7 @@ class AnnotationHandler(BaseHandler):
         return associated_resource_types[associated_resource_type]
 
     @auth_or_token
-    def get(
+    async def get(
         self,
         associated_resource_type: str,
         resource_id: str,
@@ -157,23 +158,21 @@ class AnnotationHandler(BaseHandler):
         if coerced_resource_id is None:
             return self.error(f"Invalid resource_id: {resource_id}")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if annotation_id is None:
-                annotations = (
-                    session.scalars(
-                        associated_resource["class"]
-                        .select(self.current_user)
-                        .where(
-                            getattr(
-                                associated_resource["class"],
-                                associated_resource["id_attr"],
-                            )
-                            == coerced_resource_id
+                result = await session.scalars(
+                    associated_resource["class"]
+                    .select(self.current_user)
+                    .options(selectinload(associated_resource["class"].groups))
+                    .where(
+                        getattr(
+                            associated_resource["class"],
+                            associated_resource["id_attr"],
                         )
+                        == coerced_resource_id
                     )
-                    .unique()
-                    .all()
                 )
+                annotations = result.unique().all()
                 query_output = [a.to_dict() for a in annotations]
                 query_size = sizeof(query_output)
                 if query_size >= SIZE_WARNING_THRESHOLD:
@@ -191,11 +190,12 @@ class AnnotationHandler(BaseHandler):
                     "Must provide a valid (scalar integer) annotation ID."
                 )
 
-            annotation = session.scalars(
+            annotation = await session.scalar(
                 associated_resource["class"]
                 .select(self.current_user)
+                .options(selectinload(associated_resource["class"].groups))
                 .where(associated_resource["class"].id == annotation_id)
-            ).first()
+            )
             if annotation is None:
                 return self.error(
                     "Could not find any accessible annotations.", status=403
@@ -218,7 +218,7 @@ class AnnotationHandler(BaseHandler):
             return self.success(data=query_output)
 
     @permissions(["Annotate"])
-    def post(self, associated_resource_type: str, resource_id: str):
+    async def post(self, associated_resource_type: str, resource_id: str):
         """
         ---
         summary: Post an annotation
@@ -312,11 +312,12 @@ class AnnotationHandler(BaseHandler):
                 "Invalid data: the annotation data must be an object with at least one {key: value} pair"
             )
 
-        with self.Session() as session:
-            author = self.associated_user_object
-            groups = session.scalars(
+        async with self.AsyncSession() as session:
+            author_id = self.associated_user_object.id
+            groups_result = await session.scalars(
                 Group.select(self.current_user).where(Group.id.in_(group_ids))
-            ).all()
+            )
+            groups = list(groups_result.all())
             if {g.id for g in groups} != set(group_ids):
                 return self.error(
                     f"Cannot find one or more groups with IDs: {group_ids}."
@@ -336,7 +337,7 @@ class AnnotationHandler(BaseHandler):
                     data=annotation_data,
                     obj_id=resource_id,
                     origin=origin,
-                    author=author,
+                    author_id=author_id,
                     groups=groups,
                 )
             elif associated_resource_type.lower() == "spectra":
@@ -344,7 +345,7 @@ class AnnotationHandler(BaseHandler):
                     spectrum_id = int(resource_id)
                 except (TypeError, ValueError):
                     return self.error(f"Invalid spectrum id: {resource_id}")
-                spectrum = session.scalar(
+                spectrum = await session.scalar(
                     Spectrum.select(session.user_or_token).where(
                         Spectrum.id == spectrum_id
                     )
@@ -368,7 +369,7 @@ class AnnotationHandler(BaseHandler):
                     spectrum_id=spectrum_id,
                     obj_id=spectrum.obj_id,
                     origin=origin,
-                    author=author,
+                    author_id=author_id,
                     groups=groups,
                 )
             elif associated_resource_type.lower() == "photometry":
@@ -376,7 +377,7 @@ class AnnotationHandler(BaseHandler):
                     photometry_id = int(resource_id)
                 except (TypeError, ValueError):
                     return self.error(f"Invalid photometry id: {resource_id}")
-                photometry = session.scalar(
+                photometry = await session.scalar(
                     Photometry.select(session.user_or_token).where(
                         Photometry.id == photometry_id
                     )
@@ -400,7 +401,7 @@ class AnnotationHandler(BaseHandler):
                     photometry_id=photometry_id,
                     obj_id=photometry.obj_id,
                     origin=origin,
-                    author=author,
+                    author_id=author_id,
                     groups=groups,
                 )
             else:
@@ -411,7 +412,7 @@ class AnnotationHandler(BaseHandler):
             session.add(annotation)
 
             try:
-                session.commit()
+                await session.commit()
             except IntegrityError as e:
                 if 'is not present in table "objs"' in str(e).lower():
                     return self.error(f"Obj {resource_id} not found", status=404)
@@ -420,19 +421,25 @@ class AnnotationHandler(BaseHandler):
             if isinstance(
                 annotation, Annotation | AnnotationOnSpectrum
             ):  # annotation on object or object related data
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": annotation.obj.internal_key},
+                obj = await session.scalar(
+                    Obj.select(session.user_or_token).where(Obj.id == annotation.obj_id)
                 )
-            if isinstance(annotation, AnnotationOnSpectrum):
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE_SPECTRA",
-                    payload={"obj_internal_key": annotation.obj.internal_key},
-                )
+                if obj is not None:
+                    self.push_all(
+                        action="skyportal/REFRESH_SOURCE",
+                        payload={"obj_key": obj.internal_key},
+                    )
+                    if isinstance(annotation, AnnotationOnSpectrum):
+                        self.push_all(
+                            action="skyportal/REFRESH_SOURCE_SPECTRA",
+                            payload={"obj_internal_key": obj.internal_key},
+                        )
             return self.success(data={"annotation_id": annotation.id})
 
     @permissions(["Annotate"])
-    def put(self, associated_resource_type: str, resource_id: str, annotation_id: int):
+    async def put(
+        self, associated_resource_type: str, resource_id: str, annotation_id: int
+    ):
         """
         ---
         summary: Update an annotation
@@ -488,15 +495,21 @@ class AnnotationHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            annotation_id = int(annotation_id)
+        except (TypeError, ValueError):
+            return self.error("Must provide a valid (scalar integer) annotation ID. ")
+
         associated_resource = self.get_associated_resource(associated_resource_type)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             schema = associated_resource["class"].__schema__()
-            a = session.scalars(
+            a = await session.scalar(
                 associated_resource["class"]
                 .select(self.current_user, mode="update")
+                .options(selectinload(associated_resource["class"].groups))
                 .where(associated_resource["class"].id == annotation_id)
-            ).first()
+            )
             if a is None:
                 return self.error(
                     "Could not find any accessible annotations.", status=403
@@ -520,14 +533,15 @@ class AnnotationHandler(BaseHandler):
                 a.origin = data["origin"]
 
             if group_ids is not None:
-                groups = session.scalars(
+                groups_result = await session.scalars(
                     Group.select(self.current_user).where(Group.id.in_(group_ids))
-                ).all()
+                )
+                groups = groups_result.all()
                 if {g.id for g in groups} != set(group_ids):
                     return self.error(
                         f"Cannot find one or more groups with IDs: {group_ids}."
                     )
-                a.groups = groups
+                a.groups = list(groups)
 
             if str(getattr(a, associated_resource["id_attr"])) != resource_id:
                 return self.error(
@@ -535,25 +549,29 @@ class AnnotationHandler(BaseHandler):
                 )
 
             session.add(a)
-            session.commit()
+            await session.commit()
 
             if associated_resource[
                 "obj_associated"
             ]:  # annotation on object, or object related resources
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": a.obj.internal_key},
+                obj = await session.scalar(
+                    Obj.select(session.user_or_token).where(Obj.id == a.obj_id)
                 )
-            if isinstance(a, AnnotationOnSpectrum):  # also update the spectrum
-                self.push_all(
-                    action="skyportal/REFRESH_SOURCE_SPECTRA",
-                    payload={"obj_internal_key": a.obj.internal_key},
-                )
+                if obj is not None:
+                    self.push_all(
+                        action="skyportal/REFRESH_SOURCE",
+                        payload={"obj_key": obj.internal_key},
+                    )
+                    if isinstance(a, AnnotationOnSpectrum):
+                        self.push_all(
+                            action="skyportal/REFRESH_SOURCE_SPECTRA",
+                            payload={"obj_internal_key": obj.internal_key},
+                        )
 
             return self.success()
 
     @permissions(["Annotate"])
-    def delete(
+    async def delete(
         self, associated_resource_type: str, resource_id: str, annotation_id: int
     ):
         """
@@ -591,14 +609,19 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            annotation_id = int(annotation_id)
+        except (TypeError, ValueError):
+            return self.error("Must provide a valid annotation ID. ")
+
         associated_resource = self.get_associated_resource(associated_resource_type)
 
-        with self.Session() as session:
-            a = session.scalars(
+        async with self.AsyncSession() as session:
+            a = await session.scalar(
                 associated_resource["class"]
                 .select(self.current_user, mode="delete")
                 .where(associated_resource["class"].id == annotation_id)
-            ).first()
+            )
 
             if a is None:
                 return self.error(
@@ -610,19 +633,22 @@ class AnnotationHandler(BaseHandler):
                     f"Annotation resource ID does not match resource ID given in path ({resource_id})"
                 )
 
-            obj_key = a.obj.internal_key
+            obj = await session.scalar(
+                Obj.select(session.user_or_token).where(Obj.id == a.obj_id)
+            )
+            obj_key = obj.internal_key if obj is not None else None
+            is_spectrum_annotation = isinstance(a, AnnotationOnSpectrum)
 
-            session.delete(a)
-            session.commit()
+            await session.delete(a)
+            await session.commit()
 
-            if associated_resource[
-                "obj_associated"
-            ]:  # annotation on object, or object related resources
+            if associated_resource["obj_associated"] and obj_key is not None:
+                # annotation on object, or object related resources
                 self.push_all(
                     action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj_key}
                 )
 
-            if isinstance(a, AnnotationOnSpectrum):  # also update the spectrum
+            if is_spectrum_annotation and obj_key is not None:
                 self.push_all(
                     action="skyportal/REFRESH_SOURCE_SPECTRA",
                     payload={"obj_internal_key": obj_key},

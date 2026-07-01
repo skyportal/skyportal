@@ -13,6 +13,7 @@
  * invalidate the `Localization` tag.
  */
 import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 
 interface GetLocalizationArg {
@@ -56,3 +57,9 @@ export const {
   useDeleteLocalizationMutation,
   usePostLocalizationFromNoticeMutation,
 } = localizationApi;
+
+// The contour/tiles are generated in a background task after a GCN event is
+// ingested, so the localization is first fetched with a null contour (skymap
+// spinner). The backend emits REFRESH_GCN_EVENT once the contour is committed;
+// re-fetch the localization on it so the skymap renders without a manual reload.
+invalidateOnMessage("skyportal/REFRESH_GCN_EVENT", () => ["Localization"]);

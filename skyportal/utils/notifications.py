@@ -558,7 +558,7 @@ def followup_request_notification_content(target, session):
     # deduplicate by type, keeping the latest one (create_at) for each type
     # sort by date, most recent first
     thumbnails = sorted(thumbnails, key=lambda t: t.created_at, reverse=True)
-    thumbnails_by_type = {t: None for t in ALLOWED_THUMBNAIL_TYPES}
+    thumbnails_by_type = dict.fromkeys(ALLOWED_THUMBNAIL_TYPES)
     for thumbnail in thumbnails:
         if thumbnails_by_type[thumbnail.type] is None:
             thumbnails_by_type[thumbnail.type] = thumbnail

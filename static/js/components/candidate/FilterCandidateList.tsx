@@ -278,7 +278,7 @@ const FilterCandidateList = ({
   );
 
   const [classificationsWith, setClassificationsWith] = useState(
-    selectedScanningProfile?.classificationsWith === false ? false : true,
+    selectedScanningProfile?.classificationsWith !== false,
   );
 
   const [gcnEventsParams, setGcnEventsParams] = useState<Record<string, any>>(
@@ -364,9 +364,7 @@ const FilterCandidateList = ({
     }
     setSelectedGcnEventId("");
     setSelectedClassifications(scanningProfile?.classifications || []);
-    setClassificationsWith(
-      scanningProfile?.classificationsWith === false ? false : true,
-    );
+    setClassificationsWith(scanningProfile?.classificationsWith !== false);
     if (availableAnnotationsInfo) {
       const newOptions = scanningProfile?.sortingOrigin
         ? (availableAnnotationsInfo[scanningProfile?.sortingOrigin] || [])
@@ -466,12 +464,8 @@ const FilterCandidateList = ({
   const validateSorting = () => {
     const formState = getValues();
     return (
-      // All left empty
       formState.sortingOrigin === null ||
-      // Or all filled out
-      (formState.sortingOrigin !== null &&
-        formState.sortingKey !== null &&
-        formState.sortingOrder !== null)
+      (formState.sortingKey !== null && formState.sortingOrder !== null)
     );
   };
 
@@ -923,13 +917,13 @@ const FilterCandidateList = ({
                       id="minimum-redshift"
                       label="Minimum"
                       type="number"
-                      inputProps={{ step: 0.001 }}
                       margin="dense"
                       style={{ minWidth: "100%" }}
                       onChange={(event) => onChange(event.target.value)}
                       value={value}
-                      InputLabelProps={{
-                        shrink: true,
+                      slotProps={{
+                        htmlInput: { step: 0.001 },
+                        inputLabel: { shrink: true },
                       }}
                     />
                   )}
@@ -943,13 +937,13 @@ const FilterCandidateList = ({
                       id="maximum-redshift"
                       label="Maximum"
                       type="number"
-                      inputProps={{ step: 0.001 }}
                       margin="dense"
                       style={{ minWidth: "100%" }}
                       onChange={(event) => onChange(event.target.value)}
                       value={value}
-                      InputLabelProps={{
-                        shrink: true,
+                      slotProps={{
+                        htmlInput: { step: 0.001 },
+                        inputLabel: { shrink: true },
                       }}
                     />
                   )}
@@ -1025,9 +1019,7 @@ const FilterCandidateList = ({
                       }}
                       labelId="localizationSelectLabel"
                       value={value || ""}
-                      onChange={(event) => {
-                        onChange(event.target.value);
-                      }}
+                      onChange={(event) => onChange(event.target.value)}
                       className={classes.select}
                       disabled={!selectedGcnEventId}
                     >
@@ -1054,9 +1046,11 @@ const FilterCandidateList = ({
                       id="cumprob"
                       label="Cumulative Probability"
                       type="number"
-                      inputProps={{ step: 0.01, min: 0, max: 1 }}
                       onChange={(event) => onChange(event.target.value)}
                       defaultValue={0.95}
+                      slotProps={{
+                        htmlInput: { step: 0.01, min: 0, max: 1 },
+                      }}
                     />
                   )}
                   name="localizationCumprob"
@@ -1092,9 +1086,11 @@ const FilterCandidateList = ({
                       id="minNbDect"
                       label="Minimum Number of Detections"
                       type="number"
-                      inputProps={{ step: 1, min: 1 }}
                       onChange={(event) => onChange(event.target.value)}
                       defaultValue={1}
+                      slotProps={{
+                        htmlInput: { step: 1, min: 1 },
+                      }}
                     />
                   )}
                   name="numberDetections"

@@ -98,7 +98,59 @@ def set_default_group(user, session):
                     session.add(StreamUser(stream_id=stream.id, user_id=user.id))
 
 
-def add_user_and_setup_groups(
+# --- Async variants of the helpers above ----------------------------------
+# These exist because UserHandler is now async, but the sync versions are
+# still used by skyportal/onboarding.py (which runs inside the synchronous
+# social-auth pipeline). Keep the two paths in lock-step.
+
+
+async def set_default_role_async(user, session):
+    """Async equivalent of `set_default_role`."""
+    default_role = cfg["user.default_role"]
+    if isinstance(default_role, str) and default_role in role_acls:
+        role = await session.scalar(sa.select(Role).where(Role.id == default_role))
+        if role is None:
+            raise Exception(
+                f"Invalid default_role configuration value: {default_role} does not exist"
+            )
+        session.add(UserRole(user_id=user.id, role_id=role.id))
+
+
+async def set_default_acls_async(user, session):
+    """Async equivalent of `set_default_acls`."""
+    for acl_id in cfg["user.default_acls"]:
+        if acl_id not in all_acl_ids:
+            raise Exception(
+                f"Invalid default_acl configuration value: {acl_id} does not exist"
+            )
+    for acl_id in cfg["user.default_acls"]:
+        session.add(UserACL(user_id=user.id, acl_id=acl_id))
+
+
+async def set_default_group_async(user, session):
+    """Async equivalent of `set_default_group`."""
+    default_groups = []
+    if cfg["misc.public_group_name"] is not None:
+        default_groups.append(cfg["misc.public_group_name"])
+    default_groups.extend(cfg["user.default_groups"])
+    default_groups = list(set(default_groups))
+    for default_group_name in default_groups:
+        group = await session.scalar(
+            sa.select(Group)
+            .options(selectinload(Group.streams))
+            .where(Group.name == default_group_name)
+        )
+        if group is None:
+            raise Exception(
+                f"Invalid default_group configuration value: {default_group_name} does not exist"
+            )
+        session.add(GroupUser(user_id=user.id, group_id=group.id, admin=False))
+        if group.streams:
+            for stream in group.streams:
+                session.add(StreamUser(stream_id=stream.id, user_id=user.id))
+
+
+async def add_user_and_setup_groups(
     session,
     username,
     first_name=None,
@@ -111,14 +163,14 @@ def add_user_and_setup_groups(
     oauth_uid=None,
     expiration_date=None,
 ):
+    """Async equivalent of `add_user_and_setup_groups`. Same semantics — the
+    caller is responsible for committing the session.
+    """
     try:
-        # the roles come from the association_proxy
-        # in baselayer/app/models.py line 1851
-        # they are queried from a different session
-        # in the "creator" lambda. Until we figure out
-        # how to do this in the same session, this should
-        # solve the problem.
-        roles = session.scalars(sa.select(Role).where(Role.id.in_(role_ids))).all()
+        roles_result = await session.scalars(
+            sa.select(Role).where(Role.id.in_(role_ids))
+        )
+        roles = roles_result.all()
         user = User(
             username=username.lower(),
             roles=roles,
@@ -131,35 +183,36 @@ def add_user_and_setup_groups(
             expiration_date=expiration_date,
         )
         session.add(user)
-        session.flush()
+        await session.flush()
 
         if role_ids == []:
-            set_default_role(user, session)
+            await set_default_role_async(user, session)
 
         if group_ids_and_admin == []:
-            set_default_group(user, session)
+            await set_default_group_async(user, session)
         else:
             for group_id, admin in group_ids_and_admin:
                 session.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
-                group = session.scalars(
-                    sa.select(Group).where(Group.id == group_id)
-                ).first()
-                if group.streams:
+                group = await session.scalar(
+                    sa.select(Group)
+                    .options(selectinload(Group.streams))
+                    .where(Group.id == group_id)
+                )
+                if group is not None and group.streams:
                     for stream in group.streams:
                         session.add(StreamUser(stream_id=stream.id, user_id=user.id))
 
-            # Add user to sitewide public group
             if cfg["misc.public_group_name"] is not None:
-                public_group = session.scalars(
+                public_group = await session.scalar(
                     sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
-                ).first()
+                )
                 if public_group is not None:
                     session.add(GroupUser(group_id=public_group.id, user_id=user.id))
 
-        set_default_acls(user, session)
-        session.commit()
+        await set_default_acls_async(user, session)
+        await session.flush()
     except Exception as e:
-        session.rollback()
+        await session.rollback()
         log(str(e))
         raise e
     return user.id
@@ -167,7 +220,7 @@ def add_user_and_setup_groups(
 
 class UserHandler(BaseHandler):
     @auth_or_token
-    def get(self, user_id: int | None = None):
+    async def get(self, user_id: int | None = None):
         """
         ---
         single:
@@ -309,10 +362,10 @@ class UserHandler(BaseHandler):
             except ValueError:
                 return self.error(f"Invalid user_id {user_id}")
 
-            with self.Session() as session:
-                user = session.scalars(
+            async with self.AsyncSession() as session:
+                user = await session.scalar(
                     User.select(self.current_user).where(User.id == user_id)
-                ).first()
+                )
                 if user is None:
                     return self.error(f"Cannot find user with ID {user_id}.")
                 user_info = user.to_dict()
@@ -328,8 +381,8 @@ class UserHandler(BaseHandler):
                 return self.success(data=user_info)
 
         # get users by query parameters
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", None)
+        page_number = self.get_query_argument("pageNumber", 1, type=int)
+        n_per_page = self.get_query_argument("numPerPage", None, type=int)
         first_name = self.get_query_argument("firstName", None)
         last_name = self.get_query_argument("lastName", None)
         username = self.get_query_argument("username", None)
@@ -342,22 +395,13 @@ class UserHandler(BaseHandler):
         sort_by = self.get_query_argument("sortBy", "username")
         sort_order = self.get_query_argument("sortOrder", "asc")
 
-        try:
-            page_number = int(page_number)
-        except ValueError:
+        if page_number is None:
             return self.error("Invalid page number value.")
-        try:
-            if n_per_page is not None:
-                n_per_page = int(n_per_page)
-        except ValueError:
-            return self.error("Invalid numPerPage value.")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             stmt = User.select(self.current_user).options(
-                selectinload(User.streams),
                 selectinload(User.groups),
-                selectinload(User.roles),
-                selectinload(User.acls),
+                selectinload(User.streams),
             )
 
             if not include_expired:
@@ -403,9 +447,9 @@ class UserHandler(BaseHandler):
             else:
                 stmt = stmt.order_by(sort_field.asc())
 
-            total_matches = session.execute(
+            total_matches = await session.scalar(
                 sa.select(func.count()).select_from(stmt)
-            ).scalar()
+            )
 
             if n_per_page is not None:
                 stmt = stmt.limit(n_per_page).offset((page_number - 1) * n_per_page)
@@ -417,7 +461,8 @@ class UserHandler(BaseHandler):
                 if not g.single_user_group
             }
 
-            for user in session.scalars(stmt).all():
+            users_result = await session.scalars(stmt)
+            for user in users_result.all():
                 return_values.append(user.to_dict())
                 return_values[-1]["permissions"] = sorted(user.permissions)
                 return_values[-1]["roles"] = sorted(role.id for role in user.roles)
@@ -442,7 +487,7 @@ class UserHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Manage users"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Add a new user
@@ -483,12 +528,6 @@ class UserHandler(BaseHandler):
                     type: array
                     items:
                       type: array
-                      items:
-                        oneOf:
-                          - type: integer
-                          - type: boolean
-                      minItems: 2
-                      maxItems: 2
                     description: |
                       Array of 2-element arrays `[groupID, admin]` where `groupID`
                       is the ID of a group that the new user will be added to and
@@ -541,9 +580,9 @@ class UserHandler(BaseHandler):
         # check if the affiliations are a list
         if affiliations is not None and not isinstance(affiliations, list):
             return self.error("Affiliations must be a list of strings")
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                user_id = add_user_and_setup_groups(
+                user_id = await add_user_and_setup_groups(
                     session=session,
                     username=data["username"],
                     first_name=data.get("first_name"),
@@ -556,15 +595,15 @@ class UserHandler(BaseHandler):
                     group_ids_and_admin=group_ids_and_admin,
                 )
             except Exception as e:
-                session.rollback()
+                await session.rollback()
                 return self.error(str(e))
 
-            session.commit()
+            await session.commit()
 
         return self.success(data={"id": user_id})
 
     @permissions(["Manage users"])
-    def patch(self, user_id: int):
+    async def patch(self, user_id: int):
         """
         ---
         summary: Update a user
@@ -597,48 +636,43 @@ class UserHandler(BaseHandler):
         """
         data = self.get_json()
 
-        if user_id is not None:
-            try:
-                user_id = int(user_id)
-            except ValueError:
-                return self.error(f"Invalid user ID {user_id}")
-
-            with self.Session() as session:
-                user = session.scalars(
-                    User.select(self.current_user, mode="update").where(
-                        User.id == user_id
-                    )
-                ).first()
-                if user is None:
-                    return self.error(f"Cannot find user with ID {user_id}")
-
-                if "expirationDate" in data:
-                    expiration_date = data.get("expirationDate")
-                    if expiration_date is not None and expiration_date != "":
-                        try:
-                            user.expiration_date = arrow.get(
-                                expiration_date.strip()
-                            ).datetime
-                        except arrow.parser.ParserError:
-                            return self.error(
-                                "Unable to parse `expirationDate` parameter."
-                            )
-                    else:
-                        user.expiration_date = None
-
-                for k in data:
-                    if k != "expiration_date":
-                        setattr(user, k, data[k])
-
-                session.commit()
-                self.push_all(action="skyportal/FETCH_USERS")
-                self.push_all(action="skyportal/FETCH_USERS_MANAGEMENT")
-                return self.success()
-        else:
+        if user_id is None:
             return self.error("User ID must be provided")
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return self.error(f"Invalid user ID {user_id}")
+
+        async with self.AsyncSession() as session:
+            user = await session.scalar(
+                User.select(self.current_user, mode="update").where(User.id == user_id)
+            )
+            if user is None:
+                return self.error(f"Cannot find user with ID {user_id}")
+
+            if "expirationDate" in data:
+                expiration_date = data.get("expirationDate")
+                if expiration_date is not None and expiration_date != "":
+                    try:
+                        user.expiration_date = arrow.get(
+                            expiration_date.strip()
+                        ).datetime
+                    except arrow.parser.ParserError:
+                        return self.error("Unable to parse `expirationDate` parameter.")
+                else:
+                    user.expiration_date = None
+
+            for k in data:
+                if k != "expiration_date":
+                    setattr(user, k, data[k])
+
+            await session.commit()
+            self.push_all(action="skyportal/FETCH_USERS")
+            self.push_all(action="skyportal/FETCH_USERS_MANAGEMENT")
+            return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, user_id: int | None = None):
+    async def delete(self, user_id: int | None = None):
         """
         ---
         summary: Delete a user
@@ -663,13 +697,13 @@ class UserHandler(BaseHandler):
         """
         if user_id is None:
             return self.error("User ID must be provided")
-        with self.Session() as session:
-            user = session.scalars(
+        async with self.AsyncSession() as session:
+            user = await session.scalar(
                 User.select(self.current_user, mode="delete").where(User.id == user_id)
-            ).first()
+            )
             if user is None:
                 return self.error(f"Cannot find/delete user with ID {user_id}")
-            session.delete(user)
-            session.commit()
+            await session.delete(user)
+            await session.commit()
 
         return self.success()

@@ -479,7 +479,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["DefaultAnalysis"];
+                            /** @description New default analysis ID */
+                            id?: number;
                         };
                     };
                 };
@@ -656,9 +657,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["AnalysisService"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -805,7 +804,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["AnalysisService"];
+                            data?: {
+                                /** @description New AnalysisService ID */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -877,7 +879,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["ObjAnalysis"];
+                            data?: {
+                                /** @description New analysis ID */
+                                analysis_id?: number;
+                            };
                         };
                     };
                 };
@@ -889,7 +894,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/{analysis_resource_type}/{analysis_id}/analysis": {
+    "/api/{analysis_resource_type}/{obj_id_path}/analysis/{analysis_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -960,37 +965,13 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /**
-         * Delete an Analysis.
-         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    analysis_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-            };
-        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/{analysis_resource_type}/{analysis_id}": {
+    "/api/{analysis_resource_type}/{obj_id_path}/analysis": {
         parameters: {
             query?: never;
             header?: never;
@@ -1079,7 +1060,7 @@ export interface paths {
                         /** @description Whether to render the corner plots of this analysis */
                         show_corner?: boolean;
                         /** @description Filters to apply to the input data */
-                        input_filters?: string[];
+                        input_filters?: unknown[];
                         /** @description Dictionary of parameters to be passed thru to the analysis */
                         analysis_parameters?: {
                             [key: string]: string;
@@ -1100,7 +1081,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["ObjAnalysis"];
+                            data?: {
+                                /** @description New analysis ID */
+                                analysis_id?: number;
+                            };
                         };
                     };
                 };
@@ -1112,7 +1096,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/{analysis_resource_type}/analysis/{analysis_id}": {
+    "/api/{analysis_resource_type}/{analysis_id}/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an Analysis.
+         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    analysis_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{analysis_resource_type}/analysis/{obj_id_path}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1183,31 +1207,7 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /**
-         * Delete an Analysis.
-         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    analysis_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-            };
-        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1302,7 +1302,7 @@ export interface paths {
                         /** @description Whether to render the corner plots of this analysis */
                         show_corner?: boolean;
                         /** @description Filters to apply to the input data */
-                        input_filters?: string[];
+                        input_filters?: unknown[];
                         /** @description Dictionary of parameters to be passed thru to the analysis */
                         analysis_parameters?: {
                             [key: string]: string;
@@ -1323,13 +1323,56 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["ObjAnalysis"];
+                            data?: {
+                                /** @description New analysis ID */
+                                analysis_id?: number;
+                            };
                         };
                     };
                 };
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{analysis_resource_type}/analysis/{analysis_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an Analysis.
+         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    analysis_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -1359,7 +1402,7 @@ export interface paths {
                     analysis_id: number;
                     /**
                      * @description What type of data to retrieve:
-                     *     must be one of "corner", "results", or "plot"
+                     *     must be one of "results" or "plot"
                      */
                     product_type: string;
                     /**
@@ -1375,7 +1418,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @description Download the results as a file */
-                        download?: boolean;
+                        download?: Record<string, never>;
                         /**
                          * @description Extra parameters to pass to the plotting functions
                          *     if new plots are to be generated (e.g. with corner plots)
@@ -1387,20 +1430,13 @@ export interface paths {
                 };
             };
             responses: {
-                /**
-                 * @description Requested analysis product. For product_type=corner returns a PNG
-                 *     image; for product_type=plots returns binary plot data; for
-                 *     product_type=results returns either a JSON file download or a
-                 *     JSON-wrapped result payload.
-                 */
+                /** @description Requested analysis file */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: Record<string, never>;
-                        };
+                        "application/json": Record<string, never>;
                     };
                 };
                 400: {
@@ -2971,7 +3007,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["DefaultFollowupRequest"];
+                            data?: {
+                                /** @description New default follow-up request ID */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -3117,7 +3156,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["DefaultGcnTag"];
+                            data?: {
+                                /** @description New default gcn tag ID */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -3853,7 +3895,7 @@ export interface paths {
                      */
                     standardType?: string;
                     /** @description lowest and highest magnitude to return, e.g. "(12,9)" */
-                    magnitudeRange?: number[];
+                    magnitudeRange?: Record<string, never>;
                     /** @description Output format for schedule. Can be png, pdf, or csv */
                     output_format?: string;
                 };
@@ -4100,7 +4142,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["FollowupRequest"];
+                            data?: {
+                                /** @description New follow-up request ID */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -4462,7 +4507,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    catalog_name: string;
+                    catalog_name: Record<string, never>;
                 };
                 cookie?: never;
             };
@@ -5023,7 +5068,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Comment"];
+                            data?: {
+                                /** @description New comment ID */
+                                comment_id?: number;
+                            };
                         };
                     };
                 };
@@ -5131,7 +5179,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Comment"];
+                            data?: {
+                                /** @description New comment ID */
+                                comment_id?: number;
+                            };
                         };
                     };
                 };
@@ -5944,9 +5995,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["EarthquakeEvent"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -6681,9 +6730,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["GcnTag"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -6991,9 +7038,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["GcnEvent"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -7042,7 +7087,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SingleSourcesConfirmedInGCN"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["SourcesConfirmedInGCN"][];
+                        };
                     };
                 };
                 400: {
@@ -7095,7 +7142,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["SourcesConfirmedInGCN"];
+                            data?: {
+                                /** @description The id of the source_confirmed_in_gcn */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -7131,7 +7181,12 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                /** @description The id of the deleted source_confirmed_in_gcn */
+                                id?: number;
+                            };
+                        };
                     };
                 };
                 400: {
@@ -7175,7 +7230,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["SourcesConfirmedInGCN"];
+                            data?: {
+                                /** @description The id of the modified source_confirmed_in_gcn */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -7683,9 +7741,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["PhotStat"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -7719,9 +7775,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["PhotStat"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -8118,7 +8172,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/fits": string;
+                        "application/json": components["schemas"]["LocalizationHandlerGet"];
                     };
                 };
                 400: {
@@ -8352,7 +8406,12 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["GroupStream"];
+                            data?: {
+                                /** @description Group ID */
+                                group_id?: number;
+                                /** @description Stream ID */
+                                stream_id?: number;
+                            };
                         };
                     };
                 };
@@ -8444,7 +8503,14 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["GroupUser"];
+                            data?: {
+                                /** @description Group ID */
+                                group_id?: number;
+                                /** @description User ID */
+                                user_id?: number;
+                                /** @description Boolean indicating whether user is group admin */
+                                admin?: boolean;
+                            };
                         };
                     };
                 };
@@ -8618,7 +8684,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Group"];
+                            data?: components["schemas"]["Group"] & {
+                                /** @description List of group users */
+                                users?: components["schemas"]["User"][];
+                            };
                         };
                     };
                 };
@@ -8992,7 +9061,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["MMADetector"];
+                            data?: {
+                                /** @description New mmadetector ID */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -9157,33 +9229,14 @@ export interface paths {
                     /** @description If provided, filter only spectra observed with one of these mmadetector IDs. */
                     detectorIDs?: string;
                     /** @description If provided, filter only spectra saved to one of these group IDs. */
-                    groupIDs?: number[];
+                    groupIDs?: Record<string, never>;
                 };
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
             requestBody?: never;
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["MMADetectorSpectrum"][];
-                        };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
+            responses: never;
         };
         put?: never;
         /**
@@ -9209,7 +9262,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["MMADetectorSpectrum"];
+                            data?: {
+                                /** @description New mmadetector spectrum ID */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -9371,33 +9427,14 @@ export interface paths {
                     /** @description If provided, filter only time_intervals observed with one of these mmadetector IDs. */
                     detectorIDs?: string;
                     /** @description If provided, filter only time_interval saved to one of these group IDs. */
-                    groupIDs?: number[];
+                    groupIDs?: Record<string, never>;
                 };
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
             requestBody?: never;
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["MMADetectorTimeInterval"][];
-                        };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
+            responses: never;
         };
         put?: never;
         /**
@@ -10361,12 +10398,12 @@ export interface paths {
                          */
                         filters?: ("bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti")[];
                         /**
-                         * @description Map of filter name to its limiting magnitude and exposure time.
+                         * @description List of filters and associated limiting magnitude and exposure time.
                          *     Sensitivity_data filters must be a subset of the instrument filters.
                          *     Limiting magnitude assumed to be AB magnitude.
                          */
                         sensitivity_data?: {
-                            [key: string]: {
+                            filter_name?: {
                                 limiting_magnitude?: number;
                                 magsys?: string;
                                 /** @description Exposure time in seconds. */
@@ -10375,7 +10412,7 @@ export interface paths {
                         };
                         /** @description Instrument configuration properties such as instrument overhead, filter change time, readout, etc. */
                         configuration_data?: {
-                            [key: string]: {
+                            filter_name?: {
                                 /** @description Time in seconds to change filters */
                                 filt_change_time?: number;
                                 /** @description Time in seconds to readout camera */
@@ -10393,7 +10430,7 @@ export interface paths {
                          *     the shape of the instrument field. Note: should
                          *     only include field_region or field_fov_type.
                          */
-                        field_region?: string;
+                        field_region?: Record<string, never>;
                         /** @description List of filter, and limiting magnitude for each reference. */
                         references?: Record<string, never>;
                         /**
@@ -10401,14 +10438,14 @@ export interface paths {
                          *     circle or rectangle. Note: should only
                          *     include field_region or field_fov_type.
                          */
-                        field_fov_type?: string;
+                        field_fov_type?: Record<string, never>;
                         /**
                          * @description Option for instrument field shape parameters.
                          *     Single float radius in degrees in case of circle or
                          *     list of two floats (height and width) in case of
                          *     a rectangle.
                          */
-                        field_fov_attributes?: number[];
+                        field_fov_attributes?: Record<string, never>;
                     };
                 };
             };
@@ -10762,7 +10799,7 @@ export interface paths {
                      * @description Whether to include queued or executed observations.
                      *     Defaults to executed.
                      */
-                    observationStatus?: string;
+                    observationStatus?: Record<string, never>;
                     /**
                      * @description Minimum number of observations of a field required to include.
                      *     Defaults to 1.
@@ -10795,11 +10832,6 @@ export interface paths {
                             data?: {
                                 observations?: components["schemas"]["ExecutedObservation"][];
                                 totalMatches?: number;
-                                geojson?: Record<string, never>[] | null;
-                                field_ids?: number[] | null;
-                                probability?: number | null;
-                                area?: number | null;
-                                min_observations_per_field?: number | null;
                             };
                         };
                     };
@@ -11600,7 +11632,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["ObservingRun"];
+                            data?: {
+                                /** @description New Observing Run ID */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -12850,9 +12885,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Photometry"];
-                        };
+                        "application/json": components["schemas"]["SinglePhotometryFlux"] | components["schemas"]["SinglePhotometryMag"];
                     };
                 };
                 400: {
@@ -13092,7 +13125,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["PhotometryValidation"];
+                            data?: {
+                                /** @description The id of the photomety_validation */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -13175,7 +13211,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["PhotometryValidation"];
+                            data?: {
+                                /** @description The id of the modified photometry_validation */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -13438,7 +13477,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["PhotometricSeries"];
+                            data?: {
+                                /** @description New photometric series ID */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -13488,7 +13530,7 @@ export interface paths {
                      * @description Comma-separated string of object IDs not to be returned,
                      *     useful in cases where you are looking for new objects passing a query.
                      */
-                    rejectedObjectIDs?: string;
+                    rejectedObjectIDs?: Record<string, never>;
                     /**
                      * @description Get series that match this name.
                      *     The match must be exact.
@@ -13709,7 +13751,7 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["Success"] & {
                             data?: {
-                                series?: components["schemas"]["ArrayOfPhotometricSeriess"];
+                                series?: components["schemas"]["PhotometricSeries"][];
                                 totalMatches?: number;
                                 pageNumber?: number;
                                 numPerPage?: number;
@@ -13902,7 +13944,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["PhotometricSeries"];
+                            data?: {
+                                /** @description New photometric series ID */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -14283,7 +14328,22 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Shift"];
+                            data?: {
+                                /** @description New Shift */
+                                id?: number;
+                                /** @description New Shift's name */
+                                name?: string;
+                                /** @description New Shift's start date */
+                                start_date?: string;
+                                /** @description New Shift's end date */
+                                end_date?: string;
+                                /** @description New Shift's admins IDs */
+                                shift_admins?: unknown[];
+                                /** @description New Shift's description */
+                                description?: string;
+                                /** @description The number of users required to join this shift for it to be considered full */
+                                required_users_number?: number;
+                            };
                         };
                     };
                 };
@@ -14340,7 +14400,16 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["ShiftUser"];
+                            data?: {
+                                /** @description Shift ID */
+                                shift_id?: number;
+                                /** @description User ID */
+                                user_id?: number;
+                                /** @description Boolean indicating whether user is shift admin */
+                                admin?: boolean;
+                                /** @description Boolean indicating whether user needs replacement or not */
+                                needs_replacement?: boolean;
+                            };
                         };
                     };
                 };
@@ -14513,9 +14582,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Photometry"][];
-                        };
+                        "application/json": components["schemas"]["ArrayOfPhotometryFluxs"] | components["schemas"]["ArrayOfPhotometryMags"];
                     };
                 };
                 400: {
@@ -14969,9 +15036,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Photometry"][];
-                        };
+                        "application/json": components["schemas"]["ArrayOfPhotometryFluxs"] | components["schemas"]["ArrayOfPhotometryMags"];
                     };
                 };
                 400: {
@@ -15057,13 +15122,6 @@ export interface paths {
                      *     Options are: asc, desc
                      */
                     sortOrder?: string;
-                    /**
-                     * @description If true, include the raw uploaded spectrum file
-                     *     (original_file_string) in each spectrum. Defaults to false;
-                     *     when omitted, that field is neither loaded nor returned.
-                     * @default false
-                     */
-                    includeOriginalFile?: boolean;
                 };
                 header?: never;
                 path: {
@@ -15080,7 +15138,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Spectrum"];
+                            data?: {
+                                /** @description The ID of the requested Obj */
+                                obj_id?: string;
+                                spectra?: components["schemas"]["Spectrum"][];
+                            };
                         };
                     };
                 };
@@ -15688,12 +15750,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                origin?: string;
-                                color?: number;
-                                abs_mag?: number;
-                            }[];
-                        };
+                            origin?: string;
+                            color?: number;
+                            abs_mag?: number;
+                        }[];
                     };
                 };
                 400: {
@@ -16932,11 +16992,11 @@ export interface paths {
                     /** @description Portion of ID or TNS name to filter on */
                     sourceID?: string;
                     /** @description Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query. */
-                    rejectedSourceIDs?: string;
+                    rejectedSourceIDs?: Record<string, never>;
                     /** @description Simbad class to filter on */
                     simbadClass?: string;
                     /** @description additional name for the same object */
-                    alias?: string[];
+                    alias?: unknown[];
                     /** @description who posted/discovered this source */
                     origin?: string;
                     /** @description If true, return only those matches with TNS names */
@@ -16966,7 +17026,7 @@ export interface paths {
                     /** @description Get only sources saved to the querying user's list, e.g., "favorites". */
                     listName?: string;
                     /** @description If provided, filter only sources saved to one of these group IDs. */
-                    group_ids?: number[];
+                    group_ids?: Record<string, never>;
                     /**
                      * @description Boolean indicating whether to include the color-magnitude data from Gaia.
                      *     This will only include data for objects that have an annotation
@@ -17371,7 +17431,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["SourceNotification"];
+                            data?: {
+                                /** @description New SourceNotification ID */
+                                id?: string;
+                            };
                         };
                     };
                 };
@@ -18139,7 +18202,7 @@ export interface paths {
             parameters: {
                 query: {
                     /** @description List of filters */
-                    filters: string[];
+                    filters: Record<string, never>;
                 };
                 header?: never;
                 path: {
@@ -18202,13 +18265,6 @@ export interface paths {
                      *     open ended range.
                      */
                     max_date?: Record<string, never>;
-                    /**
-                     * @description If true, include the raw uploaded spectrum file
-                     *     (original_file_string) in each spectrum. Defaults to false;
-                     *     when omitted, that field is neither loaded nor returned.
-                     * @default false
-                     */
-                    includeOriginalFile?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -18222,7 +18278,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Spectrum"][];
+                            data?: {
+                                /** @description The ID of the requested Obj */
+                                obj_id?: string;
+                                spectra?: components["schemas"]["Spectrum"][];
+                            };
                         };
                     };
                 };
@@ -18691,13 +18751,6 @@ export interface paths {
                      *     open ended range.
                      */
                     max_date?: Record<string, never>;
-                    /**
-                     * @description If true, include the raw uploaded spectrum file
-                     *     (original_file_string) in each spectrum. Defaults to false;
-                     *     when omitted, that field is neither loaded nor returned.
-                     * @default false
-                     */
-                    includeOriginalFile?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -18711,7 +18764,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Spectrum"][];
+                            data?: {
+                                /** @description The ID of the requested Obj */
+                                obj_id?: string;
+                                spectra?: components["schemas"]["Spectrum"][];
+                            };
                         };
                     };
                 };
@@ -18769,7 +18826,12 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["StreamUser"];
+                            data?: {
+                                /** @description Stream ID */
+                                stream_id?: number;
+                                /** @description User ID */
+                                user_id?: number;
+                            };
                         };
                     };
                 };
@@ -19000,7 +19062,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Stream"];
+                            data?: {
+                                /** @description New stream ID */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -20784,7 +20849,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["SingleSharingService"];
+                            data?: {
+                                /** @description New Sharing Service ID */
+                                id?: number;
+                            };
                         };
                     };
                 };
@@ -21272,7 +21340,7 @@ export interface paths {
                          *     `admin` is a boolean indicating whether they will be an admin in
                          *     that group, e.g. `[[group_id_1, true], [group_id_2, false]]`
                          */
-                        groupIDsAndAdmin?: (number | boolean)[][];
+                        groupIDsAndAdmin?: unknown[][];
                     };
                 };
             };
@@ -36555,6 +36623,18 @@ export interface components {
             xml?: string;
             /** @description JSON notice content. */
             json?: string;
+        };
+        LocalizationHandlerGet: {
+            /** @description Localization name */
+            localization_name?: string;
+            /** @description UTC event timestamp */
+            dateobs?: string;
+            /** @description Flattened 2D healpix map */
+            flat_2d?: number[];
+            /** @description GeoJSON contours of healpix map */
+            contour?: {
+                [key: string]: unknown;
+            };
         };
         ObservationHandlerPost: {
             /** @description The telescope name associated with the fields */

@@ -8,7 +8,7 @@
  * generator's `_resolve_wrapped_data_member` rule. Endpoints whose data shape is
  * still inline/unknown are omitted (they'll surface as the next gap to tighten).
  */
-import type { components } from "./api";
+import type { components, paths } from "./api";
 
 export type SchemaName = keyof components["schemas"];
 
@@ -67,7 +67,6 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/group_admission_requests": { schema: "GroupAdmissionRequest" as const, list: true },
   "GET /api/group_admission_requests/{admission_request_id}": { schema: "GroupAdmissionRequest" as const, list: false },
   "GET /api/groups/public": { schema: "Group" as const, list: false },
-  "GET /api/groups/{group_id}": { schema: "Group" as const, list: false },
   "GET /api/instrument": { schema: "Instrument" as const, list: true },
   "GET /api/instrument/{instrument_id}": { schema: "Instrument" as const, list: false },
   "GET /api/invitations": { schema: "Invitation" as const, list: true, wrapper: "invitations" as const },
@@ -75,9 +74,7 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/localization/properties": { schema: "LocalizationProperty" as const, list: true },
   "GET /api/localization/{dateobs}/name/{localization_name}": { schema: "Localization" as const, list: false },
   "GET /api/mmadetector": { schema: "MMADetector" as const, list: true },
-  "GET /api/mmadetector/spectra": { schema: "MMADetectorSpectrum" as const, list: true },
   "GET /api/mmadetector/spectra/{spectrum_id}": { schema: "MMADetectorSpectrum" as const, list: false },
-  "GET /api/mmadetector/time_intervals": { schema: "MMADetectorTimeInterval" as const, list: true },
   "GET /api/mmadetector/time_intervals/{time_interval_id}": { schema: "MMADetectorTimeInterval" as const, list: false },
   "GET /api/mmadetector/{mmadetector_id}": { schema: "MMADetector" as const, list: false },
   "GET /api/objtag": { schema: "ObjTag" as const, list: true },
@@ -92,9 +89,7 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/observation_plan/{observation_plan_request_id}/survey_efficiency": { schema: "SurveyEfficiencyForObservationPlan" as const, list: true },
   "GET /api/observing_run": { schema: "ObservingRun" as const, list: true },
   "GET /api/observing_run/{run_id}": { schema: "ObservingRunGetWithAssignments" as const, list: false },
-  "GET /api/photometric_series": { schema: "ArrayOfPhotometricSeriess" as const, list: false, wrapper: "series" as const },
-  "GET /api/photometry/range": { schema: "Photometry" as const, list: true },
-  "GET /api/photometry/{photometry_id}": { schema: "Photometry" as const, list: false },
+  "GET /api/photometric_series": { schema: "PhotometricSeries" as const, list: true, wrapper: "series" as const },
   "GET /api/public_pages/release": { schema: "PublicRelease" as const, list: true },
   "GET /api/public_pages/source/{source_id}": { schema: "PublicSourcePage" as const, list: true },
   "GET /api/recurring_api": { schema: "RecurringAPI" as const, list: true },
@@ -112,17 +107,13 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/sources/{obj_id}/classifications": { schema: "Classification" as const, list: true },
   "GET /api/sources/{obj_id}/groups": { schema: "Group" as const, list: true },
   "GET /api/sources/{obj_id}/phot_stat": { schema: "PhotStat" as const, list: false },
-  "GET /api/sources/{obj_id}/photometry": { schema: "Photometry" as const, list: true },
-  "GET /api/sources/{obj_id}/spectra": { schema: "Spectrum" as const, list: false },
   "GET /api/sources_in_gcn/{dateobs}": { schema: "SourcesConfirmedInGCN" as const, list: true },
-  "GET /api/sources_in_gcn/{dateobs}/{source_id}": { schema: "SourcesConfirmedInGCN" as const, list: false },
+  "GET /api/sources_in_gcn/{dateobs}/{source_id}": { schema: "SourcesConfirmedInGCN" as const, list: true },
   "GET /api/spatial_catalog": { schema: "SpatialCatalog" as const, list: true },
   "GET /api/spatial_catalog/{catalog_id}": { schema: "SpatialCatalog" as const, list: false },
   "GET /api/spectra": { schema: "Spectrum" as const, list: true },
-  "GET /api/spectra/range": { schema: "Spectrum" as const, list: true },
   "GET /api/spectra/{spectrum_id}": { schema: "Spectrum" as const, list: false },
   "GET /api/spectrum": { schema: "Spectrum" as const, list: true },
-  "GET /api/spectrum/range": { schema: "Spectrum" as const, list: true },
   "GET /api/spectrum/{spectrum_id}": { schema: "Spectrum" as const, list: false },
   "GET /api/streams": { schema: "Stream" as const, list: true },
   "GET /api/streams/{stream_id}": { schema: "Stream" as const, list: false },
@@ -138,9 +129,9 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/user": { schema: "User" as const, list: true, wrapper: "users" as const },
   "GET /api/user/{user_id}": { schema: "User" as const, list: false },
   "GET /api/{analysis_resource_type}/analysis": { schema: "ObjAnalysisDetail" as const, list: true },
-  "GET /api/{analysis_resource_type}/analysis/{analysis_id}": { schema: "ObjAnalysisDetail" as const, list: false },
-  "GET /api/{analysis_resource_type}/{analysis_id}": { schema: "ObjAnalysisDetail" as const, list: true },
-  "GET /api/{analysis_resource_type}/{analysis_id}/analysis": { schema: "ObjAnalysisDetail" as const, list: false },
+  "GET /api/{analysis_resource_type}/analysis/{obj_id_path}": { schema: "ObjAnalysisDetail" as const, list: false },
+  "GET /api/{analysis_resource_type}/{obj_id_path}/analysis": { schema: "ObjAnalysisDetail" as const, list: true },
+  "GET /api/{analysis_resource_type}/{obj_id_path}/analysis/{analysis_id}": { schema: "ObjAnalysisDetail" as const, list: false },
   "GET /api/{associated_resource_type}/{resource_id}": { schema: "Annotation" as const, list: true },
   "GET /api/{associated_resource_type}/{resource_id}/annotations": { schema: "Annotation" as const, list: true },
   "GET /api/{associated_resource_type}/{resource_id}/annotations/{annotation_id}": { schema: "Annotation" as const, list: false },
@@ -148,78 +139,45 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/{associated_resource_type}/{resource_id}/comments/{comment_id}": { schema: "Comment" as const, list: false },
   "GET /api/{associated_resource_type}/{resource_id}/reminders": { schema: "Reminder" as const, list: true },
   "GET /api/{associated_resource_type}/{resource_id}/reminders/{reminder_id}": { schema: "Reminder" as const, list: false },
-  "PATCH /api/analysis_service/{analysis_service_id}": { schema: "AnalysisService" as const, list: false },
   "PATCH /api/candidates/scan_reports/{report_id}/items/{item_id}": { schema: "ScanReportItem" as const, list: false },
   "PATCH /api/earthquake/{earthquake_id}/mmadetector/{mma_detector_id}/measurements": { schema: "EarthquakeMeasured" as const, list: false },
   "PATCH /api/groups/{group_id}/users": { schema: "GroupUser" as const, list: false },
   "PATCH /api/mmadetector/spectra/{spectrum_id}": { schema: "MMADetectorSpectrum" as const, list: false },
   "PATCH /api/mmadetector/time_intervals/{time_interval_id}": { schema: "MMADetectorTimeInterval" as const, list: false },
   "PATCH /api/mmadetector/{mmadetector_id}": { schema: "MMADetector" as const, list: false },
-  "PATCH /api/photometric_series/{photometric_series_id}": { schema: "PhotometricSeries" as const, list: false },
   "PATCH /api/photometry/{photometry_id}": { schema: "Success" as const, list: false },
-  "PATCH /api/photometry/{photometry_id}/validation": { schema: "PhotometryValidation" as const, list: false },
   "PATCH /api/shifts/{shift_id}": { schema: "Shift" as const, list: false },
   "PATCH /api/shifts/{shift_id}/users/{user_id}": { schema: "ShiftUser" as const, list: false },
   "PATCH /api/sources/{obj_id}": { schema: "Obj" as const, list: false },
-  "PATCH /api/sources_in_gcn/{dateobs}/{source_id}": { schema: "SourcesConfirmedInGCN" as const, list: false },
   "PATCH /api/streams/{stream_id}": { schema: "Stream" as const, list: false },
-  "POST /api/analysis_service": { schema: "AnalysisService" as const, list: false },
-  "POST /api/analysis_service/{analysis_service_id}/default_analysis": { schema: "DefaultAnalysis" as const, list: false },
   "POST /api/candidates/scan_reports": { schema: "ScanReport" as const, list: false },
-  "POST /api/default_followup_request": { schema: "DefaultFollowupRequest" as const, list: false },
-  "POST /api/default_gcn_tag": { schema: "DefaultGcnTag" as const, list: false },
-  "POST /api/earthquake": { schema: "EarthquakeEvent" as const, list: false },
   "POST /api/earthquake/{earthquake_id}/mmadetector/{mma_detector_id}/measurements": { schema: "EarthquakeMeasured" as const, list: false },
   "POST /api/earthquake/{earthquake_id}/mmadetector/{mma_detector_id}/predictions": { schema: "EarthquakePrediction" as const, list: false },
-  "POST /api/followup_request": { schema: "FollowupRequest" as const, list: false },
   "POST /api/galaxy_catalog/ascii": { schema: "Galaxy" as const, list: true },
-  "POST /api/gcn_event": { schema: "GcnEvent" as const, list: false },
-  "POST /api/gcn_event/tags/{dateobs}": { schema: "GcnTag" as const, list: false },
-  "POST /api/groups/{group_id}/streams": { schema: "GroupStream" as const, list: false },
-  "POST /api/groups/{group_id}/users": { schema: "GroupUser" as const, list: false },
   "POST /api/groups/{group_id}/usersFromGroups": { schema: "GroupUser" as const, list: false },
-  "POST /api/mmadetector": { schema: "MMADetector" as const, list: false },
-  "POST /api/mmadetector/spectra": { schema: "MMADetectorSpectrum" as const, list: false },
   "POST /api/objtag": { schema: "ObjTag" as const, list: false },
   "POST /api/objtagoption": { schema: "ObjTagOption" as const, list: false },
   "POST /api/observation/ascii": { schema: "ExecutedObservation" as const, list: true },
   "POST /api/observation/external_api": { schema: "ExecutedObservation" as const, list: true },
   "POST /api/observation_plan/{observation_plan_request_id}/queue": { schema: "ObservationPlanRequest" as const, list: false },
-  "POST /api/observing_run": { schema: "ObservingRun" as const, list: false },
-  "POST /api/photometric_series": { schema: "PhotometricSeries" as const, list: false },
-  "POST /api/photometry/{photometry_id}/validation": { schema: "PhotometryValidation" as const, list: false },
   "POST /api/sharing_service/submission": { schema: "SharingServiceSubmission" as const, list: false },
   "POST /api/sharing_service/{sharing_service_id}/coauthor/{user_id}": { schema: "SharingServiceCoauthor" as const, list: false },
   "POST /api/sharing_service/{sharing_service_id}/group/{group_id}/auto_publisher/{user_id}": { schema: "SharingServiceGroupAutoPublisher" as const, list: false },
-  "POST /api/shifts": { schema: "Shift" as const, list: false },
-  "POST /api/shifts/{shift_id}/users": { schema: "ShiftUser" as const, list: false },
-  "POST /api/source_notifications": { schema: "SourceNotification" as const, list: false },
   "POST /api/sources/{obj_id}/annotations/gaia": { schema: "Annotation" as const, list: false },
   "POST /api/sources/{obj_id}/annotations/irsa": { schema: "Annotation" as const, list: false },
   "POST /api/sources/{obj_id}/annotations/ps1": { schema: "Annotation" as const, list: false },
   "POST /api/sources/{obj_id}/annotations/vizier": { schema: "Annotation" as const, list: false },
-  "POST /api/sources/{obj_id}/phot_stat": { schema: "PhotStat" as const, list: false },
-  "POST /api/sources_in_gcn/{dateobs}/{source_id}": { schema: "SourcesConfirmedInGCN" as const, list: false },
   "POST /api/spectra/parse/ascii": { schema: "SpectrumNoID" as const, list: false },
   "POST /api/spectra/synthphot/{spectrum_id}": { schema: "Spectrum" as const, list: false },
   "POST /api/spectrum/parse/ascii": { schema: "SpectrumNoID" as const, list: false },
-  "POST /api/streams": { schema: "Stream" as const, list: false },
-  "POST /api/streams/{stream_id}/users": { schema: "StreamUser" as const, list: false },
   "POST /api/summary_query": { schema: "Obj" as const, list: true },
-  "POST /api/{analysis_resource_type}/analysis/{resource_id}": { schema: "ObjAnalysis" as const, list: false },
-  "POST /api/{analysis_resource_type}/{resource_id}/analysis/{analysis_service_id}": { schema: "ObjAnalysis" as const, list: false },
-  "POST /api/{analysis_resource_type}/{resource_id}/analysis_upload/{analysis_service_id}": { schema: "ObjAnalysis" as const, list: false },
-  "POST /api/{associated_resource_type}/{resource_id}/comments": { schema: "Comment" as const, list: false },
-  "POST /api/{associated_resource_type}/{resource_id}/comments/{ignore_args}": { schema: "Comment" as const, list: false },
   "PUT /api/followup_request/prioritization": { schema: "FollowupRequest" as const, list: false },
   "PUT /api/followup_request/{followup_request_id}/comment": { schema: "FollowupRequest" as const, list: false },
   "PUT /api/followup_request/{request_id}": { schema: "FollowupRequest" as const, list: false },
   "PUT /api/groups/{group_id}": { schema: "Group" as const, list: false },
   "PUT /api/instrument/{instrument_id}": { schema: "Instrument" as const, list: false },
   "PUT /api/observing_run/{run_id}": { schema: "ObservingRun" as const, list: false },
-  "PUT /api/sharing_service/{existing_id}": { schema: "SingleSharingService" as const, list: false },
   "PUT /api/sharing_service/{sharing_service_id}/group/{group_id}": { schema: "SharingServiceGroup" as const, list: false },
-  "PUT /api/sources/{obj_id}/phot_stat": { schema: "PhotStat" as const, list: false },
   "PUT /api/spectra/{spectrum_id}": { schema: "Spectrum" as const, list: false },
   "PUT /api/spectrum/{spectrum_id}": { schema: "Spectrum" as const, list: false },
   "PUT /api/thumbnail/{thumbnail_id}": { schema: "Thumbnail" as const, list: false },
@@ -244,21 +202,63 @@ type PaginationBonusFields = {
 };
 
 /**
- * Resolve a route key to the typed shape of its response `data` field.
- * - Pagination-wrapper routes (`wrapper` set) → `{ [W]: Schema[] } & PaginationBonusFields`.
- * - Otherwise the map's `list` flag picks scalar-vs-array automatically.
+ * Curated path: routes whose response `data` is a named component schema resolve
+ * to a clean `Schema` / `Schema[]` / pagination-wrapper type.
  *
  * Caveat: PaginationBonusFields makes `totalMatches`/`pageNumber`/`numPerPage`/`page`
  * optional. Routes that historically declared these as required will need `?.`
  * access (or non-null assertions where the value is known to be present).
- *
- * @example
- *   const data: RouteData<"GET /api/allocation"> = ...; // Allocation[]
- *   const evts: RouteData<"GET /api/earthquake"> = ...; // { events: EarthquakeEvent[] } & PaginationBonusFields
  */
-export type RouteData<P extends RouteKey> =
+type MappedRouteData<P extends RouteKey> =
   RouteEntry<P> extends { wrapper: infer W extends string; schema: infer S extends SchemaName }
     ? { [K in W]: components["schemas"][S][] } & PaginationBonusFields
     : RouteEntry<P>["list"] extends true
       ? components["schemas"][RouteEntry<P>["schema"]][]
       : components["schemas"][RouteEntry<P>["schema"]];
+
+/**
+ * Generated fallback for endpoints not in the curated map (inline / augmented
+ * response shapes). Derives the response `data` type straight from the
+ * openapi-typescript output in `api.ts`, so it stays in sync on regen — no
+ * hand-written types. An endpoint typing as `never`/`unknown` here means its 200
+ * response isn't fully documented in the spec (a real gap to fix in the backend
+ * docstring, not to paper over on the client).
+ */
+type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
+
+type RouteKeysOf<P extends keyof paths & string> = {
+  [M in Extract<keyof paths[P], HttpMethod> & string]: `${Uppercase<M>} ${P}`;
+}[Extract<keyof paths[P], HttpMethod> & string];
+
+/** Union of every documented `"<METHOD> <path>"` key. */
+type DocumentedRouteKey = {
+  [P in keyof paths & string]: RouteKeysOf<P>;
+}[keyof paths & string];
+
+type ResponseBody<S extends string> =
+  S extends `${infer M} ${infer P}`
+    ? P extends keyof paths
+      ? Lowercase<M> extends keyof paths[P]
+        ? paths[P][Lowercase<M>] extends {
+            responses: { 200: { content: { "application/json": infer B } } };
+          }
+          ? B
+          : never
+        : never
+      : never
+    : never;
+
+type ApiRouteData<S extends string> =
+  ResponseBody<S> extends { data?: infer D } ? D : ResponseBody<S>;
+
+/**
+ * Resolve a route key to the typed shape of its response `data` field.
+ * - Curated map (named-schema responses) → clean `Schema` / `Schema[]` / wrapper.
+ * - Everything else documented → generated type derived from `api.ts`.
+ *
+ * @example
+ *   const data: RouteData<"GET /api/allocation"> = ...; // Allocation[]
+ *   const created: RouteData<"POST /api/analysis_service"> = ...; // { id?: number }
+ */
+export type RouteData<P extends RouteKey | DocumentedRouteKey> =
+  P extends RouteKey ? MappedRouteData<P> : ApiRouteData<P>;
