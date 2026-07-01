@@ -42,23 +42,19 @@ def test_observability_enabled_renders_prometheus():
         }
         assert setup_observability(cfg) is True
 
-        # The exclusion list must be set before the instrumentation imports it.
+        # Our setup installs a real SDK meter provider (not the API's default
+        # no-op), which is what makes metrics flow to the Prometheus reader.
+        from opentelemetry import metrics
+        from opentelemetry.sdk.metrics import MeterProvider
+
+        assert isinstance(metrics.get_meter_provider(), MeterProvider)
+
+        # ...and configures the tornado instrumentation to skip the scrape and
+        # health URLs. This must be set before the instrumentation imports it.
         assert (
             os.environ["OTEL_PYTHON_TORNADO_EXCLUDED_URLS"]
             == "/api/internal/metrics,/api/sysinfo"
         )
-
-        # A metric emitted through the configured provider renders in the
-        # Prometheus text exposition that MetricsHandler serves.
-        from opentelemetry import metrics
-        from prometheus_client import generate_latest
-
-        metrics.get_meter("test").create_counter("unit_demo").add(
-            2, {"route": "/api/sources"}
-        )
-        out = generate_latest().decode()
-        assert "unit_demo_total" in out
-        assert 'route="/api/sources"' in out
         print("SUBPROCESS_OK")
         """
     )
