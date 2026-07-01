@@ -114,7 +114,12 @@ const TaxonomyList = () => {
 
   return (
     <div className={classes.paper}>
-      <Typography variant="h6" display="inline" />
+      <Typography
+        variant="h6"
+        sx={{
+          display: "inline",
+        }}
+      />
       {taxonomyList && (
         <TaxonomyTable
           taxonomies={taxonomyList}

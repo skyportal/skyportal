@@ -126,10 +126,12 @@ const ObservingRunList = ({
   return (
     <Paper>
       <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        flexWrap="wrap"
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
       >
         <Typography variant="h6">List of Observing Runs</Typography>
 
@@ -181,7 +183,13 @@ const ObservingRunList = ({
             </ListItem>
           ))
         ) : (
-          <Typography variant="body1" color="textSecondary" mt={2}>
+          <Typography
+            variant="body1"
+            color="textSecondary"
+            sx={{
+              mt: 2,
+            }}
+          >
             No observing runs to show.
           </Typography>
         )}

@@ -25,7 +25,7 @@ const getStyles = (option: any, opts: any[], theme: any) => ({
       : theme.typography.fontWeightMedium,
 });
 
-const menuProps = { PaperProps: { style: { maxHeight: "20rem" } } };
+const menuProps = { slotProps: { paper: { style: { maxHeight: "20rem" } } } };
 
 interface SelectWithChipsProps {
   label: string;

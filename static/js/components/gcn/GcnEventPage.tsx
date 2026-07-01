@@ -253,7 +253,13 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
               <Grid size={9}>
                 <Grid container>
                   <Grid size={{ md: 12, lg: 4 }}>
-                    <Grid container alignItems="end" spacing={1}>
+                    <Grid
+                      container
+                      spacing={1}
+                      sx={{
+                        alignItems: "end",
+                      }}
+                    >
                       <Grid>
                         <span className={styles.headerName}>
                           {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}

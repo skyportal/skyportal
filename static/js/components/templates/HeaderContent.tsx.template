@@ -125,7 +125,7 @@ const HeaderContent = () => {
           {{ app.title }}
         </p>
       </Link>
-      <Box className={classes.date} display={{"{{ xs: 'none', lg: 'inline-flex' }}"}}>
+      <Box className={classes.date} sx={{"{{ display: { xs: 'none', lg: 'inline-flex' } }}"}}>
         {now.toLocaleString('en-US', {
           timeZone: 'UTC',
           month: 'short',
@@ -136,10 +136,10 @@ const HeaderContent = () => {
         })} UTC
       </Box>
       <div style={{"{{ display: openSearch ? 'none' : 'inline-flex', flexDirection: 'row', alignItems: 'center', gap: '1rem', paddingRight: '1rem' }}"}}>
-        <Box display={{"{{ xs: 'none', md: 'block' }}"}}>
+        <Box sx={{"{{ display: { xs: 'none', md: 'block' } }}"}}>
           <QuickSearchBar />
         </Box>
-        <Box display={{"{{ xs: openSearch ? 'none' : 'block', md: 'none' }}"}}>
+        <Box sx={{"{{ display: { xs: openSearch ? 'none' : 'block', md: 'none' } }}"}}>
           <IconButton
             onClick={() => setOpenSearch(true)}
             size="large"
@@ -148,7 +148,7 @@ const HeaderContent = () => {
             <SearchIcon fontSize="large" style={{"{{color: '#457b9d'}}"}}/>
           </IconButton>
         </Box>
-        <Box display={{"{{ xs: 'none', md: 'block' }}"}}>
+        <Box sx={{"{{ display: { xs: 'none', md: 'block' } }}"}}>
           <Tooltip title="Refresh basic data">
             <IconButton
               onClick={() => handleRefresh()}
@@ -165,7 +165,7 @@ const HeaderContent = () => {
         <Notes />
         <ProfileDropdown />
       </div>
-      <Box display={{"{{ xs: openSearch ? 'flex' : 'none', md: 'none' }}"}} style={{"{{paddingRight: '0.5rem', flexDirection: 'row', alignItems: 'center'}}"}}>
+      <Box sx={{"{{ display: { xs: openSearch ? 'flex' : 'none', md: 'none' } }}"}} style={{"{{paddingRight: '0.5rem', flexDirection: 'row', alignItems: 'center'}}"}}>
         <QuickSearchBar />
         <IconButton
           onClick={() => setOpenSearch(false)}

@@ -228,9 +228,11 @@ const SpectrumRow = ({ spectrumID, route, annotations }: SpectrumRowProps) => {
     <div style={{ width: "100%" }}>
       <Grid
         container
-        justifyContent="center"
-        alignItems="flex-start"
         spacing={2}
+        sx={{
+          justifyContent: "center",
+          alignItems: "flex-start",
+        }}
       >
         <Grid size={{ sm: 12 }} className={styles.photometryContainer}>
           <Suspense

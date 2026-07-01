@@ -270,8 +270,10 @@ const RunSummary = ({ route }: RunSummaryProps) => {
                 container
                 direction="row"
                 spacing={3}
-                justifyContent="center"
-                alignItems="center"
+                sx={{
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
               >
                 <ThumbnailList
                   thumbnails={assignment.obj.thumbnails}

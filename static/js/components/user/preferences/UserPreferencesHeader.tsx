@@ -3,7 +3,7 @@ import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import Popover from "@mui/material/Popover";
 import IconButton from "@mui/material/IconButton";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 
 const useStyles = makeStyles()((theme) => ({
   header: {
@@ -47,8 +47,10 @@ const UserPreferencesHeader = ({
       <div className={classes.header}>
         <Typography
           variant={variant}
-          display="inline"
           className={classes.title}
+          sx={{
+            display: "inline",
+          }}
         >
           {title}
         </Typography>

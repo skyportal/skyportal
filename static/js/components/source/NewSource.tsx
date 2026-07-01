@@ -121,7 +121,12 @@ const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
   return (
     <div className={classes.widgetPaperDiv}>
       <div>
-        <Typography variant="h6" display="inline">
+        <Typography
+          variant="h6"
+          sx={{
+            display: "inline",
+          }}
+        >
           Add a Source
         </Typography>
         <div>

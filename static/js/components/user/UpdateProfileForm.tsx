@@ -132,9 +132,11 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justifyContent="flex-start"
-              alignItems="baseline"
               spacing={2}
+              sx={{
+                justifyContent: "flex-start",
+                alignItems: "baseline",
+              }}
             >
               <Grid size={{ xs: 12, lg: 3 }}>
                 <TextField
@@ -151,9 +153,11 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justifyContent="flex-start"
-              alignItems="baseline"
               spacing={2}
+              sx={{
+                justifyContent: "flex-start",
+                alignItems: "baseline",
+              }}
             >
               <Grid size={{ xs: 6, lg: 3 }}>
                 <InputLabel htmlFor="firstName_id">First Name</InputLabel>
@@ -180,9 +184,11 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justifyContent="flex-start"
-              alignItems="baseline"
               spacing={2}
+              sx={{
+                justifyContent: "flex-start",
+                alignItems: "baseline",
+              }}
             >
               <Grid size={{ xs: 12, lg: 6 }}>
                 <InputLabel htmlFor="bio_id">
@@ -203,9 +209,11 @@ const UpdateProfileForm = () => {
               <Grid
                 container
                 direction="row"
-                justifyContent="flex-start"
-                alignItems="baseline"
                 spacing={2}
+                sx={{
+                  justifyContent: "flex-start",
+                  alignItems: "baseline",
+                }}
               >
                 <Grid size={{ xs: 12, lg: 6 }}>
                   <InputLabel htmlFor="affiliationsInput">
@@ -268,9 +276,11 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justifyContent="flex-start"
-              alignItems="baseline"
               spacing={2}
+              sx={{
+                justifyContent: "flex-start",
+                alignItems: "baseline",
+              }}
             >
               <Grid size={{ xs: 12, lg: 6 }}>
                 <InputLabel htmlFor="email_id">
@@ -301,9 +311,11 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justifyContent="flex-start"
-              alignItems="baseline"
               spacing={2}
+              sx={{
+                justifyContent: "flex-start",
+                alignItems: "baseline",
+              }}
             >
               <Grid size={{ xs: 12, lg: 6 }}>
                 <InputLabel htmlFor="phone_id">
@@ -343,9 +355,11 @@ const UpdateProfileForm = () => {
                 <Grid
                   container
                   direction="row"
-                  justifyContent="flex-start"
-                  alignItems="baseline"
                   spacing={2}
+                  sx={{
+                    justifyContent: "flex-start",
+                    alignItems: "baseline",
+                  }}
                 >
                   <Grid size={{ xs: 12, lg: 6 }}>
                     <InputLabel htmlFor="is_bot_id">
