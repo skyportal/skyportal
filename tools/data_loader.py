@@ -196,21 +196,26 @@ if __name__ == "__main__":
                 elif filename.endswith("reg"):
                     return Regions.read(filename).serialize(format="ds9")
                 elif filename.endswith(("h5", "hdf5")):
+                    # pandas-HDFStore files expose their raw block layout
+                    # (index, values_block_0, ...) to astropy. Newer astropy
+                    # reads that without error (older versions raised), so the
+                    # real columns are absent. Detect the block layout (or a
+                    # read failure) and send the raw file for the server to read
+                    # with pandas.HDFStore instead.
+                    df = None
                     try:
-                        payload = (
-                            Table.read(filename)
-                            .to_pandas()
-                            .replace({np.nan: None})
-                            .to_dict(orient="list")
-                        )
+                        df = Table.read(filename).to_pandas()
                     except Exception as e:
-                        # sometimes we save HDF5 files using an HDFStore.
-                        # in this case we read it as a binary file and return it as "data"
-                        if "values_block_0" in str(e):
-                            with open(filename, "rb") as fid:
-                                payload = base64.b64encode(fid.read())
-                        else:
+                        if "values_block_0" not in str(e):
                             raise e
+                    if df is None or any(
+                        c == "index" or str(c).startswith("values_block_")
+                        for c in df.columns
+                    ):
+                        with open(filename, "rb") as fid:
+                            payload = base64.b64encode(fid.read()).decode()
+                    else:
+                        payload = df.replace({np.nan: None}).to_dict(orient="list")
                     return payload
                 elif filename.endswith("bz2"):
                     payload = (
