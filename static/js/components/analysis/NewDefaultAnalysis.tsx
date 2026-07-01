@@ -15,6 +15,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useSubmitDefaultAnalysisMutation } from "../../ducks/default_analyses";
+import { useGetGroupsQuery } from "../../ducks/groups";
 
 const useStyles = makeStyles()(() => ({
   container: { width: "32rem", maxWidth: "100%" },
@@ -97,7 +98,16 @@ const NewDefaultAnalysis = ({
   const dispatch = useAppDispatch();
   const [submitDefaultAnalysis] = useSubmitDefaultAnalysisMutation();
 
-  const serviceGroups: any[] = analysisService?.groups ?? [];
+  // Only offer the service's groups the user can access (all groups for
+  // sysadmins, member groups otherwise), so users can't target a group they're
+  // not in; admins are unaffected.
+  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const accessibleGroupIds = new Set(
+    userAccessibleGroups.map((g: any) => g.id),
+  );
+  const serviceGroups: any[] = (analysisService?.groups ?? []).filter(
+    (g: any) => accessibleGroupIds.has(g.id),
+  );
   const serviceParams = useMemo(
     () => parseServiceParams(analysisService?.optional_analysis_parameters),
     [analysisService],
