@@ -44,9 +44,10 @@ function quantile(sorted: number[], q: number) {
   const pos = (sorted.length - 1) * q;
   const base = Math.floor(pos);
   const rest = pos - base;
-  return sorted[base + 1] !== undefined
-    ? sorted[base] + rest * (sorted[base + 1] - sorted[base])
-    : sorted[base];
+  const a = sorted[base];
+  const b = sorted[base + 1];
+  if (a === undefined) return NaN;
+  return b !== undefined ? a + rest * (b - a) : a;
 }
 
 // Format a value with enough decimals to resolve `scale` (the uncertainty) to
@@ -138,8 +139,8 @@ const CornerPlot = ({
         const sfx = ax === 1 ? "" : String(ax);
         const xa = `x${sfx}`;
         const ya = `y${sfx}`;
-        const [pj, vj] = entries[col];
-        const [pi, vi] = entries[row];
+        const [pj, vj] = entries[col]!;
+        const [pi, vi] = entries[row]!;
         const onBottom = row === n - 1;
         const onLeft = col === 0 && row !== 0;
         lay[`xaxis${sfx}`] = {
@@ -174,7 +175,7 @@ const CornerPlot = ({
           });
           lay[`yaxis${sfx}`].showticklabels = false;
           // Dashed 16/50/84th-percentile lines across the histogram.
-          const st = stats[col];
+          const st = stats[col]!;
           for (const [qv, dash] of [
             [st.q16, "dot"],
             [st.q50, "dash"],
@@ -220,8 +221,8 @@ const CornerPlot = ({
             type: "line",
             xref: xa,
             yref: `${ya} domain`,
-            x0: stats[col].q50,
-            x1: stats[col].q50,
+            x0: stats[col]!.q50,
+            x1: stats[col]!.q50,
             y0: 0,
             y1: 1,
             line: { color: "#888", width: 0.8, dash: "dash" },
@@ -232,8 +233,8 @@ const CornerPlot = ({
             yref: ya,
             x0: 0,
             x1: 1,
-            y0: stats[row].q50,
-            y1: stats[row].q50,
+            y0: stats[row]!.q50,
+            y1: stats[row]!.q50,
             line: { color: "#888", width: 0.8, dash: "dash" },
           });
         }

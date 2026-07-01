@@ -28,7 +28,7 @@ export function buildModelLightcurveTraces(
   modelFits: ModelFit[],
   filter2color: Record<string, number[]>,
   xOf: (mjd: number) => number,
-  plotType: string,
+  plotType: string | null,
 ): any[] {
   if (plotType !== "mag" || !Array.isArray(modelFits)) return [];
   const traces: any[] = [];
@@ -37,7 +37,7 @@ export function buildModelLightcurveTraces(
     Object.entries(mlc).forEach(([filt, pts]) => {
       if (!Array.isArray(pts) || pts.length === 0) return;
       const color = filter2color?.[filt] || [80, 80, 80];
-      const xs = pts.map((p) => xOf(p[0]));
+      const xs = pts.map((p) => xOf(p[0]!));
       const med = pts.map((p) => p[1]);
       const lo = pts.map((p) => p[2]);
       const hi = pts.map((p) => p[3]);

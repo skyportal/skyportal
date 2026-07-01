@@ -2355,6 +2355,7 @@ class PhotometryHandler(BaseHandler):
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id: str):
+        # docstring/OpenAPI spec is set via ObjPhotometryHandler.get.__doc__ below
         individual_or_series = self.get_query_argument("individualOrSeries", "both")
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
         format = self.get_query_argument("format", "mag")
