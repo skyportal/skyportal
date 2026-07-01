@@ -251,9 +251,9 @@ const Periodogram = () => {
     fmax: null,
   });
 
-  const dataplotRef = useRef<any>();
-  const glsplotRef = useRef<any>();
-  const phaseplotRef = useRef<any>();
+  const dataplotRef = useRef<any>(null);
+  const glsplotRef = useRef<any>(null);
+  const phaseplotRef = useRef<any>(null);
 
   // plotting functions
   function plotline(graph: any, x: any) {
@@ -450,7 +450,7 @@ const Periodogram = () => {
     dispatch,
   ]);
 
-  const componentRef = useRef<any>();
+  const componentRef = useRef<any>(null);
 
   const initialFormState = {
     ...params,
