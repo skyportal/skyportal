@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from astropy.table import Table
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
-from matplotlib import cm
+from matplotlib import colormaps
 from matplotlib.colors import LinearSegmentedColormap, rgb2hex
 from sncosmo.photdata import PhotometricData
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -115,7 +115,7 @@ def numpy_to_native(value):
     return value
 
 
-cmap_ir = cm.get_cmap("autumn")
+cmap_ir = colormaps["autumn"]
 cmap_deep_ir = LinearSegmentedColormap.from_list(
     "deep_ir", [(0.8, 0.2, 0), (0.6, 0.1, 0)]
 )

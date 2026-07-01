@@ -915,20 +915,6 @@ def test_retrieve_data_products(
         data = response.text
         assert status == 404
 
-        # try to get the corner plot of the posterior
-        response = api(
-            "GET",
-            f"obj/analysis/{analysis_id}/corner",
-            token=analysis_token,
-            raw_response=True,
-        )
-        status = response.status_code
-        data = response.text
-        assert status == 200
-        assert isinstance(data, str)
-        assert data[0:10].find("PNG") != -1
-        assert response.headers.get("Content-Type", "Empty").find("image/png") != -1
-
         # try to get the results
         status, data = api(
             "GET",
@@ -949,18 +935,6 @@ def test_retrieve_data_products(
         status = response.status_code
         data = response.text
         assert status == 404
-
-        # try to get a corner plot which does not exist
-        response = api(
-            "GET",
-            f"obj/analysis/{analysis_id}/corner",
-            token=analysis_token,
-            raw_response=True,
-        )
-        status = response.status_code
-        data = response.text
-        assert status == 404
-        assert data.find("No data found") != -1
 
         # try to get a non-existing results
         status, data = api(

@@ -5,15 +5,11 @@ import io
 import json
 import os
 import re
-import tempfile
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import arviz
-import corner
 import joblib
-import matplotlib.pyplot as plt
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import cast, event, func, inspect, or_
@@ -309,66 +305,6 @@ class AnalysisMixin:
         buf.seek(0)
 
         return {"plot_data": buf, "plot_type": format}
-
-    def generate_corner_plot(self, **plot_kwargs):
-        """Generate a corner plot of the posterior from the inference data."""
-
-        if not self.has_inference_data:
-            return None
-
-        # we could add different formats here in the future
-        # but for now we only support netcdf4 formats
-        if self.data["inference_data"]["format"] not in ["netcdf4"]:
-            raise ValueError("Inference data format not allowed.")
-
-        f = tempfile.NamedTemporaryFile(
-            suffix=".nc", prefix="inferencedata_", delete=False
-        )
-        f.close()
-        f_handle = open(f.name, "wb")
-        f_handle.write(base64.b64decode(self.data["inference_data"]["data"]))
-        f_handle.close()
-        # N.B.: arviz/xarray memory maps the file, so we need to
-        # remove the file only after using the data to make the plot
-        inference_data = arviz.from_netcdf(f.name)
-
-        try:
-            # remove parameters with zero range in the data
-            # which can happen with fixed parameters
-            temp_range = [
-                [
-                    inference_data["posterior"][x].data.min(),
-                    inference_data["posterior"][x].data.max(),
-                    x,
-                ]
-                for x in inference_data["posterior"]
-            ]
-            for x in temp_range:
-                # the min and max of this variable is the same:
-                # probably a fixed parameter. Remove it (x[2]) from plotting
-                # because it causes grief for corner
-                if x[0] == x[1]:
-                    del inference_data["posterior"][x[2]]
-
-            fig = corner.corner(
-                inference_data["posterior"],
-                quantiles=[0.16, 0.5, 0.84],
-                fig_kwargs=plot_kwargs,
-            )
-        except Exception as e:
-            log(f"Failed to generate corner plot: {e}")
-            return None
-        finally:
-            # now that we have the data in figure we can
-            # remove this file
-            os.remove(f.name)
-
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png")
-        plt.close(fig)
-        buf.seek(0)
-
-        return buf
 
     def load_data(self):
         """

@@ -1880,7 +1880,7 @@ class AnalysisProductsHandler(BaseHandler):
             type: string
           description: |
             What type of data to retrieve:
-            must be one of "corner", "results", or "plot"
+            must be one of "results" or "plot"
         - in: path
           name: plot_number
           required: false
@@ -1935,22 +1935,7 @@ class AnalysisProductsHandler(BaseHandler):
                             "No data found for this Analysis.", status=404
                         )
 
-                    if product_type.lower() == "corner":
-                        if not analysis.has_inference_data:
-                            return self.error(
-                                "No inference data found for this Analysis.", status=404
-                            )
-
-                        plot_kwargs = self.get_query_argument("plot_kwargs", {})
-                        filename = f"analysis_{analysis.obj_id}_corner.png"
-                        output_type = "png"
-                        output_data = analysis.generate_corner_plot(**plot_kwargs)
-                        if output_data is not None:
-                            await self.send_file(
-                                output_data, filename, output_type=output_type
-                            )
-                            return
-                    elif product_type.lower() == "results":
+                    if product_type.lower() == "results":
                         if not analysis.has_results_data:
                             return self.error(
                                 "No results data found for this Analysis.", status=404
