@@ -15,6 +15,7 @@ import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
 import Button from "../Button";
 import withRouter from "../withRouter";
+import AnalysisCornerPlot from "../analysis/AnalysisCornerPlot";
 
 import {
   useGetAnalysisQuery,
@@ -244,26 +245,13 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
                 <Card className={classes.root} variant="outlined">
                   <CardContent>
                     <div className={classes.mediaDiv}>
-                      <img
-                        src={`/api/obj/analysis/${analysis.id}/corner`}
-                        alt="corner plot"
-                        className={classes.corner}
-                        title="corner"
-                        loading="lazy"
+                      <AnalysisCornerPlot
+                        objId={route.obj_id}
+                        analysisId={analysis.id}
                       />
                     </div>
                   </CardContent>
                 </Card>
-                <Button
-                  primary
-                  href={`/api/obj/analysis/${analysis.id}/corner`}
-                  size="small"
-                  type="submit"
-                  target="_blank"
-                  data-testid={`corner_${analysis.id}`}
-                >
-                  <DownloadIcon />
-                </Button>
               </AccordionDetails>
             </Accordion>
           )}

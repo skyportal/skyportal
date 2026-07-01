@@ -1661,6 +1661,23 @@ default_followup_request:
 
 
 analysis_service:
+  # Upload-only service used to seed an example fit (model_lightcurve overlay)
+  # on ZTF21aaqjmps, so a fresh demo shows the photometry-plot overlay.
+  - name: "Fiesta_Demo"
+    display_name: "Fiesta (demo fit)"
+    description: "Seeded example light-curve fit for the photometry-plot overlay."
+    version: "1.0"
+    contact_name: "Michael Coughlin"
+    url: "http://localhost/none"
+    authentication_type: "none"
+    analysis_type: "lightcurve_fitting"
+    input_data_types: ["photometry"]
+    optional_analysis_parameters: '{}'
+    upload_only: true
+    group_ids:
+      - =program_A
+      - =program_B
+    =id: Fiesta_Demo
   - name: "Demo_Analysis"
     display_name: "Demo analysis service display name"
     description: "Description for demo analysis"
@@ -1742,3 +1759,20 @@ analysis_service/=Demo_Analysis/default_analysis:
       - =program_B
     source_filter: '{"classifications": [{"name": "Supernova", "probability": 0.9}]}'
     daily_limit: 2
+
+# Seed an example completed fit so a fresh demo shows the photometry-plot overlay.
+# Posted to the upload_only Fiesta_Demo service; model_lightcurve tracks the data.
+obj/ZTF21aaqjmps/analysis_upload/=Fiesta_Demo:
+  - analysis:
+      model_name: "ArnettModel"
+      model_lightcurve:
+        file: ZTF21aaqjmps_arnett_lc.json
+      results:
+        model: "ArnettModel"
+        filters: ["ztfg", "ztfr"]
+        note: "seed demo fit"
+    group_ids:
+      - =program_A
+      - =program_B
+    show_plots: true
+    show_parameters: true

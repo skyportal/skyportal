@@ -14,11 +14,11 @@ import sqlalchemy as sa
 from astropy.table import Table
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
-from matplotlib import cm
+from matplotlib import colormaps
 from matplotlib.colors import LinearSegmentedColormap, rgb2hex
 from sncosmo.photdata import PhotometricData
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
@@ -115,7 +115,7 @@ def numpy_to_native(value):
     return value
 
 
-cmap_ir = cm.get_cmap("autumn")
+cmap_ir = colormaps["autumn"]
 cmap_deep_ir = LinearSegmentedColormap.from_list(
     "deep_ir", [(0.8, 0.2, 0), (0.6, 0.1, 0)]
 )
@@ -2428,6 +2428,11 @@ class ObjPhotometryHandler(BaseHandler):
                                 Stream.name,
                             )
                         )
+                    if include_validation_info and USE_PHOTOMETRY_VALIDATION:
+                        # selectinload (not joinedload) so validations load via a
+                        # single WHERE id IN (...) query instead of an N+1 per
+                        # point — the lazy default makes dense sources time out.
+                        options.append(selectinload(Photometry.validations))
 
                 obj_ids = {obj_id}
                 if include_superobjs_photometry:
