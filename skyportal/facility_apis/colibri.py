@@ -1,14 +1,10 @@
-from datetime import datetime
-
-import requests
-from astropy import units as u
-from astropy.coordinates import SkyCoord
+import sqlalchemy as sa
 from astropy.time import Time, TimeDelta
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
-from ..utils import http
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -75,7 +71,7 @@ class COLIBRIAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to COLIBRI.
 
         Parameters
@@ -86,7 +82,15 @@ class COLIBRIAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(selectinload(FollowupRequest.obj))
+        )
 
         validate_request_to_colibri(request)
         request.status = "submitted"
@@ -115,7 +119,7 @@ class COLIBRIAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from Colibri queue.
 
         Parameters
@@ -126,7 +130,15 @@ class COLIBRIAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(selectinload(FollowupRequest.obj))
+        )
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
@@ -157,7 +169,7 @@ class COLIBRIAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def update(request, session, **kwargs):
+    async def update(request, session, **kwargs):
         """Update a follow-up request to COLIBRI.
 
         Parameters
@@ -168,7 +180,15 @@ class COLIBRIAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(selectinload(FollowupRequest.obj))
+        )
 
         validate_request_to_colibri(request)
         request.status = "submitted"

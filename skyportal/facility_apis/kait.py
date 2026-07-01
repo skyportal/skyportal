@@ -1,5 +1,5 @@
-import requests
-from requests.auth import HTTPBasicAuth
+import aiohttp
+from aiohttp import BasicAuth
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -62,7 +62,7 @@ class KAITAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to KAIT.
 
         Parameters
@@ -73,7 +73,23 @@ class KAITAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        import sqlalchemy as sa
+        from sqlalchemy.orm import selectinload
+
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method (and _build_payload) walks
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         req = KAITRequest()
         requestgroup = req._build_payload(request)
@@ -84,21 +100,31 @@ class KAITAPI(FollowUpAPI):
 
         requestpath = f"{KAIT_URL}/cgi-bin/internal/process_kait_ztf_request.py"
 
-        r = requests.post(
-            requestpath,
-            auth=HTTPBasicAuth(altdata["username"], altdata["password"]),
-            json=requestgroup,
-        )
-        r.raise_for_status()
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(
+                requestpath,
+                auth=BasicAuth(altdata["username"], altdata["password"]),
+                json=requestgroup,
+            ) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code == 200:
+        if status >= 400:
+            raise ValueError(f"Error submitting request to KAIT {status}: {content}")
+
+        if status == 200:
             request.status = "submitted"
         else:
-            request.status = f"rejected: {r.content}"
+            request.status = f"rejected: {content}"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request(
+                "POST",
+                requestpath,
+                None,
+                requestgroup,
+            ),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -120,17 +146,30 @@ class KAITAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
+        import sqlalchemy as sa
+        from sqlalchemy.orm import selectinload
+
         from ..models import FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
         if len(request.transactions) == 0:
-            session.query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            session.commit()
+            await session.execute(
+                sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+            )
+            await session.commit()
         else:
             raise NotImplementedError(
                 "Can't delete requests already submitted successfully to KAIT."
