@@ -273,7 +273,7 @@ app:
           url: /followup_requests
 
         - name: Analysis Requests
-          icon: Assessment
+          icon: Analytics
           url: /analysis_requests
 
         - name: Shifts
