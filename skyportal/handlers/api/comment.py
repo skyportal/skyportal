@@ -271,9 +271,12 @@ class CommentHandler(BaseHandler):
         text = self.get_query_argument("text", None)
         pageNumber = self.get_query_argument("pageNumber", 1, type=int)
         numPerPage = self.get_query_argument("numPerPage", 25, type=int)
-        pageNumber, numPerPage = get_page_and_n_per_page(
-            pageNumber, numPerPage, MAX_COMMENTS_NO_RESOURCE_ID
-        )
+        try:
+            pageNumber, numPerPage = get_page_and_n_per_page(
+                pageNumber, numPerPage, MAX_COMMENTS_NO_RESOURCE_ID
+            )
+        except ValueError as e:
+            return self.error(str(e))
 
         start = time.time()
 

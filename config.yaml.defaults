@@ -764,11 +764,8 @@ ports:
   app: 5000 # This is the internal port
   # migration_manager port is already defined in baselayer config.yaml.defaults, but can be overridden here
   # migration_manager:
-  facility_queue: 64510
   notification_queue: 64610
-  observation_plan_queue: 64710
   tns_retrieval_queue: 64810
-  sharing_service_submission_queue: 64812
 
 hosts:
   # Hostnames the application uses to reach its internal microservices. These
