@@ -104,7 +104,7 @@
     "use-count-up": "3.0.1",
     "vega": "6.2.0",
     "vega-embed": "7.0.2",
-    "vega-lite": "6.2.0",
+    "vega-lite": "6.4.3",
     "versor": "0.2.0"
   },
   "devDependencies": {
