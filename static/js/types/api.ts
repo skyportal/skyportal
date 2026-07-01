@@ -7088,16 +7088,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description the id of the confirmed_source_in_gcn */
-                                id?: number;
-                                /** @description the source_id of the source */
-                                obj_id?: string;
-                                /** @description dateobs of the GCN evn */
-                                dateobs?: string;
-                                /** @description Boolean indicating whether the source is confirmed (True) or rejected (False) */
-                                confirmed?: boolean;
-                            };
+                            data?: components["schemas"]["SourcesConfirmedInGCN"][];
                         };
                     };
                 };
@@ -7293,7 +7284,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: unknown[];
+                            data?: components["schemas"]["SourcesConfirmedInGCN"][];
                         };
                     };
                 };
@@ -10837,7 +10828,12 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfExecutedObservations"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                observations?: components["schemas"]["ExecutedObservation"][];
+                                totalMatches?: number;
+                            };
+                        };
                     };
                 };
                 400: {

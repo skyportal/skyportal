@@ -30,7 +30,7 @@ dependencies = [
     "marshmallow-sqlalchemy==1.5.0",
     "Pillow>=8.4.0",
     "pyproj==3.7.0",
-    "sncosmo==2.12.1",
+    "sncosmo==2.13.0",
     "tdtax==0.1.7",
     "healpix-alchemy==1.1.0",
     "mocpy==0.18.0",
@@ -120,7 +120,6 @@ docs = [
 [tool.uv]
 package = false
 workspace = { members = ["baselayer"] }
-no-binary-package = ["sncosmo"]  # no arm64 macOS wheel on PyPI for Python 3.10+
 
 [tool.uv.sources]
 baselayer = { workspace = true }

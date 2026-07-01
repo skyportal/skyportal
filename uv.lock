@@ -4389,7 +4389,7 @@ requires-dist = [
     { name = "shapely", specifier = "==2.1.2" },
     { name = "simplejson", specifier = "==3.20.1" },
     { name = "simsurvey", specifier = "==0.7.5" },
-    { name = "sncosmo", specifier = "==2.12.1" },
+    { name = "sncosmo", specifier = "==2.13.0" },
     { name = "suds-py3", specifier = "==1.4.5.0" },
     { name = "swifttools", specifier = "==3.0.23" },
     { name = "tables", specifier = ">=3.10.1,<4.0.0" },
@@ -4427,7 +4427,7 @@ docs = [
 
 [[package]]
 name = "sncosmo"
-version = "2.12.1"
+version = "2.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "astropy" },
@@ -4438,7 +4438,14 @@ dependencies = [
     { name = "pyyaml" },
     { name = "scipy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bf/38/a4c0cee8e06431ca57faf28efe673b500b8e468b5bad7d211d9f22a79668/sncosmo-2.12.1.tar.gz", hash = "sha256:c512582fe8cbc444a01ed51fc5b50d044678404ea198f681d2ef9eb168ce79cb", size = 241363, upload-time = "2025-03-13T14:57:22.169Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6b/51/ddce8e3d9c67f1718d6990527c860418d44e99f9457c5880fb47625ff5a3/sncosmo-2.13.0.tar.gz", hash = "sha256:72158024fbab4091ea7433c7d808546efd3ac40e6152f9bcba0a3e9604cb2da4", size = 241425, upload-time = "2026-07-01T20:28:13.988Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/70/028b41caf75b5d82f704680c9fadd71db9038ba35e41597de3b585c63978/sncosmo-2.13.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:cb55794390bd534c2fee7e0b9ca88f0d53824dfec9cb6ef65aea498878fd9d12", size = 346841, upload-time = "2026-07-01T20:27:57.782Z" },
+    { url = "https://files.pythonhosted.org/packages/1b/69/c2904d11934ecf66d44c4906acdcde2f89bc69e674c1900d53d6e27c55e1/sncosmo-2.13.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:6dd430b47894edea133f3b64464d14590d4b5df289641395af7b332e700c0524", size = 343517, upload-time = "2026-07-01T20:27:58.984Z" },
+    { url = "https://files.pythonhosted.org/packages/65/73/caf845275116fbe416a22bec8a6dd2fd8f7f10a72a466e56560c28c5e910/sncosmo-2.13.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8878ffeb98a399783ee247da2150af9d99bcc37e1e00b1f01c5297dedcc282c5", size = 799594, upload-time = "2026-07-01T20:28:00.101Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/cd/809f9a8adca844107aa915f462a0508d4ae04032557510ebbbf3e97fcaa6/sncosmo-2.13.0-cp312-cp312-win32.whl", hash = "sha256:42a39302bd58668f85ed07a6a00b8596bb3f0bb857e344586eb35054b324fa96", size = 320016, upload-time = "2026-07-01T20:28:01.283Z" },
+    { url = "https://files.pythonhosted.org/packages/63/32/9de69dec30c99c48f2957674ebb1c5fd64573c432a0f5cf8f6f0f9f46949/sncosmo-2.13.0-cp312-cp312-win_amd64.whl", hash = "sha256:1ae8f99f1a0eca0b5e50af9184fd3d55198e9bbe78ceb9e4ba972ef4bad5429e", size = 332506, upload-time = "2026-07-01T20:28:02.436Z" },
+]
 
 [[package]]
 name = "sniffio"

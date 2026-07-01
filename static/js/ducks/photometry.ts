@@ -28,7 +28,7 @@ export const photometryApi = skyportalApi.injectEndpoints({
     // type is `any` (the `PhotometryPoint` interface above documents the stable
     // fields).
     fetchSourcePhotometry: build.query<
-      RouteData<"GET /api/sources/{obj_id}/photometry">,
+      PhotometryPoint[],
       { id: number | string; params?: { [key: string]: any } }
     >({
       query: ({ id, params = {} }) => ({
