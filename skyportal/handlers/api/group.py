@@ -15,6 +15,7 @@ from ...models import (
     GroupUser,
     Obj,
     Source,
+    StreamUser,
     Token,
     User,
     UserNotification,
@@ -572,9 +573,9 @@ class GroupUserHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             group = await session.scalar(
-                Group.select(session.user_or_token, mode="update")
-                .options(selectinload(Group.streams))
-                .where(Group.id == group_id)
+                Group.select(session.user_or_token, mode="update").where(
+                    Group.id == group_id
+                )
             )
             if group is None:
                 return self.error(f"Group with ID {group_id} not accessible")
@@ -584,20 +585,35 @@ class GroupUserHandler(BaseHandler):
                 )
 
             user = await session.scalar(
-                User.select(session.user_or_token)
-                .options(selectinload(User.streams))
-                .where(User.id == user_id)
+                User.select(session.user_or_token).where(User.id == user_id)
             )
             if user is None:
                 return self.error(f"User with ID {user_id} not accessible")
 
-            user_streams = [stream.id for stream in user.streams]
-            for stream in group.streams:
-                if stream.id not in user_streams:
-                    return self.error(
-                        f"User with ID {user_id} ({user.username}) does not have stream access with ID {stream.id} ({stream.name}). Please contact a super-admin to grant access.",
-                        status=403,
-                    )
+            # Validate the user has access to every stream of the group via SQL
+            # (avoid lazy `group.streams`/`user.streams`, whose access-controlled
+            # load raises AccessError for a requester lacking read access to a
+            # stream — same pattern as GroupStreamHandler.post below).
+            missing_stream_id = await session.scalar(
+                sa.select(GroupStream.stream_id)
+                .where(
+                    GroupStream.group_id == group_id,
+                    ~sa.exists().where(
+                        sa.and_(
+                            StreamUser.user_id == user_id,
+                            StreamUser.stream_id == GroupStream.stream_id,
+                        )
+                    ),
+                )
+                .limit(1)
+            )
+            if missing_stream_id is not None:
+                return self.error(
+                    f"User with ID {user_id} ({user.username}) does not have "
+                    f"stream access with ID {missing_stream_id}. Please contact "
+                    f"a super-admin to grant access.",
+                    status=403,
+                )
 
             gu = await session.scalar(
                 GroupUser.select(session.user_or_token)
@@ -969,8 +985,6 @@ class GroupStreamHandler(BaseHandler):
 
             # Validate every group member has access to the stream via SQL
             # (avoid lazy `group.users`/`user.streams`).
-            from ...models import StreamUser  # local import to avoid cycles
-
             missing_count = await session.scalar(
                 sa.select(sa.func.count())
                 .select_from(GroupUser)

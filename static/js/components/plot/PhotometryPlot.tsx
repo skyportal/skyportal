@@ -8,6 +8,9 @@ import { makeStyles } from "tss-react/mui";
 import Slider from "@mui/material/Slider";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Menu from "@mui/material/Menu";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
@@ -51,6 +54,24 @@ import {
   rgba,
 } from "../../utils";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useGetAnalysesQuery } from "../../ducks/source";
+import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
+import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
+import CornerPlot from "./CornerPlot";
+
+// Dash styles cycled across overlaid model fits, with a glyph hint for the
+// toggle buttons so the button matches its line on the plot.
+// Stable empty default for the modelFits prop: a literal `= []` in the
+// destructure is a new array each render, which would invalidate the
+// effectiveModelFits memo every render → setState-in-effect → render loop.
+const EMPTY_MODEL_FITS: ModelFit[] = [];
+const MODEL_DASHES = ["solid", "dash", "dot", "dashdot"];
+const DASH_GLYPH: Record<string, string> = {
+  solid: "──",
+  dash: "– –",
+  dot: "···",
+  dashdot: "–·",
+};
 
 // convert any unit to days
 const periodUnitDividers: Record<string, number> = {
@@ -252,6 +273,9 @@ interface PhotometryPlotProps {
   magsys?: string;
   t0?: number | null;
   showExtinctionCorrection?: boolean;
+  // Analysis-service model fits to overlay on the photometry (e.g. NMMA);
+  // each carries a per-filter model_lightcurve {filter: [[mjd, med, lo, hi]]}.
+  modelFits?: ModelFit[];
 }
 
 const PhotometryPlot = ({
@@ -267,12 +291,214 @@ const PhotometryPlot = ({
   magsys = "ab",
   t0 = null,
   showExtinctionCorrection = false,
+  modelFits = EMPTY_MODEL_FITS,
 }: PhotometryPlotProps) => {
   const { classes } = useStyles();
 
   const { data: profile } = useGetProfileQuery();
   const { data: config } = useGetConfigQuery() as { data: any };
   const [fetchPhotometryTrigger] = useLazyFetchSourcePhotometryQuery();
+
+  // Analysis-service model fits to overlay (self-fetched unless passed in).
+  const { data: objAnalyses } = useGetAnalysesQuery({
+    analysis_resource_type: "obj",
+    params: { objID: obj_id },
+  });
+  const effectiveModelFits = useMemo<ModelFit[]>(() => {
+    const base: ModelFit[] = modelFits?.length
+      ? modelFits
+      : ((objAnalyses as any[]) || [])
+          .filter(
+            (a) =>
+              a.obj_id === obj_id &&
+              (a.model_lightcurve || a.model_lightcurves),
+          )
+          .flatMap((a) => {
+            // Grouped fit: one analysis holds several models
+            // ({model: {filter: pts}}) -> one toggle entry per model.
+            if (
+              a.model_lightcurves &&
+              typeof a.model_lightcurves === "object"
+            ) {
+              return Object.entries(a.model_lightcurves).map(
+                ([model, mlc]) => ({
+                  id: `${a.id}:${model}`,
+                  label: model,
+                  baseLabel: model, // groups runs of the same model
+                  model_lightcurve: mlc as any,
+                  analysisId: a.id, // for the on-demand corner fetch
+                  model, // key into data.posteriors
+                  createdAt: a.created_at,
+                  nDet: a.n_detections,
+                }),
+              );
+            }
+            // Single-model analysis: label by the model (real fits carry
+            // analysis_parameters.source; uploads set model_name).
+            return [
+              {
+                id: a.id,
+                label:
+                  a.analysis_parameters?.source ||
+                  a.model_name ||
+                  a.analysis_service_name,
+                baseLabel:
+                  a.analysis_parameters?.source ||
+                  a.model_name ||
+                  a.analysis_service_name,
+                model_lightcurve: a.model_lightcurve,
+                analysisId: a.id,
+                model: undefined, // single fit -> data.posterior_samples
+                createdAt: a.created_at,
+                nDet: a.n_detections,
+              },
+            ];
+          });
+    // When a source has several runs of the same model, the bare model name
+    // collides — append the run date (and detection count) so each run is its
+    // own distinguishable, independently-toggleable entry.
+    const labelCounts = base.reduce<Record<string, number>>((acc, f) => {
+      acc[f.label || ""] = (acc[f.label || ""] || 0) + 1;
+      return acc;
+    }, {});
+    const disambiguated = base.map((f) => {
+      if ((labelCounts[f.label || ""] || 0) <= 1) return f;
+      const date = f.createdAt ? String(f.createdAt).slice(0, 10) : null;
+      const parts = [date, f.nDet ? `${f.nDet} det` : null].filter(Boolean);
+      return {
+        ...f,
+        label: parts.length ? `${f.label} · ${parts.join(", ")}` : f.label,
+      };
+    });
+    // A second pass guarantees uniqueness if same-day runs share a detection
+    // count (fall back to the analysis id).
+    const seen: Record<string, number> = {};
+    const unique = disambiguated.map((f) => {
+      const key = f.label || "";
+      seen[key] = (seen[key] || 0) + 1;
+      return seen[key] > 1 ? { ...f, label: `${f.label} #${f.analysisId}` } : f;
+    });
+    // Assign a stable id + dash per model so several can be toggled/shown at
+    // once and still be told apart when they share a filter color.
+    return unique.map((f, i) => ({
+      ...f,
+      id: f.id ?? i,
+      dash: f.dash || MODEL_DASHES[i % MODEL_DASHES.length],
+    }));
+  }, [objAnalyses, modelFits, obj_id]);
+
+  // Collapse runs of the same model into one row. Each group keeps every run
+  // (latest first); the user toggles the model on/off and picks which run shows.
+  const modelGroups = useMemo(() => {
+    const groups = new Map<
+      string,
+      { key: string; model: string; runs: ModelFit[] }
+    >();
+    effectiveModelFits.forEach((f) => {
+      const key = String(f.model ?? f.baseLabel ?? f.label);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          model: String(f.baseLabel ?? f.label),
+          runs: [],
+        });
+      }
+      groups.get(key)!.runs.push(f);
+    });
+    groups.forEach((g) =>
+      g.runs.sort((a, b) =>
+        String(b.createdAt || "").localeCompare(String(a.createdAt || "")),
+      ),
+    );
+    return Array.from(groups.values());
+  }, [effectiveModelFits]);
+
+  // Per-model toggle (spectroscopy-style buttons). Default: all OFF — the user
+  // opts a model in rather than overlaying every fit on load.
+  const [shownModels, setShownModels] = useState<Set<string>>(new Set());
+  // Which run is displayed per model group (group key -> fit id). Absent => latest.
+  const [selectedRun, setSelectedRun] = useState<
+    Record<string, number | string>
+  >({});
+  const [runMenu, setRunMenu] = useState<{
+    anchor: HTMLElement;
+    key: string;
+  } | null>(null);
+
+  const selectedFitFor = (g: { key: string; runs: ModelFit[] }) =>
+    g.runs.find((r) => r.id === selectedRun[g.key]) || g.runs[0];
+
+  // Short, human label for one run in the picker: date + time (so same-day
+  // runs are distinguishable) plus the detection count when available.
+  const runShort = (r: ModelFit) => {
+    const iso = r.createdAt ? String(r.createdAt) : null;
+    const dt = iso ? `${iso.slice(0, 10)} ${iso.slice(11, 16)}` : null;
+    const parts = [dt, r.nDet ? `${r.nDet} det` : null].filter(Boolean);
+    return parts.length ? parts.join(", ") : `#${r.analysisId}`;
+  };
+
+  // Index of the currently-shown run within a group; cycle steps prev/next
+  // (wrapping) so many runs can be flipped through without a long menu.
+  const runIndex = (g: { key: string; runs: ModelFit[] }) =>
+    Math.max(
+      0,
+      g.runs.findIndex((r) => r.id === selectedFitFor(g).id),
+    );
+  const cycleRun = (g: { key: string; runs: ModelFit[] }, dir: number) => {
+    const i = runIndex(g);
+    const next = g.runs[(i + dir + g.runs.length) % g.runs.length];
+    setSelectedRun((prev) => ({ ...prev, [g.key]: next.id! }));
+    setShownModels((prev) => new Set(prev).add(g.key));
+    // If this row's corner is open, follow the cycle.
+    if (corner && corner.key === g.key) openCorner(next, g.key);
+  };
+
+  const shownModelFits = useMemo<ModelFit[]>(
+    () =>
+      modelGroups
+        .filter((g) => shownModels.has(g.key))
+        .map((g) => selectedFitFor(g))
+        .filter(Boolean) as ModelFit[],
+    [modelGroups, shownModels, selectedRun],
+  );
+
+  // On-demand corner plot: posterior samples are heavy, so they're not in the
+  // analyses list — fetch the one analysis's full data when the user opens it.
+  const [corner, setCorner] = useState<any>(null);
+  // `groupKey` ties an open corner to its model row, so cycling/selecting a
+  // different run for that row re-fetches and updates the dialog live.
+  const openCorner = async (f: any, groupKey?: string) => {
+    setCorner({
+      title: f.label,
+      key: groupKey,
+      loading: true,
+      posterior: null,
+    });
+    try {
+      const resp = await fetch(
+        `/api/obj/${obj_id}/analysis/${f.analysisId}?includeAnalysisData=true`,
+        { credentials: "same-origin" },
+      );
+      const j = await resp.json();
+      const adata = j?.data?.data || {};
+      const posterior = f.model
+        ? (adata.posteriors || {})[f.model]
+        : adata.posterior_samples;
+      setCorner({
+        title: f.label,
+        key: groupKey,
+        loading: false,
+        posterior: posterior || null,
+      });
+    } catch (e) {
+      setCorner({
+        title: f.label,
+        key: groupKey,
+        loading: false,
+        posterior: null,
+      });
+    }
+  };
 
   // Params for the main object's photometry query. Duplicate sources are fetched
   // lazily with just `{ magsys }` (mirroring the old duplicate fetch).
@@ -1214,6 +1440,18 @@ const PhotometryPlot = ({
         filter2color,
       );
 
+      // Overlay analysis-service model fits (e.g. NMMA) on the photometry. The
+      // x transform matches the detections trace (MJD, or sec-since-t0 in log).
+      traces.push(
+        ...buildModelLightcurveTraces(
+          shownModelFits,
+          filter2color,
+          (mjd: number) =>
+            t0 && displayXAxisInlog ? daysToSec(mjd - t0) : mjd,
+          tabToPlotType(tabIndex),
+        ),
+      );
+
       if (defaultVisibleFilters?.length > 0 && !appliedDefaultVisibleFilters) {
         const visibleTraces = traces.map((trace: any) => {
           const newTrace = { ...trace };
@@ -1261,6 +1499,7 @@ const PhotometryPlot = ({
     displayXAxisSinceT0,
     displayXAxisInlog,
     showOnlyValidated,
+    shownModelFits,
   ]);
 
   // The main object's photometry (including extinction toggle and magsys) is
@@ -1282,6 +1521,15 @@ const PhotometryPlot = ({
         plotData,
         filter2color,
       );
+      traces.push(
+        ...buildModelLightcurveTraces(
+          shownModelFits,
+          filter2color,
+          (mjd: number) =>
+            t0 && displayXAxisInlog ? daysToSec(mjd - t0) : mjd,
+          tabToPlotType(tabIndex),
+        ),
+      );
       setPlotData(traces);
       const newLayouts = createLayouts(
         tabToPlotType(tabIndex),
@@ -1291,7 +1539,7 @@ const PhotometryPlot = ({
       );
       setLayouts(newLayouts);
     }
-  }, [tabIndex, phase]);
+  }, [tabIndex, phase, shownModelFits]);
 
   useEffect(() => {
     if (initialized && filter2color && layoutReset) {
@@ -1653,6 +1901,135 @@ const PhotometryPlot = ({
           style={{ width: "100%", height: "100%" }}
         />
       </div>
+      {effectiveModelFits.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0.4rem",
+            alignItems: "center",
+            padding: "0.3rem 0.5rem",
+          }}
+        >
+          <Typography variant="caption" style={{ marginRight: 4 }}>
+            Model fits:
+          </Typography>
+          {modelGroups.map((g) => {
+            const shown = shownModels.has(g.key);
+            const selected = selectedFitFor(g);
+            const multi = g.runs.length > 1;
+            return (
+              <span
+                key={g.key}
+                style={{ display: "inline-flex", alignItems: "center", gap: 1 }}
+              >
+                <Chip
+                  size="small"
+                  clickable
+                  variant={shown ? "filled" : "outlined"}
+                  color={shown ? "primary" : "default"}
+                  label={`${DASH_GLYPH[selected?.dash || "solid"]}  ${g.model}${
+                    multi ? ` · ${runShort(selected)}` : ""
+                  }`}
+                  onClick={() =>
+                    setShownModels((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(g.key)) next.delete(g.key);
+                      else next.add(g.key);
+                      return next;
+                    })
+                  }
+                />
+                {multi && (
+                  <>
+                    <Tooltip title="Previous run">
+                      <IconButton
+                        size="small"
+                        style={{ padding: 0 }}
+                        onClick={() => cycleRun(g, -1)}
+                      >
+                        <ChevronLeftIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={`Choose run (${g.runs.length})`}>
+                      <Typography
+                        variant="caption"
+                        onClick={(e) =>
+                          setRunMenu({ anchor: e.currentTarget, key: g.key })
+                        }
+                        style={{
+                          cursor: "pointer",
+                          userSelect: "none",
+                          minWidth: 30,
+                          textAlign: "center",
+                        }}
+                      >
+                        {runIndex(g) + 1}/{g.runs.length}
+                      </Typography>
+                    </Tooltip>
+                    <Tooltip title="Next run">
+                      <IconButton
+                        size="small"
+                        style={{ padding: 0 }}
+                        onClick={() => cycleRun(g, 1)}
+                      >
+                        <ChevronRightIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </>
+                )}
+                <Tooltip title="Posterior corner plot">
+                  <IconButton
+                    size="small"
+                    style={{ padding: 2 }}
+                    onClick={() => openCorner(selected as any, g.key)}
+                  >
+                    <ScatterPlotIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </span>
+            );
+          })}
+        </div>
+      )}
+      <Menu
+        open={!!runMenu}
+        anchorEl={runMenu?.anchor}
+        onClose={() => setRunMenu(null)}
+      >
+        {runMenu &&
+          modelGroups
+            .find((g) => g.key === runMenu.key)
+            ?.runs.map((r) => (
+              <MenuItem
+                key={r.id}
+                selected={r.id === selectedRun[runMenu.key]}
+                onClick={() => {
+                  setSelectedRun((prev) => ({ ...prev, [runMenu.key]: r.id! }));
+                  setShownModels((prev) => new Set(prev).add(runMenu.key));
+                  if (corner && corner.key === runMenu.key)
+                    openCorner(r, runMenu.key);
+                  setRunMenu(null);
+                }}
+              >
+                {runShort(r)}
+              </MenuItem>
+            ))}
+      </Menu>
+      <Dialog open={!!corner} onClose={() => setCorner(null)} maxWidth="md">
+        <DialogTitle>Posterior — {corner?.title}</DialogTitle>
+        <DialogContent>
+          {corner?.loading ? (
+            <CircularProgress />
+          ) : corner?.posterior ? (
+            <CornerPlot posterior={corner.posterior} />
+          ) : (
+            <Typography variant="body2">
+              No posterior samples stored for this fit.
+            </Typography>
+          )}
+        </DialogContent>
+      </Dialog>
       <div className={classes.gridContainer}>
         <div className={classes.gridItem} style={{ columnGap: 0 }}>
           <div
