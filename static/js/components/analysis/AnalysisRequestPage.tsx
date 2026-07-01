@@ -96,7 +96,7 @@ const AnalysisHealth = ({ analyses }: { analyses: any[] }) => {
   const [windowKey, setWindowKey] = useState("24h");
   const win =
     HEALTH_WINDOWS.find((w) => w.key === windowKey) ??
-    HEALTH_WINDOWS[HEALTH_WINDOWS.length - 1];
+    HEALTH_WINDOWS[HEALTH_WINDOWS.length - 1]!;
 
   const counts: Record<string, number> = {};
   let total = 0;

@@ -313,7 +313,7 @@ const PhotometryPlot = ({
               a.obj_id === obj_id &&
               (a.model_lightcurve || a.model_lightcurves),
           )
-          .flatMap((a) => {
+          .flatMap((a): ModelFit[] => {
             // Grouped fit: one analysis holds several models
             // ({model: {filter: pts}}) -> one toggle entry per model.
             if (
@@ -348,7 +348,7 @@ const PhotometryPlot = ({
                   a.analysis_service_name,
                 model_lightcurve: a.model_lightcurve,
                 analysisId: a.id,
-                model: undefined, // single fit -> data.posterior_samples
+                // no `model` key -> single fit uses data.posterior_samples
                 createdAt: a.created_at,
                 nDet: a.n_detections,
               },
@@ -365,9 +365,10 @@ const PhotometryPlot = ({
       if ((labelCounts[f.label || ""] || 0) <= 1) return f;
       const date = f.createdAt ? String(f.createdAt).slice(0, 10) : null;
       const parts = [date, f.nDet ? `${f.nDet} det` : null].filter(Boolean);
+      if (!parts.length) return f;
       return {
         ...f,
-        label: parts.length ? `${f.label} · ${parts.join(", ")}` : f.label,
+        label: `${f.label} · ${parts.join(", ")}`,
       };
     });
     // A second pass guarantees uniqueness if same-day runs share a detection
@@ -383,7 +384,7 @@ const PhotometryPlot = ({
     return unique.map((f, i) => ({
       ...f,
       id: f.id ?? i,
-      dash: f.dash || MODEL_DASHES[i % MODEL_DASHES.length],
+      dash: f.dash || MODEL_DASHES[i % MODEL_DASHES.length]!,
     }));
   }, [objAnalyses, modelFits, obj_id]);
 
@@ -426,7 +427,7 @@ const PhotometryPlot = ({
   } | null>(null);
 
   const selectedFitFor = (g: { key: string; runs: ModelFit[] }) =>
-    g.runs.find((r) => r.id === selectedRun[g.key]) || g.runs[0];
+    g.runs.find((r) => r.id === selectedRun[g.key]) || g.runs[0]!;
 
   // Short, human label for one run in the picker: date + time (so same-day
   // runs are distinguishable) plus the detection count when available.
@@ -446,7 +447,7 @@ const PhotometryPlot = ({
     );
   const cycleRun = (g: { key: string; runs: ModelFit[] }, dir: number) => {
     const i = runIndex(g);
-    const next = g.runs[(i + dir + g.runs.length) % g.runs.length];
+    const next = g.runs[(i + dir + g.runs.length) % g.runs.length]!;
     setSelectedRun((prev) => ({ ...prev, [g.key]: next.id! }));
     setShownModels((prev) => new Set(prev).add(g.key));
     // If this row's corner is open, follow the cycle.
