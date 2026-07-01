@@ -622,12 +622,11 @@ def test_candidate_date_filtering(
     page.locator(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group2.id}"]'
     ).first.click()
-    start_date_input = page.locator(
-        '//label[text()="Start (Local Time)"]/../div/input'
-    ).first
-    end_date_input = page.locator(
-        "//label[text()='End (Local Time)']/../div/input"
-    ).first
+    # x-date-pickers v9 renders an accessible sectioned field (role="group",
+    # named by its label); the value <input> is now aria-hidden, so target the
+    # section group and type the digits into it.
+    start_date_input = page.get_by_role("group", name="Start (Local Time)").first
+    end_date_input = page.get_by_role("group", name="End (Local Time)").first
 
     minus_2 = now - datetime.timedelta(minutes=2)
     minus_1 = now - datetime.timedelta(minutes=1)
@@ -751,7 +750,9 @@ def test_add_scanning_profile(
     page.locator('//div[@data-testid="profile-name"]//input').first.fill("profile1")
     page.locator('//div[@data-testid="timeRange"]//input').first.fill("48")
 
-    page.locator('//div[@aria-labelledby="savedStatusSelectLabel"]').first.click()
+    page.locator(
+        '//div[@role="combobox" and @id="savedStatusSelectLabel"]'
+    ).first.click()
     saved_status_option = "and is saved to at least one group I have access to"
     page.locator(f'//li[text()="{saved_status_option}"]').first.click()
 

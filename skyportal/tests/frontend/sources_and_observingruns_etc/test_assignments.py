@@ -11,7 +11,7 @@ def test_submit_and_delete_new_assignment(
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/source/{public_source.id}")
 
-    page.locator('//*[@aria-labelledby="assignmentSelect"]').first.click()
+    page.locator('//*[@role="combobox" and @id="assignmentSelect"]').first.click()
     observingrun_title = (
         f"{red_transients_run.calendar_date} "
         f"{red_transients_run.instrument.name}/"
