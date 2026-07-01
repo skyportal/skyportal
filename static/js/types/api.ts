@@ -1402,7 +1402,7 @@ export interface paths {
                     analysis_id: number;
                     /**
                      * @description What type of data to retrieve:
-                     *     must be one of "corner", "results", or "plot"
+                     *     must be one of "results" or "plot"
                      */
                     product_type: string;
                     /**
