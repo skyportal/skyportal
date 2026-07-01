@@ -95,6 +95,12 @@ export const sourceApi = skyportalApi.injectEndpoints({
       // REFRESH for one source invalidates only that source's cache entry.
       providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
     }),
+    // Lightweight: the groups an obj is currently saved/requested to (empty for an
+    // unsaved candidate). Used to seed the toolbar save-to-groups dialog.
+    getObjGroups: build.query<any[], number | string>({
+      query: (id) => `api/sources/${id}/groups`,
+      providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
+    }),
     getSourcePosition: build.query<SourcePosition, number | string>({
       query: (id) => `api/sources/${id}/position`,
       // Position has its own REFRESH_SOURCE_POSITION event, so it gets its own
@@ -704,6 +710,7 @@ invalidateOnMessage(REFRESH_OBJ_ANALYSES, () => ["Source"]);
 
 export const {
   useGetSourceQuery,
+  useGetObjGroupsQuery,
   useLazyGetSourceQuery,
   useGetSourcePositionQuery,
   useGetAssociatedGcnsQuery,

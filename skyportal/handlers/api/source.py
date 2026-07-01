@@ -2218,6 +2218,10 @@ class SourceHandler(BaseHandler):
                         include_associated_objs=include_associated_objs,
                         include_super_objs=include_super_objs,
                     )
+                except ValueError as e:
+                    # Expected "Source not found" (e.g. an obj that exists as a
+                    # candidate but isn't saved): return a clean 404, no traceback.
+                    return self.error(str(e), status=404)
                 except Exception as e:
                     traceback.print_exc()
                     return self.error(f"Cannot retrieve source: {str(e)}")
