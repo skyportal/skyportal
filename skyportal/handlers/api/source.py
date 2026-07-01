@@ -2809,6 +2809,7 @@ class SourceOffsetsHandler(BaseHandler):
                     queries_issued,
                     noffsets,
                     used_ztfref,
+                    gaia_available,
                 ) = await IOLoop.current().run_in_executor(None, offset_func)
             except ValueError as e:
                 log(f"Error querying for nearby offset stars: {e}")
@@ -2831,6 +2832,7 @@ class SourceOffsetsHandler(BaseHandler):
                     "queries_issued": queries_issued,
                     "query": query_string,
                     "used_ztfref": used_ztfref,
+                    "gaia_available": gaia_available,
                 }
             )
 
