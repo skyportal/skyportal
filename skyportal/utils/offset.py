@@ -889,6 +889,9 @@ def get_nearby_offset_stars(
     search_multipler = 20
     min_distance = 5.0 / 3600.0  # min distance from source for offset star
     source_in_catalog_dist = 0.5 / 3600.0  # min distance from source for offset star
+    # max proper motion (mas/yr) for a star to be used as a ZTF-ref offset star;
+    # see the candidate loop below for the rationale (issue #6247).
+    max_ztfref_pm = 50.0
     query_string = f"""
                   SELECT DISTANCE(
                     POINT('ICRS', ra, dec),
@@ -991,6 +994,12 @@ def get_nearby_offset_stars(
     min_sep = min_sep_arcsec * u.arcsec
     good_list = []
     for source in r:
+        # Don't pick a high-PM star as a ZTF-ref offset star: its ref-epoch
+        # position isn't PM-corrected here, so the offset is stale (issue #6247).
+        # It stays in `catalog` above for the isolation check; only selection is
+        # skipped. The PM-corrected Gaia path keeps such stars.
+        if use_ztfref and np.hypot(source["pmra"], source["pmdec"]) >= max_ztfref_pm:
+            continue
         c = SkyCoord(
             ra=source["ra"],
             dec=source["dec"],
