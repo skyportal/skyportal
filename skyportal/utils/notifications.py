@@ -264,6 +264,31 @@ def gcn_email_notification(target, data=None, new_tag=False):
     )
 
 
+def mention_email_notification(target, data=None):
+    if data is None:
+        raise ValueError("No data provided for mention notification")
+
+    author_username = data["author_username"]
+    comment_text = data["comment_text"]
+    source_name = data["source_name"]
+
+    subject = (
+        f"{cfg['app.title']} - {author_username} mentioned you"
+        f" in a comment on this source {source_name}"
+    )
+    body = (
+        "<!DOCTYPE html><html><head>"
+        "<style>body {font-family: Arial, Helvetica, sans-serif;}</style>"
+        "</head><body>"
+        f"<p>{author_username} mentioned you in this comment: "
+        f"<blockquote style='border-left:4px solid #ccc;margin:0;padding:0 1em;color:#666'>"
+        f"{comment_text}</blockquote></p>"
+        f"<p>Link to the source: <a href='{app_url}{target['url']}'>{source_name}</a></p>"
+        "</body></html>"
+    )
+    return subject, body
+
+
 def source_notification_content(target, target_type="classification"):
     # get the most recent classification for this source that has the same classification as the notification
     if target_type == "classification":
