@@ -253,7 +253,7 @@ If you have trouble running `make run` and see this error:
 make[1]: *** [dependencies] Error 1
 make: *** [run] Error 2
 ```
-You may need to run `bun install` and then try `make run` again.
+You may need to run `bun install --frozen-lockfile` and then try `make run` again.
 
 ---
 
