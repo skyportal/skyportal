@@ -877,7 +877,9 @@ class SpectrumHandler(BaseHandler):
                 result_spectra = new_result_spectra
 
             if not minimal_payload:  # add other data to each spectrum
-                for spec, spec_dict in zip(spectra, result_spectra):
+                spectra_by_id = {spec.id: spec for spec in spectra}
+                for spec_dict in result_spectra:
+                    spec = spectra_by_id[spec_dict["id"]]
                     annotations_result = await session.scalars(
                         AnnotationOnSpectrum.select(session.user_or_token)
                         .options(selectinload(AnnotationOnSpectrum.author))
@@ -1026,20 +1028,20 @@ class SpectrumHandler(BaseHandler):
             if pi:
                 existing_pis = list(spectrum.pis)
                 pis = []
-                for pi_id in reduced_by:
+                for pi_id in pi:
                     pi_user = await session.scalar(
                         User.select(session.user_or_token).where(User.id == pi_id)
                     )
                     if pi_user is None:
                         return self.error(f"Invalid pi ID: {pi_id}.")
-                    pi_association = SpectrumReducer(
+                    pi_association = SpectrumPI(
                         external_pi=external_pi, user_id=pi_user.id
                     )
                     pis.append(pi_association)
 
                 if len(pis) == 0 and external_pi is not None:
                     return self.error(
-                        "At least one valid user must be provided as a pi point of contact via the 'reduced_by' parameter."
+                        "At least one valid user must be provided as a pi point of contact via the 'pi' parameter."
                     )
 
                 for pi_assoc in existing_pis:
