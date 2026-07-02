@@ -751,7 +751,7 @@ def test_add_scanning_profile(
     page.locator('//div[@data-testid="timeRange"]//input').first.fill("48")
 
     page.locator(
-        '//div[@role="combobox" and @id="savedStatusSelectLabel"]'
+        '//div[@role="combobox" and (@aria-labelledby="savedStatusSelectLabel" or @id="savedStatusSelectLabel")]'
     ).first.click()
     saved_status_option = "and is saved to at least one group I have access to"
     page.locator(f'//li[text()="{saved_status_option}"]').first.click()

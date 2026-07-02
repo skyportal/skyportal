@@ -300,11 +300,13 @@ def test_filter_by_gcnevent(
     page.locator('//input[@name="startDate"]').first.fill("2019-08-14T21:10:39")
     page.locator('//input[@name="endDate"]').first.fill("2019-08-21T21:10:39")
 
-    page.locator('//*[@role="combobox" and @id="gcnEventSelectLabel"]').first.click()
+    page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="gcnEventSelectLabel" or @id="gcnEventSelectLabel")]'
+    ).first.click()
     page.locator('//li[contains(text(), "2019-08-14T21:10:39")]').first.click()
 
     page.locator(
-        '//*[@role="combobox" and @id="localizationSelectLabel"]'
+        '//*[@role="combobox" and (@aria-labelledby="localizationSelectLabel" or @id="localizationSelectLabel")]'
     ).first.click()
     page.locator('//li[contains(text(), "LALInference.v1.fits.gz")]').first.click()
 

@@ -16,7 +16,9 @@ def test_upload_photometry_csv(
     page.locator('//textarea[@name="csvData"]').first.fill(CSV)
 
     # instrument select
-    page.locator('//*[@role="combobox" and @id="instrumentSelectLabel"]').first.click()
+    page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="instrumentSelectLabel" or @id="instrumentSelectLabel")]'
+    ).first.click()
     page.locator(f'//li[@data-value="{inst_id}"]').first.click()
     page.keyboard.press("Escape")
 
@@ -50,7 +52,9 @@ def test_upload_photometry_csv_multiple_groups(
     page.goto(f"/upload_photometry/{public_source.id}")
     page.locator('//textarea[@name="csvData"]').first.fill(CSV)
 
-    page.locator('//*[@role="combobox" and @id="instrumentSelectLabel"]').first.click()
+    page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="instrumentSelectLabel" or @id="instrumentSelectLabel")]'
+    ).first.click()
     page.locator(f'//li[@data-value="{inst_id}"]').first.click()
     page.keyboard.press("Escape")
 
@@ -80,7 +84,9 @@ def test_upload_photometry_csv_with_altdata(
         '58002,53,1,25,ab,sdssg,44.2,"edf,edf"'
     )
 
-    page.locator('//*[@role="combobox" and @id="instrumentSelectLabel"]').first.click()
+    page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="instrumentSelectLabel" or @id="instrumentSelectLabel")]'
+    ).first.click()
     page.locator(f'//li[@data-value="{inst_id}"]').first.click()
     page.keyboard.press("Escape")
 
@@ -132,7 +138,9 @@ def test_upload_photometry_csv_form_validation(
         page.locator('//div[contains(.,"Select an instrument")]').first
     ).to_be_visible()
 
-    page.locator('//*[@role="combobox" and @id="instrumentSelectLabel"]').first.click()
+    page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="instrumentSelectLabel" or @id="instrumentSelectLabel")]'
+    ).first.click()
     page.locator(f'//li[@data-value="{inst_id}"]').first.click()
     page.keyboard.press("Escape")
 
@@ -152,7 +160,9 @@ def test_upload_photometry_form(page, sedm, super_admin_user, public_source):
     page.locator('//*[contains(text(), "Using Form (one)")]').first.click()
 
     # instrument select
-    page.locator('//*[@role="combobox" and @id="instrumentSelectLabel"]').first.click()
+    page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="instrumentSelectLabel" or @id="instrumentSelectLabel")]'
+    ).first.click()
     page.locator(f'//li[@data-value="{sedm.id}"]').first.click()
     expect(page.locator(f'//li[@data-value="{sedm.id}"]').first).to_be_hidden()
 
