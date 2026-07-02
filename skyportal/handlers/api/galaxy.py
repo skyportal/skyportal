@@ -1340,15 +1340,14 @@ def add_glade(file_path=None, file_url=None):
             )
             output.seek(0)
             connection = DBSession().connection().connection
-            cursor = connection.cursor()
-            cursor.copy_from(
-                output,
-                "galaxys",
-                sep="\t",
-                null="",
-                columns=columns,
+            quoted_columns = ", ".join(f'"{c}"' for c in columns)
+            copy_sql = (
+                f"COPY galaxys ({quoted_columns}) FROM STDIN "
+                "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
             )
-            cursor.close()
+            with connection.cursor() as cursor:
+                with cursor.copy(copy_sql) as copy:
+                    copy.write(output.getvalue())
             output.close()
             DBSession().commit()
             end_timer = time.perf_counter()
@@ -1364,14 +1363,7 @@ def add_glade(file_path=None, file_url=None):
     return full_length, full_blueshift_length
 
 
-def get_galaxies_completeness(
-    galaxies,
-    dist_min=0,
-    dist_max=10000,
-    M_min=8,
-    M_max=12,
-    M_x12=10.676,
-):
+def get_galaxies_completeness(galaxies, dist_min=0, dist_max=10000, M_min=8, M_max=12):
     # standard constants
     h = 0.7
     phiStar_M1 = 10 ** (-3.31) * h**3
