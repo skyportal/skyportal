@@ -1,0 +1,11 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    # Set via the PROMETHEUS_URL env var (the compose files provide it).
+    url: ${PROMETHEUS_URL}
+    isDefault: true
+    editable: false

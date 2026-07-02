@@ -69,3 +69,7 @@ dists/
 
 # postgres persistent volume
 data/dbdata/
+
+# observability scrape tokens (see observability/README.md)
+observability/prometheus/skyportal_token
+observability/tests/token
