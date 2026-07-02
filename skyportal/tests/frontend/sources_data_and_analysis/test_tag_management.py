@@ -25,7 +25,7 @@ def test_access_with_permission(page, super_admin_user):
 
 
 def test_create_new_tag(page, super_admin_user):
-    """Test creating a new tag through the UI."""
+    """Test creating a new tag from the tag management page."""
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/tag_management")
 
