@@ -91,6 +91,11 @@ dependencies = [
     "langchain-openai==1.2.2",
     "pinecone==8.0.0",
     "pydantic==2.13.4",
+    # Optional observability stack (opt-in via config `observability.enabled`)
+    "opentelemetry-sdk>=1.30.0",
+    "opentelemetry-exporter-prometheus>=0.51b0",
+    "opentelemetry-instrumentation-tornado>=0.51b0",
+    "prometheus-client>=0.20.0",
     "sentry-sdk==2.64.0",
     "typing-inspect==0.9.0",
     "brotli==1.2.0",
