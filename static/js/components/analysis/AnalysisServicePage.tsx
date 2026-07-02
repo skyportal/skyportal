@@ -311,7 +311,7 @@ const AnalysisServiceList = ({
     () =>
       function AnalysisServiceToolbar() {
         return (
-          <DataGridToolbar>
+          <DataGridToolbar showExport>
             {deletePermission && (
               <IconButton
                 name="new_analysis_service"
