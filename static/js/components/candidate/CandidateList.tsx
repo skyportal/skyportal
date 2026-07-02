@@ -733,7 +733,11 @@ const Candidate = ({
               paddingTop: "0.5rem",
             }}
           >
-            <Typography fontWeight="bold">
+            <Typography
+              sx={{
+                fontWeight: "bold",
+              }}
+            >
               {`${index}/${totalMatches}`}
             </Typography>
           </div>

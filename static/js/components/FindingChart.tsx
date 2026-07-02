@@ -185,9 +185,11 @@ const FindingChart = () => {
         <Grid
           container
           direction="row"
-          justifyContent="flex-start"
-          alignItems="flex-start"
           spacing={1}
+          sx={{
+            justifyContent: "flex-start",
+            alignItems: "flex-start",
+          }}
         >
           <Grid size={{ xs: 12, md: 10 }}>
             <Card>

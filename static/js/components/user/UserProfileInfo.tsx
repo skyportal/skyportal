@@ -116,20 +116,46 @@ const UserProfileInfo = () => {
             component="div"
             style={{ width: "100%", display: "flex", flexWrap: "wrap" }}
           >
-            <Box fontStyle="italic">{profile.bio}</Box>
+            <Box
+              sx={{
+                fontStyle: "italic",
+              }}
+            >
+              {profile.bio}
+            </Box>
           </Typography>
         )}
         <br />
         <Typography component="div">
-          <Box pb={1}>
-            <Box fontWeight="fontWeightBold" component="span" mr={1}>
+          <Box
+            sx={{
+              pb: 1,
+            }}
+          >
+            <Box
+              component="span"
+              sx={{
+                fontWeight: "fontWeightBold",
+                mr: 1,
+              }}
+            >
               User roles:
             </Box>
             {profile.roles.join(", ")}
           </Box>
           {!!profile.acls?.length && (
-            <Box pb={1}>
-              <Box fontWeight="fontWeightBold" component="span" mr={1}>
+            <Box
+              sx={{
+                pb: 1,
+              }}
+            >
+              <Box
+                component="span"
+                sx={{
+                  fontWeight: "fontWeightBold",
+                  mr: 1,
+                }}
+              >
                 Additional user ACLs (separate from role-level ACLs):
               </Box>
               {profile.acls.join(", ")}
@@ -148,8 +174,18 @@ const UserProfileInfo = () => {
             }
           >
             <Typography component="div">
-              <Box pb={1}>
-                <Box fontWeight="fontWeightBold" component="span" mr={1}>
+              <Box
+                sx={{
+                  pb: 1,
+                }}
+              >
+                <Box
+                  component="span"
+                  sx={{
+                    fontWeight: "fontWeightBold",
+                    mr: 1,
+                  }}
+                >
                   Authentication email:
                 </Box>
                 {profile.oauth_uid}

@@ -354,7 +354,13 @@ const SharingServicesDialog = ({
     if (!sharingServicesList?.length || !selectedSharingServiceId) return null;
     if (!defaultSharersString) {
       return (
-        <Box display="flex" justifyContent="center" mt={2}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            mt: 2,
+          }}
+        >
           <CircularProgress />
         </Box>
       );
@@ -381,7 +387,12 @@ const SharingServicesDialog = ({
   return (
     <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
       <DialogTitle>
-        <Box display="flex" gap={1}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1,
+          }}
+        >
           Send to
           <Tooltip
             title={

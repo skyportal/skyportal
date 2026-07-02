@@ -94,10 +94,14 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
           )}
         </Paper>
       </Grid>
-
       <Grid size={{ md: 4, sm: 12 }}>
         <Paper>
-          <Box display="flex" width="100%">
+          <Box
+            sx={{
+              display: "flex",
+              width: "100%",
+            }}
+          >
             <Button
               secondary
               name="add_shift_button"
@@ -197,7 +201,12 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
                 {shiftList && currentShift?.id ? (
                   <ShiftManagement shiftToManage={currentShift} />
                 ) : (
-                  <Typography variant="body1" color="text.secondary">
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: "text.secondary",
+                    }}
+                  >
                     Please select a shift to manage from the calendar.
                   </Typography>
                 )}
