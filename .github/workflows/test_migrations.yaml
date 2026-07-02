@@ -136,7 +136,6 @@ jobs:
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           # do not be so demanding of the npm packaging, needed until we get to mui 5
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
       - name: Save current Alembic head on main
@@ -193,8 +192,6 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-
           # The reference commit uses uv, so install its pinned dependencies
           # straight from its own uv.lock (reproducible; no manual pip pins).
           make dependencies
@@ -211,7 +208,6 @@ jobs:
 
       - name: Test loading demo data
         run: |
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make run &
           sleep 180 && make load_demo_data
           # `kill %1` alone is racy — `make run` often backgrounds supervisord
@@ -271,7 +267,6 @@ jobs:
       - name: Run migration
         run: |
           # do not be so demanding of the npm packaging, needed until we get to mui 5
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           # Update to latest dependencies
           make dependencies
           PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml upgrade head
@@ -312,7 +307,6 @@ jobs:
           createdb -h localhost -U skyportal skyportal2_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal2_test TO skyportal;" skyportal2_test
 
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
           make run &
