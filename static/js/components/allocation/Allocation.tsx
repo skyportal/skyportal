@@ -478,8 +478,10 @@ const AllocationSummaryTable = ({
                 container
                 direction="row"
                 spacing={3}
-                justifyContent="center"
-                alignItems="center"
+                sx={{
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
               >
                 <ThumbnailList
                   thumbnails={request.obj.thumbnails}

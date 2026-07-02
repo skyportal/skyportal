@@ -14,6 +14,7 @@ import Grid from "@mui/material/Grid";
 import CircularProgress from "@mui/material/CircularProgress";
 import ReactJson from "react-json-view";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
+import AutoModeIcon from "@mui/icons-material/AutoMode";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -21,6 +22,7 @@ import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewAnalysisService from "./NewAnalysisService";
+import DefaultAnalysisList from "./DefaultAnalysisList";
 
 import {
   useGetAnalysisServicesQuery,
@@ -133,6 +135,9 @@ const AnalysisServiceList = ({
     setAnalysisServiceToViewDelete(null);
   };
 
+  // Default-analysis (auto-trigger) config, per service.
+  const [defaultsServiceId, setDefaultsServiceId] = useState<any>(null);
+
   const deleteAnalysisService = () => {
     deleteAnalysisServiceMutation(analysisServiceToViewDelete)
       .unwrap()
@@ -176,6 +181,20 @@ const AnalysisServiceList = ({
     return (
       <IconButton onClick={() => openDetailsDialog(analysis_service.id)}>
         <HistoryEduIcon />
+      </IconButton>
+    );
+  };
+
+  const renderDefaults = (params: any) => {
+    const analysis_service = params.row;
+    return (
+      <IconButton
+        key={`defaults_${analysis_service.id}`}
+        id={`defaults_button_${analysis_service.id}`}
+        title="Auto-trigger (default analyses)"
+        onClick={() => setDefaultsServiceId(analysis_service.id)}
+      >
+        <AutoModeIcon />
       </IconButton>
     );
   };
@@ -255,6 +274,15 @@ const AnalysisServiceList = ({
       filterable: false,
       sortable: false,
       renderCell: renderDetails,
+    },
+    {
+      field: "defaults",
+      headerName: "Auto-trigger",
+      flex: 1,
+      minWidth: 110,
+      filterable: false,
+      sortable: false,
+      renderCell: renderDefaults,
     },
   ];
 
@@ -336,6 +364,27 @@ const AnalysisServiceList = ({
               enableClipboard={false}
               collapsed={false}
             />
+          </DialogContent>
+        </Dialog>
+        <Dialog
+          open={Boolean(defaultsServiceId)}
+          onClose={() => setDefaultsServiceId(null)}
+          maxWidth="md"
+        >
+          <DialogTitle>Default analyses (auto-trigger)</DialogTitle>
+          <DialogContent dividers>
+            {defaultsServiceId &&
+              (() => {
+                const svc = (analysisServices || []).find(
+                  (s: any) => s?.id === defaultsServiceId,
+                );
+                return svc ? (
+                  <DefaultAnalysisList
+                    analysisService={svc}
+                    deletePermission={deletePermission}
+                  />
+                ) : null;
+              })()}
           </DialogContent>
         </Dialog>
         <ConfirmDeletionDialog

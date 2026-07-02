@@ -77,7 +77,9 @@ const EditReportItemForm = ({
       <Dialog
         open={dialogOpen}
         onClose={() => closeDialog()}
-        PaperProps={{ style: { maxWidth: "800px" } }}
+        slotProps={{
+          paper: { style: { maxWidth: "800px" } },
+        }}
       >
         <DialogTitle
           sx={{
@@ -91,10 +93,14 @@ const EditReportItemForm = ({
           <Link
             href={`/source/${itemToEdit.obj_id}`}
             underline="none"
-            color="text.secondary"
-            fontSize="1rem"
             target="_blank"
-            sx={{ display: "flex", alignItems: "center", columnGap: "0.5rem" }}
+            sx={{
+              color: "text.secondary",
+              fontSize: "1rem",
+              display: "flex",
+              alignItems: "center",
+              columnGap: "0.5rem",
+            }}
           >
             {itemToEdit.obj_id}
             <VisibilityIcon fontSize="small" />

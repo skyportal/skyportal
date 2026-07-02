@@ -894,7 +894,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/{analysis_resource_type}/{analysis_id}/analysis": {
+    "/api/{analysis_resource_type}/{obj_id_path}/analysis/{analysis_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -965,37 +965,13 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /**
-         * Delete an Analysis.
-         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    analysis_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-            };
-        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/{analysis_resource_type}/{analysis_id}": {
+    "/api/{analysis_resource_type}/{obj_id_path}/analysis": {
         parameters: {
             query?: never;
             header?: never;
@@ -1120,7 +1096,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/{analysis_resource_type}/analysis/{analysis_id}": {
+    "/api/{analysis_resource_type}/{analysis_id}/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an Analysis.
+         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    analysis_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{analysis_resource_type}/analysis/{obj_id_path}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1191,31 +1207,7 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /**
-         * Delete an Analysis.
-         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    analysis_id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-            };
-        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1346,6 +1338,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/{analysis_resource_type}/analysis/{analysis_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an Analysis.
+         * @description <b>Permission(s) required:</b> <em>Run Analyses (or System admin)</em><br><br>Delete an Analysis.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    analysis_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/{analysis_resource_type}/analysis/{analysis_id}/{product_type}/{plot_number}": {
         parameters: {
             query?: never;
@@ -1370,7 +1402,7 @@ export interface paths {
                     analysis_id: number;
                     /**
                      * @description What type of data to retrieve:
-                     *     must be one of "corner", "results", or "plot"
+                     *     must be one of "results" or "plot"
                      */
                     product_type: string;
                     /**
@@ -7056,16 +7088,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description the id of the confirmed_source_in_gcn */
-                                id?: number;
-                                /** @description the source_id of the source */
-                                obj_id?: string;
-                                /** @description dateobs of the GCN evn */
-                                dateobs?: string;
-                                /** @description Boolean indicating whether the source is confirmed (True) or rejected (False) */
-                                confirmed?: boolean;
-                            };
+                            data?: components["schemas"]["SourcesConfirmedInGCN"][];
                         };
                     };
                 };
@@ -7261,7 +7284,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: unknown[];
+                            data?: components["schemas"]["SourcesConfirmedInGCN"][];
                         };
                     };
                 };
@@ -10805,7 +10828,12 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfExecutedObservations"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                observations?: components["schemas"]["ExecutedObservation"][];
+                                totalMatches?: number;
+                            };
+                        };
                     };
                 };
                 400: {

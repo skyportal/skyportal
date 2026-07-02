@@ -92,6 +92,9 @@ ANALYSIS_INPUT_TYPES = (
     "classifications",
 )
 DEFAULT_ANALYSIS_FILTER_TYPES = {"classifications": ["name", "probability"]}
+# Scalar (non list-of-dicts) source-filter keys. group_id triggers a default
+# analysis when a source is saved to that group (see create_default_analysis_on_save).
+DEFAULT_ANALYSIS_SCALAR_FILTERS = {"group_id": int}
 AUTHENTICATION_TYPES = (
     "none",
     "header_token",

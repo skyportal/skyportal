@@ -220,7 +220,12 @@ const NewsFeed = ({ classes }: NewsFeedProps) => {
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <div>
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            sx={{
+              display: "inline",
+            }}
+          >
             News Feed
           </Typography>
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />

@@ -566,7 +566,13 @@ const ObservationPlanRequestForm = ({
   return (
     <Grid container spacing={4}>
       <Grid size={{ xs: 12, sm: 12, md: 6, lg: 4 }}>
-        <Grid container spacing={4} alignItems="center">
+        <Grid
+          container
+          spacing={4}
+          sx={{
+            alignItems: "center",
+          }}
+        >
           <Grid size={{ xs: 12, sm: 7, md: 12 }}>
             <ObservationPlanGlobe
               gcnEvent={gcnEvent}
@@ -637,7 +643,13 @@ const ObservationPlanRequestForm = ({
               >
                 Airmass Time
               </InputLabel>
-              <Grid container spacing={1} alignItems="center">
+              <Grid
+                container
+                spacing={1}
+                sx={{
+                  alignItems: "center",
+                }}
+              >
                 <Grid
                   style={{
                     display: "grid",

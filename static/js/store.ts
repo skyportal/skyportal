@@ -1,6 +1,6 @@
 import { createStore, combineReducers, applyMiddleware, compose } from "redux";
 import type { AnyAction, Middleware, Reducer } from "redux";
-import thunk from "redux-thunk";
+import { thunk } from "redux-thunk";
 
 import { reducer as notificationsReducer } from "baselayer/components/Notifications";
 

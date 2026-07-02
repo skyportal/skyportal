@@ -2738,16 +2738,18 @@ class SourceOffsetsHandler(BaseHandler):
             if facility in ["P200-NGPS"]:
                 # look for the latest photometry point
                 # in the filters supported by NGPS
-                latest_photometry = session.scalars(
-                    Photometry.select(session.user_or_token)
-                    .where(
-                        Photometry.obj_id == obj_id,
-                        Photometry.flux.isnot(None),
-                        Photometry.flux > 0,
-                        Photometry.fluxerr.isnot(None),
-                        Photometry.filter.in_(ALL_NGPS_SNCOSMO_BANDS),
+                latest_photometry = (
+                    await session.scalars(
+                        Photometry.select(session.user_or_token)
+                        .where(
+                            Photometry.obj_id == obj_id,
+                            Photometry.flux.isnot(None),
+                            Photometry.flux > 0,
+                            Photometry.fluxerr.isnot(None),
+                            Photometry.filter.in_(ALL_NGPS_SNCOSMO_BANDS),
+                        )
+                        .order_by(Photometry.mjd.desc())
                     )
-                    .order_by(Photometry.mjd.desc())
                 ).first()
                 if latest_photometry is not None:
                     source_mag = latest_photometry.mag
@@ -2762,10 +2764,12 @@ class SourceOffsetsHandler(BaseHandler):
                     except ValueError:
                         return self.error("Invalid argument for `observing_run_id`")
 
-                    assignment = session.scalars(
-                        ClassicalAssignment.select(session.user_or_token).where(
-                            ClassicalAssignment.obj_id == obj_id,
-                            ClassicalAssignment.run_id == observing_run,
+                    assignment = (
+                        await session.scalars(
+                            ClassicalAssignment.select(session.user_or_token).where(
+                                ClassicalAssignment.obj_id == obj_id,
+                                ClassicalAssignment.run_id == observing_run,
+                            )
                         )
                     ).first()
                     if assignment is None:
@@ -2812,7 +2816,7 @@ class SourceOffsetsHandler(BaseHandler):
                 [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
             )
 
-            session.commit()
+            await session.commit()
             return self.success(
                 data={
                     "facility": facility,

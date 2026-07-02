@@ -14,11 +14,11 @@ import sqlalchemy as sa
 from astropy.table import Table
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
-from matplotlib import cm
+from matplotlib import colormaps
 from matplotlib.colors import LinearSegmentedColormap, rgb2hex
 from sncosmo.photdata import PhotometricData
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
@@ -115,7 +115,7 @@ def numpy_to_native(value):
     return value
 
 
-cmap_ir = cm.get_cmap("autumn")
+cmap_ir = colormaps["autumn"]
 cmap_deep_ir = LinearSegmentedColormap.from_list(
     "deep_ir", [(0.8, 0.2, 0), (0.6, 0.1, 0)]
 )
@@ -1632,7 +1632,7 @@ async def add_external_photometry(
         return None, None
 
 
-async def commit_external_photometry(data, user_id):
+async def commit_external_photometry(data, user_id, duplicates="update", refresh=False):
     """Sync-to-async bridge for ``add_external_photometry``.
 
     Opens its own ``async_plain_session_factory()`` session, re-loads the
@@ -1649,6 +1649,10 @@ async def commit_external_photometry(data, user_id):
         ID of the user the photometry should be attributed to. The user
         is re-loaded inside the new async session so callers can pass
         only the id.
+    duplicates : {"error", "ignore", "update"}
+        Forwarded to ``add_external_photometry``.
+    refresh : bool
+        Forwarded to ``add_external_photometry``.
 
     Returns
     -------
@@ -1659,7 +1663,9 @@ async def commit_external_photometry(data, user_id):
 
     async with baselayer_models.async_plain_session_factory() as async_session:
         user = await async_session.get(User, user_id)
-        ids, _ = await add_external_photometry(data, user, async_session)
+        ids, _ = await add_external_photometry(
+            data, user, async_session, duplicates=duplicates, refresh=refresh
+        )
         return ids
 
 
@@ -2349,6 +2355,7 @@ class PhotometryHandler(BaseHandler):
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id: str):
+        # docstring/OpenAPI spec is set via ObjPhotometryHandler.get.__doc__ below
         individual_or_series = self.get_query_argument("individualOrSeries", "both")
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
         format = self.get_query_argument("format", "mag")
@@ -2422,6 +2429,11 @@ class ObjPhotometryHandler(BaseHandler):
                                 Stream.name,
                             )
                         )
+                    if include_validation_info and USE_PHOTOMETRY_VALIDATION:
+                        # selectinload (not joinedload) so validations load via a
+                        # single WHERE id IN (...) query instead of an N+1 per
+                        # point — the lazy default makes dense sources time out.
+                        options.append(selectinload(Photometry.validations))
 
                 obj_ids = {obj_id}
                 if include_superobjs_photometry:

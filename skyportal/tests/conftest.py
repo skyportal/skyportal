@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 import sqlalchemy as sa
 
-from baselayer.app import models
+from skyportal import models
 from skyportal.model_util import create_token, delete_token
 from skyportal.models import (
     Allocation,
@@ -170,13 +170,7 @@ from skyportal.tests.fixtures import (
 )
 from skyportal.tests.test_util import page  # noqa: F401
 
-from ..models.obj import cfg as _obj_cfg
 from ..utils.naive_datetime import utcnow_naive
-
-# Models load config via load_env(), which omits test_config.yaml, so the
-# production PS1 URL leaks in. Empty it so in-process thumbnail builds skip the
-# real ps1images.stsci.edu call (it can hang ~18 min when STScI is unreachable).
-_obj_cfg["app"]["ps1_cutout_url"] = ""
 
 # Add a "test factory" User so that all factory-generated comments have a
 # proper author, if it doesn't already exist (the user may already be in
@@ -2297,11 +2291,7 @@ def photometric_series_undetected(
     user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
 ):
     df = phot_series_maker(number=100, use_mags=False, format="pandas")
-    # Force all fluxes negative so no point's SNR can exceed the detection
-    # threshold (is_detected = any snr > threshold). The previous symmetric
-    # noise occasionally produced a high-SNR point, making this "undetected"
-    # series flakily come back detected.
-    df["flux"] = -np.abs(np.random.normal(-50, 50, 100))
+    df["flux"] = np.random.normal(-50, 50, 100)
 
     data = {
         "obj_id": public_source.id,
@@ -2341,49 +2331,8 @@ def photometric_series_undetected(
 
 
 # ---------------------------------------------------------------------------
-# Auto-generated permission-coverage fixtures (burn-down of KNOWN_UNCOVERED).
-# One per access-controlled model; used by tests/models/test_permissions.py.
+# Auto-generated permission-coverage fixtures (ground-truth probed subset).
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture()
-def public_allocation_user(public_group, user):
-    allocation = AllocationFactory(group=public_group)
-    DBSession().commit()
-    allocation_id = allocation.id
-    instrument = allocation.instrument
-
-    allocation_user = AllocationUser(
-        allocation_id=allocation_id,
-        user_id=user.id,
-    )
-    DBSession().add(allocation_user)
-    DBSession().commit()
-    allocation_user_id = allocation_user.id
-    yield allocation_user
-
-    au = (
-        DBSession()
-        .execute(
-            sa.select(AllocationUser).filter(AllocationUser.id == allocation_user_id)
-        )
-        .scalars()
-        .first()
-    )
-    if au is not None:
-        DBSession().delete(au)
-        DBSession().commit()
-
-    alloc = (
-        DBSession()
-        .execute(sa.select(Allocation).filter(Allocation.id == allocation_id))
-        .scalars()
-        .first()
-    )
-    if alloc is not None:
-        DBSession().delete(alloc)
-        DBSession().commit()
-        InstrumentFactory.teardown(instrument)
 
 
 @pytest.fixture()
@@ -2594,7 +2543,7 @@ def public_comment_on_earthquake(public_group, user):
 
 
 @pytest.fixture()
-def public_comment_on_gcn(public_group, user):
+def public_comment_on_gcn_perm(public_group, user):
     gcn_event = GcnEvent(
         dateobs=utcnow_naive(),
         sent_by_id=user.id,
@@ -2632,41 +2581,6 @@ def public_comment_on_gcn(public_group, user):
     if gcn_event is not None:
         DBSession().delete(gcn_event)
         DBSession().commit()
-
-
-@pytest.fixture()
-def public_comment_on_shift(public_group, user):
-    shift = Shift(
-        name=str(uuid.uuid4()),
-        start_date=utcnow_naive(),
-        end_date=utcnow_naive() + timedelta(days=1),
-        group_id=public_group.id,
-    )
-    DBSession.add(shift)
-    DBSession.commit()
-    shift_id = shift.id
-
-    comment = CommentOnShift(
-        text=str(uuid.uuid4()),
-        shift_id=shift_id,
-        author_id=user.id,
-        bot=False,
-    )
-    comment.groups = [public_group]
-    DBSession.add(comment)
-    DBSession.commit()
-    comment_id = comment.id
-    yield comment
-    for model, ident in ((CommentOnShift, comment_id), (Shift, shift_id)):
-        row = (
-            DBSession()
-            .execute(sa.select(model).filter(model.id == ident))
-            .scalars()
-            .first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
 
 
 @pytest.fixture()
@@ -3005,82 +2919,6 @@ def public_default_observation_plan_request_target_group(public_group, user):
 
 
 @pytest.fixture()
-def public_default_survey_efficiency_request(public_group):
-    # Build the parent DefaultObservationPlanRequest chain inline.
-    # Telescope -> Instrument -> Allocation (scoped to public_group) ->
-    # DefaultObservationPlanRequest -> DefaultSurveyEfficiencyRequest.
-    telescope = TelescopeFactory(
-        name=f"Telescope_{uuid.uuid4()}",
-        nickname=f"Scope_{uuid.uuid4()}",
-        lat=0.0,
-        lon=0.0,
-        elevation=0.0,
-        diameter=1.0,
-    )
-    telescope_id = telescope.id
-
-    instrument = InstrumentFactory(
-        name=f"Instrument_{uuid.uuid4()}",
-        type="imaging spectrograph",
-        telescope=telescope,
-        band="Optical",
-        filters=["sdssu", "sdssg", "sdssr", "sdssi"],
-        api_classname="GENERICAPI",
-    )
-
-    allocation = AllocationFactory(
-        instrument=instrument,
-        group=public_group,
-        pi=str(uuid.uuid4()),
-        proposal_id=str(uuid.uuid4()),
-        hours_allocated=100,
-        validity_ranges=[
-            {
-                "start_date": "2021-02-27T00:00:00.000Z",
-                "end_date": "3021-07-20T00:00:00.000Z",
-            }
-        ],
-    )
-
-    default_obs_plan = DefaultObservationPlanRequest(
-        payload={},
-        allocation_id=allocation.id,
-        default_plan_name=str(uuid.uuid4()),
-    )
-    DBSession.add(default_obs_plan)
-    DBSession.commit()
-    default_obs_plan_id = default_obs_plan.id
-
-    default_survey_efficiency = DefaultSurveyEfficiencyRequest(
-        default_observationplan_request_id=default_obs_plan_id,
-        payload={},
-    )
-    DBSession.add(default_survey_efficiency)
-    DBSession.commit()
-    default_survey_efficiency_id = default_survey_efficiency.id
-
-    yield default_survey_efficiency
-
-    for model, ident in (
-        (DefaultSurveyEfficiencyRequest, default_survey_efficiency_id),
-        (DefaultObservationPlanRequest, default_obs_plan_id),
-    ):
-        row = (
-            DBSession()
-            .execute(sa.select(model).filter(model.id == ident))
-            .scalars()
-            .first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
-
-    AllocationFactory.teardown(allocation)
-    InstrumentFactory.teardown(instrument)
-    TelescopeFactory.teardown(telescope_id)
-
-
-@pytest.fixture()
 def public_earthquake_event(user):
     event = EarthquakeEvent(
         event_id=str(uuid.uuid4()),
@@ -3265,93 +3103,6 @@ def public_earthquake_prediction(user):
 
 
 @pytest.fixture()
-def public_event_observation_plan(public_group, user):
-    # Build the parent chain inline: Instrument (+Telescope) and Allocation via
-    # factories, a GcnEvent with a Localization, then an ObservationPlanRequest,
-    # and finally the EventObservationPlan itself.
-    allocation = AllocationFactory(group=public_group)
-    instrument = allocation.instrument
-
-    dateobs = utcnow_naive()
-    gcnevent = GcnEventFactory(dateobs=dateobs, sent_by=user)
-
-    localization = LocalizationFactory(
-        dateobs=dateobs,
-        sent_by=user,
-        localization_name=str(uuid.uuid4().hex),
-    )
-    DBSession().add(localization)
-    DBSession().commit()
-
-    request = ObservationPlanRequest(
-        requester_id=user.id,
-        gcnevent_id=gcnevent.id,
-        localization_id=localization.id,
-        allocation_id=allocation.id,
-        payload={},
-        status="pending submission",
-    )
-    DBSession().add(request)
-    DBSession().commit()
-
-    plan = EventObservationPlan(
-        observation_plan_request_id=request.id,
-        instrument_id=instrument.id,
-        dateobs=dateobs,
-        plan_name=str(uuid.uuid4()),
-        validity_window_start=dateobs,
-        validity_window_end=dateobs + timedelta(days=1),
-        status="pending submission",
-    )
-    DBSession().add(plan)
-    DBSession().commit()
-
-    plan_id = plan.id
-    request_id = request.id
-    localization_id = localization.id
-
-    yield plan
-
-    plan_obj = (
-        DBSession()
-        .execute(
-            sa.select(EventObservationPlan).filter(EventObservationPlan.id == plan_id)
-        )
-        .scalars()
-        .first()
-    )
-    if plan_obj is not None:
-        DBSession().delete(plan_obj)
-        DBSession().commit()
-
-    request_obj = (
-        DBSession()
-        .execute(
-            sa.select(ObservationPlanRequest).filter(
-                ObservationPlanRequest.id == request_id
-            )
-        )
-        .scalars()
-        .first()
-    )
-    if request_obj is not None:
-        DBSession().delete(request_obj)
-        DBSession().commit()
-
-    localization_obj = (
-        DBSession()
-        .execute(sa.select(Localization).filter(Localization.id == localization_id))
-        .scalars()
-        .first()
-    )
-    if localization_obj is not None:
-        LocalizationFactory.teardown(localization_obj)
-
-    GcnEventFactory.teardown(gcnevent)
-    AllocationFactory.teardown(allocation)
-
-
-@pytest.fixture()
 def public_event_observation_plan_statistics(public_group, super_admin_user):
     # Build the full dependency chain inline:
     # Telescope -> Instrument -> Allocation -> GcnEvent -> Localization
@@ -3467,33 +3218,6 @@ def public_event_observation_plan_statistics(public_group, super_admin_user):
         if row is not None:
             DBSession().delete(row)
             DBSession().commit()
-
-
-@pytest.fixture()
-def public_facility_transaction(user):
-    transaction = FacilityTransaction(
-        created_at=utcnow_naive(),
-        request={"method": "POST", "endpoint": str(uuid.uuid4())},
-        response={"status": 200, "content": str(uuid.uuid4())},
-        initiator_id=user.id,
-    )
-    DBSession.add(transaction)
-    DBSession.commit()
-    transaction_id = transaction.id
-    yield transaction
-    obj = (
-        DBSession()
-        .execute(
-            sa.select(FacilityTransaction).filter(
-                FacilityTransaction.id == transaction_id
-            )
-        )
-        .scalars()
-        .first()
-    )
-    if obj is not None:
-        DBSession().delete(obj)
-        DBSession().commit()
 
 
 @pytest.fixture()
@@ -3619,36 +3343,6 @@ def public_followup_request_user(public_group, public_source, user):
     )
     if allocation_row is not None:
         AllocationFactory.teardown(allocation_row)
-
-
-@pytest.fixture()
-def public_galaxy():
-    catalog = GalaxyCatalog(name=str(uuid.uuid4()))
-    DBSession.add(catalog)
-    DBSession.commit()
-    catalog_id = catalog.id
-    galaxy = Galaxy(
-        catalog_id=catalog_id,
-        name=str(uuid.uuid4()),
-        ra=30.0,
-        dec=45.0,
-        distmpc=100.0,
-        redshift=0.02,
-    )
-    DBSession.add(galaxy)
-    DBSession.commit()
-    galaxy_id = galaxy.id
-    yield galaxy
-    for model, ident in ((Galaxy, galaxy_id), (GalaxyCatalog, catalog_id)):
-        row = (
-            DBSession()
-            .execute(sa.select(model).filter(model.id == ident))
-            .scalars()
-            .first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
 
 
 @pytest.fixture()
@@ -3792,52 +3486,6 @@ def public_gcnevent_user(user):
         row = (
             DBSession()
             .execute(sa.select(model).filter(model.id == ident))
-            .scalars()
-            .first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
-
-
-@pytest.fixture()
-def public_gcn_notice(user):
-    dateobs = utcnow_naive().replace(microsecond=0)
-
-    gcnevent = GcnEvent(
-        dateobs=dateobs,
-        trigger_id=str(uuid.uuid4().int)[:10],
-        sent_by_id=user.id,
-    )
-    DBSession.add(gcnevent)
-    DBSession.commit()
-
-    notice = GcnNotice(
-        sent_by_id=user.id,
-        ivorn=str(uuid.uuid4()),
-        notice_type="Test",
-        notice_format="voevent",
-        stream="Test",
-        date=dateobs,
-        dateobs=dateobs,
-        content=bytes(1024),
-        has_localization=False,
-        localization_ingested=False,
-    )
-    DBSession.add(notice)
-    DBSession.commit()
-    notice_id = notice.id
-    yield notice
-    for model, ident in ((GcnNotice, notice_id), (GcnEvent, dateobs)):
-        row = (
-            DBSession()
-            .execute(
-                sa.select(model).filter(
-                    (GcnNotice.id == ident)
-                    if model is GcnNotice
-                    else (GcnEvent.dateobs == ident)
-                )
-            )
             .scalars()
             .first()
         )
@@ -4000,6 +3648,412 @@ def public_gcn_tag(public_group, user):
 
 
 @pytest.fixture()
+def public_group_admission_request(public_group, user):
+    request = GroupAdmissionRequest(
+        user_id=user.id,
+        group_id=public_group.id,
+        status="pending",
+    )
+    DBSession.add(request)
+    DBSession.commit()
+    request_id = request.id
+    yield request
+    obj = (
+        DBSession()
+        .execute(
+            sa.select(GroupAdmissionRequest).filter(
+                GroupAdmissionRequest.id == request_id
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_group_analysis_service(public_group):
+    analysis_service = AnalysisService(
+        name=str(uuid.uuid4()),
+        display_name=str(uuid.uuid4()),
+        url="http://localhost:5000/analysis/" + str(uuid.uuid4()),
+        authentication_type="none",
+        analysis_type="lightcurve_fitting",
+    )
+    DBSession.add(analysis_service)
+    DBSession.commit()
+    analysis_service_id = analysis_service.id
+
+    group_analysis_service = GroupAnalysisService(
+        group_id=public_group.id,
+        analysis_service_id=analysis_service_id,
+    )
+    DBSession.add(group_analysis_service)
+    DBSession.commit()
+    group_analysis_service_id = group_analysis_service.id
+
+    yield group_analysis_service
+
+    for model, ident in (
+        (GroupAnalysisService, group_analysis_service_id),
+        (AnalysisService, analysis_service_id),
+    ):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_allocation_user(public_group, user):
+    allocation = AllocationFactory(group=public_group)
+    DBSession().commit()
+    allocation_id = allocation.id
+    instrument = allocation.instrument
+
+    allocation_user = AllocationUser(
+        allocation_id=allocation_id,
+        user_id=user.id,
+    )
+    DBSession().add(allocation_user)
+    DBSession().commit()
+    allocation_user_id = allocation_user.id
+    yield allocation_user
+
+    au = (
+        DBSession()
+        .execute(
+            sa.select(AllocationUser).filter(AllocationUser.id == allocation_user_id)
+        )
+        .scalars()
+        .first()
+    )
+    if au is not None:
+        DBSession().delete(au)
+        DBSession().commit()
+
+    alloc = (
+        DBSession()
+        .execute(sa.select(Allocation).filter(Allocation.id == allocation_id))
+        .scalars()
+        .first()
+    )
+    if alloc is not None:
+        DBSession().delete(alloc)
+        DBSession().commit()
+        InstrumentFactory.teardown(instrument)
+
+
+@pytest.fixture()
+def public_comment_on_shift(public_group, user):
+    shift = Shift(
+        name=str(uuid.uuid4()),
+        start_date=datetime.utcnow(),
+        end_date=datetime.utcnow() + timedelta(days=1),
+        group_id=public_group.id,
+    )
+    DBSession.add(shift)
+    DBSession.commit()
+    shift_id = shift.id
+
+    comment = CommentOnShift(
+        text=str(uuid.uuid4()),
+        shift_id=shift_id,
+        author_id=user.id,
+        bot=False,
+    )
+    comment.groups = [public_group]
+    DBSession.add(comment)
+    DBSession.commit()
+    comment_id = comment.id
+    yield comment
+    for model, ident in ((CommentOnShift, comment_id), (Shift, shift_id)):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_default_survey_efficiency_request(public_group):
+    # Build the parent DefaultObservationPlanRequest chain inline.
+    # Telescope -> Instrument -> Allocation (scoped to public_group) ->
+    # DefaultObservationPlanRequest -> DefaultSurveyEfficiencyRequest.
+    telescope = TelescopeFactory(
+        name=f"Telescope_{uuid.uuid4()}",
+        nickname=f"Scope_{uuid.uuid4()}",
+        lat=0.0,
+        lon=0.0,
+        elevation=0.0,
+        diameter=1.0,
+    )
+    telescope_id = telescope.id
+
+    instrument = InstrumentFactory(
+        name=f"Instrument_{uuid.uuid4()}",
+        type="imaging spectrograph",
+        telescope=telescope,
+        band="Optical",
+        filters=["sdssu", "sdssg", "sdssr", "sdssi"],
+        api_classname="GENERICAPI",
+    )
+
+    allocation = AllocationFactory(
+        instrument=instrument,
+        group=public_group,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
+        validity_ranges=[
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+    )
+
+    default_obs_plan = DefaultObservationPlanRequest(
+        payload={},
+        allocation_id=allocation.id,
+        default_plan_name=str(uuid.uuid4()),
+    )
+    DBSession.add(default_obs_plan)
+    DBSession.commit()
+    default_obs_plan_id = default_obs_plan.id
+
+    default_survey_efficiency = DefaultSurveyEfficiencyRequest(
+        default_observationplan_request_id=default_obs_plan_id,
+        payload={},
+    )
+    DBSession.add(default_survey_efficiency)
+    DBSession.commit()
+    default_survey_efficiency_id = default_survey_efficiency.id
+
+    yield default_survey_efficiency
+
+    for model, ident in (
+        (DefaultSurveyEfficiencyRequest, default_survey_efficiency_id),
+        (DefaultObservationPlanRequest, default_obs_plan_id),
+    ):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+    AllocationFactory.teardown(allocation)
+    InstrumentFactory.teardown(instrument)
+    TelescopeFactory.teardown(telescope_id)
+
+
+@pytest.fixture()
+def public_event_observation_plan(public_group, user):
+    # Build the parent chain inline: Instrument (+Telescope) and Allocation via
+    # factories, a GcnEvent with a Localization, then an ObservationPlanRequest,
+    # and finally the EventObservationPlan itself.
+    allocation = AllocationFactory(group=public_group)
+    instrument = allocation.instrument
+
+    dateobs = datetime.utcnow()
+    gcnevent = GcnEventFactory(dateobs=dateobs, sent_by=user)
+
+    localization = LocalizationFactory(
+        dateobs=dateobs,
+        sent_by=user,
+        localization_name=str(uuid.uuid4().hex),
+        notice_id=None,
+    )
+    DBSession().add(localization)
+    DBSession().commit()
+
+    request = ObservationPlanRequest(
+        requester_id=user.id,
+        gcnevent_id=gcnevent.id,
+        localization_id=localization.id,
+        allocation_id=allocation.id,
+        payload={},
+        status="pending submission",
+    )
+    DBSession().add(request)
+    DBSession().commit()
+
+    plan = EventObservationPlan(
+        observation_plan_request_id=request.id,
+        instrument_id=instrument.id,
+        dateobs=dateobs,
+        plan_name=str(uuid.uuid4()),
+        validity_window_start=dateobs,
+        validity_window_end=dateobs + timedelta(days=1),
+        status="pending submission",
+    )
+    DBSession().add(plan)
+    DBSession().commit()
+
+    plan_id = plan.id
+    request_id = request.id
+    localization_id = localization.id
+
+    yield plan
+
+    plan_obj = (
+        DBSession()
+        .execute(
+            sa.select(EventObservationPlan).filter(EventObservationPlan.id == plan_id)
+        )
+        .scalars()
+        .first()
+    )
+    if plan_obj is not None:
+        DBSession().delete(plan_obj)
+        DBSession().commit()
+
+    request_obj = (
+        DBSession()
+        .execute(
+            sa.select(ObservationPlanRequest).filter(
+                ObservationPlanRequest.id == request_id
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if request_obj is not None:
+        DBSession().delete(request_obj)
+        DBSession().commit()
+
+    localization_obj = (
+        DBSession()
+        .execute(sa.select(Localization).filter(Localization.id == localization_id))
+        .scalars()
+        .first()
+    )
+    if localization_obj is not None:
+        LocalizationFactory.teardown(localization_obj)
+
+    GcnEventFactory.teardown(gcnevent)
+    AllocationFactory.teardown(allocation)
+
+
+@pytest.fixture()
+def public_facility_transaction(user):
+    transaction = FacilityTransaction(
+        created_at=datetime.utcnow(),
+        request={"method": "POST", "endpoint": str(uuid.uuid4())},
+        response={"status": 200, "content": str(uuid.uuid4())},
+        initiator_id=user.id,
+    )
+    DBSession.add(transaction)
+    DBSession.commit()
+    transaction_id = transaction.id
+    yield transaction
+    obj = (
+        DBSession()
+        .execute(
+            sa.select(FacilityTransaction).filter(
+                FacilityTransaction.id == transaction_id
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_galaxy():
+    catalog = GalaxyCatalog(name=str(uuid.uuid4()))
+    DBSession.add(catalog)
+    DBSession.commit()
+    catalog_id = catalog.id
+    galaxy = Galaxy(
+        catalog_id=catalog_id,
+        name=str(uuid.uuid4()),
+        ra=30.0,
+        dec=45.0,
+        distmpc=100.0,
+        redshift=0.02,
+    )
+    DBSession.add(galaxy)
+    DBSession.commit()
+    galaxy_id = galaxy.id
+    yield galaxy
+    for model, ident in ((Galaxy, galaxy_id), (GalaxyCatalog, catalog_id)):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_gcn_notice(user):
+    dateobs = datetime.utcnow().replace(microsecond=0)
+
+    gcnevent = GcnEvent(
+        dateobs=dateobs,
+        trigger_id=str(uuid.uuid4().int)[:10],
+        sent_by_id=user.id,
+    )
+    DBSession.add(gcnevent)
+    DBSession.commit()
+
+    notice = GcnNotice(
+        sent_by_id=user.id,
+        ivorn=str(uuid.uuid4()),
+        notice_type="Test",
+        notice_format="voevent",
+        stream="Test",
+        date=dateobs,
+        dateobs=dateobs,
+        content=bytes(1024),
+        has_localization=False,
+        localization_ingested=False,
+    )
+    DBSession.add(notice)
+    DBSession.commit()
+    notice_id = notice.id
+    yield notice
+    for model, ident in ((GcnNotice, notice_id), (GcnEvent, dateobs)):
+        row = (
+            DBSession()
+            .execute(
+                sa.select(model).filter(
+                    (GcnNotice.id == ident)
+                    if model is GcnNotice
+                    else (GcnEvent.dateobs == ident)
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
 def public_gcn_trigger(public_group, user):
     # Build the parents inline. GcnTrigger is a join_model coupling a
     # GcnEvent (by dateobs) and an Allocation (by allocation_id), with an
@@ -4080,70 +4134,6 @@ def public_gcn_trigger(public_group, user):
 
 
 @pytest.fixture()
-def public_group_admission_request(public_group, user):
-    request = GroupAdmissionRequest(
-        user_id=user.id,
-        group_id=public_group.id,
-        status="pending",
-    )
-    DBSession.add(request)
-    DBSession.commit()
-    request_id = request.id
-    yield request
-    obj = (
-        DBSession()
-        .execute(
-            sa.select(GroupAdmissionRequest).filter(
-                GroupAdmissionRequest.id == request_id
-            )
-        )
-        .scalars()
-        .first()
-    )
-    if obj is not None:
-        DBSession().delete(obj)
-        DBSession().commit()
-
-
-@pytest.fixture()
-def public_group_analysis_service(public_group):
-    analysis_service = AnalysisService(
-        name=str(uuid.uuid4()),
-        display_name=str(uuid.uuid4()),
-        url="http://localhost:5000/analysis/" + str(uuid.uuid4()),
-        authentication_type="none",
-        analysis_type="lightcurve_fitting",
-    )
-    DBSession.add(analysis_service)
-    DBSession.commit()
-    analysis_service_id = analysis_service.id
-
-    group_analysis_service = GroupAnalysisService(
-        group_id=public_group.id,
-        analysis_service_id=analysis_service_id,
-    )
-    DBSession.add(group_analysis_service)
-    DBSession.commit()
-    group_analysis_service_id = group_analysis_service.id
-
-    yield group_analysis_service
-
-    for model, ident in (
-        (GroupAnalysisService, group_analysis_service_id),
-        (AnalysisService, analysis_service_id),
-    ):
-        row = (
-            DBSession()
-            .execute(sa.select(model).filter(model.id == ident))
-            .scalars()
-            .first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
-
-
-@pytest.fixture()
 def public_group_annotation_on_photometry(public_group, public_source, user):
     # Build an Instrument (+ Telescope) inline for the Photometry parent.
     instrument = InstrumentFactory()
@@ -4181,7 +4171,7 @@ def public_group_annotation_on_photometry(public_group, public_source, user):
     # The join row coupling the Group and the AnnotationOnPhotometry.
     join = models.GroupAnnotationOnPhotometry(
         group_id=public_group.id,
-        annotationonphotometr_id=annotation_id,
+        annotations_on_photometr_id=annotation_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -4220,7 +4210,6 @@ def public_group_annotation_on_spectrum(public_group, public_source, user):
         instrument_id=instrument.id,
         owner_id=user.id,
         type="source",
-        groups=[public_group],
     )
     DBSession.add(spectrum)
     DBSession.commit()
@@ -4232,7 +4221,6 @@ def public_group_annotation_on_spectrum(public_group, public_source, user):
         author_id=user.id,
         origin=str(uuid.uuid4()),
         data={"value": 1.0},
-        groups=[public_group],
     )
     DBSession.add(annotation)
     DBSession.commit()
@@ -4240,7 +4228,7 @@ def public_group_annotation_on_spectrum(public_group, public_source, user):
 
     join = GroupAnnotationOnSpectrum(
         group_id=public_group.id,
-        annotationonspectrum_id=annotation_id,
+        annotations_on_spectr_id=annotation_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -4282,7 +4270,6 @@ def public_group_comment_on_earthquake(public_group, user):
         bot=False,
         earthquake_id=earthquake_id,
         author_id=user.id,
-        groups=[public_group],
     )
     DBSession.add(comment)
     DBSession.commit()
@@ -4290,7 +4277,7 @@ def public_group_comment_on_earthquake(public_group, user):
 
     group_comment = GroupCommentOnEarthquake(
         group_id=public_group.id,
-        commentonearthquake_id=comment_id,
+        comments_on_earthquake_id=comment_id,
     )
     DBSession.add(group_comment)
     DBSession.commit()
@@ -4331,7 +4318,6 @@ def public_group_comment_on_gcn(public_group, user):
         bot=False,
         author_id=user.id,
         gcn_id=gcn_event_id,
-        groups=[public_group],
     )
     DBSession.add(comment)
     DBSession.commit()
@@ -4340,7 +4326,7 @@ def public_group_comment_on_gcn(public_group, user):
     # Create the join row linking the Group and the CommentOnGCN.
     group_comment = GroupCommentOnGCN(
         group_id=public_group.id,
-        commentongcn_id=comment_id,
+        comments_on_gcn_id=comment_id,
     )
     DBSession.add(group_comment)
     DBSession.commit()
@@ -4401,14 +4387,13 @@ def public_group_comment_on_shift(public_group, user):
         author_id=user.id,
         bot=False,
     )
-    comment.groups = [public_group]
     DBSession.add(comment)
     DBSession.commit()
     comment_id = comment.id
 
     group_comment = GroupCommentOnShift(
         group_id=public_group.id,
-        commentonshift_id=comment_id,
+        comments_on_shift_id=comment_id,
     )
     DBSession.add(group_comment)
     DBSession.commit()
@@ -4440,7 +4425,6 @@ def public_group_comment_on_spectrum(public_group, public_source, user):
     spectrum = SpectrumFactory(
         obj=public_source,
         groups=[public_group],
-        owner=user,
     )
     DBSession().add(spectrum)
     DBSession().commit()
@@ -4451,7 +4435,6 @@ def public_group_comment_on_spectrum(public_group, public_source, user):
         obj_id=public_source.id,
         spectrum_id=spectrum.id,
         author=user,
-        groups=[public_group],
         bot=False,
     )
     DBSession().add(comment)
@@ -4460,7 +4443,7 @@ def public_group_comment_on_spectrum(public_group, public_source, user):
     # The join row coupling public_group <-> the CommentOnSpectrum.
     join = GroupCommentOnSpectrum(
         group_id=public_group.id,
-        commentonspectrum_id=comment.id,
+        comments_on_spectr_id=comment.id,
     )
     DBSession().add(join)
     DBSession().commit()
@@ -4533,7 +4516,7 @@ def public_group_default_analysis(public_group, user):
 
     group_default_analysis = GroupDefaultAnalysis(
         group_id=public_group.id,
-        defaultanalysis_id=default_analysis_id,
+        default_analyse_id=default_analysis_id,
     )
     DBSession.add(group_default_analysis)
     DBSession.commit()
@@ -4618,7 +4601,7 @@ def public_group_mmadetector_spectrum(public_group, user):
 
     join = GroupMMADetectorSpectrum(
         group_id=public_group.id,
-        mmadetectorspectrum_id=spectrum_id,
+        detector_spectr_id=spectrum_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -4658,7 +4641,6 @@ def public_group_mmadetector_time_interval(public_group, user):
         detector_id=detector_id,
         owner_id=user.id,
     )
-    time_interval.groups = [public_group]
     DBSession.add(time_interval)
     DBSession.commit()
     time_interval_id = time_interval.id
@@ -4699,7 +4681,6 @@ def public_group_obj_analysis(public_group, public_source, user):
         authentication_type="none",
         analysis_type="lightcurve_fitting",
         input_data_types=[],
-        groups=[public_group],
     )
     DBSession.add(analysis_service)
     DBSession.commit()
@@ -4714,7 +4695,6 @@ def public_group_obj_analysis(public_group, public_source, user):
         analysis_service_id=analysis_service_id,
         handled_by_url="/api/webhook/obj_analysis",
         status="completed",
-        groups=[public_group],
     )
     DBSession.add(obj_analysis)
     DBSession.commit()
@@ -4722,7 +4702,7 @@ def public_group_obj_analysis(public_group, public_source, user):
 
     group_obj_analysis = GroupObjAnalysis(
         group_id=public_group.id,
-        objanalysis_id=obj_analysis_id,
+        obj_analyse_id=obj_analysis_id,
     )
     DBSession.add(group_obj_analysis)
     DBSession.commit()
@@ -4838,7 +4818,7 @@ def public_group_photometric_series(user, public_source, public_group):
         .execute(
             sa.select(GroupPhotometricSeries).filter(
                 GroupPhotometricSeries.group_id == public_group.id,
-                GroupPhotometricSeries.photometricseries_id == ps_id,
+                GroupPhotometricSeries.photometric_serie_id == ps_id,
             )
         )
         .scalars()
@@ -4877,7 +4857,7 @@ def public_group_public_release(public_group):
 
     group_public_release = GroupPublicRelease(
         group_id=public_group.id,
-        public_release_id=release_id,
+        publicrelease_id=release_id,
     )
     DBSession.add(group_public_release)
     DBSession.commit()
@@ -4972,7 +4952,6 @@ def public_group_reminder_on_earthquake(public_group, user):
         user_id=user.id,
         earthquake_id=earthquake_id,
     )
-    reminder.groups = [public_group]
     DBSession.add(reminder)
     DBSession.commit()
     reminder_id = reminder.id
@@ -4980,7 +4959,7 @@ def public_group_reminder_on_earthquake(public_group, user):
     # The join row linking the Group to the ReminderOnEarthquake
     group_reminder = GroupReminderOnEarthquake(
         group_id=public_group.id,
-        reminderonearthquake_id=reminder_id,
+        reminders_on_earthquake_id=reminder_id,
     )
     DBSession.add(group_reminder)
     DBSession.commit()
@@ -5034,7 +5013,7 @@ def public_group_reminder_on_gcn(public_group, user):
 
     group_reminder = GroupReminderOnGCN(
         group_id=public_group.id,
-        reminderongcn_id=reminder_id,
+        reminders_on_gcn_id=reminder_id,
     )
     DBSession.add(group_reminder)
     DBSession.commit()
@@ -5080,14 +5059,13 @@ def public_group_reminder_on_shift(public_group, user):
         user_id=user.id,
         shift_id=shift_id,
     )
-    reminder.groups = [public_group]
     DBSession.add(reminder)
     DBSession.commit()
     reminder_id = reminder.id
 
     join = GroupReminderOnShift(
         group_id=public_group.id,
-        reminderonshift_id=reminder_id,
+        reminders_on_shift_id=reminder_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -5124,7 +5102,7 @@ def public_group_reminder_on_spectrum(public_group, public_source, user):
         observed_at=utcnow_naive(),
         type="source",
         instrument_id=instrument.id,
-        owner_id=user.id,
+        owner_id=1,
         groups=[public_group],
     )
     DBSession.add(spectrum)
@@ -5142,7 +5120,6 @@ def public_group_reminder_on_spectrum(public_group, public_source, user):
         user_id=user.id,
         obj_id=public_source.id,
         spectrum_id=spectrum_id,
-        groups=[public_group],
     )
     DBSession.add(reminder)
     DBSession.commit()
@@ -5151,7 +5128,7 @@ def public_group_reminder_on_spectrum(public_group, public_source, user):
     # The actual join-model row mapping public_group -> reminder.
     group_reminder = GroupReminderOnSpectrum(
         group_id=public_group.id,
-        reminderonspectrum_id=reminder_id,
+        reminders_on_spectr_id=reminder_id,
     )
     DBSession.add(group_reminder)
     DBSession.commit()
@@ -5583,7 +5560,7 @@ def public_mmadetector_time_interval(public_group, user):
     time_interval = MMADetectorTimeInterval(
         detector_id=detector_id,
         owner_id=user.id,
-        time_interval=[datetime(2020, 1, 1), datetime(2020, 1, 2)],
+        time_interval="[2020-01-01 00:00:00,2020-01-02 00:00:00]",
         groups=[public_group],
     )
     DBSession.add(time_interval)
@@ -5893,12 +5870,19 @@ def public_observation_plan_request_target_group(public_group, user):
 
 @pytest.fixture()
 def public_phot_stat(public_source):
-    phot_stat = PhotStat(obj_id=public_source.id)
-    phot_stat.num_obs_global = 0
-    phot_stat.num_det_global = 0
-    phot_stat.num_det_no_forced_phot_global = 0
-    DBSession.add(phot_stat)
-    DBSession.commit()
+    phot_stat = (
+        DBSession()
+        .execute(sa.select(PhotStat).filter(PhotStat.obj_id == public_source.id))
+        .scalars()
+        .first()
+    )
+    if phot_stat is None:
+        phot_stat = PhotStat(obj_id=public_source.id)
+        phot_stat.num_obs_global = 0
+        phot_stat.num_det_global = 0
+        phot_stat.num_det_no_forced_phot_global = 0
+        DBSession.add(phot_stat)
+        DBSession.commit()
     phot_stat_id = phot_stat.id
     yield phot_stat
     row = (
@@ -6743,7 +6727,7 @@ def public_spectrum_observer(public_source, public_group, user):
     spectrum_id = spectrum.id
 
     spectrum_observer = SpectrumObserver(
-        spectrum_id=spectrum_id,
+        spectr_id=spectrum_id,
         user_id=user.id,
     )
     DBSession.add(spectrum_observer)
@@ -6795,7 +6779,7 @@ def public_spectrum_pi(public_source, public_group, user):
     spectrum_id = spectrum.id
 
     spectrum_pi = SpectrumPI(
-        spectrum_id=spectrum_id,
+        spectr_id=spectrum_id,
         user_id=user.id,
         external_pi=str(uuid.uuid4()),
     )
@@ -6845,7 +6829,7 @@ def public_spectrum_reducer(public_source, public_group, user):
     DBSession.commit()
     spectrum_id = spectrum.id
 
-    reducer = SpectrumReducer(spectrum_id=spectrum_id, user_id=user.id)
+    reducer = SpectrumReducer(spectr_id=spectrum_id, user_id=user.id)
     DBSession.add(reducer)
     DBSession.commit()
     reducer_id = reducer.id
@@ -6987,7 +6971,7 @@ def public_stream_photometric_series(
     # Create the join row coupling the Stream and the PhotometricSeries.
     join = StreamPhotometricSeries(
         stream_id=public_stream.id,
-        photometricseries_id=ps_id,
+        photometric_serie_id=ps_id,
     )
     DBSession().add(join)
     DBSession().commit()
@@ -7045,14 +7029,13 @@ def public_stream_photometry(public_stream, public_source):
         filter="ztfg",
         origin=str(uuid.uuid4()),
         upload_id=str(uuid.uuid4()),
-        streams=[public_stream],
     )
     DBSession().add(photometry)
     DBSession().commit()
     photometry_id = photometry.id
 
     stream_photometry = StreamPhotometry(
-        stream_id=public_stream.id, photometry_id=photometry_id
+        stream_id=public_stream.id, photometr_id=photometry_id
     )
     DBSession().add(stream_photometry)
     DBSession().commit()

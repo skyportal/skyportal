@@ -168,9 +168,11 @@ function MyCalendar({
         >
           <Typography
             variant="body1"
-            fontWeight="bold"
             data-testid="event_shift_name"
-            sx={{ lineHeight: 1 }}
+            sx={{
+              fontWeight: "bold",
+              lineHeight: 1,
+            }}
           >
             {baseName}
           </Typography>

@@ -190,10 +190,13 @@ const TelescopeList = () => {
       <Grid container spacing={5} style={{ position: "relative" }}>
         {!isMobile && (
           <Box
-            position="absolute"
-            top={43}
-            left="50%"
-            sx={{ transform: "translateX(-50%)", zIndex: 10 }}
+            sx={{
+              position: "absolute",
+              top: 43,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 10,
+            }}
           >
             <Paper
               noPadding
@@ -228,7 +231,7 @@ const TelescopeList = () => {
           </Box>
         )}
         <Grid
-          {...({ item: true, lg: 8 } as any)}
+          size={{ lg: 8 }}
           sx={{
             display: {
               xs: "none",
@@ -264,14 +267,10 @@ const TelescopeList = () => {
           </Paper>
         </Grid>
         <Grid
-          {...({
-            item: true,
-            xs: 12,
-            lg: displayTelescopeTable ? 12 : 4,
-          } as any)}
+          size={{ xs: 12, lg: displayTelescopeTable ? 12 : 4 }}
           style={{ position: "relative" }}
         >
-          {displayTelescopeTable || isMobile ? (
+          {displayTelescopeTable ? (
             <TelescopeTable
               telescopes={telescopeList}
               managePermission={managePermission}
@@ -299,8 +298,10 @@ const TelescopeList = () => {
                     variant="outlined"
                     placeholder="Telescope"
                     slotProps={{
+                      ...params.slotProps,
+
                       input: {
-                        ...params.InputProps,
+                        ...params.slotProps.input,
                         startAdornment: (
                           <InputAdornment position="start">
                             <SearchIcon fontSize="small" />

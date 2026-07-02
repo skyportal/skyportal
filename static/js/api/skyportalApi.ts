@@ -139,6 +139,7 @@ export const TAG_TYPES = [
   "TopSaver",
   "PublicSourcePage",
   "DefaultFollowupRequest",
+  "DefaultAnalysis",
   "EnumType",
   "Galaxy",
   "GroupAdmissionRequest",

@@ -130,20 +130,9 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                       - type: object
                         properties:
                           data:
-                            type: object
-                            properties:
-                              id:
-                                type: integer
-                                description: the id of the confirmed_source_in_gcn
-                              obj_id:
-                                type: string
-                                description: the source_id of the source
-                              dateobs:
-                                type: string
-                                description: dateobs of the GCN evn
-                              confirmed:
-                                type: boolean
-                                description: Boolean indicating whether the source is confirmed (True) or rejected (False)
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/SourcesConfirmedInGCN'
             400:
               content:
                 application/json:
@@ -182,18 +171,7 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
                           data:
                             type: array
                             items:
-                              id:
-                                type: integer
-                                description: the id of the confirmed_source_in_gcn
-                              obj_id:
-                                type: string
-                                description: the source_id of the source
-                              dateobs:
-                                type: string
-                                description: dateobs of the GCN evn
-                              confirmed:
-                                type: boolean
-                                description: Whether the source is confirmed (True) or rejected (False)
+                              $ref: '#/components/schemas/SourcesConfirmedInGCN'
 
             400:
               content:
