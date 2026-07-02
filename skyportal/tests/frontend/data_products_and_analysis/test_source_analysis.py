@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import uuid
 
 import pytest
@@ -54,7 +55,6 @@ def test_analysis_start(
     ).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=3)
 def test_analysis_with_file_input_start(
     page, user, public_source, analysis_service_token, public_group
 ):
@@ -103,6 +103,9 @@ def test_analysis_with_file_input_start(
         )
     )
 
+    expect(page.locator('//input[@id="root_image_data"]').first).to_have_value(
+        re.compile(r"spectral_cube_analysis\.fits$")
+    )
     page.locator(
         '//div[@data-testid="analysis-service-request-form"]//*[@type="submit"]'
     ).first.click()
