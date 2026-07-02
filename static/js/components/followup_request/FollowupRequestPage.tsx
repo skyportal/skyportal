@@ -19,6 +19,7 @@ import {
 } from "../../ducks/instruments";
 import { useGetDefaultFollowupRequestsQuery } from "../../ducks/default_followup_requests";
 import FollowupRequestListsBase from "./FollowupRequestLists";
+import FollowupHealth from "./FollowupHealth";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
 import ProgressIndicator from "../ProgressIndicators";
@@ -195,6 +196,9 @@ const FollowupRequestPage = () => {
       </Grid>
       {tabIndex === 0 && (
         <Grid container size={12} style={{ paddingTop: 0 }}>
+          <Grid size={12}>
+            <FollowupHealth />
+          </Grid>
           <Grid size={{ sm: 12, md: 8 }}>
             <Paper>
               <Typography variant="h6">List of Followup Requests</Typography>
