@@ -292,6 +292,13 @@ async def post_gcnevent_from_xml(
         dateobs = event.dateobs
     else:
         dateobs = event.dateobs
+        update_check = await session.scalar(
+            GcnEvent.select(user, mode="update").where(GcnEvent.id == event.id)
+        )
+        if update_check is None:
+            raise ValueError(
+                "Insufficient permissions: GCN event can only be updated by original poster"
+            )
 
     event_id = event.id
 
