@@ -451,8 +451,10 @@ const SourceDetailPanel = React.memo(
           container
           direction="row"
           spacing={3}
-          justifyContent="center"
-          alignItems="center"
+          sx={{
+            justifyContent: "center",
+            alignItems: "center",
+          }}
         >
           <ThumbnailList
             thumbnails={source.thumbnails}
@@ -1758,10 +1760,12 @@ const SourceTable = ({
       <div>
         <Grid
           container
-          direction="column"
-          alignItems="flex-start"
-          justifyContent="flex-start"
           spacing={3}
+          sx={{
+            flexDirection: "column",
+            alignItems: "flex-start",
+            justifyContent: "flex-start",
+          }}
         >
           <Grid className={classes.tableGrid}>
             {title && (

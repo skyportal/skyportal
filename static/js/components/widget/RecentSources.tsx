@@ -431,7 +431,12 @@ const RecentSources = ({ classes }: RecentSourcesProps) => {
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <div>
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            sx={{
+              display: "inline",
+            }}
+          >
             Recently Saved Sources
           </Typography>
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />

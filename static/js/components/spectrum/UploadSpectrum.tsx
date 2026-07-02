@@ -9,7 +9,7 @@ import { dataUriToBuffer } from "data-uri-to-buffer";
 import Typography from "@mui/material/Typography";
 import Accordion from "@mui/material/Accordion";
 import Grid from "@mui/material/Grid";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CircularProgress from "@mui/material/CircularProgress";
 import embed from "vega-embed";
@@ -690,7 +690,9 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
             <Typography
               variant="body1"
               color="textSecondary"
-              fontStyle="italic"
+              sx={{
+                fontStyle: "italic",
+              }}
             >
               <b>
                 Form prefilled from URL parameters (the ascii file was

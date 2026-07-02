@@ -324,8 +324,10 @@ const QuickSearchBar = () => {
             placeholder="Search"
             fullWidth
             slotProps={{
+              ...params.slotProps,
+
               input: {
-                ...params.InputProps,
+                ...params.slotProps.input,
                 className: classes.textField,
                 endAdornment: loading && (
                   <Box sx={{ display: "flex" }}>

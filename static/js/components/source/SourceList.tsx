@@ -151,7 +151,12 @@ const SourceList = () => {
             alignItems: "center",
           }}
         >
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            sx={{
+              display: "inline",
+            }}
+          >
             Downloading {downloadProgressTotal} sources
           </Typography>
           <div

@@ -123,8 +123,10 @@ const UserInvitations = () => {
   if (!allGroups?.length || streams == null) {
     return (
       <Box
-        display={queryInProgress ? "block" : "none"}
         className={classes.spinnerDiv}
+        sx={{
+          display: queryInProgress ? "block" : "none",
+        }}
       >
         <Spinner />
       </Box>
@@ -683,7 +685,11 @@ const UserInvitations = () => {
       </Dialog>
       <Typography variant="h5">Bulk Invite New Users</Typography>
       <Paper variant="outlined" className={classes.section}>
-        <Box p={5}>
+        <Box
+          sx={{
+            p: 5,
+          }}
+        >
           <code>
             User Email,Stream IDs,Group IDs,true/false indicating admin status
             for respective groups, User expiration date (list values
@@ -700,7 +706,12 @@ const UserInvitations = () => {
             value={csvData}
           />
         </Box>
-        <Box pl={5} pb={5}>
+        <Box
+          sx={{
+            pl: 5,
+            pb: 5,
+          }}
+        >
           <Button
             secondary
             data-testid="bulkAddUsersButton"

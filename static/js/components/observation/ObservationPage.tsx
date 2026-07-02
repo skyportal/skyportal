@@ -426,7 +426,12 @@ const ObservationPage = () => {
                   alignItems: "center",
                 }}
               >
-                <Typography variant="h6" display="inline">
+                <Typography
+                  variant="h6"
+                  sx={{
+                    display: "inline",
+                  }}
+                >
                   Downloading {downloadProgressTotal} observations
                 </Typography>
                 <div

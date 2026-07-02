@@ -338,8 +338,10 @@ const TopSources = ({ classes }: TopSourcesProps) => {
         <div className={styles.header}>
           <Typography
             variant="h6"
-            display="inline"
             style={{ marginRight: "0.5rem" }}
+            sx={{
+              display: "inline",
+            }}
           >
             Top Sources
           </Typography>
@@ -363,8 +365,10 @@ const TopSources = ({ classes }: TopSourcesProps) => {
                 anchorEl={anchorEl}
                 open={open}
                 onClose={() => setAnchorEl(null)}
-                MenuListProps={{
-                  "aria-labelledby": "basic-button",
+                slotProps={{
+                  list: {
+                    "aria-labelledby": "basic-button",
+                  },
                 }}
               >
                 {timespans.map((timespan) => (

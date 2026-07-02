@@ -191,10 +191,10 @@ const CandidatesPreferencesForm = ({
     const formState = getValues();
     return (
       // All left empty
+      // Or all filled out
       (formState["sortingOrigin"] === "" &&
         formState["sortingKey"] === "" &&
         formState["sortingOrder"] === "") ||
-      // Or all filled out
       (formState["sortingOrigin"] !== "" &&
         formState["sortingKey"] !== "" &&
         formState["sortingOrder"] !== "")

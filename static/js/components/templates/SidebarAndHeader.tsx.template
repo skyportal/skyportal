@@ -324,7 +324,7 @@ const SidebarAndHeader = () => {
         open={open || temporaryOpen}
         onClose={isSmall ? handleToggleSidebarOpen : undefined}
         classes={{ "{{ paper: drawerType === 'temporary' ? classes.drawerPaperTemporary : classes.drawerPaper }}" }}
-        PaperProps={{ "{{ onMouseEnter: mouseEnter, onMouseLeave: mouseLeave }}" }}
+        slotProps={{ "{{ paper: { onMouseEnter: mouseEnter, onMouseLeave: mouseLeave } }}" }}
       >
         {!isSmall && <div className={classes.drawerHeader} />}
         <List>

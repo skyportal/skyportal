@@ -264,8 +264,10 @@ const TopSavers = ({ classes }: TopSaversProps) => {
         <div className={styles.header}>
           <Typography
             variant="h6"
-            display="inline"
             style={{ marginRight: "0.5rem" }}
+            sx={{
+              display: "inline",
+            }}
           >
             {topSaversPrefs.candidatesOnly ? "Top Scanners" : "Top Savers"}
           </Typography>
@@ -289,8 +291,10 @@ const TopSavers = ({ classes }: TopSaversProps) => {
                 anchorEl={anchorEl}
                 open={open}
                 onClose={() => setAnchorEl(null)}
-                MenuListProps={{
-                  "aria-labelledby": "basic-button",
+                slotProps={{
+                  list: {
+                    "aria-labelledby": "basic-button",
+                  },
                 }}
               >
                 {timespans.map((timespan) => (

@@ -110,7 +110,9 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
       <Dialog
         open={sourcePublishDialogOpen}
         onClose={() => setSourcePublishDialogOpen(false)}
-        PaperProps={{ style: { maxWidth: "800px" } }}
+        slotProps={{
+          paper: { style: { maxWidth: "800px" } },
+        }}
       >
         <DialogTitle>Public access information</DialogTitle>
         <DialogContent style={{ paddingBottom: "0.5rem" }}>

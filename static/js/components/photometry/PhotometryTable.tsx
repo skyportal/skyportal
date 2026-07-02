@@ -474,7 +474,9 @@ const PhotometryTable = ({
       fullScreen
       open={open}
       onClose={onClose}
-      TransitionComponent={Transition}
+      slots={{
+        transition: Transition,
+      }}
     >
       <DialogContent>{bodyContent}</DialogContent>
     </Dialog>

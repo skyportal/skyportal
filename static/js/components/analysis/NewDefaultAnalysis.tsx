@@ -274,7 +274,7 @@ const NewDefaultAnalysis = ({
             className={classes.field}
             label="Minimum probability"
             type="number"
-            inputProps={{ step: 0.05, min: 0, max: 1 }}
+            slotProps={{ htmlInput: { step: 0.05, min: 0, max: 1 } }}
             value={probability}
             onChange={(e) => setProbability(e.target.value)}
           />
@@ -301,7 +301,7 @@ const NewDefaultAnalysis = ({
         className={classes.field}
         label="Daily limit (optional)"
         type="number"
-        inputProps={{ min: 1 }}
+        slotProps={{ htmlInput: { min: 1 } }}
         value={dailyLimit}
         onChange={(e) => setDailyLimit(e.target.value)}
         helperText="Max auto-runs per day; leave blank for the default (10)."

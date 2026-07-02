@@ -78,8 +78,10 @@ const PhotometryMagsys = ({ magsys, setMagsys }: PhotometryMagsysProps) => {
               e.stopPropagation();
               setAnchorEl(null);
             }}
-            MenuListProps={{
-              "aria-labelledby": "basic-button",
+            slotProps={{
+              list: {
+                "aria-labelledby": "basic-button",
+              },
             }}
           >
             {magsysOptions.map((ms) => (
