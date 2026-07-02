@@ -347,7 +347,7 @@ const InstrumentTable = ({
 
   const CustomToolbar = function InstrumentTableToolbar() {
     return (
-      <DataGridToolbar showQuickFilter={false}>
+      <DataGridToolbar showQuickFilter={false} showExport>
         <TextField
           variant="standard"
           size="small"

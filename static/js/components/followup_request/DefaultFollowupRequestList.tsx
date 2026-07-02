@@ -223,7 +223,7 @@ const DefaultFollowupRequestList = ({
   ];
 
   const CustomToolbar = () => (
-    <DataGridToolbar showQuickFilter={false}>
+    <DataGridToolbar showQuickFilter={false} showExport>
       <IconButton
         name="new_default_followup_request"
         onClick={() => openNewDialog()}
