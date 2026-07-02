@@ -135,7 +135,6 @@ jobs:
       - name: Install SkyPortal dependencies
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          # do not be so demanding of the npm packaging, needed until we get to mui 5
           make dependencies
 
       - name: Save current Alembic head on main
@@ -266,7 +265,6 @@ jobs:
 
       - name: Run migration
         run: |
-          # do not be so demanding of the npm packaging, needed until we get to mui 5
           # Update to latest dependencies
           make dependencies
           PYTHONPATH=. .venv/bin/python -m alembic -x config=config.yaml upgrade head
