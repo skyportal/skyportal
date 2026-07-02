@@ -2493,13 +2493,19 @@ async def add_default_gcn_tags_async(user, session, dateobs=None, localization=N
             event = await session.scalar(
                 GcnEvent.select(user)
                 .where(GcnEvent.dateobs == localization.dateobs)
-                .options(selectinload(GcnEvent.gcn_notices))
+                .options(
+                    selectinload(GcnEvent.gcn_notices),
+                    selectinload(GcnEvent._tags),
+                )
             )
         else:
             event = await session.scalar(
                 GcnEvent.select(user)
                 .where(GcnEvent.dateobs == dateobs)
-                .options(selectinload(GcnEvent.gcn_notices))
+                .options(
+                    selectinload(GcnEvent.gcn_notices),
+                    selectinload(GcnEvent._tags),
+                )
             )
         event_notice_types = [notice.notice_type for notice in event.gcn_notices]
         event_tags = event.tags
