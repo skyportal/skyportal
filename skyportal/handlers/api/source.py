@@ -33,12 +33,11 @@ from marshmallow.exceptions import ValidationError
 from matplotlib import dates
 from sqlalchemy import func, or_
 from sqlalchemy.orm import (
-    joinedload,
     scoped_session,
     selectinload,
     sessionmaker,
-    set_committed_value,
 )
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.sql import bindparam, text
 from tornado.ioloop import IOLoop
 from twilio.base.exceptions import TwilioException
