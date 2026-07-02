@@ -10,6 +10,7 @@ how to install them on MacOS and Debian-based systems below.
 - NGINX (v>=1.7)
 - PostgreSQL (v>=14.0)
 - Node.JS/npm (v>=16.14.0/8.3.2)
+- Bun package manager
 
 When installing SkyPortal on Debian-based systems, 2 additional packages are required to be able to install `pycurl` later on:
 
