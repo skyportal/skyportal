@@ -244,7 +244,7 @@ const TelescopePage = () => {
           </Box>
         )}
         <Grid
-          {...({ item: true, lg: 8 } as any)}
+          size={{ lg: 8 }}
           sx={{
             display: {
               xs: "none",
@@ -280,14 +280,10 @@ const TelescopePage = () => {
           </Paper>
         </Grid>
         <Grid
-          {...({
-            item: true,
-            xs: 12,
-            lg: displayTelescopeTable ? 12 : 4,
-          } as any)}
+          size={{ xs: 12, lg: displayTelescopeTable ? 12 : 4 }}
           style={{ position: "relative" }}
         >
-          {displayTelescopeTable || isMobile ? (
+          {displayTelescopeTable ? (
             <TelescopeTable
               telescopes={telescopeList}
               deletePermission={permission}

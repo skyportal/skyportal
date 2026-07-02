@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Paper from "@mui/material/Paper";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -264,12 +264,23 @@ const TelescopeTable = ({
     },
   ];
 
-  const CustomToolbar = () => (
-    <DataGridToolbar>
-      <IconButton name="new_telescope" onClick={() => setNewDialogOpen(true)}>
-        <AddIcon />
-      </IconButton>
-    </DataGridToolbar>
+  // Memoized (like SourceTable/GalaxyTable) so the toolbar slot keeps a stable
+  // identity; an inline slot remounts each render and loops the grid.
+  const CustomToolbar = useMemo(
+    () =>
+      function TelescopeTableToolbar() {
+        return (
+          <DataGridToolbar>
+            <IconButton
+              name="new_telescope"
+              onClick={() => setNewDialogOpen(true)}
+            >
+              <AddIcon />
+            </IconButton>
+          </DataGridToolbar>
+        );
+      },
+    [],
   );
 
   return (
