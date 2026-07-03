@@ -19,6 +19,23 @@ FINK_REST_URL = {
 FINK_TIMEOUT = 60  # seconds
 
 
+def _decode_fink_message(msg):
+    """Fink's Kafka messages are self-describing: the message key is the Avro
+    schema (JSON) and the value is a schemaless Avro record, so decoding needs
+    only fastavro — no schema registry and no fink-client. Returns None if the
+    key (schema) is missing."""
+    import io
+    import json
+
+    import fastavro
+
+    key = msg.key()
+    if key is None:
+        return None
+    schema = fastavro.parse_schema(json.loads(key))
+    return fastavro.schemaless_reader(io.BytesIO(msg.value()), schema)
+
+
 def _fink_survey(broker, kwargs=None):
     return (
         (kwargs or {}).get("survey") or (broker.altdata or {}).get("survey", "ZTF")
@@ -302,12 +319,16 @@ class FINKBROKER(BrokerAPI):
 
     @staticmethod
     async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):
-        """Consume Fink's science-topic Kafka streams via ``fink-client`` and
-        register each alert as a Candidate under ``filter_ids``."""
+        """Consume Fink's science-topic Kafka livestream and register each alert
+        as a Candidate under ``filter_ids``. Uses confluent_kafka + fastavro
+        directly (Fink ships the Avro schema in each message key), so no
+        fink-client is needed. Config in ``broker.altdata['fink']``: ``servers``
+        (Kafka bootstrap, required), ``topics``, ``group_id``, ``username`` +
+        ``password`` (enable SASL SCRAM), ``maxtimeout``."""
         import asyncio
 
         import sqlalchemy as sa
-        from fink_client.consumer import AlertConsumer
+        from confluent_kafka import Consumer
 
         from baselayer.app.models import async_plain_session_factory
 
@@ -319,27 +340,45 @@ class FINKBROKER(BrokerAPI):
         survey = altdata.get("survey", "ZTF")
         filter_ids = altdata.get("filter_ids") or []
         maxtimeout = float(fink.get("maxtimeout", 5))
-
-        # fink-client's _get_kafka_config expects "group.id"; username+password
-        # (optional) enable SASL SCRAM. Only set bootstrap.servers if configured
-        # (fink-client falls back to its own default servers otherwise).
-        config = {"group.id": fink.get("group_id", f"skyportal-broker-{broker.id}")}
-        if fink.get("servers"):
-            config["bootstrap.servers"] = fink["servers"]
-        if fink.get("username"):
-            config["username"] = fink["username"]
-        if fink.get("password"):
-            config["password"] = fink["password"]
         topics = fink.get("topics") or []
 
-        # fink-client >=11 requires the survey ("ztf"/"lsst") positionally.
-        consumer = AlertConsumer(topics, config, fink.get("survey", survey.lower()))
+        servers = fink.get("servers")
+        if not servers:
+            raise ValueError(
+                "Fink ingestion requires altdata['fink']['servers'] "
+                "(Kafka bootstrap servers)."
+            )
+        # Fink authenticates with SASL SCRAM-SHA-512 over sasl_plaintext.
+        config = {
+            "bootstrap.servers": servers,
+            "group.id": fink.get("group_id", f"skyportal-broker-{broker.id}"),
+            "auto.offset.reset": fink.get("auto_offset_reset", "earliest"),
+        }
+        if fink.get("username"):
+            config.update(
+                {
+                    "security.protocol": "sasl_plaintext",
+                    "sasl.mechanism": fink.get("sasl_mechanism", "SCRAM-SHA-512"),
+                    "sasl.username": fink["username"],
+                    "sasl.password": fink["password"],
+                }
+            )
+
+        consumer = Consumer(config)
+        consumer.subscribe(topics)
         log(f"Fink ingestion (broker {broker.id}): subscribed to {topics}")
 
         count = 0
         try:
             while not (stop is not None and stop.is_set()):
-                topic, alert, key = await asyncio.to_thread(consumer.poll, maxtimeout)
+                msg = await asyncio.to_thread(consumer.poll, maxtimeout)
+                if msg is None or msg.error():
+                    continue
+                try:
+                    alert = _decode_fink_message(msg)
+                except Exception as e:
+                    log(f"Error decoding Fink message: {e}")
+                    continue
                 if alert is None:
                     continue
                 data, candid = FINKBROKER._normalize(survey, alert)

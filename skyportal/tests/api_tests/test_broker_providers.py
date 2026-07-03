@@ -26,7 +26,7 @@ import vcr
 
 from skyportal.broker_apis.alerce import ALERCEBROKER, _normalize_object
 from skyportal.broker_apis.ampel import _normalize_ampel_report
-from skyportal.broker_apis.antares import _normalize_locus
+from skyportal.broker_apis.antares import ANTARESBROKER, _normalize_locus
 from skyportal.broker_apis.boom import BOOMBROKER, _normalize_boom_alert
 from skyportal.broker_apis.fink import (
     FINKBROKER,
@@ -34,6 +34,7 @@ from skyportal.broker_apis.fink import (
     _normalize_fink_lsst,
     _normalize_fink_object,
 )
+from skyportal.broker_apis.lasair import LASAIRBROKER
 from skyportal.broker_apis.lasair import _normalize_object as _normalize_lasair
 from skyportal.broker_apis.pittgoogle import _normalize_pubsub_alert, _normalize_rows
 
@@ -105,9 +106,6 @@ def test_fink_get_alert_cassette():
 
 
 def test_antares_get_alert_cassette():
-    pytest.importorskip("antares_client")
-    from skyportal.broker_apis.antares import ANTARESBROKER
-
     broker = _MockBroker({"survey": "ZTF"})
     with broker_vcr.use_cassette("antares_get_alert.yaml"):
         data = ANTARESBROKER.get_alert(broker, "ZTF26abeuijw", None)
@@ -115,10 +113,42 @@ def test_antares_get_alert_cassette():
     assert data["objectId"] == "ZTF26abeuijw"
 
 
-def test_lasair_cone_cassette():
-    pytest.importorskip("lasair")
-    from skyportal.broker_apis.lasair import LASAIRBROKER
+class _FakeAlert:
+    def __init__(self, properties):
+        self.properties = properties
 
+
+class _FakeLocus:
+    """Duck-typed stand-in for an antares_client Locus (the normalizer only reads
+    locus_id/ra/dec/properties/alerts)."""
+
+    def __init__(self, fx):
+        self.locus_id = fx["locus_id"]
+        self.ra = fx["ra"]
+        self.dec = fx["dec"]
+        self.properties = fx["properties"]
+        self.alerts = [_FakeAlert(a) for a in fx["alerts"]]
+
+
+def test_antares_lsst_normalize():
+    # ANTARES loci carry hundreds of cross-matched ZTF alerts alongside a few
+    # LSST diaSources, so we save just the real LSST source rows (not a full
+    # cassette) and drive the normalizer directly.
+    from skyportal.broker_apis.antares import _normalize_lsst_locus
+
+    with open(os.path.join(CASSETTE_DIR, "antares_lsst_locus.json")) as f:
+        fx = json.load(f)
+    data = _normalize_lsst_locus(_FakeLocus(fx))
+    _assert_standard_shape(data)
+    assert data["objectId"] == "170595943059554358"
+    assert data["candidate"]["psfFlux"] is not None
+    assert all(p["psfFlux"] is not None for p in data["prv_candidates"])
+    assert all(
+        p["band"] in ("u", "g", "r", "i", "z", "y") for p in data["prv_candidates"]
+    )
+
+
+def test_lasair_cone_cassette():
     broker = _MockBroker(
         {"survey": "ZTF", "token": "x", "endpoint": "https://lasair-ztf.lsst.ac.uk/api"}
     )

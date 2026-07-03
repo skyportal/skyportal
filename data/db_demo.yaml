@@ -93,6 +93,11 @@ brokers:
     active: true
     altdata:
       survey: ZTF
+  - name: ANTARES (LSST)
+    broker_classname: ANTARESBROKER
+    active: true
+    altdata:
+      survey: LSST
   - name: Fink (ZTF)
     broker_classname: FINKBROKER
     active: true

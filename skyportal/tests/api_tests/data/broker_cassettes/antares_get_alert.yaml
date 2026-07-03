@@ -14,14 +14,12 @@ interactions:
     uri: https://api.antares.noirlab.edu/v1/loci?sort=-properties.newest_alert_observation_time&elasticsearch_query%5Blocus_listing%5D=%7B%22query%22%3A+%7B%22bool%22%3A+%7B%22filter%22%3A+%7B%22term%22%3A+%7B%22properties.ztf_object_id%22%3A+%22ZTF26abeuijw%22%7D%7D%7D%7D%7D
   response:
     body:
-      string: '{"data": [{"type": "locus_listing", "attributes": {"htm16": 67983272436,
-        "tags": ["lc_feature_extractor", "refitt_newsources_snrcut"], "dec": 23.761943400000007,
-        "grav_wave_events": [], "catalogs": [], "ra": 59.725723300000006, "properties":
-        {"num_alerts": 3, "num_mag_values": 1, "brightest_alert_id": "ztf_candidate:3470490460915015042",
-        "brightest_alert_magnitude": 15.428149223327637, "brightest_alert_observation_time":
-        61224.49046299979, "newest_alert_id": "ztf_candidate:3470490460915015042",
-        "newest_alert_magnitude": 15.428149223327637, "newest_alert_observation_time":
-        61224.49046299979, "oldest_alert_id": "ztf_candidate:3470490460915015042",
+      string: '{"data": [{"type": "locus_listing", "attributes": {"grav_wave_events":
+        [], "catalogs": [], "properties": {"num_alerts": 3, "num_mag_values": 1, "brightest_alert_id":
+        "ztf_candidate:3470490460915015042", "brightest_alert_magnitude": 15.428149223327637,
+        "brightest_alert_observation_time": 61224.49046299979, "newest_alert_id":
+        "ztf_candidate:3470490460915015042", "newest_alert_magnitude": 15.428149223327637,
+        "newest_alert_observation_time": 61224.49046299979, "oldest_alert_id": "ztf_candidate:3470490460915015042",
         "oldest_alert_magnitude": 15.428149223327637, "oldest_alert_observation_time":
         61224.49046299979, "is_corrected": "false", "ztf_object_id": "ZTF26abeuijw",
         "ztf_ssnamenr": "220", "survey": {"ztf": {"id": ["ZTF26abeuijw"], "rcid":
@@ -32,19 +30,20 @@ interactions:
         0.0, "feature_percent_amplitude_magn_R": 0.0, "feature_percent_difference_magnitude_percentile_5_magn_R":
         0.0, "feature_percent_difference_magnitude_percentile_10_magn_R": 0.0, "feature_median_buffer_range_percentage_10_magn_R":
         0.0, "feature_median_buffer_range_percentage_20_magn_R": 0.0, "feature_weighted_mean_magn_R":
-        15.428149223327637}}, "meta": {"newest_thumbnails": [{"data": {"type": "alert_thumbnail",
-        "attributes": {"src": "https://storage.googleapis.com/antares-production-ztf-stamps/candid3470490460915015042_pid3470490460915_targ_diff.fits.png",
-        "filename": "candid3470490460915015042_pid3470490460915_targ_diff.fits.png",
+        15.428149223327637}, "tags": ["lc_feature_extractor", "refitt_newsources_snrcut"],
+        "ra": 59.725723300000006, "dec": 23.761943400000007, "htm16": 67983272436},
+        "meta": {"newest_thumbnails": [{"data": {"type": "alert_thumbnail", "attributes":
+        {"filename": "candid3470490460915015042_pid3470490460915_targ_diff.fits.png",
+        "src": "https://storage.googleapis.com/antares-production-ztf-stamps/candid3470490460915015042_pid3470490460915_targ_diff.fits.png",
         "thumbnail_type": "difference", "filemime": "image/png"}, "id": "candid3470490460915015042_pid3470490460915_targ_diff.fits.png"}},
-        {"data": {"type": "alert_thumbnail", "attributes": {"src": "https://storage.googleapis.com/antares-production-ztf-stamps/candid3470490460915015042_pid3470490460915_targ_sci.fits.png",
-        "filename": "candid3470490460915015042_pid3470490460915_targ_sci.fits.png",
+        {"data": {"type": "alert_thumbnail", "attributes": {"filename": "candid3470490460915015042_pid3470490460915_targ_sci.fits.png",
+        "src": "https://storage.googleapis.com/antares-production-ztf-stamps/candid3470490460915015042_pid3470490460915_targ_sci.fits.png",
         "thumbnail_type": "science", "filemime": "image/png"}, "id": "candid3470490460915015042_pid3470490460915_targ_sci.fits.png"}},
-        {"data": {"type": "alert_thumbnail", "attributes": {"src": "https://storage.googleapis.com/antares-production-ztf-stamps/candid3470490460915015042_ref.fits.png",
-        "filename": "candid3470490460915015042_ref.fits.png", "thumbnail_type": "template",
-        "filemime": "image/png"}, "id": "candid3470490460915015042_ref.fits.png"}}]},
-        "id": "ANT2026b78o35eau2gs", "relationships": {"alerts": {"links": {"related":
-        "http://api.antares.noirlab.edu/v1/loci/ANT2026b78o35eau2gs/alerts"}}}}],
-        "links": {"self": "http://api.antares.noirlab.edu/v1/loci?sort=-properties.newest_alert_observation_time&elasticsearch_query%5Blocus_listing%5D=%7B%22query%22%3A+%7B%22bool%22%3A+%7B%22filter%22%3A+%7B%22term%22%3A+%7B%22properties.ztf_object_id%22%3A+%22ZTF26abeuijw%22%7D%7D%7D%7D%7D"},
+        {"data": {"type": "alert_thumbnail", "attributes": {"filename": "candid3470490460915015042_ref.fits.png",
+        "src": "https://storage.googleapis.com/antares-production-ztf-stamps/candid3470490460915015042_ref.fits.png",
+        "thumbnail_type": "template", "filemime": "image/png"}, "id": "candid3470490460915015042_ref.fits.png"}}]},
+        "relationships": {"alerts": {"links": {"related": "http://api.antares.noirlab.edu/v1/loci/ANT2026b78o35eau2gs/alerts"}}},
+        "id": "ANT2026b78o35eau2gs"}], "links": {"self": "http://api.antares.noirlab.edu/v1/loci?sort=-properties.newest_alert_observation_time&elasticsearch_query%5Blocus_listing%5D=%7B%22query%22%3A+%7B%22bool%22%3A+%7B%22filter%22%3A+%7B%22term%22%3A+%7B%22properties.ztf_object_id%22%3A+%22ZTF26abeuijw%22%7D%7D%7D%7D%7D"},
         "meta": {"count": 1}}
 
         '
@@ -58,7 +57,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 03 Jul 2026 16:21:22 GMT
+      - Fri, 03 Jul 2026 18:15:53 GMT
       server:
       - uvicorn
     status:
@@ -79,7 +78,8 @@ interactions:
     uri: https://api.antares.noirlab.edu/v1/loci/ANT2026b78o35eau2gs/alerts
   response:
     body:
-      string: '{"data": [{"type": "alert", "attributes": {"properties": {"ztf_jd":
+      string: '{"data": [{"type": "alert", "id": "ztf_upper_limit:ZTF26abeuijw-3470483630915",
+        "attributes": {"grav_wave_events": [], "survey": "ztf", "properties": {"ztf_jd":
         2461224.9836343, "ztf_fid": 2, "ztf_pid": 3470483630915, "ztf_diffmaglim":
         18.741300582885742, "ztf_pdiffimfilename": "/ztf/archive/sci/2026/0703/483565/ztf_20260703483565_000608_zr_c03_o_q2_scimrefdiffimg.fits.fz",
         "ztf_programpi": "Prince", "ztf_programid": 1, "ztf_nid": 3470, "ztf_rcid":
@@ -88,11 +88,12 @@ interactions:
         0.10751499980688095, "ztf_clrcounc": 2.12242994166445e-05, "ztf_rbversion":
         "t17_f5_c3", "ztf_object_id": "ZTF26abeuijw", "ant_mjd": 61224.483634300064,
         "ant_time_received": 1783085313, "ant_survey": 2, "ant_maglim": 18.741300582885742,
-        "ant_passband": "R"}, "survey": "ztf", "processed_at": "2026-07-03T13:28:33.479000",
-        "mjd": 61224.483634300064, "grav_wave_events": []}, "id": "ztf_upper_limit:ZTF26abeuijw-3470483630915",
-        "relationships": {"thumbnails": {"links": {"related": "http://api.antares.noirlab.edu/v1/alerts/ztf_upper_limit:ZTF26abeuijw-3470483630915/thumbnails"}}},
+        "ant_passband": "R"}, "processed_at": "2026-07-03T13:28:33.479000", "mjd":
+        61224.483634300064}, "relationships": {"thumbnails": {"links": {"related":
+        "http://api.antares.noirlab.edu/v1/alerts/ztf_upper_limit:ZTF26abeuijw-3470483630915/thumbnails"}}},
         "links": {"self": "http://api.antares.noirlab.edu/v1/alerts/ztf_upper_limit:ZTF26abeuijw-3470483630915"}},
-        {"type": "alert", "attributes": {"properties": {"ztf_jd": 2461224.9860648,
+        {"type": "alert", "id": "ztf_upper_limit:ZTF26abeuijw-3470486060915", "attributes":
+        {"grav_wave_events": [], "survey": "ztf", "properties": {"ztf_jd": 2461224.9860648,
         "ztf_fid": 2, "ztf_pid": 3470486060915, "ztf_diffmaglim": 18.525100708007812,
         "ztf_pdiffimfilename": "/ztf/archive/sci/2026/0703/486007/ztf_20260703486007_000608_zr_c03_o_q2_scimrefdiffimg.fits.fz",
         "ztf_programpi": "Prince", "ztf_programid": 1, "ztf_nid": 3470, "ztf_rcid":
@@ -101,11 +102,12 @@ interactions:
         0.10278400033712387, "ztf_clrcounc": 2.7309299184707925e-05, "ztf_rbversion":
         "t17_f5_c3", "ztf_object_id": "ZTF26abeuijw", "ant_mjd": 61224.48606480006,
         "ant_time_received": 1783085313, "ant_survey": 2, "ant_maglim": 18.525100708007812,
-        "ant_passband": "R"}, "survey": "ztf", "processed_at": "2026-07-03T13:28:33.479000",
-        "mjd": 61224.48606480006, "grav_wave_events": []}, "id": "ztf_upper_limit:ZTF26abeuijw-3470486060915",
-        "relationships": {"thumbnails": {"links": {"related": "http://api.antares.noirlab.edu/v1/alerts/ztf_upper_limit:ZTF26abeuijw-3470486060915/thumbnails"}}},
+        "ant_passband": "R"}, "processed_at": "2026-07-03T13:28:33.479000", "mjd":
+        61224.48606480006}, "relationships": {"thumbnails": {"links": {"related":
+        "http://api.antares.noirlab.edu/v1/alerts/ztf_upper_limit:ZTF26abeuijw-3470486060915/thumbnails"}}},
         "links": {"self": "http://api.antares.noirlab.edu/v1/alerts/ztf_upper_limit:ZTF26abeuijw-3470486060915"}},
-        {"type": "alert", "attributes": {"properties": {"ztf_jd": 2461224.990463,
+        {"type": "alert", "id": "ztf_candidate:3470490460915015042", "attributes":
+        {"grav_wave_events": [], "survey": "ztf", "properties": {"ztf_jd": 2461224.990463,
         "ztf_fid": 2, "ztf_pid": 3470490460915, "ztf_diffmaglim": 18.01260757446289,
         "ztf_pdiffimfilename": "ztf_20260703490417_000608_zr_c03_o_q2_scimrefdiffimg.fits",
         "ztf_programpi": "Prince", "ztf_programid": 1, "ztf_candid": 3470490460915015042,
@@ -148,9 +150,9 @@ interactions:
         "ZTF26abeuijw", "ant_mjd": 61224.49046299979, "ant_time_received": 1783085313,
         "ant_survey": 1, "ant_maglim": 18.01260757446289, "ant_passband": "R", "ant_ra":
         59.7257233, "ant_dec": 23.7619434, "ant_mag": 15.428149223327637, "ant_magerr":
-        0.020089004188776016}, "survey": "ztf", "processed_at": "2026-07-03T13:28:33.479000",
-        "mjd": 61224.49046299979, "grav_wave_events": []}, "id": "ztf_candidate:3470490460915015042",
-        "relationships": {"thumbnails": {"links": {"related": "http://api.antares.noirlab.edu/v1/alerts/ztf_candidate:3470490460915015042/thumbnails"}}},
+        0.020089004188776016}, "processed_at": "2026-07-03T13:28:33.479000", "mjd":
+        61224.49046299979}, "relationships": {"thumbnails": {"links": {"related":
+        "http://api.antares.noirlab.edu/v1/alerts/ztf_candidate:3470490460915015042/thumbnails"}}},
         "links": {"self": "http://api.antares.noirlab.edu/v1/alerts/ztf_candidate:3470490460915015042"}}],
         "links": {"self": "http://api.antares.noirlab.edu/v1/loci/ANT2026b78o35eau2gs/alerts"},
         "meta": {"count": 3}}
@@ -158,7 +160,7 @@ interactions:
         '
     headers:
       Alt-Svc:
-      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      - h3=":443"; ma=2592000
       Content-Length:
       - '6479'
       Via:
@@ -166,7 +168,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 03 Jul 2026 16:21:22 GMT
+      - Fri, 03 Jul 2026 18:15:53 GMT
       server:
       - uvicorn
     status:

@@ -2,6 +2,7 @@ import json
 
 from baselayer.log import make_log
 
+from ._deps import require
 from .interface import BrokerAPI
 
 log = make_log("broker/pittgoogle")
@@ -16,8 +17,8 @@ def _client(broker):
     """Build a BigQuery client from ``broker.altdata`` (a service-account key +
     project id). Lazy imports so google-cloud-bigquery is only needed by
     deployments that use Pitt-Google."""
-    from google.cloud import bigquery
-    from google.oauth2 import service_account
+    bigquery = require("google.cloud.bigquery")
+    service_account = require("google.oauth2.service_account")
 
     altdata = broker.altdata or {}
     key = altdata.get("service_account_key")
@@ -37,7 +38,7 @@ def _table(broker):
 
 
 def _run(broker, sql, params):
-    from google.cloud import bigquery
+    bigquery = require("google.cloud.bigquery")
 
     client = _client(broker)
     job = client.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=params))
@@ -86,9 +87,10 @@ def _pt(c):
 
 
 def _normalize_pubsub_alert(alert):
-    """Reshape a streamed ZTF avro alert (a ``pittgoogle.Alert``) into the standard
-    shape + extract its cutouts (gzipped FITS). Returns (data, candid, cutouts)."""
-    d = getattr(alert, "dict", None) or {}
+    """Reshape a streamed ZTF avro alert (the decoded avro dict, or an object
+    exposing ``.dict``) into the standard shape + extract its cutouts (gzipped
+    FITS). Returns (data, candid, cutouts)."""
+    d = alert if isinstance(alert, dict) else (getattr(alert, "dict", None) or {})
     object_id = d.get("objectId")
     if object_id is None:
         return None, None, None
@@ -119,12 +121,12 @@ def _normalize_pubsub_alert(alert):
 class PITTGOOGLEBROKER(BrokerAPI):
     """The Pitt-Google broker (Google Cloud, ZTF alerts).
 
-    Interactive access via BigQuery over Pitt-Google's public alert archive.
-    Requires a Google Cloud **service-account key** (JSON) + your **project_id**
-    (queries bill your project; BigQuery has a free tier). Configure a ``Broker``
-    with ``altdata = {"service_account_key": <JSON>, "project_id": "...",
-    "table": "..."}``. Cutouts (Cloud Storage) and Pub/Sub ingestion are not yet
-    implemented.
+    Interactive access via BigQuery over Pitt-Google's public alert archive;
+    ingestion via a Pub/Sub subscription (which also carries cutouts). Requires a
+    Google Cloud **service-account key** (JSON) + your **project_id** (queries
+    bill your project; BigQuery has a free tier). Configure a ``Broker`` with
+    ``altdata = {"service_account_key": <JSON>, "project_id": "...", "table":
+    "...", "subscription": "..."}``. Needs ``pip install 'skyportal[pittgoogle]'``.
     """
 
     surveys = ["ZTF"]
@@ -177,7 +179,7 @@ class PITTGOOGLEBROKER(BrokerAPI):
 
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
-        from google.cloud import bigquery
+        bigquery = require("google.cloud.bigquery")
 
         sql = f"""
             SELECT candidate.jd AS jd, candidate.fid AS fid,
@@ -192,7 +194,7 @@ class PITTGOOGLEBROKER(BrokerAPI):
 
     @staticmethod
     def cone_search(broker, ra, dec, radius, session, **kwargs):
-        from google.cloud import bigquery
+        bigquery = require("google.cloud.bigquery")
 
         # Haversine angular separation (arcsec), with a declination bounding box
         # to bound the scan. Note: a cone over the full table can be costly.
@@ -226,23 +228,25 @@ class PITTGOOGLEBROKER(BrokerAPI):
 
     @staticmethod
     async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):
-        """Consume Pitt-Google's Pub/Sub stream (via ``pittgoogle-client``) and
-        register each alert as a Candidate under ``filter_ids``, with cutouts
-        (the streamed avro carries them, unlike the BigQuery archive). Requires
-        ``altdata['subscription']`` — a Pub/Sub subscription in your project
-        (with pubsub.subscriber) attached to Pitt-Google's topic."""
+        """Consume Pitt-Google's Pub/Sub stream and register each alert as a
+        Candidate under ``filter_ids``, with cutouts (the streamed avro carries
+        them, unlike the BigQuery archive). Pulls via ``google-cloud-pubsub`` and
+        decodes the self-describing ZTF avro with fastavro (no pittgoogle-client).
+        Requires ``altdata['subscription']`` — a Pub/Sub subscription in your
+        project (with pubsub.subscriber) attached to Pitt-Google's topic."""
         import asyncio
         import json
-        import os
-        import tempfile
 
-        import pittgoogle
         import sqlalchemy as sa
 
         from baselayer.app.models import async_plain_session_factory
 
         from ..models import User
+        from ._kafka import read_avro
         from ._save import save_object_as_candidate
+
+        pubsub_v1 = require("google.cloud.pubsub_v1")
+        service_account = require("google.oauth2.service_account")
 
         altdata = broker.altdata or {}
         key = altdata.get("service_account_key")
@@ -255,31 +259,32 @@ class PITTGOOGLEBROKER(BrokerAPI):
                 "Ingestion needs service_account_key, project_id, and subscription."
             )
 
-        # pittgoogle Auth reads GOOGLE_APPLICATION_CREDENTIALS (a keyfile path);
-        # materialize the encrypted key to a temp file for the duration.
-        if isinstance(key, dict):
-            key = json.dumps(key)
-        keyfile = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
-        keyfile.write(key)
-        keyfile.close()
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = keyfile.name
-        os.environ["GOOGLE_CLOUD_PROJECT"] = project
-
-        subscription = pittgoogle.pubsub.Subscription(
-            subscription_name, projectid=project
-        )
+        if isinstance(key, str):
+            key = json.loads(key)
+        creds = service_account.Credentials.from_service_account_info(key)
+        subscriber = pubsub_v1.SubscriberClient(credentials=creds)
+        sub_path = subscriber.subscription_path(project, subscription_name)
         log(f"Pitt-Google ingestion (broker {broker.id}): pulling {subscription_name}")
 
         count = 0
         try:
             while not (stop is not None and stop.is_set()):
-                alerts = await asyncio.to_thread(
-                    pittgoogle.pubsub.pull_batch, subscription, max_messages=100
+                response = await asyncio.to_thread(
+                    subscriber.pull,
+                    request={"subscription": sub_path, "max_messages": 100},
+                    timeout=30,
                 )
-                alerts = alerts if isinstance(alerts, list) else []
-                if not alerts:
+                received = list(response.received_messages)
+                if not received:
                     continue
-                for alert in alerts:
+                ack_ids = []
+                for received_message in received:
+                    ack_ids.append(received_message.ack_id)
+                    try:
+                        alert = read_avro(received_message.message.data)
+                    except Exception as e:
+                        log(f"Error decoding Pitt-Google alert: {e}")
+                        continue
                     data, candid, cutouts = _normalize_pubsub_alert(alert)
                     if data is None:
                         continue
@@ -302,9 +307,14 @@ class PITTGOOGLEBROKER(BrokerAPI):
                     count += 1
                     if max_messages is not None and count >= max_messages:
                         break
+                if ack_ids:
+                    await asyncio.to_thread(
+                        subscriber.acknowledge,
+                        request={"subscription": sub_path, "ack_ids": ack_ids},
+                    )
                 if max_messages is not None and count >= max_messages:
                     break
         finally:
-            os.unlink(keyfile.name)
+            subscriber.close()
         log(f"Pitt-Google ingestion (broker {broker.id}): consumed {count} alerts")
         return count

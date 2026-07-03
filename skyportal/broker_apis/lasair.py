@@ -127,25 +127,63 @@ def _lasair_schema(survey):
     return {"type": "record", "name": "objects", "fields": fields}
 
 
-def _client(broker):
-    """Build a Lasair client from ``broker.altdata`` (lazy import so the
-    ``lasair`` package is only required by deployments that use Lasair)."""
-    import lasair
-
-    altdata = broker.altdata or {}
-    token = altdata.get("token")
+def _token(broker):
+    token = (broker.altdata or {}).get("token")
     if not token:
         raise ValueError("Broker altdata is missing 'token'.")
-    endpoint = altdata.get("endpoint", DEFAULT_ENDPOINT)
-    return lasair.lasair_client(token=token, endpoint=endpoint)
+    return token
+
+
+def _endpoint(broker):
+    return (broker.altdata or {}).get("endpoint", DEFAULT_ENDPOINT)
+
+
+def _request(broker, method, data):
+    """Call a Lasair REST method: ``POST {endpoint}/{method}/`` with form data and
+    a ``Authorization: Token`` header (what the ``lasair`` client does, so no
+    dependency). Returns the parsed JSON."""
+    url = _endpoint(broker).rstrip("/") + "/" + method + "/"
+    headers = {"Authorization": f"Token {_token(broker)}"}
+    response = requests.post(url, data=data, headers=headers, timeout=DEFAULT_TIMEOUT)
+    response.raise_for_status()
+    return response.json()
+
+
+def _object(broker, object_id):
+    return _request(
+        broker,
+        "object",
+        {"objectId": object_id, "lite": True, "lasair_added": True},
+    )
+
+
+def _cone(broker, ra, dec, radius=5, request_type="all"):
+    return _request(
+        broker,
+        "cone",
+        {"ra": ra, "dec": dec, "radius": radius, "requestType": request_type},
+    )
+
+
+def _query(broker, selected, tables, conditions, limit=1000):
+    return _request(
+        broker,
+        "query",
+        {
+            "selected": selected,
+            "tables": tables,
+            "conditions": conditions,
+            "limit": limit,
+        },
+    )
 
 
 class LASAIRBROKER(BrokerAPI):
     """The Lasair broker (https://lasair.lsst.ac.uk).
 
-    Interactive access via the ``lasair`` REST client. Configure a ``Broker``
-    with ``altdata = {"token": "...", "endpoint": "..."}`` (endpoint defaults to
-    the LSST instance).
+    Interactive access via Lasair's REST API (called directly with ``requests``,
+    no client dependency). Configure a ``Broker`` with ``altdata = {"token":
+    "...", "endpoint": "..."}`` (endpoint defaults to the LSST instance).
     """
 
     surveys = ["ZTF", "LSST"]
@@ -173,21 +211,22 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):
-        client = _client(broker)
         # object id -> single object; ra/dec -> cone search; otherwise a raw
         # SQL-style query (selected/tables/conditions).
         object_id = kwargs.get("objectId") or kwargs.get("object_id")
         if object_id:
-            return client.object(object_id)
+            return _object(broker, object_id)
         if kwargs.get("ra") is not None and kwargs.get("dec") is not None:
-            return client.cone(
+            return _cone(
+                broker,
                 float(kwargs["ra"]),
                 float(kwargs["dec"]),
                 radius=float(kwargs.get("radius", 5)),
-                requestType=kwargs.get("requestType", "all"),
+                request_type=kwargs.get("requestType", "all"),
             )
         if kwargs.get("selected") and kwargs.get("tables"):
-            return client.query(
+            return _query(
+                broker,
                 kwargs["selected"],
                 kwargs["tables"],
                 kwargs.get("conditions", ""),
@@ -200,15 +239,16 @@ class LASAIRBROKER(BrokerAPI):
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
         # Normalize into the standard {objectId, candidate, prv_candidates} shape.
-        return _normalize_object(_client(broker).object(alert_id), alert_id)
+        return _normalize_object(_object(broker, alert_id), alert_id)
 
     @staticmethod
     def cone_search(broker, ra, dec, radius, session, **kwargs):
-        return _client(broker).cone(
+        return _cone(
+            broker,
             float(ra),
             float(dec),
             radius=float(radius),
-            requestType=kwargs.get("requestType", "all"),
+            request_type=kwargs.get("requestType", "all"),
         )
 
     @staticmethod
@@ -246,14 +286,14 @@ class LASAIRBROKER(BrokerAPI):
         else:
             conditions = kwargs.get("conditions") or ""
         limit = int(kwargs.get("limit", 50))
-        return _client(broker).query(selected, tables, conditions, limit=limit)
+        return _query(broker, selected, tables, conditions, limit=limit)
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
         # Lasair keys cutouts by object (not candid): the object record carries
         # FITS image URLs under lasairData.imageUrls; download and base64-encode
         # them into the standard cutout fields.
-        obj = _client(broker).object(alert_id)
+        obj = _object(broker, alert_id)
         # The image-URL location differs by Lasair instance:
         #  - ZTF: the latest candidate carries ``image_urls``
         #  - LSST: ``lasairData.imageUrls`` (a list of per-epoch url dicts)
@@ -309,7 +349,6 @@ class LASAIRBROKER(BrokerAPI):
         queries = altdata.get("queries") or []
         poll_interval = float(altdata.get("poll_interval", 86400))
         limit = int(altdata.get("limit", 1000))
-        client = _client(broker)
 
         def _stopped():
             return stop is not None and stop.is_set()
@@ -326,7 +365,7 @@ class LASAIRBROKER(BrokerAPI):
                 filter_ids = query.get("filter_ids") or default_filter_ids
                 try:
                     rows = await asyncio.to_thread(
-                        client.query, selected, tables, conditions, limit
+                        _query, broker, selected, tables, conditions, limit
                     )
                 except Exception as e:
                     log(f"Lasair query '{query.get('name')}' failed: {e}")
@@ -343,7 +382,7 @@ class LASAIRBROKER(BrokerAPI):
                         continue
                     oid = str(oid)
                     try:
-                        obj = await asyncio.to_thread(client.object, oid)
+                        obj = await asyncio.to_thread(_object, broker, oid)
                         data = _normalize_object(obj, oid)
                         try:
                             cutouts = await asyncio.to_thread(

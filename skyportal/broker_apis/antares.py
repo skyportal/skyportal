@@ -1,4 +1,7 @@
 import base64
+import json
+
+import requests
 
 from baselayer.log import make_log
 
@@ -9,19 +12,189 @@ log = make_log("broker/antares")
 # ANTARES ZTF alerts use fid (1=g, 2=R); the client exposes ant_passband too.
 _FID_TO_BAND = {1: "g", 2: "r", 3: "i"}
 DEFAULT_LIMIT = 20
+# ANTARES' public (no-auth) JSON:API REST endpoint (the antares-client wraps this;
+# we hit it directly to avoid the dependency).
+DEFAULT_API_URL = "https://api.antares.noirlab.edu/v1/"
+DEFAULT_TIMEOUT = 60  # seconds
 
 
-def _locus(alert_id):
-    """Fetch an ANTARES locus by ZTF objectId or ANTARES locus id (lazy import so
-    the ``antares-client`` package is only needed by deployments that use it)."""
-    from antares_client.search import get_by_id, get_by_ztf_object_id
+def _survey(broker):
+    return ((broker.altdata or {}).get("survey") or "ZTF").upper()
 
-    locus = None
-    if str(alert_id).startswith("ZTF"):
-        locus = get_by_ztf_object_id(alert_id)
-    if locus is None:
-        locus = get_by_id(alert_id)
-    return locus
+
+def _api_url(broker):
+    return (broker.altdata or {}).get("api_url", DEFAULT_API_URL)
+
+
+def _get(broker, path, params=None):
+    url = _api_url(broker).rstrip("/") + "/" + path.lstrip("/")
+    response = requests.get(url, params=params, timeout=DEFAULT_TIMEOUT)
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    return response.json()
+
+
+def _get_url(url):
+    response = requests.get(url, timeout=DEFAULT_TIMEOUT)
+    response.raise_for_status()
+    return response.json()
+
+
+class _Alert:
+    """Lightweight stand-in for an antares_client Alert (JSON:API id ->
+    alert_id, plus mjd/properties from attributes)."""
+
+    def __init__(self, alert_id, mjd, properties):
+        self.alert_id = alert_id
+        self.mjd = mjd
+        self.properties = properties or {}
+
+
+class _Locus:
+    """Lightweight stand-in for an antares_client Locus consumed by the
+    normalizers (locus_id/ra/dec/properties/alerts)."""
+
+    def __init__(self, locus_id, ra, dec, properties, alerts):
+        self.locus_id = locus_id
+        self.ra = ra
+        self.dec = dec
+        self.properties = properties or {}
+        self.alerts = alerts
+
+
+def _fetch_alerts(broker, locus_id):
+    """All alerts for a locus (JSON:API, following pagination)."""
+    alerts = []
+    result = _get(broker, f"loci/{locus_id}/alerts")
+    while result:
+        for item in result.get("data", []):
+            attrs = item.get("attributes", {}) or {}
+            alerts.append(
+                _Alert(item.get("id"), attrs.get("mjd"), attrs.get("properties"))
+            )
+        nxt = (result.get("links") or {}).get("next")
+        if not nxt:
+            break
+        result = _get_url(nxt)
+    return alerts
+
+
+def _locus_from_item(broker, item):
+    attrs = item.get("attributes", {}) or {}
+    return _Locus(
+        item.get("id"),
+        attrs.get("ra"),
+        attrs.get("dec"),
+        attrs.get("properties"),
+        _fetch_alerts(broker, item.get("id")),
+    )
+
+
+def _search_loci(broker, es_query, limit):
+    """Build loci matching an Elasticsearch query (most-recently-updated first)."""
+    params = {
+        "sort": "-properties.newest_alert_observation_time",
+        "elasticsearch_query[locus_listing]": json.dumps(es_query),
+    }
+    result = _get(broker, "loci", params)
+    out = []
+    while result:
+        for item in result.get("data", []):
+            out.append(_locus_from_item(broker, item))
+            if len(out) >= limit:
+                return out
+        nxt = (result.get("links") or {}).get("next")
+        if not nxt:
+            break
+        result = _get_url(nxt)
+    return out
+
+
+def _cone_query(ra, dec, radius_arcsec):
+    return {
+        "query": {
+            "bool": {
+                "filter": {
+                    "sky_distance": {
+                        "distance": f"{float(radius_arcsec) / 3600.0} degree",
+                        "htm16": {"center": f"{float(ra)} {float(dec)}"},
+                    }
+                }
+            }
+        }
+    }
+
+
+def _locus(broker, alert_id, survey="ZTF"):
+    """Fetch a locus by ZTF objectId / LSST diaObjectId / ANTARES locus id."""
+    if survey == "LSST":
+        field = "properties.survey.lsst.dia_object_id"
+        loci = _search_loci(
+            broker, {"query": {"bool": {"filter": {"term": {field: str(alert_id)}}}}}, 1
+        )
+        if loci:
+            return loci[0]
+    elif str(alert_id).startswith("ZTF"):
+        field = "properties.ztf_object_id"
+        loci = _search_loci(
+            broker, {"query": {"bool": {"filter": {"term": {field: alert_id}}}}}, 1
+        )
+        if loci:
+            return loci[0]
+    # fall back to a direct ANTARES locus-id lookup
+    detail = _get(broker, f"loci/{alert_id}")
+    if detail and detail.get("data"):
+        return _locus_from_item(broker, detail["data"])
+    return None
+
+
+def _lsst_object_id(locus):
+    props = getattr(locus, "properties", {}) or {}
+    ids = ((props.get("survey") or {}).get("lsst") or {}).get("dia_object_id") or []
+    return str(ids[0]) if ids else None
+
+
+def _normalize_lsst_locus(locus):
+    """Reshape a Locus's LSST alerts (``lsst_diaSource_*`` properties, flux-space
+    psfFlux in nJy, midpointMjdTai) into the standard {objectId, candidate,
+    prv_candidates} shape. A locus may also carry cross-matched ZTF alerts; those
+    (no ``lsst_diaSource_psfFlux``) are skipped here."""
+    prv = []
+    for alert in getattr(locus, "alerts", None) or []:
+        p = alert.properties or {}
+        flux = p.get("lsst_diaSource_psfFlux")
+        mjd = p.get("lsst_diaSource_midpointMjdTai")
+        if flux is None or mjd is None:
+            continue
+        prv.append(
+            {
+                "jd": mjd + 2400000.5,
+                "psfFlux": flux,
+                "psfFluxErr": p.get("lsst_diaSource_psfFluxErr"),
+                "band": p.get("lsst_diaSource_band"),
+                "ra": p.get("lsst_diaSource_ra"),
+                "dec": p.get("lsst_diaSource_dec"),
+            }
+        )
+    prv.sort(key=lambda d: d["jd"] or 0)
+    latest = prv[-1] if prv else {}
+    return {
+        "objectId": _lsst_object_id(locus) or getattr(locus, "locus_id", None),
+        "candidate": {
+            "ra": getattr(locus, "ra", None) or latest.get("ra"),
+            "dec": getattr(locus, "dec", None) or latest.get("dec"),
+            "psfFlux": latest.get("psfFlux"),
+            "psfFluxErr": latest.get("psfFluxErr"),
+            "jd": latest.get("jd"),
+            "band": latest.get("band"),
+        },
+        "prv_candidates": prv,
+    }
+
+
+def _normalize(locus, survey):
+    return _normalize_lsst_locus(locus) if survey == "LSST" else _normalize_locus(locus)
 
 
 def _normalize_locus(locus):
@@ -61,19 +234,26 @@ def _normalize_locus(locus):
 
 
 class ANTARESBROKER(BrokerAPI):
-    """The ANTARES broker (NOIRLab, https://antares.noirlab.edu, ZTF alerts).
+    """The ANTARES broker (NOIRLab, https://antares.noirlab.edu, ZTF + LSST).
 
-    Interactive access via the public (no-auth) ``antares-client`` REST API:
-    locus lookup + light curve, cone search, and science/template/difference
-    thumbnails (PNG). Configure a ``Broker`` with an empty ``altdata``.
+    Interactive access via the public (no-auth) ANTARES JSON:API REST endpoint
+    (hit directly with ``requests``, no client dependency): locus lookup + light
+    curve, cone search, and science/template/difference thumbnails (PNG). ANTARES
+    ingests both surveys into loci; select which one a ``Broker`` serves via
+    ``altdata['survey']`` (ZTF mag-space alerts keyed by objectId; LSST flux-space
+    diaSources keyed by diaObjectId).
     """
 
-    surveys = ["ZTF"]
+    surveys = ["ZTF", "LSST"]
 
     form_json_schema_config = {
         "type": "object",
         "properties": {
-            "survey": {"type": "string", "enum": ["ZTF"], "default": "ZTF"},
+            "survey": {
+                "type": "string",
+                "enum": ["ZTF", "LSST"],
+                "default": "ZTF",
+            },
         },
     }
 
@@ -84,68 +264,61 @@ class ANTARESBROKER(BrokerAPI):
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):
+        survey = _survey(broker)
         object_id = kwargs.get("objectId") or kwargs.get("object_id")
         if object_id:
             return [ANTARESBROKER.get_alert(broker, object_id, session, **kwargs)]
         ra, dec = kwargs.get("ra"), kwargs.get("dec")
         if ra is not None and dec is not None:
-            from antares_client.search import cone_search
-            from astropy.coordinates import Angle, SkyCoord
-
-            center = SkyCoord(float(ra), float(dec), unit="deg")
-            radius = Angle(f"{kwargs.get('radius', 5)}s")  # arcsec
-            out = []
-            for locus in cone_search(center, radius):
-                out.append(_normalize_locus(locus))
-                if len(out) >= DEFAULT_LIMIT:
-                    break
-            return out
+            loci = _search_loci(
+                broker, _cone_query(ra, dec, kwargs.get("radius", 5)), DEFAULT_LIMIT
+            )
+            return [_normalize(locus, survey) for locus in loci]
         raise ValueError("Provide objectId, or ra+dec.")
 
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
-        locus = _locus(alert_id)
+        survey = _survey(broker)
+        locus = _locus(broker, alert_id, survey)
         if locus is None:
             raise ValueError(f"No ANTARES locus for {alert_id}")
-        return _normalize_locus(locus)
+        return _normalize(locus, survey)
 
     @staticmethod
     def cone_search(broker, ra, dec, radius, session, **kwargs):
-        from antares_client.search import cone_search
-        from astropy.coordinates import Angle, SkyCoord
-
-        center = SkyCoord(float(ra), float(dec), unit="deg")
-        out = []
-        for locus in cone_search(center, Angle(f"{radius}s")):
-            out.append(_normalize_locus(locus))
-            if len(out) >= DEFAULT_LIMIT:
-                break
-        return out
+        survey = _survey(broker)
+        loci = _search_loci(broker, _cone_query(ra, dec, radius), DEFAULT_LIMIT)
+        return [_normalize(locus, survey) for locus in loci]
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
         """Fetch the latest alert's science/template/difference thumbnails (PNG)
         and return them as data: URLs (the frontend uses them directly).
         ``alert_id`` is the objectId."""
-        from antares_client.search import get_thumbnails
-
-        locus = _locus(alert_id)
+        locus = _locus(broker, alert_id, _survey(broker))
         if locus is None:
             return {}
         alerts = sorted(getattr(locus, "alerts", None) or [], key=lambda a: a.mjd or 0)
         if not alerts:
             return {}
-        thumbs = get_thumbnails(alerts[-1].alert_id)
+        result = _get(broker, f"alerts/{alerts[-1].alert_id}/thumbnails")
+        thumbs = {}
+        for item in (result or {}).get("data", []):
+            attrs = item.get("attributes", {}) or {}
+            if attrs.get("thumbnail_type") and attrs.get("src"):
+                thumbs[attrs["thumbnail_type"]] = attrs["src"]
         cutouts = {}
         for kind, field in (
             ("science", "cutoutScience"),
             ("template", "cutoutTemplate"),
             ("difference", "cutoutDifference"),
         ):
-            entry = thumbs.get(kind) if isinstance(thumbs, dict) else None
-            blob = entry.get("blob") if isinstance(entry, dict) else None
-            if blob:
-                encoded = base64.b64encode(blob).decode("utf-8")
+            src = thumbs.get(kind)
+            if not src:
+                continue
+            blob = requests.get(src, timeout=DEFAULT_TIMEOUT)
+            if blob.ok:
+                encoded = base64.b64encode(blob.content).decode("utf-8")
                 cutouts[field] = f"data:image/png;base64,{encoded}"
         return cutouts
 
@@ -156,10 +329,8 @@ class ANTARESBROKER(BrokerAPI):
         ``filter_ids``. Config in ``broker.altdata``: ``queries`` (list of ES
         query dicts), ``filter_ids``, ``poll_interval``, ``limit``."""
         import asyncio
-        from itertools import islice
 
         import sqlalchemy as sa
-        from antares_client.search import search
 
         from baselayer.app.models import async_plain_session_factory
 
@@ -181,9 +352,7 @@ class ANTARESBROKER(BrokerAPI):
         while not _stopped():
             for query in queries:
                 try:
-                    loci = await asyncio.to_thread(
-                        lambda q=query: list(islice(search(q), limit))
-                    )
+                    loci = await asyncio.to_thread(_search_loci, broker, query, limit)
                 except Exception as e:
                     log(f"ANTARES search failed: {e}")
                     continue
@@ -191,7 +360,7 @@ class ANTARESBROKER(BrokerAPI):
                     if _stopped():
                         break
                     try:
-                        data = _normalize_locus(locus)
+                        data = _normalize(locus, survey.upper())
                         if not data.get("objectId"):
                             continue
                         async with async_plain_session_factory() as session:
