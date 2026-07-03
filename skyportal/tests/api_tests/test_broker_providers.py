@@ -81,6 +81,20 @@ def test_alerce_get_alert_cassette():
     assert all(p["band"] in ("g", "r", "i") for p in data["prv_candidates"])
 
 
+def test_alerce_lsst_get_alert_cassette():
+    # ALeRCE LSST is the flux-space multisurvey API (distinct host + schema).
+    broker = _MockBroker({"survey": "LSST"})
+    with broker_vcr.use_cassette("alerce_lsst_get_alert.yaml"):
+        data = ALERCEBROKER.get_alert(broker, "170587116732416143", None)
+    _assert_standard_shape(data)
+    assert data["objectId"] == "170587116732416143"
+    assert data["candidate"]["psfFlux"] is not None
+    assert all(p["psfFlux"] is not None for p in data["prv_candidates"])
+    assert all(
+        p["band"] in ("u", "g", "r", "i", "z", "y") for p in data["prv_candidates"]
+    )
+
+
 def test_fink_get_alert_cassette():
     broker = _MockBroker({"survey": "ZTF"})
     with broker_vcr.use_cassette("fink_get_alert.yaml"):

@@ -83,6 +83,11 @@ brokers:
     active: true
     altdata:
       survey: ZTF
+  - name: ALeRCE (LSST)
+    broker_classname: ALERCEBROKER
+    active: true
+    altdata:
+      survey: LSST
   - name: ANTARES (ZTF)
     broker_classname: ANTARESBROKER
     active: true
