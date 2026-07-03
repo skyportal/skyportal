@@ -19,6 +19,14 @@ from .annotation_services import (
     PS1QueryHandler,
     VizierQueryHandler,
 )
+from .broker import (
+    BrokerAlertsHandler,
+    BrokerCutoutsHandler,
+    BrokerFilterTestHandler,
+    BrokerHandler,
+    BrokerSaveHandler,
+)
+from .broker_apis import BrokerAPIsHandler
 from .candidate.candidate import BulkDeleteCandidatesHandler, CandidateHandler
 from .candidate.candidate_filter import CandidateFilterHandler
 from .candidate.scan_report import ScanReportHandler

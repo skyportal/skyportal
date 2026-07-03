@@ -6,6 +6,7 @@ from .allocation import *
 from .analysis import *
 from .annotation import *
 from .assignment import *
+from .broker import *
 from .candidate import *
 from .classification import *
 from .comment import *

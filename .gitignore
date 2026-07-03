@@ -77,3 +77,6 @@ services/pgbouncer/userlist.txt
 
 # GCN Kafka credential (local only)
 credential
+
+# local broker credentials for testing (never commit)
+.secrets
