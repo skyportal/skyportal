@@ -1,0 +1,175 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.0
+    method: GET
+    uri: https://api.antares.noirlab.edu/v1/loci?sort=-properties.newest_alert_observation_time&elasticsearch_query%5Blocus_listing%5D=%7B%22query%22%3A+%7B%22bool%22%3A+%7B%22filter%22%3A+%7B%22term%22%3A+%7B%22properties.ztf_object_id%22%3A+%22ZTF26abeuijw%22%7D%7D%7D%7D%7D
+  response:
+    body:
+      string: '{"data": [{"type": "locus_listing", "attributes": {"htm16": 67983272436,
+        "tags": ["lc_feature_extractor", "refitt_newsources_snrcut"], "dec": 23.761943400000007,
+        "grav_wave_events": [], "catalogs": [], "ra": 59.725723300000006, "properties":
+        {"num_alerts": 3, "num_mag_values": 1, "brightest_alert_id": "ztf_candidate:3470490460915015042",
+        "brightest_alert_magnitude": 15.428149223327637, "brightest_alert_observation_time":
+        61224.49046299979, "newest_alert_id": "ztf_candidate:3470490460915015042",
+        "newest_alert_magnitude": 15.428149223327637, "newest_alert_observation_time":
+        61224.49046299979, "oldest_alert_id": "ztf_candidate:3470490460915015042",
+        "oldest_alert_magnitude": 15.428149223327637, "oldest_alert_observation_time":
+        61224.49046299979, "is_corrected": "false", "ztf_object_id": "ZTF26abeuijw",
+        "ztf_ssnamenr": "220", "survey": {"ztf": {"id": ["ZTF26abeuijw"], "rcid":
+        [9], "field": [608], "ssnamenr": ["220"]}, "lsst": {"dia_object_id": [], "ss_object_id":
+        []}}, "feature_amplitude_magn_R": 0.0, "feature_duration_magn_R": 0.0, "feature_inter_percentile_range_2_magn_R":
+        0.0, "feature_inter_percentile_range_10_magn_R": 0.0, "feature_inter_percentile_range_25_magn_R":
+        0.0, "feature_mean_magn_R": 15.428149223327637, "feature_median_absolute_deviation_magn_R":
+        0.0, "feature_percent_amplitude_magn_R": 0.0, "feature_percent_difference_magnitude_percentile_5_magn_R":
+        0.0, "feature_percent_difference_magnitude_percentile_10_magn_R": 0.0, "feature_median_buffer_range_percentage_10_magn_R":
+        0.0, "feature_median_buffer_range_percentage_20_magn_R": 0.0, "feature_weighted_mean_magn_R":
+        15.428149223327637}}, "meta": {"newest_thumbnails": [{"data": {"type": "alert_thumbnail",
+        "attributes": {"src": "https://storage.googleapis.com/antares-production-ztf-stamps/candid3470490460915015042_pid3470490460915_targ_diff.fits.png",
+        "filename": "candid3470490460915015042_pid3470490460915_targ_diff.fits.png",
+        "thumbnail_type": "difference", "filemime": "image/png"}, "id": "candid3470490460915015042_pid3470490460915_targ_diff.fits.png"}},
+        {"data": {"type": "alert_thumbnail", "attributes": {"src": "https://storage.googleapis.com/antares-production-ztf-stamps/candid3470490460915015042_pid3470490460915_targ_sci.fits.png",
+        "filename": "candid3470490460915015042_pid3470490460915_targ_sci.fits.png",
+        "thumbnail_type": "science", "filemime": "image/png"}, "id": "candid3470490460915015042_pid3470490460915_targ_sci.fits.png"}},
+        {"data": {"type": "alert_thumbnail", "attributes": {"src": "https://storage.googleapis.com/antares-production-ztf-stamps/candid3470490460915015042_ref.fits.png",
+        "filename": "candid3470490460915015042_ref.fits.png", "thumbnail_type": "template",
+        "filemime": "image/png"}, "id": "candid3470490460915015042_ref.fits.png"}}]},
+        "id": "ANT2026b78o35eau2gs", "relationships": {"alerts": {"links": {"related":
+        "http://api.antares.noirlab.edu/v1/loci/ANT2026b78o35eau2gs/alerts"}}}}],
+        "links": {"self": "http://api.antares.noirlab.edu/v1/loci?sort=-properties.newest_alert_observation_time&elasticsearch_query%5Blocus_listing%5D=%7B%22query%22%3A+%7B%22bool%22%3A+%7B%22filter%22%3A+%7B%22term%22%3A+%7B%22properties.ztf_object_id%22%3A+%22ZTF26abeuijw%22%7D%7D%7D%7D%7D"},
+        "meta": {"count": 1}}
+
+        '
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000
+      Content-Length:
+      - '3221'
+      Via:
+      - 1.1 google
+      content-type:
+      - application/json
+      date:
+      - Fri, 03 Jul 2026 16:21:22 GMT
+      server:
+      - uvicorn
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.0
+    method: GET
+    uri: https://api.antares.noirlab.edu/v1/loci/ANT2026b78o35eau2gs/alerts
+  response:
+    body:
+      string: '{"data": [{"type": "alert", "attributes": {"properties": {"ztf_jd":
+        2461224.9836343, "ztf_fid": 2, "ztf_pid": 3470483630915, "ztf_diffmaglim":
+        18.741300582885742, "ztf_pdiffimfilename": "/ztf/archive/sci/2026/0703/483565/ztf_20260703483565_000608_zr_c03_o_q2_scimrefdiffimg.fits.fz",
+        "ztf_programpi": "Prince", "ztf_programid": 1, "ztf_nid": 3470, "ztf_rcid":
+        9, "ztf_field": 608, "ztf_magzpsci": 26.143800735473633, "ztf_magzpsciunc":
+        1.1535100384207908e-05, "ztf_magzpscirms": 0.04396339878439903, "ztf_clrcoeff":
+        0.10751499980688095, "ztf_clrcounc": 2.12242994166445e-05, "ztf_rbversion":
+        "t17_f5_c3", "ztf_object_id": "ZTF26abeuijw", "ant_mjd": 61224.483634300064,
+        "ant_time_received": 1783085313, "ant_survey": 2, "ant_maglim": 18.741300582885742,
+        "ant_passband": "R"}, "survey": "ztf", "processed_at": "2026-07-03T13:28:33.479000",
+        "mjd": 61224.483634300064, "grav_wave_events": []}, "id": "ztf_upper_limit:ZTF26abeuijw-3470483630915",
+        "relationships": {"thumbnails": {"links": {"related": "http://api.antares.noirlab.edu/v1/alerts/ztf_upper_limit:ZTF26abeuijw-3470483630915/thumbnails"}}},
+        "links": {"self": "http://api.antares.noirlab.edu/v1/alerts/ztf_upper_limit:ZTF26abeuijw-3470483630915"}},
+        {"type": "alert", "attributes": {"properties": {"ztf_jd": 2461224.9860648,
+        "ztf_fid": 2, "ztf_pid": 3470486060915, "ztf_diffmaglim": 18.525100708007812,
+        "ztf_pdiffimfilename": "/ztf/archive/sci/2026/0703/486007/ztf_20260703486007_000608_zr_c03_o_q2_scimrefdiffimg.fits.fz",
+        "ztf_programpi": "Prince", "ztf_programid": 1, "ztf_nid": 3470, "ztf_rcid":
+        9, "ztf_field": 608, "ztf_magzpsci": 26.137300491333008, "ztf_magzpsciunc":
+        1.429229996574577e-05, "ztf_magzpscirms": 0.044504500925540924, "ztf_clrcoeff":
+        0.10278400033712387, "ztf_clrcounc": 2.7309299184707925e-05, "ztf_rbversion":
+        "t17_f5_c3", "ztf_object_id": "ZTF26abeuijw", "ant_mjd": 61224.48606480006,
+        "ant_time_received": 1783085313, "ant_survey": 2, "ant_maglim": 18.525100708007812,
+        "ant_passband": "R"}, "survey": "ztf", "processed_at": "2026-07-03T13:28:33.479000",
+        "mjd": 61224.48606480006, "grav_wave_events": []}, "id": "ztf_upper_limit:ZTF26abeuijw-3470486060915",
+        "relationships": {"thumbnails": {"links": {"related": "http://api.antares.noirlab.edu/v1/alerts/ztf_upper_limit:ZTF26abeuijw-3470486060915/thumbnails"}}},
+        "links": {"self": "http://api.antares.noirlab.edu/v1/alerts/ztf_upper_limit:ZTF26abeuijw-3470486060915"}},
+        {"type": "alert", "attributes": {"properties": {"ztf_jd": 2461224.990463,
+        "ztf_fid": 2, "ztf_pid": 3470490460915, "ztf_diffmaglim": 18.01260757446289,
+        "ztf_pdiffimfilename": "ztf_20260703490417_000608_zr_c03_o_q2_scimrefdiffimg.fits",
+        "ztf_programpi": "Prince", "ztf_programid": 1, "ztf_candid": 3470490460915015042,
+        "ztf_isdiffpos": "t", "ztf_tblid": 42, "ztf_nid": 3470, "ztf_rcid": 9, "ztf_field":
+        608, "ztf_xpos": 1485.5648193359375, "ztf_ypos": 1305.9404296875, "ztf_ra":
+        59.7257233, "ztf_dec": 23.7619434, "ztf_magpsf": 15.428149223327637, "ztf_sigmapsf":
+        0.020089004188776016, "ztf_chipsf": 19.848339080810547, "ztf_magap": 15.440199851989746,
+        "ztf_sigmagap": 0.0333000011742115, "ztf_distnr": 6.336984157562256, "ztf_magnr":
+        18.871000289916992, "ztf_sigmagnr": 0.017999999225139618, "ztf_chinr": 0.5270000100135803,
+        "ztf_sharpnr": 0.004000000189989805, "ztf_sky": -1.8235429525375366, "ztf_magdiff":
+        0.012051000259816647, "ztf_fwhm": 3.2899999618530273, "ztf_classtar": 0.9990000128746033,
+        "ztf_mindtoedge": 1305.9404296875, "ztf_magfromlim": 2.572406768798828, "ztf_seeratio":
+        0.8311631679534912, "ztf_aimage": 0.8399999737739563, "ztf_bimage": 0.7979999780654907,
+        "ztf_aimagerat": 0.25531914830207825, "ztf_bimagerat": 0.24255318939685822,
+        "ztf_elong": 1.0526316165924072, "ztf_nneg": 0, "ztf_nbad": 0, "ztf_rb": 0.6528571248054504,
+        "ztf_ssdistnr": 1.0, "ztf_ssmagnr": 15.800000190734863, "ztf_ssnamenr": "220",
+        "ztf_sumrat": 1.0, "ztf_magapbig": 15.446599960327148, "ztf_sigmagapbig":
+        0.042899999767541885, "ztf_ranr": 59.7271083, "ztf_decnr": 23.7631974, "ztf_sgmag1":
+        19.418399810791016, "ztf_srmag1": 18.924400329589844, "ztf_simag1": 18.708599090576172,
+        "ztf_szmag1": 18.645599365234375, "ztf_sgscore1": 0.9975000023841858, "ztf_distpsnr1":
+        6.381931304931641, "ztf_ndethist": 1, "ztf_ncovhist": 2241, "ztf_jdstarthist":
+        2461224.990463, "ztf_jdendhist": 2461224.990463, "ztf_scorr": 38.2812042236328,
+        "ztf_tooflag": 0, "ztf_objectidps1": 136510597271156352, "ztf_objectidps2":
+        136510597265221754, "ztf_sgmag2": 21.745100021362305, "ztf_srmag2": 21.694900512695312,
+        "ztf_simag2": 21.554000854492188, "ztf_szmag2": 20.981000900268555, "ztf_sgscore2":
+        0.9571250081062317, "ztf_distpsnr2": 9.684659004211426, "ztf_objectidps3":
+        136520597274000250, "ztf_sgmag3": 21.933500289916992, "ztf_srmag3": 20.841899871826172,
+        "ztf_simag3": 19.772300720214844, "ztf_szmag3": 19.29450035095215, "ztf_sgscore3":
+        0.9803270101547241, "ztf_distpsnr3": 17.116878509521484, "ztf_nmtchps": 7,
+        "ztf_rfid": 608120209, "ztf_jdstartref": 2458319.973727, "ztf_jdendref": 2458422.846238,
+        "ztf_nframesref": 15, "ztf_rbversion": "t17_f5_c3", "ztf_dsnrms": 50.06515121459961,
+        "ztf_ssnrms": 93.08914184570312, "ztf_dsdiff": -43.023990631103516, "ztf_magzpsci":
+        26.188148498535156, "ztf_magzpsciunc": 2.866460090444889e-05, "ztf_magzpscirms":
+        0.049842000007629395, "ztf_nmatches": 568, "ztf_clrcoeff": 0.09644600003957748,
+        "ztf_clrcounc": 6.109300011303276e-05, "ztf_zpclrcov": -3.925000055460259e-05,
+        "ztf_zpmed": 26.249500274658203, "ztf_clrmed": 0.5830000042915344, "ztf_clrrms":
+        0.2376060038805008, "ztf_neargaia": 6.3804612159729, "ztf_neargaiabright":
+        -999.0, "ztf_maggaia": 18.846315383911133, "ztf_maggaiabright": -999.0, "ztf_exptime":
+        30.0, "ztf_drb": 0.9999988079071045, "ztf_drbversion": "d6_m7", "ztf_object_id":
+        "ZTF26abeuijw", "ant_mjd": 61224.49046299979, "ant_time_received": 1783085313,
+        "ant_survey": 1, "ant_maglim": 18.01260757446289, "ant_passband": "R", "ant_ra":
+        59.7257233, "ant_dec": 23.7619434, "ant_mag": 15.428149223327637, "ant_magerr":
+        0.020089004188776016}, "survey": "ztf", "processed_at": "2026-07-03T13:28:33.479000",
+        "mjd": 61224.49046299979, "grav_wave_events": []}, "id": "ztf_candidate:3470490460915015042",
+        "relationships": {"thumbnails": {"links": {"related": "http://api.antares.noirlab.edu/v1/alerts/ztf_candidate:3470490460915015042/thumbnails"}}},
+        "links": {"self": "http://api.antares.noirlab.edu/v1/alerts/ztf_candidate:3470490460915015042"}}],
+        "links": {"self": "http://api.antares.noirlab.edu/v1/loci/ANT2026b78o35eau2gs/alerts"},
+        "meta": {"count": 3}}
+
+        '
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Content-Length:
+      - '6479'
+      Via:
+      - 1.1 google
+      content-type:
+      - application/json
+      date:
+      - Fri, 03 Jul 2026 16:21:22 GMT
+      server:
+      - uvicorn
+    status:
+      code: 200
+      message: OK
+version: 1

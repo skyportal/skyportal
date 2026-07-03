@@ -75,6 +75,63 @@ export const brokersApi = skyportalApi.injectEndpoints({
         body: { group_ids: groupIds },
       }),
     }),
+    // Filters this broker manages (skyportal Filter rows with broker altdata).
+    getBrokerFilters: build.query<
+      {
+        id: number;
+        name: string;
+        group_id: number;
+        stream_id: number;
+        altdata?: Record<string, unknown>;
+      }[],
+      number
+    >({
+      query: (brokerId) => `api/brokers/${brokerId}/filters`,
+      providesTags: ["Broker"],
+    }),
+    // Registered provider classes + their config form schemas / capabilities.
+    getBrokerAPIs: build.query<
+      Record<
+        string,
+        {
+          methodsImplemented: Record<string, boolean>;
+          formSchemaConfig?: Record<string, unknown> | null;
+          uiSchema?: Record<string, unknown> | null;
+          surveys?: string[];
+          filterKind?: string;
+        }
+      >,
+      void
+    >({
+      query: () => "api/internal/broker_apis",
+    }),
+    createBroker: build.mutation<
+      { id: number },
+      {
+        name: string;
+        broker_classname: string;
+        altdata: Record<string, unknown>;
+        active?: boolean;
+      }
+    >({
+      query: (body) => ({ url: "api/brokers", method: "POST", body }),
+      invalidatesTags: ["Broker"],
+    }),
+    updateBroker: build.mutation<
+      void,
+      { id: number; patch: Record<string, unknown> }
+    >({
+      query: ({ id, patch }) => ({
+        url: `api/brokers/${id}`,
+        method: "PATCH",
+        body: patch,
+      }),
+      invalidatesTags: ["Broker"],
+    }),
+    deleteBroker: build.mutation<void, number>({
+      query: (id) => ({ url: `api/brokers/${id}`, method: "DELETE" }),
+      invalidatesTags: ["Broker"],
+    }),
   }),
 });
 
@@ -86,4 +143,9 @@ export const {
   useGetSourceIfSavedQuery,
   useSaveBrokerAlertAsSourceMutation,
   useLazyTestBrokerFilterQuery,
+  useGetBrokerFiltersQuery,
+  useGetBrokerAPIsQuery,
+  useCreateBrokerMutation,
+  useUpdateBrokerMutation,
+  useDeleteBrokerMutation,
 } = brokersApi;

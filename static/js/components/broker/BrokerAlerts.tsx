@@ -19,6 +19,8 @@ import {
   useLazyTestBrokerFilterQuery,
 } from "../../ducks/brokers";
 import BrokerAlertCard, { AlertOption } from "./BrokerAlertCard";
+import BrokerFilterManager from "./BrokerFilterManager";
+import LasairFilterBuilder from "./LasairFilterBuilder";
 
 const PAGE_SIZE = 12;
 
@@ -66,8 +68,13 @@ interface NormalizedAlert extends AlertOption {
 const normalizeAlert = (a: any): NormalizedAlert => {
   const cand = a?.candidate ?? a ?? {};
   return {
-    // `object` is the objectId in a Lasair cone result row.
-    objectId: a?.objectId ?? a?.object_id ?? a?.object ?? cand?.objectId,
+    // `object`/`diaObjectId` are the objectId in Lasair cone/LSST result rows.
+    objectId:
+      a?.objectId ??
+      a?.diaObjectId ??
+      a?.object_id ??
+      a?.object ??
+      cand?.objectId,
     candid: cand?.candid ?? a?.candid,
     ra: cand?.ra ?? a?.ra,
     dec: cand?.dec ?? a?.dec,
@@ -85,7 +92,6 @@ const BrokerAlerts = () => {
   const [ra, setRa] = useState("");
   const [dec, setDec] = useState("");
   const [radius, setRadius] = useState("");
-  const [conditions, setConditions] = useState("");
   const [mode, setMode] = useState<"search" | "preview">("search");
   const [page, setPage] = useState(1);
 
@@ -123,16 +129,13 @@ const BrokerAlerts = () => {
     });
   };
 
-  const onPreview = () => {
+  const onPreviewTree = (tree: unknown) => {
     if (brokerId === "") return;
     setMode("preview");
     setPage(1);
     triggerFilter({
       brokerId,
-      params: {
-        conditions: conditions || undefined,
-        limit: 20,
-      },
+      params: { tree, limit: 20 } as Record<string, unknown>,
     });
   };
 
@@ -215,33 +218,23 @@ const BrokerAlerts = () => {
             </Button>
           </div>
 
-          {selectedBroker && selectedBroker.filter_kind !== "none" && (
-            <div className={classes.form}>
-              {canPreview && selectedBroker.filter_kind === "query" ? (
-                <>
-                  <TextField
-                    size="small"
-                    label="Filter query (SQL conditions)"
-                    placeholder="objects.ramean between 279.5 and 280.5"
-                    value={conditions}
-                    onChange={(e) => setConditions(e.target.value)}
-                    sx={{ minWidth: 360, flexGrow: 1 }}
-                  />
-                  <Button
-                    variant="outlined"
-                    onClick={onPreview}
-                    disabled={brokerId === "" || isFetching}
-                  >
-                    {isFetching ? "Running…" : "Preview filter"}
-                  </Button>
-                </>
-              ) : (
+          {selectedBroker &&
+            selectedBroker.filter_kind !== "none" &&
+            (selectedBroker.filter_kind === "pipeline" ? (
+              <BrokerFilterManager brokerId={brokerId as number} />
+            ) : selectedBroker.filter_kind === "query" && canPreview ? (
+              <LasairFilterBuilder
+                brokerId={brokerId as number}
+                survey={survey}
+                onPreview={onPreviewTree}
+              />
+            ) : (
+              <div className={classes.form}>
                 <Typography variant="body2" color="text.secondary">
                   {`Filter kind: ${selectedBroker.filter_kind} — editor coming soon.`}
                 </Typography>
-              )}
-            </div>
-          )}
+              </div>
+            ))}
 
           {error && (
             <Typography color="error" gutterBottom>

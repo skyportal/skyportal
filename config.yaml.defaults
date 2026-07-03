@@ -179,6 +179,10 @@ app:
       component: user/Profile
     - path: "/brokers"
       component: broker/BrokerAlerts
+    - path: "/brokers/:brokerId/filter/:fid"
+      component: broker/BrokerFilterPage
+    - path: "/broker_admin"
+      component: broker/BrokerAdmin
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
@@ -417,6 +421,10 @@ app:
           icon: Group
           permissions: ["Manage users", "System admin"]
           url: /user_management
+        - name: Brokers
+          icon: Hub
+          permissions: ["System admin"]
+          url: /broker_admin
 
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package

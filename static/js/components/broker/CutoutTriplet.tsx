@@ -45,13 +45,16 @@ const CutoutTriplet = ({
           return;
         }
         const d = json.data;
+        // Most brokers return gzipped FITS (decoded here); some (e.g. Fink)
+        // return a ready-to-display image as a data: URL — use it as-is.
+        const toImg = (c: unknown, kind: string) =>
+          typeof c === "string" && c.startsWith("data:")
+            ? c
+            : (bytes2image(c, survey, kind, "bone") ?? null);
         setDataUris({
-          new: bytes2image(d.cutoutScience, survey, "science", "bone") ?? null,
-          ref:
-            bytes2image(d.cutoutTemplate, survey, "template", "bone") ?? null,
-          sub:
-            bytes2image(d.cutoutDifference, survey, "difference", "bone") ??
-            null,
+          new: toImg(d.cutoutScience, "science"),
+          ref: toImg(d.cutoutTemplate, "template"),
+          sub: toImg(d.cutoutDifference, "difference"),
         });
       })
       .catch(() => alive && setDataUris({}));

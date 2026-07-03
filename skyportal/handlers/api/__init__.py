@@ -22,6 +22,8 @@ from .annotation_services import (
 from .broker import (
     BrokerAlertsHandler,
     BrokerCutoutsHandler,
+    BrokerFilterModulesHandler,
+    BrokerFiltersHandler,
     BrokerFilterTestHandler,
     BrokerHandler,
     BrokerSaveHandler,

@@ -23,6 +23,17 @@ def _band(cand):
     return _FID_TO_BAND.get(cand.get("fid")) or (cand.get("filter") or None)
 
 
+def _survey(broker, kwargs=None):
+    """Resolve the Lasair instance's survey: explicit kwarg -> altdata.survey ->
+    detected from the endpoint (only the ZTF instance's host contains 'ztf')."""
+    altdata = broker.altdata or {}
+    survey = (kwargs or {}).get("survey") or altdata.get("survey")
+    if not survey:
+        endpoint = (altdata.get("endpoint") or DEFAULT_ENDPOINT).lower()
+        survey = "ZTF" if "ztf" in endpoint else "LSST"
+    return survey.upper()
+
+
 def _normalize_object(obj, object_id):
     """Reshape a Lasair object into the standard alert shape the rest of the
     stack consumes: ``{objectId, candidate, prv_candidates}``."""
@@ -53,6 +64,67 @@ def _normalize_object(obj, object_id):
         },
         "prv_candidates": prv_candidates,
     }
+
+
+# Mongo-style operators (what the shared builder emits) -> SQL comparison ops.
+_SQL_OPS = {"$eq": "=", "$ne": "!=", "$gt": ">", "$gte": ">=", "$lt": "<", "$lte": "<="}
+
+
+def _sql_value(v):
+    if isinstance(v, bool):
+        return "1" if v else "0"
+    if isinstance(v, (int, float)):
+        return str(v)
+    return "'" + str(v).replace("'", "''") + "'"
+
+
+def _compile_tree_to_sql(node):
+    """Compile the builder's neutral condition tree (blocks of AND/OR + field/
+    operator/value conditions, the same shape BOOM compiles to a Mongo pipeline)
+    into a Lasair SQL WHERE clause."""
+    if not isinstance(node, dict):
+        return ""
+    if node.get("category") == "block" or "children" in node:
+        joiner = (node.get("operator") or "and").upper()
+        parts = [_compile_tree_to_sql(c) for c in (node.get("children") or [])]
+        parts = [p for p in parts if p]
+        return "(" + f" {joiner} ".join(parts) + ")" if parts else ""
+    field = node.get("field")
+    field = field.get("name") if isinstance(field, dict) else field
+    if not field:
+        return ""
+    operator, value = node.get("operator"), node.get("value")
+    if operator == "$in" and isinstance(value, list):
+        return f"{field} IN (" + ", ".join(_sql_value(v) for v in value) + ")"
+    if operator == "$regex":
+        return f"{field} LIKE {_sql_value('%' + str(value) + '%')}"
+    sqlop = _SQL_OPS.get(operator)
+    return f"{field} {sqlop} {_sql_value(value)}" if sqlop else ""
+
+
+def _lasair_schema(survey):
+    """A minimal Avro-style schema of queryable Lasair ``objects`` columns for the
+    builder's field dropdowns (so users pick valid columns instead of typing SQL).
+    Column names differ by instance (ZTF vs LSST)."""
+    if survey == "LSST":
+        fields = [
+            {"name": "objects.diaObjectId", "type": "string"},
+            {"name": "objects.ra", "type": "double"},
+            {"name": "objects.decl", "type": "double"},
+            {"name": "objects.nDiaSources", "type": "int"},
+            {"name": "objects.gPSFluxMean", "type": "double"},
+            {"name": "objects.rPSFluxMean", "type": "double"},
+        ]
+    else:
+        fields = [
+            {"name": "objects.objectId", "type": "string"},
+            {"name": "objects.ramean", "type": "double"},
+            {"name": "objects.decmean", "type": "double"},
+            {"name": "objects.ndethist", "type": "int"},
+            {"name": "objects.gmag", "type": "double"},
+            {"name": "objects.rmag", "type": "double"},
+        ]
+    return {"type": "record", "name": "objects", "fields": fields}
 
 
 def _client(broker):
@@ -140,15 +212,39 @@ class LASAIRBROKER(BrokerAPI):
         )
 
     @staticmethod
+    def filter_modules(broker, session, **kwargs):
+        """Field vocabulary for the shared filter builder. ``elements=schema``
+        (default) returns the queryable Lasair columns as an Avro-style schema so
+        the builder offers valid fields; other elements are broker-scoped custom
+        modules stored in altdata (same as BOOM)."""
+        elements = kwargs.get("elements", "schema")
+        if elements == "schema":
+            return {"schema": _lasair_schema(_survey(broker, kwargs))}
+        modules = (broker.altdata or {}).get("filter_modules") or {}
+        return {elements: modules.get(elements, [])}
+
+    @staticmethod
     def test_filter(broker, session, **kwargs):
         # Run a Lasair SQL query and return the matching rows (renderable as
-        # alerts). Callers supply `selected`, `tables`, `conditions`, `limit`.
-        selected = (
-            kwargs.get("selected")
-            or "objects.objectId, objects.ramean, objects.decmean"
+        # alerts). Accepts either raw ``conditions`` (SQL) or a neutral condition
+        # ``tree`` from the shared builder, compiled here to SQL. Object-id/coord
+        # columns differ by instance (ZTF vs LSST).
+        survey = _survey(broker, kwargs)
+        default_selected = (
+            "objects.diaObjectId, objects.ra, objects.decl"
+            if survey == "LSST"
+            else "objects.objectId, objects.ramean, objects.decmean"
         )
+        selected = kwargs.get("selected") or default_selected
         tables = kwargs.get("tables") or "objects"
-        conditions = kwargs.get("conditions") or ""
+        tree = kwargs.get("tree") or kwargs.get("filters")
+        if tree is not None:
+            # The builder holds a list of top-level blocks; AND them together.
+            if isinstance(tree, list):
+                tree = {"operator": "and", "children": tree}
+            conditions = _compile_tree_to_sql(tree)
+        else:
+            conditions = kwargs.get("conditions") or ""
         limit = int(kwargs.get("limit", 50))
         return _client(broker).query(selected, tables, conditions, limit=limit)
 
@@ -208,7 +304,7 @@ class LASAIRBROKER(BrokerAPI):
         from ._save import save_object_as_candidate
 
         altdata = broker.altdata or {}
-        survey = altdata.get("survey", "LSST")
+        survey = _survey(broker)
         default_filter_ids = altdata.get("filter_ids") or []
         queries = altdata.get("queries") or []
         poll_interval = float(altdata.get("poll_interval", 86400))

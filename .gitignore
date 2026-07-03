@@ -80,3 +80,5 @@ credential
 
 # local broker credentials for testing (never commit)
 .secrets
+.fink
+key.json
