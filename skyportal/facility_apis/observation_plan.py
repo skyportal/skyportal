@@ -97,26 +97,48 @@ class MMAAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit_multiple(requests, asynchronous=True):
+    async def submit_multiple(request_ids, session, asynchronous=True):
         """Generate multiple observation plans.
 
         Parameters
         ----------
-        requests: skyportal.models.ObservationPlanRequest
-            The list of requests to generate the observation plan.
+        request_ids : list of int
+            The IDs of the ObservationPlanRequests to generate observation plans for.
+        session : sqlalchemy.ext.asyncio.AsyncSession
+            Async database session; the caller owns its lifecycle.
         asynchronous : bool
             Create asynchronous request. Defaults to True.
         """
 
         from tornado.ioloop import IOLoop
 
-        from ..models import DBSession, EventObservationPlan
+        from ..models import Allocation, EventObservationPlan, ObservationPlanRequest
         from ..utils.observation_plan import generate_plan
 
-        plan_ids, request_ids = [], []
+        # Re-load requests with the relationships this method reads eagerly
+        # populated (gcnevent, requester, allocation.instrument) for the async session.
+        requests = (
+            await session.scalars(
+                sa.select(ObservationPlanRequest)
+                .where(ObservationPlanRequest.id.in_(request_ids))
+                .options(
+                    selectinload(ObservationPlanRequest.gcnevent),
+                    selectinload(ObservationPlanRequest.requester),
+                    selectinload(ObservationPlanRequest.allocation).selectinload(
+                        Allocation.instrument
+                    ),
+                )
+            )
+        ).all()
+
+        plan_ids, generated_request_ids = [], []
         for request in requests:
-            plan = EventObservationPlan.query.filter_by(
-                plan_name=request.payload["queue_name"]
+            plan = (
+                await session.scalars(
+                    sa.select(EventObservationPlan).where(
+                        EventObservationPlan.plan_name == request.payload["queue_name"]
+                    )
+                )
             ).first()
             if plan is None:
                 # check payload
@@ -179,12 +201,11 @@ class MMAAPI(FollowUpAPI):
                     validity_window_end=end_time.datetime,
                 )
 
-                DBSession().add(plan)
-                DBSession().commit()
+                session.add(plan)
+                await session.commit()
 
                 request.status = "running"
-                DBSession().merge(request)
-                DBSession().commit()
+                await session.commit()
 
                 log(
                     f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
@@ -198,7 +219,7 @@ class MMAAPI(FollowUpAPI):
                 )
 
                 plan_ids.append(plan.id)
-                request_ids.append(request.id)
+                generated_request_ids.append(request.id)
             else:
                 raise ValueError(
                     f"plan_name {request.payload['queue_name']} already exists."
@@ -212,14 +233,14 @@ class MMAAPI(FollowUpAPI):
                 None,
                 lambda: generate_plan(
                     observation_plan_ids=plan_ids,
-                    request_ids=request_ids,
+                    request_ids=generated_request_ids,
                     user_id=requester_id,
                 ),
             )
         else:
             generate_plan(
                 observation_plan_ids=plan_ids,
-                request_ids=request_ids,
+                request_ids=generated_request_ids,
                 user_id=requester_id,
             )
 
@@ -227,198 +248,203 @@ class MMAAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request_id, asynchronous=True):
+    async def submit(request_id, session, asynchronous=True):
         """Generate an observation plan.
 
         Parameters
         ----------
         request_id : int
             The ID of the ObservationPlanRequest to generate the observation plan.
+        session : sqlalchemy.ext.asyncio.AsyncSession
+            Async database session; the caller owns its lifecycle.
         asynchronous : bool
             Create asynchronous request. Defaults to True.
         """
 
         from tornado.ioloop import IOLoop
 
-        from ..models import DBSession, EventObservationPlan, ObservationPlanRequest
+        from ..models import Allocation, EventObservationPlan, ObservationPlanRequest
         from ..utils.observation_plan import generate_plan
 
-        with DBSession() as session:
-            request = session.scalar(
-                sa.select(ObservationPlanRequest).where(
-                    ObservationPlanRequest.id == request_id
-                )
+        # Re-load the request with the relationships this method reads eagerly
+        # populated (gcnevent, requester, and instrument -- a property proxying
+        # allocation.instrument), so nothing lazy-loads on the async session.
+        request = await session.scalar(
+            sa.select(ObservationPlanRequest)
+            .where(ObservationPlanRequest.id == request_id)
+            .options(
+                selectinload(ObservationPlanRequest.gcnevent),
+                selectinload(ObservationPlanRequest.requester),
+                selectinload(ObservationPlanRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
             )
-            plan = session.scalars(
+        )
+        plan = (
+            await session.scalars(
                 sa.select(EventObservationPlan).where(
                     EventObservationPlan.plan_name == request.payload["queue_name"]
                 )
-            ).first()
+            )
+        ).first()
 
-            # if the request is marked as running but there is a plan that is complete,
-            # then mark the request as complete as well
+        # if the request is marked as running but there is a plan that is complete,
+        # then mark the request as complete as well
+        if (
+            plan is not None
+            and plan.status == "complete"
+            and request.status == "running"
+        ):
+            request.status = "complete"
+            await session.commit()
+            log(
+                f"Plan {plan.id} is already complete. Marking request {request.id} as complete."
+            )
+            return plan.id
+
+        # if the request is marked as running and there is already a plan that is pending submissions,
+        # then it is likely that processing the plan failed before
+        # so we delete the plan and create a new one
+        if (
+            plan is not None
+            and plan.status == "pending submission"
+            and request.status == "running"
+        ):
+            log(
+                f"Plan {plan.id} has been pending submission for more than 24 hours. Deleting and creating a new plan."
+            )
+            await session.delete(plan)
+            await session.commit()
+            plan = None
+
+        if plan is None:
+            # check payload
+            required_parameters = {
+                "start_date",
+                "end_date",
+                "schedule_type",
+                "schedule_strategy",
+                "filter_strategy",
+                "exposure_time",
+                "filters",
+                "maximum_airmass",
+                "integrated_probability",
+            }
+
+            if not required_parameters.issubset(set(request.payload.keys())):
+                raise ValueError("Missing required planning parameter")
+
             if (
-                plan is not None
-                and plan.status == "complete"
-                and request.status == "running"
+                request.payload["filter_strategy"] == "integrated"
+                and "minimum_time_difference" not in request.payload
             ):
-                request.status = "complete"
-                session.merge(request)
-                session.commit()
-                log(
-                    f"Plan {plan.id} is already complete. Marking request {request.id} as complete."
+                raise ValueError(
+                    "minimum_time_difference must be defined for integrated scheduling"
                 )
-                return plan.id
 
-            # if the request is marked as running and there is already a plan that is pending submissions,
-            # then it is likely that processing the plan failed before
-            # so we delete the plan and create a new one
+            if request.payload["schedule_type"] not in [
+                "greedy",
+                "greedy_slew",
+                "sear",
+                "airmass_weighted",
+            ]:
+                raise ValueError(
+                    "schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted"
+                )
+
             if (
-                plan is not None
-                and plan.status == "pending submission"
-                and request.status == "running"
+                request.payload["integrated_probability"] < 0
+                or request.payload["integrated_probability"] > 100
             ):
-                log(
-                    f"Plan {plan.id} has been pending submission for more than 24 hours. Deleting and creating a new plan."
-                )
-                session.delete(plan)
-                session.commit()
-                plan = None
+                raise ValueError("integrated_probability must be between 0 and 100")
 
-            if plan is None:
-                # check payload
-                required_parameters = {
-                    "start_date",
-                    "end_date",
-                    "schedule_type",
-                    "schedule_strategy",
-                    "filter_strategy",
-                    "exposure_time",
-                    "filters",
-                    "maximum_airmass",
-                    "integrated_probability",
-                }
+            if request.payload["filter_strategy"] not in ["block", "integrated"]:
+                raise ValueError("filter_strategy must be either block or integrated")
 
-                if not required_parameters.issubset(set(request.payload.keys())):
-                    raise ValueError("Missing required planning parameter")
+            start_time = Time(request.payload["start_date"], format="iso", scale="utc")
+            end_time = Time(request.payload["end_date"], format="iso", scale="utc")
 
-                if (
-                    request.payload["filter_strategy"] == "integrated"
-                    and "minimum_time_difference" not in request.payload
-                ):
-                    raise ValueError(
-                        "minimum_time_difference must be defined for integrated scheduling"
-                    )
+            plan = EventObservationPlan(
+                observation_plan_request_id=request.id,
+                dateobs=request.gcnevent.dateobs,
+                plan_name=request.payload["queue_name"],
+                instrument_id=request.instrument.id,
+                validity_window_start=start_time.datetime,
+                validity_window_end=end_time.datetime,
+            )
 
-                if request.payload["schedule_type"] not in [
-                    "greedy",
-                    "greedy_slew",
-                    "sear",
-                    "airmass_weighted",
-                ]:
-                    raise ValueError(
-                        "schedule_type must be one of greedy, greedy_slew, sear, or airmass_weighted"
-                    )
+            session.add(plan)
+            await session.commit()
 
-                if (
-                    request.payload["integrated_probability"] < 0
-                    or request.payload["integrated_probability"] > 100
-                ):
-                    raise ValueError("integrated_probability must be between 0 and 100")
+            plan_id = plan.id
 
-                if request.payload["filter_strategy"] not in ["block", "integrated"]:
-                    raise ValueError(
-                        "filter_strategy must be either block or integrated"
-                    )
+            request.status = "running"
+            await session.commit()
 
-                start_time = Time(
-                    request.payload["start_date"], format="iso", scale="utc"
-                )
-                end_time = Time(request.payload["end_date"], format="iso", scale="utc")
+            log(
+                f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
+            )
 
-                plan = EventObservationPlan(
-                    observation_plan_request_id=request.id,
-                    dateobs=request.gcnevent.dateobs,
-                    plan_name=request.payload["queue_name"],
-                    instrument_id=request.instrument.id,
-                    validity_window_start=start_time.datetime,
-                    validity_window_end=end_time.datetime,
-                )
+            flow = Flow()
+            flow.push(
+                "*",
+                "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
+                payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
+            )
 
-                session.add(plan)
-                session.commit()
+            flow.push(
+                "*",
+                "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
+            )
 
-                plan_id = plan.id
+            log(f"Generating schedule for observation plan {plan.id}")
+            requester_id = request.requester.id
 
-                request.status = "running"
-                session.merge(request)
-                session.commit()
-
-                log(
-                    f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
-                )
-
-                flow = Flow()
-                flow.push(
-                    "*",
-                    "skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
-                    payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
-                )
-
-                flow.push(
-                    "*",
-                    "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
-                )
-
-                log(f"Generating schedule for observation plan {plan.id}")
-                requester_id = request.requester.id
-
-                if asynchronous:
-                    IOLoop.current().run_in_executor(
-                        # TODO: add stats_method and stats_logging to the arguments
-                        None,
-                        lambda: generate_plan(
-                            observation_plan_ids=[plan.id],
-                            request_ids=[request.id],
-                            user_id=requester_id,
-                        ),
-                    )
-                else:
-                    generate_plan(
+            if asynchronous:
+                IOLoop.current().run_in_executor(
+                    # TODO: add stats_method and stats_logging to the arguments
+                    None,
+                    lambda: generate_plan(
                         observation_plan_ids=[plan.id],
                         request_ids=[request.id],
                         user_id=requester_id,
-                    )
-
-                return plan_id
-
+                    ),
+                )
             else:
-                raise ValueError(
-                    f"plan_name {request.payload['queue_name']} already exists."
+                generate_plan(
+                    observation_plan_ids=[plan.id],
+                    request_ids=[request.id],
+                    user_id=requester_id,
                 )
 
+            return plan_id
+
+        else:
+            raise ValueError(
+                f"plan_name {request.payload['queue_name']} already exists."
+            )
+
     @staticmethod
-    def delete(request_id):
+    async def delete(request, session, **kwargs):
         """Delete an observation plan from list.
 
         Parameters
         ----------
-        request_id: integer
-            The id of the skyportal.models.ObservationPlanRequest to delete from the queue and the SkyPortal database.
+        request : skyportal.models.ObservationPlanRequest
+            The request to delete from the queue and the SkyPortal database.
+        session : sqlalchemy.ext.asyncio.AsyncSession
+            Async database session; the caller owns its lifecycle.
         """
 
-        from ..models import DBSession, ObservationPlanRequest
+        from ..models import ObservationPlanRequest
 
         req = (
-            DBSession.execute(
+            await session.scalars(
                 sa.select(ObservationPlanRequest)
-                .filter(ObservationPlanRequest.id == request_id)
-                .options(joinedload(ObservationPlanRequest.observation_plans))
+                .where(ObservationPlanRequest.id == request.id)
+                .options(selectinload(ObservationPlanRequest.observation_plans))
             )
-            .unique()
-            .one()
-        )
-        req = req[0]
+        ).one()
 
         if len(req.observation_plans) > 1:
             raise ValueError(
@@ -426,11 +452,10 @@ class MMAAPI(FollowUpAPI):
             )
 
         if len(req.observation_plans) > 0:
-            observation_plan = req.observation_plans[0]
-            DBSession().delete(observation_plan)
+            await session.delete(req.observation_plans[0])
 
-        DBSession().delete(req)
-        DBSession().commit()
+        await session.delete(req)
+        await session.commit()
 
     def custom_json_schema(instrument, user, **kwargs):
         from ..models import DBSession, GalaxyCatalog, InstrumentField

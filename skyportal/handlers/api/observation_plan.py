@@ -1357,10 +1357,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                     "Cannot delete observation plan sent to the telescope queue."
                 )
 
-            def _delete(sync_session):
-                api.delete(observation_plan_request.id)
-
-            await session.run_sync(_delete)
+            await api.delete(observation_plan_request, session)
 
             self.push_all(
                 action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
