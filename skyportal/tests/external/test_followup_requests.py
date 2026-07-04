@@ -1049,24 +1049,29 @@ def test_edit_existing_followup_request(
     submit_button.click()
 
     page.locator(f"//*[@data-testid='{instrument_id}-requests-header']").first.click()
+    # Assert on cell contents by column (data-field), not visibility: the DataGrid
+    # horizontally virtualizes columns, so a matching cell can be rendered outside
+    # the viewport and fail a visibility check even when the edit succeeded. Scope
+    # to role="gridcell" so we don't match the column headers (which share
+    # data-field). text_content works regardless of the column being scrolled in.
+    requests_table = (
+        f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]'
+    )
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "IFU")]'
+            f'{requests_table}//div[@role="gridcell" and @data-field="payload.observation_choices"]'
         ).first
-    ).to_be_visible()
-    # Match the priority cell exactly: `contains(., "1")` also matches hidden
-    # wrapper divs whose subtree happens to include a "1", so `.first` can latch
-    # onto a hidden ancestor and never resolve.
+    ).to_contain_text("IFU")
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[normalize-space(.)="1"]'
+            f'{requests_table}//div[@role="gridcell" and @data-field="payload.priority"]'
         ).first
-    ).to_be_visible()
+    ).to_have_text("1")
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "submitted")]'
+            f'{requests_table}//div[@role="gridcell" and @data-field="status"]'
         ).first
-    ).to_be_visible()
+    ).to_contain_text("submitted")
 
 
 def test_delete_followup_request_SEDMv2(
