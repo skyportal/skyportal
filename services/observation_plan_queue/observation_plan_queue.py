@@ -239,10 +239,14 @@ def service(*args, **kwargs):
                         session.commit()
                         time.sleep(2)
                         continue
+                    # submit committed the status in its own async session, so this
+                    # sync session's cached copy is stale — populate_existing forces
+                    # a refresh (else we'd read the pre-submit status and never
+                    # advance it to "complete").
                     plan_request = session.scalar(
-                        sa.select(ObservationPlanRequest).where(
-                            ObservationPlanRequest.id == plan_request.id
-                        )
+                        sa.select(ObservationPlanRequest)
+                        .where(ObservationPlanRequest.id == plan_request.id)
+                        .execution_options(populate_existing=True)
                     )
                     log(f"Plan {plan_id} status: {plan_request.status}")
                     if plan_request.status == "running":
@@ -286,10 +290,12 @@ def service(*args, **kwargs):
                         continue
 
                     for plan_request in plan_requests:
+                        # populate_existing: refresh the stale cached copy, since
+                        # submit_multiple committed the status in its own session.
                         plan_request = session.scalar(
-                            sa.select(ObservationPlanRequest).where(
-                                ObservationPlanRequest.id == plan_request.id
-                            )
+                            sa.select(ObservationPlanRequest)
+                            .where(ObservationPlanRequest.id == plan_request.id)
+                            .execution_options(populate_existing=True)
                         )
                         log(f"Plan {plan_request.id} status: {plan_request.status}")
                         if plan_request.status == "running":
