@@ -20,6 +20,7 @@ import Button from "../Button";
 
 import GroupUsers from "./GroupUsers";
 import GroupFiltersStreams from "./GroupFiltersStreams";
+import GroupSettingsForm from "./GroupSettingsForm";
 
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupQuery } from "../../ducks/group";
@@ -188,6 +189,7 @@ const Group = () => {
         isAdmin={isAdmin}
         theme={theme}
       />
+      {isAdmin(currentUser) && <GroupSettingsForm group={group} />}
       {isAdmin(currentUser) && (
         <Button secondary onClick={() => setConfirmDeleteOpen(true)}>
           Delete Group

@@ -369,6 +369,7 @@ class GroupHandler(BaseHandler):
                 name=data["name"],
                 nickname=data.get("nickname") or None,
                 description=data.get("description") or None,
+                auto_accept_requests=data.get("auto_accept_requests", False),
             )
 
             session.add(g)
