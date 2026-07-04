@@ -56,6 +56,19 @@ def render(host):
 
     lines.append("# TYPE http_server_active_requests gauge")
     lines.append(f'http_server_active_requests{{http_host="{host}"}} {1 + n % 3}')
+
+    # Event-loop lag (ms): most samples near zero, a small blocked tail.
+    lines.append("# TYPE tornado_event_loop_lag_milliseconds histogram")
+    lag_total = 20 * n
+    for le, frac in zip(
+        [5, 10, 25, 50, 100, 250, 500], [0.7, 0.85, 0.93, 0.97, 0.99, 0.995, 0.999]
+    ):
+        lines.append(
+            f'tornado_event_loop_lag_milliseconds_bucket{{le="{le}"}} {int(lag_total * frac)}'
+        )
+    lines.append(f'tornado_event_loop_lag_milliseconds_bucket{{le="+Inf"}} {lag_total}')
+    lines.append(f"tornado_event_loop_lag_milliseconds_sum{{}} {lag_total * 8}")
+    lines.append(f"tornado_event_loop_lag_milliseconds_count{{}} {lag_total}")
     return "\n".join(lines) + "\n"
 
 

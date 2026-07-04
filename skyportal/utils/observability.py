@@ -7,6 +7,11 @@ log = make_log("observability")
 # Don't generate spans/metrics for the scrape endpoint or health-check noise.
 _EXCLUDED_URLS = "/api/internal/metrics,/api/sysinfo"
 
+# Sampling cadence for the event-loop lag probe.
+_LAG_PROBE_INTERVAL_MS = 500
+# Module-level reference so the periodic callback isn't garbage-collected.
+_lag_probe = None
+
 
 def setup_observability(cfg):
     """Configure OpenTelemetry Tornado instrumentation and a Prometheus reader.
@@ -42,8 +47,41 @@ def setup_observability(cfg):
     )
 
     TornadoInstrumentor().instrument()
+    _instrument_event_loop_lag()
     log(
         "OpenTelemetry instrumentation enabled; "
         "Prometheus metrics at /api/internal/metrics"
     )
     return True
+
+
+def _instrument_event_loop_lag():
+    """Record how long the Tornado IOLoop is blocked between iterations.
+
+    A callback scheduled every ``_LAG_PROBE_INTERVAL_MS`` should fire on that
+    cadence; any extra delay is time the single-threaded loop spent blocked
+    (e.g. in a synchronous handler). This is the most direct signal of async
+    vs. blocking behavior. Recorded in milliseconds so the default histogram
+    buckets resolve typical sub-second lag.
+    """
+    global _lag_probe
+    from opentelemetry import metrics
+    from tornado.ioloop import IOLoop, PeriodicCallback
+
+    interval_s = _LAG_PROBE_INTERVAL_MS / 1000
+    lag = metrics.get_meter("skyportal.observability").create_histogram(
+        "tornado.event_loop.lag",
+        unit="ms",
+        description="Delay beyond the scheduled interval between IOLoop probe "
+        "callbacks; nonzero means the loop was blocked.",
+    )
+    state = {"last": None}
+
+    def probe():
+        now = IOLoop.current().time()
+        if state["last"] is not None:
+            lag.record(max(0.0, (now - state["last"] - interval_s) * 1000))
+        state["last"] = now
+
+    _lag_probe = PeriodicCallback(probe, _LAG_PROBE_INTERVAL_MS)
+    _lag_probe.start()
