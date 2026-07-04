@@ -31,6 +31,10 @@ jobs:
         env:
           POSTGRES_USER: skyportal
           POSTGRES_PASSWORD: anything
+          # Trust host connections too (already trust for local): the connection
+          # pooling test runs pgbouncer against this DB, and pgbouncer has no
+          # PGPASSWORD fallback like psycopg does.
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         # needed because the postgres container does not provide a
