@@ -69,3 +69,8 @@ dists/
 
 # postgres persistent volume
 data/dbdata/
+
+# Generated pgbouncer config (from services/pgbouncer/*.template)
+services/pgbouncer/pgbouncer.ini
+services/pgbouncer/supervisor.conf
+services/pgbouncer/userlist.txt

@@ -107,7 +107,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update -y
-          sudo apt install -y wget unzip libcurl4-gnutls-dev libgnutls28-dev nginx
+          sudo apt install -y wget unzip libcurl4-gnutls-dev libgnutls28-dev nginx pgbouncer
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
