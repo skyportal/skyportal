@@ -1054,9 +1054,12 @@ def test_edit_existing_followup_request(
             f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "IFU")]'
         ).first
     ).to_be_visible()
+    # Match the priority cell exactly: `contains(., "1")` also matches hidden
+    # wrapper divs whose subtree happens to include a "1", so `.first` can latch
+    # onto a hidden ancestor and never resolve.
     expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[contains(., "1")]'
+            f'//div[contains(@data-testid, "{instrument_id}_followupRequestsTable")]//div[normalize-space(.)="1"]'
         ).first
     ).to_be_visible()
     expect(
