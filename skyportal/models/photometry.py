@@ -60,6 +60,11 @@ class Photometry(conesearch_alchemy.Point, Base):
 
     __tablename__ = "photometry"
 
+    # created_at is never queried on this 1B-row table; skip the dead index.
+    index_created_at = False
+    # cone search runs on Obj, not raw photometry; skip the spatial point index.
+    index_point = False
+
     read = (
         accessible_by_groups_members
         | accessible_by_streams_members
@@ -92,7 +97,6 @@ class Photometry(conesearch_alchemy.Point, Base):
     ref_flux = sa.Column(
         sa.Float,
         nullable=True,
-        index=True,
         doc="Reference flux. E.g., "
         "of the source before transient started, "
         "or the mean flux of a variable source.",
@@ -124,7 +128,6 @@ class Photometry(conesearch_alchemy.Point, Base):
         sa.String,
         nullable=False,
         unique=False,
-        index=True,
         doc="Origin from which this Photometry was extracted (if any).",
         server_default="",
     )

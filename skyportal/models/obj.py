@@ -206,7 +206,7 @@ class Obj(Base, conesearch_alchemy.Point):
         sa.Float, default=0.0, doc="Offset from nearest static object [arcsec]."
     )
     t0 = sa.Column(sa.Float, nullable=True, doc="Reference time.")
-    redshift = sa.Column(sa.Float, nullable=True, index=True, doc="Redshift.")
+    redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
     redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
     redshift_origin = sa.Column(sa.String, nullable=True, doc="Redshift source.")
     redshift_history = sa.Column(
@@ -223,7 +223,6 @@ class Obj(Base, conesearch_alchemy.Point):
     host_id = sa.Column(
         sa.ForeignKey("galaxys.id", ondelete="CASCADE"),
         nullable=True,
-        index=True,
         doc="The ID of the Galaxy to which this Obj is associated.",
     )
     summary = sa.Column(sa.String, nullable=True, doc="Summary of the obj.")
@@ -290,7 +289,7 @@ class Obj(Base, conesearch_alchemy.Point):
         sa.ARRAY(sa.String), nullable=True, doc="Alternative names for this object."
     )
 
-    healpix = sa.Column(healpix_alchemy.Point, index=True)
+    healpix = sa.Column(healpix_alchemy.Point)
 
     internal_key = sa.Column(
         sa.String,
