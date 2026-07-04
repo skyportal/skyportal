@@ -1,9 +1,11 @@
+import asyncio
 import os
 import tempfile
 
 import astropy.units as u
 import numpy as np
 import paramiko
+import sqlalchemy as sa
 from astroplan import Observer, is_always_observable
 from astroplan.constraints import AltitudeConstraint
 from astropy.coordinates import EarthLocation, SkyCoord, get_body
@@ -11,6 +13,7 @@ from astropy.table import Table
 from astropy.time import Time
 from paramiko import SSHClient
 from scp import SCPClient
+from sqlalchemy.orm import selectinload
 
 from baselayer.log import make_log
 
@@ -96,7 +99,7 @@ class GROWTHINDIAMMAAPI(MMAAPI):
     """An interface to GROWTH-India MMA operations."""
 
     @staticmethod
-    def send(request, session):
+    async def send(request, session):
         """Submit an EventObservationPlan.
 
         Parameters
@@ -105,7 +108,27 @@ class GROWTHINDIAMMAAPI(MMAAPI):
             The request to add to the queue and the SkyPortal database.
         """
 
-        from ..models import FacilityTransaction
+        from ..models import (
+            EventObservationPlan,
+            FacilityTransaction,
+            ObservationPlanRequest,
+            PlannedObservation,
+        )
+
+        # Reload with the lazy chains this method (and
+        # _build_observation_plan_payload) walks eager-loaded, since async
+        # sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(ObservationPlanRequest)
+            .where(ObservationPlanRequest.id == request.id)
+            .options(
+                selectinload(ObservationPlanRequest.allocation),
+                selectinload(ObservationPlanRequest.requester),
+                selectinload(ObservationPlanRequest.observation_plans)
+                .selectinload(EventObservationPlan.planned_observations)
+                .selectinload(PlannedObservation.field),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -122,37 +145,42 @@ class GROWTHINDIAMMAAPI(MMAAPI):
             "user": request.requester.username,
         }
 
-        with tempfile.NamedTemporaryFile(mode="w") as f:
-            tab = get_table(payload)
-            tab.write(f, format="csv")
-            f.seek(0)
+        def _scp_put(altdata, payload):
+            """Blocking paramiko/SCP upload; run off the event loop."""
+            with tempfile.NamedTemporaryFile(mode="w") as f:
+                tab = get_table(payload)
+                tab.write(f, format="csv")
+                f.seek(0)
 
-            ssh = SSHClient()
-            ssh.load_system_host_keys()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(
-                hostname=altdata["host"],
-                port=altdata["port"],
-                username=altdata["username"],
-                password=altdata["password"],
-            )
-            scp = SCPClient(ssh.get_transport())
-            scp.put(
-                f.name,
-                os.path.join(altdata["directory"], payload["queue_name"] + ".csv"),
-            )
-            scp.close()
+                ssh = SSHClient()
+                ssh.load_system_host_keys()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.connect(
+                    hostname=altdata["host"],
+                    port=altdata["port"],
+                    username=altdata["username"],
+                    password=altdata["password"],
+                )
+                scp = SCPClient(ssh.get_transport())
+                scp.put(
+                    f.name,
+                    os.path.join(altdata["directory"], payload["queue_name"] + ".csv"),
+                )
+                scp.close()
 
-            request.status = "submitted"
+        # paramiko/scp do blocking socket IO that can't be aiohttp-ified.
+        await asyncio.to_thread(_scp_put, altdata, payload)
 
-            transaction = FacilityTransaction(
-                request=None,
-                response=None,
-                observation_plan_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
+        request.status = "submitted"
 
-            session.add(transaction)
+        transaction = FacilityTransaction(
+            request=None,
+            response=None,
+            observation_plan_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+
+        session.add(transaction)
 
     form_json_schema_altdata = {
         "type": "object",

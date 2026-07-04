@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import functools
 import io
 import json
@@ -41,6 +42,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
+from baselayer.app.models import async_plain_session_factory
 from baselayer.log import make_log
 
 from ...models import (
@@ -520,378 +522,13 @@ def compare_dicts(a, b, ignore_keys=()):
     return True
 
 
-def post_followup_request(
-    data, constraints, session, refresh_source=True, refresh_requests=False
-):
-    """Post follow-up request to database.
-    data: dict
-        Follow-up request dictionary
-    constraints: dict
-        Constraints dictionary, to apply before submitting request
-    session: sqlalchemy.Session
-        Database session for this transaction
-    refresh_source : bool
-        Refresh source upon post. Defaults to True.
-    refresh_requests : bool
-        Refresh requests upon post. Defaults to False.
-    """
-
-    if isinstance(constraints, dict):
-        if len(constraints.get("source_group_ids", [])) > 0:
-            # verify that there is a source for each of the group IDs
-            existing_sources = session.scalars(
-                Source.select(session.user_or_token).where(
-                    Source.group_id.in_(constraints["source_group_ids"]),
-                    Source.obj_id == data["obj_id"],
-                    Source.active.is_(True),
-                )
-            ).all()
-            if len(existing_sources) != len(constraints["source_group_ids"]):
-                raise ValueError(
-                    "There is no source for one or more of the source_group_ids specified as a constraint, not submitting request."
-                )
-
-        # the following constraints are spatial and require position and radius
-        radius = constraints.get("radius", 0.5) / 3600
-        obj = session.scalars(
-            Obj.select(session.user_or_token).where(Obj.id == data["obj_id"])
-        ).first()
-        if obj is None:
-            raise ValueError(f"Could not find source with ID {data['obj_id']}.")
-
-        if constraints.get("not_if_duplicates", False):
-            # verify that there is no follow-up requests with the same allocation and within the radius
-            # that are in the "submitted" or "completed" state
-            # apply the same logic to a list of allocations if provided, not just the one for the new request
-            try:
-                ignore_allocation_ids = constraints.get("ignore_allocation_ids", [])
-                ignore_allocation_ids = [int(i) for i in ignore_allocation_ids]
-            except ValueError:
-                raise ValueError(
-                    "ignore_allocation_ids must be a valid list of integers."
-                )
-
-            existing_requests = session.scalars(
-                FollowupRequest.select(session.user_or_token).where(
-                    FollowupRequest.allocation_id.in_(
-                        list(set([data["allocation_id"]] + ignore_allocation_ids))
-                    ),
-                    sa.or_(
-                        func.lower(FollowupRequest.status)
-                        .contains("submitted")
-                        .is_(True),
-                        func.lower(FollowupRequest.status)
-                        .contains("completed")
-                        .is_(True),
-                    ),
-                    FollowupRequest.obj_id.in_(
-                        sa.select(Obj.id).where(
-                            Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius)
-                        )
-                    ),
-                )
-            ).first()
-            if existing_requests is not None:
-                if existing_requests.allocation_id == data["allocation_id"]:
-                    raise ValueError(
-                        "There is already a follow-up request for this source and allocation, not submitting request."
-                    )
-                else:
-                    raise ValueError(
-                        "There is already a follow-up request for this source and one of the ignore_allocation_ids, not submitting request."
-                    )
-
-        if len(constraints.get("ignore_source_group_ids", [])) > 0:
-            # verify that there is NO source saved to any of the group IDs (within the radius)
-            ignore_existing_sources = session.scalars(
-                Source.select(session.user_or_token).where(
-                    Source.group_id.in_(constraints["ignore_source_group_ids"]),
-                    Source.obj_id.in_(
-                        sa.select(Obj.id).where(
-                            Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius)
-                        )
-                    ),
-                    Source.active.is_(True),
-                )
-            ).first()
-            if ignore_existing_sources is not None:
-                raise ValueError(
-                    "There is a source for one or more of the ignore_source_group_ids specified as a constraint, not submitting request."
-                )
-
-        if constraints.get("not_if_classified", False):
-            # verify that there is no classified source (within the radius)
-            existing_classifications = session.scalars(
-                Classification.select(session.user_or_token).where(
-                    Classification.obj_id.in_(
-                        sa.select(Obj.id).where(
-                            Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius)
-                        )
-                    ),
-                    Classification.ml.is_(False),  # ignore ML classifications
-                )
-            ).first()
-            if existing_classifications is not None:
-                raise ValueError(
-                    "Source has already been classified, not submitting request (as per constraint)."
-                )
-        if constraints.get("not_if_spectra_exist", False):
-            # verify that there is no source with spectra within the radius
-            existing_spectra = session.scalars(
-                Spectrum.select(session.user_or_token).where(
-                    Spectrum.obj_id.in_(
-                        sa.select(Obj.id).where(
-                            Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius)
-                        )
-                    )
-                )
-            ).first()
-            if existing_spectra is not None:
-                raise ValueError(
-                    "Source has already been observed spectroscopically, not submitting request (as per constraint)."
-                )
-        if constraints.get("not_if_tns_classified", False):
-            # don't trigger if there is any source within the radius
-            # that has a tns_name that contains "SN"
-            existing_tns_classifications = session.scalars(
-                Obj.select(session.user_or_token).where(
-                    Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius),
-                    Obj.tns_name.startswith("SN"),
-                )
-            ).first()
-            if existing_tns_classifications is not None:
-                raise ValueError(
-                    f"Source within {radius} arcsec has already been classified in TNS, not submitting request (as per constraint)."
-                )
-        if isinstance(constraints.get("not_if_tns_reported", None), int | float):
-            # don't trigger if there is any source within the radius
-            # that has been reported to TNS, and first detected more than X hours ago
-            existing_tns_sources = session.scalars(
-                Obj.select(session.user_or_token).where(
-                    Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius),
-                    Obj.tns_name.isnot(None),
-                    Obj.tns_name != "",
-                    Obj.tns_info.isnot(None),
-                    Obj.tns_info != {},
-                )
-            ).all()
-            for existing_tns_source in existing_tns_sources:
-                try:
-                    tns_info = existing_tns_source.tns_info
-                    if tns_info is None:
-                        raise ValueError("TNS info missing")
-                    if isinstance(tns_info, str):
-                        tns_info = json.loads(tns_info)
-
-                    tns_time = None
-                    tns_photometry = tns_info.get("photometry", [])
-                    if len(tns_photometry) > 0 and all(
-                        isinstance(p, dict)
-                        and isinstance(p.get("jd"), int | float | str)
-                        for p in tns_photometry
-                    ):
-                        # jd to datetime
-                        tns_time = max(float(p["jd"]) for p in tns_photometry)
-                        tns_time = Time(tns_time, format="jd").datetime
-                    else:
-                        # string to datetime
-                        tns_time = tns_info.get("discoverydate", None)
-                        tns_time = arrow.get(tns_time).datetime
-                except Exception as e:
-                    log(
-                        f"Error parsing TNS info for source {existing_tns_source.id}: {e}, skipping."
-                    )
-                    continue
-                if tns_time is not None:
-                    delta_hours = (utcnow_naive() - tns_time).total_seconds() / 3600
-                    if delta_hours > float(constraints["not_if_tns_reported"]):
-                        raise ValueError(
-                            f"A Source within {radius} arcsec ({existing_tns_source.id}) has already been reported to TNS {delta_hours} hours ago, not submitting request (as per constraint)."
-                        )
-        if constraints.get("not_if_assignment_exists", False):
-            # if any source within the radius is already assigned to an observing run
-            # don't trigger
-            # TODO: do we want to only consider observed targets?
-            # TODO: do we only want to consider recent or future runs?
-            existing_assignments = session.scalars(
-                ClassicalAssignment.select(session.user_or_token).where(
-                    ClassicalAssignment.obj_id.in_(
-                        sa.select(Obj.id).where(
-                            Obj.within(ca.Point(ra=obj.ra, dec=obj.dec), radius)
-                        )
-                    )
-                )
-            ).first()
-            if existing_assignments is not None:
-                raise ValueError(
-                    f"Source within {radius} arcsec is already assigned to an observing run, not submitting request (as per constraint)."
-                )
-    stmt = Allocation.select(session.user_or_token).where(
-        Allocation.id == data["allocation_id"],
-    )
-    allocation = session.scalars(stmt).first()
-    if allocation is None:
-        raise ValueError(f"Could not find allocation with ID {data['allocation_id']}.")
-
-    # If validity ranges are defined, ensure that the request dates are within one of the ranges
-    ranges = allocation.validity_ranges
-    if isinstance(ranges, list) and ranges:
-        start_date, end_date = (
-            data["payload"].get("start_date"),
-            data["payload"].get("end_date"),
-        )
-        start = arrow.get(start_date) if start_date else arrow.utcnow()
-        for range in ranges:
-            if not range.get("start_date") or not range.get("end_date"):
-                raise ValueError(
-                    "Validity ranges must have both start_date and end_date defined."
-                )
-            if arrow.get(range["start_date"]) <= start <= arrow.get(
-                range["end_date"]
-            ) and (
-                end_date is None
-                or arrow.get(range["start_date"])
-                <= arrow.get(end_date)
-                <= arrow.get(range["end_date"])
-            ):
-                break
-        else:
-            raise ValueError(
-                f"{'Provided dates are' if start_date else 'Current date is'} outside allowed validity ranges."
-            )
-
-    instrument = allocation.instrument
-    if instrument is None:
-        raise ValueError(f"Could not find instrument for allocation {allocation.id}.")
-
-    if instrument.api_classname is None:
-        raise ValueError("Instrument has no remote API.")
-
-    if not instrument.api_class.implements()["submit"]:
-        raise ValueError("Cannot submit followup requests to this Instrument.")
-
-    group_ids = data.pop("target_group_ids", [])
-    stmt = Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-    target_groups = session.scalars(stmt).all()
-    obj = session.scalar(
-        Obj.select(session.user_or_token).where(Obj.id == data["obj_id"])
-    )
-    requester = session.scalar(
-        User.select(session.user_or_token).where(User.id == data["requester_id"])
-    )
-
-    watcher_ids = data.pop("watcher_ids", None)
-    if watcher_ids is not None:
-        watchers = session.scalars(
-            sa.select(User).where(User.id.in_(watcher_ids))
-        ).all()
-    else:
-        watchers = []
-
-    try:
-        formSchema = instrument.api_class.custom_json_schema(
-            instrument, session.user_or_token
-        )
-    except AttributeError:
-        formSchema = instrument.api_class.form_json_schema
-
-    try:
-        formSchemaForcedPhotometry = (
-            instrument.api_class.form_json_schema_forced_photometry
-        )
-    except AttributeError:
-        formSchemaForcedPhotometry = None
-
-    # not all requests need payloads
-    if "payload" not in data:
-        data["payload"] = {}
-
-    # if the instrument has a "prepare_payload" method, call it
-    if instrument.api_class.implements()["prepare_payload"]:
-        data["payload"] = instrument.api_class.prepare_payload(data["payload"])
-
-    # validate the payload
-    if formSchemaForcedPhotometry is not None and (
-        data["payload"].get("request_type", None) == "forced_photometry"
-        or formSchema is None
-    ):
-        jsonschema.validate(data["payload"], formSchemaForcedPhotometry)
-    else:
-        jsonschema.validate(data["payload"], formSchema)
-
-    followup_request = FollowupRequest(
-        requester_id=data["requester_id"],
-        last_modified_by_id=data["last_modified_by_id"],
-        obj_id=data["obj_id"],
-        payload=data["payload"],
-        allocation_id=data["allocation_id"],
-        comment=data.get("comment", None),
-    )
-    followup_request.obj = obj
-    followup_request.requester = requester
-    followup_request.last_modified_by = requester
-    followup_request.allocation = allocation
-    followup_request.target_groups = target_groups
-    followup_request.watchers = watchers
-    session.add(followup_request)
-
-    if refresh_source or refresh_requests:
-        session.commit()
-        flow = Flow()
-        if refresh_source:
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": followup_request.obj.internal_key},
-            )
-        if refresh_requests:
-            flow.push(
-                followup_request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-                payload={"request_id": followup_request.id},
-            )
-
-    try:
-        instrument.api_class.submit(
-            followup_request,
-            session,
-            refresh_source=refresh_source,
-            refresh_requests=refresh_requests,
-        )
-    except Exception as e:
-        log(f"Failed to submit follow-up request: {e}, traceback:")
-        log(traceback.format_exc())
-        followup_request.status = f"failed to submit: {e}"
-        raise
-    finally:
-        session.commit()
-        if (
-            refresh_source or refresh_requests
-        ) and "failed to submit" in followup_request.status:
-            flow = Flow()
-            if refresh_source:
-                flow.push(
-                    "*",
-                    "skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": followup_request.obj.internal_key},
-                )
-            if refresh_requests:
-                flow.push(
-                    followup_request.last_modified_by_id,
-                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-                    payload={"request_id": followup_request.id},
-                )
-    return followup_request.id, followup_request.status
-
-
 async def post_followup_request_async(
     data, constraints, session, refresh_source=True, refresh_requests=False
 ):
     """Async equivalent of ``post_followup_request``.
 
-    Mirrors the sync helper but uses an ``AsyncSession`` for DB I/O. The
-    facility-API ``submit`` call is sync and runs via ``session.run_sync(...)``
-    on the underlying connection.
+    Mirrors the sync helper but uses an ``AsyncSession`` for DB I/O and awaits
+    the facility-API ``submit`` directly on the async session.
     """
 
     if isinstance(constraints, dict):
@@ -1197,20 +834,13 @@ async def post_followup_request_async(
                 payload={"request_id": followup_request.id},
             )
 
-    # Submit to the facility's (sync) API using the underlying sync session
-    # bound to the same connection. session.run_sync runs a function with
-    # the sync Session in a greenlet, so the sync facility API code works
-    # without MissingGreenlet.
-    def _submit(sync_session):
-        instrument.api_class.submit(
+    try:
+        await instrument.api_class.submit(
             followup_request,
-            sync_session,
+            session,
             refresh_source=refresh_source,
             refresh_requests=refresh_requests,
         )
-
-    try:
-        await session.run_sync(_submit)
     except Exception as e:
         log(f"Failed to submit follow-up request: {e}, traceback:")
         log(traceback.format_exc())
@@ -1237,10 +867,13 @@ async def post_followup_request_async(
     return followup_request.id, followup_request.status
 
 
-def post_default_followup_requests(obj_id, default_followup_requests, user_id):
-    # only called with `run_async`, so we open the session here with DBSession()
-    with DBSession() as session:
-        user = session.scalar(sa.select(User).where(User.id == user_id))
+async def _post_default_followup_requests_async(
+    obj_id, default_followup_requests, user_id
+):
+    # only called with `run_async` (via the sync shim below), so we open the
+    # session here with the plain async session factory.
+    async with async_plain_session_factory() as session:
+        user = await session.scalar(sa.select(User).where(User.id == user_id))
         if user is None:
             raise ValueError(
                 f"Could not find user with ID {user_id} to post default followup requests."
@@ -1248,10 +881,10 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
         obj = None
         n_retries = 0
         while obj is None and n_retries < 3:
-            obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
             n_retries += 1
             if obj is None:
-                time.sleep(1)
+                await asyncio.sleep(1)
         if obj is None or n_retries >= 3:
             raise ValueError(
                 f"Could not find object with ID {obj_id} (after 3 seconds) to post default followup requests."
@@ -1276,7 +909,11 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
                 # target groups (mirrors Kowalski). Re-bind the default request to
                 # this session so its target_groups relationship can be read.
                 source_filter = followup_request.get("source_filter") or {}
-                dfr = session.get(DefaultFollowupRequest, followup_request["id"])
+                dfr = await session.scalar(
+                    sa.select(DefaultFollowupRequest)
+                    .where(DefaultFollowupRequest.id == followup_request["id"])
+                    .options(selectinload(DefaultFollowupRequest.target_groups))
+                )
                 target_group_ids = list(
                     {
                         *(
@@ -1309,13 +946,22 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
                 # overlapping or both empty) — mirrors Kowalski's dedup matching.
                 # selectinload target_groups so _same_request's r.target_groups
                 # access below doesn't fire one SELECT per existing request.
-                existing_requests = session.scalars(
-                    sa.select(FollowupRequest)
-                    .options(selectinload(FollowupRequest.target_groups))
-                    .where(
-                        FollowupRequest.obj_id == obj_id,
-                        FollowupRequest.allocation_id == allocation_id,
-                        FollowupRequest.status != "deleted",
+                # Also eager-load allocation->instrument so candidate.instrument
+                # (== allocation.instrument) is greenlet-safe under async.
+                existing_requests = (
+                    await session.scalars(
+                        sa.select(FollowupRequest)
+                        .options(
+                            selectinload(FollowupRequest.target_groups),
+                            selectinload(FollowupRequest.allocation).selectinload(
+                                Allocation.instrument
+                            ),
+                        )
+                        .where(
+                            FollowupRequest.obj_id == obj_id,
+                            FollowupRequest.allocation_id == allocation_id,
+                            FollowupRequest.status != "deleted",
+                        )
                     )
                 ).all()
 
@@ -1366,15 +1012,17 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
                                 priority_key: new_priority,
                             }
                             candidate.last_modified_by_id = user_id
-                            candidate.instrument.api_class.update(candidate, session)
-                            session.commit()
+                            await candidate.instrument.api_class.update(
+                                candidate, session
+                            )
+                            await session.commit()
                             log(
                                 f"Bumped priority of existing followup request "
                                 f"{candidate.id} for {obj_id} (allocation "
                                 f"{allocation_id}) from {existing_priority} to {new_priority}."
                             )
                         except Exception as e:
-                            session.rollback()
+                            await session.rollback()
                             log(
                                 f"Failed to bump priority of followup request "
                                 f"{candidate.id} for {obj_id} (allocation "
@@ -1397,7 +1045,9 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
                     "target_group_ids": target_group_ids,
                 }
 
-                post_followup_request(data, constraints, session, refresh_source=False)
+                await post_followup_request_async(
+                    data, constraints, session, refresh_source=False
+                )
                 log(
                     f"Posted default followup request for {obj_id} with allocation ID {allocation_id}."
                 )
@@ -1410,9 +1060,11 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
                     if prio is not None:
                         annotated += f" ({priority_alias}: {prio})"
                     comment_groups = (
-                        session.scalars(
-                            Group.select(session.user_or_token).where(
-                                Group.id.in_(target_group_ids)
+                        (
+                            await session.scalars(
+                                Group.select(session.user_or_token).where(
+                                    Group.id.in_(target_group_ids)
+                                )
                             )
                         ).all()
                         if target_group_ids
@@ -1427,7 +1079,7 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
                             bot=True,
                         )
                     )
-                    session.commit()
+                    await session.commit()
             except Exception as e:
                 # A failed trigger constraint raises ValueError("...not
                 # submitting request"); that is an expected skip, not an error.
@@ -1439,6 +1091,16 @@ def post_default_followup_requests(obj_id, default_followup_requests, user_id):
                 else:
                     traceback.print_exc()
                     log(f"Error posting default followup request: {e}")
+
+
+def post_default_followup_requests(obj_id, default_followup_requests, user_id):
+    # Sync shim dispatched via `run_async` in a worker thread (no running loop),
+    # so asyncio.run is safe; the real work is async (facility APIs are async).
+    asyncio.run(
+        _post_default_followup_requests_async(
+            obj_id, default_followup_requests, user_id
+        )
+    )
 
 
 class FollowupRequestHandler(BaseHandler):
@@ -2052,32 +1714,24 @@ class FollowupRequestHandler(BaseHandler):
                 _api = followup_request.instrument.api_class
 
                 if any(x in existing_status for x in ["failed to submit", "rejected"]):
-
-                    def _submit(sync_session):
-                        _api.submit(
+                    try:
+                        await _api.submit(
                             _req,
-                            sync_session,
+                            session,
                             refresh_source=refresh_source,
                             refresh_requests=refresh_requests,
                         )
-
-                    try:
-                        await session.run_sync(_submit)
                         await session.commit()
                     except Exception as e:
                         return self.error(f"Failed to submit follow-up request: {e}")
                 elif followup_request.instrument.api_class.implements()["update"]:
-
-                    def _update(sync_session):
-                        _api.update(
+                    try:
+                        await _api.update(
                             _req,
-                            sync_session,
+                            session,
                             refresh_source=refresh_source,
                             refresh_requests=refresh_requests,
                         )
-
-                    try:
-                        await session.run_sync(_update)
                         await session.commit()
                     except Exception as e:
                         return self.error(f"Failed to update follow-up request: {e}")
@@ -2148,16 +1802,13 @@ class FollowupRequestHandler(BaseHandler):
             _req = followup_request
             _api = api
 
-            def _delete(sync_session):
-                _api.delete(
+            try:
+                await _api.delete(
                     _req,
-                    sync_session,
+                    session,
                     refresh_source=refresh_source,
                     refresh_requests=refresh_requests,
                 )
-
-            try:
-                await session.run_sync(_delete)
                 await session.commit()
             except Exception as e:
                 traceback.print_exc()
@@ -3128,10 +2779,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
 
                 _req = followup_request
 
-                def _update(sync_session, _req=_req):
-                    _req.instrument.api_class.update(_req, sync_session)
-
-                await session.run_sync(_update)
+                await _req.instrument.api_class.update(_req, session)
 
             flow = Flow()
             flow.push(
