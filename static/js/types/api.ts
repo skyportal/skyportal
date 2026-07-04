@@ -25514,6 +25514,8 @@ export interface components {
             description?: string | null;
             /** @description Boolean indicating whether group is invisible to non-members. */
             private?: boolean;
+            /** @description Boolean indicating whether requests to join the group are automatically accepted. */
+            auto_accept_requests?: boolean;
             /** @description Flag indicating whether this group is a singleton group for one user only. */
             single_user_group?: boolean | null;
             /** @description Unique object identifier. */
@@ -26161,6 +26163,8 @@ export interface components {
             description?: string | null;
             /** @description Boolean indicating whether group is invisible to non-members. */
             private?: boolean;
+            /** @description Boolean indicating whether requests to join the group are automatically accepted. */
+            auto_accept_requests?: boolean;
             /** @description Flag indicating whether this group is a singleton group for one user only. */
             single_user_group?: boolean | null;
             readonly obj_tags?: components["schemas"]["ObjTag"][];
