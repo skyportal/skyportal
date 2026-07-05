@@ -48,9 +48,12 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
   const { controls, on, Tour } = useJoyride({
     steps: TOUR_STEPS,
     continuous: true,
+    // Scroll each target into view, including the first step.
+    scrollToFirstStep: true,
     // App sets a low sidebar z-index (~140); lift the tour above it and MUI
-    // modals so tooltips aren't hidden behind the drawer.
-    options: { zIndex: 2000 },
+    // modals so tooltips aren't hidden behind the drawer. Show tooltips
+    // directly instead of a click-to-open beacon.
+    options: { zIndex: 2000, skipBeacon: true },
   });
 
   // Sidebar-targeted steps need the drawer mounted; on mobile it's a closed

@@ -16,8 +16,12 @@ const PageTourProvider = () => {
   const { controls, Tour } = useJoyride({
     steps,
     continuous: true,
-    // Match the widget tour: lift above the app's low sidebar/modal z-indexes.
-    options: { zIndex: 2000 },
+    // Scroll each target into view, including the first step.
+    scrollToFirstStep: true,
+    // Lift above the app's low sidebar/modal z-indexes, give lazy-loaded pages
+    // a little longer to mount a step's target, and show each tooltip directly
+    // instead of a click-to-open beacon.
+    options: { zIndex: 2000, targetWaitTimeout: 3000, skipBeacon: true },
   });
 
   const requested = (location.state as { tour?: string } | null)?.tour;
@@ -31,14 +35,37 @@ const PageTourProvider = () => {
     }
   }, [requested, location.pathname, location.search, location.hash, navigate]);
 
-  // Start once per newly-selected step-set (guarded so a stable-`controls`
-  // identity change can't restart a running tour).
+  // Start once per newly-selected step-set, but only after the destination
+  // page (lazy-loaded behind Suspense) has actually mounted the first target —
+  // otherwise the tour starts against an empty DOM and silently gives up.
   const startedFor = useRef<Step[] | null>(null);
   useEffect(() => {
-    if (steps.length && startedFor.current !== steps) {
-      startedFor.current = steps;
-      controls.start(0);
+    if (!steps.length || startedFor.current === steps) {
+      return;
     }
+    const firstStep = steps[0];
+    const firstTarget =
+      firstStep && typeof firstStep.target === "string"
+        ? firstStep.target
+        : null;
+    let cancelled = false;
+    let tries = 0;
+    const startWhenReady = () => {
+      if (cancelled) {
+        return;
+      }
+      if (!firstTarget || document.querySelector(firstTarget)) {
+        startedFor.current = steps;
+        controls.start(0);
+      } else if (tries++ < 100) {
+        // Poll ~every 100ms for up to ~10s while the page chunk loads.
+        window.setTimeout(startWhenReady, 100);
+      }
+    };
+    startWhenReady();
+    return () => {
+      cancelled = true;
+    };
   }, [steps, controls]);
 
   return <>{Tour}</>;
