@@ -3145,23 +3145,23 @@ def add_gcn_summary(
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
-        user = session.query(User).get(user_id)
+        user = session.get(User, user_id)
         session.user_or_token = user
 
         if isinstance(dateobs, str):
             dateobs = arrow.get(dateobs).naive
 
-        gcn_summary = session.query(GcnSummary).get(summary_id)
-        group = session.query(Group).get(group_id)
-        event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
-        localization = (
-            session.query(Localization)
-            .filter(
+        gcn_summary = session.get(GcnSummary, summary_id)
+        group = session.get(Group, group_id)
+        event = session.scalars(
+            sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
+        ).first()
+        localization = session.scalars(
+            sa.select(Localization).where(
                 Localization.dateobs == dateobs,
                 Localization.localization_name == localization_name,
             )
-            .first()
-        )
+        ).first()
 
         start_date_mjd = Time(arrow.get(start_date).datetime).mjd
         end_date_mjd = Time(arrow.get(end_date).datetime).mjd
@@ -3198,7 +3198,7 @@ def add_gcn_summary(
 
             users = []
             for mentioned_user_id in user_ids:
-                mentioned_user = session.query(User).get(mentioned_user_id)
+                mentioned_user = session.get(User, mentioned_user_id)
                 if mentioned_user is not None:
                     users.append(mentioned_user)
 
@@ -3738,7 +3738,7 @@ def add_gcn_summary(
 
     except Exception as e:
         try:
-            gcn_summary = session.query(GcnSummary).get(summary_id)
+            gcn_summary = session.get(GcnSummary, summary_id)
             gcn_summary.text = "Failed to generate summary."
             session.commit()
         except Exception:
@@ -4289,26 +4289,26 @@ def add_gcn_report(
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
-        user = session.query(User).get(user_id)
+        user = session.get(User, user_id)
         user_accessible_group_ids = [group.id for group in user.accessible_groups]
         session.user_or_token = user
 
         if isinstance(dateobs, str):
             dateobs = arrow.get(dateobs).naive
 
-        gcn_report = session.query(GcnReport).get(report_id)
+        gcn_report = session.get(GcnReport, report_id)
 
         try:
-            group = session.query(Group).get(group_id)
-            event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
-            localization = (
-                session.query(Localization)
-                .filter(
+            group = session.get(Group, group_id)
+            event = session.scalars(
+                sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
+            ).first()
+            localization = session.scalars(
+                sa.select(Localization).where(
                     Localization.dateobs == dateobs,
                     Localization.localization_name == localization_name,
                 )
-                .first()
-            )
+            ).first()
             start_date_mjd = Time(arrow.get(start_date).datetime).mjd
             end_date_mjd = Time(arrow.get(end_date).datetime).mjd
 
@@ -4523,7 +4523,7 @@ def add_gcn_report(
         except Exception as e:
             try:
                 session.rollback()
-                gcn_report = session.query(GcnReport).get(report_id)
+                gcn_report = session.get(GcnReport, report_id)
                 gcn_report.data = to_json({"status": "error", "message": str(e)})
                 session.commit()
             except Exception:

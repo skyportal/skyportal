@@ -689,7 +689,7 @@ def post_observation_plan(
         Create asynchronous request. Defaults to True.
     """
 
-    user = session.query(User).get(user_id)
+    user = session.get(User, user_id)
 
     try:
         data = ObservationPlanPost.load(plan)
