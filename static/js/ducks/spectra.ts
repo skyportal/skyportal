@@ -41,6 +41,11 @@ export const spectraApi = skyportalApi.injectEndpoints({
         data?.spectra ?? [],
       providesTags: ["Spectra"],
     }),
+    // Single spectrum WITH the raw uploaded file (original_file_string), which is
+    // deferred from the source-spectra payload. Fetched on demand for download.
+    fetchSpectrumOriginalFile: build.query<any, number | string>({
+      query: (id) => `/api/spectra/${id}?includeOriginalFile=true`,
+    }),
     parseASCIISpectrum: build.mutation<
       RouteData<"POST /api/spectrum/parse/ascii">,
       any
@@ -101,6 +106,7 @@ invalidateOnMessage(REFRESH_SOURCE_SPECTRA, (payload) =>
 export const {
   useFetchSourceSpectraQuery,
   useLazyFetchSourceSpectraQuery,
+  useLazyFetchSpectrumOriginalFileQuery,
   useParseASCIISpectrumMutation,
   useAddSyntheticPhotometryMutation,
   useDeleteSpectrumMutation,

@@ -37,6 +37,7 @@ import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import {
   useFetchSourceSpectraQuery,
   useDeleteSpectrumMutation,
+  useLazyFetchSpectrumOriginalFileQuery,
 } from "../../ducks/spectra";
 import { useShareDataMutation } from "../../ducks/source";
 import { useGetGroupsQuery } from "../../ducks/groups";
@@ -73,6 +74,7 @@ const DeleteSpectrumButton = ({
 }: DeleteSpectrumButtonProps) => {
   const [open, setOpen] = useState(false);
   const [deleteSpectrum] = useDeleteSpectrumMutation();
+  const [fetchSpectrumOriginalFile] = useLazyFetchSpectrumOriginalFileQuery();
   return (
     <div>
       <Dialog
@@ -428,21 +430,33 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
     const spectrum = sourceSpectra.find((spec: any) => spec.id === specid);
     if (!spectrum) return null;
 
-    const data = spectrum.original_file_string
-      ? spectrum.original_file_string
-      : to_csv(spectrum);
-    const filename = spectrum.original_file_filename
-      ? spectrum.original_file_filename
-      : get_filename(spectrum);
-
-    const blob = new Blob([data], { type: "text/plain" });
+    const handleDownload = async () => {
+      // The raw uploaded file (with its FITS/ASCII headers) is deferred from the
+      // source-spectra payload, so fetch it on demand. Fall back to a generated
+      // CSV only when there is no original file (e.g. API array uploads).
+      let data = to_csv(spectrum);
+      let filename = get_filename(spectrum);
+      try {
+        const full: any = await fetchSpectrumOriginalFile(specid).unwrap();
+        if (full?.original_file_string) {
+          data = full.original_file_string;
+          filename = full.original_file_filename || filename;
+        }
+      } catch {
+        // keep the generated-CSV fallback
+      }
+      const url = URL.createObjectURL(new Blob([data], { type: "text/plain" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
 
     return (
-      <IconButton
-        href={URL.createObjectURL(blob)}
-        download={filename}
-        size="large"
-      >
+      <IconButton onClick={handleDownload} size="large">
         <GetAppIcon />
       </IconButton>
     );
