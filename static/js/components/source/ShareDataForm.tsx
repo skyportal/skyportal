@@ -74,7 +74,6 @@ const DeleteSpectrumButton = ({
 }: DeleteSpectrumButtonProps) => {
   const [open, setOpen] = useState(false);
   const [deleteSpectrum] = useDeleteSpectrumMutation();
-  const [fetchSpectrumOriginalFile] = useLazyFetchSpectrumOriginalFileQuery();
   return (
     <div>
       <Dialog
@@ -300,6 +299,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
   const groups = useGetGroupsQuery().data?.all ?? null;
   const { data: photometry } = useFetchSourcePhotometryQuery({ id: route.id });
   const { data: spectra } = useFetchSourceSpectraQuery({ id: route.id });
+  const [fetchSpectrumOriginalFile] = useLazyFetchSpectrumOriginalFileQuery();
 
   const {
     handleSubmit,
