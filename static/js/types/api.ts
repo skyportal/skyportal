@@ -18801,7 +18801,9 @@ export interface paths {
         put?: never;
         /**
          * Grant stream access to a user
-         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Grant stream access to a user
+         * @description Grant stream access to a user. System admins may add any user; a
+         *     non-admin user may add only themselves, and only to an auto-join
+         *     stream.
          */
         post: {
             parameters: {
@@ -35338,6 +35340,8 @@ export interface components {
             altdata?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Boolean indicating whether any user may add themselves to this stream. Auto-join streams are visible to all users. */
+            auto_join?: boolean;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -35404,6 +35408,8 @@ export interface components {
             altdata?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Boolean indicating whether any user may add themselves to this stream. Auto-join streams are visible to all users. */
+            auto_join?: boolean;
         };
         SingleStreamNoID: {
             /** @enum {string} */

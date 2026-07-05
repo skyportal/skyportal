@@ -1,4 +1,4 @@
-"""group auto_accept_requests
+"""group auto_accept_requests and stream auto_join
 
 Revision ID: 363f77c7a441
 Revises: d7b2f4a1c9e0
@@ -27,7 +27,17 @@ def upgrade():
             server_default="false",
         ),
     )
+    op.add_column(
+        "streams",
+        sa.Column(
+            "auto_join",
+            sa.Boolean(),
+            nullable=False,
+            server_default="false",
+        ),
+    )
 
 
 def downgrade():
+    op.drop_column("streams", "auto_join")
     op.drop_column("groups", "auto_accept_requests")
