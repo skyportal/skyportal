@@ -838,8 +838,8 @@ const CandidateList = () => {
     (pageNumber - 1) * numPerPage + pageIndex + 1;
 
   return (
-    <div style={{ position: "relative" }}>
-      <div>
+    <div style={{ position: "relative" }} data-testid="tour-candidates-page">
+      <div data-testid="tour-candidates-filter">
         <FilterCandidateList
           userAccessibleGroups={userAccessibleGroups}
           setQueryInProgress={setQueryInProgress}

@@ -11,17 +11,17 @@ const Profile = () => {
   const groups = groupsData?.user ?? [];
   return (
     <div>
-      <div>
+      <div data-testid="tour-profile-info">
         <UserProfileInfo />
       </div>
       &nbsp;
       <br />
-      <div>
+      <div data-testid="tour-profile-preferences">
         <UpdateProfileForm />
       </div>
       &nbsp;
       <br />
-      <div>
+      <div data-testid="tour-profile-token">
         <NewTokenForm
           availableAcls={profile?.permissions}
           {...({ groups } as any)}

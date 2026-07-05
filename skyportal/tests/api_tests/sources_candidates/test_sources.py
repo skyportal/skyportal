@@ -1071,6 +1071,48 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     assert data["data"]["sources"][0]["id"] == obj_id2
 
 
+def test_sources_filter_by_saved_by_current_user(
+    upload_data_token, view_only_token2, public_group
+):
+    # upload_data_token and view_only_token2 are different users, both in
+    # public_group; only the former saves the source below.
+    obj_id = str(uuid.uuid4())
+
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    # The saver sees it when filtering to their own saves
+    status, data = api(
+        "GET",
+        "sources",
+        params={"savedByCurrentUser": "true", "group_ids": f"{public_group.id}"},
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert obj_id in [s["id"] for s in data["data"]["sources"]]
+
+    # Another group member who did not save it does not see it
+    status, data = api(
+        "GET",
+        "sources",
+        params={"savedByCurrentUser": "true", "group_ids": f"{public_group.id}"},
+        token=view_only_token2,
+    )
+    assert status == 200
+    assert obj_id not in [s["id"] for s in data["data"]["sources"]]
+
+
 def test_sources_filter_by_time_spectrum(
     upload_data_token, view_only_token, public_group, lris
 ):
