@@ -789,6 +789,69 @@ def test_sources_sorting(upload_data_token, view_only_token, public_group):
     assert data["data"]["sources"][1]["id"] == obj_id2
 
 
+def test_sources_sorting_by_annotation(
+    upload_data_token, super_admin_token, public_group, annotation_token
+):
+    obj_id = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    origin = str(uuid.uuid4())
+    key = "t_E"
+
+    for oid, ra in [(obj_id, 210), (obj_id2, 220)]:
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": oid,
+                "ra": ra,
+                "dec": -22.33,
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    # Values 9 and 10 are chosen so numeric and lexicographic order disagree.
+    for oid, value in [(obj_id, 9), (obj_id2, 10)]:
+        status, data = api(
+            "POST",
+            f"sources/{oid}/annotations",
+            data={"origin": origin, "data": {key: value}},
+            token=annotation_token,
+        )
+        assert status == 200
+
+    # Descending: 10 (obj_id2) must come first; a text sort would rank "9" first.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": f"annotation.{origin}.{key}",
+            "sortOrder": "desc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["sources"][0]["id"] == obj_id2
+    assert data["data"]["sources"][1]["id"] == obj_id
+
+    # Ascending reverses the order.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": f"annotation.{origin}.{key}",
+            "sortOrder": "asc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["sources"][0]["id"] == obj_id
+    assert data["data"]["sources"][1]["id"] == obj_id2
+
+
 def test_object_last_detected(
     upload_data_token,
     view_only_token,
