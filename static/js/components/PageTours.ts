@@ -12,16 +12,27 @@ export const PAGE_TOURS: Record<string, Step[]> = {
     {
       target: '[data-testid="tour-profile-info"]',
       title: "Your profile",
+      content: "This is your profile at a glance.",
+    },
+    {
+      target: '[data-testid="tour-profile-details"]',
+      title: "Your details",
       content:
-        "This is your profile. Add your name and affiliation so collaborators " +
+        "Set your name, contact info, and affiliations here so collaborators " +
         "know who you are.",
     },
     {
-      target: '[data-testid="tour-profile-preferences"]',
-      title: "Preferences & notifications",
+      target: '[data-testid="tour-profile-notifications"]',
+      title: "Notifications",
       content:
-        "Edit your details here, and choose how you want to be notified about " +
-        "new sources, classifications, and GCN events.",
+        "Choose how you want to be notified about new sources, classifications, " +
+        "and GCN events.",
+    },
+    {
+      target: '[data-testid="tour-profile-appearance"]',
+      title: "Appearance & display",
+      content:
+        "Tune the interface and default display settings to your liking.",
     },
     {
       target: '[data-testid="tour-profile-token"]',

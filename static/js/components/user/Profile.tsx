@@ -16,7 +16,7 @@ const Profile = () => {
       </div>
       &nbsp;
       <br />
-      <div data-testid="tour-profile-preferences">
+      <div>
         <UpdateProfileForm />
       </div>
       &nbsp;
