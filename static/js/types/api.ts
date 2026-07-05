@@ -17080,7 +17080,12 @@ export interface paths {
                      *     ```
                      */
                     saveSummary?: boolean;
-                    /** @description The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"] */
+                    /**
+                     * @description The field to sort by. Allowed options are ["id", "alias", "origin",
+                     *     "ra", "dec", "redshift", "saved_at", "gcn_status", "favorites"],
+                     *     "altdata.<field>" to sort on an altdata field, or
+                     *     "annotation.<origin>.<key>" to sort on an annotation value.
+                     */
                     sortBy?: string;
                     /** @description The sort order - either "asc" or "desc". Defaults to "asc" */
                     sortOrder?: string;
