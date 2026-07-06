@@ -250,6 +250,7 @@ export const TAG_TYPES = [
   "InstrumentForms",
   "InstrumentObsplanForms",
   "GcnEventInstruments",
+  "Team",
 ] as const;
 
 export const skyportalApi = createApi({

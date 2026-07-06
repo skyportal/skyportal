@@ -334,6 +334,14 @@ class Group(Base):
         doc="All filters (not just active) associated with a group.",
     )
 
+    teams = relationship(
+        "Team",
+        secondary="group_teams",
+        back_populates="groups",
+        passive_deletes=True,
+        doc="Teams this group belongs to.",
+    )
+
     shifts = relationship(
         "Shift",
         back_populates="group",
