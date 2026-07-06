@@ -19700,7 +19700,7 @@ export interface paths {
         };
         /**
          * Update a team
-         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Update a team's fields and/or its set of groups. When `group_ids` is
+         * @description <b>Permission(s) required:</b> <em>Manage teams (or System admin)</em><br><br>Update a team's fields and/or its set of groups. When `group_ids` is
          *     provided it replaces the team's groups; the user must be an admin of
          *     each group added or removed.
          */
@@ -19740,7 +19740,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a team
-         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Delete a team (does not affect its groups or their data)
+         * @description <b>Permission(s) required:</b> <em>Manage teams (or System admin)</em><br><br>Delete a team (does not affect its groups or their data)
          */
         delete: {
             parameters: {
@@ -19809,7 +19809,7 @@ export interface paths {
         put?: never;
         /**
          * Create a new team
-         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Create a team from a set of existing groups. The current user must be
+         * @description <b>Permission(s) required:</b> <em>Manage teams (or System admin)</em><br><br>Create a team from a set of existing groups. The current user must be
          *     an admin of each group added to the team.
          */
         post: {
