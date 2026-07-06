@@ -721,7 +721,9 @@ def add_followup_request_using_frontend_and_verify_Spectral(
         ).first
     ).to_be_visible()
 
-    show_followup_columns(page, instrument_id, "exposure_time", "observation_choices")
+    # observation_choices is aliased to the "Request" column, which is shown by
+    # default, so only the hidden exposure_time column needs revealing.
+    show_followup_columns(page, instrument_id, "exposure_time")
 
     expect(
         page.locator(
@@ -785,7 +787,9 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
         ).first
     ).to_be_visible()
 
-    show_followup_columns(page, instrument_id, "exposure_time", "observation_choices")
+    # observation_choices is aliased to the "Request" column, which is shown by
+    # default, so only the hidden exposure_time column needs revealing.
+    show_followup_columns(page, instrument_id, "exposure_time")
 
     expect(
         page.locator(
