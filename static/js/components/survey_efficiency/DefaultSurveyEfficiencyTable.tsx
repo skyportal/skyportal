@@ -253,7 +253,7 @@ const DefaultSurveyEfficiencyTable = ({
   ];
 
   const CustomToolbar = () => (
-    <DataGridToolbar showQuickFilter={false}>
+    <DataGridToolbar showQuickFilter={false} showExport>
       <IconButton
         name="new_default_survey_efficiency"
         size="small"

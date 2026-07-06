@@ -12,16 +12,12 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ReactJson from "react-json-view";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import TaxonomyForm from "./TaxonomyForm";
 import { useDeleteTaxonomyMutation } from "../../ducks/taxonomies";
@@ -303,8 +299,7 @@ const TaxonomyTable = ({
 
   const CustomToolbar = function TaxonomyTableToolbar() {
     return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
+      <DataGridToolbar showQuickFilter={false}>
         {managePermission && (
           <IconButton
             name="new_taxonomy"
@@ -315,7 +310,7 @@ const TaxonomyTable = ({
             <AddIcon />
           </IconButton>
         )}
-      </GridToolbarContainer>
+      </DataGridToolbar>
     );
   };
 

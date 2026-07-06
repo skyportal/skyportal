@@ -619,7 +619,7 @@ const FollowupRequestLists = ({
   const makeToolbar = () =>
     function FollowupRequestToolbar() {
       return (
-        <DataGridToolbar>
+        <DataGridToolbar showExport>
           {showDownload && (
             <Tooltip title="Download CSV">
               <IconButton

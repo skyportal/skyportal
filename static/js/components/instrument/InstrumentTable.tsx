@@ -1,11 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -20,12 +15,12 @@ import EditIcon from "@mui/icons-material/Edit";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useDeleteInstrumentMutation } from "../../ducks/instrument";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import { useAppDispatch } from "../../types";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
 import Button from "../Button";
 import Paper from "../Paper";
-import StyledDataGrid from "../StyledDataGrid";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -235,16 +230,14 @@ const InstrumentTable = ({
 
   const CustomToolbar = function InstrumentTableToolbar() {
     return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
-        <GridToolbarQuickFilter />
+      <DataGridToolbar>
         <IconButton
           name="new_instrument"
           onClick={() => setNewDialogOpen(true)}
         >
           <AddIcon />
         </IconButton>
-      </GridToolbarContainer>
+      </DataGridToolbar>
     );
   };
 

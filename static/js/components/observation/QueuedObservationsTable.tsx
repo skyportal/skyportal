@@ -297,7 +297,7 @@ const QueuedObservationsTable = ({
   };
 
   const CustomToolbar = () => (
-    <DataGridToolbar>
+    <DataGridToolbar showExport>
       <Tooltip title="Filter Table">
         <IconButton
           size="small"

@@ -60,12 +60,12 @@ const FollowupHealth = () => {
   const [now] = useState(() => Date.now());
   const [windowKey, setWindowKey] = useState("24h");
   const win =
-    WINDOWS.find((w) => w.key === windowKey) ?? WINDOWS[WINDOWS.length - 1];
+    WINDOWS.find((w) => w.key === windowKey) ?? WINDOWS[WINDOWS.length - 1]!;
   const startDate =
     win.ms === Infinity ? undefined : new Date(now - win.ms).toISOString();
 
   const base: Record<string, any> = { numPerPage: 1, pageNumber: 1 };
-  if (startDate) base.startDate = startDate;
+  if (startDate) base["startDate"] = startDate;
 
   // Explicit (not mapped) so the hook count/order is stable per the rules of hooks.
   const total = useGetFollowupRequestsQuery(base).data?.totalMatches ?? 0;

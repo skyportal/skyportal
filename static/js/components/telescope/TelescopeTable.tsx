@@ -267,7 +267,7 @@ const TelescopeTable = ({
     () =>
       function TelescopeTableToolbar() {
         return (
-          <DataGridToolbar>
+          <DataGridToolbar showExport>
             <IconButton
               name="new_telescope"
               onClick={() => setNewDialogOpen(true)}
