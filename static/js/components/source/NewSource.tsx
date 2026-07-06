@@ -105,7 +105,7 @@ const NewSource = ({ onClose = () => ({}) }: NewSourceProps) => {
 
   return (
     <div style={{ position: "relative" }}>
-      <Typography variant="h6" display="inline">
+      <Typography variant="h6" sx={{ display: "inline" }}>
         Add a Source
       </Typography>
       <Form
