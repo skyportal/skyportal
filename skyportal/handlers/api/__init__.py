@@ -178,6 +178,7 @@ from .sharing_service.sharing_service_submission import (
 from .shift import ShiftHandler, ShiftSummary, ShiftUserHandler
 from .skymap_trigger import SkymapTriggerAPIHandler
 from .source import (
+    FinderChartFacilitiesHandler,
     SourceCopyPhotometryHandler,
     SourceFinderHandler,
     SourceHandler,

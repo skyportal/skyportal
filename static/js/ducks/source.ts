@@ -202,6 +202,9 @@ export const sourceApi = skyportalApi.injectEndpoints({
         params,
       }),
     }),
+    getFinderChartFacilities: build.query<Record<string, any>, void>({
+      query: () => "api/finder_chart/facilities",
+    }),
     getCommentTextAttachment: build.query<
       CommentAttachment,
       { sourceID: number | string; commentID: number | string }
@@ -724,6 +727,7 @@ export const {
   useLazyGetPhotometryRequestQuery,
   useGetSourceFinderChartQuery,
   useLazyGetSourceFinderChartQuery,
+  useGetFinderChartFacilitiesQuery,
   useGetCommentTextAttachmentQuery,
   useLazyGetCommentTextAttachmentQuery,
   useGetCommentOnSpectrumTextAttachmentQuery,
