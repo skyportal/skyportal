@@ -352,6 +352,10 @@ class SPRATRequest(LTRequest):
 class LTAPI(FollowUpAPI):
     """An interface to LT operations."""
 
+    alias_lookup = {
+        "observation_choices": "Request",
+    }
+
     @staticmethod
     def delete(request, session, **kwargs):
         """Delete a follow-up request from LT queue (all instruments).

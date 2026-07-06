@@ -142,6 +142,10 @@ class BLANCO_NEWFIRM_Request:
 class BLANCOAPI(FollowUpAPI):
     """An interface to BLANCO operations."""
 
+    alias_lookup = {
+        "observation_choices": "Request",
+    }
+
     @staticmethod
     def delete(request, session, **kwargs):
         """Delete a follow-up request from BLANCO queue.

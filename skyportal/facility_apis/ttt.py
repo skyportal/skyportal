@@ -120,6 +120,10 @@ def validate_request_to_ttt(request, proposal_id):
 class TTTAPI(FollowUpAPI):
     """SkyPortal interface to the Two-meter Twin Telescope"""
 
+    alias_lookup = {
+        "observation_choices": "Request",
+    }
+
     @staticmethod
     def submit(request, session, **kwargs):
         """Submit a follow-up request to TTT.

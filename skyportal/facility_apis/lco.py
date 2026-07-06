@@ -553,6 +553,10 @@ def download_observations(request_id, ar):
 class LCOAPI(FollowUpAPI):
     """An interface to LCO operations."""
 
+    alias_lookup = {
+        "observation_choices": "Request",
+    }
+
     @staticmethod
     def delete(request, session, **kwargs):
         """Delete a follow-up request from LCO queue (all instruments).

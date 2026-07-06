@@ -156,6 +156,10 @@ def download_observations(request_id, urls):
 class TRTAPI(FollowUpAPI):
     """SkyPortal interface to the Thai Robotic Telescope"""
 
+    alias_lookup = {
+        "observation_choices": "Request",
+    }
+
     @staticmethod
     def submit(request, session, **kwargs):
         """Submit a follow-up request to TRT.

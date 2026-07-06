@@ -53,6 +53,9 @@ const displayedColumns = [
   "request",
   "filter",
   "filters",
+  // Filter/band keys for instruments that don't alias them (e.g. TTT, LCO, LT)
+  "observation_choice",
+  "observation_choices",
   "field_ids",
   "priority",
   "status",

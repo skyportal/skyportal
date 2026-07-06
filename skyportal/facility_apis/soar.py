@@ -392,6 +392,10 @@ class SOAR_TripleSpec_Request:
 class SOARAPI(FollowUpAPI):
     """An interface to SOAR operations."""
 
+    alias_lookup = {
+        "observation_choices": "Request",
+    }
+
     @staticmethod
     def delete(request, session, **kwargs):
         """Delete a follow-up request from SOAR queue (all instruments).
