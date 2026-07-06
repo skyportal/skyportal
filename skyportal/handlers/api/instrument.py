@@ -90,14 +90,13 @@ class InstrumentHandler(BaseHandler):
                       properties:
                         filter_name:
                           type: object
-                          enum: {ALLOWED_BANDPASSES}
                           properties:
                             limiting_magnitude:
-                              type: float
+                              type: number
                             magsys:
                               type: string
                             exposure_time:
-                              type: float
+                              type: number
                               description: |
                                 Exposure time in seconds.
                       description: |
@@ -111,19 +110,19 @@ class InstrumentHandler(BaseHandler):
                           type: object
                           properties:
                             filt_change_time:
-                              type: float
+                              type: number
                               description: |
                                 Time in seconds to change filters
                             readout:
-                              type: float
+                              type: number
                               description: |
                                 Time in seconds to readout camera
                             overhead_per_exposure:
-                              type: float
+                              type: number
                               description: |
                                 Non-readout overheads, e.g. instrument settling times, in seconds.
                             slew_rate:
-                              type: float
+                              type: number
                               description: |
                                 Slew rate for the telescope in deg/s.
                       description: |
