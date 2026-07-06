@@ -49,7 +49,10 @@ from ....models import (
 )
 from ....utils.cache import Cache, array_to_bytes
 from ....utils.calculations import great_circle_distance
-from ....utils.data_access import accessible_group_and_filter_ids
+from ....utils.data_access import (
+    accessible_group_and_filter_ids,
+    accessible_group_ids_async,
+)
 from ....utils.parse import get_page_and_n_per_page
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...base import BaseHandler
@@ -792,6 +795,30 @@ class CandidateHandler(BaseHandler):
 
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 25)
+
+        # Lightweight autocomplete for the toolbar quick-search: return candidate
+        # obj_ids matching a partial name, skipping the heavy scanning-page query.
+        name_only = self.get_query_argument("nameOnly", "false").lower() == "true"
+        obj_id_partial = self.get_query_argument("objID", None)
+        if name_only and obj_id_partial:
+            async with self.AsyncSession() as session:
+                group_ids = await accessible_group_ids_async(
+                    session.user_or_token, session
+                )
+                matches = await session.scalars(
+                    sa.select(Candidate.obj_id)
+                    .join(Filter, Filter.id == Candidate.filter_id)
+                    .where(
+                        Candidate.obj_id.ilike(f"{obj_id_partial}%"),
+                        Filter.group_id.in_(group_ids),
+                    )
+                    .distinct()
+                    .order_by(Candidate.obj_id)
+                    .limit(int(n_per_page))
+                )
+                return self.success(
+                    data={"candidates": [{"id": oid} for oid in matches.all()]}
+                )
         # Not documented in API docs as this is for frontend-only usage & will confuse
         # users looking through the API docs
         query_id = self.get_query_argument("queryID", None)

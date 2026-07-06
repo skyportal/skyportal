@@ -94,6 +94,49 @@ def test_token_user_post_delete_new_candidate(
     assert status == 200
 
 
+def test_candidate_name_only_search(
+    upload_data_token,
+    view_only_token,
+    public_filter,
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(utcnow_naive()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    # nameOnly autocomplete (toolbar quick-search): a prefix of the obj_id
+    # returns the candidate's obj_id.
+    status, data = api(
+        "GET",
+        f"candidates?objID={obj_id[:8]}&nameOnly=true&numPerPage=25",
+        token=view_only_token,
+    )
+    assert status == 200
+    assert obj_id in [c["id"] for c in data["data"]["candidates"]]
+
+    # a non-matching prefix does not return it
+    status, data = api(
+        "GET",
+        "candidates?objID=zzz-no-such-candidate&nameOnly=true",
+        token=view_only_token,
+    )
+    assert status == 200
+    assert obj_id not in [c["id"] for c in data["data"]["candidates"]]
+
+
 def test_cannot_add_candidate_without_filter_id(upload_data_token):
     obj_id = str(uuid.uuid4())
     status, data = api(

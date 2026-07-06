@@ -116,10 +116,12 @@ const CustomGroupsWidget = ({
 
   const ITEM_HEIGHT = 48;
   const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250,
+    slotProps: {
+      paper: {
+        style: {
+          maxHeight: ITEM_HEIGHT * 4.5,
+          width: 250,
+        },
       },
     },
   };

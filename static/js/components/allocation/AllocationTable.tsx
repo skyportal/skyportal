@@ -351,7 +351,7 @@ const AllocationTable = ({
   ].filter(Boolean);
 
   const CustomToolbar = () => (
-    <DataGridToolbar>
+    <DataGridToolbar showExport>
       <IconButton
         name="new_allocation"
         size="small"

@@ -184,16 +184,18 @@ const Thumbnail = ({
   const getThumbnailCard = (
     <>
       <CardHeader
-        titleTypographyProps={{
-          sx: {
-            fontSize: titleSize,
-            textWrap: "nowrap",
-            color: "gray",
-            fontWeight: "bold",
-          },
-        }}
         sx={{ padding: "0.4rem 0.6rem" }}
         title={thumbnailName}
+        slotProps={{
+          title: {
+            sx: {
+              fontSize: titleSize,
+              textWrap: "nowrap",
+              color: "gray",
+              fontWeight: "bold",
+            },
+          },
+        }}
       />
       <Box sx={{ position: "relative", aspectRatio: "1 / 1" }}>
         {status === "loading" || status === "loaded" ? (

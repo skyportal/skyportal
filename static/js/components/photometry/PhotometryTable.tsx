@@ -380,7 +380,7 @@ const PhotometryTable = ({
     () =>
       function PhotometryTableToolbar() {
         return (
-          <DataGridToolbar showQuickFilter>
+          <DataGridToolbar showQuickFilter showExport>
             <Button
               size="small"
               startIcon={<DownloadIcon />}
@@ -474,7 +474,9 @@ const PhotometryTable = ({
       fullScreen
       open={open}
       onClose={onClose}
-      TransitionComponent={Transition}
+      slots={{
+        transition: Transition,
+      }}
     >
       <DialogContent>{bodyContent}</DialogContent>
     </Dialog>

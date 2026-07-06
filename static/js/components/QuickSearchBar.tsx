@@ -10,9 +10,11 @@ import MenuItem from "@mui/material/MenuItem";
 
 import { useAppDispatch } from "../types/hooks";
 import { GET } from "../API";
+import SaveCandidateGroupsDialog from "./SaveCandidateGroupsDialog";
 
 const ALLOWED_TYPES = [
   "Sources",
+  "Candidates",
   "Source comments",
   "GCN Events",
   "GCN comments",
@@ -93,6 +95,7 @@ const QuickSearchBar = () => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<AllowedType>(ALLOWED_TYPES[0]);
+  const [saveDialogObjId, setSaveDialogObjId] = useState<string | null>(null);
 
   const debouncedInputValue = useDebouncer(inputValue, 500);
   const cache = useRef<Record<string, any>>({});
@@ -117,6 +120,14 @@ const QuickSearchBar = () => {
           GET(
             `/api/sources?sourceID=${encodeURIComponent(val)}&pageNumber=1&numPerPage=25&totalMatches=25&includeComments=false&removeNested=true`,
             "skyportal/FETCH_AUTOCOMPLETE_SOURCES",
+          ),
+        );
+      }
+      if (type === "Candidates") {
+        return dispatch(
+          GET(
+            `/api/candidates?objID=${encodeURIComponent(val)}&nameOnly=true&numPerPage=25`,
+            "skyportal/FETCH_AUTOCOMPLETE_CANDIDATES",
           ),
         );
       }
@@ -160,6 +171,8 @@ const QuickSearchBar = () => {
         let matchingEntries: any = [];
         if (type === "Sources") {
           matchingEntries = await response?.data?.sources;
+        } else if (type === "Candidates") {
+          matchingEntries = await response?.data?.candidates;
         } else if (type === "GCN Events") {
           matchingEntries = await response?.data?.events;
         } else if (["Source comments", "GCN comments"].includes(type)) {
@@ -218,6 +231,13 @@ const QuickSearchBar = () => {
                 match_name,
               };
             }
+            if (type === "Candidates") {
+              return {
+                id: matchingEntries[key].id,
+                name: matchingEntries[key].id,
+                match_name: matchingEntries[key].id,
+              };
+            }
             if (type === "Source comments") {
               // comments here have a text field (that we are searching for a match) and an obj_id field
               return {
@@ -256,7 +276,7 @@ const QuickSearchBar = () => {
   };
 
   const goToPage = (id: any, resourceType: string) => {
-    if (["Sources", "Source comments"].includes(resourceType)) {
+    if (["Sources", "Source comments", "Candidates"].includes(resourceType)) {
       navigate(`/source/${id}`);
     } else if (["GCN Events", "GCN comments"].includes(resourceType)) {
       navigate(`/gcn_events/${id}`);
@@ -264,80 +284,94 @@ const QuickSearchBar = () => {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        alignItems: "center",
-        width: "100%",
-        justifyContent: "flex-end",
-      }}
-    >
-      <Select
-        id="type-select"
-        value={type}
-        onChange={handleChangeType}
-        size="small"
-        className={classes.typeSelect}
-      >
-        {ALLOWED_TYPES.map((allowedType) => (
-          <MenuItem key={type} value={allowedType}>
-            {allowedType}
-          </MenuItem>
-        ))}
-      </Select>
-      <Autocomplete
-        color="primary"
-        id="quick-search-bar"
-        classes={{ root: classes.root, paper: (classes as any).paper }}
-        getOptionLabel={(option) => option.name || ""}
-        filterOptions={filterOptions}
-        onInputChange={(_e, val) => setInputValue(val)}
-        onChange={(_event, newValue: any, reason) => {
-          if (reason === "selectOption") {
-            setInputValue("");
-            setValue("");
-            setOpen(false);
-            goToPage(newValue.id, type);
-          } else if (reason === "clear") {
-            setOpen(false);
-          } else {
-            setValue(newValue);
-          }
+    <>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          width: "100%",
+          justifyContent: "flex-end",
         }}
-        onClose={() => setOpen(false)}
-        size="small"
-        noOptionsText={`No matching ${type}.`}
-        options={options}
-        open={open}
-        loading={loading}
-        clearOnEscape
-        clearOnBlur
-        selectOnFocus
-        limitTags={15}
-        value={value}
-        popupIcon={null}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            variant="outlined"
-            placeholder="Search"
-            fullWidth
-            slotProps={{
-              input: {
-                ...params.InputProps,
-                className: classes.textField,
-                endAdornment: loading && (
-                  <Box sx={{ display: "flex" }}>
-                    <CircularProgress size={20} color="inherit" />
-                  </Box>
-                ),
-              },
-            }}
-          />
-        )}
+      >
+        <Select
+          id="type-select"
+          value={type}
+          onChange={handleChangeType}
+          size="small"
+          className={classes.typeSelect}
+        >
+          {ALLOWED_TYPES.map((allowedType) => (
+            <MenuItem key={type} value={allowedType}>
+              {allowedType}
+            </MenuItem>
+          ))}
+        </Select>
+        <Autocomplete
+          color="primary"
+          id="quick-search-bar"
+          classes={{ root: classes.root, paper: (classes as any).paper }}
+          getOptionLabel={(option) => option.name || ""}
+          filterOptions={filterOptions}
+          onInputChange={(_e, val) => setInputValue(val)}
+          onChange={(_event, newValue: any, reason) => {
+            if (reason === "selectOption") {
+              setInputValue("");
+              setValue("");
+              setOpen(false);
+              if (type === "Candidates") {
+                // Candidates: open the save-to-groups dialog (which also links to
+                // the source page) instead of navigating straight there.
+                setSaveDialogObjId(newValue.id);
+              } else {
+                goToPage(newValue.id, type);
+              }
+            } else if (reason === "clear") {
+              setOpen(false);
+            } else {
+              setValue(newValue);
+            }
+          }}
+          onClose={() => setOpen(false)}
+          size="small"
+          noOptionsText={`No matching ${type}.`}
+          options={options}
+          open={open}
+          loading={loading}
+          clearOnEscape
+          clearOnBlur
+          selectOnFocus
+          limitTags={15}
+          value={value}
+          popupIcon={null}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              variant="outlined"
+              placeholder="Search"
+              fullWidth
+              slotProps={{
+                ...params.slotProps,
+                input: {
+                  ...params.slotProps.input,
+                  className: classes.textField,
+                  endAdornment: loading && (
+                    <Box sx={{ display: "flex" }}>
+                      <CircularProgress size={20} color="inherit" />
+                    </Box>
+                  ),
+                },
+              }}
+            />
+          )}
+        />
+      </div>
+      <SaveCandidateGroupsDialog
+        objId={saveDialogObjId}
+        open={saveDialogObjId !== null}
+        onClose={() => setSaveDialogObjId(null)}
       />
-    </div>
+    </>
   );
 };
 

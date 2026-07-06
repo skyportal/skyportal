@@ -1579,9 +1579,12 @@ class GcnEventHandler(BaseHandler):
 
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 10)
-        page_number, n_per_page = get_page_and_n_per_page(
-            page_number, n_per_page, MAX_GCNEVENTS
-        )
+        try:
+            page_number, n_per_page = get_page_and_n_per_page(
+                page_number, n_per_page, MAX_GCNEVENTS
+            )
+        except ValueError as e:
+            return self.error(str(e))
 
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")

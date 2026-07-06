@@ -364,7 +364,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
     isRightPanelVisible: boolean,
   ) => (
     <>
-      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 6, md: 4, lg: 3 }}>
+      <Grid
+        size={{ xs: 12, lg: 6 }}
+        sx={{
+          order: { xs: 6, md: 4, lg: 3 },
+        }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
@@ -398,7 +403,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
       {source?.gcn_notes?.length > 0 && (
         <Grid
           size={12}
-          order={{ xs: 7, md: 5, lg: !downLg && !rightPanelVisible ? 5 : 4 }}
+          sx={{
+            order: { xs: 7, md: 5, lg: !downLg && !rightPanelVisible ? 5 : 4 },
+          }}
         >
           <Accordion
             defaultExpanded
@@ -427,7 +434,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
       )}
       <Grid
         size={{ xs: 12, lg: 6 }}
-        order={{ xs: 3, md: 3, lg: downLg || rightPanelVisible ? 5 : 4 }}
+        sx={{
+          order: { xs: 3, md: 3, lg: downLg || rightPanelVisible ? 5 : 4 },
+        }}
       >
         <Accordion
           defaultExpanded
@@ -457,7 +466,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={12} order={{ xs: 13, md: 10, lg: 8 }}>
+      <Grid
+        size={12}
+        sx={{
+          order: { xs: 13, md: 10, lg: 8 },
+        }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
@@ -482,7 +496,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 8, lg: 12 }}>
+      <Grid
+        size={{ xs: 12, lg: 6 }}
+        sx={{
+          order: { xs: 8, lg: 12 },
+        }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
@@ -507,7 +526,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 9, lg: 13 }}>
+      <Grid
+        size={{ xs: 12, lg: 6 }}
+        sx={{
+          order: { xs: 9, lg: 13 },
+        }}
+      >
         <Accordion defaultExpanded disableGutters>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
@@ -533,7 +557,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 6 }} order={13}>
+      <Grid
+        size={{ xs: 12, lg: 6 }}
+        sx={{
+          order: 13,
+        }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
@@ -556,7 +585,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 6 }} order={15}>
+      <Grid
+        size={{ xs: 12, lg: 6 }}
+        sx={{
+          order: 15,
+        }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
@@ -592,7 +626,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
           display: downLg || !rightPanelVisible ? "flex" : "block",
         }}
       >
-        <Grid size={12} order={1}>
+        <Grid
+          size={12}
+          sx={{
+            order: 1,
+          }}
+        >
           <Paper style={{ padding: "0.5rem" }}>
             <div className={classes.container}>
               <div className={classes.header}>
@@ -911,8 +950,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   anchorEl={anchorElFindingChart}
                   open={openFindingChart}
                   onClose={() => setAnchorElFindingChart(null)}
-                  MenuListProps={{
-                    "aria-labelledby": "basic-button",
+                  slotProps={{
+                    list: {
+                      "aria-labelledby": "basic-button",
+                    },
                   }}
                 >
                   <MenuItem
@@ -964,8 +1005,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   anchorEl={anchorElObservability}
                   open={openObservability}
                   onClose={() => setAnchorElObservability(null)}
-                  MenuListProps={{
-                    "aria-labelledby": "basic-button",
+                  slotProps={{
+                    list: {
+                      "aria-labelledby": "basic-button",
+                    },
                   }}
                 >
                   <MenuItem
@@ -1179,7 +1222,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </div>
           </Paper>
         </Grid>
-        <Grid size={12} order={2}>
+        <Grid
+          size={12}
+          sx={{
+            order: 2,
+          }}
+        >
           <Paper>
             <Typography
               variant="h6"
@@ -1195,7 +1243,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </div>
           </Paper>
         </Grid>
-        <Grid size={12} order={{ xs: 4, md: 6 }}>
+        <Grid
+          size={12}
+          sx={{
+            order: { xs: 4, md: 6 },
+          }}
+        >
           <Accordion
             defaultExpanded
             disableGutters
@@ -1327,7 +1380,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid size={12} order={{ xs: 5, md: 7 }}>
+        <Grid
+          size={12}
+          sx={{
+            order: { xs: 5, md: 7 },
+          }}
+        >
           <Accordion
             defaultExpanded
             disableGutters
@@ -1387,7 +1445,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid size={12} order={{ xs: 10, md: 11, lg: 9 }}>
+        <Grid
+          size={12}
+          sx={{
+            order: { xs: 10, md: 11, lg: 9 },
+          }}
+        >
           <Accordion
             defaultExpanded
             disableGutters
@@ -1423,7 +1486,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid size={12} order={{ xs: 11, md: 12, lg: 10 }}>
+        <Grid
+          size={12}
+          sx={{
+            order: { xs: 11, md: 12, lg: 10 },
+          }}
+        >
           <Accordion>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -1457,7 +1525,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid size={12} order={{ xs: 12, md: 13, lg: 11 }}>
+        <Grid
+          size={12}
+          sx={{
+            order: { xs: 12, md: 13, lg: 11 },
+          }}
+        >
           <Accordion
             defaultExpanded
             disableGutters

@@ -260,7 +260,7 @@ const TaxonomyTable = ({
 
   const CustomToolbar = function TaxonomyTableToolbar() {
     return (
-      <DataGridToolbar showQuickFilter={false}>
+      <DataGridToolbar showQuickFilter={false} showExport>
         <IconButton
           name="new_taxonomy"
           onClick={() => {

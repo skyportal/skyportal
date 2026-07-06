@@ -1120,7 +1120,20 @@ class ObservationHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfExecutedObservations
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              observations:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/ExecutedObservation'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:

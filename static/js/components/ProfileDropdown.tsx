@@ -88,10 +88,8 @@ const ProfileDropdown = () => {
           gravatarUrl={profile.gravatar_url}
         />
       </IconButton>
-
       {/* this is to make baselayer.app.test_util.login happy */}
       <span className={classes.invisible}>{profile.username}</span>
-
       <Popover
         id={id}
         open={open}
@@ -108,10 +106,12 @@ const ProfileDropdown = () => {
         disableScrollLock
       >
         <Box
-          display="flex"
-          justifyContent="center"
           className={classes.avatar}
-          bgcolor="background.paper"
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            bgcolor: "background.paper",
+          }}
         >
           <UserAvatar
             size={60}
@@ -121,7 +121,13 @@ const ProfileDropdown = () => {
             gravatarUrl={profile.gravatar_url}
           />
         </Box>
-        <Box display="flex" justifyContent="center" bgcolor="background.paper">
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            bgcolor: "background.paper",
+          }}
+        >
           {(profile?.first_name?.length > 0 ||
             profile?.last_name?.length > 0) && (
             <Typography
@@ -133,10 +139,12 @@ const ProfileDropdown = () => {
           )}
         </Box>
         <Box
-          display="flex"
-          justifyContent="center"
-          bgcolor="background.paper"
           className={classes.paddingSides}
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            bgcolor: "background.paper",
+          }}
         >
           <Typography className={classes.typography} data-testid="username">
             {profile.username.substring(0, 15) +
@@ -157,10 +165,12 @@ const ProfileDropdown = () => {
         </MenuList>
 
         <Box
-          display="flex"
-          justifyContent="center"
-          bgcolor="background.paper"
           className={classes.signOutMargin}
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            bgcolor: "background.paper",
+          }}
         >
           <a
             href="/logout"

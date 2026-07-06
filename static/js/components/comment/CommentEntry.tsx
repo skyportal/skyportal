@@ -407,8 +407,10 @@ const CommentEntry = ({
         </Button>
         <Box
           component="div"
-          display={groupSelectVisible ? "flex" : "none"}
           className={styles.customizeGroupsContainer}
+          sx={{
+            display: groupSelectVisible ? "flex" : "none",
+          }}
         >
           {groups?.map((userGroup, idx) => (
             <FormControlLabel

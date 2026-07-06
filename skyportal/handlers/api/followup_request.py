@@ -1608,9 +1608,12 @@ class FollowupRequestHandler(BaseHandler):
         if sortOrder not in ["asc", "desc"]:
             return self.error("Invalid sortOrder value.")
 
-        page_number, n_per_page = get_page_and_n_per_page(
-            page_number, n_per_page, MAX_FOLLOWUP_REQUESTS
-        )
+        try:
+            page_number, n_per_page = get_page_and_n_per_page(
+                page_number, n_per_page, MAX_FOLLOWUP_REQUESTS
+            )
+        except ValueError as e:
+            return self.error(str(e))
 
         if requesters is not None:
             requesters = get_list_typed(

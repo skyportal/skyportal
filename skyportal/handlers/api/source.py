@@ -1982,11 +1982,14 @@ class SourceHandler(BaseHandler):
 
         start = time.time()
 
-        page_number, num_per_page = get_page_and_n_per_page(
-            self.get_query_argument("pageNumber", 1),
-            self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE),
-            MAX_SOURCES_PER_PAGE,
-        )
+        try:
+            page_number, num_per_page = get_page_and_n_per_page(
+                self.get_query_argument("pageNumber", 1),
+                self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE),
+                MAX_SOURCES_PER_PAGE,
+            )
+        except ValueError as e:
+            return self.error(str(e))
         ra = self.get_query_argument("ra", None)
         dec = self.get_query_argument("dec", None)
         radius = self.get_query_argument("radius", None)
@@ -2224,6 +2227,10 @@ class SourceHandler(BaseHandler):
                         include_associated_objs=include_associated_objs,
                         include_super_objs=include_super_objs,
                     )
+                except ValueError as e:
+                    # Expected "Source not found" (e.g. an obj that exists as a
+                    # candidate but isn't saved): return a clean 404, no traceback.
+                    return self.error(str(e), status=404)
                 except Exception as e:
                     traceback.print_exc()
                     return self.error(f"Cannot retrieve source: {str(e)}")
@@ -2747,16 +2754,18 @@ class SourceOffsetsHandler(BaseHandler):
             if facility in ["P200-NGPS"]:
                 # look for the latest photometry point
                 # in the filters supported by NGPS
-                latest_photometry = session.scalars(
-                    Photometry.select(session.user_or_token)
-                    .where(
-                        Photometry.obj_id == obj_id,
-                        Photometry.flux.isnot(None),
-                        Photometry.flux > 0,
-                        Photometry.fluxerr.isnot(None),
-                        Photometry.filter.in_(ALL_NGPS_SNCOSMO_BANDS),
+                latest_photometry = (
+                    await session.scalars(
+                        Photometry.select(session.user_or_token)
+                        .where(
+                            Photometry.obj_id == obj_id,
+                            Photometry.flux.isnot(None),
+                            Photometry.flux > 0,
+                            Photometry.fluxerr.isnot(None),
+                            Photometry.filter.in_(ALL_NGPS_SNCOSMO_BANDS),
+                        )
+                        .order_by(Photometry.mjd.desc())
                     )
-                    .order_by(Photometry.mjd.desc())
                 ).first()
                 if latest_photometry is not None:
                     source_mag = latest_photometry.mag
@@ -2771,10 +2780,12 @@ class SourceOffsetsHandler(BaseHandler):
                     except ValueError:
                         return self.error("Invalid argument for `observing_run_id`")
 
-                    assignment = session.scalars(
-                        ClassicalAssignment.select(session.user_or_token).where(
-                            ClassicalAssignment.obj_id == obj_id,
-                            ClassicalAssignment.run_id == observing_run,
+                    assignment = (
+                        await session.scalars(
+                            ClassicalAssignment.select(session.user_or_token).where(
+                                ClassicalAssignment.obj_id == obj_id,
+                                ClassicalAssignment.run_id == observing_run,
+                            )
                         )
                     ).first()
                     if assignment is None:
@@ -2821,7 +2832,7 @@ class SourceOffsetsHandler(BaseHandler):
                 [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
             )
 
-            session.commit()
+            await session.commit()
             return self.success(
                 data={
                     "facility": facility,
