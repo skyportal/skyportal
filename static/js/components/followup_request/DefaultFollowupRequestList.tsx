@@ -148,17 +148,12 @@ const DefaultFollowupRequestList = ({
   };
 
   const renderManage = (params: any) => {
-    if (!deletePermission) {
-      return null;
-    }
+    if (!deletePermission) return null;
+
     const default_followup_request = params.row;
     return (
       <div className={classes.defaultFollowupRequestManage}>
-        <Button
-          id={`delete_button_${default_followup_request.id}`}
-          onClick={() => openDeleteDialog(default_followup_request.id)}
-          disabled={!deletePermission}
-        >
+        <Button onClick={() => openDeleteDialog(default_followup_request.id)}>
           <DeleteIcon />
         </Button>
       </div>

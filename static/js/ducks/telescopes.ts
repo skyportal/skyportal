@@ -35,6 +35,17 @@ export const telescopesApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Telescope"],
     }),
+    updateTelescope: build.mutation<
+      unknown,
+      { id: number | string; data: Record<string, any> }
+    >({
+      query: ({ id, data }) => ({
+        url: `api/telescope/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["Telescope"],
+    }),
     deleteTelescope: build.mutation<unknown, number | string>({
       query: (id) => ({
         url: `api/telescope/${id}`,
@@ -53,5 +64,6 @@ export const {
   useGetTelescopesQuery,
   useGetTelescopeQuery,
   useSubmitTelescopeMutation,
+  useUpdateTelescopeMutation,
   useDeleteTelescopeMutation,
 } = telescopesApi;

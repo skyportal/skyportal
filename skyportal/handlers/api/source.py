@@ -568,9 +568,6 @@ async def get_source(
                 [gcn.dateobs for gcn in confirmed_in_gcn]
             )
 
-        # Obj.gcn_crossmatch is an ARRAY(String), so its dateobs come as strings;
-        # normalize all to naive datetimes (deduping across types) so the
-        # GcnEvent.dateobs timestamp IN-filter gets correctly-typed params.
         crossmatch_dateobs = list(
             {arrow.get(dateobs).naive for dateobs in source_info["gcn_crossmatch"]}
         )
