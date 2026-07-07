@@ -13,6 +13,11 @@ import requests
 import sqlalchemy as sa
 from astropy import coordinates as ap_coord
 from astropy import units as u
+from dustmaps.config import config
+from sqlalchemy import event
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
+
 from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
@@ -22,10 +27,6 @@ from baselayer.app.models import (
     restricted,
 )
 from baselayer.log import make_log
-from dustmaps.config import config
-from sqlalchemy import event
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship
 
 from .candidate import Candidate
 from .cosmo import cosmo
