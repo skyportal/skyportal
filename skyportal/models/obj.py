@@ -13,11 +13,6 @@ import requests
 import sqlalchemy as sa
 from astropy import coordinates as ap_coord
 from astropy import units as u
-from dustmaps.config import config
-from sqlalchemy import event
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship
-
 from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
@@ -27,6 +22,10 @@ from baselayer.app.models import (
     restricted,
 )
 from baselayer.log import make_log
+from dustmaps.config import config
+from sqlalchemy import event
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
 
 from .candidate import Candidate
 from .cosmo import cosmo
@@ -491,9 +490,12 @@ class Obj(Base, conesearch_alchemy.Point):
             session.add(Thumbnail(obj_id=self.id, public_url=url, type="ps1"))
             await session.commit()
 
+    # Survey cutouts share a common ~60 arcsec field of view so the object sits
+    # at the same scale across SDSS/LS/PS1 thumbnails.
     @property
     def sdss_url(self):
         """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout, using DR18."""
+        # 0.3 arcsec/pixel * 200 pixels = 60 arcsec FOV.
         return (
             f"https://skyserver.sdss.org/dr18/SkyServerWS/ImgCutout/getjpeg"
             "?TaskName=SkyServer.Chart.List"
@@ -504,9 +506,10 @@ class Obj(Base, conesearch_alchemy.Point):
     @property
     def legacysurvey_dr10_url(self):
         """Construct URL for public Legacy Survey DR10 cutout."""
+        # 0.3 arcsec/pixel * 200 pixels = 60 arcsec FOV.
         return (
             f"https://www.legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
-            f"&dec={self.dec}&size=200&layer=ls-dr10&pixscale=0.262&bands=griz"
+            f"&dec={self.dec}&size=200&layer=ls-dr10&pixscale=0.3&bands=griz"
         )
 
     @property
@@ -531,10 +534,11 @@ class Obj(Base, conesearch_alchemy.Point):
         )
         if not ps1_cutout_base:
             return cutout_url
+        # 0.25 arcsec/pixel * 240 pixels = 60 arcsec FOV.
         ps_query_url = (
             f"{ps1_cutout_base}"
             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
-            f"&filter=r&filter=i&filetypes=stack&size=250"
+            f"&filter=r&filter=i&filetypes=stack&size=240"
         )
         try:
             response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
