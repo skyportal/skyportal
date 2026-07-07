@@ -1,6 +1,5 @@
 __all__ = ["UserNotification"]
 
-import asyncio
 
 import sqlalchemy as sa
 from sqlalchemy import event, inspect
@@ -84,12 +83,6 @@ def add_user_notifications(mapper, connection, target):
             "target_class_name": target_class_name,
             "target_id": target_id,
         }
-
-        try:
-            loop = asyncio.get_event_loop()
-        except Exception:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
 
         IOLoop.current().run_in_executor(
             None,

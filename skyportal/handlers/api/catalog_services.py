@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import glob
 import tempfile
@@ -11,7 +12,7 @@ import swifttools.ukssdc.query as uq
 from astropy.table import Table
 from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
@@ -42,9 +43,10 @@ from ...models import (
 )
 from ...models.schema import CatalogQueryPost
 from ...utils.catalog import get_conesearch_centers, query_fink, query_kowalski
+from ...utils.data_access import accessible_group_ids_async
 from ..base import BaseHandler
 from .photometric_series import post_photometric_series, update_photometric_series
-from .photometry import add_external_photometry
+from .photometry import commit_external_photometry
 from .source import post_source
 
 _, cfg = load_env()
@@ -74,9 +76,7 @@ class CatalogQueryHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
+                schema: Success
           400:
             content:
               application/json:
@@ -98,8 +98,8 @@ class CatalogQueryHandler(BaseHandler):
         if "catalogName" not in data["payload"]:
             return self.error("catalogName required in query payload")
 
-        with self.Session() as session:
-            allocation = session.scalar(
+        async with self.AsyncSession() as session:
+            allocation = await session.scalar(
                 sa.select(Allocation).where(Allocation.id == data["allocation_id"])
             )
 
@@ -283,7 +283,10 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     obj_ids.append(obj_id)
 
                 if len(df.index) > 0:
-                    add_external_photometry(data_out, user)
+                    # add_external_photometry is async; bridge to it from this sync
+                    # executor. The obj is already committed by post_source above, so
+                    # the bridge's separate session can see it.
+                    asyncio.run(commit_external_photometry(data_out, user_id))
                     log(f"Photometry committed to database for {source['id']}")
                 else:
                     log(f"No photometry to commit to database for {source['id']}")
@@ -378,7 +381,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
 
 class SwiftLSXPSQueryHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Post Swift LSXPS objects as sources
@@ -402,10 +405,8 @@ class SwiftLSXPSQueryHandler(BaseHandler):
                       for the Neil Gehrels Swift Observatory.
                       Defaults to Swift.
                   groupIDs:
-                    required: false
-                    schema:
-                      type: list
-                      items:
+                    type: array
+                    items:
                       type: integer
                     description: |
                       If provided, save to these group IDs.
@@ -424,15 +425,16 @@ class SwiftLSXPSQueryHandler(BaseHandler):
 
         telescope_name = data.get("telescope_name", "Swift")
         group_ids = data.get("groupIDs", None)
-        if group_ids is None:
-            group_ids = [g.id for g in self.current_user.accessible_groups]
 
-        with self.Session() as session:
-            telescope = session.scalars(
-                Telescope.select(session.user_or_token).where(
-                    Telescope.nickname == telescope_name
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            if group_ids is None:
+                group_ids = await accessible_group_ids_async(self.current_user, session)
+
+            telescope = await session.scalar(
+                Telescope.select(session.user_or_token)
+                .options(selectinload(Telescope.instruments))
+                .where(Telescope.nickname == telescope_name)
+            )
             if telescope is None:
                 return self.error(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
@@ -567,7 +569,9 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
                     }
 
                     if len(df.index) > 0:
-                        add_external_photometry(data_out, user)
+                        # async add_external_photometry, bridged from this sync executor;
+                        # obj already committed above so the bridge's session sees it.
+                        asyncio.run(commit_external_photometry(data_out, user_id))
                         log(f"Photometry committed to database for {obj_id}")
                     else:
                         log(f"No photometry to commit to database for {obj_id}")
@@ -600,7 +604,7 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
 
 class GaiaPhotometricAlertsQueryHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Post Gaia Photometric Alert as sources
@@ -623,20 +627,18 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
                       Use the same name as your nickname
                       for Gaia. Defaults to Gaia.
                   groupIDs:
-                    required: false
-                    schema:
-                      type: list
-                      items:
+                    type: array
+                    items:
                       type: integer
                     description: |
                       If provided, save to these group IDs.
                   startDate:
                     required: false
-                    type: str
+                    type: string
                     description: Arrow parsable string. Filter by start date.
                   endDate:
                     required: false
-                    type: str
+                    type: string
                     description: Arrow parsable string. Filter by end date.
         responses:
           200:
@@ -655,8 +657,6 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         group_ids = data.get("groupIDs", None)
-        if group_ids is None:
-            group_ids = [g.id for g in self.current_user.accessible_groups]
 
         if start_date is not None:
             start_date = Time(arrow.get(start_date.strip()).datetime)
@@ -665,12 +665,15 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
 
         payload = {"start_date": start_date, "end_date": end_date}
 
-        with self.Session() as session:
-            telescope = session.scalars(
-                Telescope.select(session.user_or_token).where(
-                    Telescope.nickname == telescope_name
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            if group_ids is None:
+                group_ids = await accessible_group_ids_async(self.current_user, session)
+
+            telescope = await session.scalar(
+                Telescope.select(session.user_or_token)
+                .options(selectinload(Telescope.instruments))
+                .where(Telescope.nickname == telescope_name)
+            )
             if telescope is None:
                 return self.error(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
@@ -810,7 +813,9 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
             }
 
             if len(df.index) > 0:
-                add_external_photometry(data_out, user)
+                # async add_external_photometry, bridged from this sync executor;
+                # obj already committed above so the bridge's session sees it.
+                asyncio.run(commit_external_photometry(data_out, user_id))
                 log(f"Photometry committed to database for {obj_id}")
             else:
                 log(f"No photometry to commit to database for {obj_id}")
@@ -822,7 +827,7 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
 
 class TessTransientsQueryHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Post TESS transients as sources
@@ -846,20 +851,18 @@ class TessTransientsQueryHandler(BaseHandler):
                       Use the same name as your nickname
                       for TESS. Defaults to TESS.
                   groupIDs:
-                    required: false
-                    schema:
-                      type: list
-                      items:
+                    type: array
+                    items:
                       type: integer
                     description: |
                       If provided, save to these group IDs.
                   startDate:
                     required: false
-                    type: str
+                    type: string
                     description: Arrow parsable string. Filter by start date.
                   endDate:
                     required: false
-                    type: str
+                    type: string
                     description: Arrow parsable string. Filter by end date.
         responses:
           200:
@@ -878,8 +881,6 @@ class TessTransientsQueryHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         group_ids = data.get("groupIDs", None)
-        if group_ids is None:
-            group_ids = [g.id for g in self.current_user.accessible_groups]
 
         if start_date is not None:
             start_date = Time(arrow.get(start_date.strip()).datetime)
@@ -888,12 +889,15 @@ class TessTransientsQueryHandler(BaseHandler):
 
         payload = {"start_date": start_date, "end_date": end_date}
 
-        with self.Session() as session:
-            telescope = session.scalars(
-                Telescope.select(session.user_or_token).where(
-                    Telescope.nickname == telescope_name
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            if group_ids is None:
+                group_ids = await accessible_group_ids_async(self.current_user, session)
+
+            telescope = await session.scalar(
+                Telescope.select(session.user_or_token)
+                .options(selectinload(Telescope.instruments))
+                .where(Telescope.nickname == telescope_name)
+            )
             if telescope is None:
                 return self.error(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]

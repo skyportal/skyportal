@@ -2,14 +2,15 @@ from collections import defaultdict
 
 import sqlalchemy as sa
 from sqlalchemy import desc
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 from skyportal.models.group import Group
 
-from ....models import Obj, ObjTag, Source
+from ....models import Obj, ObjTag, Source, serialize_obj_tag
+from ....utils.data_access import accessible_group_ids_async
 from ....utils.parse import get_list_typed
 from ...base import BaseHandler
 from .source_views import t_index
@@ -29,7 +30,7 @@ log = make_log("api/recent_sources")
 
 class RecentSourcesHandler(BaseHandler):
     @classmethod
-    def get_recent_source_ids(cls, current_user, session):
+    async def get_recent_source_ids(cls, current_user, session):
         user_prefs = getattr(current_user, "preferences", None) or {}
         recent_sources_prefs = user_prefs.get("recentSources", {})
         recent_sources_prefs = {**default_prefs, **recent_sources_prefs}
@@ -47,7 +48,7 @@ class RecentSourcesHandler(BaseHandler):
         if len(group_ids) > 0:
             stmt = stmt.where(Source.group_id.in_(group_ids))
         elif not include_sitewide:
-            public_group_id = session.scalar(
+            public_group_id = await session.scalar(
                 sa.select(Group.id).where(Group.name == cfg["misc.public_group_name"])
             )
             if public_group_id is None:
@@ -59,22 +60,28 @@ class RecentSourcesHandler(BaseHandler):
         stmt = stmt.order_by(desc(Source.created_at)).distinct(
             Source.obj_id, Source.created_at
         )
-        query_results = session.scalars(stmt.limit(max_num_sources)).all()
-        ids = [src.obj_id for src in query_results]
-        return ids
+        result = await session.scalars(stmt.limit(max_num_sources))
+        return [src.obj_id for src in result.all()]
 
     @auth_or_token
-    def get(self):
-        with self.Session() as session:
-            query_results = RecentSourcesHandler.get_recent_source_ids(
+    async def get(self):
+        async with self.AsyncSession() as session:
+            query_results = await RecentSourcesHandler.get_recent_source_ids(
                 self.current_user, session
             )
-            tags = session.scalars(
-                ObjTag.select(session.user_or_token).where(
-                    ObjTag.obj_id.in_(list(set(query_results)))
+            tags_result = await session.scalars(
+                ObjTag.select(session.user_or_token)
+                .options(
+                    selectinload(ObjTag.objtagoption),
+                    selectinload(ObjTag.groups),
                 )
-            ).all()
-            tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+                .where(ObjTag.obj_id.in_(list(set(query_results))))
+            )
+            tags = tags_result.all()
+            user_group_ids = set(
+                await accessible_group_ids_async(session.user_or_token, session)
+            )
+            tags = [serialize_obj_tag(tag, user_group_ids) for tag in tags]
             # make it a hashmap of obj_id to tags
             tags_dict = defaultdict(list)
             for tag in tags:
@@ -92,19 +99,23 @@ class RecentSourcesHandler(BaseHandler):
                     recency_index = sources_seen[obj_id]
                     sources_seen[obj_id] += 1
 
-                s = session.scalars(
+                s = await session.scalar(
                     Obj.select(
-                        session.user_or_token, options=[joinedload(Obj.thumbnails)]
+                        session.user_or_token,
+                        options=[
+                            selectinload(Obj.thumbnails),
+                            selectinload(Obj.classifications),
+                        ],
                     ).where(Obj.id == obj_id)
-                ).first()
+                )
 
                 # Get the entry in the Source table to get the accurate saved_at time
-                source_entry = session.scalars(
+                source_entry = await session.scalar(
                     Source.select(session.user_or_token)
                     .where(Source.obj_id == obj_id)
                     .order_by(desc(Source.created_at))
                     .offset(recency_index)
-                ).first()
+                )
 
                 if s is None or source_entry is None:
                     log(f"Source with obj_id {obj_id} not found.")

@@ -1,17 +1,26 @@
 # Developer notes
 
-## Pre-commit hook
+## Development setup
 
-Install our pre-commit hook as follows:
+If you intend to do any development work on the application, first install the dev dependencies:
 
 ```
-pip install pre-commit
-pre-commit install
+uv sync --inexact --group dev
+```
+
+This includes `pre-commit`, `pytest`, `selenium`, and other tools needed for development and testing.
+
+## Pre-commit hook
+
+Install our pre-commit hook:
+
+```
+uv run pre-commit install
 ```
 
 This will check your changes before each commit to ensure that they
-conform with our code style standards. We use black to reformat Python
-code, and PrettierJS for JavaScript. We also run ESLint to catch
+conform with our code style standards. We use ruff to lint and reformat Python
+code, and Prettier for JavaScript. We also run ESLint to catch
 several common Redux usage bugs.
 
 ## Testing
@@ -29,8 +38,8 @@ faster you can also run the test server separately:
 make run_testing   # fire up the server with `test_conf.yaml`
 
 pytest skyportal/tests/api  # test api
-pytest skyportal/tests/frontend/test_user.py  # run subset of frontend tests
-pytest skyportal/tests/frontend/test_user.py::test_user_profile_fetching  # run a single test
+pytest skyportal/tests/frontend/users_groups_and_content/test_user.py  # run subset of frontend tests
+pytest skyportal/tests/frontend/users_groups_and_content/test_user.py::test_user_profile_fetching  # run a single test
 ```
 
 On Linux, the tests can be run in "headless" mode (no browser display):
@@ -41,7 +50,7 @@ On Linux, the tests can be run in "headless" mode (no browser display):
 Or, as described above, launch the test server with `make run_testing`, and then call
 
 ```
-xvfb-run pytest skyportal/tests/frontend/test_user.py
+xvfb-run pytest skyportal/tests/frontend/users_groups_and_content/test_user.py
 ```
 
 It is not noticeably faster to run the test suite headlessly.

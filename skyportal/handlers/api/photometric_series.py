@@ -1,4 +1,5 @@
 import os
+import textwrap
 import traceback
 
 import arrow
@@ -28,7 +29,7 @@ from ...models.photometric_series import (
 )
 from ...models.stream import Stream
 from ...utils.hdf5_files import load_dataframe_from_bytestream
-from ..base import BaseHandler
+from ..base import BaseHandler, format_doc
 
 _, cfg = load_env()
 
@@ -536,6 +537,15 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
     try:
         ps.save_data()
         session.add(ps)
+
+        # Assign groups and streams to the relationships
+        ps.groups = session.scalars(
+            sa.select(Group).where(Group.id.in_(group_ids))
+        ).all()
+        ps.streams = session.scalars(
+            sa.select(Stream).where(Stream.id.in_(stream_ids))
+        ).all()
+
         session.commit()
 
         return ps.id
@@ -638,6 +648,12 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
     for k, v in metadata.items():
         setattr(ps, k, v)
 
+    # Update groups and streams relationships
+    ps.groups = session.scalars(sa.select(Group).where(Group.id.in_(group_ids))).all()
+    ps.streams = session.scalars(
+        sa.select(Stream).where(Stream.id.in_(stream_ids))
+    ).all()
+
     try:
         # make sure we can get the file name:
         full_name, path = ps.make_full_name()
@@ -685,8 +701,13 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
 
 class PhotometricSeriesHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
-        f"""
+    @format_doc(
+        body_schema_docstring=textwrap.indent(
+            body_schema_docstring.strip("\n"), " " * 10
+        ).lstrip()
+    )
+    async def post(self):
+        """
         ---
         summary: Upload a photometric series.
         description: Upload a photometric series.
@@ -752,8 +773,16 @@ class PhotometricSeriesHandler(BaseHandler):
         return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
-    def patch(self, photometric_series_id):
-        f"""
+    @format_doc(
+        body_schema_docstring=textwrap.indent(
+            body_schema_docstring.replace("required: true", "required: false").strip(
+                "\n"
+            ),
+            " " * 10,
+        ).lstrip()
+    )
+    async def patch(self, photometric_series_id: int):
+        """
         ---
         summary: Update a photometric series.
         description: |
@@ -775,7 +804,7 @@ class PhotometricSeriesHandler(BaseHandler):
             schema:
               type: integer
         requestBody:
-          {body_schema_docstring.replace("required: true", "required: false")}
+          {body_schema_docstring}
         responses:
           200:
             content:
@@ -836,7 +865,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data={"id": photometric_series_id})
 
     @permissions(["Upload data"])
-    def get(self, photometric_series_id=None):
+    async def get(self, photometric_series_id: int | None = None):
         """
         ---
         single:
@@ -1422,7 +1451,9 @@ class PhotometricSeriesHandler(BaseHandler):
         if series_obj_id:
             stmt = stmt.where(PhotometricSeries.series_obj_id == series_obj_id.strip())
         if filter:
-            stmt = stmt.where(PhotometricSeries.filter == filter)
+            # psycopg3 strict-binds the string against the enum column; cast
+            # explicitly so the comparison binds as the enum type.
+            stmt = stmt.where(sa.cast(PhotometricSeries.filter, sa.String) == filter)
         if channel:
             stmt = stmt.where(PhotometricSeries.channel == channel)
         if origin:
@@ -1779,11 +1810,16 @@ class PhotometricSeriesHandler(BaseHandler):
                 # sorting enums is done by default using their order in the original
                 # definition, which is not alphabetical order (which is what the user expects)
                 # ref: https://stackoverflow.com/a/23618085
+                # Cast the enum column to String for the case() value mapping
+                # — psycopg3 won't implicitly compare bandpasses to varchar.
                 whens = {
                     name: name
                     for name in getattr(PhotometricSeries, sort_by).type.enums
                 }
-                order_by_column = case(whens, value=getattr(PhotometricSeries, sort_by))
+                order_by_column = case(
+                    whens,
+                    value=sa.cast(getattr(PhotometricSeries, sort_by), sa.String),
+                )
             else:
                 order_by_column = getattr(PhotometricSeries, sort_by)
         except AttributeError:
@@ -1837,7 +1873,7 @@ class PhotometricSeriesHandler(BaseHandler):
             return self.success(data=results)
 
     @permissions(["Upload data"])
-    def delete(self, photometric_series_id):
+    async def delete(self, photometric_series_id: int):
         """
         ---
         summary: Delete a photometric series
@@ -1861,12 +1897,12 @@ class PhotometricSeriesHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            ps = session.scalars(
+        async with self.AsyncSession() as session:
+            ps = await session.scalar(
                 PhotometricSeries.select(session.user_or_token, mode="delete").where(
                     PhotometricSeries.id == photometric_series_id
                 )
-            ).first()
+            )
 
             if ps is None:
                 return self.error(
@@ -1875,8 +1911,8 @@ class PhotometricSeriesHandler(BaseHandler):
 
             obj_id = ps.obj_id
 
-            session.delete(ps)
-            session.commit()
+            await session.delete(ps)
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",

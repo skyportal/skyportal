@@ -1,6 +1,6 @@
 import datetime
 import json
-import operator  # noqa: F401
+import operator
 import re
 import time
 import uuid
@@ -15,7 +15,8 @@ from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload  # noqa: F401
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.sql import Values, bindparam, column, text
 from sqlalchemy.sql.expression import case, cast, func
 from sqlalchemy.types import Boolean, Float, Integer, String
@@ -39,18 +40,24 @@ from ....models import (
     Localization,
     LocalizationTile,
     Obj,
+    ObjToSuperObj,
     Photometry,
     PhotStat,
     Source,
     Spectrum,
+    SuperObj,
 )
 from ....utils.cache import Cache, array_to_bytes
+from ....utils.calculations import great_circle_distance
+from ....utils.data_access import (
+    accessible_group_and_filter_ids,
+    accessible_group_ids_async,
+)
 from ....utils.parse import get_page_and_n_per_page
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...base import BaseHandler
 from .candidate_filter import (
     get_subquery_for_saved_status,
-    get_user_accessible_group_and_filter_ids,
 )
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
@@ -66,17 +73,13 @@ log = make_log("api/candidate")
 
 def update_summary_history_if_relevant(results_data, obj, user):
     if "summary" in results_data:
-        if obj.summary_history is None:
-            summary_history = []
-        else:
-            summary_history = copy(obj.summary_history)
-
+        summary_history = copy(obj.summary_history) if obj.summary_history else []
         summary_params = {
             "set_by_user_id": user.id,
-            "set_at_utc": datetime.datetime.utcnow().isoformat(),
+            "set_at_utc": datetime.datetime.now(datetime.UTC).isoformat(),
             "summary": results_data["summary"],
             "is_bot": results_data.get("is_bot", False),
-            "analysis_id": results_data.get("analysis_id", None),
+            "analysis_id": results_data.get("analysis_id"),
         }
 
         if "summary_origin" in results_data:
@@ -89,20 +92,16 @@ def update_summary_history_if_relevant(results_data, obj, user):
 
 def update_redshift_history_if_relevant(request_data, obj, user):
     if "redshift" in request_data:
-        if obj.redshift_history is None:
-            redshift_history = []
-        else:
-            redshift_history = copy(obj.redshift_history)
-
+        redshift_history = copy(obj.redshift_history) if obj.redshift_history else []
         history_params = {
             "set_by_user_id": user.id,
-            "set_at_utc": datetime.datetime.utcnow().isoformat(),
+            "set_at_utc": datetime.datetime.now(datetime.UTC).isoformat(),
             "value": request_data["redshift"],
-            "uncertainty": request_data.get("redshift_error", None),
+            "uncertainty": request_data.get("redshift_error"),
         }
 
-        origin = request_data.get("redshift_origin", None)
-        if isinstance(origin, str) and len(origin.strip()) > 0:
+        origin = request_data.get("redshift_origin")
+        if isinstance(origin, str) and origin.strip():
             history_params["origin"] = origin
 
         redshift_history.append(history_params)
@@ -111,20 +110,19 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
 def update_healpix_if_relevant(request_data, obj):
     # first check if the ra and dec is being updated
-    ra = request_data.get("ra", None)
-    dec = request_data.get("dec", None)
+    ra = request_data.get("ra")
+    dec = request_data.get("dec")
 
-    if (ra is not None) and (dec is not None):
+    if ra is not None and dec is not None:
         # This adds a healpix index for a new object being created
         obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
         return
 
     # otherwise make sure healpix is correct
-    if (obj.ra is not None) and (obj.dec is not None):
+    if obj.ra is not None and obj.dec is not None:
         obj.healpix = ha.constants.HPX.lonlat_to_healpix(
             obj.ra * u.deg, obj.dec * u.deg
         )
-        return
 
 
 def create_photometry_annotations_query(
@@ -156,23 +154,22 @@ def create_photometry_annotations_query(
     return photometry_annotations_query
 
 
-def fetch_obj_data(model, options, obj_id, session):
-    return (
-        session.scalars(
-            model.select(session.user_or_token, options=options).where(
-                model.obj_id == obj_id
-            )
+async def fetch_obj_data(model, options, obj_id, session):
+    """Async fetch of all rows of ``model`` for ``obj_id``."""
+    result = await session.scalars(
+        model.select(session.user_or_token, options=options).where(
+            model.obj_id == obj_id
         )
-        .unique()
-        .all()
     )
+    return result.unique().all()
 
 
-def include_requested_obj_data(
+async def include_requested_obj_data(
     obj_id, candidate, get_query_argument, session, include_phot_annotations
 ):
-    """
-    Add object data to the candidate dictionary based on the query parameters
+    """Add object data to the candidate dictionary based on the query
+    parameters. Async equivalent of the previous sync version — uses
+    ``selectinload`` to avoid lazy loads on the merged objects.
 
     Parameters
     ----------
@@ -182,8 +179,7 @@ def include_requested_obj_data(
         The candidate dictionary
     get_query_argument : func
         The function to get query arguments
-    session : `baselayer.app.models.Session`
-        Database session
+    session : ``sqlalchemy.ext.asyncio.AsyncSession``
     include_phot_annotations : bool
         Whether to include photometry annotations
 
@@ -193,11 +189,11 @@ def include_requested_obj_data(
         The updated candidate dictionary
     """
     if get_query_argument("includePhotometry", False):
-        phot_options = [joinedload(Photometry.instrument)]
+        phot_options = [selectinload(Photometry.instrument)]
 
         if include_phot_annotations:
-            phot_options.append(joinedload(Photometry.annotations))
-            candidate["photometry"] = fetch_obj_data(
+            phot_options.append(selectinload(Photometry.annotations))
+            candidate["photometry"] = await fetch_obj_data(
                 Photometry, phot_options, obj_id, session
             )
             candidate["photometry"] = [
@@ -210,47 +206,98 @@ def include_requested_obj_data(
                 for phot in candidate["photometry"]
             ]
         else:
-            candidate["photometry"] = fetch_obj_data(
+            candidate["photometry"] = await fetch_obj_data(
                 Photometry, phot_options, obj_id, session
             )
 
     if get_query_argument("includeSpectra", False):
-        candidate["spectra"] = fetch_obj_data(
-            Spectrum, [joinedload(Spectrum.instrument)], obj_id, session
+        candidate["spectra"] = await fetch_obj_data(
+            Spectrum, [selectinload(Spectrum.instrument)], obj_id, session
         )
 
     if get_query_argument("includeComments", False):
         candidate["comments"] = sorted(
-            fetch_obj_data(Comment, [joinedload(Comment.author)], obj_id, session),
+            await fetch_obj_data(
+                Comment, [selectinload(Comment.author)], obj_id, session
+            ),
             key=lambda x: x.created_at,
             reverse=True,
         )
     if get_query_argument("includeFollowupRequests", False):
-        candidate["followup_requests"] = fetch_obj_data(
+        candidate["followup_requests"] = await fetch_obj_data(
             FollowupRequest,
             [
-                joinedload(FollowupRequest.allocation).joinedload(
+                selectinload(FollowupRequest.allocation).selectinload(
                     Allocation.instrument
                 ),
-                joinedload(FollowupRequest.allocation).joinedload(
+                selectinload(FollowupRequest.allocation).selectinload(
                     Allocation.group,
                 ),
-                joinedload(FollowupRequest.requester),
+                selectinload(FollowupRequest.requester),
             ],
             obj_id,
             session,
         )
 
+    if get_query_argument("includeAssociatedObjs", True):
+        # For each associated obj, we include the same info as for duplicates
+        # (obj_id, ra, dec, separation), plus super_obj_{id,name}.
+        super_objs_result = await session.scalars(
+            sa.select(SuperObj)
+            .options(selectinload(SuperObj.objs))
+            .where(SuperObj.objs.any(Obj.id == obj_id))
+        )
+        super_objs = super_objs_result.unique().all()
+        associated_objs = []
+        for super_obj in super_objs:
+            super_obj_id = super_obj.id
+            super_obj_name = super_obj.name
+            for obj in super_obj.objs:
+                if obj.id == obj_id:
+                    continue
+                associated_objs.append(
+                    {
+                        "obj_id": obj.id,
+                        "ra": obj.ra,
+                        "dec": obj.dec,
+                        "separation": great_circle_distance(
+                            candidate["ra"], candidate["dec"], obj.ra, obj.dec
+                        )
+                        * 3600,
+                        "super_obj_id": super_obj_id,
+                        "super_obj_name": super_obj_name,
+                    }
+                )
+        candidate["associated_objs"] = sorted(
+            associated_objs, key=lambda x: x["separation"]
+        )
+
     candidate["annotations"] = sorted(
-        fetch_obj_data(Annotation, [], obj_id, session),
+        await fetch_obj_data(
+            Annotation, [selectinload(Annotation.groups)], obj_id, session
+        ),
         key=lambda x: x.origin,
     )
     return candidate
 
 
+def add_computed_fields(candidate_info, obj):
+    if obj.photstats and obj.photstats[-1].last_detected_mjd is not None:
+        candidate_info["last_detected_at"] = Time(
+            obj.photstats[-1].last_detected_mjd, format="mjd"
+        ).datetime
+    else:
+        candidate_info["last_detected_at"] = None
+    candidate_info["gal_lon"] = obj.gal_lon_deg
+    candidate_info["gal_lat"] = obj.gal_lat_deg
+    candidate_info["luminosity_distance"] = obj.luminosity_distance
+    candidate_info["dm"] = obj.dm
+    candidate_info["angular_diameter_distance"] = obj.angular_diameter_distance
+
+
 class CandidateHandler(BaseHandler):
     @auth_or_token
-    def head(self, obj_id=None):
+    async def head(self, obj_id=None):
         """
         ---
         single:
@@ -274,7 +321,7 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             query_params = [bindparam("objID", value=obj_id, type_=sa.String)]
             stmt = "SELECT id FROM candidates WHERE obj_id = :objID"
             if not self.associated_user_object.is_admin:
@@ -283,22 +330,19 @@ class CandidateHandler(BaseHandler):
                         "userID", value=self.associated_user_object.id, type_=sa.Integer
                     )
                 )
-                # inner join between filters and group_users (on group_id) to get filters accessible by user
                 stmt += " AND filter_id IN (SELECT DISTINCT(filters.id) FROM filters INNER JOIN group_users ON filters.group_id = group_users.group_id WHERE group_users.user_id = :userID)"
             stmt += " LIMIT 1"
 
             stmt = text(stmt).bindparams(*query_params).columns(id=sa.Integer)
-            connection = session.connection()
-            result = connection.execute(stmt)
+            result = await session.execute(stmt)
             if result.fetchone():
                 return self.success()
-            else:
-                return self.error(
-                    message=f"No candidate with object ID {obj_id}", status=404
-                )
+            return self.error(
+                message=f"No candidate with object ID {obj_id}", status=404
+            )
 
     @auth_or_token
-    def get(self, obj_id=None):
+    async def get(self, obj_id: str = None):
         """
         ---
         single:
@@ -621,7 +665,7 @@ class CandidateHandler(BaseHandler):
             description: |
               Require firstDetectionAfter, lastDetectionBefore, and numberDetections to be set when querying candidates in a localization. Defaults to True.
           - in: query
-            name: ignoreForcedPhotometry
+            name: excludeForcedPhotometry
             schema:
               type: boolean
             description: |
@@ -665,24 +709,28 @@ class CandidateHandler(BaseHandler):
         include_alerts = self.get_query_argument("includeAlerts", False)
 
         if obj_id is not None:
-            with self.Session() as session:
-                query_options = [joinedload(Obj.thumbnails), joinedload(Obj.photstats)]
+            async with self.AsyncSession() as session:
+                query_options = [
+                    selectinload(Obj.thumbnails),
+                    selectinload(Obj.photstats),
+                ]
 
-                c = session.scalars(
+                c = await session.scalar(
                     Obj.select(session.user_or_token, options=query_options).where(
                         Obj.id == obj_id
                     )
-                ).first()
+                )
                 if c is None:
                     return self.error("Invalid ID")
                 candidate_info = recursive_to_dict(c)
 
                 if include_alerts:
-                    accessible_candidates = session.scalars(
+                    accessible_candidates_result = await session.scalars(
                         Candidate.select(session.user_or_token).where(
                             Candidate.obj_id == obj_id
                         )
-                    ).all()
+                    )
+                    accessible_candidates = accessible_candidates_result.unique().all()
                     filter_ids = [cand.filter_id for cand in accessible_candidates]
 
                     passing_alerts = [
@@ -696,7 +744,7 @@ class CandidateHandler(BaseHandler):
                     candidate_info["filter_ids"] = filter_ids
                     candidate_info["passing_alerts"] = passing_alerts
 
-                candidate_info = include_requested_obj_data(
+                candidate_info = await include_requested_obj_data(
                     obj_id,
                     candidate_info,
                     self.get_query_argument,
@@ -707,8 +755,10 @@ class CandidateHandler(BaseHandler):
                 stmt = Source.select(session.user_or_token).where(
                     Source.obj_id == obj_id
                 )
-                count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-                candidate_info["is_source"] = session.execute(count_stmt).scalar()
+                count_stmt = sa.select(func.count()).select_from(
+                    stmt.distinct().subquery()
+                )
+                candidate_info["is_source"] = await session.scalar(count_stmt)
                 if candidate_info["is_source"]:
                     source_subquery = (
                         Source.select(session.user_or_token)
@@ -716,41 +766,21 @@ class CandidateHandler(BaseHandler):
                         .where(Source.active.is_(True))
                         .subquery()
                     )
-                    candidate_info["saved_groups"] = (
-                        session.scalars(
-                            Group.select(session.user_or_token).join(
-                                source_subquery, Group.id == source_subquery.c.group_id
-                            )
+                    saved_groups_result = await session.scalars(
+                        Group.select(session.user_or_token).join(
+                            source_subquery, Group.id == source_subquery.c.group_id
                         )
-                        .unique()
-                        .all()
+                    )
+                    candidate_info["saved_groups"] = saved_groups_result.unique().all()
+                    classifications_result = await session.scalars(
+                        Classification.select(session.user_or_token).where(
+                            Classification.obj_id == obj_id
+                        )
                     )
                     candidate_info["classifications"] = (
-                        session.scalars(
-                            Classification.select(session.user_or_token).where(
-                                Classification.obj_id == obj_id
-                            )
-                        )
-                        .unique()
-                        .all()
+                        classifications_result.unique().all()
                     )
-                if len(c.photstats) > 0:
-                    if c.photstats[-1].last_detected_mjd is not None:
-                        candidate_info["last_detected_at"] = Time(
-                            c.photstats[-1].last_detected_mjd, format="mjd"
-                        ).datetime
-                    else:
-                        candidate_info["last_detected_at"] = None
-                else:
-                    candidate_info["last_detected_at"] = None
-                candidate_info["gal_lon"] = c.gal_lon_deg
-                candidate_info["gal_lat"] = c.gal_lat_deg
-                candidate_info["luminosity_distance"] = c.luminosity_distance
-                candidate_info["dm"] = c.dm
-                candidate_info["angular_diameter_distance"] = (
-                    c.angular_diameter_distance
-                )
-
+                add_computed_fields(candidate_info, c)
                 candidate_info = recursive_to_dict(candidate_info)
 
                 query_size = sizeof(candidate_info)
@@ -765,6 +795,30 @@ class CandidateHandler(BaseHandler):
 
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 25)
+
+        # Lightweight autocomplete for the toolbar quick-search: return candidate
+        # obj_ids matching a partial name, skipping the heavy scanning-page query.
+        name_only = self.get_query_argument("nameOnly", "false").lower() == "true"
+        obj_id_partial = self.get_query_argument("objID", None)
+        if name_only and obj_id_partial:
+            async with self.AsyncSession() as session:
+                group_ids = await accessible_group_ids_async(
+                    session.user_or_token, session
+                )
+                matches = await session.scalars(
+                    sa.select(Candidate.obj_id)
+                    .join(Filter, Filter.id == Candidate.filter_id)
+                    .where(
+                        Candidate.obj_id.ilike(f"{obj_id_partial}%"),
+                        Filter.group_id.in_(group_ids),
+                    )
+                    .distinct()
+                    .order_by(Candidate.obj_id)
+                    .limit(int(n_per_page))
+                )
+                return self.success(
+                    data={"candidates": [{"id": oid} for oid in matches.all()]}
+                )
         # Not documented in API docs as this is for frontend-only usage & will confuse
         # users looking through the API docs
         query_id = self.get_query_argument("queryID", None)
@@ -795,6 +849,28 @@ class CandidateHandler(BaseHandler):
         photometry_annotations_filter_before = self.get_query_argument(
             "photometryAnnotationsFilterBefore", None
         )
+        # Parse to naive datetimes so the query compares against the timestamp
+        # column rather than a string (Postgres has no timestamp >= text op).
+        if photometry_annotations_filter_after is not None:
+            try:
+                photometry_annotations_filter_after = arrow.get(
+                    photometry_annotations_filter_after
+                ).naive
+            except Exception:
+                return self.error(
+                    f"Invalid photometryAnnotationsFilterAfter: "
+                    f"{photometry_annotations_filter_after}"
+                )
+        if photometry_annotations_filter_before is not None:
+            try:
+                photometry_annotations_filter_before = arrow.get(
+                    photometry_annotations_filter_before
+                ).naive
+            except Exception:
+                return self.error(
+                    f"Invalid photometryAnnotationsFilterBefore: "
+                    f"{photometry_annotations_filter_before}"
+                )
         photometry_annotations_filter_min_count = self.get_query_argument(
             "photometryAnnotationsFilterMinCount", 1
         )
@@ -808,12 +884,27 @@ class CandidateHandler(BaseHandler):
         )
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
 
-        if localization_dateobs or localization_name and require_detections:
-            if not first_detected_date or not last_detected_date:
+        if localization_dateobs is not None:
+            try:
+                localization_dateobs = arrow.get(localization_dateobs).naive
+            except Exception:
                 return self.error(
-                    "must specify startDate and endDate when filtering by localizationDateobs or localizationName"
+                    f"Invalid localizationDateobs: {localization_dateobs}"
+                )
+
+        if (localization_dateobs or localization_name) and require_detections:
+            if (
+                not first_detected_date
+                or not last_detected_date
+                or number_of_detections is None
+            ):
+                return self.error(
+                    "must specify startDate, endDate and numberDetections when requireDetections is True and "
+                    "filtering by localizationDateobs or localizationName"
                 )
             try:
                 first_detected_date = arrow.get(first_detected_date).datetime
@@ -838,10 +929,10 @@ class CandidateHandler(BaseHandler):
         except ValueError as e:
             return self.error(str(e))
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             # first, we get the list of group IDs and filter IDs
             # that the user has access to
-            group_ids, filter_ids = get_user_accessible_group_and_filter_ids(
+            group_ids, filter_ids = await accessible_group_and_filter_ids(
                 session,
                 session.user_or_token,
                 group_ids,
@@ -923,7 +1014,7 @@ class CandidateHandler(BaseHandler):
 
             if sort_by_origin is None:
                 # Don't apply the order by just yet. Save it so we can pass it to
-                # the LIMT/OFFSET helper function down the line once other query
+                # the LIMIT/OFFSET helper function down the line once other query
                 # params are set.
                 order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
@@ -961,15 +1052,21 @@ class CandidateHandler(BaseHandler):
                 )
 
             if list_name is not None:
-                q = q.where(
-                    Listing.list_name == list_name,
-                    Listing.user_id == self.associated_user_object.id,
+                listing_subquery = (
+                    Obj.select(session.user_or_token, columns=[Obj.id])
+                    .join(Listing)
+                    .where(
+                        Listing.list_name == list_name,
+                        Listing.user_id == self.associated_user_object.id,
+                    )
+                    .subquery()
                 )
+                q = q.join(listing_subquery, Obj.id == listing_subquery.c.id)
             if list_name_reject is not None:
                 right = (
                     Obj.select(session.user_or_token, columns=[Obj.id])
                     .join(Listing)
-                    .filter(
+                    .where(
                         Listing.list_name == list_name_reject,
                         Listing.user_id == self.associated_user_object.id,
                     )
@@ -991,12 +1088,12 @@ class CandidateHandler(BaseHandler):
                         )
 
                     if "origin" not in new_filter:
-                        self.error(
+                        return self.error(
                             f'Invalid annotation filter list item {item}: "origin" is required.'
                         )
 
                     if "key" not in new_filter:
-                        self.error(
+                        return self.error(
                             f'Invalid annotation filter list item {item}: "key" is required.'
                         )
 
@@ -1024,7 +1121,7 @@ class CandidateHandler(BaseHandler):
                                 # If not, this is just a string field and we don't
                                 # need the string formatting above
                                 pass
-                            q = q.filter(
+                            q = q.where(
                                 Annotation.origin == new_filter["origin"],
                                 Annotation.data[new_filter["key"]].astext == value,
                             )
@@ -1051,11 +1148,9 @@ class CandidateHandler(BaseHandler):
             if sort_by_origin is not None:
                 sort_by_key = self.get_query_argument("sortByAnnotationKey", None)
                 sort_by_order = self.get_query_argument("sortByAnnotationOrder", None)
-                # Define a custom sort order to have annotations from the correct
-                # origin first, all others afterwards
+                # Define a custom sort order to have annotations from the correct origin first, all others afterward
                 origin_sort_order = case(
-                    {sort_by_origin: 1},
-                    value=Annotation.origin,
+                    (Annotation.origin == sort_by_origin, 1),
                     else_=None,
                 )
                 annotation_sort_criterion = (
@@ -1064,7 +1159,7 @@ class CandidateHandler(BaseHandler):
                     else Annotation.data[sort_by_key].nullslast()
                 )
                 # Don't apply the order by just yet. Save it so we can pass it to
-                # the LIMT/OFFSET helper function.
+                # the LIMIT/OFFSET helper function.
                 order_by = [
                     origin_sort_order.nullslast(),
                     annotation_sort_criterion,
@@ -1078,7 +1173,7 @@ class CandidateHandler(BaseHandler):
                         c.strip() for c in photometry_annotations_filter.split(",")
                     ]
                 else:
-                    raise ValueError(
+                    return self.error(
                         "Invalid annotationsFilter value -- must provide at least one string value"
                     )
             if photometry_annotations_filter_origin is not None:
@@ -1088,44 +1183,42 @@ class CandidateHandler(BaseHandler):
                         for c in photometry_annotations_filter_origin.split(",")
                     ]
                 else:
-                    raise ValueError(
+                    return self.error(
                         "Invalid annotationsFilterOrigin value -- must provide at least one string value"
                     )
 
             if (
-                (photometry_annotations_filter_origin is not None)
-                or (photometry_annotations_filter_before is not None)
-                or (photometry_annotations_filter_after is not None)
-                or (photometry_annotations_filter is not None)
+                photometry_annotations_filter_origin is not None
+                or photometry_annotations_filter_before is not None
+                or photometry_annotations_filter_after is not None
+                or photometry_annotations_filter is not None
             ):
+                photometry_annotations_query = create_photometry_annotations_query(
+                    session,
+                    photometry_annotations_filter_origin=photometry_annotations_filter_origin,
+                    photometry_annotations_filter_before=photometry_annotations_filter_before,
+                    photometry_annotations_filter_after=photometry_annotations_filter_after,
+                )
                 if photometry_annotations_filter is not None:
                     for ann_filt in photometry_annotations_filter:
                         ann_split = ann_filt.split(":")
-                        if not (len(ann_split) == 1 or len(ann_split) == 3):
-                            raise ValueError(
+                        if len(ann_split) not in (1, 3):
+                            return self.error(
                                 "Invalid photometryAnnotationsFilter value -- annotation filter must have 1 or 3 values"
                             )
                         name = ann_split[0].strip()
-
-                        photometry_annotations_query = create_photometry_annotations_query(
-                            session,
-                            photometry_annotations_filter_origin=photometry_annotations_filter_origin,
-                            photometry_annotations_filter_before=photometry_annotations_filter_before,
-                            photometry_annotations_filter_after=photometry_annotations_filter_after,
-                        )
 
                         if len(ann_split) == 3:
                             value = ann_split[1].strip()
                             try:
                                 value = float(value)
                             except ValueError as e:
-                                raise ValueError(
+                                return self.error(
                                     f"Invalid annotation filter value: {e}"
                                 )
                             op = ann_split[2].strip()
-                            op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
-                            if op not in op_options:
-                                raise ValueError(f"Invalid operator: {op}")
+                            if op not in {"lt", "le", "eq", "ne", "ge", "gt"}:
+                                return self.error(f"Invalid operator: {op}")
                             comp_function = getattr(operator, op)
 
                             photometry_annotations_query = (
@@ -1145,27 +1238,16 @@ class CandidateHandler(BaseHandler):
                                 )
                             )
 
-                else:
-                    photometry_annotations_query = create_photometry_annotations_query(
-                        session,
-                        photometry_annotations_filter_origin=photometry_annotations_filter_origin,
-                        photometry_annotations_filter_before=photometry_annotations_filter_before,
-                        photometry_annotations_filter_after=photometry_annotations_filter_after,
-                    )
-
                 photometry_annotations_subquery = (
                     photometry_annotations_query.subquery()
                 )
-                obj_photometry_annotations_query = sa.select(Obj.id)
-                obj_photometry_annotations_query = (
-                    obj_photometry_annotations_query.join(
-                        photometry_annotations_subquery,
-                        sa.and_(
-                            photometry_annotations_subquery.c.count
-                            >= photometry_annotations_filter_min_count,
-                            photometry_annotations_subquery.c.obj_id == Obj.id,
-                        ),
-                    )
+                obj_photometry_annotations_query = sa.select(Obj.id).join(
+                    photometry_annotations_subquery,
+                    sa.and_(
+                        photometry_annotations_subquery.c.count
+                        >= photometry_annotations_filter_min_count,
+                        photometry_annotations_subquery.c.obj_id == Obj.id,
+                    ),
                 )
                 obj_photometry_annotations_subquery = (
                     obj_photometry_annotations_query.subquery()
@@ -1213,7 +1295,7 @@ class CandidateHandler(BaseHandler):
                     photstat_subquery_columns.append(column)
                     photstat_subquery_conditions.append(column >= number_of_detections)
 
-                if len(photstat_subquery_conditions) > 0:
+                if photstat_subquery_conditions:
                     photstat_subquery = (
                         PhotStat.select(
                             session.user_or_token, columns=photstat_subquery_columns
@@ -1227,25 +1309,25 @@ class CandidateHandler(BaseHandler):
                     )
             if localization_dateobs is not None:
                 if localization_name is None:
-                    localization = session.scalars(
+                    localization = await session.scalar(
                         Localization.select(self.associated_user_object)
                         .where(Localization.dateobs == localization_dateobs)
                         .order_by(Localization.created_at.desc())
-                    ).first()
+                    )
                 else:
-                    localization = session.scalars(
+                    localization = await session.scalar(
                         Localization.select(self.associated_user_object)
                         .where(Localization.dateobs == localization_dateobs)
                         .where(Localization.localization_name == localization_name)
                         .order_by(Localization.modified.desc())
-                    ).first()
+                    )
                 if localization is None:
                     if localization_name is not None:
-                        raise ValueError(
+                        return self.error(
                             f"Localization {localization_dateobs} with name {localization_name} not found",
                         )
                     else:
-                        raise ValueError(
+                        return self.error(
                             f"Localization {localization_dateobs} not found",
                         )
 
@@ -1264,15 +1346,12 @@ class CandidateHandler(BaseHandler):
                         "def", LocalizationTile
                     )
                 else:
-                    # check that there is actually a localizationTile with the given localization_id in the partition
-                    # if not, use the default partition
-                    if not (
-                        session.scalars(
-                            localizationtilescls.select(session.user_or_token).where(
-                                localizationtilescls.localization_id == localization.id
-                            )
-                        ).first()
-                    ):
+                    existing_tile = await session.scalar(
+                        localizationtilescls.select(session.user_or_token).where(
+                            localizationtilescls.localization_id == localization.id
+                        )
+                    )
+                    if not existing_tile:
                         localizationtilescls = LocalizationTile.partitions.get(
                             "def", LocalizationTile
                         )
@@ -1287,7 +1366,7 @@ class CandidateHandler(BaseHandler):
                 )
 
                 localizationtile_subquery = (
-                    sa.select(localizationtilescls.probdensity, cum_prob).filter(
+                    sa.select(localizationtilescls.probdensity, cum_prob).where(
                         localizationtilescls.localization_id == localization.id
                     )
                 ).subquery()
@@ -1295,22 +1374,23 @@ class CandidateHandler(BaseHandler):
                 min_probdensity = (
                     sa.select(
                         sa.func.min(localizationtile_subquery.columns.probdensity)
-                    ).filter(
+                    ).where(
                         localizationtile_subquery.columns.cum_prob
                         <= localization_cumprob
                     )
                 ).scalar_subquery()
 
-                tile_ids = session.scalars(
+                tile_ids_result = await session.scalars(
                     sa.select(localizationtilescls.id).where(
                         localizationtilescls.localization_id == localization.id,
                         localizationtilescls.probdensity >= min_probdensity,
                     )
-                ).all()
+                )
+                tile_ids = tile_ids_result.all()
 
                 tiles_subquery = (
                     sa.select(Obj.id)
-                    .filter(
+                    .where(
                         localizationtilescls.id.in_(tile_ids),
                         localizationtilescls.healpix.contains(Obj.healpix),
                     )
@@ -1322,7 +1402,7 @@ class CandidateHandler(BaseHandler):
                 )
 
             try:
-                query_results = grab_query_results(
+                query_results = await grab_query_results(
                     session,
                     q,
                     page_number,
@@ -1338,20 +1418,21 @@ class CandidateHandler(BaseHandler):
                     return self.error("Page number out of range.")
                 raise
 
-            matching_source_ids = (
-                session.scalars(
-                    Source.select(session.user_or_token, columns=[Source.obj_id]).where(
-                        Source.obj_id.in_(
-                            [obj.id for (obj,) in query_results["candidates"]]
-                        )
+            matching_source_ids_result = await session.scalars(
+                Source.select(session.user_or_token, columns=[Source.obj_id]).where(
+                    Source.obj_id.in_(
+                        [obj.id for (obj,) in query_results["candidates"]]
                     )
                 )
-                .unique()
-                .all()
             )
+            matching_source_ids = matching_source_ids_result.unique().all()
             candidate_list = []
+            if autosave:
+                from ..source import post_source_async
+
             for (obj,) in query_results["candidates"]:
-                with session.no_autoflush:
+                # AsyncSession.no_autoflush is a property; use the proxy.
+                with session.sync_session.no_autoflush:
                     obj.is_source = obj.id in matching_source_ids
                     if obj.is_source:
                         source_subquery = (
@@ -1360,46 +1441,53 @@ class CandidateHandler(BaseHandler):
                             .where(Source.active.is_(True))
                             .subquery()
                         )
-                        obj.saved_groups = session.scalars(
+                        saved_groups_result = await session.scalars(
                             Group.select(session.user_or_token).join(
                                 source_subquery, Group.id == source_subquery.c.group_id
                             )
-                        ).all()
-                        obj.classifications = (
-                            session.scalars(
-                                Classification.select(self.current_user).where(
-                                    Classification.obj_id == obj.id
-                                )
-                            )
-                            .unique()
-                            .all()
                         )
-                    obj.passing_group_ids = [
-                        f.group_id
-                        for f in session.scalars(
-                            Filter.select(session.user_or_token).where(
-                                Filter.id.in_(
-                                    session.scalars(
-                                        Candidate.select(
-                                            session.user_or_token,
-                                            columns=[Candidate.filter_id],
-                                        ).where(Candidate.obj_id == obj.id)
-                                    ).all()
-                                )
+                        obj.saved_groups = saved_groups_result.unique().all()
+                        classifications_result = await session.scalars(
+                            Classification.select(self.current_user).where(
+                                Classification.obj_id == obj.id
                             )
-                        ).all()
-                    ]
+                        )
+                        # Direct assignment would lazy-load the existing
+                        # `Obj.classifications` collection before replace,
+                        # which trips MissingGreenlet under async. Use
+                        # set_committed_value to set it without trigger.
+                        set_committed_value(
+                            obj,
+                            "classifications",
+                            classifications_result.unique().all(),
+                        )
+                    candidate_filter_ids_result = await session.scalars(
+                        Candidate.select(
+                            session.user_or_token,
+                            columns=[Candidate.filter_id],
+                        ).where(Candidate.obj_id == obj.id)
+                    )
+                    candidate_filter_ids = candidate_filter_ids_result.all()
+                    passing_filters_result = await session.scalars(
+                        Filter.select(session.user_or_token).where(
+                            Filter.id.in_(candidate_filter_ids)
+                        )
+                    )
+                    passing_filters = passing_filters_result.all()
+                    obj.passing_group_ids = [f.group_id for f in passing_filters]
                     if autosave:
-                        from ..source import post_source
-
                         source = {
                             "id": obj.id,
                             "group_ids": autosave_group_ids,
                         }
-                        post_source(source, self.associated_user_object.id, session)
+                        await post_source_async(
+                            source,
+                            self.associated_user_object.id,
+                            session,
+                        )
 
                     candidate_list.append(recursive_to_dict(obj))
-                    candidate_list[-1] = include_requested_obj_data(
+                    candidate_list[-1] = await include_requested_obj_data(
                         obj.id,
                         candidate_list[-1],
                         self.get_query_argument,
@@ -1419,26 +1507,10 @@ class CandidateHandler(BaseHandler):
                     candidate_list[-1]["annotations"] = (
                         selected_groups_annotations + other_annotations
                     )
-                    if len(obj.photstats) > 0:
-                        if obj.photstats[-1].last_detected_mjd is not None:
-                            candidate_list[-1]["last_detected_at"] = Time(
-                                obj.photstats[-1].last_detected_mjd, format="mjd"
-                            ).datetime
-                        else:
-                            candidate_list[-1]["last_detected_at"] = None
-                    else:
-                        candidate_list[-1]["last_detected_at"] = None
-                    candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
-                    candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
-                    candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
-                    candidate_list[-1]["dm"] = obj.dm
-                    candidate_list[-1]["angular_diameter_distance"] = (
-                        obj.angular_diameter_distance
-                    )
+                    add_computed_fields(candidate_list[-1], obj)
 
             query_results["candidates"] = candidate_list
             query_results = recursive_to_dict(query_results)
-            self.verify_and_commit()
 
             query_size = sizeof(query_results)
             if query_size >= SIZE_WARNING_THRESHOLD:
@@ -1451,7 +1523,7 @@ class CandidateHandler(BaseHandler):
             return self.success(data=query_results)
 
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create new candidate(s)
@@ -1502,23 +1574,17 @@ class CandidateHandler(BaseHandler):
         """
         data = self.get_json()
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == data["id"])
-            ).first()
-            if obj is None:
-                obj_already_exists = False
-            else:
-                obj_already_exists = True
+            )
+            obj_already_exists = obj is not None
             schema = Obj.__schema__()
 
-            ra = data.get("ra", None)
-            dec = data.get("dec", None)
-
-            if ra is None and not obj_already_exists:
+            if data.get("ra") is None and not obj_already_exists:
                 return self.error("RA must not be null for a new Obj")
 
-            if dec is None and not obj_already_exists:
+            if data.get("dec") is None and not obj_already_exists:
                 return self.error("Dec must not be null for a new Obj")
 
             passing_alert_id = data.pop("passing_alert_id", None)
@@ -1542,20 +1608,26 @@ class CandidateHandler(BaseHandler):
                         f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
                 session.add(obj)
+                await session.flush()
 
-            filters = session.scalars(
+            filters_result = await session.scalars(
                 Filter.select(session.user_or_token).where(Filter.id.in_(filter_ids))
             )
+            filters = filters_result.unique().all()
             if not filters:
                 return self.error("At least one valid filter ID must be provided.")
 
             update_redshift_history_if_relevant(data, obj, self.associated_user_object)
             update_healpix_if_relevant(data, obj)
 
+            # Capture obj.id BEFORE the commit attempt so that we can still
+            # build an error message after a rollback (which detaches obj).
+            obj_id_str = obj.id
+
             candidates = [
                 Candidate(
-                    obj=obj,
-                    filter=filter,
+                    obj_id=obj_id_str,
+                    filter_id=filter.id,
                     passing_alert_id=passing_alert_id,
                     passed_at=passed_at,
                     uploader_id=self.associated_user_object.id,
@@ -1564,18 +1636,18 @@ class CandidateHandler(BaseHandler):
             ]
             session.add_all(candidates)
             try:
-                session.commit()
+                await session.commit()
                 ids = [c.id for c in candidates]
             except IntegrityError as e:
-                session.rollback()
+                await session.rollback()
                 return self.error(
-                    f"Failed to post candidate for object {obj.id}: {e.args[0]}"
+                    f"Failed to post candidate for object {obj_id_str}: {e.args[0]}"
                 )
 
             return self.success(data={"ids": ids})
 
     @permissions(["Upload data"])
-    def delete(self, obj_id, filter_id):
+    async def delete(self, obj_id: str, filter_id: int):
         """
         ---
         summary: Delete candidate(s)
@@ -1597,23 +1669,29 @@ class CandidateHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
         """
 
-        with self.Session() as session:
-            cands_to_delete = session.scalars(
+        async with self.AsyncSession() as session:
+            result = await session.scalars(
                 Candidate.select(session.user_or_token, mode="delete")
                 .where(Candidate.obj_id == obj_id)
                 .where(Candidate.filter_id == filter_id)
-            ).all()
-            if len(cands_to_delete) == 0:
+            )
+            cands_to_delete = result.all()
+            if not cands_to_delete:
                 return self.error(
                     "Invalid (obj_id, filter_id) pairing - no matching candidates"
                 )
             for cand in cands_to_delete:
-                session.delete(cand)
-            session.commit()
-
+                await session.delete(cand)
+            await session.commit()
             return self.success()
 
 
@@ -1636,21 +1714,13 @@ def get_obj_id_values(obj_ids):
             column("id", String),
             column("ordering", Integer),
         )
-        .data(
-            [
-                (
-                    obj_id,
-                    idx,
-                )
-                for idx, obj_id in enumerate(obj_ids)
-            ]
-        )
+        .data([(obj_id, idx) for idx, obj_id in enumerate(obj_ids)])
         .alias("values_table")
     )
     return values_table
 
 
-def grab_query_results(
+async def grab_query_results(
     session,
     q,
     page,
@@ -1667,44 +1737,17 @@ def grab_query_results(
     If there are no matching Objs, an empty list [] is returned instead.
     include_detection_stats is added to the pagination query directly here.
     """
-    # The query will return multiple rows per candidate object if it has multiple
-    # annotations associated with it, with rows appearing at the end of the query
-    # for any annotations with origins not equal to the one being sorted on (if applicable).
-    # We want to essentially grab only the candidate objects as they first appear
-    # in the query results, and ignore these other irrelevant annotation entries.
-
-    # Add a "row_num" column to the desire query that explicitly encodes the ordering
-    # of the query results - remember that these query rows are essentially
-    # (Obj, Annotation) tuples, so the earliest row numbers for a given Obj is
-    # the one we want to adhere to (and the later ones are annotation records for
-    # the candidate that are not being sorted/filtered on right now)
-    #
-    # The row number must be preserved like this in order to remember the desired
-    # ordering info even while using the passed in query as a subquery to select
-    # from. This is because subqueries provide a set of results to query from,
-    # losing any order_by information.
     row = func.row_number().over(order_by=order_by).label("row_num")
     full_query = q.add_columns(row)
 
     info = {}
     full_query = full_query.subquery()
-    # Using the PostgreSQL DISTINCT ON keyword, we grab the candidate Obj ids
-    # in the order that they first appear in the query (per the row_num values)
-    # NOTE: It is probably possible to grab the full Obj records here instead of
-    # just the ID values, but querying "full_query" here means we lost the original
-    # ORM mappings, so we would have to explicity re-label the columns here.
-    # It is much more straightforward to just get an ordered list of Obj ID
-    # values here and get the corresponding n_items_per_page full Obj objects
-    # at the end, I think, for minimal additional overhead.
     ids_with_row_nums = (
         sa.select(full_query.c.id, full_query.c.row_num)
         .distinct(full_query.c.id)
         .order_by(full_query.c.id, full_query.c.row_num)
         .subquery()
     )
-    # Grouping and getting the first distinct obj_id above messed up the order
-    # in the query set, so re-order by the row_num we used to remember the
-    # original ordering
     ordered_ids = sa.select(
         ids_with_row_nums.c.id,
     ).order_by(ids_with_row_nums.c.row_num)
@@ -1715,35 +1758,33 @@ def grab_query_results(
             if cache_filename is not None:
                 all_ids = np.load(cache_filename)
             else:
-                # Cache expired/removed/non-existent; create new cache file
                 query_id = str(uuid.uuid4())
-                all_ids = session.scalars(ordered_ids).unique().all()
+                all_result = await session.scalars(ordered_ids)
+                all_ids = all_result.unique().all()
                 cache[query_id] = array_to_bytes(all_ids)
-            totalMatches = len(all_ids)
+            total_matches = len(all_ids)
             obj_ids_in_page = all_ids[
                 ((page - 1) * n_items_per_page) : (page * n_items_per_page)
             ]
             info["queryID"] = query_id
         else:
-            count_stmt = sa.select(func.count()).select_from(ordered_ids)
-            totalMatches = session.execute(count_stmt).scalar()
-            obj_ids_in_page = (
-                session.scalars(
-                    ordered_ids.limit(n_items_per_page).offset(
-                        (page - 1) * n_items_per_page
-                    )
+            count_stmt = sa.select(func.count()).select_from(ordered_ids.subquery())
+            total_matches = await session.scalar(count_stmt)
+            page_result = await session.scalars(
+                ordered_ids.limit(n_items_per_page).offset(
+                    (page - 1) * n_items_per_page
                 )
-                .unique()
-                .all()
             )
+            obj_ids_in_page = page_result.unique().all()
         info["pageNumber"] = page
         info["numPerPage"] = n_items_per_page
     else:
-        count_stmt = sa.select(func.count()).select_from(ordered_ids)
-        totalMatches = session.execute(count_stmt).scalar()
-        obj_ids_in_page = session.execute(ordered_ids).unique().all()
+        count_stmt = sa.select(func.count()).select_from(ordered_ids.subquery())
+        total_matches = await session.scalar(count_stmt)
+        page_result = await session.execute(ordered_ids)
+        obj_ids_in_page = page_result.unique().all()
 
-    info["totalMatches"] = totalMatches
+    info["totalMatches"] = total_matches
 
     if page:
         if (
@@ -1765,26 +1806,21 @@ def grab_query_results(
 
     options = []
     if include_thumbnails:
-        options.append(joinedload(Obj.thumbnails))
+        options.append(selectinload(Obj.thumbnails))
     if include_detection_stats:
-        options.append(joinedload(Obj.photstats))
+        options.append(selectinload(Obj.photstats))
 
     items = []
     if len(obj_ids_in_page) > 0:
-        # If there are no values, the VALUES statement above will cause a syntax error,
-        # so only filter on the values if they exist
         obj_ids_values = get_obj_id_values(obj_ids_in_page)
 
-        items = (
-            session.execute(
-                sa.select(Obj)
-                .options(*options)
-                .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                .order_by(obj_ids_values.c.ordering)
-            )
-            .unique()
-            .all()
+        items_result = await session.execute(
+            sa.select(Obj)
+            .options(*options)
+            .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+            .order_by(obj_ids_values.c.ordering)
         )
+        items = items_result.unique().all()
 
     info[items_name] = items
     return info

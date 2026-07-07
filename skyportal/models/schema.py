@@ -23,13 +23,16 @@ from marshmallow import (
     pre_dump,
     validate,
 )
-from marshmallow_enum import EnumField
 from marshmallow_sqlalchemy import (
     ModelConversionError as _ModelConversionError,
 )
 from marshmallow_sqlalchemy import (
     SQLAlchemyAutoSchema as _SQLAlchemyAutoSchema,
 )
+from marshmallow_sqlalchemy.fields import Related, RelatedList
+from sqlalchemy import JSON as _JSON
+from sqlalchemy.dialects.postgresql import ARRAY as _ARRAY
+from sqlalchemy.dialects.postgresql import JSONB as _JSONB
 
 from baselayer.app.env import load_env
 from baselayer.app.models import Base as _Base
@@ -53,14 +56,24 @@ PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 def validate_fluxerr(fluxerr):
     try:
         if isinstance(fluxerr, float | int | str):
-            return float(fluxerr) >= 0
-        return all(float(el) >= 0 for el in fluxerr)
-    except ValueError:
+            non_negative = float(fluxerr) >= 0
+        else:
+            non_negative = all(float(el) >= 0 for el in fluxerr)
+    except (TypeError, ValueError):
         raise ValidationError("fluxerr must be a number or list of numbers")
+    if not non_negative:
+        raise ValidationError("Invalid value: fluxerr must be non-negative")
 
 
-class ApispecEnumField(EnumField):
-    """See https://github.com/justanr/marshmallow_enum/issues/24#issue-335162592"""
+class ApispecEnumField(fields.Enum):
+    """Enum field that also advertises its members in the ``enum`` metadata key
+    so apispec renders the allowed values in the OpenAPI spec.
+
+    marshmallow 4 ships a built-in ``fields.Enum`` which (with the default
+    ``by_value=False``) serializes/deserializes by member name — the same
+    behavior the old ``marshmallow_enum.EnumField`` provided — so the
+    unmaintained third-party package is no longer needed.
+    """
 
     def __init__(self, enum, *args, **kwargs):
         super().__init__(enum, *args, **kwargs)
@@ -106,6 +119,32 @@ def success(schema_name, base_schema=None):
     return type(schema_name, (_Schema,), schema_fields)
 
 
+# Populated by setup_schema() as it walks each SQLAlchemy model.
+# Maps model class name -> {relationship name: (related class name, is_list)}.
+# Consumed by register_components() to rewrite the generated OpenAPI spec
+# so SQLAlchemy relationships render as proper $refs instead of unknowns.
+_relationship_map: dict[str, dict[str, tuple[str, bool]]] = {}
+
+# Column-level metadata gathered alongside `_relationship_map`. The spec
+# post-processor in register_components() uses it to give the right JSON
+# Schema type to columns apispec couldn't resolve on its own:
+#   * `_jsonb_columns`:  free-form JSON column → object/additionalProperties
+#   * `_array_item_types`: postgres ARRAY column → array of typed items
+_jsonb_columns: dict[str, set[str]] = {}
+_array_item_types: dict[str, dict[str, str]] = {}
+
+
+# Map a SQLAlchemy primitive Python type to an OpenAPI/JSON Schema type. Used
+# to fill in the item type of postgres ARRAY columns whose elements apispec
+# defaults to untyped.
+_PYTHON_TO_OPENAPI_TYPE: dict[type, str] = {
+    int: "integer",
+    float: "number",
+    bool: "boolean",
+    str: "string",
+}
+
+
 def setup_schema():
     """For each model, install a marshmallow schema generator as
     `model.__schema__()`, and add an entry to the `schema`
@@ -142,7 +181,6 @@ def setup_schema():
                         "model": class_,
                         "sqla_session": _DBSession,
                         "load_instance": True,
-                        "ordered": True,
                         "exclude": [],
                         "include_fk": True,
                         "include_relationships": True,
@@ -161,8 +199,58 @@ def setup_schema():
                     {"Meta": schema_class_meta},
                 )
 
+                # marshmallow-sqlalchemy 1.5+ marks Related fields as required
+                # on load. Our API contract is "send FK IDs, return nested
+                # objects", so make relationships dump-only — they appear in
+                # GET responses but are not demanded on POST/PUT. The runtime
+                # dumped value of a Related field is just the related row's
+                # primary key; handlers that want the nested object overlay
+                # `**model.to_dict()` with their own nested data. The OpenAPI
+                # spec is rewritten by register_components() below to claim a
+                # proper $ref for these fields, matching what handlers
+                # actually return.
+                for _field in schema_class._declared_fields.values():
+                    if isinstance(_field, Related | RelatedList):
+                        _field.dump_only = True
+                        _field.required = False
+
                 if add_to_model:
                     setattr(class_, "__schema__", schema_class)
+
+                # Cache the model -> {relationship_name: (related_model_name,
+                # is_list)} map so register_components() can rewrite the
+                # generated spec without re-introspecting SQLAlchemy.
+                _relationship_map[schema_class_name] = {
+                    rel.key: (rel.mapper.class_.__name__, rel.uselist)
+                    for rel in mapper.relationships
+                    if hasattr(rel.mapper.class_, "__tablename__")
+                }
+                # Cache postgres JSONB and ARRAY columns so the spec
+                # post-processor can render them as `{type: object,
+                # additionalProperties: true}` and typed array items
+                # respectively. apispec maps both column types to an empty
+                # schema, which becomes a bare `unknown` in generated TS.
+                jsonb = set()
+                arr: dict[str, str] = {}
+                for col in mapper.columns:
+                    # Native JSONB/JSON columns, plus baselayer's PSA
+                    # ``JSONType`` (TypeDecorator over PickleType used for
+                    # social-auth ``UserSocialAuth.extra_data`` and
+                    # ``Partial.data``). Pattern-match on the type's name so
+                    # we don't have to drag in the psa module here.
+                    if (
+                        isinstance(col.type, _JSONB | _JSON)
+                        or type(col.type).__name__ == "JSONType"
+                    ):
+                        jsonb.add(col.name)
+                    elif isinstance(col.type, _ARRAY):
+                        item_py = getattr(col.type.item_type, "python_type", None)
+                        if item_py and item_py in _PYTHON_TO_OPENAPI_TYPE:
+                            arr[col.name] = _PYTHON_TO_OPENAPI_TYPE[item_py]
+                if jsonb:
+                    _jsonb_columns[schema_class_name] = jsonb
+                if arr:
+                    _array_item_types[schema_class_name] = arr
 
                 setattr(sys.modules[__name__], schema_class_name, schema_class())
 
@@ -202,7 +290,7 @@ class PhotBaseFlexible:
     used for generating documentation and not for validation, serialization,
     or deserialization."""
 
-    mjd = fields.Field(
+    mjd = fields.Raw(
         metadata={
             "description": (
                 "MJD of the observation(s). Can be a given as a "
@@ -214,7 +302,7 @@ class PhotBaseFlexible:
         required=True,
     )
 
-    filter = fields.Field(
+    filter = fields.Raw(
         required=True,
         metadata={
             "description": (
@@ -227,7 +315,7 @@ class PhotBaseFlexible:
         },
     )
 
-    obj_id = fields.Field(
+    obj_id = fields.Raw(
         metadata={
             "description": (
                 "ID of the `Obj`(s) to which the "
@@ -240,7 +328,7 @@ class PhotBaseFlexible:
         required=True,
     )
 
-    instrument_id = fields.Field(
+    instrument_id = fields.Raw(
         metadata={
             "description": (
                 "ID of the `Instrument`(s) with which the "
@@ -261,7 +349,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    ra = fields.Field(
+    ra = fields.Raw(
         metadata={
             "description": (
                 "ICRS Right Ascension of the centroid "
@@ -275,7 +363,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    dec = fields.Field(
+    dec = fields.Raw(
         metadata={
             "description": (
                 "ICRS Declination of the centroid "
@@ -289,7 +377,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    ra_unc = fields.Field(
+    ra_unc = fields.Raw(
         metadata={
             "description": "Uncertainty on RA [arcsec]. "
             "Can be given as a scalar or a 1D list. "
@@ -300,7 +388,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    dec_unc = fields.Field(
+    dec_unc = fields.Raw(
         metadata={
             "description": "Uncertainty on dec [arcsec]. "
             "Can be given as a scalar or a 1D list. "
@@ -311,7 +399,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    origin = fields.Field(
+    origin = fields.Raw(
         metadata={
             "description": "Provenance of the Photometry. If a record is "
             "already present with identical origin, only the "
@@ -321,7 +409,7 @@ class PhotBaseFlexible:
         load_default=None,
     )
 
-    group_ids = fields.Field(
+    group_ids = fields.Raw(
         metadata={
             "description": "List of group IDs to which photometry points will be visible. "
             "If 'all', will be shared with sitewide public group (visible to all users "
@@ -331,7 +419,7 @@ class PhotBaseFlexible:
         load_default=[],
     )
 
-    stream_ids = fields.Field(
+    stream_ids = fields.Raw(
         metadata={
             "description": "List of stream IDs to which photometry points will be visible."
         },
@@ -339,7 +427,7 @@ class PhotBaseFlexible:
         load_default=[],
     )
 
-    altdata = fields.Field(
+    altdata = fields.Dict(
         metadata={
             "description": (
                 "Misc. alternative metadata stored in JSON "
@@ -371,7 +459,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         "zp",
     ]
 
-    magsys = fields.Field(
+    magsys = fields.Raw(
         required=True,
         metadata={
             "description": (
@@ -385,7 +473,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         },
     )
 
-    flux = fields.Field(
+    flux = fields.Raw(
         metadata={
             "description": (
                 "Flux of the observation(s) in counts. "
@@ -405,7 +493,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         load_default=None,
     )
 
-    fluxerr = fields.Field(
+    fluxerr = fields.Raw(
         metadata={
             "description": "Gaussian error on the flux in counts. "
             "Can be given as a scalar or a 1D list. "
@@ -416,7 +504,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         validate=validate_fluxerr,
     )
 
-    zp = fields.Field(
+    zp = fields.Raw(
         metadata={
             "description": "Magnitude zeropoint, given by `zp` in the "
             "equation `m = -2.5 log10(flux) + zp`. "
@@ -428,7 +516,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         required=True,
     )
 
-    ref_flux = fields.Field(
+    ref_flux = fields.Raw(
         metadata={
             "description": (
                 "Flux of the reference image in counts. "
@@ -442,7 +530,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         load_default=None,
     )
 
-    ref_fluxerr = fields.Field(
+    ref_fluxerr = fields.Raw(
         metadata={
             "description": "Gaussian error on the reference flux in counts. "
             "Can be given as a scalar or a 1D list. "
@@ -454,7 +542,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         validate=validate_fluxerr,
     )
 
-    ref_zp = fields.Field(
+    ref_zp = fields.Raw(
         metadata={
             "description": "Magnitude zeropoint for the reference flux, "
             "given by `zp` in the "
@@ -484,7 +572,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         "instrument_id",
     ]
 
-    magsys = fields.Field(
+    magsys = fields.Raw(
         required=True,
         metadata={
             "description": "The magnitude system to which the magnitude, "
@@ -496,7 +584,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         },
     )
 
-    mag = fields.Field(
+    mag = fields.Raw(
         metadata={
             "description": "Magnitude of the observation in the "
             "magnitude system `magsys`. "
@@ -510,7 +598,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         load_default=None,
     )
 
-    magerr = fields.Field(
+    magerr = fields.Raw(
         metadata={
             "description": "Error on the magnitude in the "
             "magnitude system `magsys`. "
@@ -524,7 +612,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         load_default=None,
     )
 
-    limiting_mag = fields.Field(
+    limiting_mag = fields.Raw(
         metadata={
             "description": "Limiting magnitude of the image "
             "in the magnitude system `magsys`. "
@@ -535,7 +623,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         required=True,
     )
 
-    limiting_mag_nsigma = fields.Field(
+    limiting_mag_nsigma = fields.Raw(
         metadata={
             "description": "Number of standard deviations "
             "above the background that the limiting "
@@ -546,7 +634,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         load_default=PHOT_DETECTION_THRESHOLD,
     )
 
-    magref = fields.Field(
+    magref = fields.Raw(
         metadata={
             "description": (
                 "Magnitude of the reference image. "
@@ -561,7 +649,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         load_default=None,
     )
 
-    e_magref = fields.Field(
+    e_magref = fields.Raw(
         metadata={
             "description": "Gaussian error on the reference magnitude. "
             "Can be given as a scalar or a 1D list. "
@@ -580,7 +668,7 @@ class PhotBase:
     PhotometryHandler.get`.
     """
 
-    mjd = fields.Number(
+    mjd = fields.Float(
         metadata={"description": "MJD of the observation."}, required=True
     )
     magsys = ApispecEnumField(
@@ -621,19 +709,23 @@ class PhotBase:
         load_default=None,
     )
 
-    origin = fields.Field(
+    # Kept as Raw so the PhotometryFlux/Mag load path (called from
+    # photometry.py:2098) accepts whatever the caller sends; spec gets
+    # `type: string` via metadata.
+    origin = fields.Raw(
         metadata={
             "description": (
                 "Provenance of the Photometry. If a record is "
                 "already present with identical origin, only the "
                 "groups or streams list will be updated (other data assumed "
                 "identical). Defaults to None."
-            )
+            ),
+            "type": "string",
         },
         load_default=None,
     )
 
-    ra = fields.Number(
+    ra = fields.Float(
         metadata={
             "description": (
                 "ICRS Right Ascension of the centroid "
@@ -643,7 +735,7 @@ class PhotBase:
         load_default=None,
         dump_default=None,
     )
-    dec = fields.Number(
+    dec = fields.Float(
         metadata={
             "description": "ICRS Declination of the centroid "
             "of the photometric aperture [deg]."
@@ -652,13 +744,13 @@ class PhotBase:
         dump_default=None,
     )
 
-    ra_unc = fields.Number(
+    ra_unc = fields.Float(
         metadata={"description": "Uncertainty on RA [arcsec]."},
         load_default=None,
         dump_default=None,
     )
 
-    dec_unc = fields.Number(
+    dec_unc = fields.Float(
         metadata={"description": "Uncertainty on dec [arcsec]."},
         load_default=None,
         dump_default=None,
@@ -705,7 +797,7 @@ class PhotometryFlux(_Schema, PhotBase):
     PhotometryHandler.get`.
     """
 
-    flux = fields.Number(
+    flux = fields.Float(
         metadata={
             "description": "Flux of the observation in counts. "
             "Can be null to accommodate upper "
@@ -719,11 +811,11 @@ class PhotometryFlux(_Schema, PhotBase):
         dump_default=None,
     )
 
-    fluxerr = fields.Number(
+    fluxerr = fields.Float(
         metadata={"description": "Gaussian error on the flux in counts."}, required=True
     )
 
-    zp = fields.Number(
+    zp = fields.Float(
         metadata={
             "description": "Magnitude zeropoint, given by `ZP` in the "
             "equation m = -2.5 log10(flux) + `ZP`. "
@@ -733,7 +825,7 @@ class PhotometryFlux(_Schema, PhotBase):
         required=True,
     )
 
-    ref_flux = fields.Field(
+    ref_flux = fields.Raw(
         metadata={
             "description": (
                 "Flux of the reference image in counts. "
@@ -747,7 +839,7 @@ class PhotometryFlux(_Schema, PhotBase):
         load_default=None,
     )
 
-    ref_fluxerr = fields.Field(
+    ref_fluxerr = fields.Raw(
         metadata={
             "description": "Gaussian error on the reference flux in counts. "
             "Can be given as a scalar or a 1D list. "
@@ -759,7 +851,7 @@ class PhotometryFlux(_Schema, PhotBase):
         validate=validate_fluxerr,
     )
 
-    ref_zp = fields.Field(
+    ref_zp = fields.Raw(
         metadata={
             "description": "Magnitude zeropoint of the reference image, "
             "given by `ZP` in the equation m = -2.5 log10(flux) + `ZP`. "
@@ -819,8 +911,9 @@ class PhotometryFlux(_Schema, PhotBase):
         # conversion happens here
         photdata = PhotometricData(table).normalized(zp=PHOT_ZP, zpsys=PHOT_SYS)
 
-        # replace with null if needed
-        final_flux = None if data["flux"] is None else photdata.flux[0]
+        # A non-detection has no flux; store it as NaN (the flux column is
+        # NOT NULL), matching how the bulk upload path persists non-detections.
+        final_flux = np.nan if data["flux"] is None else photdata.flux[0]
 
         if data.get("ref_flux") is not None and data.get("ref_fluxerr") is not None:
             ref_flux = data["ref_flux"]
@@ -871,6 +964,8 @@ class PhotometryFlux(_Schema, PhotBase):
         )
         if "alert_id" in data and data["alert_id"] is not None:
             p.alert_id = data["alert_id"]
+        if isinstance(data.get("origin"), str) and data["origin"].strip() != "":
+            p.origin = data["origin"]
         return p
 
 
@@ -881,7 +976,7 @@ class PhotometryMag(_Schema, PhotBase):
     `PhotometryHandler.get`.
     """
 
-    mag = fields.Number(
+    mag = fields.Float(
         metadata={
             "description": "Magnitude of the observation in the "
             "magnitude system `magsys`. Can be null "
@@ -891,7 +986,7 @@ class PhotometryMag(_Schema, PhotBase):
         load_default=None,
         dump_default=None,
     )
-    magerr = fields.Number(
+    magerr = fields.Float(
         metadata={
             "description": "Magnitude error of the observation in "
             "the magnitude system `magsys`. Can be "
@@ -901,14 +996,14 @@ class PhotometryMag(_Schema, PhotBase):
         load_default=None,
         dump_default=None,
     )
-    limiting_mag = fields.Number(
+    limiting_mag = fields.Float(
         metadata={
             "description": "Limiting magnitude of the image "
             "in the magnitude system `magsys`."
         },
         required=True,
     )
-    magref = fields.Field(
+    magref = fields.Raw(
         metadata={
             "description": (
                 "Magnitude of the reference image. "
@@ -923,7 +1018,7 @@ class PhotometryMag(_Schema, PhotBase):
         load_default=None,
     )
 
-    e_magref = fields.Field(
+    e_magref = fields.Raw(
         metadata={
             "description": "Gaussian error on the reference magnitude. "
             "Can be given as a scalar or a 1D list. "
@@ -1042,8 +1137,9 @@ class PhotometryMag(_Schema, PhotBase):
             ref_flux = None
             ref_fluxerr = None
 
-        # replace with null if needed
-        final_flux = None if flux is None else photdata.flux[0]
+        # A non-detection has no flux; store it as NaN (the flux column is
+        # NOT NULL), matching how the bulk upload path persists non-detections.
+        final_flux = np.nan if flux is None else photdata.flux[0]
 
         p = Photometry(
             obj_id=data["obj_id"],
@@ -1062,6 +1158,8 @@ class PhotometryMag(_Schema, PhotBase):
         )
         if "alert_id" in data and data["alert_id"] is not None:
             p.alert_id = data["alert_id"]
+        if isinstance(data.get("origin"), str) and data["origin"].strip() != "":
+            p.origin = data["origin"]
         return p
 
 
@@ -1094,18 +1192,23 @@ class ObservationHandlerPost(_Schema):
         required=True,
         metadata={"description": ("The instrument name associated with the fields")},
     )
-    observationData = fields.Field(
+    observationData = fields.Dict(
         metadata={"description": "Observation data dictionary list"}
     )
 
 
 class ObservationExternalAPIHandlerPost(_Schema):
-    start_date = fields.Field(
-        required=True, metadata={"description": "start date of the request."}
+    # The handler pre-processes both to `astropy.time.Time` or `datetime` and
+    # then calls `.load()` on this schema, so Raw is needed to pass them
+    # through; the spec gets its type via the metadata override.
+    start_date = fields.Raw(
+        required=True,
+        metadata={"description": "start date of the request.", "type": "string"},
     )
 
-    end_date = fields.Field(
-        required=True, metadata={"description": "end date of the request."}
+    end_date = fields.Raw(
+        required=True,
+        metadata={"description": "end date of the request.", "type": "string"},
     )
 
     allocation_id = fields.Integer(
@@ -1125,7 +1228,7 @@ class SkymapQueueAPIHandlerPost(_Schema):
         metadata={"description": "Localization ID."},
     )
 
-    integrated_probability = fields.Number(
+    integrated_probability = fields.Float(
         required=False,
         metadata={"description": "Integrated probability within skymap."},
     )
@@ -1136,7 +1239,7 @@ class ObservationASCIIFileHandlerPost(_Schema):
         required=True,
         metadata={"description": ("The instrument ID associated with the fields")},
     )
-    observationData = fields.Field(
+    observationData = fields.Dict(
         metadata={"description": "Observation data Ascii string"}
     )
 
@@ -1162,26 +1265,26 @@ class ObservingRunPost(_Schema):
 
 
 class GcnHandlerPut(_Schema):
-    dateobs = fields.Field(metadata={"description": "UTC event timestamp"})
+    dateobs = fields.String(metadata={"description": "UTC event timestamp"})
     xml = fields.String(metadata={"description": "VOEvent XML content."})
     json = fields.String(metadata={"description": "JSON notice content."})
 
 
 class GcnEventHandlerGet(_Schema):
-    tags = fields.List(fields.Field(), metadata={"description": "Event tags"})
-    dateobs = fields.Field(metadata={"description": "UTC event timestamp"})
+    tags = fields.List(fields.String(), metadata={"description": "Event tags"})
+    dateobs = fields.String(metadata={"description": "UTC event timestamp"})
     localizations = fields.List(
-        fields.Field(), metadata={"description": "Healpix localizations"}
+        fields.Dict(), metadata={"description": "Healpix localizations"}
     )
     notices = fields.List(
-        fields.Field(), metadata={"description": "VOEvent XML notices"}
+        fields.String(), metadata={"description": "VOEvent XML notices"}
     )
     lightcurve = fields.String(metadata={"description": "URL for light curve"})
 
 
 class GcnEventTagPost(_Schema):
-    dateobs = fields.Field(metadata={"description": "UTC event timestamp"})
-    text = fields.Field(metadata={"description": "GCN Event tag"})
+    dateobs = fields.String(metadata={"description": "UTC event timestamp"})
+    text = fields.String(metadata={"description": "GCN Event tag"})
 
 
 class LocalizationHandlerGet(_Schema):
@@ -1190,11 +1293,11 @@ class LocalizationHandlerGet(_Schema):
     flat_2d = fields.List(
         fields.Float, metadata={"description": "Flattened 2D healpix map"}
     )
-    contour = fields.Field(metadata={"description": "GeoJSON contours of healpix map"})
+    contour = fields.Dict(metadata={"description": "GeoJSON contours of healpix map"})
 
 
 class GcnEventViewsHandlerGet(_Schema):
-    tags = fields.List(fields.Field(), metadata={"description": "Event list"})
+    tags = fields.List(fields.String(), metadata={"description": "Event list"})
 
 
 class FollowupRequestPost(_Schema):
@@ -1203,7 +1306,7 @@ class FollowupRequestPost(_Schema):
         metadata={"description": "ID of the target Obj."},
     )
 
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False, metadata={"description": "Content of the followup request."}
     )
 
@@ -1324,7 +1427,7 @@ class ObservationPlanPost(_Schema):
         metadata={"description": "ID of the GcnEvent."},
     )
 
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False,
         metadata={"description": "Content of the observation plan request."},
     )
@@ -1393,13 +1496,13 @@ class ObservationPlanManualHandlerPost(_Schema):
         },
     )
 
-    observation_plan_data = fields.Field(
+    observation_plan_data = fields.Dict(
         metadata={"description": "Observation plan data json"}
     )
 
 
 class CatalogQueryPost(_Schema):
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False,
         metadata={"description": "Content of the catalog query request."},
     )
@@ -1427,7 +1530,7 @@ class CatalogQueryPost(_Schema):
 
 
 class DefaultGcnTagPost(_Schema):
-    filters = fields.Field(
+    filters = fields.Dict(
         required=True,
         metadata={
             "description": "Filters to determine which of the default gcn tags get executed for which events"
@@ -1441,7 +1544,7 @@ class DefaultGcnTagPost(_Schema):
 
 
 class DefaultObservationPlanPost(_Schema):
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False,
         metadata={"description": "Content of the default observation plan request."},
     )
@@ -1463,7 +1566,7 @@ class DefaultObservationPlanPost(_Schema):
 
 
 class DefaultFollowupRequestPost(_Schema):
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False,
         metadata={"description": "Content of the default follow-up request."},
     )
@@ -1483,9 +1586,159 @@ class DefaultFollowupRequestPost(_Schema):
         },
     )
 
+    default_followup_name = fields.String(
+        required=True,
+        metadata={"description": "Unique name of the default follow-up request."},
+    )
+
+    source_filter = fields.Dict(
+        required=True,
+        metadata={
+            "description": (
+                "Source filter used to decide which saved sources this default "
+                "follow-up request applies to (keys: name, group_id, origin, "
+                "classification)."
+            )
+        },
+    )
+
+    # Trigger constraints, mirroring FollowupRequestPost. When set, they are
+    # evaluated on source save and only matching requests are auto-submitted.
+    not_if_duplicates = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "If true, the request will not be submitted if the object already has a pending or completed request of the same allocation."
+            )
+        },
+    )
+
+    source_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            "description": (
+                "IDs of groups to which there must be a source for the object for the request to be submitted."
+            )
+        },
+    )
+
+    ignore_source_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            "description": (
+                "If there are any sources within radius saved to any of these groups, the request will not be submitted."
+            )
+        },
+    )
+
+    not_if_classified = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "If true, the request will not be submitted if there are any sources within radius with (human-only) classifications."
+            )
+        },
+    )
+
+    not_if_spectra_exist = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "If true, the request will not be submitted if there are any sources within radius that have spectra."
+            )
+        },
+    )
+
+    not_if_tns_classified = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "If true, the request will not be submitted if any object within radius is already classified as SN in TNS."
+            )
+        },
+    )
+
+    not_if_tns_reported = fields.Float(
+        required=False,
+        metadata={
+            "description": (
+                "If there are any sources within radius with TNS reports discovered more than this many hours ago, the request will not be submitted."
+            )
+        },
+    )
+
+    not_if_assignment_exists = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "If there are any sources within radius that are assigned to an observing run, the request will not be submitted."
+            )
+        },
+    )
+
+    ignore_allocation_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            "description": (
+                "If there are any existing pending or completed requests from these allocations within radius, the request will not be submitted."
+            )
+        },
+    )
+
+    radius = fields.Float(
+        required=False,
+        metadata={"description": "Radius (arcsec) to use when checking constraints."},
+    )
+
+    priority_order = fields.String(
+        required=False,
+        metadata={
+            "description": (
+                "Whether higher priority values mean higher ('asc', default) or "
+                "lower ('desc') observing priority. Controls whether an incoming "
+                "auto-trigger bumps an existing request's priority."
+            )
+        },
+    )
+
+    validity_days = fields.Integer(
+        required=False,
+        metadata={
+            "description": (
+                "Number of days an auto-submitted request stays valid (end_date = "
+                "start_date + validity_days). Defaults to 7. Ignored for "
+                "urgency-based instruments."
+            )
+        },
+    )
+
+    comment = fields.String(
+        required=False,
+        metadata={
+            "description": (
+                "Optional comment posted to the source when a follow-up request is "
+                "auto-submitted from this default request."
+            )
+        },
+    )
+
+    implements_update = fields.Boolean(
+        required=False,
+        metadata={
+            "description": (
+                "Operator override: if false, never priority-bump an existing "
+                "matching request even if the instrument supports updates. "
+                "Defaults to true."
+            )
+        },
+    )
+
 
 class DefaultSurveyEfficiencyPost(_Schema):
-    payload = fields.Field(
+    payload = fields.Dict(
         required=False,
         metadata={"description": "Content of the default survey efficiency analysis."},
     )
@@ -1500,7 +1753,14 @@ class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(
         metadata={"description": "The User ID of the owner of this run."}
     )
-    ephemeris = fields.Field(metadata={"description": "Observing run ephemeris data."})
+    # Raw so the @pre_dump injected ephemeris pass-through stays unchanged;
+    # `type: object` in metadata gives apispec a real type for the spec.
+    ephemeris = fields.Raw(
+        metadata={
+            "description": "Observing run ephemeris data.",
+            "type": "object",
+        }
+    )
     id = fields.Integer(metadata={"description": "Unique identifier for the run."})
 
     @pre_dump
@@ -1510,8 +1770,14 @@ class ObservingRunGet(ObservingRunPost):
 
 
 class ObservingRunGetWithAssignments(ObservingRunGet):
-    assignments = fields.List(fields.Field())
-    instrument = fields.Field()
+    # SQLAlchemy ORM instances flow through these fields verbatim; Raw keeps
+    # the runtime behaviour (the call site in observingrun.py does its own
+    # post-processing) and the metadata supplies the OpenAPI type.
+    assignments = fields.List(
+        fields.Raw(metadata={"type": "object"}),
+        metadata={"type": "array"},
+    )
+    instrument = fields.Raw(metadata={"type": "object"})
 
 
 class PhotometryRangeQuery(_Schema):
@@ -1924,11 +2190,15 @@ class SpectrumPost(_Schema):
         metadata={"description": "ID of the Instrument that acquired the Spectrum."},
     )
 
-    group_ids = fields.Field(
+    group_ids = fields.Raw(
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
-            " to make this spectrum visible to all users."
+            " to make this spectrum visible to all users.",
+            "oneOf": [
+                {"type": "array", "items": {"type": "integer"}},
+                {"type": "string", "enum": ["all"]},
+            ],
         },
     )
 
@@ -1948,7 +2218,7 @@ class SpectrumPost(_Schema):
         },
     )
 
-    altdata = fields.Field(
+    altdata = fields.Dict(
         metadata={"description": "Miscellaneous alternative metadata."}
     )
 
@@ -2037,11 +2307,15 @@ class SpectrumHead(_Schema):
         metadata={"description": "Name of the Instrument that acquired the Spectrum."},
     )
 
-    group_ids = fields.Field(
+    group_ids = fields.Raw(
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
-            " to make this spectrum visible to all users."
+            " to make this spectrum visible to all users.",
+            "oneOf": [
+                {"type": "array", "items": {"type": "integer"}},
+                {"type": "string", "enum": ["all"]},
+            ],
         },
     )
 
@@ -2061,7 +2335,7 @@ class SpectrumHead(_Schema):
         },
     )
 
-    altdata = fields.Field(
+    altdata = fields.Dict(
         metadata={"description": "Miscellaneous alternative metadata."}
     )
 
@@ -2094,11 +2368,15 @@ class MMADetectorSpectrumPost(_Schema):
         metadata={"description": "ID of the MMADetector that acquired the Spectrum."},
     )
 
-    group_ids = fields.Field(
+    group_ids = fields.Raw(
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
-            " to make this spectrum visible to all users."
+            " to make this spectrum visible to all users.",
+            "oneOf": [
+                {"type": "array", "items": {"type": "integer"}},
+                {"type": "string", "enum": ["all"]},
+            ],
         },
     )
 
@@ -2122,7 +2400,7 @@ class GalaxyHandlerPost(_Schema):
         load_default=None,
     )
     catalog_data = fields.List(
-        fields.Field(), metadata={"description": "Galaxy catalog data"}, required=True
+        fields.Dict(), metadata={"description": "Galaxy catalog data"}, required=True
     )
 
 
@@ -2141,7 +2419,7 @@ class GalaxyASCIIFileHandlerPost(_Schema):
         load_default=None,
     )
 
-    catalogData = fields.Field(
+    catalogData = fields.String(
         metadata={"description": "Catalog data Ascii string"}, required=True
     )
 
@@ -2149,13 +2427,284 @@ class GalaxyASCIIFileHandlerPost(_Schema):
 class SpatialCatalogHandlerPost(_Schema):
     catalog_name = fields.String(metadata={"description": "Spatial catalog name."})
     catalog_data = fields.List(
-        fields.Field(), metadata={"description": "Spatial catalog data"}
+        fields.Dict(), metadata={"description": "Spatial catalog data"}
     )
 
 
 class SpatialCatalogASCIIFileHandlerPost(_Schema):
     catalogName = fields.String(metadata={"description": "Spatial catalog name."})
-    catalogData = fields.Field(metadata={"description": "Catalog data Ascii string"})
+    catalogData = fields.Dict(metadata={"description": "Catalog data Ascii string"})
+
+
+class ObjAnalysisDetail(_Schema):
+    """Response shape of ``AnalysisHandler.get`` for ``analysis_resource_type='obj'``.
+
+    Mirrors the runtime dict produced by ``recursive_to_dict(ObjAnalysis)`` plus
+    the handler-injected service/plot/groups/filename/data fields. The base
+    ``ObjAnalysis`` fields flow through as ``additionalProperties``; this schema
+    types only what callers in the SPA consume directly.
+    """
+
+    id = fields.Integer(metadata={"description": "Unique identifier for the analysis."})
+    obj_id = fields.String(
+        metadata={"description": "ID of the Obj this analysis was run on."}
+    )
+    analysis_service_id = fields.Integer(
+        metadata={
+            "description": "ID of the AnalysisService used to produce this analysis."
+        }
+    )
+    analysis_service_name = fields.String(
+        metadata={
+            "description": "Display name of the AnalysisService, injected by the handler."
+        }
+    )
+    analysis_service_description = fields.String(
+        metadata={
+            "description": "Description of the AnalysisService, injected by the handler."
+        }
+    )
+    num_plots = fields.Integer(
+        metadata={
+            "description": (
+                "Number of plots in this analysis's data. Single-analysis "
+                "responses only."
+            )
+        }
+    )
+    groups = fields.List(
+        fields.Raw(metadata={"type": "object"}),
+        metadata={
+            "description": "Groups with access to this analysis.",
+            "type": "array",
+        },
+    )
+    filename = fields.String(
+        metadata={
+            "description": (
+                "Server-side filename for the analysis payload. Present only "
+                "when ``includeFilename=true``."
+            )
+        }
+    )
+    data = fields.Raw(
+        metadata={
+            "description": (
+                "Raw analysis payload (results/plots/inference_data). Present "
+                "only when ``includeAnalysisData=true`` on single-analysis "
+                "requests."
+            ),
+            "type": "object",
+        }
+    )
+    analysis_parameters = fields.Raw(
+        metadata={
+            "description": (
+                "Parameters passed to the analysis service (sensitive keys stripped)."
+            ),
+            "type": "object",
+        }
+    )
+    status = fields.String(
+        metadata={"description": "Current status of the analysis run."}
+    )
+    status_message = fields.String(
+        metadata={"description": "Human-readable status detail."}
+    )
+
+    class Meta:
+        # Base ObjAnalysis fields (created_at, last_activity, ...) flow through
+        # untyped; declared keys above are the contract callers rely on.
+        additional = ()
+
+
+def _is_typeless(node) -> bool:
+    """True if a schema dict is missing the basic shape hints — neither type
+    nor $ref nor composition keyword — and therefore renders as `unknown` in
+    generated TS."""
+    if not isinstance(node, dict):
+        return False
+    return not any(k in node for k in ("type", "$ref", "allOf", "oneOf", "anyOf"))
+
+
+# Field-name → JSON Schema scalar type for the PhotMag/PhotFlux/Flex schemas.
+# Those schemas declare every "scalar or 1D list" field as a `fields.Raw` for
+# runtime flexibility, which gives apispec no type to infer. The rewrite
+# below replaces each such field with `oneOf: [scalar, array<scalar>]`.
+_FLEX_SCALAR_TYPES: dict[str, str] = {
+    "mjd": "number",
+    "ra": "number",
+    "dec": "number",
+    "ra_unc": "number",
+    "dec_unc": "number",
+    "flux": "number",
+    "fluxerr": "number",
+    "zp": "number",
+    "ref_flux": "number",
+    "ref_fluxerr": "number",
+    "ref_zp": "number",
+    "mag": "number",
+    "magerr": "number",
+    "limiting_mag": "number",
+    "limiting_mag_nsigma": "number",
+    "magref": "number",
+    "e_magref": "number",
+    "obj_id": "string",
+    "origin": "string",
+    "magsys": "string",
+    "filter": "string",
+    "instrument_id": "integer",
+}
+
+
+def _flex_field_schema(field_name: str) -> dict | None:
+    """JSON Schema for a `PhotBaseFlexible`-style "scalar or 1D list" field.
+    `group_ids`/`stream_ids` are list-only; everything else is a oneOf."""
+    if field_name in ("group_ids", "stream_ids"):
+        return {"type": "array", "items": {"type": "integer"}}
+    scalar = _FLEX_SCALAR_TYPES.get(field_name)
+    if scalar is None:
+        return None
+    return {
+        "oneOf": [
+            {"type": scalar},
+            {"type": "array", "items": {"type": scalar}},
+        ]
+    }
+
+
+# Schemas whose typeless fields should be filled in via `_flex_field_schema`.
+# Includes the *Flexible* subclasses used directly for input docs and the
+# per-record *PhotometryFlux/Mag* schemas — both accept scalar-or-list values
+# in their ``fields.Raw`` declarations.
+_FLEX_SCHEMAS = (
+    "PhotFluxFlexible",
+    "PhotMagFlexible",
+    "PhotMagFluxFlexible",
+    "PhotometryFlux",
+    "PhotometryMag",
+)
+
+
+def _rewrite_model_props(spec):
+    """Fill in JSON Schema types for properties apispec couldn't resolve.
+
+    Walks every variant of each registered SQLAlchemy-backed schema and
+    applies, in order of specificity:
+
+      1. SQLAlchemy relationships → ``allOf: [$ref Related]`` (or
+         ``{type: array, items: {$ref ...}}`` for one-to-many). Catches the
+         ``Related``/``RelatedList`` fields marshmallow-sqlalchemy generates,
+         which otherwise come through as empty objects.
+      2. JSONB columns → ``{type: object, additionalProperties: true}`` so
+         downstream TS gets ``{[key: string]: unknown}`` rather than bare
+         ``unknown``.
+      3. postgres ARRAY columns → ``{type: array, items: {type: ...}}`` with
+         the item type inferred from the SQLAlchemy column's element type.
+      4. Generic heuristics that fix common apispec misses:
+         ``enum`` ⇒ ``type: string``; ``maxLength`` ⇒ ``type: string``.
+
+    Rewrite is purely spec-level — runtime serialization is unchanged.
+    """
+    rels = _relationship_map
+    # Pre-sort known model names by length descending so the prefix lookup
+    # below picks the most specific match (e.g. "LocalizationProperty" over
+    # "Localization" for the spec name "LocalizationPropertyNoID").
+    known_models = sorted(rels.keys(), key=len, reverse=True)
+    for spec_name, spec_schema in spec.components.schemas.items():
+        # The schema may be registered under several variants (Foo, FooNoID,
+        # FooPost, …); strip suffixes to find the underlying model.
+        model_name = next(
+            (
+                n
+                for n in known_models
+                if spec_name.startswith(n)
+                and (
+                    spec_name == n
+                    or spec_name[len(n)].isupper()
+                    or spec_name[len(n) :] in ("NoID", "Post")
+                )
+            ),
+            None,
+        )
+        props = spec_schema.get("properties") if isinstance(spec_schema, dict) else None
+        if not props:
+            continue
+
+        model_rels = rels.get(model_name, {}) if model_name else {}
+        model_jsonb = _jsonb_columns.get(model_name, set()) if model_name else set()
+        model_arrays = _array_item_types.get(model_name, {}) if model_name else {}
+        is_flex = any(spec_name.startswith(s) for s in _FLEX_SCHEMAS)
+
+        for field_name, field_schema in props.items():
+            if not isinstance(field_schema, dict):
+                continue
+
+            # 0. PhotMag/PhotFlux "scalar or list" Raw fields → oneOf
+            if is_flex and _is_typeless(field_schema):
+                flex = _flex_field_schema(field_name)
+                if flex is not None:
+                    description = field_schema.get("description")
+                    field_schema.clear()
+                    field_schema.update(flex)
+                    if description:
+                        field_schema["description"] = description
+                    continue
+
+            # 1. relationship → $ref
+            if field_name in model_rels:
+                related_name, is_list = model_rels[field_name]
+                ref = {"$ref": f"#/components/schemas/{related_name}"}
+                if is_list:
+                    items = field_schema.get("items")
+                    if isinstance(items, dict) and _is_typeless(items):
+                        items.clear()
+                        items.update(ref)
+                elif _is_typeless(field_schema):
+                    description = field_schema.get("description")
+                    readonly = field_schema.get("readOnly")
+                    field_schema.clear()
+                    field_schema["allOf"] = [ref]
+                    if description:
+                        field_schema["description"] = description
+                    if readonly:
+                        field_schema["readOnly"] = readonly
+                continue
+
+            # 2. JSONB column → free-form object
+            if field_name in model_jsonb and _is_typeless(field_schema):
+                field_schema["type"] = "object"
+                field_schema["additionalProperties"] = True
+                continue
+
+            # 3. ARRAY column → typed items
+            if field_name in model_arrays:
+                if field_schema.get("type") == "array":
+                    items = field_schema.get("items")
+                    if isinstance(items, dict) and _is_typeless(items):
+                        items["type"] = model_arrays[field_name]
+                elif _is_typeless(field_schema):
+                    field_schema["type"] = "array"
+                    field_schema["items"] = {"type": model_arrays[field_name]}
+                continue
+
+            # 4. Generic heuristics
+            if _is_typeless(field_schema):
+                if "enum" in field_schema:
+                    enum_vals = [v for v in field_schema["enum"] if v is not None]
+                    if enum_vals and all(isinstance(v, str) for v in enum_vals):
+                        field_schema["type"] = "string"
+                    elif enum_vals and all(
+                        isinstance(v, int) and not isinstance(v, bool)
+                        for v in enum_vals
+                    ):
+                        field_schema["type"] = "integer"
+                elif (
+                    "maxLength" in field_schema
+                    or "minLength" in field_schema
+                    or "pattern" in field_schema
+                ):
+                    field_schema["type"] = "string"
 
 
 def register_components(spec):
@@ -2172,6 +2721,8 @@ def register_components(spec):
         arrayOf = "ArrayOf" + name + "s"
         spec.components.schema(single, schema=success(single, schema))
         spec.components.schema(arrayOf, schema=success(arrayOf, [schema]))
+
+    _rewrite_model_props(spec)
 
 
 # Replace schemas by instantiated versions
@@ -2200,3 +2751,4 @@ SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
 SpectrumHead = SpectrumHead()
 GroupIDList = GroupIDList()
+ObjAnalysisDetail = ObjAnalysisDetail()

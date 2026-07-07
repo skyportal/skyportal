@@ -468,31 +468,28 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sharing submissions associated with this obj.",
     )
 
-    def add_linked_thumbnails(self, thumbnails, session=None):
+    async def add_linked_thumbnails(self, thumbnails, session):
         """Determine the URLs of the SDSS, Legacy Survey DR10, and
         thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
-        if session is None:
-            session = DBSession()
-
-        # first we create and commit the thumbnails that don't require any request
-        # to external services to get their URLs
-        # that way we don't end up committing nothing if one of the external requests
-        # fails for some reason, and we provide the user with as many thumbnails as
-        # possible, as quickly as possible
         if "sdss" in thumbnails:
-            session.add(Thumbnail(obj=self, public_url=self.sdss_url, type="sdss"))
+            session.add(
+                Thumbnail(obj_id=self.id, public_url=self.sdss_url, type="sdss")
+            )
         if "ls" in thumbnails:
             session.add(
-                Thumbnail(obj=self, public_url=self.legacysurvey_dr10_url, type="ls")
+                Thumbnail(
+                    obj_id=self.id,
+                    public_url=self.legacysurvey_dr10_url,
+                    type="ls",
+                )
             )
-        session.commit()
+        await session.commit()
 
-        # now we create the thumbnails that require external requests
         if "ps1" in thumbnails:
             url = self.panstarrs_url
-            session.add(Thumbnail(obj=self, public_url=url, type="ps1"))
-            session.commit()
+            session.add(Thumbnail(obj_id=self.id, public_url=url, type="ps1"))
+            await session.commit()
 
     @property
     def sdss_url(self):
@@ -522,13 +519,23 @@ class Obj(Base, conesearch_alchemy.Point):
 
         If this page does not return without PS1_CUTOUT_TIMEOUT seconds then
         we assume that the image is not available and return None.
+
+        Test environments can set `app.ps1_cutout_url` to an empty string,
+        which skips the external HTTP call and falls straight back to the
+        placeholder image — the live STScI cutout service is slow enough from
+        some CI runners to hang the thumbnail queue past test timeouts.
         """
+        cutout_url = "/static/images/currently_unavailable.png"
+        ps1_cutout_base = cfg.get(
+            "app.ps1_cutout_url", "http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+        )
+        if not ps1_cutout_base:
+            return cutout_url
         ps_query_url = (
-            f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+            f"{ps1_cutout_base}"
             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
             f"&filter=r&filter=i&filetypes=stack&size=250"
         )
-        cutout_url = "/static/images/currently_unavailable.png"
         try:
             response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
             response.raise_for_status()
@@ -551,8 +558,7 @@ class Obj(Base, conesearch_alchemy.Point):
             log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
         except Exception as e:
             log(f"Unexpected error in getting thumbnail for {self.id}: {e}")
-        finally:
-            return cutout_url
+        return cutout_url
 
     @property
     def target(self):
@@ -761,9 +767,12 @@ Obj.candidates = relationship(
 
 @event.listens_for(Obj, "before_delete")
 def delete_obj_thumbnails_from_disk(mapper, connection, target):
-    for thumb in target.thumbnails:
-        if thumb.file_uri is not None:
+    file_uris = connection.execute(
+        sa.select(Thumbnail.file_uri).where(Thumbnail.obj_id == target.id)
+    ).scalars()
+    for file_uri in file_uris:
+        if file_uri is not None:
             try:
-                os.remove(thumb.file_uri)
+                os.remove(file_uri)
             except (FileNotFoundError, OSError) as e:
-                log(f"Error deleting thumbnail file {thumb.file_uri}: {e}")
+                log(f"Error deleting thumbnail file {file_uri}: {e}")

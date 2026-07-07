@@ -1,8 +1,6 @@
-version: "3.7"
-
 services:
   web:
-    image: skyportal/web
+    build: .
     ports:
       - "9000:5000"
       - "9001:5001"
@@ -12,10 +10,24 @@ services:
       # cf. https://stackoverflow.com/a/35222815
       - thumbnails:/skyportal/static/thumbnails:z
       - persistentdata:/skyportal/persistentdata:z
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+  # run_production does not create tables, so initialize the schema before the
+  # app starts. create_all() is checkfirst=True, so this is a safe no-op against
+  # an already-populated database.
+  db-init:
+    build: .
+    command:
+      ["bash", "-c", "source .venv/bin/activate && PYTHONPATH=. python skyportal/initial_setup.py --config=config.yaml"]
+    depends_on:
+      db:
+        condition: service_healthy
 
   db:
-    image: postgres:14.4
-    container_name: postgres14.4
+    image: postgres:17
+    container_name: postgres17
     environment:
       POSTGRES_USER: skyportal
       POSTGRES_PASSWORD: password
@@ -24,6 +36,11 @@ services:
     volumes:
       - ./data/dbdata:/var/lib/postgresql/data:z
     restart: on-failure:3
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skyportal -d skyportal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   dbdata:

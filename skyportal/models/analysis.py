@@ -5,22 +5,17 @@ import io
 import json
 import os
 import re
-import tempfile
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import arviz
-import corner
 import joblib
-import matplotlib.pyplot as plt
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import cast, event, func, inspect, or_
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import EmailType, URLType
 from sqlalchemy_utils.types import JSONType
@@ -45,8 +40,10 @@ from ..enum_types import (
     allowed_analysis_types,
     allowed_external_authentication_types,
 )
+from ..utils.naive_datetime import utcnow_naive
 from .classification import Classification
 from .group import Group, accessible_by_groups_members
+from .source import Source
 from .webhook import WebhookMixin
 
 _, cfg = load_env()
@@ -243,22 +240,22 @@ class AnalysisMixin:
     def calc_hash(self):
         self.hash = joblib.hash(self.filename)
 
-    @hybrid_property
+    @property
     def has_inference_data(self):
         return self.data.get("inference_data", None) is not None
 
-    @hybrid_property
+    @property
     def has_plot_data(self):
         return self.data.get("plots", None) is not None
 
-    @hybrid_property
+    @property
     def number_of_analysis_plots(self):
         if not self.has_plot_data:
             return 0
         else:
             return len(self.data.get("plots", []))
 
-    @hybrid_property
+    @property
     def has_results_data(self):
         return self.data.get("results", None) is not None
 
@@ -308,66 +305,6 @@ class AnalysisMixin:
         buf.seek(0)
 
         return {"plot_data": buf, "plot_type": format}
-
-    def generate_corner_plot(self, **plot_kwargs):
-        """Generate a corner plot of the posterior from the inference data."""
-
-        if not self.has_inference_data:
-            return None
-
-        # we could add different formats here in the future
-        # but for now we only support netcdf4 formats
-        if self.data["inference_data"]["format"] not in ["netcdf4"]:
-            raise ValueError("Inference data format not allowed.")
-
-        f = tempfile.NamedTemporaryFile(
-            suffix=".nc", prefix="inferencedata_", delete=False
-        )
-        f.close()
-        f_handle = open(f.name, "wb")
-        f_handle.write(base64.b64decode(self.data["inference_data"]["data"]))
-        f_handle.close()
-        # N.B.: arviz/xarray memory maps the file, so we need to
-        # remove the file only after using the data to make the plot
-        inference_data = arviz.from_netcdf(f.name)
-
-        try:
-            # remove parameters with zero range in the data
-            # which can happen with fixed parameters
-            temp_range = [
-                [
-                    inference_data["posterior"][x].data.min(),
-                    inference_data["posterior"][x].data.max(),
-                    x,
-                ]
-                for x in inference_data["posterior"]
-            ]
-            for x in temp_range:
-                # the min and max of this variable is the same:
-                # probably a fixed parameter. Remove it (x[2]) from plotting
-                # because it causes grief for corner
-                if x[0] == x[1]:
-                    del inference_data["posterior"][x[2]]
-
-            fig = corner.corner(
-                inference_data["posterior"],
-                quantiles=[0.16, 0.5, 0.84],
-                fig_kwargs=plot_kwargs,
-            )
-        except Exception as e:
-            log(f"Failed to generate corner plot: {e}")
-            return None
-        finally:
-            # now that we have the data in figure we can
-            # remove this file
-            os.remove(f.name)
-
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png")
-        plt.close(fig)
-        buf.seek(0)
-
-        return buf
 
     def load_data(self):
         """
@@ -441,7 +378,7 @@ class AnalysisMixin:
         if not reg.match(string):
             raise ValueError(f'Illegal characters in string "{string}".')
 
-    @hybrid_property
+    @property
     def data(self):
         """Lazy load the data dictionary"""
         if not hasattr(self, "_data") or self._data is None:
@@ -686,114 +623,162 @@ def delete_assoc_analysis_data_from_disk(mapper, connection, target):
         analysis.delete_data()
 
 
+def _default_analysis_under_limit():
+    """SQL clause: DefaultAnalysis still under its per-day cap (or window rolled over)."""
+    return or_(
+        func.coalesce(DefaultAnalysis.stats["daily_count"].astext.cast(sa.Integer), 0)
+        < func.coalesce(
+            DefaultAnalysis.stats["daily_limit"].astext.cast(sa.Integer), 10
+        ),
+        DefaultAnalysis.stats["last_run"].astext.cast(sa.DateTime)
+        < cast(utcnow_naive() - timedelta(days=1), sa.DateTime),
+    )
+
+
+def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
+    """Bump the per-day counter and post one default analysis for ``obj_id``.
+
+    ID-based and dispatched via ``run_async`` so it executes after the triggering
+    transaction commits — otherwise a brand-new obj (save-to-group trigger) is not
+    yet visible to this fresh session and post_analysis fails with "Obj not found".
+    """
+    from skyportal.handlers.api.analysis import post_analysis
+    from skyportal.models import User
+
+    with DBSession() as db_session:
+        try:
+            author = db_session.scalar(sa.select(User).where(User.id == author_id))
+            if author is None:
+                return
+            default_analysis = db_session.scalars(
+                DefaultAnalysis.select(author, mode="update").where(
+                    DefaultAnalysis.id == default_analysis_id
+                )
+            ).first()
+            if default_analysis is None:
+                return
+
+            now = utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S.%f")
+            stats = default_analysis.stats or {}
+            if not {"daily_limit", "daily_count", "last_run"}.issubset(stats.keys()):
+                stats = {"daily_limit": 10, "daily_count": 0, "last_run": now}
+            if datetime.strptime(stats["last_run"], "%Y-%m-%dT%H:%M:%S.%f") < (
+                utcnow_naive() - timedelta(days=1)
+            ):
+                stats = {
+                    "daily_limit": stats["daily_limit"],
+                    "daily_count": 0,
+                    "last_run": now,
+                }
+            default_analysis.stats = {
+                "daily_limit": stats["daily_limit"],
+                "daily_count": stats["daily_count"] + 1,
+                "last_run": now,
+            }
+            db_session.add(default_analysis)
+
+            post_analysis(
+                "obj",
+                obj_id,
+                current_user=author,
+                author=author,
+                groups=default_analysis.groups,
+                analysis_service=default_analysis.analysis_service,
+                analysis_parameters=default_analysis.default_analysis_parameters,
+                show_parameters=default_analysis.show_parameters,
+                show_plots=default_analysis.show_plots,
+                show_corner=default_analysis.show_corner,
+                notification=notification,
+                session=db_session,
+            )
+        except Exception as e:
+            log(f"Error creating default analysis with id {default_analysis_id}: {e}")
+            db_session.rollback()
+
+
 @event.listens_for(Classification, "after_insert")
 def create_default_analysis(mapper, connection, target):
+    """Trigger default analyses whose source_filter matches a new classification
+    (by name + probability), within the per-day limit and a shared group."""
     log(f"Checking for default analyses for classification {target.id}")
 
     @event.listens_for(inspect(target).session, "after_flush", once=True)
     def receive_after_flush(session, context):
         try:
-            from skyportal.handlers.api.analysis import post_analysis
+            from skyportal.utils.asynchronous import run_async
 
             target_data = target.to_dict()
-
             stmt = sa.select(DefaultAnalysis).where(
                 DefaultAnalysis.source_filter["classifications"].contains(
                     [{"name": target_data["classification"]}]
                 ),
-                or_(
-                    func.coalesce(
-                        DefaultAnalysis.stats["daily_count"].astext.cast(sa.Integer), 0
-                    )
-                    < func.coalesce(
-                        DefaultAnalysis.stats["daily_limit"].astext.cast(sa.Integer), 10
-                    ),
-                    DefaultAnalysis.stats["last_run"].astext.cast(sa.DateTime)
-                    < cast(datetime.utcnow() - timedelta(days=1), sa.DateTime),
-                ),
-                # make sure that the default analysis is associated with a group that the classification is associated with
+                _default_analysis_under_limit(),
+                # only those associated with a group the classification is in
                 DefaultAnalysis.groups.any(
                     Group.id.in_([g.id for g in target_data["groups"]])
                 ),
             )
-
-            default_analyses = session.scalars(stmt).all()
-
-            for default_analysis in default_analyses:
+            for default_analysis in session.scalars(stmt).all():
                 classification_filter = next(
                     (
-                        classification
-                        for classification in default_analysis.source_filter[
-                            "classifications"
-                        ]
-                        if classification["name"] == target_data["classification"]
+                        c
+                        for c in default_analysis.source_filter["classifications"]
+                        if c["name"] == target_data["classification"]
                     ),
                     None,
                 )
-                if classification_filter["probability"] <= target_data["probability"]:
+                if (
+                    classification_filter is not None
+                    and classification_filter["probability"]
+                    <= target_data["probability"]
+                ):
                     log(
-                        f"Creating default analysis {default_analysis.analysis_service.name} for classification {target.id}"
+                        f"Creating default analysis {default_analysis.analysis_service.name} "
+                        f"for classification {target.id}"
                     )
-
-                    with DBSession() as db_session:
-                        try:
-                            default_analysis = db_session.scalars(
-                                DefaultAnalysis.select(
-                                    default_analysis.author, mode="update"
-                                ).where(DefaultAnalysis.id == default_analysis.id)
-                            ).first()
-
-                            if not {"daily_limit", "daily_count", "last_run"}.issubset(
-                                default_analysis.stats.keys()
-                            ):
-                                default_analysis.stats = {
-                                    "daily_limit": 10,
-                                    "daily_count": 1,
-                                    "last_run": datetime.utcnow().strftime(
-                                        "%Y-%m-%dT%H:%M:%S.%f"
-                                    ),
-                                }
-                            if datetime.strptime(
-                                default_analysis.stats["last_run"],
-                                "%Y-%m-%dT%H:%M:%S.%f",
-                            ) < datetime.utcnow() - timedelta(days=1):
-                                default_analysis.stats = {
-                                    "daily_limit": default_analysis.stats[
-                                        "daily_limit"
-                                    ],
-                                    "daily_count": 0,
-                                    "last_run": datetime.utcnow().strftime(
-                                        "%Y-%m-%dT%H:%M:%S.%f"
-                                    ),
-                                }
-                            default_analysis.stats = {
-                                "daily_limit": default_analysis.stats["daily_limit"],
-                                "daily_count": default_analysis.stats["daily_count"]
-                                + 1,
-                                "last_run": datetime.utcnow().strftime(
-                                    "%Y-%m-%dT%H:%M:%S.%f"
-                                ),
-                            }
-                            db_session.add(default_analysis)
-
-                            post_analysis(
-                                "obj",
-                                target.obj_id,
-                                current_user=default_analysis.author,
-                                author=default_analysis.author,
-                                groups=default_analysis.groups,
-                                analysis_service=default_analysis.analysis_service,
-                                analysis_parameters=default_analysis.default_analysis_parameters,
-                                show_parameters=default_analysis.show_parameters,
-                                show_plots=default_analysis.show_plots,
-                                show_corner=default_analysis.show_corner,
-                                notification=f"Default analysis {default_analysis.analysis_service.name} triggered by classification {target_data['classification']}",
-                                session=db_session,
-                            )
-                        except Exception as e:
-                            log(
-                                f"Error creating default analysis with id {default_analysis.id}: {e}"
-                            )
-                            db_session.rollback()
+                    run_async(
+                        _run_default_analysis,
+                        default_analysis.id,
+                        default_analysis.author_id,
+                        target.obj_id,
+                        f"Default analysis {default_analysis.analysis_service.name} "
+                        f"triggered by classification {target_data['classification']}",
+                    )
         except Exception as e:
             log(f"Error creating default analyses on classification {target.id}: {e}")
+
+
+@event.listens_for(Source, "after_insert")
+def create_default_analysis_on_save(mapper, connection, target):
+    """Trigger default analyses when a source is saved to a group. ``target`` is
+    a GroupObj (the Obj<->Group join). A DefaultAnalysis with
+    ``source_filter={"group_id": <id>}`` auto-fires here, mirroring
+    DefaultFollowupRequest's save-to-group trigger."""
+
+    @event.listens_for(inspect(target).session, "after_flush", once=True)
+    def receive_after_flush(session, context):
+        try:
+            from skyportal.utils.asynchronous import run_async
+
+            target_data = target.to_dict()
+            group_id = target_data["group_id"]
+            stmt = sa.select(DefaultAnalysis).where(
+                DefaultAnalysis.source_filter["group_id"].astext.cast(sa.Integer)
+                == group_id,
+                _default_analysis_under_limit(),
+            )
+            for default_analysis in session.scalars(stmt).all():
+                log(
+                    f"Creating default analysis {default_analysis.analysis_service.name} "
+                    f"for source {target_data['obj_id']} saved to group {group_id}"
+                )
+                run_async(
+                    _run_default_analysis,
+                    default_analysis.id,
+                    default_analysis.author_id,
+                    target_data["obj_id"],
+                    f"Default analysis {default_analysis.analysis_service.name} "
+                    f"triggered by save to group {group_id}",
+                )
+        except Exception as e:
+            log(f"Error creating default analyses on source save: {e}")

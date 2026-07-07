@@ -1,6 +1,7 @@
 import sqlalchemy as sa
 import yaml
 from jsonschema.exceptions import ValidationError as JSONValidationError
+from sqlalchemy.orm import selectinload
 from tdtax import schema, validate
 
 from baselayer.app.access import auth_or_token, permissions
@@ -14,7 +15,7 @@ _, cfg = load_env()
 
 class TaxonomyHandler(BaseHandler):
     @auth_or_token
-    def get(self, taxonomy_id=None):
+    async def get(self, taxonomy_id: int | None = None):
         """
         ---
         single:
@@ -53,9 +54,13 @@ class TaxonomyHandler(BaseHandler):
                   schema: Error
         """
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if taxonomy_id is not None:
-                taxonomy = Taxonomy.get_taxonomy_usable_by_user(
+                try:
+                    taxonomy_id = int(taxonomy_id)
+                except (TypeError, ValueError):
+                    return self.error(f"Invalid taxonomy_id: {taxonomy_id}")
+                taxonomy = await Taxonomy.get_taxonomy_usable_by_user(
                     taxonomy_id,
                     self.current_user,
                     session,
@@ -67,8 +72,10 @@ class TaxonomyHandler(BaseHandler):
 
                 return self.success(data=taxonomy[0])
 
-            query = session.scalars(
-                Taxonomy.select(session.user_or_token).where(
+            query_result = await session.scalars(
+                Taxonomy.select(session.user_or_token)
+                .options(selectinload(Taxonomy.groups))
+                .where(
                     Taxonomy.groups.any(
                         Group.id.in_(
                             [g.id for g in self.current_user.accessible_groups]
@@ -76,7 +83,7 @@ class TaxonomyHandler(BaseHandler):
                     )
                 )
             )
-            taxonomies = query.unique().all()
+            taxonomies = query_result.unique().all()
             taxonomies = [
                 {
                     **taxonomy.to_dict(),
@@ -87,7 +94,7 @@ class TaxonomyHandler(BaseHandler):
             return self.success(data=taxonomies)
 
     @permissions(["Post taxonomy"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Post new taxonomy
@@ -166,15 +173,19 @@ class TaxonomyHandler(BaseHandler):
 
         hierarchy_file = data.get("hierarchy_file", None)
         if hierarchy_file is not None:
-            data["hierarchy"] = yaml.safe_load(hierarchy_file)[0]
+            hierarchy_json = yaml.safe_load(hierarchy_file)
+            if isinstance(hierarchy_json, list):
+                hierarchy_json = hierarchy_json[0]
+            data["hierarchy"] = hierarchy_json
             del data["hierarchy_file"]
 
-        with self.Session() as session:
-            existing_matches = session.scalars(
+        async with self.AsyncSession() as session:
+            existing_result = await session.scalars(
                 Taxonomy.select(session.user_or_token)
                 .where(Taxonomy.name == name)
                 .where(Taxonomy.version == version)
-            ).all()
+            )
+            existing_matches = existing_result.all()
             if len(existing_matches) != 0:
                 return self.error(
                     "That version/name combination is already "
@@ -199,7 +210,7 @@ class TaxonomyHandler(BaseHandler):
 
             group_ids = data.pop("group_ids", None)
             if not isinstance(group_ids, list) or len(group_ids) == 0:
-                public_group = session.scalar(
+                public_group = await session.scalar(
                     sa.select(Group.id).where(
                         Group.name == cfg["misc.public_group_name"]
                     )
@@ -216,9 +227,10 @@ class TaxonomyHandler(BaseHandler):
                     f"Invalid group IDs field ({group_ids}): "
                     "You must provide one or more valid group IDs."
                 )
-            groups = session.scalars(
+            groups_result = await session.scalars(
                 Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-            ).all()
+            )
+            groups = groups_result.all()
 
             provenance = data.get("provenance", None)
 
@@ -226,11 +238,12 @@ class TaxonomyHandler(BaseHandler):
             # TODO: deal with the same name but different groups?
             isLatest = data.get("isLatest", True)
             if isLatest:
-                taxonomies_to_update = session.scalars(
+                to_update_result = await session.scalars(
                     Taxonomy.select(session.user_or_token).where(
                         Taxonomy.name == name, Taxonomy.isLatest.is_(True)
                     )
-                ).all()
+                )
+                taxonomies_to_update = to_update_result.all()
                 if len(taxonomies_to_update) > 0:
                     for tax in taxonomies_to_update:
                         tax.isLatest = False
@@ -246,14 +259,13 @@ class TaxonomyHandler(BaseHandler):
             )
 
             session.add(taxonomy)
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_TAXONOMIES")
-
             return self.success(data={"taxonomy_id": taxonomy.id})
 
     @permissions(["Post taxonomy"])
-    def put(self, taxonomy_id):
+    async def put(self, taxonomy_id: int):
         """
         ---
         summary: Update a taxonomy
@@ -290,12 +302,13 @@ class TaxonomyHandler(BaseHandler):
                 "Editing the hierarchy not allowed, upload a new taxonomy if this change is desired."
             )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             # permission check
             stmt = Taxonomy.select(session.user_or_token, mode="update").where(
                 Taxonomy.id == int(taxonomy_id)
             )
-            taxonomy = session.scalars(stmt).first()
+            put_result = await session.scalars(stmt)
+            taxonomy = put_result.first()
             if taxonomy is None:
                 return self.error(f"Missing taxonomy with ID {taxonomy_id}")
 
@@ -307,21 +320,22 @@ class TaxonomyHandler(BaseHandler):
                 group_ids = [
                     gid for gid in group_ids if gid in user_accessible_group_ids
                 ]
-                groups = session.scalars(
+                groups_result = await session.scalars(
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
-                ).all()
+                )
+                groups = groups_result.all()
                 taxonomy.groups = groups
 
             for k in data:
                 setattr(taxonomy, k, data[k])
 
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_TAXONOMIES")
             return self.success()
 
     @permissions(["Delete taxonomy"])
-    def delete(self, taxonomy_id):
+    async def delete(self, taxonomy_id: int):
         """
         ---
         summary: Delete a taxonomy
@@ -341,30 +355,31 @@ class TaxonomyHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
-            classification = session.scalars(
+        async with self.AsyncSession() as session:
+            cls_result = await session.scalars(
                 sa.select(Classification).where(
                     Classification.taxonomy_id == taxonomy_id
                 )
-            ).first()
+            )
+            classification = cls_result.first()
             if classification is not None:
                 return self.error(
                     f"Cannot delete taxonomy {taxonomy_id} because it has associated classifications."
                 )
 
-            taxonomy = session.scalars(
+            del_result = await session.scalars(
                 Taxonomy.select(session.user_or_token, mode="delete").where(
                     Taxonomy.id == taxonomy_id
                 )
-            ).first()
+            )
+            taxonomy = del_result.first()
             if taxonomy is None:
                 return self.error(
                     f"Taxonomy {taxonomy_id} does not exist or is not available to user."
                 )
 
-            session.delete(taxonomy)
-            session.commit()
+            await session.delete(taxonomy)
+            await session.commit()
 
             self.push_all(action="skyportal/REFRESH_TAXONOMIES")
-
             return self.success()

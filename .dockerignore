@@ -14,7 +14,9 @@ webdriver-console
 cache
 __pycache__/
 .pytest_cache/
-node_modules/
+static/build
+static/thumbnails
+persistentdata
 
 # Git
 .git
@@ -38,5 +40,6 @@ docker-compose.yml
 skyportal_env/
 env/
 venv/
+.venv/
 
 dists/

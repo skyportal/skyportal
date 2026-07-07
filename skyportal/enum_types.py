@@ -17,6 +17,14 @@ log = make_log("enum_types")
 
 _, cfg = load_env()
 
+# Point sncosmo at the vendored data dir (the skyportal-data submodule) before
+# any bandpass lookup, so app import reads local files instead of blocking on
+# the flaky SVO Filter Profile Service. A missing bandpass still falls back to a
+# network fetch into this directory.
+sncosmo_data_folder = cfg.get("misc.sncosmo_data_folder")
+if sncosmo_data_folder:
+    sncosmo.conf.data_dir = sncosmo_data_folder
+
 # load additional bandpasses into the SN comso registry
 existing_bandpasses_names = [val["name"] for val in _BANDPASSES.get_loaders_metadata()]
 additional_bandpasses_names = []
@@ -84,6 +92,9 @@ ANALYSIS_INPUT_TYPES = (
     "classifications",
 )
 DEFAULT_ANALYSIS_FILTER_TYPES = {"classifications": ["name", "probability"]}
+# Scalar (non list-of-dicts) source-filter keys. group_id triggers a default
+# analysis when a source is saved to that group (see create_default_analysis_on_save).
+DEFAULT_ANALYSIS_SCALAR_FILTERS = {"group_id": int}
 AUTHENTICATION_TYPES = (
     "none",
     "header_token",

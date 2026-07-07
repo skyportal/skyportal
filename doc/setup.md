@@ -18,30 +18,33 @@ When installing SkyPortal on Debian-based systems, 2 additional packages are req
 
 ## Source download, Python environment
 
-Clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and start a new
-virtual environment.
+First, clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and its submodule [Baselayer](https://github.com/cesium-ml/baselayer/):
 
 ```
-git clone https://github.com/skyportal/skyportal.git
+git clone --recurse-submodules https://github.com/skyportal/skyportal.git
 cd skyportal/
-virtualenv skyportal_env
-source skyportal_env/bin/activate
 ```
 
-You can also use `conda` or `pipenv` to create your environment.
-
-If you developing on a Mac with an ARM (M1/M2) you might consider using a Rosetta-driven environment so that you more easily install dependencies (that tend to be x86-centric):
+If you already cloned the repository without `--recurse-submodules`, you can initialize the submodules with:
 
 ```
-CONDA_SUBDIR=osx-64 conda create -n skyportal_env \
-      python=3.10
-conda activate skyportal_env
-conda config --env --set subdir osx-64
-conda config --add channels conda-forge
-conda config --set channel_priority strict
+git submodule update --init --recursive
 ```
 
+Then, using `uv` (see [uv documentation](https://docs.astral.sh/uv/getting-started/installation/) for more details on how to use it), let's create a virtual environment and install the Python dependencies, in one command:
+```
+uv sync
+```
 
+If you intend to do development work (running tests, using pre-commit hooks, etc.), install the dev dependencies instead:
+```
+uv sync --inexact --group dev
+```
+
+Thereafter, to enter the environment, simply run:
+```
+source .venv/bin/activate
+```
 
 If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
 
@@ -75,14 +78,18 @@ After installing each package, Homebrew will print out the installation paths. Y
 
 2. Start the PostgreSQL server:
 
-  - To start automatically at login: `brew services start postgresql`
-  - To start manually: `pg_ctl -D /usr/local/var/postgres start`
+  - To start automatically at login: `brew services start postgresql@<version>`
+  - To start manually: `pg_ctl -D $(brew --prefix)/var/postgresql@<version> start`
+
+  Replace `<version>` with your installed PostgreSQL version (e.g., `14`). You can check with `brew list | grep postgresql`.
 
   You may also need to run the following command to create the proper admin user:
 
   ```bash
-  /usr/local/opt/postgres/bin/createuser -s postgres
+  createuser -s postgres
   ```
+
+  If `createuser` is not found in your `PATH`, locate it via `brew info postgresql` (typically `/opt/homebrew/opt/postgresql@<version>/bin/` on Apple Silicon, or `/usr/local/opt/postgresql@<version>/bin/` on Intel Macs) and invoke it with its full path.
 
 3. To run the test suite, you'll need Geckodriver:
 
@@ -96,19 +103,6 @@ After installing each package, Homebrew will print out the installation paths. Y
 	brew install graphviz
 	```
 
-5. Activate the environment and add a few (hard-to install-with-pip) packages by hand:
-
-	```
-	conda activate skyportal_env
-	conda install pyproj numba Shapely
-	```
-
-5. (ARM M1/M2) Explicitly [install ligo.skymap using conda rather than pip](https://lscsoft.docs.ligo.org/ligo.skymap/quickstart/install.html#option-2-conda):
-
-   ```
-   conda activate skyportal_env
-   conda install ligo.skymap
-   ```
 <a name="configure-shell-mac"></a>
 ### Configuring Shell Environment for Development
 
@@ -134,6 +128,15 @@ Typically, Homebrew provides these paths upon successful installation. You can a
 ```
 brew info <name_of_package>
 ```
+
+If you want to build the docs and installed graphviz, you may need to add its `include` and `lib` directories to your `CFLAGS` and `LDFLAGS` environment variables, respectively, in your `.zshrc` file:
+```
+export CFLAGS="-I$(brew --prefix graphviz)/include"
+export LDFLAGS="-L$(brew --prefix graphviz)/lib"
+```
+
+*Remember to source your `.zshrc` file after making these changes with `source ~/.zshrc`.*
+
 #### Alias pip3 and python3
 Depending on your system setup, the `python` and `pip` commands might point to Python 2 rather than Python 3. To ensure that you're using Python 3 and its corresponding pip version, you may need to set aliases in your `.zshrc` file:
 
@@ -152,7 +155,7 @@ SkyPortal defaults to using port 5000. However, this port may already be in use 
 ```
 lsof -i :5000
 ```
-If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port.
+If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port (in `config.yaml`, and if you intend to run the unit tests, then also in `test_config.yaml`).
 
 ## Installation: Debian-based Linux and WSL
 
@@ -222,7 +225,7 @@ If the command outputs information about a service, it means that port 5000 is a
 
 ## Launch
 
-0. Make sure you are in the skyportal env: `conda activate skyportal_env`
+0. Make sure you are in the skyportal env: `uv sync && source .venv/bin/activate`.
 1. Initialize the database with `make db_init` (this only needs to
    happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.
@@ -234,13 +237,38 @@ If the command outputs information about a service, it means that port 5000 is a
 
 ## Troubleshooting
 
-If you have trouble getting the demo data try doing
+If you have trouble running `uv sync` and see an error link to `python-ligo-lw`:
+```
+Failed to build `python-ligo-lw==1.8.4`
+...
+error: incompatible pointer to integer conversion
+```
+You may need to run `CFLAGS="-Wno-error=int-conversion" uv sync` instead to avoid treating this warning as an error.
 
-```make db_clear && make db_init && make run```
+---
+
+If you have trouble running `make run` and see this error:
+```
+make[1]: *** [dependencies] Error 1
+make: *** [run] Error 2
+```
+You may need to run `npm install --legacy-peer-deps` and then try `make run` again.
+
+---
+
+If you have trouble getting the demo data try doing:
+
+```
+make db_clear && make db_init && make run
+```
 
 and then, from a different window, do `make load_demo_data`.
 
+---
+
 If you are using WSL, be sure everything (the git repository and all dependencies) are on the Linux machine and not the Windows side, as connection oddities can otherwise cause several errors.
+
+---
 
 Mac users may need to disable Airplay Receiver in System Preferences to free up port 5000 and avoid a 403 Forbidden error.
 
@@ -266,6 +294,14 @@ login screen).  If you are running a public-facing instance of
 SkyPortal, you should enable multi-user login by adding Google
 credentials to the `server:auth` section of the configuration file and
 setting `debug_login` to `False`.
+
+### Username generation
+
+When `server.auth.username_is_email` is set to `True` (the default), the user's username is generated from their email address (e.g., `testuser@cesium-ml.org` → `testuser-cesium-ml-org`).
+
+When `server.auth.username_is_email` is set to `False`, SkyPortal automatically generates a username from the user's OAuth profile using the first letter of their first name combined with their last name (e.g., "Camille Douzet" → `cdouzet`). If that username is already taken, a number is appended and incremented until a unique username is found (e.g., `cdouzet1`, `cdouzet2`, ...).
+
+If the OAuth provider does not supply first and last name fields, the username falls back to the raw `username` field from the provider details.
 
 ### Creating an administrative user
 

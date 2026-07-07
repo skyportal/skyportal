@@ -1,4 +1,3 @@
-import datetime
 import os
 import time
 from io import StringIO
@@ -32,7 +31,8 @@ from ...models import (
     Obj,
 )
 from ...utils.asynchronous import run_async
-from ..base import BaseHandler
+from ...utils.naive_datetime import utcnow_naive
+from ..base import BaseHandler, format_doc
 
 log = make_log("api/galaxy")
 env, cfg = load_env()
@@ -455,7 +455,7 @@ def get_galaxies(
 
 class GalaxyCatalogHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Ingest a Galaxy catalog
@@ -558,7 +558,8 @@ class GalaxyCatalogHandler(BaseHandler):
         return self.success()
 
     @auth_or_token
-    async def get(self, catalog_name=None):
+    @format_doc(MAX_GALAXIES=MAX_GALAXIES)
+    async def get(self, catalog_name: str = None):
         """
         ---
           summary: Retrieve multiple galaxies
@@ -716,7 +717,30 @@ class GalaxyCatalogHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfGalaxys
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              galaxies:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Galaxy'
+                              totalMatches:
+                                type: integer
+                              sortBy:
+                                type: string
+                              sortOrder:
+                                type: string
+                              page:
+                                type: integer
+                              numPerPage:
+                                type: integer
+                              geojson:
+                                type: object
             400:
               content:
                 application/json:
@@ -731,8 +755,20 @@ class GalaxyCatalogHandler(BaseHandler):
             "galaxyName", None
         )  # Partial name to match
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        if localization_dateobs is not None:
+            # psycopg3 requires a real datetime when comparing against a
+            # DateTime column; coerce here so the sync helper's WHERE
+            # against Localization.dateobs binds correctly.
+            try:
+                localization_dateobs = arrow.get(localization_dateobs).naive
+            except (arrow.parser.ParserError, ValueError):
+                return self.error(
+                    f"Invalid localizationDateobs: {localization_dateobs}"
+                )
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        localization_cumprob = self.get_query_argument(
+            "localizationCumprob", 0.95, type=float
+        )
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         catalog_names_only = self.get_query_argument("catalogNamesOnly", False)
         min_redshift = self.get_query_argument("minRedshift", None)
@@ -799,7 +835,7 @@ class GalaxyCatalogHandler(BaseHandler):
                 return self.error(f"get_galaxies fails: {e}")
 
     @permissions(["System admin"])
-    def delete(self, catalog_name):
+    async def delete(self, catalog_name: str):
         """
         ---
         summary: Delete a galaxy catalog
@@ -823,8 +859,8 @@ class GalaxyCatalogHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            catalog = session.scalar(
+        async with self.AsyncSession() as session:
+            catalog = await session.scalar(
                 GalaxyCatalog.select(session.user_or_token).where(
                     GalaxyCatalog.name == catalog_name
                 )
@@ -945,7 +981,7 @@ def add_galaxies(catalog_metadata, catalog_data):
 
 class GalaxyASCIIFileHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload galaxies from ASCII file
@@ -1256,7 +1292,7 @@ def add_glade(file_path=None, file_url=None):
             ]
 
             df["catalog_id"] = catalog_id
-            utcnow = datetime.datetime.utcnow().isoformat()
+            utcnow = utcnow_naive().isoformat()
             df["created_at"] = utcnow
             df["modified_at"] = utcnow
             blueshift_length = len(df[(df["redshift"] < 0)])
@@ -1304,15 +1340,14 @@ def add_glade(file_path=None, file_url=None):
             )
             output.seek(0)
             connection = DBSession().connection().connection
-            cursor = connection.cursor()
-            cursor.copy_from(
-                output,
-                "galaxys",
-                sep="\t",
-                null="",
-                columns=columns,
+            quoted_columns = ", ".join(f'"{c}"' for c in columns)
+            copy_sql = (
+                f"COPY galaxys ({quoted_columns}) FROM STDIN "
+                "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
             )
-            cursor.close()
+            with connection.cursor() as cursor:
+                with cursor.copy(copy_sql) as copy:
+                    copy.write(output.getvalue())
             output.close()
             DBSession().commit()
             end_timer = time.perf_counter()
@@ -1328,14 +1363,7 @@ def add_glade(file_path=None, file_url=None):
     return full_length, full_blueshift_length
 
 
-def get_galaxies_completeness(
-    galaxies,
-    dist_min=0,
-    dist_max=10000,
-    M_min=8,
-    M_max=12,
-    M_x12=10.676,
-):
+def get_galaxies_completeness(galaxies, dist_min=0, dist_max=10000, M_min=8, M_max=12):
     # standard constants
     h = 0.7
     phiStar_M1 = 10 ** (-3.31) * h**3
@@ -1344,8 +1372,8 @@ def get_galaxies_completeness(
     alpha_M2 = -0.79
     logMStar = 10.79
 
-    schechter_M_log_2 = (
-        lambda x: np.log(10)
+    schechter_M_log_2 = lambda x: (
+        np.log(10)
         * np.exp(-(10 ** (x - logMStar)))
         * (
             phiStar_M1 * (10 ** (x - logMStar)) ** (alpha_M1 + 1)
@@ -1455,7 +1483,7 @@ class GalaxyGladeHandler(BaseHandler):
 
 class ObjHostHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, obj_id):
+    async def post(self, obj_id: str):
         """
         ---
         summary: Set an object's host galaxy
@@ -1498,21 +1526,21 @@ class ObjHostHandler(BaseHandler):
         if name is None:
             return self.error("galaxyName required to set object host")
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token, mode="update").where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
 
-            galaxy = session.scalars(
+            galaxy = await session.scalar(
                 Galaxy.select(session.user_or_token).where(Galaxy.name == name)
-            ).first()
+            )
             if galaxy is None:
                 return self.error(f"Cannot find Galaxy with name {name}")
 
             obj.host_id = galaxy.id
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
@@ -1521,7 +1549,7 @@ class ObjHostHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, obj_id):
+    async def delete(self, obj_id: str):
         """
         ---
         summary: Delete an object's host galaxy
@@ -1546,15 +1574,15 @@ class ObjHostHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token, mode="update").where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
 
             obj.host_id = None
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}

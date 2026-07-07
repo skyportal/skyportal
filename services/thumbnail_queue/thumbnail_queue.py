@@ -1,13 +1,15 @@
+import asyncio
 import time
 
 import sqlalchemy as sa
+from sqlalchemy.orm import selectinload
 
+from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.models import (
-    DBSession,
     Obj,
     Thumbnail,
 )
@@ -21,13 +23,13 @@ init_db(**cfg["database"])
 THUMBNAIL_TYPES = {"sdss", "ls", "ps1"}
 
 
-def fetch_obj(session):
+async def fetch_obj(session):
     """Fetch the object with the most recent created_at timestamp that is missing at least one thumbnail.
 
     Parameters
     ----------
-    session : `sqlalchemy.orm.session.Session`
-        The database session to use for the query.
+    session : `sqlalchemy.ext.asyncio.AsyncSession`
+        The async database session to use for the query.
 
     Returns
     -------
@@ -60,18 +62,24 @@ def fetch_obj(session):
             .order_by(Obj.created_at.desc())
             .limit(1)
         )
-        objs = session.execute(stmt).scalars().all()
+        result = await session.execute(stmt)
+        objs = result.scalars().all()
         if len(objs) == 0:
             return None, None
         else:
-            obj = session.scalar(sa.select(Obj).where(Obj.id == objs[0]))
+            # eager-load thumbnails: we read obj.thumbnails below, which would
+            # otherwise lazy-load under the async session.
+            obj = await session.scalar(
+                sa.select(Obj)
+                .options(selectinload(Obj.thumbnails))
+                .where(Obj.id == objs[0])
+            )
             return obj, None
     except Exception as e:
         return None, e
 
 
-@check_loaded(logger=log)
-def service(*args, **kwargs):
+async def _run_loop():
     # start a timer we'll use to have a heartbeat every 60 seconds
     heartbeat = time.time()
     while True:
@@ -80,13 +88,16 @@ def service(*args, **kwargs):
             log("Thumbnail queue heartbeat.")
         try:
             internal_key = None
-            with DBSession() as session:
-                obj, err = fetch_obj(session)
+            # Access via the module: init_db() (above) rebinds the factory after
+            # this module is imported, so a direct `from ... import` would keep
+            # the pre-init None and call None() ('NoneType' object is not callable).
+            async with models.async_plain_session_factory() as session:
+                obj, err = await fetch_obj(session)
                 if err is not None:
                     log(f"Error fetching object with missing thumbnails: {str(err)}")
-                    time.sleep(1)
+                    await asyncio.sleep(1)
                 elif obj is None:
-                    time.sleep(5)
+                    await asyncio.sleep(5)
                 else:
                     log(f"Processing thumbnail request for object {obj.id}.")
                     try:
@@ -97,7 +108,7 @@ def service(*args, **kwargs):
                             THUMBNAIL_TYPES - set(existing_thumbnail_types)
                         )
                         if len(thumbnails) > 0:
-                            obj.add_linked_thumbnails(thumbnails, session)
+                            await obj.add_linked_thumbnails(thumbnails, session)
                             internal_key = obj.internal_key
                         else:
                             log(f"Source {obj.id} has all thumbnails.")
@@ -105,7 +116,13 @@ def service(*args, **kwargs):
                         log(
                             f"Error processing thumbnail request for object {obj.id}: {str(e)}"
                         )
-                        session.rollback()
+                        if isinstance(e, sa.exc.SQLAlchemyError):
+                            try:
+                                await session.rollback()
+                            except Exception as rollback_err:
+                                log(
+                                    f"Error rolling back session after thumbnail failure for object {obj.id}: {str(rollback_err)}"
+                                )
 
             if internal_key is not None:
                 flow = Flow()
@@ -121,7 +138,12 @@ def service(*args, **kwargs):
                 )
         except Exception as e:
             log(f"Error processing thumbnail request: {str(e)}")
-            time.sleep(5)
+            await asyncio.sleep(5)
+
+
+@check_loaded(logger=log)
+def service(*args, **kwargs):
+    asyncio.run(_run_loop())
 
 
 if __name__ == "__main__":

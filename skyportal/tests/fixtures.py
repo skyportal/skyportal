@@ -17,7 +17,6 @@ from sqlalchemy.orm.exc import ObjectDeletedError
 
 from baselayer.app.config import load_config
 from baselayer.app.env import load_env
-from baselayer.app.test_util import set_server_url
 from skyportal.models import (
     Allocation,
     Annotation,
@@ -43,6 +42,7 @@ from skyportal.models import (
     Obj,
     ObservingRun,
     Photometry,
+    Role,
     SourceNotification,
     Spectrum,
     Stream,
@@ -60,9 +60,39 @@ env, cfg = load_env()
 print("Loading test configuration from _test_config.yaml")
 basedir = pathlib.Path(os.path.dirname(__file__))
 cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
-set_server_url(f"http://localhost:{cfg['ports.app']}")
 print("Setting test database to:", cfg["database"])
 init_db(**cfg["database"])
+
+
+def resilient_delete(model, obj_id):
+    """Delete a row by id in a factory teardown, recovering from stale-cascade
+    failures.
+
+    Frontend tests routinely modify association rows (e.g. group_users) through
+    the app. That leaves the shared ORM session's cascade relationships stale, so
+    the teardown's ``delete`` flush raises StaleDataError ("expected to delete N
+    row(s); only M matched") and poisons the session for every later test. On
+    failure we roll back, drop all cached state, and retry against current DB
+    state so a single teardown can never cascade across the suite.
+    """
+    obj = (
+        DBSession()
+        .execute(sa.select(model).filter(model.id == obj_id))
+        .scalars()
+        .first()
+    )
+    if obj is None:
+        return
+    try:
+        DBSession().delete(obj)
+        DBSession().commit()
+    except Exception:
+        DBSession().rollback()
+        DBSession().expire_all()
+        obj = DBSession().get(model, obj_id)
+        if obj is not None:
+            DBSession().delete(obj)
+            DBSession().commit()
 
 
 def load_localization_data(path):
@@ -229,17 +259,7 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     @staticmethod
     def teardown(user_id):
-        user = (
-            DBSession()
-            .execute(sa.select(User).filter(User.id == user_id))
-            .scalars()
-            .first()
-        )
-        if user is not None:
-            # If it is, delete it
-            DBSession().refresh(user)
-            DBSession().delete(user)
-            DBSession().commit()
+        resilient_delete(User, user_id)
 
 
 class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -359,17 +379,7 @@ class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     @staticmethod
     def teardown(stream_id):
-        # Fetch fresh instance of stream
-        stream = (
-            DBSession()
-            .execute(sa.select(Stream).filter(Stream.id == stream_id))
-            .scalars()
-            .first()
-        )
-        if stream is not None:
-            # If it is, delete it
-            DBSession().delete(stream)
-            DBSession().commit()
+        resilient_delete(Stream, stream_id)
 
 
 class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -394,16 +404,7 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     @staticmethod
     def teardown(group_id):
-        group = (
-            DBSession()
-            .execute(sa.select(Group).filter(Group.id == group_id))
-            .scalars()
-            .first()
-        )
-        if group is not None:
-            # If it is, delete it
-            DBSession().delete(group)
-            DBSession().commit()
+        resilient_delete(Group, group_id)
 
 
 class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -808,7 +809,8 @@ class GcnEventFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().commit()
 
     @factory.post_generation
-    def localizations(self, create, passed_localizations=[], **kwargs):
+    def localizations(self, create, passed_localizations=None, **kwargs):
+        passed_localizations = passed_localizations or []
         if len(passed_localizations) > 0:
             new_localizations = []
             for localization_dict in passed_localizations:
@@ -996,8 +998,8 @@ class AllocationFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Allocation
 
     instrument = factory.SubFactory(InstrumentFactory)
-    group = (factory.SubFactory(GroupFactory),)
-    pi = (factory.LazyFunction(lambda: uuid.uuid4().hex),)
+    group = factory.SubFactory(GroupFactory)
+    pi = factory.LazyFunction(lambda: uuid.uuid4().hex)
     proposal_id = factory.LazyFunction(lambda: uuid.uuid4().hex)
     hours_allocated = 100
 
@@ -1064,6 +1066,15 @@ class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     token = factory.LazyFunction(lambda: uuid.uuid4().hex)
     admin_for_groups = []
+    # role and can_save_to_groups are NOT NULL on Invitation; the handler
+    # (handlers/api/invitations.py) always sets them, so the factory must too,
+    # or the row fails to flush.
+    can_save_to_groups = []
+    role = factory.LazyFunction(
+        lambda: DBSession()
+        .scalars(sa.select(Role).where(Role.id == "Full user"))
+        .first()
+    )
     user_email = "user@email.com"
     invited_by = factory.SubFactory(UserFactory)
     used = False

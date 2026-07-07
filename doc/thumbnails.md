@@ -13,7 +13,7 @@ Every now and then, the surveys mentioned above publish new data releases and/or
 For example, on 2025-05-03, we updated SkyPortal to start pointing to Legacy Survey's DR10 instead of DR9, and the script to update the thumbnails table is `tools/thumbnails_update/ls_dr9_to_dr10.py`. To run it, one would do:
 
 ```bash
-source skyportal_env/bin/activate
+source .venv/bin/activate
 PYTHONPATH=. python tools/thumbnails_update/ls_dr9_to_dr10.py --config=config.yaml
 ```
 

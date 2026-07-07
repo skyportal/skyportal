@@ -3,6 +3,7 @@ import numpy as np
 import sqlalchemy as sa
 from astropy import coordinates as ap_coord
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -26,7 +27,7 @@ _, cfg = load_env()
 
 class ObjHandler(BaseHandler):
     @auth_or_token  # ACLs will be checked below based on configs
-    def delete(self, obj_id):
+    async def delete(self, obj_id: str):
         """
         ---
         summary: Delete an Obj
@@ -49,75 +50,37 @@ class ObjHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token, mode="delete").where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
 
-            stmt = sa.select(Annotation).where(Annotation.obj_id == obj.id)
-            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_annotations = session.execute(count_stmt).scalar()
-            if total_annotations > 0:
-                return self.error(
-                    f"Please remove all associated annotations from object with ID {obj_id} before removing."
+            # Counts of dependent rows that must be cleared before deletion.
+            for related_cls, label in (
+                (Annotation, "annotations"),
+                (Spectrum, "spectra"),
+                (Photometry, "photometry"),
+                (PhotometricSeries, "photometric series"),
+                (Comment, "comments"),
+                (Classification, "classifications"),
+                (SourcesConfirmedInGCN, "sources in gcns"),
+            ):
+                count = await session.scalar(
+                    sa.select(func.count()).select_from(
+                        sa.select(related_cls)
+                        .where(related_cls.obj_id == obj.id)
+                        .distinct()
+                    )
                 )
+                if count > 0:
+                    return self.error(
+                        f"Please remove all associated {label} from object with ID {obj_id} before removing."
+                    )
 
-            stmt = sa.select(Spectrum).where(Spectrum.obj_id == obj.id)
-            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_spectrum = session.execute(count_stmt).scalar()
-            if total_spectrum > 0:
-                return self.error(
-                    f"Please remove all associated spectra from object with ID {obj_id} before removing."
-                )
-
-            stmt = sa.select(Photometry).where(Photometry.obj_id == obj.id)
-            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_photometry = session.execute(count_stmt).scalar()
-            if total_photometry > 0:
-                return self.error(
-                    f"Please remove all associated photometry from object with ID {obj_id} before removing."
-                )
-
-            stmt = sa.select(PhotometricSeries).where(
-                PhotometricSeries.obj_id == obj.id
-            )
-            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_photometric_series = session.execute(count_stmt).scalar()
-            if total_photometric_series > 0:
-                return self.error(
-                    f"Please remove all associated photometric series from object with ID {obj_id} before removing."
-                )
-
-            stmt = sa.select(Comment).where(Comment.obj_id == obj.id)
-            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_comments = session.execute(count_stmt).scalar()
-            if total_comments > 0:
-                return self.error(
-                    f"Please remove all associated comments on object with ID {obj_id} before removing."
-                )
-
-            stmt = sa.select(Classification).where(Classification.obj_id == obj.id)
-            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_classifications = session.execute(count_stmt).scalar()
-            if total_classifications > 0:
-                return self.error(
-                    f"Please remove all associated classifications on object with ID {obj_id} before removing."
-                )
-
-            stmt = sa.select(SourcesConfirmedInGCN).where(
-                SourcesConfirmedInGCN.obj_id == obj.id
-            )
-            count_stmt = sa.select(func.count()).select_from(stmt.distinct())
-            total_sources_in_gcn = session.execute(count_stmt).scalar()
-            if total_sources_in_gcn > 0:
-                return self.error(
-                    f"Please remove all associated sources in gcns associated with the object with ID {obj_id} before removing."
-                )
-
-            session.delete(obj)
-            session.commit()
+            await session.delete(obj)
+            await session.commit()
             return self.success()
 
 
@@ -174,7 +137,7 @@ class ObjPositionHandler(BaseHandler):
             )
 
     @auth_or_token
-    def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Retrieve photometry-based position of an Obj
@@ -192,14 +155,19 @@ class ObjPositionHandler(BaseHandler):
             content:
               application/json:
                 schema:
-                  type: object
-                  properties:
-                    ra:
-                      type: number
-                      description: Right ascension of the object
-                    dec:
-                      type: number
-                      description: Declination of the object
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            ra:
+                              type: number
+                              description: Right ascension of the object
+                            dec:
+                              type: number
+                              description: Declination of the object
           400:
             content:
               application/json:
@@ -209,7 +177,7 @@ class ObjPositionHandler(BaseHandler):
         stream_ids = self.get_query_argument("stream_ids", None)
         stream_only = self.get_query_argument("stream_only", False)
 
-        snr_threshold = self.get_query_argument("snr_threshold", 3.0)
+        snr_threshold = self.get_query_argument("snr_threshold", 3.0, type=float)
         method = self.get_query_argument("method", "snr2")
 
         # VALIDATE INSTRUMENT IDS IF PROVIDED
@@ -221,11 +189,7 @@ class ObjPositionHandler(BaseHandler):
             stream_ids = self.validate_list_parameter(stream_ids, dtype="int")
 
         # VALIDATE SNR THRESHOLD
-        try:
-            snr_threshold = float(snr_threshold)
-            if snr_threshold <= 0:
-                raise ValueError
-        except ValueError:
+        if snr_threshold is None or snr_threshold <= 0:
             return self.error(
                 "Invalid snr_threshold parameter, must be a positive float"
             )
@@ -236,9 +200,9 @@ class ObjPositionHandler(BaseHandler):
                 'Invalid method parameter, must be one of "snr2" or "invvar"'
             )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                obj = session.scalar(
+                obj = await session.scalar(
                     Obj.select(session.user_or_token).where(Obj.id == obj_id)
                 )
                 if obj is None:
@@ -261,16 +225,19 @@ class ObjPositionHandler(BaseHandler):
                 if stream_ids is not None:
                     query_constraints.append(Photometry.stream_id.in_(stream_ids))
 
-                photometry = (
-                    session.scalars(
-                        sa.select(Photometry).where(sa.and_(*query_constraints))
-                    )
-                ).all()
+                phot_stmt = sa.select(Photometry).where(sa.and_(*query_constraints))
+                # `len(p.streams)` is checked below if `stream_only` is set;
+                # eager-load to avoid a MissingGreenlet inside the filter.
+                if stream_only and not stream_ids:
+                    phot_stmt = phot_stmt.options(selectinload(Photometry.streams))
+                photometry_result = await session.scalars(phot_stmt)
+                photometry = photometry_result.all()
 
                 # POST-QUERY FILTERING
                 additional_constraints = [
-                    lambda p: p.flux / p.fluxerr
-                    > snr_threshold,  # signal-to-noise ratio threshold
+                    lambda p: (
+                        p.flux / p.fluxerr > snr_threshold
+                    ),  # signal-to-noise ratio threshold
                 ]
                 if (
                     stream_only and not stream_ids
@@ -282,6 +249,7 @@ class ObjPositionHandler(BaseHandler):
                     for p in photometry
                     if not np.isnan(p.flux)
                     and not np.isnan(p.fluxerr)
+                    and p.fluxerr != 0
                     and p.ra is not None
                     and not np.isnan(p.ra)
                     and p.dec is not None

@@ -5,6 +5,7 @@ import arrow
 import python_http_client.exceptions
 import sqlalchemy as sa
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
@@ -27,7 +28,7 @@ _, cfg = load_env()
 
 class InvitationHandler(BaseHandler):
     @permissions(["Manage users"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Invite a new user
@@ -107,16 +108,16 @@ class InvitationHandler(BaseHandler):
             return self.error("Invitations are not enabled in current deployment.")
         data = self.get_json()
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             role_id = data.get("role", "Full user")
             if role_id not in ["Full user", "View only"]:
                 return self.error(
                     f"Unsupported value provided for parameter `role`: {role_id}. "
                     "Must be one of either 'Full user' or 'View only'."
                 )
-            role = session.scalars(
+            role = await session.scalar(
                 Role.select(self.current_user).where(Role.id == role_id)
-            ).first()
+            )
 
             if data.get("userEmail") in [None, "", "None", "null"]:
                 return self.error("Missing required parameter `userEmail`")
@@ -131,9 +132,12 @@ class InvitationHandler(BaseHandler):
                     "Invalid value provided for `groupIDs`; unable to parse "
                     "all list items to integers."
                 )
-            groups = session.scalars(
-                Group.select(self.current_user).where(Group.id.in_(group_ids))
-            ).all()
+            groups_result = await session.scalars(
+                Group.select(self.current_user)
+                .options(selectinload(Group.streams))
+                .where(Group.id.in_(group_ids))
+            )
+            groups = groups_result.all()
             if set(group_ids).difference({g.id for g in groups}):
                 return self.error(
                     "The following groupIDs elements are invalid: "
@@ -149,9 +153,10 @@ class InvitationHandler(BaseHandler):
                         "all list items to integers."
                     )
 
-                streams = session.scalars(
+                streams_result = await session.scalars(
                     Stream.select(self.current_user).where(Stream.id.in_(stream_ids))
-                ).all()
+                )
+                streams = streams_result.all()
 
                 if set(stream_ids).difference({s.id for s in streams}):
                     return self.error(
@@ -169,11 +174,12 @@ class InvitationHandler(BaseHandler):
                         "stream IDs list. Please try again."
                     )
             else:
-                streams = session.scalars(
+                streams_result = await session.scalars(
                     Stream.select(self.current_user)
                     .join(GroupStream)
                     .where(GroupStream.group_id.in_(group_ids))
-                ).all()
+                )
+                streams = streams_result.all()
             admin_for_groups = data.get("groupAdmin", [False] * len(groups))
             if not all(isinstance(admin, bool) for admin in admin_for_groups):
                 return self.error(
@@ -197,6 +203,15 @@ class InvitationHandler(BaseHandler):
                 return self.error("groupAdmin and groupIDs must be the same length")
 
             invite_token = str(uuid.uuid4())
+            # Re-fetch the inviting user via the current async session so
+            # invited_by points at a session-attached User (the request's
+            # `associated_user_object` was loaded by the auth lookup and is
+            # detached here).
+            inviting_user = await session.scalar(
+                User.select(session.user_or_token).where(
+                    User.id == self.associated_user_object.id
+                )
+            )
             invitation = Invitation(
                 token=invite_token,
                 groups=groups,
@@ -205,12 +220,12 @@ class InvitationHandler(BaseHandler):
                 streams=streams,
                 user_email=user_email,
                 role=role,
-                invited_by=self.associated_user_object,
+                invited_by=inviting_user,
                 user_expiration_date=user_expiration_date,
             )
             session.add(invitation)
             try:
-                session.commit()
+                await session.commit()
             except python_http_client.exceptions.UnauthorizedError:
                 return self.error(
                     "Twilio Sendgrid authorization error. Please ensure "
@@ -225,7 +240,7 @@ class InvitationHandler(BaseHandler):
             return self.success(data={"id": invitation.id})
 
     @permissions(["Manage users"])
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve invitations
@@ -301,19 +316,17 @@ class InvitationHandler(BaseHandler):
         group = self.get_query_argument("group", None)
         stream = self.get_query_argument("stream", None)
         invited_by = self.get_query_argument("invitedBy", None)
-        page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 25)
-        try:
-            page_number = int(page_number)
-        except ValueError:
-            return self.error("Invalid page number value.")
-        try:
-            n_per_page = int(n_per_page)
-        except ValueError:
-            return self.error("Invalid numPerPage value.")
+        page_number = self.get_query_argument("pageNumber", 1, type=int)
+        n_per_page = self.get_query_argument("numPerPage", 25, type=int)
+        if page_number is None or n_per_page is None:
+            return self.error("Invalid page number or numPerPage value.")
 
-        with self.Session() as session:
-            query = Invitation.select(session.user_or_token)
+        async with self.AsyncSession() as session:
+            query = Invitation.select(session.user_or_token).options(
+                selectinload(Invitation.streams),
+                selectinload(Invitation.groups),
+                selectinload(Invitation.invited_by),
+            )
             if not include_used:
                 query = query.where(Invitation.used.is_(False))
             if email_address is not None:
@@ -336,9 +349,10 @@ class InvitationHandler(BaseHandler):
                 )
 
             count_stmt = sa.select(func.count()).select_from(query)
-            total_matches = session.execute(count_stmt).scalar()
+            total_matches = await session.scalar(count_stmt)
             query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
-            invitations = session.scalars(query).unique().all()
+            inv_result = await session.scalars(query)
+            invitations = inv_result.unique().all()
             info = {}
             return_data = [invitation.to_dict() for invitation in invitations]
             for idx, invite_dict in enumerate(return_data):
@@ -351,7 +365,7 @@ class InvitationHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Manage users"])
-    def patch(self, invitation_id):
+    async def patch(self, invitation_id: int):
         """
         ---
         summary: Update a pending invitation
@@ -387,13 +401,15 @@ class InvitationHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
-
-        with self.Session() as session:
-            invitation = session.scalars(
-                Invitation.select(session.user_or_token, mode="update").where(
-                    Invitation.id == invitation_id
+        async with self.AsyncSession() as session:
+            invitation = await session.scalar(
+                Invitation.select(session.user_or_token, mode="update")
+                .options(
+                    selectinload(Invitation.groups),
+                    selectinload(Invitation.streams),
                 )
-            ).first()
+                .where(Invitation.id == invitation_id)
+            )
             if invitation is None:
                 return self.error(
                     "Insufficient permissions: Only the invitor may update an invitation."
@@ -415,35 +431,31 @@ class InvitationHandler(BaseHandler):
             if group_ids is not None:
                 group_ids = [int(gid) for gid in group_ids]
 
-                groups = (
-                    session.scalars(
-                        Group.select(self.current_user).where(Group.id.in_(group_ids))
-                    )
-                    .unique()
-                    .all()
+                groups_result = await session.scalars(
+                    Group.select(self.current_user)
+                    .options(selectinload(Group.streams))
+                    .where(Group.id.in_(group_ids))
                 )
+                groups = groups_result.unique().all()
                 if set(group_ids).difference({g.id for g in groups}):
                     return self.error(
                         "The following groupIDs elements are invalid: "
                         f"{set(group_ids).difference({g.id for g in groups})}"
                     )
             else:
-                groups = session.scalars(
+                groups_result = await session.scalars(
                     Group.select(session.user_or_token)
+                    .options(selectinload(Group.streams))
                     .join(GroupInvitation)
                     .where(GroupInvitation.invitation_id == invitation.id)
-                ).all()
+                )
+                groups = groups_result.all()
             if stream_ids is not None:
                 stream_ids = [int(sid) for sid in stream_ids]
-                streams = (
-                    session.scalars(
-                        Stream.select(self.current_user).where(
-                            Stream.id.in_(stream_ids)
-                        )
-                    )
-                    .unique()
-                    .all()
+                streams_result = await session.scalars(
+                    Stream.select(self.current_user).where(Stream.id.in_(stream_ids))
                 )
+                streams = streams_result.unique().all()
 
                 if set(stream_ids).difference({s.id for s in streams}):
                     return self.error(
@@ -451,11 +463,12 @@ class InvitationHandler(BaseHandler):
                         f"{set(stream_ids).difference({s.id for s in streams})}"
                     )
             else:
-                streams = session.scalars(
+                streams_result = await session.scalars(
                     Stream.select(session.user_or_token)
                     .join(StreamInvitation)
                     .where(StreamInvitation.invitation_id == invitation.id)
-                ).all()
+                )
+                streams = streams_result.all()
 
             if user_expiration_date is not None:
                 try:
@@ -481,11 +494,11 @@ class InvitationHandler(BaseHandler):
             if user_expiration_date is not None:
                 invitation.user_expiration_date = user_expiration_date
 
-            session.commit()
+            await session.commit()
             return self.success()
 
     @permissions(["Manage users"])
-    def delete(self, invitation_id):
+    async def delete(self, invitation_id: int):
         """
         ---
         summary: Delete an invitation
@@ -505,16 +518,16 @@ class InvitationHandler(BaseHandler):
                 schema: Success
         """
 
-        with self.Session() as session:
-            invitation = session.scalars(
+        async with self.AsyncSession() as session:
+            invitation = await session.scalar(
                 Invitation.select(session.user_or_token, mode="delete").where(
                     Invitation.id == invitation_id
                 )
-            ).first()
+            )
             if invitation is None:
                 return self.error(
                     "Insufficient permissions: Only the invitor may delete an invitation. "
                 )
-            session.delete(invitation)
-            session.commit()
+            await session.delete(invitation)
+            await session.commit()
             return self.success()

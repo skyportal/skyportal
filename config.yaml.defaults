@@ -72,6 +72,11 @@ app:
 
   ps1_endpoint: https://catalogs.mast.stsci.edu/
 
+  # PS1 cutout service used to scrape the public thumbnail link for an Obj.
+  # Set to an empty string to skip the HTTP call and use the
+  # "currently_unavailable.png" placeholder (useful in tests).
+  ps1_cutout_url: http://ps1images.stsci.edu/cgi-bin/ps1cutouts
+
   tess_endpoint: https://tess.mit.edu/public/tesstransients/
 
   atlas:
@@ -86,8 +91,10 @@ app:
 
   gemini:
     protocol: https
-    host: gsodbtest.gemini.edu # this is the test server host, just remove 'test' for production
-    port: 8443 # this is the test server port, production is 443
+    north_prefix: gnodbtest # this is the test prefix, just remove 'test' for production
+    south_prefix: gsodbtest # this is the test prefix, just remove 'test' for production
+    domain: gemini.edu
+    port: 8443
 
   treasuremap_endpoint: https://treasuremap.space
 
@@ -99,16 +106,26 @@ app:
     look_back_days: 1
 
   hermes:
-      endpoint: https://hermes.lco.global/api/v0
-      token:
-      topic: skyportal.skyportal
-      test_topic: skyportal.skyportal_test
+      endpoint: https://hermes.lco.global/api/v0  # Base URL of the Hermes API
+      token:  # Hermes API token for authentication (required to publish messages)
+      topic: skyportal.skyportal  # Kafka topic used to publish outgoing SkyPortal alerts to Hermes
+      test_topic: skyportal.skyportal_test  # Kafka topic used during testing
+      sync:
+        scimma_username: # SCiMMA/Kafka username for authentication
+        scimma_password: # SCiMMA/Kafka password for authentication
+        kafka_server: kafka.scimma.org
+        from_start: False  # Start from beginning of topic (True) or latest message (False)
+        max_age_days:  # Skip messages older than N days (null/empty = no limit)
+        bot_user_id:   # User ID of the bot account that will save sources and own photometry. If not set, the service will not start.
+        group_ids: []  # List of group IDs to assign imported sources to
+        instrument_tns_ids: # Whitelist of TNS instrument IDs whose photometry will be imported (see https://www.wis-tns.org/api/get/values). If not set, photometry import is skipped entirely.
 
+  # Configuration for the WINTER and SPRING instruments.
   winter:
     protocol: http
     host: winter.caltech.edu
     port: 82
-    submit_trigger: False # if False, the API POST call will only validate the payload
+    submit_trigger: False # if False, the API POST call to WINTER and SPRING will only validate the payload
 
   gracedb_endpoint: https://gracedb.ligo.org/api/
   # See https://computing.docs.ligo.org/guide/auth/x509/ for example
@@ -120,46 +137,56 @@ app:
     - path: "/"
       component: templates/HomePage
       exact: True
+    - path: "/sources"
+      component: source/SourceList
     - path: "/source/:id"
       component: source/Source
+    - path: "/source/:id/finder"
+      component: FindingChart
+    - path: "/source/:id/periodogram"
+      component: Periodogram
+    - path: "/source/:obj_id/analysis/:analysis_id"
+      component: source/SourceAnalysisPage
     - path: "/favorites"
       component: listing/FavoritesPage
     - path: "/groups"
       component: group/Groups
     - path: "/group/:id"
       component: group/Group
-    - path: "/profile"
-      component: user/Profile
+    - path: "/group_sources/:id"
+      component: group/GroupSources
     - path: "/candidates"
       component: candidate/CandidateList
     - path: "/candidates/scan_reports"
       component: candidate/scan_reports/ReportsList
-    - path: "/sources"
-      component: source/SourceList
+    - path: "/profile"
+      component: user/Profile
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
       component: photometry/UploadPhotometry
-    - path: "/about"
-      component: About
-    - path: "/run/:id"
-      component: observing_run/RunSummary
-    - path: "/source/:obj_id/analysis/:analysis_id"
-      component: source/SourceAnalysisPage
     - path: "/share_data/:id"
       component: source/ShareDataForm
     - path: "/filter/:fid"
       component: filter/Filter
+    - path: "/about"
+      component: About
     - path: "/runs"
       component: observing_run/ObservingRunPage
+    - path: "/run/:id"
+      component: observing_run/RunSummary
     - path: "/allocations"
-      component: allocation/AllocationPage
+      component: allocation/AllocationList
     - path: "/allocation/:id"
-      component: allocation/AllocationSummary
+      component: allocation/Allocation
+    - path: "/instruments"
+      component: instrument/InstrumentList
     - path: "/instrument/:id"
-      component: instrument/InstrumentSummary
+      component: instrument/Instrument
+    - path: "/telescopes"
+      component: telescope/TelescopeList
     - path: "/telescope/:id"
-      component: telescope/TelescopeSummary
+      component: telescope/Telescope
     - path: "/observations"
       component: observation/ObservationPage
     - path: "/galaxies"
@@ -168,28 +195,18 @@ app:
       component: spatial_catalog/SpatialCatalogPage
     - path: "/followup_requests"
       component: followup_request/FollowupRequestPage
-    - path: "/group_sources/:id"
-      component: group/GroupSources
     - path: "/user_management"
       component: user/UserManagement
     - path: "/upload_spectrum/:id"
       component: spectrum/UploadSpectrum
     - path: "/observability/:id"
       component: source/Observability
-    - path: "/source/:id/finder"
-      component: FindingChart
-    - path: "/source/:id/periodogram"
-      component: Periodogram
     - path: "/db_stats"
       component: DBStats
     - path: "/gcn_events"
       component: gcn/GcnEvents
     - path: "/gcn_events/:dateobs"
       component: gcn/GcnEventPage
-    - path: "/telescopes"
-      component: telescope/TelescopePage
-    - path: "/instruments"
-      component: instrument/InstrumentPage
     - path: "/mmadetectors"
       component: mma_detector/MMADetectorPage
     - path: "/earthquakes"
@@ -198,6 +215,8 @@ app:
       component: earthquake/EarthquakePage
     - path: "/services"
       component: analysis/AnalysisServicePage
+    - path: "/analysis_requests"
+      component: analysis/AnalysisRequestPage
     - path: "/recurring_apis"
       component: RecurringAPIPage
     - path: "/shifts"
@@ -252,6 +271,10 @@ app:
         - name: Followup Requests
           icon: WorkOutlined
           url: /followup_requests
+
+        - name: Analysis Requests
+          icon: Analytics
+          url: /analysis_requests
 
         - name: Shifts
           icon: SubwayRounded
@@ -478,6 +501,7 @@ app:
         sm: [0, 6, 6, 3]
         xs: [0, 10, 4, 4]
 
+    # Use linkToGroupSources: true in props to link to the group sources page instead.
     GroupList:
       props:
         title: My Groups
@@ -490,12 +514,28 @@ app:
         sm: [4.5, 1, 1.5, 2]
         xs: [0, 17, 4, 2]
 
+    TelescopeMapWidget:
+      show: False
+
 database:
   database: skyportal
   host: localhost
   port: 5432
   user: skyportal
   password:
+
+  # Optional transaction-mode connection pooler (pgbouncer/pgcat) between the app
+  # and Postgres, so many processes share a small bounded backend pool instead of
+  # exhausting max_connections. Pooler-agnostic: point `host`/`port` at whichever
+  # pooler you run (the bundled `pgbouncer` service, or an external one).
+  pooler:
+    enabled: false
+    host: localhost
+    port: 6432
+    pool_mode: transaction
+    # Real Postgres backend connections the pooler keeps per user/db.
+    default_pool_size: 25
+    max_client_conn: 1000
 
 server:
   # From https://console.developers.google.com/
@@ -578,7 +618,16 @@ misc:
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
   dustmap: sfd
-  dustmap_folder: persistentdata/dustmap
+  # Vendored in the skyportal-data submodule so the SFD maps are present
+  # without a network fetch at startup. obj.py still falls back to fetching
+  # if the files are absent (e.g. submodule not initialized).
+  dustmap_folder: skyportal-data/dustmaps
+
+  # sncosmo cache (bandpasses, SED models, spectra), vendored in the
+  # skyportal-data submodule. Pointing sncosmo here keeps app import off the
+  # flaky SVO Filter Profile Service; any missing bandpass still falls back to
+  # a network fetch into this directory.
+  sncosmo_data_folder: skyportal-data/sncosmo
 
   # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
   # consider a photometry point as a detection
@@ -623,6 +672,16 @@ external_logging:
     # We recommend adjusting this value in production.
     profiles_sample_rate: 1.0
 
+observability:
+  # Enable OpenTelemetry instrumentation of the Tornado app and expose request
+  # metrics in Prometheus format at /api/internal/metrics. The endpoint requires
+  # a System admin token (scrape with `Authorization: token <id>`). Each app
+  # worker serves its own metrics on its internal port (ports.app_internal +
+  # worker number); point Prometheus at those ports directly rather than the
+  # load-balanced public endpoint. Disabled by default.
+  enabled: False
+  service_name: skyportal
+
 cron:
   # - interval: 60
   #  script: jobs/count_unsaved_candidates.py
@@ -655,6 +714,7 @@ email_service:
 invitations:
   enabled: False  # If debug_login=True above, invite tokens won't be used during auth
   days_until_expiry: 3
+  disable_emailing: False  # If True, the app will generate invite tokens but not send emails
   email_subject: "You've been invited to collaborate on SkyPortal"
   email_body_preamble: | # This can include HTML tags
     Welcome to <b>SkyPortal</b>!
@@ -731,11 +791,21 @@ user:
 
 ports:
   app: 5000 # This is the internal port
-  facility_queue: 64510
+  # migration_manager port is already defined in baselayer config.yaml.defaults, but can be overridden here
+  # migration_manager:
   notification_queue: 64610
-  observation_plan_queue: 64710
   tns_retrieval_queue: 64810
-  sharing_service_submission_queue: 64812
+
+hosts:
+  # Hostnames the application uses to reach its internal microservices. These
+  # default to the loopback address, which is correct for the standard
+  # single-host deployment where every service runs alongside the app. Override
+  # a service's host to run it on a separate host/container (e.g. to scale a
+  # microservice independently, or for a distributed/Kubernetes deployment).
+  migration_manager: 127.0.0.1
+  notification_queue: 127.0.0.1
+  tns_retrieval_queue: 127.0.0.1
+  slack: 127.0.0.1
 
 gcn:
   server: gcn.nasa.gov

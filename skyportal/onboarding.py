@@ -104,6 +104,23 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
         raise e
 
 
+def get_unique_username(base_username):
+    """Generate a unique username by appending a number if needed."""
+    existing = set(
+        DBSession()
+        .scalars(
+            sa.select(User.username).where(User.username.like(f"{base_username}%"))
+        )
+        .all()
+    )
+    if base_username not in existing:
+        return base_username
+    counter = 1
+    while f"{base_username}{counter}" in existing:
+        counter += 1
+    return f"{base_username}{counter}"
+
+
 def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
     if "username" not in backend.setting("USER_FIELDS", USER_FIELDS):
         raise Exception("PSA configuration error: `username` not properly captured.")
@@ -116,7 +133,13 @@ def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):
         if email_as_username and details.get("email"):
             username = details["email"]
         else:
-            username = details["username"]
+            first_name = details.get("first_name", "")
+            last_name = details.get("last_name", "")
+            if first_name and last_name:
+                base_username = (first_name[0] + last_name).lower()
+                username = get_unique_username(base_username)
+            else:
+                username = details.get("username") or details.get("email")
 
     elif existing_user is not None:
         return {"username": existing_user.username}

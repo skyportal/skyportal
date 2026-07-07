@@ -67,7 +67,7 @@ def classify_thumbnail_grayscale(mapper, connection, target):
     else:
         try:
             target.is_grayscale = image_is_grayscale(
-                requests.get(target.public_url, stream=True).raw
+                requests.get(target.public_url, stream=True, timeout=10).raw
             )
         except requests.exceptions.RequestException:
             pass

@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import requests
 
@@ -8,6 +8,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -203,8 +204,7 @@ class SOAR_GHTS_Request:
             "GHTS_R_2100_5000A_1x2_slit1p0": 0.5,
         }
 
-        configurations = []
-        configurations = configurations + [
+        configurations = [
             {
                 "type": "SPECTRUM",
                 "instrument_type": request.payload["instrument_type"],
@@ -229,7 +229,7 @@ class SOAR_GHTS_Request:
             },
         ]
         if request.payload.get("include_calibrations", False):
-            configurations = configurations + [
+            arcs = [
                 {
                     "type": "ARC",
                     "instrument_type": request.payload["instrument_type"],
@@ -255,6 +255,7 @@ class SOAR_GHTS_Request:
                     "constraints": arc_constraints,
                 },
             ]
+            configurations = arcs + configurations + arcs
 
         tstart = request.payload["start_date"]
         tend = request.payload["end_date"]
@@ -565,13 +566,13 @@ class SOARGHTSIMAGERAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -737,13 +738,13 @@ class SOARGHTSAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
@@ -911,13 +912,13 @@ class SOARTSPECAPI(SOARAPI):
             },
             "start_date": {
                 "type": "string",
-                "default": datetime.utcnow().isoformat(),
+                "default": utcnow_naive().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+                "default": (utcnow_naive() + timedelta(days=7)).isoformat(),
             },
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",

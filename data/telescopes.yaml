@@ -586,3 +586,68 @@
   robotic: false
   fixed_location: true
   =id: MMT
+- name: TTT
+  nickname: TTT
+  lat: 28.301111
+  lon: -16.510556
+  diameter: 2.0
+  elevation: 2390.0
+  robotic: true
+  fixed_location: true
+  =id: TTT
+- name: Gravitational-wave Optical Transient Observer North
+  nickname: GOTO-N
+  lat: 28.7566
+  lon: -17.8792
+  diameter: 3.2
+  elevation: 2275.0
+  robotic: true
+  fixed_location: true
+  =id: GOTO-N
+- name: Gravitational-wave Optical Transient Observer South
+  nickname: GOTO-S
+  lat: -31.2733
+  lon: 149.0644
+  diameter: 3.2
+  elevation: 1165.0
+  robotic: true
+  fixed_location: true
+  =id: GOTO-S
+- name: Simonyi Survey Telescope
+  nickname: Simonyi
+  lat: -30.2446
+  lon: -70.7494
+  diameter: 8.4
+  elevation: 2663.0
+  robotic: true
+  fixed_location: true
+  =id: Simonyi
+- name: All-Sky Automated Survey for Supernovae
+  nickname: ASAS-SN
+  diameter: 0.1
+  robotic: true
+  fixed_location: false
+  =id: ASAS-SN
+- name: Gaia Photometric Science Alerts
+  nickname: Gaia
+  diameter: 0.5
+  fixed_location: false
+  =id: Gaia
+- name: SOAR Telescope
+  nickname: SOAR
+  lat: -30.2379
+  lon: -70.7337
+  diameter: 4.1
+  elevation: 2734.0
+  robotic: true
+  fixed_location: true
+  =id: SOAR-T
+- name: Southern Astrophysical Research Telescope
+  nickname: SOAR
+  lat: -30.2380
+  lon: -70.7337
+  diameter: 4.1
+  elevation: 2738.0
+  robotic: false
+  fixed_location: true
+  =id: SOAR

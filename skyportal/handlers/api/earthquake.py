@@ -9,7 +9,8 @@ from astropy.time import Time, TimeDelta
 from obspy.geodetics.base import gps2dist_azimuth
 from obspy.taup import TauPyModel
 from obspy.taup.helper_classes import TauModelError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import set_attribute
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.custom_exceptions import AccessError
@@ -30,18 +31,12 @@ from ..base import BaseHandler
 
 log = make_log("earthquake")
 
+_ = set_attribute  # silence unused-import lint
 
-def post_earthquake_from_xml(payload, user_id, session):
-    """Post Earthquake to database from quakeml xml.
-    payload: str
-         readable string
-    user_id : int
-        SkyPortal ID of User posting the Earthquake
-    session: sqlalchemy.Session
-        Database session for this transaction
-    """
 
-    user = session.query(User).get(user_id)
+async def post_earthquake_from_xml(payload, user_id, session):
+    """Post Earthquake to database from quakeml xml."""
+    user = await session.scalar(sa.select(User).where(User.id == user_id))
 
     event = obspy.core.event.read_events(io.StringIO(payload), format="QUAKEML")[0]
     event_uri = event.resource_id.id.replace("/", "-")
@@ -58,19 +53,17 @@ def post_earthquake_from_xml(payload, user_id, session):
 
     event_type = event.event_type
     if event_type == "not existing":
-        event = session.scalars(
+        existing_event = await session.scalar(
             EarthquakeEvent.select(user, mode="update").where(
                 EarthquakeEvent.event_id == event_id
             )
-        ).first()
-        if event is not None:
-            event.status = "canceled"
-            session.add(event)
-            session.commit()
-
-            return event.id
-        else:
-            return None
+        )
+        if existing_event is not None:
+            existing_event.status = "canceled"
+            session.add(existing_event)
+            await session.commit()
+            return existing_event.id
+        return None
 
     magnitudes = event.magnitudes
     if len(magnitudes) == 0:
@@ -79,17 +72,17 @@ def post_earthquake_from_xml(payload, user_id, session):
     mag = magnitudes[-1].mag
     origin = event.origins[-1]
 
-    event = session.scalars(
+    existing_event = await session.scalar(
         EarthquakeEvent.select(user).where(EarthquakeEvent.event_id == event_id)
-    ).first()
+    )
 
-    if event is None:
-        event = EarthquakeEvent(
+    if existing_event is None:
+        new_event = EarthquakeEvent(
             event_id=event_id, event_uri=event_uri, sent_by_id=user.id
         )
-        session.add(event)
+        session.add(new_event)
     else:
-        if not event.is_accessible_by(user, mode="update"):
+        if not existing_event.is_accessible_by(user, mode="update"):
             raise AccessError(
                 "Insufficient permissions: Earthquake event can only be updated by original poster"
             )
@@ -107,22 +100,14 @@ def post_earthquake_from_xml(payload, user_id, session):
         sent_by_id=user.id,
     )
     session.add(earthquake_notice)
-    session.commit()
+    await session.commit()
 
     return event_id
 
 
-def post_earthquake_from_dictionary(payload, user_id, session):
-    """Post Earthquake to database from dictionary.
-    payload: dict
-        Dictionary containing date, location, and magnitude information
-    user_id : int
-        SkyPortal ID of User posting the Earthquake
-    session: sqlalchemy.Session
-        Database session for this transaction
-    """
-
-    user = session.query(User).get(user_id)
+async def post_earthquake_from_dictionary(payload, user_id, session):
+    """Post Earthquake to database from dictionary."""
+    user = await session.scalar(sa.select(User).where(User.id == user_id))
 
     date = payload["date"]
     event_id = payload["event_id"]
@@ -131,15 +116,15 @@ def post_earthquake_from_dictionary(payload, user_id, session):
     depth = payload["depth"]
     magnitude = payload["magnitude"]
 
-    event = session.scalars(
+    existing_event = await session.scalar(
         EarthquakeEvent.select(user).where(EarthquakeEvent.event_id == event_id)
-    ).first()
+    )
 
-    if event is None:
-        event = EarthquakeEvent(event_id=event_id, sent_by_id=user.id)
-        session.add(event)
+    if existing_event is None:
+        new_event = EarthquakeEvent(event_id=event_id, sent_by_id=user.id)
+        session.add(new_event)
     else:
-        if not event.is_accessible_by(user, mode="update"):
+        if not existing_event.is_accessible_by(user, mode="update"):
             raise ValueError(
                 "Insufficient permissions: Earthquake event can only be updated by original poster"
             )
@@ -156,14 +141,14 @@ def post_earthquake_from_dictionary(payload, user_id, session):
         sent_by_id=user.id,
     )
     session.add(earthquake_notice)
-    session.commit()
+    await session.commit()
 
     return event_id
 
 
 class EarthquakeStatusHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         summary: Retrieve all Earthquake status tags
@@ -174,25 +159,30 @@ class EarthquakeStatusHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items:
+                            type: string
           400:
             content:
               application/json:
                 schema: Error
         """
 
-        with self.Session() as session:
-            statuses = (
-                session.scalars(sa.select(EarthquakeEvent.status).distinct())
-                .unique()
-                .all()
-            )
+        async with self.AsyncSession() as session:
+            result = await session.scalars(sa.select(EarthquakeEvent.status).distinct())
+            statuses = result.unique().all()
             return self.success(data=statuses)
 
 
 class EarthquakeHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Ingest EarthquakeEvent
@@ -235,20 +225,20 @@ class EarthquakeHandler(BaseHandler):
                     "Either xml or (event_id, latitude, longitude, depth, magnitude) must be present in data to parse EarthquakeEvent"
                 )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if "xml" in data:
-                event_id = post_earthquake_from_xml(
+                event_id = await post_earthquake_from_xml(
                     data["xml"], self.associated_user_object.id, session
                 )
             else:
-                event_id = post_earthquake_from_dictionary(
+                event_id = await post_earthquake_from_dictionary(
                     data, self.associated_user_object.id, session
                 )
 
             return self.success(data={"id": event_id})
 
     @auth_or_token
-    async def get(self, event_id=None):
+    async def get(self, event_id: str | None = None):
         """
         ---
         single:
@@ -325,24 +315,30 @@ class EarthquakeHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfEarthquakeEvents
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              events:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/EarthquakeEvent'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:
                   schema: Error
         """
 
-        page_number = self.get_query_argument("pageNumber", 1)
-        try:
-            page_number = int(page_number)
-        except ValueError as e:
-            return self.error(f"pageNumber fails: {e}")
-
-        n_per_page = self.get_query_argument("numPerPage", 100)
-        try:
-            n_per_page = int(n_per_page)
-        except ValueError as e:
-            return self.error(f"numPerPage fails: {e}")
+        page_number = self.get_query_argument("pageNumber", 1, type=int)
+        n_per_page = self.get_query_argument("numPerPage", 100, type=int)
+        if page_number is None or n_per_page is None:
+            return self.error("pageNumber or numPerPage parameter is invalid")
 
         start_date = self.get_query_argument("startDate", None)
         end_date = self.get_query_argument("endDate", None)
@@ -350,22 +346,31 @@ class EarthquakeHandler(BaseHandler):
         status_remove = self.get_query_argument("statusRemove", None)
 
         if event_id is not None:
-            with self.Session() as session:
-                event = session.scalars(
+            async with self.AsyncSession() as session:
+                event = await session.scalar(
                     EarthquakeEvent.select(
                         session.user_or_token,
                         options=[
-                            joinedload(EarthquakeEvent.notices).undefer(
+                            selectinload(EarthquakeEvent.notices).undefer(
                                 EarthquakeNotice.content
                             ),
-                            joinedload(EarthquakeEvent.comments),
-                            joinedload(EarthquakeEvent.predictions),
-                            joinedload(EarthquakeEvent.measurements),
+                            selectinload(EarthquakeEvent.comments),
+                            selectinload(EarthquakeEvent.predictions),
+                            selectinload(EarthquakeEvent.measurements),
                         ],
                     ).where(EarthquakeEvent.event_id == event_id)
-                ).first()
+                )
                 if event is None:
                     return self.error("Earthquake event not found", status=404)
+
+                # eager-load comment authors
+                authors = {}
+                for c in event.comments:
+                    author = await session.scalar(
+                        sa.select(User).where(User.id == c.author_id)
+                    )
+                    if author is not None:
+                        authors[c.id] = author
 
                 data = {
                     **event.to_dict(),
@@ -387,10 +392,14 @@ class EarthquakeHandler(BaseHandler):
                                     for k, v in c.to_dict().items()
                                     if k != "attachment_bytes"
                                 },
-                                "author": {
-                                    **c.author.to_dict(),
-                                    "gravatar_url": c.author.gravatar_url,
-                                },
+                                "author": (
+                                    {
+                                        **authors[c.id].to_dict(),
+                                        "gravatar_url": authors[c.id].gravatar_url,
+                                    }
+                                    if c.id in authors
+                                    else None
+                                ),
                                 "resourceType": "earthquake",
                             }
                             for c in event.comments
@@ -402,16 +411,16 @@ class EarthquakeHandler(BaseHandler):
 
                 return self.success(data=data)
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             query = EarthquakeEvent.select(
                 session.user_or_token,
                 options=[
-                    joinedload(EarthquakeEvent.notices),
+                    selectinload(EarthquakeEvent.notices),
                 ],
             )
 
             if start_date:
-                start_date = arrow.get(start_date.strip()).datetime
+                start_date = arrow.get(start_date.strip()).naive
                 notice_subquery = (
                     EarthquakeNotice.select(session.user_or_token)
                     .where(EarthquakeNotice.date >= start_date)
@@ -422,7 +431,7 @@ class EarthquakeHandler(BaseHandler):
                     EarthquakeEvent.event_id == notice_subquery.c.event_id,
                 )
             if end_date:
-                end_date = arrow.get(end_date.strip()).datetime
+                end_date = arrow.get(end_date.strip()).naive
 
                 notice_subquery = (
                     EarthquakeNotice.select(session.user_or_token)
@@ -439,8 +448,8 @@ class EarthquakeHandler(BaseHandler):
             if status_remove:
                 query = query.where(~EarthquakeEvent.status.contains(status_remove))
 
-            total_matches = session.scalar(
-                sa.select(sa.func.count()).select_from(query)
+            total_matches = await session.scalar(
+                sa.select(sa.func.count()).select_from(query.subquery())
             )
 
             if n_per_page is not None:
@@ -450,8 +459,9 @@ class EarthquakeHandler(BaseHandler):
                     .offset((page_number - 1) * n_per_page)
                 )
 
+            result = await session.scalars(query)
             events = []
-            for event in session.scalars(query).unique().all():
+            for event in result.unique().all():
                 events.append({**event.to_dict(), "notices": list(set(event.notices))})
 
             query_results = {"events": events, "totalMatches": int(total_matches)}
@@ -459,7 +469,7 @@ class EarthquakeHandler(BaseHandler):
             return self.success(data=query_results)
 
     @auth_or_token
-    def delete(self, event_id):
+    async def delete(self, event_id: str):
         """
         ---
         summary: Delete an Earthquake event
@@ -476,30 +486,36 @@ class EarthquakeHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
           400:
             content:
               application/json:
                 schema: Error
         """
-        with self.Session() as session:
-            event = session.scalars(
+        async with self.AsyncSession() as session:
+            event = await session.scalar(
                 EarthquakeEvent.select(session.user_or_token, mode="delete").where(
                     EarthquakeEvent.event_id == event_id
                 )
-            ).first()
+            )
             if event is None:
                 return self.error("Earthquake event not found", status=404)
 
-            session.delete(event)
-            session.commit()
+            await session.delete(event)
+            await session.commit()
 
             return self.success()
 
 
 class EarthquakePredictionHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id, mma_detector_id):
+    async def post(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Run a prediction analysis for the earthquake.
@@ -521,28 +537,33 @@ class EarthquakePredictionHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakePrediction'
         """
-
-        with self.Session() as session:
-            event = session.scalars(
+        async with self.AsyncSession() as session:
+            event = await session.scalar(
                 EarthquakeEvent.select(
                     session.user_or_token,
                     options=[
-                        joinedload(EarthquakeEvent.notices),
+                        selectinload(EarthquakeEvent.notices),
                     ],
                 ).where(EarthquakeEvent.event_id == earthquake_id)
-            ).first()
+            )
             if event is None:
                 return self.error(
                     f"Cannot find EarthquakeEvent with ID {earthquake_id}"
                 )
 
-            detector = session.scalars(
+            detector = await session.scalar(
                 MMADetector.select(session.user_or_token).where(
                     MMADetector.id == mma_detector_id
                 )
-            ).first()
+            )
             if detector is None:
                 return self.error(f"Cannot find MMADetector with ID {mma_detector_id}")
 
@@ -565,7 +586,6 @@ class EarthquakePredictionHandler(BaseHandler):
                 Rfivetime,
             ) = compute_traveltimes(notice, detector)
 
-            # FIXME : Add code for amplitude and lockloss prediction
             Rfamp, Lockloss = 0.0, 0.0
 
             prediction = EarthquakePrediction(
@@ -581,7 +601,7 @@ class EarthquakePredictionHandler(BaseHandler):
                 lockloss=Lockloss,
             )
             session.add(prediction)
-            session.commit()
+            await session.commit()
 
             self.push(
                 action="skyportal/REFRESH_EARTHQUAKE",
@@ -646,7 +666,7 @@ def compute_traveltimes(earthquake, detector):
 
 class EarthquakeMeasurementHandler(BaseHandler):
     @auth_or_token
-    async def post(self, earthquake_id, mma_detector_id):
+    async def post(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Post a ground velocity measurement for the earthquake.
@@ -668,40 +688,45 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakeMeasured'
         """
-
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
             return self.error(
                 "Need to provide at least one of rfamp or lockloss measurement"
             )
 
-        with self.Session() as session:
-            event = session.scalars(
+        async with self.AsyncSession() as session:
+            event = await session.scalar(
                 EarthquakeEvent.select(
                     session.user_or_token,
                 ).where(EarthquakeEvent.event_id == earthquake_id)
-            ).first()
+            )
             if event is None:
                 return self.error(
                     f"Cannot find EarthquakeEvent with ID {earthquake_id}"
                 )
 
-            detector = session.scalars(
+            detector = await session.scalar(
                 MMADetector.select(session.user_or_token).where(
                     MMADetector.id == mma_detector_id
                 )
-            ).first()
+            )
             if detector is None:
                 return self.error(f"Cannot find MMADetector with ID {mma_detector_id}")
 
-            measurement = session.scalars(
+            measurement = await session.scalar(
                 EarthquakeMeasured.select(session.user_or_token).where(
                     EarthquakeMeasured.id == event.id,
                     EarthquakeMeasured.detector_id == detector.id,
                 )
-            ).first()
+            )
             if measurement is not None:
                 return self.error(
                     "Measurement for this earthquake and detector already exists. Please patch that measurement if an update is required"
@@ -717,7 +742,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
                 lockloss=lockloss,
             )
             session.add(measurement)
-            session.commit()
+            await session.commit()
 
             self.push(
                 action="skyportal/REFRESH_EARTHQUAKE",
@@ -727,7 +752,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def get(self, earthquake_id, mma_detector_id):
+    async def get(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Retrieve a ground velocity measurement for the earthquake.
@@ -751,24 +776,23 @@ class EarthquakeMeasurementHandler(BaseHandler):
               application/json:
                 schema: SingleEarthquakeMeasured
         """
-
-        with self.Session() as session:
-            event = session.scalars(
+        async with self.AsyncSession() as session:
+            event = await session.scalar(
                 EarthquakeEvent.select(
                     session.user_or_token,
                 ).where(EarthquakeEvent.event_id == earthquake_id)
-            ).first()
+            )
             if event is None:
                 return self.error(
                     f"Cannot find EarthquakeEvent with ID {earthquake_id}"
                 )
 
-            measurement = session.scalars(
+            measurement = await session.scalar(
                 EarthquakeMeasured.select(session.user_or_token).where(
                     EarthquakeMeasured.event_id == event.id,
                     EarthquakeMeasured.detector_id == mma_detector_id,
                 )
-            ).first()
+            )
             if measurement is None:
                 return self.error(
                     "Measurement for this earthquake and detector not found."
@@ -777,7 +801,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success(data=measurement)
 
     @auth_or_token
-    async def patch(self, earthquake_id, mma_detector_id):
+    async def patch(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Update a ground velocity measurement for the earthquake.
@@ -799,32 +823,37 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/EarthquakeMeasured'
         """
-
         data = self.get_json()
         if "rfamp" not in data and "lockloss" not in data:
             return self.error(
                 "Need to provide at least one of rfamp or lockloss measurement"
             )
 
-        with self.Session() as session:
-            event = session.scalars(
+        async with self.AsyncSession() as session:
+            event = await session.scalar(
                 EarthquakeEvent.select(
                     session.user_or_token,
                 ).where(EarthquakeEvent.event_id == earthquake_id)
-            ).first()
+            )
             if event is None:
                 return self.error(
                     f"Cannot find EarthquakeEvent with ID {earthquake_id}"
                 )
 
-            measurement = session.scalars(
+            measurement = await session.scalar(
                 EarthquakeMeasured.select(session.user_or_token, mode="update").where(
                     EarthquakeMeasured.event_id == event.id,
                     EarthquakeMeasured.detector_id == mma_detector_id,
                 )
-            ).first()
+            )
             if measurement is None:
                 return self.error(
                     "Measurement for this earthquake and detector not found."
@@ -839,7 +868,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
                 measurement.lockloss = lockloss
 
             session.add(measurement)
-            session.commit()
+            await session.commit()
 
             self.push(
                 action="skyportal/REFRESH_EARTHQUAKE",
@@ -849,7 +878,7 @@ class EarthquakeMeasurementHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, earthquake_id, mma_detector_id):
+    async def delete(self, earthquake_id: str, mma_detector_id: int):
         """
         ---
         summary: Delete a ground velocity measurement for the earthquake.
@@ -871,33 +900,38 @@ class EarthquakeMeasurementHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/Success'
         """
-
-        with self.Session() as session:
-            event = session.scalars(
+        async with self.AsyncSession() as session:
+            event = await session.scalar(
                 EarthquakeEvent.select(
                     session.user_or_token,
                 ).where(EarthquakeEvent.event_id == earthquake_id)
-            ).first()
+            )
             if event is None:
                 return self.error(
                     f"Cannot find EarthquakeEvent with ID {earthquake_id}"
                 )
 
-            measurement = session.scalars(
+            measurement = await session.scalar(
                 EarthquakeMeasured.select(session.user_or_token, mode="delete").where(
                     EarthquakeMeasured.event_id == event.id,
                     EarthquakeMeasured.detector_id == mma_detector_id,
                 )
-            ).first()
+            )
             if measurement is None:
                 return self.error(
                     "Measurement for this earthquake and detector not found."
                 )
 
-            session.delete(measurement)
-            session.commit()
+            await session.delete(measurement)
+            await session.commit()
 
             self.push(
                 action="skyportal/REFRESH_EARTHQUAKE",

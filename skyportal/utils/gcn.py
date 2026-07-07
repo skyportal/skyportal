@@ -300,14 +300,20 @@ def get_skymap_url(root, notice_type, timeout=10):
                     break
 
     if url is not None:
-        # we have a URL, but is it available? We don't want to download the file here,
-        # so we'll just check the HTTP status code.
-        try:
-            response = requests.head(url, timeout=timeout, allow_redirects=True)
-            if response.status_code == 200:
-                available = True
-        except requests.exceptions.RequestException:
-            pass
+        if url.startswith(("http://", "https://")):
+            # we have a URL, but is it available? We don't want to download the file here,
+            # so we'll just check the HTTP status code.
+            try:
+                response = requests.head(url, timeout=timeout, allow_redirects=True)
+                if response.status_code == 200:
+                    available = True
+            except requests.exceptions.RequestException:
+                pass
+        else:
+            # A local path (tests and demo data use this to avoid an external
+            # fetch); read_sky_map/Table.read read it directly, so it is
+            # "available" as long as the file exists.
+            available = os.path.exists(url)
 
     return url, available
 
@@ -525,7 +531,9 @@ def from_cone(ra, dec, error, n_sigma=4):
     ipix = hpx.cone_search_skycoord(center, n_sigma * radius)
 
     # Convert to multi-resolution pixel indices and sort.
-    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))
+    uniq = ligo.skymap.moc.nest2uniq(
+        np.int8(nside_to_level(hpx.nside)), ipix.astype(np.int64)
+    )
     i = np.argsort(uniq)
     ipix = ipix[i]
     uniq = uniq[i]
@@ -566,7 +574,9 @@ def from_polygon(localization_name, polygon):
         raise ValueError("No pixels found in polygon.")
 
     # Convert to multi-resolution pixel indices and sort.
-    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(hpx.nside), ipix.astype(np.int64))
+    uniq = ligo.skymap.moc.nest2uniq(
+        np.int8(nside_to_level(hpx.nside)), ipix.astype(np.int64)
+    )
     i = np.argsort(uniq)
     ipix = ipix[i]
     uniq = uniq[i]
@@ -598,7 +608,9 @@ def from_ellipse(localization_name, ra, dec, amaj, amin, phi):
     ).flatten()
 
     # Convert to multi-resolution pixel indices and sort.
-    uniq = ligo.skymap.moc.nest2uniq(nside_to_level(NSIDE), ipix.astype(np.int64))
+    uniq = ligo.skymap.moc.nest2uniq(
+        np.int8(nside_to_level(NSIDE)), ipix.astype(np.int64)
+    )
     i = np.argsort(uniq)
     ipix = ipix[i]
     uniq = uniq[i]

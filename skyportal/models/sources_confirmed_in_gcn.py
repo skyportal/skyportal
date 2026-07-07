@@ -36,6 +36,7 @@ class SourcesConfirmedInGCN(Base):
     )
 
     dateobs = sa.Column(
+        sa.DateTime,
         sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
         nullable=False,
         index=True,

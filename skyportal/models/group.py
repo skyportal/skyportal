@@ -226,6 +226,38 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
             )
         return query
 
+    def select_accessible_rows(self, cls, user_or_token, columns=None):
+        """SA 2.0 `Select` equivalent of `query_accessible_rows`. Without this
+        override, the `.select()` API would only enforce the relationship
+        chain (parent class's behavior) and silently let non-admin group
+        members through — see `query_accessible_rows` above for the
+        original admin filter.
+
+        The parallelism between the two paths matters now that
+        `async_bulk_verify` runs on the 2.0 Select API; the sync
+        `bulk_verify` runs on the legacy Query API but uses the same
+        chain, so keeping them in lockstep avoids divergence.
+        """
+        # AccessibleIfUserMatches builds the columns select as
+        # select(*columns).select_from(cls) (Group/User stay in the FROM scope
+        # for the admin join below), so pass columns straight through. The
+        # ComposedAccessControl path aliases cls and requests columns=[alias.id];
+        # projecting via select_from keeps that single FROM (vs select(entity) +
+        # with_only_columns, which left a duplicate group_users FROM).
+        stmt = super().select_accessible_rows(cls, user_or_token, columns=columns)
+        if not user_or_token.is_admin:
+            group_user_subq = (
+                sa.select(GroupUser).where(GroupUser.admin.is_(True)).subquery()
+            )
+            stmt = stmt.join(
+                group_user_subq,
+                sa.and_(
+                    Group.id == group_user_subq.c.group_id,
+                    User.id == group_user_subq.c.user_id,
+                ),
+            )
+        return stmt
+
 
 accessible_by_group_admins = AccessibleIfGroupUserIsAdminAndUserMatches(
     "group.group_users.user"
@@ -448,10 +480,12 @@ GroupUser.delete = (
     (accessible_by_group_admins | AccessibleIfUserMatches("user"))
     & GroupUser.read
     & CustomUserAccessControl(
-        lambda cls, user_or_token: DBSession()
-        .query(cls)
-        .join(Group)
-        .filter(Group.single_user_group.is_(False))
+        lambda cls, user_or_token: (
+            DBSession()
+            .query(cls)
+            .join(Group)
+            .filter(Group.single_user_group.is_(False))
+        )
     )
 )
 

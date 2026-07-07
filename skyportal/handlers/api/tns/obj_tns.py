@@ -1,5 +1,3 @@
-import asyncio
-
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
@@ -16,7 +14,7 @@ log = make_log("api/obj_tns")
 
 class ObjTNSHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id):
+    async def get(self, obj_id: str):
         """
         ---
         summary: Get TNS info for an object
@@ -41,28 +39,18 @@ class ObjTNSHandler(BaseHandler):
                 schema: Error
         """
 
-        radius = self.get_query_argument("radius", 2.0)
-
-        try:
-            radius = float(radius)
-        except ValueError:
+        radius = self.get_query_argument("radius", 2.0, type=float)
+        if radius is None:
             return self.error("radius must be a number")
-        else:
-            if radius < 0:
-                return self.error("radius must be non-negative")
+        if radius < 0:
+            return self.error("radius must be non-negative")
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token).where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f"No object available with ID {obj_id}")
-
-            try:
-                asyncio.get_event_loop()
-            except Exception:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
 
             IOLoop.current().run_in_executor(
                 None,

@@ -1,7 +1,7 @@
-import datetime
 import time
 import traceback
 import uuid
+from datetime import UTC, datetime, timedelta
 from threading import Thread
 
 import requests
@@ -34,7 +34,9 @@ init_db(**cfg["database"])
 
 log = make_log("sharing_service_queue")
 
-tns_retrieval_microservice_url = f"http://127.0.0.1:{cfg['ports.tns_retrieval_queue']}"
+tns_retrieval_microservice_url = (
+    f"http://{cfg['hosts.tns_retrieval_queue']}:{cfg['ports.tns_retrieval_queue']}"
+)
 
 
 class SharingServicesWarning(Warning):
@@ -375,7 +377,7 @@ def validate_submission_requests():
                             "%504 - Gateway Time-out%"
                         ),
                         SharingServiceSubmission.modified
-                        < datetime.datetime.utcnow() - datetime.timedelta(minutes=5),
+                        < datetime.now(UTC) - timedelta(minutes=5),
                     )
                 ).all()
                 log(
@@ -470,7 +472,7 @@ def validate_submission_requests():
                 )
                 if submission_request is None:
                     # here we add an extra sleep to avoid hammering the TNS API
-                    print("Waiting for TNS submission requests to validate...")
+                    log("Waiting for TNS submission requests to validate...")
                     time.sleep(25)
                     continue
 
@@ -533,6 +535,14 @@ def validate_submission_requests():
                                 "duration": 8000,
                             },
                         )
+                        flow.push(
+                            "*",
+                            "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
+                            payload={
+                                "sharing_service_id": submission_request.sharing_service_id
+                            },
+                        )
+
                     except Exception:
                         pass
                     try:
@@ -546,7 +556,7 @@ def validate_submission_requests():
                     # Sometimes TNS accepts a report but it disappears.
                     # If it's been <1 min since last update, wait; otherwise, mark as pending to retry.
                     if (
-                        datetime.datetime.utcnow() - submission_request.modified
+                        datetime.now(UTC) - submission_request.modified
                     ).total_seconds() > 60:
                         submission_request.tns_status = "pending"
                         submission_request.tns_submission_id = None

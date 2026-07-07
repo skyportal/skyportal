@@ -6,7 +6,7 @@ import numpy as np
 import paramiko
 from astroplan import Observer, is_always_observable
 from astroplan.constraints import AltitudeConstraint
-from astropy.coordinates import EarthLocation, SkyCoord, get_moon
+from astropy.coordinates import EarthLocation, SkyCoord, get_body
 from astropy.table import Table
 from astropy.time import Time
 from paramiko import SSHClient
@@ -42,7 +42,7 @@ def get_table(json_data, sunrise_hor=-12, horizon=20, priority=10000, domesleep=
     rise_time_IST = np.array([(targets_rise_time + 5.5 * u.hour).isot])[0]
     set_time_IST = np.array([(targets_set_time + 5.5 * u.hour).isot])[0]
     tend = targets_set_time
-    mooncoords = get_moon(tend, hanle)
+    mooncoords = get_body("moon", tend, hanle)
     sep = mooncoords.separation(coords)
     dic = {}
     dic["x"] = [""] * len(t)

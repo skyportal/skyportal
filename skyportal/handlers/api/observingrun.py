@@ -1,9 +1,8 @@
-from datetime import datetime, timezone
-
 import numpy as np
+import sqlalchemy as sa
 from astropy.utils.masked import MaskedNDArray
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
@@ -19,22 +18,23 @@ from ...models import (
     User,
 )
 from ...models.schema import ObservingRunGetWithAssignments, ObservingRunPost
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 log = make_log("api/observing_run")
 
 
-def post_observing_run(data, user_id, session):
+async def post_observing_run(data, user_id, session):
     """Post ObservingRun to database.
     data: dict
         Observing run dictionary
     user_id : int
         SkyPortal ID of User posting the GcnEvent
-    session: sqlalchemy.Session
-        Database session for this transaction
+    session: sqlalchemy.ext.asyncio.AsyncSession
+        Async database session for this transaction
     """
 
-    user = session.query(User).get(user_id)
+    user = await session.get(User, user_id)
 
     try:
         rund = ObservingRunPost.load(data)
@@ -47,10 +47,20 @@ def post_observing_run(data, user_id, session):
     run.owner_id = user.id
 
     session.add(run)
-    session.commit()
+    await session.commit()
 
+    # reload with instrument/telescope eagerly so calculate_run_end_utc()
+    # (which traverses run.instrument.telescope.observer) doesn't lazy-load
+    # under the async session.
+    run = await session.scalar(
+        sa.select(ObservingRun)
+        .options(
+            selectinload(ObservingRun.instrument).selectinload(Instrument.telescope)
+        )
+        .where(ObservingRun.id == run.id)
+    )
     run.calculate_run_end_utc()
-    session.commit()
+    await session.commit()
 
     flow = Flow()
     flow.push("*", "skyportal/FETCH_OBSERVING_RUNS")
@@ -60,7 +70,7 @@ def post_observing_run(data, user_id, session):
 
 class ObservingRunHandler(BaseHandler):
     @permissions(["Manage observing runs"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Create an observing run
@@ -93,12 +103,14 @@ class ObservingRunHandler(BaseHandler):
         """
         data = self.get_json()
 
-        with self.Session() as session:
-            run_id = post_observing_run(data, self.associated_user_object.id, session)
+        async with self.AsyncSession() as session:
+            run_id = await post_observing_run(
+                data, self.associated_user_object.id, session
+            )
             return self.success(data={"id": run_id})
 
     @auth_or_token
-    def get(self, run_id=None):
+    async def get(self, run_id: int | None = None):
         """
         ---
         single:
@@ -137,26 +149,27 @@ class ObservingRunHandler(BaseHandler):
                   schema: Error
         """
         run_id = int(run_id) if run_id is not None else None
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if run_id is not None:
-                # These are all read=public, including Objs
+                # These are all read=public, including Objs. selectinload
+                # composes cleanly under async.
                 options = [
-                    joinedload(ObservingRun.assignments)
-                    .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.thumbnails),
-                    joinedload(ObservingRun.assignments).joinedload(
+                    selectinload(ObservingRun.assignments)
+                    .selectinload(ClassicalAssignment.obj)
+                    .selectinload(Obj.thumbnails),
+                    selectinload(ObservingRun.assignments).selectinload(
                         ClassicalAssignment.requester
                     ),
-                    joinedload(ObservingRun.instrument).joinedload(
+                    selectinload(ObservingRun.instrument).selectinload(
                         Instrument.telescope
                     ),
                 ]
 
-                run = session.scalars(
+                run = await session.scalar(
                     ObservingRun.select(session.user_or_token, options=options).where(
                         ObservingRun.id == run_id
                     )
-                ).first()
+                )
                 if run is None:
                     return self.error(f"Cannot find ObservingRun with ID {run_id}")
 
@@ -167,17 +180,18 @@ class ObservingRunHandler(BaseHandler):
                 data["assignments"] = [a.to_dict() for a in assignments]
 
                 for a in data["assignments"]:
+                    sources_result = await session.scalars(
+                        Source.select(session.user_or_token)
+                        .options(selectinload(Source.group))
+                        .where(Source.obj_id == a["obj"].id)
+                    )
                     a["accessible_group_names"] = [
                         (
                             s.group.nickname
                             if s.group.nickname is not None
                             else s.group.name
                         )
-                        for s in session.scalars(
-                            Source.select(session.user_or_token).where(
-                                Source.obj_id == a["obj"].id
-                            )
-                        ).all()
+                        for s in sources_result.all()
                     ]
                     del a["obj"].sources
                     del a["obj"].users
@@ -225,11 +239,16 @@ class ObservingRunHandler(BaseHandler):
                 data = recursive_to_dict(data)
                 return self.success(data=data)
 
-            runs = session.scalars(
-                ObservingRun.select(session.user_or_token).order_by(
-                    ObservingRun.calendar_date.asc()
+            result = await session.scalars(
+                ObservingRun.select(session.user_or_token)
+                .options(
+                    selectinload(ObservingRun.instrument).selectinload(
+                        Instrument.telescope
+                    )
                 )
-            ).all()
+                .order_by(ObservingRun.calendar_date.asc())
+            )
+            runs = result.all()
 
             # temporary, until we have migrated and called the handler once
             try:
@@ -239,7 +258,7 @@ class ObservingRunHandler(BaseHandler):
                         run.calculate_run_end_utc()
                         updated = True
                 if updated:
-                    session.commit()
+                    await session.commit()
             except Exception as e:
                 log(f"Error calculating run_end_utc: {e}")
 
@@ -248,7 +267,7 @@ class ObservingRunHandler(BaseHandler):
             return self.success(data=runs_list)
 
     @permissions(["Manage observing runs"])
-    def put(self, run_id):
+    async def put(self, run_id: int):
         """
         ---
         summary: Update an observing run
@@ -269,7 +288,13 @@ class ObservingRunHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          $ref: '#/components/schemas/ObservingRun'
           400:
             content:
               application/json:
@@ -279,12 +304,12 @@ class ObservingRunHandler(BaseHandler):
         data = self.get_json()
         run_id = int(run_id)
 
-        with self.Session() as session:
-            orun = session.scalars(
+        async with self.AsyncSession() as session:
+            orun = await session.scalar(
                 ObservingRun.select(session.user_or_token, mode="update").where(
                     ObservingRun.id == run_id
                 )
-            ).first()
+            )
             if orun is None:
                 return self.error(
                     "Only the owner of an observing run can modify the run."
@@ -301,16 +326,28 @@ class ObservingRunHandler(BaseHandler):
                 setattr(orun, param, new_params[param])
 
             session.add(orun)
-            session.commit()
+            await session.commit()
 
+            # Reload with instrument/telescope eager so calculate_run_end_utc
+            # (which traverses orun.instrument.telescope.observer) doesn't
+            # trigger a lazy load under the async session.
+            orun = await session.scalar(
+                sa.select(ObservingRun)
+                .options(
+                    selectinload(ObservingRun.instrument).selectinload(
+                        Instrument.telescope
+                    )
+                )
+                .where(ObservingRun.id == run_id)
+            )
             orun.calculate_run_end_utc()
-            session.commit()
+            await session.commit()
 
             self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
             return self.success()
 
     @auth_or_token
-    def delete(self, run_id):
+    async def delete(self, run_id: int):
         """
         ---
         summary: Delete an observing run
@@ -334,12 +371,12 @@ class ObservingRunHandler(BaseHandler):
                 schema: Error
         """
         run_id = int(run_id)
-        with self.Session() as session:
-            orun = session.scalars(
-                ObservingRun.select(session.user_or_token, mode="delete").where(
-                    ObservingRun.id == run_id
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            orun = await session.scalar(
+                ObservingRun.select(session.user_or_token, mode="delete")
+                .options(selectinload(ObservingRun.assignments))
+                .where(ObservingRun.id == run_id)
+            )
             if orun is None:
                 return self.error(
                     "Only the owner of an observing run can delete the run."
@@ -359,19 +396,16 @@ class ObservingRunHandler(BaseHandler):
                     )
 
             # don't allow deleting past runs, unless they have no assignments
-            if (
-                orun.run_end_utc < datetime.now(timezone.utc).replace(tzinfo=None)
-                and len(assignments) > 0
-            ):
+            if orun.run_end_utc < utcnow_naive() and len(assignments) > 0:
                 return self.error(
                     "Cannot delete an observing run that has ended and had targets assigned to it."
                 )
 
             # delete the assignments associated with this run
             for assignment in assignments:
-                session.delete(assignment)
-            session.delete(orun)
-            session.commit()
+                await session.delete(assignment)
+            await session.delete(orun)
+            await session.commit()
 
             self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
             return self.success()
@@ -379,7 +413,7 @@ class ObservingRunHandler(BaseHandler):
 
 class ObservingRunBulkEditHandler(BaseHandler):
     @auth_or_token
-    def put(self, run_id):
+    async def put(self, run_id: int):
         """
         ---
         summary: Bulk update observing run assignments
@@ -414,30 +448,30 @@ class ObservingRunBulkEditHandler(BaseHandler):
         if new_status is None:
             return self.error("Require new status to apply")
 
-        with self.Session() as session:
-            options = [joinedload(ObservingRun.assignments)]
+        async with self.AsyncSession() as session:
+            options = [selectinload(ObservingRun.assignments)]
 
-            run = session.scalars(
+            run = await session.scalar(
                 ObservingRun.select(session.user_or_token, options=options).where(
                     ObservingRun.id == run_id
                 )
-            ).first()
+            )
             if run is None:
                 return self.error(f"Cannot find ObservingRun with ID {run_id}")
 
             assignments = run.assignments
             for a in assignments:
-                assignment = session.scalars(
+                assignment = await session.scalar(
                     ClassicalAssignment.select(
                         session.user_or_token, mode="update"
                     ).where(ClassicalAssignment.id == int(a.id))
-                ).first()
+                )
                 if assignment is None:
                     return self.error(f"Could not find assigment with ID {a.id}.")
                 if assignment.status == current_status:
                     assignment.status = new_status
 
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_OBSERVING_RUN",

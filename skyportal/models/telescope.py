@@ -392,8 +392,6 @@ class Telescope(Base):
             except Exception:
                 log(f"Failed to load cached time info for telescope {self.id}")
 
-        morning = False
-        evening = False
         is_night_astronomical = False
         try:
             morning = self.next_twilight_morning_astronomical()

@@ -15,12 +15,13 @@ from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.parse import is_null
 from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
+    SURVEYS,
     TNS_INSTRUMENT_IDS,
-    TNS_SOURCE_GROUP_NAMING_CONVENTIONS,
     TNS_URL,
     get_IAUname,
     get_internal_names,
     get_tns_headers,
+    get_tns_object_id_and_data_source_id,
     get_tns_url,
 )
 
@@ -34,7 +35,9 @@ class TNSWarning(Exception):
     pass
 
 
-def apply_existing_tns_report_rules(sharing_service, submission_request):
+def apply_existing_tns_report_rules(
+    sharing_service, submission_request, internal_name=None
+):
     """Apply the rules for existing TNS reports to the submission request.
 
     Parameters
@@ -43,6 +46,9 @@ def apply_existing_tns_report_rules(sharing_service, submission_request):
         The sharing service to use for the submission.
     submission_request : `~skyportal.models.SharingServiceSubmission`
         The submission request.
+    internal_name : str, optional
+        The TNS internal name to use (possibly normalized from obj_id).
+        If None, uses submission_request.obj_id.
     """
     # if the sharing service is set up to only report objects to TNS if they are not already there,
     # we check if an object is already on TNS (within 2 arcsec of the object's position)
@@ -51,6 +57,7 @@ def apply_existing_tns_report_rules(sharing_service, submission_request):
     # (i.e. the same obj_id from the same survey)
     altdata = sharing_service.tns_altdata
     obj_id = submission_request.obj_id
+    tns_internal_name = internal_name or obj_id
     tns_headers = get_tns_headers(
         sharing_service.tns_bot_id, sharing_service.tns_bot_name
     )
@@ -61,7 +68,7 @@ def apply_existing_tns_report_rules(sharing_service, submission_request):
         return
 
     _, existing_tns_name = get_IAUname(
-        altdata["api_key"], tns_headers, obj_id=obj_id, closest=True
+        altdata["api_key"], tns_headers, obj_id=tns_internal_name, closest=True
     )
     if existing_tns_name is not None:
         if not sharing_service.publish_existing_tns_objects:
@@ -71,7 +78,7 @@ def apply_existing_tns_report_rules(sharing_service, submission_request):
             internal_names = get_internal_names(
                 altdata["api_key"], tns_headers, tns_name=existing_tns_name
             )
-            if len(internal_names) > 0 and obj_id in internal_names:
+            if len(internal_names) > 0 and tns_internal_name in internal_names:
                 raise TNSWarning(
                     f"{obj_id} already posted to TNS with the same internal source name."
                 )
@@ -86,6 +93,8 @@ def build_tns_report(
     photometry_options,
     stream_ids,
     session,
+    tns_internal_name,
+    tns_data_source_id,
 ):
     """Build the AT report for a TNS submission.
 
@@ -107,6 +116,10 @@ def build_tns_report(
         The stream IDs that were used to query for the photometry.
     session : `~sqlalchemy.orm.Session`
         The database session to use.
+    tns_internal_name : str
+        The TNS internal name to use (possibly normalized from obj_id).
+    tns_data_source_id : int
+        The TNS discovery data source ID of the survey
 
     Returns
     -------
@@ -130,13 +143,13 @@ def build_tns_report(
 
     # sort each by mjd ascending and filter out non-detections that are after the first detection
     detections.sort(key=lambda k: k["mjd"])
+    first = detections[0]
+    time_first = first["mjd"]
     non_detections = sorted(
-        (p for p in non_detections if p["mjd"] < detections[0]["mjd"]),
+        (p for p in non_detections if p["mjd"] < time_first),
         key=lambda p: p["mjd"],
     )
 
-    first = detections[0]
-    time_first = first["mjd"]
     phot_first = {
         "obsdate": Time(time_first, format="mjd").jd,
         "flux": first["mag"],
@@ -176,7 +189,7 @@ def build_tns_report(
 
     if not non_detections and not archival:
         raise TNSWarning(
-            f"for sharing service {sharing_service.id} publishing to TNS requires at least one non-detection prior to the first detection, but none were found. Select Archival mode to submit without non-detections."
+            f"{sharing_service.name} sharing service require at least one non-detection prior to the first detection, but none were found. Select Archival mode to submit to TNS without non-detections."
         )
 
     if archival:
@@ -205,13 +218,13 @@ def build_tns_report(
         "ra": {"value": obj.ra},
         "dec": {"value": obj.dec},
         "reporting_group_id": sharing_service.tns_source_group_id,
-        "discovery_data_source_id": sharing_service.tns_source_group_id,
+        "discovery_data_source_id": tns_data_source_id,
         "internal_name_format": {
             "prefix": phot_first["instrument_value"],
             "year_format": "YY",
             "postfix": "",
         },
-        "internal_name": obj_id,
+        "internal_name": tns_internal_name,
         "reporter": reporters,
         "discovery_datetime": Time(time_first, format="mjd").datetime.strftime(
             "%Y-%m-%d %H:%M:%S.%f"
@@ -332,23 +345,18 @@ def submit_to_tns(
                 f"No TNS API key found for sharing service {sharing_service.id}."
             )
 
-        # Validate that the object ID is valid for submission to TNS with the given TNS source group ID.
-        if (
-            sharing_service.tns_source_group_id
-            not in TNS_SOURCE_GROUP_NAMING_CONVENTIONS
-        ):
+        # Normalize the object ID to TNS-friendly format if a normalizer exists
+        tns_internal_name, tns_data_source_id = get_tns_object_id_and_data_source_id(
+            obj_id, photometry
+        )
+        if tns_internal_name is None or tns_data_source_id is None:
             raise ValueError(
-                f"Unknown naming convention for TNS source group ID {sharing_service.tns_source_group_id}, cannot validate object ID."
-            )
-        regex_pattern = TNS_SOURCE_GROUP_NAMING_CONVENTIONS[
-            sharing_service.tns_source_group_id
-        ]
-        if not re.match(regex_pattern, obj_id):
-            raise ValueError(
-                f"Object ID {obj_id} does not match the expected naming convention for TNS source group ID {sharing_service.tns_source_group_id}."
+                f"Object ID {obj_id} does not match the expected naming convention for any of the supported Surveys {SURVEYS.keys()}."
             )
 
-        apply_existing_tns_report_rules(sharing_service, submission_request)
+        apply_existing_tns_report_rules(
+            sharing_service, submission_request, internal_name=tns_internal_name
+        )
 
         archival = submission_request.archival
         archival_comment = submission_request.archival_comment
@@ -367,6 +375,8 @@ def submit_to_tns(
             photometry_options,
             stream_ids,
             session,
+            tns_internal_name,
+            tns_data_source_id,
         )
         submission_request.tns_payload = json.dumps(tns_report)
 

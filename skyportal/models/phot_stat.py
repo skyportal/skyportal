@@ -3,7 +3,6 @@ __all__ = ["PhotStat"]
 import bisect
 import copy
 import json
-from datetime import datetime
 
 import numpy as np
 import sqlalchemy as sa
@@ -22,6 +21,8 @@ from baselayer.app.models import (
     restricted,
 )
 from skyportal.models.photometry import PHOT_ZP, Photometry
+
+from ..utils.naive_datetime import utcnow_naive
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -100,6 +101,7 @@ class PhotStat(Base):
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
+        unique=True,
         index=True,
         doc="ID of the PhotStat's Obj.",
     )
@@ -430,39 +432,46 @@ class PhotStat(Base):
 
         """
 
+        # Read fields once. See full_update for why we avoid Photometry.to_dict().
         if isinstance(phot, Photometry):
-            phot = phot.to_dict()
-        elif not isinstance(phot, dict):
+            filt = phot.filter
+            mjd = phot.mjd
+            flux = phot.flux
+            fluxerr = phot.fluxerr
+            origin = phot.origin or ""
+            original_user_data = phot.original_user_data
+        elif isinstance(phot, dict):
+            filt = phot["filter"]
+            mjd = phot["mjd"]
+            flux = phot["flux"]
+            fluxerr = phot["fluxerr"]
+            origin = phot.get("origin", "")
+            original_user_data = phot.get("original_user_data")
+        else:
             raise TypeError("phot must be a dict or Photometry object")
 
-        filt = phot["filter"]
-        mjd = phot["mjd"]
-        origin = phot.get("origin", "")
-        if phot["flux"] > 0:
-            mag = -2.5 * np.log10(phot["flux"]) + PHOT_ZP
+        if flux is not None and flux > 0:
+            mag = -2.5 * np.log10(flux) + PHOT_ZP
         else:
             mag = np.nan
-        if phot["flux"] and phot["fluxerr"]:
-            snr = phot["flux"] / phot["fluxerr"]
+        if flux and fluxerr:
+            snr = flux / fluxerr
         else:
             snr = np.nan
-        det = phot["flux"] and phot["fluxerr"]  # legal, non zero values
+        det = flux and fluxerr  # legal, non zero values
         det = det and not np.isnan(snr) and snr > PHOT_DETECTION_THRESHOLD
 
         if not det:  # get limiting magnitude for non-detection
-            if (
-                "original_user_data" in phot
-                and phot["original_user_data"] is not None
-                and "limiting_mag" in phot["original_user_data"]
-            ):
-                user_data = phot["original_user_data"]
-                if isinstance(user_data, str):
-                    user_data = json.loads(user_data)
-                lim = user_data["limiting_mag"]
+            if isinstance(original_user_data, str):
+                try:
+                    original_user_data = json.loads(original_user_data)
+                except (TypeError, ValueError):
+                    original_user_data = None
+            if original_user_data is not None and "limiting_mag" in original_user_data:
+                lim = original_user_data["limiting_mag"]
             else:
-                fluxerr = phot["fluxerr"]
                 fivesigma = 5 * fluxerr
-                lim = -2.5 * np.log10(fivesigma) + PHOT_ZP
+                lim = -2.5 * np.log10(fivesigma) + PHOT_ZP if fivesigma > 0 else np.nan
 
         # make sure a non detection has a limiting magnitude
         if not det and np.isnan(lim):
@@ -645,7 +654,7 @@ class PhotStat(Base):
         else:
             self.time_to_non_detection = None
 
-        self.last_update = datetime.utcnow()
+        self.last_update = utcnow_naive()
 
     def full_update(self, phot_list):
         """
@@ -666,8 +675,8 @@ class PhotStat(Base):
             self.__init__(self.obj_id)
 
             # make sure to update the last update time
-            self.last_update = datetime.utcnow()
-            self.last_full_update = datetime.utcnow()
+            self.last_update = utcnow_naive()
+            self.last_full_update = utcnow_naive()
             return
 
         filters = []
@@ -677,32 +686,50 @@ class PhotStat(Base):
         dets_no_forced_phot = []
         lims = []
         for phot in phot_list:
+            # Read fields once. For ORM instances, accessing attributes goes
+            # through the identity map without round-tripping; for expired
+            # instances it triggers at most a single refresh. Calling
+            # Photometry.to_dict() here used to issue one SELECT per row
+            # because Base.to_dict() has an expired-instance refresh fallback.
             if isinstance(phot, Photometry):
-                phot = phot.to_dict()
-            elif not isinstance(phot, dict):
+                filt = phot.filter
+                mjd = phot.mjd
+                flux = phot.flux
+                fluxerr = phot.fluxerr
+                origin = phot.origin or ""
+                original_user_data = phot.original_user_data
+                mag = None  # Photometry has no stored mag; computed from flux below
+            elif isinstance(phot, dict):
+                filt = phot["filter"]
+                mjd = phot["mjd"]
+                flux = phot["flux"]
+                fluxerr = phot["fluxerr"]
+                origin = phot.get("origin", "")
+                original_user_data = phot.get("original_user_data")
+                mag = phot.get("mag")
+            else:
                 raise TypeError("phot must be a dict or Photometry object")
 
-            filters.append(phot["filter"])
-            mjds.append(phot["mjd"])
+            filters.append(filt)
+            mjds.append(mjd)
 
-            if "mag" in phot:
-                mags.append(phot["mag"])
-            elif phot["flux"] is not None and phot["flux"] > 0:
-                mags.append(-2.5 * np.log10(phot["flux"]) + PHOT_ZP)
+            if mag is not None:
+                mags.append(mag)
+            elif flux is not None and flux > 0:
+                mags.append(-2.5 * np.log10(flux) + PHOT_ZP)
             else:
                 mags.append(np.nan)
 
             is_detected = (
-                phot["flux"] is not None
-                and phot["fluxerr"] is not None
-                and phot["fluxerr"] > 0
-                and phot["flux"] / phot["fluxerr"] > PHOT_DETECTION_THRESHOLD
+                flux is not None
+                and fluxerr is not None
+                and fluxerr > 0
+                and flux / fluxerr > PHOT_DETECTION_THRESHOLD
             )
             dets.append(is_detected)
 
             if (
-                not phot.get("origin")
-                in ["fp", "forced phot", "forced photometry", "alert_fp"]
+                origin not in ["fp", "forced phot", "forced photometry", "alert_fp"]
                 and is_detected
             ):
                 dets_no_forced_phot.append(True)
@@ -710,14 +737,18 @@ class PhotStat(Base):
                 dets_no_forced_phot.append(False)
 
             if not is_detected:
+                if isinstance(original_user_data, str):
+                    try:
+                        original_user_data = json.loads(original_user_data)
+                    except (TypeError, ValueError):
+                        original_user_data = None
                 if (
-                    "original_user_data" in phot
-                    and phot["original_user_data"] is not None
-                    and "limiting_mag" in phot["original_user_data"]
+                    original_user_data is not None
+                    and "limiting_mag" in original_user_data
                 ):
-                    lims.append(phot["original_user_data"]["limiting_mag"])
+                    lims.append(original_user_data["limiting_mag"])
                 else:
-                    fivesigma = 5 * phot["fluxerr"]
+                    fivesigma = 5 * fluxerr
                     if fivesigma > 0:
                         lims.append(-2.5 * np.log10(fivesigma) + PHOT_ZP)
                     else:
@@ -876,8 +907,8 @@ class PhotStat(Base):
                 if len(filt_mags):
                     self.deepest_limit_per_filter[filt] = max(filt_mags)
 
-        self.last_update = datetime.utcnow()
-        self.last_full_update = datetime.utcnow()
+        self.last_update = utcnow_naive()
+        self.last_full_update = utcnow_naive()
 
     @staticmethod
     def update_average(current, number, new):

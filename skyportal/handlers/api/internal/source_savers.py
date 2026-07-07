@@ -6,6 +6,7 @@ from sqlalchemy import desc, func
 from baselayer.app.access import auth_or_token
 
 from ....models import Candidate, Source, User
+from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
 
 default_prefs = {"maxNumSavers": 100, "sinceDaysAgo": 7, "candidatesOnly": True}
@@ -13,17 +14,14 @@ default_prefs = {"maxNumSavers": 100, "sinceDaysAgo": 7, "candidatesOnly": True}
 
 class SourceSaverHandler(BaseHandler):
     @classmethod
-    def get_top_source_savers(cls, current_user, session, user_options):
+    async def get_top_source_savers(cls, current_user, session, user_options):
         user_prefs = getattr(current_user, "preferences", None) or {}
         top_savers_prefs = user_prefs.get("topSavers", {})
         top_savers_prefs = {**default_prefs, **top_savers_prefs, **user_options}
 
         max_num_savers = int(top_savers_prefs["maxNumSavers"])
         since_days_ago = float(top_savers_prefs["sinceDaysAgo"])
-        cutoff_day = datetime.datetime.utcnow() - datetime.timedelta(
-            days=since_days_ago
-        )
-
+        cutoff_day = utcnow_naive() - datetime.timedelta(days=since_days_ago)
         stmt = Source.select(
             session.user_or_token,
             columns=[
@@ -45,12 +43,11 @@ class SourceSaverHandler(BaseHandler):
             .limit(max_num_savers)
         )
 
-        results = session.execute(stmt).all()
-
-        return results
+        result = await session.execute(stmt)
+        return result.all()
 
     @auth_or_token
-    def get(self):
+    async def get(self):
         """
         ---
         description: Retrieve users saving candidates
@@ -94,16 +91,16 @@ class SourceSaverHandler(BaseHandler):
         if candidates_only is not None:
             user_options["candidatesOnly"] = candidates_only
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
-                query_results = SourceSaverHandler.get_top_source_savers(
+                query_results = await SourceSaverHandler.get_top_source_savers(
                     self.current_user, session, user_options
                 )
                 savers = []
                 for rank, (saved, user_id) in enumerate(query_results):
-                    s = session.scalars(
+                    s = await session.scalar(
                         User.select(session.user_or_token).where(User.id == user_id)
-                    ).first()
+                    )
                     savers.append(
                         {
                             "rank": rank + 1,

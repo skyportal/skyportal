@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from io import StringIO
 
 import numpy as np
@@ -13,6 +13,7 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -221,11 +222,21 @@ def commit_photometry(
             **df.to_dict(orient="list"),
         }
 
-        from skyportal.handlers.api.photometry import add_external_photometry
+        import asyncio
+
+        from skyportal.handlers.api.photometry import commit_external_photometry
 
         if len(df.index) > 0:
-            ids, _ = add_external_photometry(
-                data_out, request.requester, duplicates=duplicates, refresh=True
+            # add_external_photometry is async; bridge to it from this sync
+            # facility worker. The request's obj is already saved, so the
+            # bridge's separate session sees it.
+            ids = asyncio.run(
+                commit_external_photometry(
+                    data_out,
+                    request.requester.id,
+                    duplicates=duplicates,
+                    refresh=True,
+                )
             )
             if ids is None:
                 raise ValueError("Failed to commit photometry")
@@ -386,13 +397,13 @@ class ATLASAPI(FollowUpAPI):
         "properties": {
             "start_date": {
                 "type": "string",
-                "default": str(datetime.utcnow() - timedelta(days=30)).replace("T", ""),
+                "default": str(utcnow_naive() - timedelta(days=30)).replace("T", ""),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": str(datetime.utcnow()).replace("T", ""),
+                "default": str(utcnow_naive()).replace("T", ""),
             },
         },
         "required": [

@@ -1,4 +1,3 @@
-import datetime
 import io
 import math
 import os
@@ -34,6 +33,7 @@ from baselayer.log import make_log
 
 from .. import __version__
 from .cache import Cache, dict_to_bytes
+from .naive_datetime import utcnow_naive
 from .tap_services.gaia import GaiaQuery
 
 log = make_log("finder-chart")
@@ -333,7 +333,7 @@ def ngps_defaults(mag, magfilter):
         mag = f"{mag:<0.02f}"
     except (TypeError, ValueError):
         pass
-    return f"2,3,PA,1.5,2.5,650,680,R,{mag},{magfilter},SNR 5"
+    return f"2,3,PA,1.5,2.5,650,680,R,{mag},{magfilter},SNR 5,1"
 
 
 # helper dict for seaching for FITS images from various surveys
@@ -412,7 +412,7 @@ def get_astrometry_backup_from_ztf(
     """
     # get the ZTF catalog data and make it look like a Gaia Query result
     ztf_astrometry = get_ztfcatalog(ra, dec, as_astropy_table=True)
-    if len(ztf_astrometry) == 0:
+    if ztf_astrometry is None or not len(ztf_astrometry):
         return ztf_astrometry
 
     ztf_astrometry.rename_column("sourceid", "source_id")
@@ -871,7 +871,7 @@ def get_nearby_offset_stars(
         raise Exception("Number of offsets queries needed exceeds what is allowed")
 
     if not obstime:
-        source_obstime = Time(datetime.datetime.utcnow().isoformat())
+        source_obstime = Time(utcnow_naive().isoformat())
     else:
         # TODO: check the obstime format
         source_obstime = Time(obstime)
@@ -1042,7 +1042,7 @@ def get_nearby_offset_stars(
                 except Exception as e:
                     log(
                         f"Warning: ZTF catalog matching failed... "
-                        f"Error: str{e} "
+                        f"Error: {str(e)} "
                         f"Failed catalog: {str(ztfcatalog)}"
                     )
 
@@ -1424,21 +1424,21 @@ def get_finding_chart(
         reason : str
             If not successful, a reason is returned.
     """
-    obstime = offset_star_kwargs.get("obstime", datetime.datetime.utcnow().isoformat())
+    obstime = offset_star_kwargs.get("obstime", utcnow_naive().isoformat())
     if use_cache:
         cache_key = get_finding_chart_cache_key(
             source_ra,
             source_dec,
             source_name,
-            image_source="ps1",
-            output_format="pdf",
-            imsize=3.0,
-            tick_offset=0.02,
-            tick_length=0.03,
-            fallback_image_source="ps1_cds",
-            zscale_contrast=0.045,
-            zscale_krej=2.5,
-            extra_display_string="",
+            image_source=image_source,
+            output_format=output_format,
+            imsize=imsize,
+            tick_offset=tick_offset,
+            tick_length=tick_length,
+            fallback_image_source=fallback_image_source,
+            zscale_contrast=zscale_contrast,
+            zscale_krej=zscale_krej,
+            extra_display_string=extra_display_string,
             **offset_star_kwargs,
         )
         value = finding_charts_cache[cache_key]
@@ -1559,7 +1559,7 @@ def get_finding_chart(
             vmin = percents[0]
             vmax = percents[1]
             interval = ZScaleInterval(
-                nsamples=int(0.1 * (im.shape[0] * im.shape[1])),
+                n_samples=int(0.1 * (im.shape[0] * im.shape[1])),
                 contrast=zscale_contrast,
                 krej=zscale_krej,
             )
@@ -1627,7 +1627,7 @@ def get_finding_chart(
     first_line = None
     if offset_star_kwargs.get("starlist_type", "Keck") == "P200-NGPS":
         # add a first line with the column names for P200-NGPS (csv format)
-        first_line = "NAME,RA,DECL,OFFSET_RA,OFFSET_DEC,COMMENT,PRIORITY,BINSPAT,BINSPECT,SLITANGLE,SLITWIDTH,AIRMASS_MAX,WRANGE_LOW,WRANGE_HIGH,CHANNEL,MAGNITUDE,MAGFILTER,EXPTIME"
+        first_line = "NAME,RA,DECL,OFFSET_RA,OFFSET_DEC,COMMENT,PRIORITY,BINSPAT,BINSPECT,SLITANGLE,SLITWIDTH,AIRMASS_MAX,WRANGE_LOW,WRANGE_HIGH,CHANNEL,MAGNITUDE,MAGFILTER,EXPTIME,NEXP"
 
     ncolors = len(star_list)
     if star_list[0]["str"].startswith("!Data"):

@@ -14,6 +14,8 @@ from skyportal.models import GcnEvent
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 from skyportal.utils.calculations import deg2dms, deg2hms, radec2lb
 
+from .naive_datetime import utcnow_naive
+
 env, cfg = load_env()
 
 app_url = get_app_base_url()
@@ -33,7 +35,7 @@ if SLACK_BASE_URL.endswith("/"):
 
 SLACK_URL = f"{SLACK_URL}/services"
 
-SLACK_MICROSERVICE_URL = f"http://127.0.0.1:{cfg['slack.microservice_port']}"
+SLACK_MICROSERVICE_URL = f"http://{cfg['hosts.slack']}:{cfg['slack.microservice_port']}"
 
 email_enabled = False
 if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
@@ -58,7 +60,7 @@ def gcn_notification_content(target, session):
         localization = localizations[-1]
         tags = [tag.text for tag in localization.tags]
 
-    time_since_dateobs = datetime.datetime.utcnow() - gcn_event.dateobs
+    time_since_dateobs = utcnow_naive() - gcn_event.dateobs
     # remove the microseconds from the timedelta
     time_since_dateobs = time_since_dateobs - datetime.timedelta(
         microseconds=time_since_dateobs.microseconds
@@ -462,7 +464,7 @@ def source_email_notification(target, data=None):
 
 def post_notification(request_body, timeout=2):
     notifications_microservice_url = (
-        f"http://127.0.0.1:{cfg['ports.notification_queue']}"
+        f"http://{cfg['hosts.notification_queue']}:{cfg['ports.notification_queue']}"
     )
     try:
         resp = requests.post(
@@ -556,7 +558,7 @@ def followup_request_notification_content(target, session):
     # deduplicate by type, keeping the latest one (create_at) for each type
     # sort by date, most recent first
     thumbnails = sorted(thumbnails, key=lambda t: t.created_at, reverse=True)
-    thumbnails_by_type = {t: None for t in ALLOWED_THUMBNAIL_TYPES}
+    thumbnails_by_type = dict.fromkeys(ALLOWED_THUMBNAIL_TYPES)
     for thumbnail in thumbnails:
         if thumbnails_by_type[thumbnail.type] is None:
             thumbnails_by_type[thumbnail.type] = thumbnail

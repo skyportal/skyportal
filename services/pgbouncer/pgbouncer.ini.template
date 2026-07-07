@@ -1,0 +1,23 @@
+{% if database.pooler.enabled %}
+# Generated from pgbouncer.ini.template. Optional bundled transaction pooler;
+# the app connects here (database.pooler.port) instead of Postgres directly.
+[databases]
+{{ database.database }} = host={{ database.host }} port={{ database.port }} dbname={{ database.database }} user={{ database.user }}{% if database.password %} password={{ database.password }}{% endif %}
+
+
+[pgbouncer]
+listen_addr = 127.0.0.1
+listen_port = {{ database.pooler.port }}
+pool_mode = {{ database.pooler.pool_mode }}
+default_pool_size = {{ database.pooler.default_pool_size }}
+max_client_conn = {{ database.pooler.max_client_conn }}
+# psycopg3 sends these; transaction mode must not reject them.
+ignore_startup_parameters = extra_float_digits, options
+# Auth is deployment-specific; adjust to match your Postgres (md5/scram/auth_query).
+auth_type = {% if database.password %}md5{% else %}trust{% endif %}
+
+auth_file = services/pgbouncer/userlist.txt
+admin_users = {{ database.user }}
+logfile = log/pgbouncer.log
+pidfile = run/pgbouncer.pid
+{% endif %}

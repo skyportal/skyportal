@@ -1,6 +1,6 @@
 import functools
 import re
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import astroplan
 import astropy.units as u
@@ -16,6 +16,7 @@ from baselayer.log import make_log
 
 from ..utils import http
 from ..utils.calculations import get_next_valid_observing_time
+from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 
 env, cfg = load_env()
@@ -26,14 +27,17 @@ station_dict = {
     "Tarot_Calern": {
         "filters": ["NoFilter", "g", "r", "i"],
         "status_url": 1,
+        "delay": 20,
     },
     "Tarot_Chili": {
         "filters": ["NoFilter", "g", "r", "i"],
         "status_url": 2,
+        "delay": 250,
     },
     "Tarot_Reunion": {
         "filters": ["NoFilter"],
         "status_url": 8,
+        "delay": 28,
     },
 }
 
@@ -169,7 +173,7 @@ def check_payload(payload, station_name):
     if payload["start_date"] > payload["end_date"]:
         raise ValueError("start_date must be before end_date.")
 
-    if payload["end_date"] < str(datetime.utcnow()):
+    if payload["end_date"] < str(utcnow_naive()):
         raise ValueError("end_date must be in the future.")
 
     if payload["observation_preference"] not in [
@@ -230,7 +234,7 @@ def get_filters_exposures(last_detected_mag, phase_angle, station_name):
                 filters_exposures = {
                     "r": [12, 200],
                     "g": [0, 0],
-                    "i": [12, 200] if station_name is "Tarot_Calern" else [0, 0],
+                    "i": [12, 200] if station_name == "Tarot_Calern" else [0, 0],
                     "NoFilter": [12, 120],
                 }
 
@@ -415,9 +419,9 @@ class TAROTAPI(FollowUpAPI):
 
         hash_user = login_to_tarot(request, session, altdata)
 
-        # Set the start date to be at least 10 minutes in the future to avoid issues with the TAROT server
-        # This code is a workaround and should be removed after finding a solution
-        minimum_observing_time = Time.now() + TimeDelta(600, format="sec")
+        # Add station latency delay: some sites take longer to ingest scenes into their DB.
+        delay = station_dict[specific_config["station_name"]]["delay"]
+        minimum_observing_time = Time.now() + TimeDelta(delay, format="sec")
         if request.payload["start_date"] < minimum_observing_time:
             request.payload["start_date"] = minimum_observing_time.iso
 
@@ -549,9 +553,9 @@ class TAROTAPI(FollowUpAPI):
             }
 
             if not match_status or not match_status.groups():
-                if observing_time > datetime.utcnow() + timedelta(days=1):
+                if observing_time > utcnow_naive() + timedelta(days=1):
                     request.status = f"submitted for {observing_time.strftime('%Y-%m-%d %H:%M:%S')}: check back 24 hours before your scheduled observation time."
-                elif observing_time >= datetime.utcnow():
+                elif observing_time >= utcnow_naive():
                     # If the status is not found, it means the tarot server is not yet aware of the request
                     return
                 # if observing time is in the past, we pass here and will check the observation status in a future step
@@ -593,7 +597,7 @@ class TAROTAPI(FollowUpAPI):
 
         if (
             not request.status.startswith("rejected")
-            and observing_time < datetime.utcnow()
+            and observing_time < utcnow_naive()
         ):
             # check if the scene has been observed
             response_observation = requests.get(
@@ -617,7 +621,7 @@ class TAROTAPI(FollowUpAPI):
             if manager_scene_id in response_observation.text:
                 nb_observation = response_observation.text.count(manager_scene_id)
                 request.status = f"complete"
-            elif observing_time + timedelta(hours=3) < datetime.utcnow():
+            elif observing_time + timedelta(hours=3) < utcnow_naive():
                 previous_status = (
                     "planified"
                     if request.status.startswith("planified")
@@ -769,15 +773,13 @@ class TAROTAPI(FollowUpAPI):
                 },
                 "start_date": {
                     "type": "string",
-                    "default": str(datetime.utcnow()).replace("T", ""),
+                    "default": str(utcnow_naive()).replace("T", ""),
                     "title": "Start Date (UT)",
                 },
                 "end_date": {
                     "type": "string",
                     "title": "End Date (UT)",
-                    "default": str(datetime.utcnow() + timedelta(days=7)).replace(
-                        "T", ""
-                    ),
+                    "default": str(utcnow_naive() + timedelta(days=7)).replace("T", ""),
                 },
                 "observation_preference": {
                     "type": "string",

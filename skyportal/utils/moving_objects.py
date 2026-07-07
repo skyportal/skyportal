@@ -65,7 +65,7 @@ def find_jplhorizon_obj(obj_name: str):
     """
     url = urllib.parse.urljoin(BASE_URL, f"/api/horizons_support.api")
     try:
-        response = requests.get(url, params={"sstr": obj_name})
+        response = requests.get(url, params={"sstr": obj_name}, timeout=60)
     except Exception as e:
         raise ValueError(f"Failed to query JPL Horizons API: {e}")
     if response.status_code != 200:
@@ -161,7 +161,7 @@ def get_ephemeris(
             "CSV_FORMAT": "'YES'",
         }
         try:
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=60)
         except Exception as e:
             raise ValueError(f"Failed to query JPL Horizons API: {e}")
         if response.status_code != 200:
@@ -185,7 +185,12 @@ def get_ephemeris(
             "mag_ap",
         ]
     )
-    data = data.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+    # Strip whitespace from string columns. Use is_string_dtype (not
+    # `== "object"`) so this also catches pandas >= 3.0's default `str` dtype,
+    # otherwise leading spaces survive and break the to_datetime parse below.
+    data = data.apply(
+        lambda x: x.str.strip() if pd.api.types.is_string_dtype(x.dtype) else x
+    )
     data = data.replace("n.a.", np.nan)
 
     data["time"] = pd.to_datetime(data["time"], format="%Y-%b-%d %H:%M")

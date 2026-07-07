@@ -1,31 +1,19 @@
 import uuid
 
 import pytest
-from selenium.common.exceptions import TimeoutException
+from playwright.sync_api import expect
 
 
 @pytest.mark.flaky(reruns=2)
 def test_submit_and_delete_new_assignment(
-    driver, super_admin_user, public_source, red_transients_run
+    page, super_admin_user, public_source, red_transients_run
 ):
-    driver.get(f"/become_user/{super_admin_user.id}")
-    driver.get(f"/source/{public_source.id}")
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/source/{public_source.id}")
 
-    # wait for plots to load, if any
-    try:
-        driver.wait_for_xpath(
-            '//div[@id="photometry-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-        driver.wait_for_xpath(
-            '//div[@id="spectroscopy-plot"]/div/div/div[@class="plot-container plotly"]',
-            timeout=5,
-        )
-    except TimeoutException:
-        pass
-
-    assign_select = driver.wait_for_xpath('//*[@aria-labelledby="assignmentSelect"]')
-    driver.scroll_to_element_and_click(assign_select)
+    page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="assignmentSelect" or @id="assignmentSelect")]'
+    ).first.click()
     observingrun_title = (
         f"{red_transients_run.calendar_date} "
         f"{red_transients_run.instrument.name}/"
@@ -33,31 +21,17 @@ def test_submit_and_delete_new_assignment(
         f"(PI: {red_transients_run.pi} / "
         f"Group: {red_transients_run.group.name})"
     )
-    driver.wait_for_xpath(f'//*[text()="{observingrun_title}"]')
-    driver.click_xpath(
-        f'//li[@data-value="{red_transients_run.id}"]', scroll_parent=True
-    )
-    # Click somewhere outside to remove focus from run select
-    driver.click_xpath("//header")
+    expect(page.locator(f'//*[text()="{observingrun_title}"]').first).to_be_visible()
+    page.locator(f'//li[@data-value="{red_transients_run.id}"]').first.click()
+    page.keyboard.press("Escape")
 
-    comment_box = driver.wait_for_xpath("//textarea[@name='comment']")
     comment_text = str(uuid.uuid4())
+    page.locator("//textarea[@name='comment']").first.fill(comment_text)
 
-    driver.scroll_to_element_and_click(comment_box)
-    comment_box.send_keys(comment_text)
-
-    driver.click_xpath("//header")
-
-    submit_button = driver.wait_for_xpath('//*[@name="assignmentSubmitButton"]')
-    driver.scroll_to_element_and_click(submit_button)
-
-    driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
+    page.locator('//*[@name="assignmentSubmitButton"]').first.click()
+    expect(page.locator(f'//*[text()="{comment_text}"]').first).to_be_visible()
 
     # delete the assignment
-    delete_button = driver.wait_for_xpath(
-        '//*[starts-with(@id, "delete_button_assignment_")]'
-    )
-    delete_button.click()
-    driver.wait_for_xpath("//*[contains(text(), 'Confirm')]").click()
-
-    driver.wait_for_xpath_to_disappear(f'//*[text()="{comment_text}"]')
+    page.locator('//*[starts-with(@id, "delete_button_assignment_")]').first.click()
+    page.locator("//*[contains(text(), 'Confirm')]").first.click()
+    expect(page.locator(f'//*[text()="{comment_text}"]').first).to_be_hidden()

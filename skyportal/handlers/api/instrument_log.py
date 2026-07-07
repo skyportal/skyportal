@@ -1,21 +1,21 @@
 import json
-from datetime import datetime
 
 import arrow
 import astropy.units as u
 from astropy.time import Time, TimeDelta
-from sqlalchemy.orm import undefer
+from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Allocation, Instrument, InstrumentLog
 from ...utils.instrument_log import read_logs
+from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 
 
 class InstrumentLogHandler(BaseHandler):
     @auth_or_token
-    def post(self, instrument_id):
+    async def post(self, instrument_id: int):
         """
         ---
         summary: Add instrument logs
@@ -64,20 +64,24 @@ class InstrumentLogHandler(BaseHandler):
                           type: object
                           properties:
                             id:
-                              type: int
+                              type: integer
                               description: The id of the InstrumentLog
           400:
             content:
               application/json:
                 schema: Error
         """
+        try:
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
 
         data = self.get_json()
         start_date = data.get("start_date")
         if start_date is None:
             return self.error("date is required")
         try:
-            start_date = arrow.get(start_date).datetime
+            start_date = arrow.get(start_date).naive
         except Exception as e:
             return self.error(f"Invalid start_date: {str(e)}")
 
@@ -85,7 +89,7 @@ class InstrumentLogHandler(BaseHandler):
         if end_date is None:
             return self.error("date is required")
         try:
-            end_date = arrow.get(end_date).datetime
+            end_date = arrow.get(end_date).naive
         except Exception as e:
             return self.error(f"Invalid end_date: {str(e)}")
 
@@ -98,11 +102,12 @@ class InstrumentLogHandler(BaseHandler):
         elif not isinstance(logs, dict):
             return self.error("log must be either dictionary or parsable string")
 
-        with self.Session() as session:
-            stmt = Instrument.select(session.user_or_token, mode="update").where(
-                Instrument.id == int(instrument_id)
+        async with self.AsyncSession() as session:
+            instrument = await session.scalar(
+                Instrument.select(session.user_or_token, mode="update").where(
+                    Instrument.id == instrument_id_int
+                )
             )
-            instrument = session.scalars(stmt).first()
             if instrument is None:
                 return self.error(f"Missing instrument with ID {instrument_id}")
 
@@ -110,37 +115,42 @@ class InstrumentLogHandler(BaseHandler):
                 log=logs,
                 start_date=start_date,
                 end_date=end_date,
-                instrument_id=instrument_id,
+                instrument_id=instrument_id_int,
             )
 
             session.add(instrument_log)
-            session.commit()
+            await session.commit()
 
             return self.success(data={"id": instrument_log.id})
 
     @auth_or_token
-    def get(self, instrument_id):
+    async def get(self, instrument_id: int):
+        try:
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
+
         start_date = self.get_query_argument("startDate", None)
         end_date = self.get_query_argument("endDate", None)
 
         if start_date is not None:
             try:
-                start_date = arrow.get(start_date.strip()).datetime
+                start_date = arrow.get(start_date.strip()).naive
             except Exception as e:
                 return self.error(f"Invalid start_date: {str(e)}")
 
         if end_date is not None:
             try:
-                end_date = arrow.get(end_date.strip()).datetime
+                end_date = arrow.get(end_date.strip()).naive
             except Exception as e:
                 return self.error(f"Invalid end_date: {str(e)}")
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             try:
                 stmt = (
                     InstrumentLog.select(session.user_or_token)
                     .options(undefer(InstrumentLog.log))
-                    .where(InstrumentLog.instrument_id == instrument_id)
+                    .where(InstrumentLog.instrument_id == instrument_id_int)
                 )
                 if start_date is not None:
                     stmt = stmt.where(InstrumentLog.end_date >= start_date)
@@ -148,7 +158,8 @@ class InstrumentLogHandler(BaseHandler):
                 if end_date is not None:
                     stmt = stmt.where(InstrumentLog.start_date <= end_date)
 
-                instrument_logs = session.scalars(stmt).all()
+                result = await session.scalars(stmt)
+                instrument_logs = result.all()
 
                 return self.success(data=instrument_logs)
             except Exception as e:
@@ -159,7 +170,7 @@ class InstrumentLogHandler(BaseHandler):
 
 class InstrumentLogExternalAPIHandler(BaseHandler):
     @permissions(["Upload data"])
-    def get(self, allocation_id):
+    async def get(self, allocation_id: int):
         """
         ---
         summary: Get instrument logs from external API
@@ -200,30 +211,34 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            allocation_id_int = int(allocation_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid allocation_id: {allocation_id}")
 
         data = {}
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
-        data["allocation_id"] = int(allocation_id)
+        data["allocation_id"] = allocation_id_int
 
         start_date = self.get_query_argument("startDate")
         end_date = self.get_query_argument("endDate")
 
         if start_date is not None:
-            start_date = arrow.get(start_date.strip()).datetime
+            start_date = arrow.get(start_date.strip()).naive
         else:
             start_date = (Time.now() - TimeDelta(3 * u.day)).datetime
         if end_date is not None:
-            end_date = arrow.get(end_date.strip()).datetime
+            end_date = arrow.get(end_date.strip()).naive
         else:
             end_date = Time.now().datetime
 
-        with self.Session() as session:
-            allocation = session.scalars(
-                Allocation.select(session.user_or_token).where(
-                    Allocation.id == data["allocation_id"]
-                )
-            ).first()
+        async with self.AsyncSession() as session:
+            allocation = await session.scalar(
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == data["allocation_id"])
+                .options(selectinload(Allocation.instrument))
+            )
             if allocation is None:
                 return self.error(
                     f"Cannot find Allocation with ID: {data['allocation_id']}"
@@ -254,7 +269,7 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
 
 class InstrumentStatusHandler(BaseHandler):
     @permissions(["Upload data"])
-    def put(self, instrument_id):
+    async def put(self, instrument_id: int):
         """
         ---
         summary: Update instrument status
@@ -290,15 +305,20 @@ class InstrumentStatusHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            instrument_id_int = int(instrument_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid instrument_id: {instrument_id}")
 
         data = self.get_json()
         status = data.get("status", None)
         if status in [None, "", {}, []]:
-            with self.Session() as session:
-                stmt = Instrument.select(session.user_or_token, mode="update").where(
-                    Instrument.id == int(instrument_id)
+            async with self.AsyncSession() as session:
+                instrument = await session.scalar(
+                    Instrument.select(session.user_or_token, mode="update").where(
+                        Instrument.id == instrument_id_int
+                    )
                 )
-                instrument = session.scalars(stmt).first()
                 if instrument is None:
                     return self.error(f"Missing instrument with ID {instrument_id}")
 
@@ -310,11 +330,12 @@ class InstrumentStatusHandler(BaseHandler):
                         "Updating status of this Instrument is not available."
                     )
 
-                allocations = session.scalars(
+                result = await session.scalars(
                     Allocation.select(session.user_or_token).where(
-                        Allocation.instrument_id == instrument_id
+                        Allocation.instrument_id == instrument_id_int
                     )
-                ).all()
+                )
+                allocations = result.all()
                 if len(allocations) == 0:
                     return self.error(
                         f"Cannot find any allocations for instrument with ID: {instrument_id}"
@@ -339,7 +360,7 @@ class InstrumentStatusHandler(BaseHandler):
                     )
                     self.push_all(
                         action="skyportal/REFRESH_INSTRUMENT",
-                        payload={"instrument_id": instrument_id},
+                        payload={"instrument_id": instrument_id_int},
                     )
                     return self.success()
                 except Exception as e:
@@ -361,13 +382,13 @@ class InstrumentStatusHandler(BaseHandler):
             if len(status) == 0:
                 return self.error("Invalid status (must be non-empty JSON)")
 
-            with self.Session() as session:
+            async with self.AsyncSession() as session:
                 try:
-                    instrument = session.scalars(
+                    instrument = await session.scalar(
                         Instrument.select(session.user_or_token).where(
-                            Instrument.id == int(instrument_id)
+                            Instrument.id == instrument_id_int
                         )
-                    ).first()
+                    )
                     if instrument is None:
                         return self.error(f"Missing instrument with ID {instrument_id}")
 
@@ -382,12 +403,12 @@ class InstrumentStatusHandler(BaseHandler):
                         )
 
                     instrument.status = status
-                    instrument.last_status_update = datetime.utcnow()
-                    session.commit()
+                    instrument.last_status_update = utcnow_naive()
+                    await session.commit()
 
                     self.push_all(
                         action="skyportal/REFRESH_INSTRUMENT",
-                        payload={"instrument_id": instrument_id},
+                        payload={"instrument_id": instrument_id_int},
                     )
                     return self.success()
                 except Exception as e:
