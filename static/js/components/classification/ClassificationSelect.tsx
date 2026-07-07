@@ -36,6 +36,7 @@ const ClassificationSelect = ({
         initValue={selectedClassifications}
         onChange={(e: any) => setSelectedClassifications(e.target.value)}
         options={classifications}
+        searchable
       />
       {showShortcuts && (
         <Box sx={{ mt: "0.4rem" }}>

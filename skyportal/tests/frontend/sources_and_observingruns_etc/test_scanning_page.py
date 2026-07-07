@@ -459,6 +459,90 @@ def test_candidate_classifications_filtering(
     expect(page.locator(f'//a[@data-testid="{candidate_id}"]').first).to_be_hidden()
 
 
+@pytest.mark.flaky(reruns=2)
+def test_candidate_classifications_filter_searchable(
+    page,
+    user,
+    public_group,
+    taxonomy_token,
+):
+    # A searchable classification filter (issue #4818).
+    status, data = api(
+        "POST",
+        "taxonomy",
+        data={
+            "name": "test taxonomy" + str(uuid.uuid4()),
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator("//div[@id='classifications-select']").first.click()
+    # Both options present before searching.
+    expect(page.locator("//li[@data-value='Algol']").first).to_be_visible()
+    expect(page.locator("//li[@data-value='AGN']").first).to_be_visible()
+    # Typing in the search box filters the option list.
+    page.locator('//input[@data-testid="classifications-select-search"]').first.fill(
+        "algol"
+    )
+    expect(page.locator("//li[@data-value='Algol']").first).to_be_visible()
+    expect(page.locator("//li[@data-value='AGN']").first).to_be_hidden()
+
+
+@pytest.mark.flaky(reruns=2)
+def test_candidate_annotations_search(
+    page,
+    view_only_user,
+    public_group,
+    public_candidate,
+    annotation_token,
+):
+    # Per-candidate annotation search on the scanning page (issue #4821).
+    origin = str(uuid.uuid4())[:5]
+    status, data = api(
+        "POST",
+        f"sources/{public_candidate.id}/annotations",
+        data={
+            "obj_id": public_candidate.id,
+            "origin": origin,
+            "data": {"alphafield": 1, "betafield": 2},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    # origins are cached, so wait for the cache to invalidate (5 s in test config)
+    time.sleep(3)
+
+    page.goto(f"/become_user/{view_only_user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(
+        page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
+    ).to_be_visible()
+
+    # Both annotation entries show before filtering.
+    expect(page.locator('//*[contains(text(),"alphafield:")]').first).to_be_visible()
+    expect(page.locator('//*[contains(text(),"betafield:")]').first).to_be_visible()
+
+    # Filtering to one key hides the other.
+    page.locator('//input[@data-testid="annotationSearchInput"]').first.fill(
+        "alphafield"
+    )
+    expect(page.locator('//*[contains(text(),"alphafield:")]').first).to_be_visible()
+    expect(page.locator('//*[contains(text(),"betafield:")]').first).to_be_hidden()
+
+
 def test_candidate_redshift_filtering(
     page,
     user,
