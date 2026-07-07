@@ -15809,6 +15809,28 @@ export interface paths {
                          *     If provided, filter by GcnEvent.dateobs <= startDate.
                          */
                         endDate?: string;
+                        /** @description Integrated probability contour to crossmatch within (default 0.95). */
+                        probability?: number;
+                        /**
+                         * @description If true, only crossmatch GCN events at or before the source's
+                         *     first detection.
+                         */
+                        beforeFirstDetection?: boolean;
+                        /** @description Only crossmatch events having any of these GCN tags. */
+                        gcnTagKeep?: string[];
+                        /** @description Exclude events having any of these GCN tags. */
+                        gcnTagRemove?: string[];
+                        /** @description Only crossmatch events with a localization having any of these tags. */
+                        localizationTagKeep?: string[];
+                        /** @description Exclude events with a localization having any of these tags. */
+                        localizationTagRemove?: string[];
+                        /**
+                         * @description GCN property filters, each "name" or "name:value:op"
+                         *     (op in lt,le,eq,ne,ge,gt).
+                         */
+                        gcnPropertiesFilter?: string[];
+                        /** @description Localization property filters, same format as gcnPropertiesFilter. */
+                        localizationPropertiesFilter?: string[];
                     };
                 };
             };
