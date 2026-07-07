@@ -32,7 +32,12 @@ from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 from matplotlib import dates
 from sqlalchemy import func, or_
-from sqlalchemy.orm import joinedload, scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import (
+    scoped_session,
+    selectinload,
+    sessionmaker,
+)
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.sql import bindparam, text
 from tornado.ioloop import IOLoop
 from twilio.base.exceptions import TwilioException
@@ -394,6 +399,7 @@ async def get_source(
     if s.host_id:
         host = await session.scalar(sa.select(Galaxy).where(Galaxy.id == s.host_id))
         if host is not None:
+            set_committed_value(s, "host", host)
             source_info["host"] = host.to_dict()
             source_info["host_offset"] = s.host_offset.deg * 3600.0
             source_info["host_distance"] = s.host_distance.value

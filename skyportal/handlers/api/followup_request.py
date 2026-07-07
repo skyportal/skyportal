@@ -1628,6 +1628,12 @@ class FollowupRequestHandler(BaseHandler):
             except ValueError:
                 return self.error("Allocation ID must be an integer.")
 
+        if instrumentID is not None:
+            try:
+                instrumentID = int(instrumentID)
+            except ValueError:
+                return self.error("Instrument ID must be an integer.")
+
         async with self.AsyncSession() as session:
             if allocationID is not None:
                 # verify that the user can access the allocation
@@ -2552,10 +2558,16 @@ def observation_schedule(
     # Initialize a Schedule object, to contain the new schedule
     priority_schedule = Schedule(observation_start, observation_end)
 
+    if len(blocks) == 0:
+        raise ValueError("Scheduling failed: there are probably no observable targets.")
+
     # Call the schedule with the observing blocks and schedule to schedule the blocks
     prior_scheduler(blocks, priority_schedule)
 
     log(f"Generated schedule for {instrument.name} in {time.time() - start_time} s")
+
+    if len(priority_schedule.observing_blocks) == 0:
+        raise ValueError("Scheduling failed: there are probably no observable targets.")
 
     if output_format in ["png", "pdf"]:
         matplotlib.use("Agg")
@@ -3230,12 +3242,13 @@ class DefaultFollowupRequestHandler(BaseHandler):
             payload = data["payload"]
             if "start_date" in payload:
                 return self.error("Cannot have start_date in the payload")
-            else:
-                payload["start_date"] = str(utcnow_naive())
-
             if "end_date" in payload:
                 return self.error("Cannot have end_date in the payload")
-            else:
+            # Urgency-based instruments do not use start/end dates; only add
+            # placeholder dates for the others (the real window is recomputed
+            # when the request actually fires on source save).
+            if str(detect_priority_alias(payload)).lower() != "urgency":
+                payload["start_date"] = str(utcnow_naive())
                 payload["end_date"] = str(utcnow_naive() + timedelta(days=1))
 
             # validate the payload

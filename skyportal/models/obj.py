@@ -767,9 +767,12 @@ Obj.candidates = relationship(
 
 @event.listens_for(Obj, "before_delete")
 def delete_obj_thumbnails_from_disk(mapper, connection, target):
-    for thumb in target.thumbnails:
-        if thumb.file_uri is not None:
+    file_uris = connection.execute(
+        sa.select(Thumbnail.file_uri).where(Thumbnail.obj_id == target.id)
+    ).scalars()
+    for file_uri in file_uris:
+        if file_uri is not None:
             try:
-                os.remove(thumb.file_uri)
+                os.remove(file_uri)
             except (FileNotFoundError, OSError) as e:
-                log(f"Error deleting thumbnail file {thumb.file_uri}: {e}")
+                log(f"Error deleting thumbnail file {file_uri}: {e}")

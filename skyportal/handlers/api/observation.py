@@ -794,9 +794,12 @@ async def get_observations(
     t0 = time.time()
     # eager-load `field` relationship for serialization below.
     # also undefer `contour_summary` when GeoJSON is requested.
-    field_load = joinedload(Observation.field)
     if includeGeoJSON:
-        field_load = field_load.undefer(InstrumentField.contour_summary)
+        field_load = selectinload(Observation.field).undefer(
+            InstrumentField.contour_summary
+        )
+    else:
+        field_load = joinedload(Observation.field)
     obs_query = obs_query.options(field_load)
     observations_result = await session.scalars(obs_query)
     observations = observations_result.unique().all()
