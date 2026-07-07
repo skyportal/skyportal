@@ -80,6 +80,7 @@ from ...models import (
     MMADetector,
     Obj,
     ObservationPlanRequest,
+    PhotStat,
     Source,
     SourcesConfirmedInGCN,
     SurveyEfficiencyForObservations,
@@ -1832,140 +1833,19 @@ class GcnEventHandler(BaseHandler):
             if end_date:
                 end_date = arrow.get(end_date.strip()).datetime
                 query = query.where(GcnEvent.dateobs <= end_date)
-            if gcn_tag_keep:
-                gcn_tag_subquery = (
-                    GcnTag.select(session.user_or_token)
-                    .where(GcnTag.text.in_(gcn_tag_keep))
-                    .subquery()
+            try:
+                query = apply_gcn_event_filters(
+                    query,
+                    session.user_or_token,
+                    gcn_tag_keep=gcn_tag_keep,
+                    gcn_tag_remove=gcn_tag_remove,
+                    localization_tag_keep=localization_tag_keep,
+                    localization_tag_remove=localization_tag_remove,
+                    gcn_properties_filter=gcn_properties_filter,
+                    localization_properties_filter=localization_properties_filter,
                 )
-                query = query.join(
-                    gcn_tag_subquery, GcnEvent.dateobs == gcn_tag_subquery.c.dateobs
-                )
-            if gcn_tag_remove:
-                gcn_tag_subquery = (
-                    GcnTag.select(session.user_or_token)
-                    .where(GcnTag.text.in_(gcn_tag_remove))
-                    .subquery()
-                )
-                gcn_dateobs_query = GcnEvent.select(
-                    session.user_or_token, columns=[GcnEvent.dateobs]
-                ).where(GcnEvent.dateobs == gcn_tag_subquery.c.dateobs)
-
-                query = query.where(GcnEvent.dateobs.notin_(gcn_dateobs_query))
-            if localization_tag_keep:
-                tag_subquery = (
-                    LocalizationTag.select(session.user_or_token)
-                    .where(LocalizationTag.text.in_(localization_tag_keep))
-                    .subquery()
-                )
-                localization_id_query = (
-                    Localization.select(
-                        session.user_or_token, columns=[Localization.dateobs]
-                    )
-                    .where(Localization.id == tag_subquery.c.localization_id)
-                    .subquery()
-                )
-                query = query.where(GcnEvent.dateobs.in_(localization_id_query))
-            if localization_tag_remove:
-                tag_subquery = (
-                    LocalizationTag.select(session.user_or_token)
-                    .where(LocalizationTag.text.in_(localization_tag_remove))
-                    .subquery()
-                )
-                localization_id_query = (
-                    Localization.select(
-                        session.user_or_token, columns=[Localization.dateobs]
-                    )
-                    .where(Localization.id == tag_subquery.c.localization_id)
-                    .subquery()
-                )
-                query = query.where(GcnEvent.dateobs.notin_(localization_id_query))
-            if gcn_properties_filter is not None:
-                for prop_filt in gcn_properties_filter:
-                    prop_split = prop_filt.split(":")
-                    if not (len(prop_split) == 1 or len(prop_split) == 3):
-                        return self.error(
-                            "Invalid gcnPropertiesFilter value -- property filter must have 1 or 3 values"
-                        )
-                    name = prop_split[0].strip()
-
-                    properties_query = GcnProperty.select(session.user_or_token)
-                    if len(prop_split) == 3:
-                        value = prop_split[1].strip()
-                        try:
-                            value = float(value)
-                        except ValueError as e:
-                            return self.error(
-                                f"Invalid GCN properties filter value: {e}"
-                            )
-                        op = prop_split[2].strip()
-                        op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
-                        if op not in op_options:
-                            return self.error(f"Invalid operator: {op}")
-                        comp_function = getattr(operator, op)
-
-                        properties_query = properties_query.where(
-                            comp_function(GcnProperty.data[name], cast(value, JSONB))
-                        )
-                    else:
-                        properties_query = properties_query.where(
-                            GcnProperty.data[name].astext.is_not(None)
-                        )
-
-                    properties_subquery = properties_query.subquery()
-                    query = query.join(
-                        properties_subquery,
-                        GcnEvent.dateobs == properties_subquery.c.dateobs,
-                    )
-
-            if localization_properties_filter is not None:
-                for prop_filt in localization_properties_filter:
-                    prop_split = prop_filt.split(":")
-                    if not (len(prop_split) == 1 or len(prop_split) == 3):
-                        return self.error(
-                            "Invalid localizationPropertiesFilter value -- property filter must have 1 or 3 values"
-                        )
-                    name = prop_split[0].strip()
-
-                    properties_query = LocalizationProperty.select(
-                        session.user_or_token
-                    )
-                    if len(prop_split) == 3:
-                        value = prop_split[1].strip()
-                        try:
-                            value = float(value)
-                        except ValueError as e:
-                            return self.error(
-                                f"Invalid localization properties filter value: {e}"
-                            )
-                        op = prop_split[2].strip()
-                        op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
-                        if op not in op_options:
-                            return self.error(f"Invalid operator: {op}")
-                        comp_function = getattr(operator, op)
-
-                        properties_query = properties_query.where(
-                            comp_function(
-                                LocalizationProperty.data[name], cast(value, JSONB)
-                            )
-                        )
-                    else:
-                        properties_query = properties_query.where(
-                            LocalizationProperty.data[name].astext.is_not(None)
-                        )
-
-                    properties_subquery = properties_query.subquery()
-                    localizations_query = Localization.select(session.user_or_token)
-                    localizations_query = localizations_query.join(
-                        properties_subquery,
-                        Localization.id == properties_subquery.c.localization_id,
-                    )
-                    localizations_subquery = localizations_query.subquery()
-
-                    query = query.join(
-                        localizations_subquery,
-                        GcnEvent.dateobs == localizations_subquery.c.dateobs,
-                    )
+            except ValueError as e:
+                return self.error(str(e))
 
             total_matches = await session.scalar(
                 sa.select(sa.func.count()).select_from(query.distinct())
@@ -5606,6 +5486,157 @@ class GcnEventTriggerHandler(BaseHandler):
                 return self.error(f"Failed to delete triggered status: str({e})")
 
 
+def apply_gcn_event_filters(
+    query,
+    user_or_token,
+    gcn_tag_keep=None,
+    gcn_tag_remove=None,
+    localization_tag_keep=None,
+    localization_tag_remove=None,
+    gcn_properties_filter=None,
+    localization_properties_filter=None,
+):
+    """Apply GCN/localization tag and property filters to a GcnEvent select query.
+
+    Shared by the events list handler and the object crossmatch handler. Raises
+    ValueError on a malformed property filter (callers translate to self.error).
+    """
+    if gcn_tag_keep:
+        gcn_tag_subquery = (
+            GcnTag.select(user_or_token).where(GcnTag.text.in_(gcn_tag_keep)).subquery()
+        )
+        query = query.join(
+            gcn_tag_subquery, GcnEvent.dateobs == gcn_tag_subquery.c.dateobs
+        )
+    if gcn_tag_remove:
+        gcn_tag_subquery = (
+            GcnTag.select(user_or_token)
+            .where(GcnTag.text.in_(gcn_tag_remove))
+            .subquery()
+        )
+        gcn_dateobs_query = GcnEvent.select(
+            user_or_token, columns=[GcnEvent.dateobs]
+        ).where(GcnEvent.dateobs == gcn_tag_subquery.c.dateobs)
+        query = query.where(GcnEvent.dateobs.notin_(gcn_dateobs_query))
+    if localization_tag_keep:
+        tag_subquery = (
+            LocalizationTag.select(user_or_token)
+            .where(LocalizationTag.text.in_(localization_tag_keep))
+            .subquery()
+        )
+        localization_id_query = (
+            Localization.select(user_or_token, columns=[Localization.dateobs])
+            .where(Localization.id == tag_subquery.c.localization_id)
+            .subquery()
+        )
+        query = query.where(GcnEvent.dateobs.in_(localization_id_query))
+    if localization_tag_remove:
+        tag_subquery = (
+            LocalizationTag.select(user_or_token)
+            .where(LocalizationTag.text.in_(localization_tag_remove))
+            .subquery()
+        )
+        localization_id_query = (
+            Localization.select(user_or_token, columns=[Localization.dateobs])
+            .where(Localization.id == tag_subquery.c.localization_id)
+            .subquery()
+        )
+        query = query.where(GcnEvent.dateobs.notin_(localization_id_query))
+    if gcn_properties_filter is not None:
+        for prop_filt in gcn_properties_filter:
+            prop_split = prop_filt.split(":")
+            if not (len(prop_split) == 1 or len(prop_split) == 3):
+                raise ValueError(
+                    "Invalid gcnPropertiesFilter value -- property filter must have 1 or 3 values"
+                )
+            name = prop_split[0].strip()
+
+            properties_query = GcnProperty.select(user_or_token)
+            if len(prop_split) == 3:
+                value = prop_split[1].strip()
+                try:
+                    value = float(value)
+                except ValueError as e:
+                    raise ValueError(f"Invalid GCN properties filter value: {e}")
+                op = prop_split[2].strip()
+                op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                if op not in op_options:
+                    raise ValueError(f"Invalid operator: {op}")
+                comp_function = getattr(operator, op)
+
+                properties_query = properties_query.where(
+                    comp_function(GcnProperty.data[name], cast(value, JSONB))
+                )
+            else:
+                properties_query = properties_query.where(
+                    GcnProperty.data[name].astext.is_not(None)
+                )
+
+            properties_subquery = properties_query.subquery()
+            query = query.join(
+                properties_subquery,
+                GcnEvent.dateobs == properties_subquery.c.dateobs,
+            )
+
+    if localization_properties_filter is not None:
+        for prop_filt in localization_properties_filter:
+            prop_split = prop_filt.split(":")
+            if not (len(prop_split) == 1 or len(prop_split) == 3):
+                raise ValueError(
+                    "Invalid localizationPropertiesFilter value -- property filter must have 1 or 3 values"
+                )
+            name = prop_split[0].strip()
+
+            properties_query = LocalizationProperty.select(user_or_token)
+            if len(prop_split) == 3:
+                value = prop_split[1].strip()
+                try:
+                    value = float(value)
+                except ValueError as e:
+                    raise ValueError(
+                        f"Invalid localization properties filter value: {e}"
+                    )
+                op = prop_split[2].strip()
+                op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                if op not in op_options:
+                    raise ValueError(f"Invalid operator: {op}")
+                comp_function = getattr(operator, op)
+
+                properties_query = properties_query.where(
+                    comp_function(LocalizationProperty.data[name], cast(value, JSONB))
+                )
+            else:
+                properties_query = properties_query.where(
+                    LocalizationProperty.data[name].astext.is_not(None)
+                )
+
+            properties_subquery = properties_query.subquery()
+            localizations_query = Localization.select(user_or_token)
+            localizations_query = localizations_query.join(
+                properties_subquery,
+                Localization.id == properties_subquery.c.localization_id,
+            )
+            localizations_subquery = localizations_query.subquery()
+
+            query = query.join(
+                localizations_subquery,
+                GcnEvent.dateobs == localizations_subquery.c.dateobs,
+            )
+
+    return query
+
+
+def parse_gcn_filter_list(value, name):
+    """Parse a filter argument (JSON array or comma-separated string) into a list."""
+    if value in (None, "", []):
+        return None
+    if isinstance(value, list):
+        return [str(c).strip() for c in value]
+    if isinstance(value, str):
+        return [c.strip() for c in value.split(",")]
+    raise ValueError(f"Invalid {name} value -- must provide at least one string value")
+
+
 class ObjGcnEventHandler(BaseHandler):
     @auth_or_token
     async def post(self, obj_id: str):
@@ -5639,6 +5670,46 @@ class ObjGcnEventHandler(BaseHandler):
                     description: |
                       Arrow-parseable date string (e.g. 2020-01-01).
                       If provided, filter by GcnEvent.dateobs <= startDate.
+                  probability:
+                    type: number
+                    description: Integrated probability contour to crossmatch within (default 0.95).
+                  beforeFirstDetection:
+                    type: boolean
+                    description: |
+                      If true, only crossmatch GCN events at or before the source's
+                      first detection.
+                  gcnTagKeep:
+                    type: array
+                    items:
+                      type: string
+                    description: Only crossmatch events having any of these GCN tags.
+                  gcnTagRemove:
+                    type: array
+                    items:
+                      type: string
+                    description: Exclude events having any of these GCN tags.
+                  localizationTagKeep:
+                    type: array
+                    items:
+                      type: string
+                    description: Only crossmatch events with a localization having any of these tags.
+                  localizationTagRemove:
+                    type: array
+                    items:
+                      type: string
+                    description: Exclude events with a localization having any of these tags.
+                  gcnPropertiesFilter:
+                    type: array
+                    items:
+                      type: string
+                    description: |
+                      GCN property filters, each "name" or "name:value:op"
+                      (op in lt,le,eq,ne,ge,gt).
+                  localizationPropertiesFilter:
+                    type: array
+                    items:
+                      type: string
+                    description: Localization property filters, same format as gcnPropertiesFilter.
         responses:
           200:
             content:
@@ -5654,6 +5725,27 @@ class ObjGcnEventHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         integrated_probability = data.get("probability", None)
+        before_first_detection = data.get("beforeFirstDetection", False)
+
+        try:
+            gcn_tag_keep = parse_gcn_filter_list(data.get("gcnTagKeep"), "gcnTagKeep")
+            gcn_tag_remove = parse_gcn_filter_list(
+                data.get("gcnTagRemove"), "gcnTagRemove"
+            )
+            localization_tag_keep = parse_gcn_filter_list(
+                data.get("localizationTagKeep"), "localizationTagKeep"
+            )
+            localization_tag_remove = parse_gcn_filter_list(
+                data.get("localizationTagRemove"), "localizationTagRemove"
+            )
+            gcn_properties_filter = parse_gcn_filter_list(
+                data.get("gcnPropertiesFilter"), "gcnPropertiesFilter"
+            )
+            localization_properties_filter = parse_gcn_filter_list(
+                data.get("localizationPropertiesFilter"), "localizationPropertiesFilter"
+            )
+        except ValueError as e:
+            return self.error(str(e))
 
         if start_date is None or end_date is None:
             return self.error("Must provide startDate and endDate query arguments.")
@@ -5687,10 +5779,42 @@ class ObjGcnEventHandler(BaseHandler):
                 GcnEvent.dateobs <= end_date,
             )
 
+            # Optionally restrict to events at/before the source's first detection.
+            if before_first_detection:
+                photstat = await session.scalar(
+                    sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+                )
+                first_detected_mjd = getattr(photstat, "first_detected_mjd", None)
+                if first_detected_mjd is None:
+                    return self.error(
+                        f"Cannot restrict to events before first detection: {obj_id} "
+                        "has no detection statistics."
+                    )
+                query = query.where(
+                    GcnEvent.dateobs <= Time(first_detected_mjd, format="mjd").datetime
+                )
+
+            try:
+                query = apply_gcn_event_filters(
+                    query,
+                    session.user_or_token,
+                    gcn_tag_keep=gcn_tag_keep,
+                    gcn_tag_remove=gcn_tag_remove,
+                    localization_tag_keep=localization_tag_keep,
+                    localization_tag_remove=localization_tag_remove,
+                    gcn_properties_filter=gcn_properties_filter,
+                    localization_properties_filter=localization_properties_filter,
+                )
+            except ValueError as e:
+                return self.error(str(e))
+
             result = await session.scalars(query)
             event_ids = [event.id for event in result.unique().all()]
             if len(event_ids) == 0:
-                return self.error("Cannot find GcnEvents in those bounds.")
+                return self.error(
+                    f"Cannot find GcnEvents between {start_date} and {end_date} "
+                    "matching the selected filters."
+                )
 
             try:
                 loop = asyncio.get_event_loop()
