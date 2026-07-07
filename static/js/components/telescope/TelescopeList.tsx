@@ -1,19 +1,12 @@
-import { useGetProfileQuery } from "../../ducks/profile";
 import { lazy, Suspense, useEffect, useState } from "react";
-import { useAppDispatch } from "../../types/hooks";
-import Paper from "@mui/material/Paper";
-import Grid from "@mui/material/Grid";
+import { Link } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
+import Grid from "@mui/material/Grid";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
 import { IconButton } from "@mui/material";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ReplayIcon from "@mui/icons-material/Replay";
-import {
-  useGetTelescopesQuery,
-  useDeleteTelescopeMutation,
-} from "../../ducks/telescopes";
-import { Link } from "react-router-dom";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Chip from "@mui/material/Chip";
@@ -27,18 +20,23 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
-import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+
 import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetProfileQuery } from "../../ducks/profile";
+import {
+  useGetTelescopesQuery,
+  useDeleteTelescopeMutation,
+} from "../../ducks/telescopes";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import TelescopeTable from "./TelescopeTable";
 import Button from "../Button";
+import Paper from "../Paper";
 
 // lazy import the TelescopeMap component
 const TelescopeMap = lazy(() => import("./TelescopeMap"));
 
 const useStyles = makeStyles()((theme) => ({
-  paperContent: {
-    padding: "0.5rem",
-  },
   mapContainer: {
     position: "relative",
     width: "100%",
@@ -96,12 +94,6 @@ const useStyles = makeStyles()((theme) => ({
     gap: "0.5rem",
     textAlign: "center",
   },
-  info: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.5rem",
-    alignItems: "center",
-  },
   date: {
     fontSize: "1rem",
     color: "#666",
@@ -115,7 +107,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const TelescopePage = () => {
+const TelescopeList = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
   const { classes } = useStyles();
@@ -143,8 +135,8 @@ const TelescopePage = () => {
     }
   }, [currentTelescopes]);
 
-  const permission =
-    currentUser?.permissions?.includes("Delete telescope") ||
+  const managePermission =
+    currentUser?.permissions?.includes("Manage telescopes") ||
     currentUser?.permissions?.includes("System admin") ||
     false;
 
@@ -194,13 +186,7 @@ const TelescopePage = () => {
   };
 
   return (
-    <Suspense
-      fallback={
-        <div>
-          <CircularProgress color="secondary" />
-        </div>
-      }
-    >
+    <Suspense fallback={<CircularProgress color="secondary" />}>
       <Grid container spacing={5} style={{ position: "relative" }}>
         {!isMobile && (
           <Box
@@ -213,6 +199,7 @@ const TelescopePage = () => {
             }}
           >
             <Paper
+              noPadding
               elevation={3}
               sx={{
                 borderRadius: "999px",
@@ -252,7 +239,7 @@ const TelescopePage = () => {
             },
           }}
         >
-          <Paper className={classes.paperContent}>
+          <Paper>
             <div className={classes.mapContainer}>
               <TelescopeMap
                 key={mapKey}
@@ -286,11 +273,10 @@ const TelescopePage = () => {
           {displayTelescopeTable ? (
             <TelescopeTable
               telescopes={telescopeList}
-              deletePermission={permission}
+              managePermission={managePermission}
             />
           ) : (
             <Paper
-              className={classes.paperContent}
               style={{ maxHeight: "calc(-85px + 100vh)", overflow: "scroll" }}
             >
               <Autocomplete
@@ -354,7 +340,7 @@ const TelescopePage = () => {
                             {telescope.name} ({telescope.nickname})
                           </Typography>
                         </Link>
-                        {permission && (
+                        {managePermission && (
                           <div style={{ minWidth: "2.5rem" }}>
                             <Button
                               id="delete_button"
@@ -437,4 +423,4 @@ const TelescopePage = () => {
   );
 };
 
-export default TelescopePage;
+export default TelescopeList;
