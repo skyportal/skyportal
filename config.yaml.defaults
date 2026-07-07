@@ -203,6 +203,8 @@ app:
       component: source/Observability
     - path: "/db_stats"
       component: DBStats
+    - path: "/source_statistics"
+      component: SourceStatistics
     - path: "/gcn_events"
       component: gcn/GcnEvents
     - path: "/gcn_events/:dateobs"
@@ -283,6 +285,10 @@ app:
         - name: Summary Search
           icon: Troubleshoot
           url: /summary_search
+
+        - name: Source Statistics
+          icon: ScatterPlot
+          url: /source_statistics
 
         - name: About
           icon: Info
