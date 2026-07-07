@@ -524,6 +524,19 @@ database:
   user: skyportal
   password:
 
+  # Optional transaction-mode connection pooler (pgbouncer/pgcat) between the app
+  # and Postgres, so many processes share a small bounded backend pool instead of
+  # exhausting max_connections. Pooler-agnostic: point `host`/`port` at whichever
+  # pooler you run (the bundled `pgbouncer` service, or an external one).
+  pooler:
+    enabled: false
+    host: localhost
+    port: 6432
+    pool_mode: transaction
+    # Real Postgres backend connections the pooler keeps per user/db.
+    default_pool_size: 25
+    max_client_conn: 1000
+
 server:
   # From https://console.developers.google.com/
   #
