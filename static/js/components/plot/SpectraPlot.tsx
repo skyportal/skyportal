@@ -1093,7 +1093,11 @@ const SpectraPlot = ({
             />
             <TextField
               value={smoothingInput}
-              onChange={(e) => setSmoothingInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this state
+              // and MUI's Slider throws on a non-numeric value.
+              onChange={(e) =>
+                setSmoothingInput(parseFloat(e.target.value) || 0)
+              }
               margin="dense"
               type="number"
               slotProps={{
