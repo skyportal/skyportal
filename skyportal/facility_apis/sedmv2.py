@@ -1,13 +1,16 @@
 import ast
+import asyncio
 import functools
 import json
 
+import aiohttp
 import numpy as np
 import requests
+import sqlalchemy as sa
 from astropy.time import Time, TimeDelta
 from paramiko import AutoAddPolicy, SSHClient
 from requests.auth import HTTPBasicAuth
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
@@ -83,7 +86,7 @@ class SEDMV2API(FollowUpAPI):
     """SkyPortal interface to the Spectral Energy Distribution machine (SEDMv2)."""
 
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to SEDMv2.
 
         Parameters
@@ -94,7 +97,20 @@ class SEDMV2API(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         validate_request_to_sedmv2(request)
 
@@ -110,20 +126,22 @@ class SEDMV2API(FollowUpAPI):
                 "payload": request.payload,
             }
 
-            r = requests.post(
-                cfg["app.sedmv2_endpoint"],
-                json=payload,
-                headers={"Authorization": f"token {altdata['api_token']}"},
-            )
+            url = cfg["app.sedmv2_endpoint"]
+            headers = {"Authorization": f"token {altdata['api_token']}"}
 
-            if r.status_code == 200:
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.post(url, json=payload, headers=headers) as r:
+                    content = await r.text()
+                    status = r.status
+
+            if status == 200:
                 request.status = "submitted"
             else:
-                request.status = f"rejected: {r.content}"
+                request.status = f"rejected: {content}"
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_aiohttp_request("POST", url, headers, payload),
+                response=await http.serialize_aiohttp_response(r, content),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
@@ -154,7 +172,7 @@ class SEDMV2API(FollowUpAPI):
             )
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from SEDMv2 queue.
 
         Parameters
@@ -165,7 +183,21 @@ class SEDMV2API(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import DBSession, FacilityTransaction, FollowupRequest
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
@@ -173,33 +205,29 @@ class SEDMV2API(FollowUpAPI):
         if cfg["app.sedmv2_endpoint"] is not None:
             altdata = request.allocation.altdata
 
-            req = (
-                DBSession()
-                .query(FollowupRequest)
-                .filter(FollowupRequest.id == request.id)
-                .one()
-            )
-
-            altdata = request.allocation.altdata
-
             if not altdata:
                 raise ValueError("Missing allocation information.")
 
-            content = req.transactions[0].response["content"]
+            content = request.transactions[0].response["content"]
             content = json.loads(content)
 
             uid = content["data"]["id"]
 
-            r = requests.delete(
-                f"{cfg['app.sedmv2_endpoint']}/{uid}",
-                headers={"Authorization": f"token {altdata['api_token']}"},
-            )
-            r.raise_for_status()
+            url = f"{cfg['app.sedmv2_endpoint']}/{uid}"
+            headers = {"Authorization": f"token {altdata['api_token']}"}
+
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.delete(url, headers=headers) as r:
+                    content = await r.text()
+                    status = r.status
+
+            if status >= 400:
+                raise ValueError(f"Error deleting request: status {status}: {content}")
             request.status = "deleted"
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_aiohttp_request("DELETE", url, headers),
+                response=await http.serialize_aiohttp_response(r, content),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
@@ -230,7 +258,7 @@ class SEDMV2API(FollowUpAPI):
             )
 
     @staticmethod
-    def update(request, session, **kwargs):
+    async def update(request, session, **kwargs):
         """Update a request in the SEDMv2 queue.
 
         Parameters
@@ -241,7 +269,20 @@ class SEDMV2API(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         validate_request_to_sedmv2(request)
 
@@ -257,20 +298,22 @@ class SEDMV2API(FollowUpAPI):
                 "payload": request.payload,
             }
 
-            r = requests.post(
-                cfg["app.sedmv2_endpoint"],
-                json=payload,
-                headers={"Authorization": f"token {altdata['api_token']}"},
-            )
+            url = cfg["app.sedmv2_endpoint"]
+            headers = {"Authorization": f"token {altdata['api_token']}"}
 
-            if r.status_code == 200:
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.post(url, json=payload, headers=headers) as r:
+                    content = await r.text()
+                    status = r.status
+
+            if status == 200:
                 request.status = "submitted"
             else:
-                request.status = f"rejected: {r.content}"
+                request.status = f"rejected: {content}"
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_aiohttp_request("POST", url, headers, payload),
+                response=await http.serialize_aiohttp_response(r, content),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
@@ -301,7 +344,7 @@ class SEDMV2API(FollowUpAPI):
             )
 
     @staticmethod
-    def retrieve_log(allocation, start_date, end_date):
+    async def retrieve_log(allocation, start_date, end_date):
         """Retrieve SEDMv2 logs.
 
         Parameters
@@ -331,7 +374,7 @@ class SEDMV2API(FollowUpAPI):
         IOLoop.current().run_in_executor(None, fetch_logs)
 
     @staticmethod
-    def update_status(allocation, session):
+    async def update_status(allocation, session):
         """Update the status of SEDMv2 instruments."""
 
         instrument = allocation.instrument
@@ -351,7 +394,7 @@ class SEDMV2API(FollowUpAPI):
             log(f"Password not specified for instrument with ID {instrument.id}")
             return
 
-        try:
+        def _fetch_status():
             ssh = SSHClient()
             ssh.load_system_host_keys()
             ssh.set_missing_host_key_policy(AutoAddPolicy())
@@ -364,18 +407,21 @@ class SEDMV2API(FollowUpAPI):
             stdin, stdout, stderr = ssh.exec_command(
                 "cd /home/sedm/Queue/sedmv2; python read_config"
             )
+            return stdout.read().decode("utf-8")
 
-            status = stdout.read().decode("utf-8")
+        try:
+            # paramiko SSH is blocking and not aiohttp-able, run off the event loop
+            status = await asyncio.to_thread(_fetch_status)
             status = ast.literal_eval(status)
             status = {k: v for k, v in status.items() if v not in [None, "", {}, []]}
 
             instrument.status = status
             instrument.last_status_update = utcnow_naive()
-            session.commit()
+            await session.commit()
 
         except Exception as e:
             log(f"Unable to commit status for instrument with ID {instrument.id}: {e}")
-            session.rollback()
+            await session.rollback()
             raise e
 
     form_json_schema = {
