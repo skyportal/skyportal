@@ -868,7 +868,7 @@ async def post_followup_request_async(
 
 
 async def _post_default_followup_requests_async(
-    obj_id, default_followup_requests, user_id
+    obj_id, default_followup_request_ids, user_id
 ):
     # only called with `run_async` (via the sync shim below), so we open the
     # session here with the plain async session factory.
@@ -892,6 +892,15 @@ async def _post_default_followup_requests_async(
 
         session.user_or_token = user
         session.add(obj)
+        # Re-query the default requests in this session (only IDs crossed the
+        # thread boundary); eager-load target_groups since async can't lazy-load.
+        default_followup_requests = (
+            await session.scalars(
+                sa.select(DefaultFollowupRequest)
+                .where(DefaultFollowupRequest.id.in_(default_followup_request_ids))
+                .options(selectinload(DefaultFollowupRequest.target_groups))
+            )
+        ).all()
         for ii, default_followup_request in enumerate(default_followup_requests):
             try:
                 followup_request = default_followup_request.to_dict()
@@ -909,11 +918,7 @@ async def _post_default_followup_requests_async(
                 # target groups (mirrors Kowalski). Re-bind the default request to
                 # this session so its target_groups relationship can be read.
                 source_filter = followup_request.get("source_filter") or {}
-                dfr = await session.scalar(
-                    sa.select(DefaultFollowupRequest)
-                    .where(DefaultFollowupRequest.id == followup_request["id"])
-                    .options(selectinload(DefaultFollowupRequest.target_groups))
-                )
+                dfr = default_followup_request
                 target_group_ids = list(
                     {
                         *(
@@ -1093,12 +1098,12 @@ async def _post_default_followup_requests_async(
                     log(f"Error posting default followup request: {e}")
 
 
-def post_default_followup_requests(obj_id, default_followup_requests, user_id):
+def post_default_followup_requests(obj_id, default_followup_request_ids, user_id):
     # Sync shim dispatched via `run_async` in a worker thread (no running loop),
     # so asyncio.run is safe; the real work is async (facility APIs are async).
     asyncio.run(
         _post_default_followup_requests_async(
-            obj_id, default_followup_requests, user_id
+            obj_id, default_followup_request_ids, user_id
         )
     )
 
