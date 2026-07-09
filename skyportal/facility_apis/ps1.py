@@ -1,7 +1,8 @@
+import aiohttp
 import astropy
 import numpy as np
-import requests
-from sqlalchemy.orm import scoped_session, sessionmaker
+import sqlalchemy as sa
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
@@ -107,7 +108,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
             ids = asyncio.run(
                 commit_external_photometry(
                     data_out,
-                    request.requester.id,
+                    user_id,
                     duplicates="update",
                     refresh=True,
                 )
@@ -140,7 +141,7 @@ class PS1API(FollowUpAPI):
     """An interface to PS1 forced photometry."""
 
     @staticmethod
-    def get(request, session, **kwargs):
+    async def get(request, session, **kwargs):
         """Get a forced photometry request result from PS1.
 
         Parameters
@@ -155,19 +156,27 @@ class PS1API(FollowUpAPI):
             Allocation,
             FacilityTransaction,
             FollowupRequest,
-            Instrument,
+        )
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
+                selectinload(FollowupRequest.transactions),
+            )
         )
 
         if request.status == "Photometry committed to database":
             raise ValueError("Photometry already in database")
 
-        instrument = (
-            Instrument.query_records_accessible_by(request.requester)
-            .join(Allocation)
-            .join(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .first()
-        )
+        instrument = request.allocation.instrument
 
         content = request.transactions[0].response["content"]
         tab = astropy.io.ascii.read(content)
@@ -197,16 +206,21 @@ class PS1API(FollowUpAPI):
         }
 
         url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/detection.csv"
+        timeout = aiohttp.ClientTimeout(total=5.0)
         try:
-            r = requests.get(url, params=params, timeout=5.0)  # timeout in seconds
+            async with aiohttp.ClientSession(timeout=timeout) as http_session:
+                async with http_session.get(url, params=params) as r:
+                    content = await r.text()
+                    status = r.status
         except TimeoutError:
             request.status = "error: timeout"
+            await session.commit()
+            # No response received -> status/content/r are unbound below and
+            # there is nothing to serialize; bail (previously UnboundLocalError).
+            return
 
-        if r.status_code == 200:
-            try:
-                text_response = r.text
-            except Exception:
-                raise ValueError("No text data returned in request")
+        if status == 200:
+            text_response = content
 
             IOLoop.current().run_in_executor(
                 None,
@@ -216,17 +230,17 @@ class PS1API(FollowUpAPI):
             )
             request.status = "Committing photometry to database"
         else:
-            request.status = f"error: {r.content}"
+            request.status = f"error: {content}"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request("GET", url, body=params),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
 
         session.add(transaction)
-        session.commit()
+        await session.commit()
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
@@ -244,7 +258,7 @@ class PS1API(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a photometry request to PS1 DR2 API.
 
         Parameters
@@ -255,7 +269,15 @@ class PS1API(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(selectinload(FollowupRequest.obj))
+        )
 
         params = {
             "ra": request.obj.ra,
@@ -276,12 +298,15 @@ class PS1API(FollowUpAPI):
         }
 
         url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/mean.csv"
-        r = requests.get(url, params=params)
-        if r.status_code == 200:
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.get(url, params=params) as r:
+                content = await r.text()
+                status = r.status
+        if status == 200:
             try:
-                if len(r.text) == 0:
+                if len(content) == 0:
                     raise ValueError("No data returned in request")
-                tab = astropy.io.ascii.read(r.text)
+                tab = astropy.io.ascii.read(content)
                 if len(tab) == 0:
                     raise ValueError("No data returned in request")
                 request.status = "submitted"
@@ -289,11 +314,11 @@ class PS1API(FollowUpAPI):
                 log(str(e))
                 request.status = "No DR2 source"
         else:
-            request.status = f"rejected: {r.content}"
+            request.status = f"rejected: {content}"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request("GET", url, body=params),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -315,7 +340,7 @@ class PS1API(FollowUpAPI):
             )
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a photometry request from PS1 DR2 API.
 
         Parameters
@@ -328,15 +353,26 @@ class PS1API(FollowUpAPI):
 
         from ..models import FollowupRequest
 
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
+
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
         if request.status.lower() != "photometry committed to database":
             if len(request.transactions) == 0:
-                session.query(FollowupRequest).filter(
-                    FollowupRequest.id == request.id
-                ).delete()
-                session.commit()
+                await session.execute(
+                    sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+                )
+                await session.commit()
             else:
                 request.status = "deleted"
                 session.add(request)

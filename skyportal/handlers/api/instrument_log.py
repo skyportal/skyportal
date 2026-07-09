@@ -257,7 +257,7 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
             try:
                 # we now retrieve and commit to the database the
                 # instrument logs
-                instrument.api_class.retrieve_log(
+                await instrument.api_class.retrieve_log(
                     allocation,
                     start_date,
                     end_date,
@@ -354,7 +354,7 @@ class InstrumentStatusHandler(BaseHandler):
                     )
 
                 try:
-                    instrument.api_class.update_status(
+                    await instrument.api_class.update_status(
                         allocation,
                         session,
                     )

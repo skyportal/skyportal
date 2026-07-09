@@ -1124,7 +1124,8 @@ async def bulk_upsert_photometry(session, params, duplicates, return_inserted=Fa
                 f"fluxerr, flux): {missing}"
             )
         # DO NOTHING returns only inserted rows, so every returned row is new.
-        ids = [r.id for r in returned]
+        id_by_key = {_dedup_key(r): r.id for r in returned}
+        ids = [id_by_key[_dedup_key(p)] for p in params]
         if return_inserted:
             return ids, {_dedup_key(r) for r in returned}
         return ids

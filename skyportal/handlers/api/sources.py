@@ -620,11 +620,22 @@ async def get_sources(
         elif sort_order.lower() not in SORT_ORDER:
             raise ValueError(f"Invalid sort_order: {sort_order}")
 
+        # Sort by an annotation value, encoded as "annotation.<origin>.<key>".
+        # The origin is the first token; the key is the remainder (may contain dots).
+        annotation_sort = False
+        sort_ann_origin = sort_ann_key = None
         if sort_by in [None, "", "none"]:
             if localization_dateobs is not None:
                 sort_by = "gcn_status"
             else:
                 sort_by = "saved_at"
+        elif sort_by.startswith("annotation."):
+            sort_by_parts = sort_by.split(".")
+            if len(sort_by_parts) < 3 or not all(sort_by_parts):
+                raise ValueError(f"Invalid sort_by: {sort_by}")
+            annotation_sort = True
+            sort_ann_origin = sort_by_parts[1]
+            sort_ann_key = ".".join(sort_by_parts[2:])
         elif sort_by.startswith("altdata."):
             sort_by_parts = sort_by.split(".")
             if not all(sort_by_parts):
@@ -1870,7 +1881,37 @@ async def get_sources(
                         )
                         query_params.extend(allocation_bindparams)
 
-                    if sort_by == "gcn_status":
+                    if annotation_sort:
+                        # Correlated subquery on the grouped obj id; -> keeps the
+                        # JSONB type so numeric values sort numerically. Restrict
+                        # to annotations the user can access so sorting can't leak
+                        # values from groups they don't belong to.
+                        ann_access_clause = ""
+                        if not is_admin:
+                            ann_groups_str, ann_groups_bindparams = array2sql(
+                                user_accessible_group_ids,
+                                type=sa.Integer,
+                                prefix="sort_ann_group",
+                            )
+                            query_params.extend(ann_groups_bindparams)
+                            ann_access_clause = (
+                                "AND annotations_sort.id in (select annotation_id "
+                                "from group_annotations where group_id in "
+                                f"{ann_groups_str}) "
+                            )
+                        statement += (
+                            "ORDER BY (SELECT annotations_sort.data -> :sort_ann_key "
+                            "FROM annotations AS annotations_sort "
+                            "WHERE annotations_sort.obj_id = objs.id "
+                            "AND annotations_sort.origin = :sort_ann_origin "
+                            f"{ann_access_clause}LIMIT 1) "
+                            f"{sort_order.upper()} NULLS LAST"
+                        )
+                        query_params.append(sa.bindparam("sort_ann_key", sort_ann_key))
+                        query_params.append(
+                            sa.bindparam("sort_ann_origin", sort_ann_origin)
+                        )
+                    elif sort_by == "gcn_status":
                         statement += f"""ORDER BY
                             CASE
                                 WHEN bool_and(sourcesconfirmedingcns.obj_id IS NULL) = true THEN 4
@@ -1939,7 +1980,37 @@ async def get_sources(
                         )
                         query_params.extend(allocation_bindparams)
 
-                    if sort_by == "favorites":
+                    if annotation_sort:
+                        # Correlated subquery on the grouped obj id; -> keeps the
+                        # JSONB type so numeric values sort numerically. Restrict
+                        # to annotations the user can access so sorting can't leak
+                        # values from groups they don't belong to.
+                        ann_access_clause = ""
+                        if not is_admin:
+                            ann_groups_str, ann_groups_bindparams = array2sql(
+                                user_accessible_group_ids,
+                                type=sa.Integer,
+                                prefix="sort_ann_group",
+                            )
+                            query_params.extend(ann_groups_bindparams)
+                            ann_access_clause = (
+                                "AND annotations_sort.id in (select annotation_id "
+                                "from group_annotations where group_id in "
+                                f"{ann_groups_str}) "
+                            )
+                        statement += (
+                            "ORDER BY (SELECT annotations_sort.data -> :sort_ann_key "
+                            "FROM annotations AS annotations_sort "
+                            "WHERE annotations_sort.obj_id = objs.id "
+                            "AND annotations_sort.origin = :sort_ann_origin "
+                            f"{ann_access_clause}LIMIT 1) "
+                            f"{sort_order.upper()} NULLS LAST"
+                        )
+                        query_params.append(sa.bindparam("sort_ann_key", sort_ann_key))
+                        query_params.append(
+                            sa.bindparam("sort_ann_origin", sort_ann_origin)
+                        )
+                    elif sort_by == "favorites":
                         statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
                     elif sort_by in NULL_FIELDS:
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""

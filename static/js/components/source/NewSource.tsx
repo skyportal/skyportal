@@ -21,40 +21,28 @@ import { dms_to_dec, hours_to_ra } from "../../units";
 dayjs.extend(utc);
 
 interface NewSourceProps {
-  classes: {
-    widgetPaperDiv: string;
-  };
   onClose?: () => void;
 }
 
-const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
+const NewSource = ({ onClose = () => ({}) }: NewSourceProps) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [checkSource] = useCheckSourceMutation();
   const [saveSource] = useSaveSourceMutation();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
-  const [selectedFormData, setSelectedFormData] = useState<any>({
-    id: "",
-    ra: "",
-    dec: "",
-  });
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     const dataToSend: any = {
       ...formData,
       group_ids: selectedGroupIds,
+      ra: formData?.ra?.includes(":")
+        ? hours_to_ra(formData.ra)
+        : parseFloat(formData.ra),
+      dec: formData?.dec?.includes(":")
+        ? dms_to_dec(formData.dec)
+        : parseFloat(formData.dec),
     };
-    if (dataToSend?.ra?.includes(":")) {
-      dataToSend.ra = hours_to_ra(dataToSend?.ra);
-    } else {
-      dataToSend.ra = parseFloat(dataToSend?.ra);
-    }
-    if (dataToSend?.dec?.includes(":")) {
-      dataToSend.dec = dms_to_dec(dataToSend?.dec);
-    } else {
-      dataToSend.dec = parseFloat(dataToSend?.dec);
-    }
     try {
       const data: any = await checkSource({
         id: dataToSend?.id,
@@ -85,17 +73,14 @@ const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
     } else if (!selectedGroupIds?.length) {
       errors.__errors.push("Select at least one group.");
     }
-
     const raDeg = ra.includes(":") ? hours_to_ra(ra) : parseFloat(ra);
     if (raDeg < 0 || raDeg >= 360) {
       errors.ra.addError("0 <= RA < 360, please fix.");
     }
-
     const decDeg = dec.includes(":") ? dms_to_dec(dec) : parseFloat(dec);
     if (decDeg < -90 || decDeg > 90) {
       errors.dec.addError("-90 <= Declination <= 90, please fix.");
     }
-
     return errors;
   }
 
@@ -119,34 +104,22 @@ const NewSource = ({ classes, onClose = () => ({}) }: NewSourceProps) => {
   };
 
   return (
-    <div className={classes.widgetPaperDiv}>
-      <div>
-        <Typography
-          variant="h6"
-          sx={{
-            display: "inline",
-          }}
-        >
-          Add a Source
-        </Typography>
-        <div>
-          <GroupShareSelect
-            groupList={groups}
-            setGroupIDs={setSelectedGroupIds}
-            groupIDs={selectedGroupIds}
-          />
-          <Form
-            schema={sourceFormSchema as any}
-            formData={selectedFormData}
-            onChange={
-              (({ formData }: { formData: any }) =>
-                setSelectedFormData(formData)) as any
-            }
-            validator={validator}
-            onSubmit={handleSubmit as any}
-            customValidate={validate}
-          />
-        </div>
+    <div style={{ position: "relative" }}>
+      <Typography variant="h6" sx={{ display: "inline" }}>
+        Add a Source
+      </Typography>
+      <Form
+        schema={sourceFormSchema as any}
+        validator={validator}
+        onSubmit={handleSubmit as any}
+        customValidate={validate}
+      />
+      <div style={{ position: "absolute", bottom: "0", right: "0" }}>
+        <GroupShareSelect
+          groupList={groups}
+          setGroupIDs={setSelectedGroupIds}
+          groupIDs={selectedGroupIds}
+        />
       </div>
     </div>
   );

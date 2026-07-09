@@ -9905,7 +9905,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an instrument's fields
-         * @description <b>Permission(s) required:</b> <em>Delete instrument (or System admin)</em><br><br>Delete fields associated with an instrument
+         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Delete fields associated with an instrument
          */
         delete: {
             parameters: {
@@ -10154,6 +10154,11 @@ export interface paths {
                      */
                     includeRegion?: boolean;
                     /**
+                     * @description Boolean indicating whether to ignore field caching. Defaults to
+                     *     false.
+                     */
+                    ignoreCache?: boolean;
+                    /**
                      * @description Include fields within a given localization.
                      *     Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
                      *     Each localization is associated with a specific GCNEvent by
@@ -10175,6 +10180,12 @@ export interface paths {
                      *     Defaults to 0.95.
                      */
                     localizationCumprob?: number;
+                    /**
+                     * @description Time to use for airmass calculation in
+                     *     ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                     *     Defaults to localizationDateobs if not supplied.
+                     */
+                    airmassTime?: string;
                 };
                 header?: never;
                 path: {
@@ -10244,7 +10255,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an instrument
-         * @description <b>Permission(s) required:</b> <em>Delete instrument (or System admin)</em><br><br>Delete an instrument
+         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Delete an instrument
          */
         delete: {
             parameters: {
@@ -10305,53 +10316,10 @@ export interface paths {
                     /** @description Filter by name (exact match) */
                     name?: string;
                     /**
-                     * @description Boolean indicating whether to include associated GeoJSON. Defaults to
-                     *     false.
-                     */
-                    includeGeoJSON?: boolean;
-                    /**
-                     * @description Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
-                     *     false.
-                     */
-                    includeGeoJSONSummary?: boolean;
-                    /**
                      * @description Boolean indicating whether to include associated DS9 region. Defaults to
                      *     false.
                      */
                     includeRegion?: boolean;
-                    /**
-                     * @description Boolean indicating whether to ignore field caching. Defaults to
-                     *     false.
-                     */
-                    ignoreCache?: boolean;
-                    /**
-                     * @description Include fields within a given localization.
-                     *     Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                     *     Each localization is associated with a specific GCNEvent by
-                     *     the date the event happened, and this date is used as a unique
-                     *     identifier. It can be therefore found as Localization.dateobs,
-                     *     queried from the /api/localization endpoint or dateobs in the
-                     *     GcnEvent page table.
-                     */
-                    localizationDateobs?: string;
-                    /**
-                     * @description Name of localization / skymap to use.
-                     *     Can be found in Localization.localization_name queried from
-                     *     /api/localization endpoint or skymap name in GcnEvent page
-                     *     table.
-                     */
-                    localizationName?: string;
-                    /**
-                     * @description Cumulative probability up to which to include fields.
-                     *     Defaults to 0.95.
-                     */
-                    localizationCumprob?: number;
-                    /**
-                     * @description Time to use for airmass calculation in
-                     *     ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                     *     Defaults to localizationDateobs if not supplied.
-                     */
-                    airmassTime?: string;
                 };
                 header?: never;
                 path?: never;
@@ -10380,7 +10348,7 @@ export interface paths {
         put?: never;
         /**
          * Add an instrument
-         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Add a new instrument
+         * @description Add a new instrument
          */
         post: {
             parameters: {
@@ -17080,7 +17048,12 @@ export interface paths {
                      *     ```
                      */
                     saveSummary?: boolean;
-                    /** @description The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"] */
+                    /**
+                     * @description The field to sort by. Allowed options are ["id", "alias", "origin",
+                     *     "ra", "dec", "redshift", "saved_at", "gcn_status", "favorites"],
+                     *     "altdata.<field>" to sort on an altdata field, or
+                     *     "annotation.<origin>.<key>" to sort on an annotation value.
+                     */
                     sortBy?: string;
                     /** @description The sort order - either "asc" or "desc". Defaults to "asc" */
                     sortOrder?: string;
@@ -19738,7 +19711,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a telescope
-         * @description <b>Permission(s) required:</b> <em>Delete telescope (or System admin)</em><br><br>Delete a telescope
+         * @description <b>Permission(s) required:</b> <em>Manage telescopes (or System admin)</em><br><br>Delete a telescope
          */
         delete: {
             parameters: {
@@ -19826,7 +19799,7 @@ export interface paths {
         put?: never;
         /**
          * Create a telescope
-         * @description <b>Permission(s) required:</b> <em>Manage telescopes (or System admin)</em><br><br>Create telescopes
+         * @description Create telescopes
          */
         post: {
             parameters: {

@@ -170,7 +170,7 @@ class SkymapTriggerAPIHandler(BaseHandler):
             }
 
             try:
-                instrument.api_class_obsplan.send_skymap(
+                await instrument.api_class_obsplan.send_skymap(
                     allocation,
                     payload,
                 )
@@ -237,7 +237,9 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 )
 
             try:
-                trigger_names = instrument.api_class_obsplan.queued_skymap(allocation)
+                trigger_names = await instrument.api_class_obsplan.queued_skymap(
+                    allocation
+                )
                 return self.success(data={"trigger_names": trigger_names})
             except Exception as e:
                 return self.error(f"Error in querying instrument API: {e}")
@@ -311,7 +313,7 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 )
 
             try:
-                instrument.api_class_obsplan.remove_skymap(
+                await instrument.api_class_obsplan.remove_skymap(
                     allocation,
                     trigger_name=trigger_name,
                     username=self.associated_user_object.username,

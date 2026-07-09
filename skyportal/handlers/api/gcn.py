@@ -292,6 +292,13 @@ async def post_gcnevent_from_xml(
         dateobs = event.dateobs
     else:
         dateobs = event.dateobs
+        update_check = await session.scalar(
+            GcnEvent.select(user, mode="update").where(GcnEvent.id == event.id)
+        )
+        if update_check is None:
+            raise ValueError(
+                "Insufficient permissions: GCN event can only be updated by original poster"
+            )
 
     event_id = event.id
 
@@ -2489,13 +2496,19 @@ async def add_default_gcn_tags_async(user, session, dateobs=None, localization=N
             event = await session.scalar(
                 GcnEvent.select(user)
                 .where(GcnEvent.dateobs == localization.dateobs)
-                .options(selectinload(GcnEvent.gcn_notices))
+                .options(
+                    selectinload(GcnEvent.gcn_notices),
+                    selectinload(GcnEvent._tags),
+                )
             )
         else:
             event = await session.scalar(
                 GcnEvent.select(user)
                 .where(GcnEvent.dateobs == dateobs)
-                .options(selectinload(GcnEvent.gcn_notices))
+                .options(
+                    selectinload(GcnEvent.gcn_notices),
+                    selectinload(GcnEvent._tags),
+                )
             )
         event_notice_types = [notice.notice_type for notice in event.gcn_notices]
         event_tags = event.tags
