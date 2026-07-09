@@ -1838,7 +1838,7 @@ const SourceTable = ({
     () =>
       function SourceTableToolbar() {
         return (
-          <DataGridToolbar showQuickFilter={false} showExport>
+          <DataGridToolbar showQuickFilter={false}>
             <Tooltip title="Filter Table">
               <IconButton
                 size="small"
