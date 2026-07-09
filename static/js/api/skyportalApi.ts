@@ -198,6 +198,7 @@ export const TAG_TYPES = [
   "MMADetector",
   "Telescope",
   "AnnotationsInfo",
+  "AltdataInfo",
   "EnumTypes",
   "InstrumentLog",
   "MovingObject",
