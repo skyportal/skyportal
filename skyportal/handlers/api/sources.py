@@ -1847,12 +1847,28 @@ async def get_sources(
 
                     if annotation_sort:
                         # Correlated subquery on the grouped obj id; -> keeps the
-                        # JSONB type so numeric values sort numerically.
+                        # JSONB type so numeric values sort numerically. Restrict
+                        # to annotations the user can access so sorting can't leak
+                        # values from groups they don't belong to.
+                        ann_access_clause = ""
+                        if not is_admin:
+                            ann_groups_str, ann_groups_bindparams = array2sql(
+                                user_accessible_group_ids,
+                                type=sa.Integer,
+                                prefix="sort_ann_group",
+                            )
+                            query_params.extend(ann_groups_bindparams)
+                            ann_access_clause = (
+                                "AND annotations_sort.id in (select annotation_id "
+                                "from group_annotations where group_id in "
+                                f"{ann_groups_str}) "
+                            )
                         statement += (
                             "ORDER BY (SELECT annotations_sort.data -> :sort_ann_key "
                             "FROM annotations AS annotations_sort "
                             "WHERE annotations_sort.obj_id = objs.id "
-                            "AND annotations_sort.origin = :sort_ann_origin LIMIT 1) "
+                            "AND annotations_sort.origin = :sort_ann_origin "
+                            f"{ann_access_clause}LIMIT 1) "
                             f"{sort_order.upper()} NULLS LAST"
                         )
                         query_params.append(sa.bindparam("sort_ann_key", sort_ann_key))
@@ -1930,12 +1946,28 @@ async def get_sources(
 
                     if annotation_sort:
                         # Correlated subquery on the grouped obj id; -> keeps the
-                        # JSONB type so numeric values sort numerically.
+                        # JSONB type so numeric values sort numerically. Restrict
+                        # to annotations the user can access so sorting can't leak
+                        # values from groups they don't belong to.
+                        ann_access_clause = ""
+                        if not is_admin:
+                            ann_groups_str, ann_groups_bindparams = array2sql(
+                                user_accessible_group_ids,
+                                type=sa.Integer,
+                                prefix="sort_ann_group",
+                            )
+                            query_params.extend(ann_groups_bindparams)
+                            ann_access_clause = (
+                                "AND annotations_sort.id in (select annotation_id "
+                                "from group_annotations where group_id in "
+                                f"{ann_groups_str}) "
+                            )
                         statement += (
                             "ORDER BY (SELECT annotations_sort.data -> :sort_ann_key "
                             "FROM annotations AS annotations_sort "
                             "WHERE annotations_sort.obj_id = objs.id "
-                            "AND annotations_sort.origin = :sort_ann_origin LIMIT 1) "
+                            "AND annotations_sort.origin = :sort_ann_origin "
+                            f"{ann_access_clause}LIMIT 1) "
                             f"{sort_order.upper()} NULLS LAST"
                         )
                         query_params.append(sa.bindparam("sort_ann_key", sort_ann_key))
