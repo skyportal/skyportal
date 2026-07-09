@@ -21,6 +21,7 @@ import Plotly from "./plot/plotlyScatter3d";
 import ClassificationSelect from "./classification/ClassificationSelect";
 import VegaPhotometry from "./plot/VegaPhotometry";
 import { useGetSourcePhotometryMinimalQuery } from "../ducks/photometry_minimal";
+import { smoothing_func } from "../utils";
 import {
   useGetPhotStatAggregateQuery,
   type PhotStatAggregateArgs,
@@ -51,18 +52,81 @@ const PhotometryFetcher = ({
   return null;
 };
 
-// Overlay every source's detections on one magnitude-vs-time axis, colored by
-// source. `alignPeak` shifts each curve so its brightest point sits at t=0,
-// which lines the transients up for shape comparison.
+// Distance modulus from redshift, matching SkyPortal's Planck18 FlatLambdaCDM
+// (H0=67.66, Om0=0.30966). Simpson integration of the comoving distance.
+const H0 = 67.66;
+const OM = 0.30966;
+const OL = 1 - OM;
+const C_KM_S = 299792.458;
+const distanceModulus = (z: number | null): number | null => {
+  if (!z || z <= 0) return null;
+  const invE = (zp: number) => 1 / Math.sqrt(OM * (1 + zp) ** 3 + OL);
+  const n = 200;
+  const h = z / n;
+  let s = invE(0) + invE(z);
+  for (let i = 1; i < n; i += 1) s += (i % 2 === 0 ? 2 : 4) * invE(i * h);
+  const dcMpc = (C_KM_S / H0) * (h / 3) * s; // comoving distance
+  const dlPc = (1 + z) * dcMpc * 1e6; // luminosity distance in pc
+  return 5 * Math.log10(dlPc / 10);
+};
+
+// Linear interpolation of a band's magnitude at a given mjd (null outside range).
+const interpMag = (pts: any[], mjd: number): number | null => {
+  if (!pts.length || mjd < pts[0].mjd || mjd > pts[pts.length - 1].mjd)
+    return null;
+  for (let i = 1; i < pts.length; i += 1) {
+    if (pts[i].mjd >= mjd) {
+      const a = pts[i - 1];
+      const b = pts[i];
+      if (b.mjd === a.mjd) return b.mag;
+      return a.mag + ((mjd - a.mjd) / (b.mjd - a.mjd)) * (b.mag - a.mag);
+    }
+  }
+  return null;
+};
+
+type AlignMode = "none" | "peak" | "first";
+
+// t=0 reference for a source's (time-sorted) points, per alignment mode.
+const alignT0 = (sortedPts: any[], alignMode: AlignMode) => {
+  if (!sortedPts.length) return 0;
+  if (alignMode === "first") return sortedPts[0].mjd;
+  if (alignMode === "peak")
+    return sortedPts.reduce((a, b) => (b.mag < a.mag ? b : a)).mjd;
+  return 0;
+};
+
+const alignAxisLabel = (alignMode: AlignMode) =>
+  alignMode === "peak"
+    ? "Days from peak"
+    : alignMode === "first"
+      ? "Days from first detection"
+      : "MJD";
+
+// Overlay every source's light curve on one axis, colored by source.
+//  - mode "mag": magnitude (or absolute magnitude) vs time, one band or all.
+//  - mode "color": a color index (band1 - band2), interpolated to shared epochs.
+// `alignMode` sets the t=0 reference; `smoothWindow` (>0) draws a moving-average
+// line instead of markers.
 const LightCurveOverlay = ({
   sourceIds,
-  alignPeak,
+  alignMode,
+  smoothWindow,
+  mode,
   filterBand,
+  colorPair,
+  absolute,
+  dmMap,
   onAvailableBands,
 }: {
   sourceIds: string[];
-  alignPeak: boolean;
+  alignMode: AlignMode;
+  smoothWindow: number;
+  mode: "mag" | "color";
   filterBand: string;
+  colorPair: string;
+  absolute: boolean;
+  dmMap: Record<string, number>;
   onAvailableBands: (bands: string[]) => void;
 }) => {
   const [photMap, setPhotMap] = useState<Record<string, any[]>>({});
@@ -70,7 +134,7 @@ const LightCurveOverlay = ({
     setPhotMap((prev) => (prev[id] === data ? prev : { ...prev, [id]: data }));
   }, []);
 
-  // Report the bands present so the parent can populate the band dropdown.
+  // Report the bands present so the parent can populate the band/color dropdowns.
   const availableBands = useMemo(() => {
     const bands = new Set<string>();
     sourceIds.forEach((id) =>
@@ -82,42 +146,98 @@ const LightCurveOverlay = ({
     onAvailableBands(availableBands);
   }, [availableBands, onAvailableBands]);
 
-  const traces = useMemo(
-    () =>
-      sourceIds
+  const traces = useMemo(() => {
+    const smooth = smoothWindow > 0;
+    const detections = (id: string) =>
+      (photMap[id] ?? []).filter((p) => p.mag !== null && p.mag !== undefined);
+
+    if (mode === "color") {
+      const [b1, b2] = colorPair.split("-");
+      return sourceIds
         .map((id) => {
-          const pts = (photMap[id] ?? []).filter(
-            (p) =>
-              p.mag !== null &&
-              p.mag !== undefined &&
-              (filterBand === "all" || p.filter === filterBand),
-          );
-          if (!pts.length) return null;
-          let t0 = 0;
-          if (alignPeak) {
-            t0 = pts.reduce((a, b) => (b.mag < a.mag ? b : a)).mjd;
-          }
+          const pts = detections(id);
+          const p1 = pts
+            .filter((p) => p.filter === b1)
+            .sort((a, b) => a.mjd - b.mjd);
+          const p2 = pts
+            .filter((p) => p.filter === b2)
+            .sort((a, b) => a.mjd - b.mjd);
+          if (p1.length < 1 || p2.length < 2) return null;
+          const t0 = alignT0(p1, alignMode);
+          const xs: number[] = [];
+          let ys: number[] = [];
+          p1.forEach((pt) => {
+            const m2 = interpMag(p2, pt.mjd);
+            if (m2 !== null) {
+              xs.push(pt.mjd - t0);
+              ys.push(pt.mag - m2);
+            }
+          });
+          if (!xs.length) return null;
+          if (smooth) ys = smoothing_func(ys, smoothWindow) ?? ys;
           return {
             type: "scattergl",
-            mode: "markers",
+            mode: smooth ? "lines" : "lines+markers",
             name: id,
-            x: pts.map((p) => p.mjd - t0),
-            y: pts.map((p) => p.mag),
-            text: pts.map((p) => `${id} (${p.filter})`),
-            hovertemplate: "%{text}<br>%{x}<br>%{y} mag<extra></extra>",
+            x: xs,
+            y: ys,
+            hovertemplate: `${id}<br>%{x}<br>${colorPair}: %{y:.2f}<extra></extra>`,
             marker: { size: 5, opacity: 0.7 },
           };
         })
-        .filter(Boolean),
-    [photMap, sourceIds, alignPeak],
-  );
+        .filter(Boolean);
+    }
+
+    return sourceIds
+      .map((id) => {
+        const pts = detections(id)
+          .filter((p) => filterBand === "all" || p.filter === filterBand)
+          .sort((a, b) => a.mjd - b.mjd);
+        if (!pts.length) return null;
+        const dm = dmMap[id];
+        if (absolute && dm === undefined) return null; // no redshift
+        const offset = absolute && dm !== undefined ? dm : 0;
+        const t0 = alignT0(pts, alignMode);
+        let ys = pts.map((p) => p.mag - offset);
+        if (smooth) ys = smoothing_func(ys, smoothWindow) ?? ys;
+        return {
+          type: "scattergl",
+          mode: smooth ? "lines" : "markers",
+          name: id,
+          x: pts.map((p) => p.mjd - t0),
+          y: ys,
+          text: pts.map((p) => `${id} (${p.filter})`),
+          hovertemplate: "%{text}<br>%{x}<br>%{y:.2f} mag<extra></extra>",
+          marker: { size: 5, opacity: 0.7 },
+        };
+      })
+      .filter(Boolean);
+  }, [
+    photMap,
+    sourceIds,
+    alignMode,
+    smoothWindow,
+    mode,
+    filterBand,
+    colorPair,
+    absolute,
+    dmMap,
+  ]);
+
+  const yaxis =
+    mode === "color"
+      ? { title: { text: `${colorPair} (mag)` } }
+      : {
+          title: { text: absolute ? "Absolute magnitude" : "Magnitude" },
+          autorange: "reversed" as const,
+        };
 
   const layout = {
     autosize: true,
     height: 650,
     margin: { l: 60, r: 20, t: 10, b: 50 },
-    xaxis: { title: { text: alignPeak ? "Days from peak" : "MJD" } },
-    yaxis: { title: { text: "Magnitude" }, autorange: "reversed" },
+    xaxis: { title: { text: alignAxisLabel(alignMode) } },
+    yaxis,
     legend: { orientation: "v" },
   };
 
@@ -217,20 +337,39 @@ const SourceStatistics = () => {
     null,
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<"stats" | "lightcurves" | "overlay">(
-    "stats",
-  );
+  const [viewMode, setViewMode] = useState<
+    "stats" | "lightcurves" | "overlay" | "color"
+  >("stats");
   const [lcPage, setLcPage] = useState(0);
-  const [alignPeak, setAlignPeak] = useState(false);
+  const [alignMode, setAlignMode] = useState<AlignMode>("none");
+  const [smoothWindow, setSmoothWindow] = useState(0);
   const [overlayBand, setOverlayBand] = useState("all");
   const [overlayBands, setOverlayBands] = useState<string[]>([]);
+  const [absoluteMag, setAbsoluteMag] = useState(false);
+  const [colorPair, setColorPair] = useState("");
   const handleAvailableBands = useCallback((bands: string[]) => {
+    // Ignore the transient empty report a freshly-mounted overlay emits before
+    // its photometry loads — otherwise it would clear the band/color options.
+    if (bands.length === 0) return;
     setOverlayBands((prev) =>
       prev.length === bands.length && prev.every((b, i) => b === bands[i])
         ? prev
         : bands,
     );
   }, []);
+
+  // All band pairs available for a color index, e.g. "ztfg-ztfr".
+  const colorPairs = useMemo(() => {
+    const pairs: string[] = [];
+    for (let i = 0; i < overlayBands.length; i += 1)
+      for (let j = i + 1; j < overlayBands.length; j += 1)
+        pairs.push(`${overlayBands[i]}-${overlayBands[j]}`);
+    return pairs;
+  }, [overlayBands]);
+  useEffect(() => {
+    const first = colorPairs[0];
+    if (first && !colorPairs.includes(colorPair)) setColorPair(first);
+  }, [colorPairs, colorPair]);
 
   // Metadata request (no axes) fetches the plottable field list.
   const { data: meta } = useGetPhotStatAggregateQuery({});
@@ -256,6 +395,16 @@ const SourceStatistics = () => {
     [data],
   );
   const lcSourceIds = selectedIds.length > 0 ? selectedIds : plottedIds;
+
+  // Distance modulus per source (from redshift) for the absolute-mag overlay.
+  const dmMap = useMemo(() => {
+    const m: Record<string, number> = {};
+    (data?.points ?? []).forEach((p) => {
+      const dm = distanceModulus(p.redshift);
+      if (dm !== null) m[p.id] = dm;
+    });
+    return m;
+  }, [data]);
 
   const handlePlot = () => {
     setSelectedIds([]);
@@ -375,6 +524,34 @@ const SourceStatistics = () => {
     </FormControl>
   );
 
+  // Alignment (t=0 reference) + smoothing, shared by the Overlay and Color views.
+  const alignSmoothControls = (
+    <>
+      <ToggleButtonGroup
+        size="small"
+        exclusive
+        value={alignMode}
+        onChange={(_e, v) => v && setAlignMode(v)}
+      >
+        <ToggleButton value="none">MJD</ToggleButton>
+        <ToggleButton value="peak">Peak</ToggleButton>
+        <ToggleButton value="first">First</ToggleButton>
+      </ToggleButtonGroup>
+      <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
+        <Typography variant="caption">Smoothing: {smoothWindow}</Typography>
+        <Slider
+          size="small"
+          value={smoothWindow}
+          onChange={(_e, v) => setSmoothWindow(v as number)}
+          min={0}
+          max={20}
+          step={1}
+          valueLabelDisplay="auto"
+        />
+      </Box>
+    </>
+  );
+
   return (
     <div className={classes.root}>
       <Typography variant="h4">Source Statistics</Typography>
@@ -476,6 +653,7 @@ const SourceStatistics = () => {
                 <ToggleButton value="stats">Statistics</ToggleButton>
                 <ToggleButton value="lightcurves">Light curves</ToggleButton>
                 <ToggleButton value="overlay">Overlay</ToggleButton>
+                <ToggleButton value="color">Color</ToggleButton>
               </ToggleButtonGroup>
             )}
           </Box>
@@ -564,7 +742,7 @@ const SourceStatistics = () => {
                 </Paper>
               );
             })()
-          ) : (
+          ) : viewMode === "overlay" ? (
             <Paper className={classes.selected}>
               <Box
                 sx={{
@@ -602,19 +780,78 @@ const SourceStatistics = () => {
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={alignPeak}
-                        onChange={(e) => setAlignPeak(e.target.checked)}
+                        checked={absoluteMag}
+                        onChange={(e) => setAbsoluteMag(e.target.checked)}
                         size="small"
                       />
                     }
-                    label="Align to peak"
+                    label="Absolute mag"
                   />
+                  {alignSmoothControls}
+                </Box>
+              </Box>
+              {absoluteMag && (
+                <Typography variant="body2" className={classes.warning}>
+                  Absolute magnitude uses each source&apos;s redshift; sources
+                  without a redshift are hidden.
+                </Typography>
+              )}
+              <LightCurveOverlay
+                sourceIds={lcSourceIds.slice(0, MAX_OVERLAY)}
+                alignMode={alignMode}
+                smoothWindow={smoothWindow}
+                mode="mag"
+                filterBand={overlayBand}
+                colorPair={colorPair}
+                absolute={absoluteMag}
+                dmMap={dmMap}
+                onAvailableBands={handleAvailableBands}
+              />
+            </Paper>
+          ) : (
+            <Paper className={classes.selected}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "0.5rem",
+                }}
+              >
+                <Typography variant="body2" color="textSecondary">
+                  Color evolution (interpolated to shared epochs)
+                  {lcSourceIds.length > MAX_OVERLAY &&
+                    ` — first ${MAX_OVERLAY} of ${lcSourceIds.length}`}
+                  , colored by source.
+                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <FormControl size="small" sx={{ minWidth: "9rem" }}>
+                    <InputLabel>Color</InputLabel>
+                    <Select
+                      label="Color"
+                      value={colorPairs.includes(colorPair) ? colorPair : ""}
+                      onChange={(e) => setColorPair(e.target.value)}
+                    >
+                      {colorPairs.map((c) => (
+                        <MenuItem key={c} value={c}>
+                          {c}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  {alignSmoothControls}
                 </Box>
               </Box>
               <LightCurveOverlay
                 sourceIds={lcSourceIds.slice(0, MAX_OVERLAY)}
-                alignPeak={alignPeak}
+                alignMode={alignMode}
+                smoothWindow={smoothWindow}
+                mode="color"
                 filterBand={overlayBand}
+                colorPair={colorPair}
+                absolute={false}
+                dmMap={dmMap}
                 onAvailableBands={handleAvailableBands}
               />
             </Paper>

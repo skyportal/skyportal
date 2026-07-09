@@ -16,6 +16,7 @@ export interface PhotStatPoint {
   id: string;
   ra: number | null;
   dec: number | null;
+  redshift: number | null;
   classification: string | null;
   x: number | null;
   y: number | null;
