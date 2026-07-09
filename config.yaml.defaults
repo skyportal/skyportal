@@ -829,16 +829,13 @@ gcn:
       - gcn.classic.voevent.FERMI_GBM_SUBTHRESH
       - gcn.classic.voevent.SWIFT_BAT_GRB_POS_ACK
       - gcn.classic.voevent.SWIFT_XRT_POSITION
-      - gcn.classic.voevent.LVC_PRELIMINARY
-      - gcn.classic.voevent.LVC_INITIAL
-      - gcn.classic.voevent.LVC_UPDATE
-      - gcn.classic.voevent.LVC_RETRACTION
       # - gcn.classic.voevent.AMON_ICECUBE_COINC
       # - gcn.classic.voevent.AMON_ICECUBE_HESE
       - gcn.classic.voevent.ICECUBE_ASTROTRACK_GOLD
       - gcn.classic.voevent.ICECUBE_ASTROTRACK_BRONZE
       # - gcn.classic.voevent.MAXI_UNKNOWN
     json:
+      - igwn.gwalert
       - gcn.notices.einstein_probe.wxt.alert
       - gcn.notices.swift.bat.guano
       # - gcn.notices.icecube.lvk_nu_track_search

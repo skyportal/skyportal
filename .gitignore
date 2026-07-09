@@ -74,3 +74,6 @@ data/dbdata/
 services/pgbouncer/pgbouncer.ini
 services/pgbouncer/supervisor.conf
 services/pgbouncer/userlist.txt
+
+# GCN Kafka credential (local only)
+credential
