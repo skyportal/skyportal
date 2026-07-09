@@ -4,6 +4,7 @@ import functools
 import io
 import json
 import operator
+import re
 import tempfile
 import time
 import traceback
@@ -2828,6 +2829,46 @@ def load_source_filter(source_filter):
     return source_filter_json
 
 
+# A source_filter "name" is a user-supplied regex run in Postgres on every
+# source save (models/followup_request.py: regexp_match on the object id). Bound
+# and validate it at creation so a malformed or catastrophic-backtracking
+# pattern can't break the trigger or hang the query later.
+MAX_SOURCE_FILTER_REGEX_LENGTH = 1000
+# Classic exponential-backtracking shape: a quantifier applied to a group that
+# already contains an unbounded quantifier, e.g. (a+)+, (.*)*, (a+){2,}. This is
+# a conservative heuristic (it doesn't catch every ReDoS, e.g. nested groups),
+# but rejects the common footguns.
+_NESTED_QUANTIFIER_RE = re.compile(r"\([^)]*[+*][^)]*\)[+*{]")
+
+
+async def validate_source_filter_regex(session, name):
+    """Reject a user-supplied source_filter 'name' regex that is malformed,
+    oversized, or an obvious catastrophic-backtracking shape."""
+    if name is None:
+        return
+    if not isinstance(name, str):
+        raise ValueError("source_filter 'name' must be a string.")
+    if len(name) > MAX_SOURCE_FILTER_REGEX_LENGTH:
+        raise ValueError(
+            f"source_filter 'name' regex must be at most "
+            f"{MAX_SOURCE_FILTER_REGEX_LENGTH} characters."
+        )
+    if _NESTED_QUANTIFIER_RE.search(name):
+        raise ValueError(
+            "source_filter 'name' contains a nested quantifier that can cause "
+            "catastrophic backtracking; please simplify the pattern."
+        )
+    # Validate against Postgres itself (the engine that runs it), so dialect
+    # quirks are caught and a malformed pattern can't silently break the trigger.
+    try:
+        await session.execute(sa.text("SELECT regexp_match('', :pat)"), {"pat": name})
+    except Exception:
+        await session.rollback()
+        raise ValueError(
+            f"source_filter 'name' is not a valid regular expression: {name}"
+        )
+
+
 class DefaultFollowupRequestHandler(BaseHandler):
     @auth_or_token
     async def post(self):
@@ -2922,6 +2963,13 @@ class DefaultFollowupRequestHandler(BaseHandler):
                         )
             else:
                 return self.error("source_filter is required")
+
+            try:
+                await validate_source_filter_regex(
+                    session, data["source_filter"].get("name")
+                )
+            except ValueError as e:
+                return self.error(str(e))
 
             try:
                 constraints = build_constraints_dict(data)
