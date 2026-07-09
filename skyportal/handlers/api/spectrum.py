@@ -26,6 +26,7 @@ from ...models import (
     CommentOnSpectrum,
     FollowupRequest,
     Group,
+    GroupUser,
     Instrument,
     Obj,
     Spectrum,
@@ -264,9 +265,18 @@ class SpectrumHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                # always append the single user group (sync property reading
-                # DBSession() — safe to call from async handler).
-                single_user_group = self.associated_user_object.single_user_group
+                # always append the single user group (queried async-safely
+                # instead of via the sync-DBSession `single_user_group` property).
+                single_user_group = (
+                    await session.scalars(
+                        sa.select(Group)
+                        .join(GroupUser)
+                        .where(
+                            Group.single_user_group.is_(True),
+                            GroupUser.user_id == self.associated_user_object.id,
+                        )
+                    )
+                ).first()
 
                 group_ids = data.pop("group_ids", None)
                 if group_ids == [] or group_ids is None:
@@ -1289,7 +1299,16 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                     f"Cannot find instrument with ID: {json['instrument_id']}"
                 )
 
-            single_user_group = self.associated_user_object.single_user_group
+            single_user_group = (
+                await session.scalars(
+                    sa.select(Group)
+                    .join(GroupUser)
+                    .where(
+                        Group.single_user_group.is_(True),
+                        GroupUser.user_id == self.associated_user_object.id,
+                    )
+                )
+            ).first()
 
             group_ids = json.pop("group_ids", [])
             if group_ids is None:

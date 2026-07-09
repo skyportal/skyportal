@@ -11,6 +11,7 @@ from .mmt_utils import (
     mmt_properties,
     mmt_required,
     mmt_ui_json_schema,
+    reload_mmt_request,
     submit_mmt_request,
 )
 
@@ -85,7 +86,7 @@ class BINOSPECAPI(FollowUpAPI):
 
     @staticmethod
     @catch_timeout_and_no_endpoint
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """
         Submit a follow-up request to the BINOSPEC instrument from MMT
 
@@ -98,6 +99,7 @@ class BINOSPECAPI(FollowUpAPI):
         kwargs : dict
             Additional keyword arguments
         """
+        request = await reload_mmt_request(session, request)
         payload = request.payload
         check_request(request)
 
@@ -111,12 +113,12 @@ class BINOSPECAPI(FollowUpAPI):
         else:
             specific_payload = {"filters": payload.get("filters"), "maskid": 110}
 
-        submit_mmt_request(session, request, specific_payload, 16, log, **kwargs)
+        await submit_mmt_request(session, request, specific_payload, 16, log, **kwargs)
 
     @staticmethod
     @catch_timeout_and_no_endpoint
-    def delete(request, session, **kwargs):
-        delete_mmt_request(session, request, log, **kwargs)
+    async def delete(request, session, **kwargs):
+        await delete_mmt_request(session, request, log, **kwargs)
 
     def custom_json_schema(instrument, user, **kwargs):
         imager_schema = {

@@ -1467,7 +1467,7 @@ class ObservationExternalAPIHandler(BaseHandler):
             try:
                 # we now retrieve and commit to the database the
                 # executed observations
-                instrument.api_class_obsplan.retrieve(
+                await instrument.api_class_obsplan.retrieve(
                     allocation, data["start_date"], data["end_date"]
                 )
                 self.push_notification(
@@ -1568,7 +1568,7 @@ class ObservationExternalAPIHandler(BaseHandler):
             try:
                 # we now retrieve and commit to the database the
                 # executed observations
-                queue_names = instrument.api_class_obsplan.queued(
+                queue_names = await instrument.api_class_obsplan.queued(
                     allocation,
                     data["start_date"],
                     data["end_date"],
@@ -1649,7 +1649,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error("Cannot delete queues from this Instrument.")
 
             try:
-                instrument.api_class_obsplan.remove_queue(
+                await instrument.api_class_obsplan.remove_queue(
                     allocation, queue_name, self.associated_user_object.username
                 )
                 return self.success()

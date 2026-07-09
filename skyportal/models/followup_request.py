@@ -433,8 +433,14 @@ def add_followup(mapper, connection, target):
             print(f"Unknown target class name: {target_class_name}")
             return
 
-        default_followup_requests = session.scalars(requests_query).all()
-        if len(default_followup_requests) == 0:
+        # Pass IDs (not session-bound ORM objects) across the run_async thread
+        # boundary; the background task re-queries them in its own session.
+        # Otherwise their lazy-loaded relationships (e.g. Filter) end up
+        # attached to two sessions ("already attached to session ...").
+        default_followup_request_ids = [
+            d.id for d in session.scalars(requests_query).all()
+        ]
+        if len(default_followup_request_ids) == 0:
             return
 
         from skyportal.handlers.api.followup_request import (
@@ -445,6 +451,6 @@ def add_followup(mapper, connection, target):
         run_async(
             post_default_followup_requests,
             target_data["obj_id"],
-            default_followup_requests,
+            default_followup_request_ids,
             user_id,
         )

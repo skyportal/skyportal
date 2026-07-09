@@ -150,12 +150,28 @@ alias python='python3'
 source ~/.zshrc
 ```
 ### Checking for Port Availability
-SkyPortal defaults to using port 5000. However, this port may already be in use by MacPorts or other services. To verify if port 5000 is available, use the `lsof` command in the terminal.
+SkyPortal defaults to using port 5000. However, this port may already be in use on MacOS (e.g., by AirPlay Receiver, MacPorts, or other services). To verify port availability, use the `lsof` command in the terminal:
 
 ```
 lsof -i :5000
 ```
-If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port (in `config.yaml`, and if you intend to run the unit tests, then also in `test_config.yaml`).
+If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port by updating the following lines in `config.yaml`:
+
+```yaml
+server:
+  port: 5001  # Change from 5000 to 5001
+
+ports:
+  app: 5001  # Change from 5000 to 5001
+
+docs:
+  servers:
+    - url: http://localhost:5001  # Change from 5000 to 5001
+```
+
+Before switching, verify that your chosen alternative port is itself available (e.g., `lsof -i :5001`).
+
+If you plan to run `make load_demo_data` or the unit tests, also update the port in `test_config.yaml` to match. Port mismatches between the two configs can cause 403 Forbidden errors during demo data loading.
 
 ## Installation: Debian-based Linux and WSL
 
@@ -230,7 +246,7 @@ If the command outputs information about a service, it means that port 5000 is a
    happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.
 3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
-4. Direct your browser to `http://localhost:5000`.
+4. Direct your browser to `http://localhost:5000` (or `http://localhost:<port>` if you changed the default port in `config.yaml`).
 5. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!).
 6. Change users by navigating to `http://localhost:5000/become_user/<#>` where # is a number from 1-5.
    Different users have different privileges and can see more or less of the demo data.
