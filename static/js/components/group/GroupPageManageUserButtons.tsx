@@ -139,9 +139,7 @@ const ManageUserButtons = ({
           <Tooltip title="Manage whether user can save sources to this group.">
             <Button
               size="small"
-              onClick={() => {
-                toggleUserCanSave(user);
-              }}
+              onClick={() => toggleUserCanSave(user)}
               sx={{ color: canSave(user) ? "#d32f2f" : "#2e7d32" }}
             >
               {`${canSave(user) ? "Revoke" : "Grant"} save access`}

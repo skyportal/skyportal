@@ -29,9 +29,7 @@ const Groups = () => {
   const userGroups = groupsData?.user ?? [];
   const allGroups = groupsData?.all ?? null;
 
-  if (userGroups.length === 0 || allGroups === null) {
-    return <Spinner />;
-  }
+  if (!userGroups.length || allGroups === null) return <Spinner />;
 
   const canManageGroups = permissions?.includes("System admin");
   const allMultiUserGroups = allGroups.filter((g) => !g["single_user_group"]);

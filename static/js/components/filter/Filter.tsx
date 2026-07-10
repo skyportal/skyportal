@@ -48,14 +48,9 @@ const Filter = () => {
     skip: !stream_id,
   });
 
-  if (filterLoadError) {
-    return <div>{filterLoadError}</div>;
-  }
+  if (filterLoadError) return filterLoadError;
 
-  // renders
-  if (filter == null) {
-    return <Spinner />;
-  }
+  if (filter == null) return <Spinner />;
 
   return (
     <div>
