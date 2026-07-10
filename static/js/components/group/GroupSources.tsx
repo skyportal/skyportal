@@ -2,41 +2,22 @@ import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { useAppDispatch } from "../../types/hooks";
 
-import Paper from "@mui/material/Paper";
-import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-
-import CircularProgress from "@mui/material/CircularProgress";
-
 import { showNotification } from "baselayer/components/Notifications";
 
+import Paper from "../Paper";
 import SourceTable from "../source/SourceTable";
 import withRouter from "../withRouter";
 import ProgressIndicator from "../ProgressIndicators";
+import Spinner from "../Spinner";
 
 import {
   useFetchSavedGroupSourcesQuery,
   useFetchPendingGroupSourcesQuery,
   useLazyFetchSavedGroupSourcesQuery,
 } from "../../ducks/sources";
-
-const useStyles = makeStyles()((theme) => ({
-  chip: {
-    margin: theme.spacing(0.5),
-  },
-  source: {},
-  commentListContainer: {
-    height: "15rem",
-    overflowY: "scroll",
-    padding: "0.5rem 0",
-  },
-  tableGrid: {
-    width: "100%",
-  },
-  paper: {},
-}));
 
 interface GroupSourcesProps {
   route: {
@@ -47,7 +28,6 @@ interface GroupSourcesProps {
 const GroupSources = ({ route }: GroupSourcesProps) => {
   const dispatch = useAppDispatch();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
-  const { classes } = useStyles();
   const [savedSourcesRowsPerPage, setSavedSourcesRowsPerPage] = useState(10);
   const [pendingSourcesRowsPerPage, setPendingSourcesRowsPerPage] =
     useState(10);
@@ -78,13 +58,9 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
     !pendingSourcesState?.sources ||
     savedSourcesState["group_id"] !== parseInt(route.id, 10) ||
     pendingSourcesState["group_id"] !== parseInt(route.id, 10)
-  ) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  )
+    return <Spinner />;
+
   const groupID = parseInt(route.id, 10);
 
   const groupName = groups?.filter((g: any) => g.id === groupID)[0]?.name || "";
@@ -218,39 +194,37 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
   };
 
   return (
-    <Paper elevation={1} className={classes.paper}>
-      <div className={classes.source}>
-        {!!savedSourcesState.sources && (
-          <SourceTable
-            sources={savedSourcesState.sources}
-            title={`${groupName} sources`}
-            sourceStatus="saved"
-            groupID={groupID}
-            paginateCallback={handleSavedSourcesTablePagination}
-            pageNumber={savedSourcesState.pageNumber}
-            totalMatches={savedSourcesState.totalMatches}
-            numPerPage={savedSourcesState.numPerPage}
-            sortingCallback={handleSavedSourcesTableSorting}
-            downloadCallback={handleSourcesDownload}
-          />
-        )}
-        <br />
-        <br />
-        {!!pendingSourcesState.sources && (
-          <SourceTable
-            sources={pendingSourcesState.sources}
-            title="Requested to save"
-            sourceStatus="requested"
-            groupID={groupID}
-            paginateCallback={handlePendingSourcesTablePagination}
-            pageNumber={pendingSourcesState.pageNumber}
-            totalMatches={pendingSourcesState.totalMatches}
-            numPerPage={pendingSourcesState.numPerPage}
-            sortingCallback={handlePendingSourcesTableSorting}
-            downloadCallback={handleSourcesDownload}
-          />
-        )}
-      </div>
+    <Paper
+      sx={{ display: "flex", flexDirection: "column", gap: "1rem", mt: 2 }}
+    >
+      {!!savedSourcesState.sources && (
+        <SourceTable
+          sources={savedSourcesState.sources}
+          title={`${groupName} sources`}
+          sourceStatus="saved"
+          groupID={groupID}
+          paginateCallback={handleSavedSourcesTablePagination}
+          pageNumber={savedSourcesState.pageNumber}
+          totalMatches={savedSourcesState.totalMatches}
+          numPerPage={savedSourcesState.numPerPage}
+          sortingCallback={handleSavedSourcesTableSorting}
+          downloadCallback={handleSourcesDownload}
+        />
+      )}
+      {!!pendingSourcesState.sources && (
+        <SourceTable
+          sources={pendingSourcesState.sources}
+          title="Requested to save"
+          sourceStatus="requested"
+          groupID={groupID}
+          paginateCallback={handlePendingSourcesTablePagination}
+          pageNumber={pendingSourcesState.pageNumber}
+          totalMatches={pendingSourcesState.totalMatches}
+          numPerPage={pendingSourcesState.numPerPage}
+          sortingCallback={handlePendingSourcesTableSorting}
+          downloadCallback={handleSourcesDownload}
+        />
+      )}
       <Dialog open={downloadProgressTotal > 0} maxWidth="md">
         <DialogContent
           style={{

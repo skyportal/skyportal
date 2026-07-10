@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -16,6 +18,7 @@ import Button from "../Button";
 
 import GroupUsers from "./GroupUsers";
 import GroupFiltersStreams from "./GroupFiltersStreams";
+import GroupSources from "./GroupSources";
 
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupQuery } from "../../ducks/group";
@@ -30,6 +33,7 @@ const Group = () => {
   const [groupLoadError, setGroupLoadError] = useState("");
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [tab, setTab] = useState(0);
 
   const handleConfirmDeleteDialogClose = () => {
     setConfirmDeleteOpen(false);
@@ -115,26 +119,30 @@ const Group = () => {
           </Button>
         )}
       </Box>
-      <Button
-        secondary
-        component={Link}
-        to={`/group_sources/${group["id"]}`}
-        sx={{ my: 2 }}
-      >
-        Group sources
-      </Button>
-      <GroupUsers
-        group={group}
-        currentUser={currentUser as any}
-        theme={theme}
-        isAdmin={isAdmin}
-      />
-      <GroupFiltersStreams
-        group={group}
-        currentUser={currentUser}
-        isAdmin={isAdmin}
-        theme={theme}
-      />
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mt: 2 }}>
+        <Tabs value={tab} onChange={(_event, value) => setTab(value)}>
+          <Tab label="Members" />
+          <Tab label="Sources" />
+          <Tab label="Streams and filters" />
+        </Tabs>
+      </Box>
+      {tab === 0 && (
+        <GroupUsers
+          group={group}
+          currentUser={currentUser as any}
+          theme={theme}
+          isAdmin={isAdmin}
+        />
+      )}
+      {tab === 1 && <GroupSources route={{ id: id as string }} />}
+      {tab === 2 && (
+        <GroupFiltersStreams
+          group={group}
+          currentUser={currentUser}
+          isAdmin={isAdmin}
+          theme={theme}
+        />
+      )}
       <Dialog
         fullWidth
         open={confirmDeleteOpen}
