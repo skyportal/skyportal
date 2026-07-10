@@ -56,7 +56,7 @@ const GroupUsers = ({
 
   const handlePopoverOpen = (event: any, popoverId: any) => {
     setOpenedPopoverId(popoverId);
-    setAnchorEl(event.target);
+    setAnchorEl(event.currentTarget);
   };
 
   const handlePopoverClose = () => {
@@ -107,13 +107,15 @@ const GroupUsers = ({
     if (!group || !mobile) return actions;
 
     return (
-      <IconButton
-        edge="end"
-        aria-label="open-manage-user-popover"
-        onClick={(e) => handlePopoverOpen(e, user.id)}
-        size="large"
-      >
-        <MoreVertIcon />
+      <>
+        <IconButton
+          edge="end"
+          aria-label="open-manage-user-popover"
+          onClick={(e) => handlePopoverOpen(e, user.id)}
+          size="large"
+        >
+          <MoreVertIcon />
+        </IconButton>
         <Popover
           id={popoverId}
           open={openedPopoverId === user.id}
@@ -130,7 +132,7 @@ const GroupUsers = ({
         >
           {actions}
         </Popover>
-      </IconButton>
+      </>
     );
   };
 
