@@ -113,15 +113,14 @@ const InviteNewUserForm = ({ group_id }: InviteNewUserFormProps) => {
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Typography variant="h6">Invite a new user</Typography>
       <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-        Invite a new user to the site and add them to this group
+        Invite a new user to this website and add them to this group
       </Typography>
       <Box
         sx={{
           display: "flex",
-          justifyContent: "space-between",
           alignItems: "center",
+          flexWrap: "wrap",
           gap: 2,
         }}
       >
@@ -135,12 +134,12 @@ const InviteNewUserForm = ({ group_id }: InviteNewUserFormProps) => {
           label="Enter user email"
         />
         <FormControl>
-          <InputLabel id="roleSelectLabel">Site-wide user role</InputLabel>
+          <InputLabel id="roleSelectLabel">User role</InputLabel>
           <Select
             defaultValue="Full user"
             onChange={handleRoleChange}
             labelId="roleSelectLabel"
-            label="Site-wide user role"
+            label="User role"
           >
             {["Full user", "View only"].map((role) => (
               <MenuItem key={role} value={role}>
@@ -189,51 +188,45 @@ const InviteNewUserForm = ({ group_id }: InviteNewUserFormProps) => {
             label="Group Admin?"
           />
         )}
-        <Button
-          secondary
-          data-testid="inviteNewUserButton"
-          onClick={() => setConfirmDialogOpen(true)}
-          size="small"
-        >
-          Invite new user
-        </Button>
-        <Dialog
-          open={confirmDialogOpen}
-          onClose={() => setConfirmDialogOpen(false)}
-          aria-labelledby="alert-dialog-title"
-          aria-describedby="alert-dialog-description"
-        >
-          <DialogTitle id="alert-dialog-title">
-            Invite new user and add to this group?
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText id="alert-dialog-description">
-              Click Confirm to invite specified user and grant them access to
-              this group.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button
-              onClick={() => {
-                setConfirmDialogOpen(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              primary
-              data-testid="confirmNewUserButton"
-              onClick={() => {
-                setConfirmDialogOpen(false);
-                handleClickSubmit();
-              }}
-              autoFocus
-            >
-              Confirm
-            </Button>
-          </DialogActions>
-        </Dialog>
       </Box>
+      <Button
+        secondary
+        data-testid="inviteNewUserButton"
+        onClick={() => setConfirmDialogOpen(true)}
+        sx={{ mt: 2 }}
+      >
+        Invite new user
+      </Button>
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={() => setConfirmDialogOpen(false)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          Invite new user and add to this group?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Click Confirm to invite specified user and grant them access to this
+            group.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+          <Button
+            primary
+            data-testid="confirmNewUserButton"
+            onClick={() => {
+              setConfirmDialogOpen(false);
+              handleClickSubmit();
+            }}
+            autoFocus
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

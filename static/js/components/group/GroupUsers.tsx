@@ -11,6 +11,8 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 import Typography from "@mui/material/Typography";
 
 import StyledDataGrid from "../StyledDataGrid";
@@ -49,6 +51,7 @@ const GroupUsers = ({
   const [openedPopoverId, setOpenedPopoverId] = React.useState<any>(null);
   const [panelMembersExpanded, setPanelMembersExpanded] =
     React.useState<any>("panel-members");
+  const [userFormTab, setUserFormTab] = React.useState(0);
   const { invitationsEnabled } = (useGetConfigQuery().data as any) ?? {};
 
   const handlePopoverOpen = (event: any, popoverId: any) => {
@@ -202,17 +205,21 @@ const GroupUsers = ({
           showToolbar
         />
         {isAdmin(currentUser) && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            <Typography sx={{ mt: 2 }} variant="h6">
-              Adding users to this group
-            </Typography>
-            <AddUserForm group_id={group.id!} />
-            <AddGroupOfUsersForm groupID={group.id!} />
-            {invitationsEnabled && (
-              <>
-                <Divider />
-                <InviteNewUserForm group_id={group.id!} />
-              </>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
+            <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+              <Tabs
+                value={userFormTab}
+                onChange={(_event, value) => setUserFormTab(value)}
+              >
+                <Tab label="Add a user" />
+                <Tab label="Add a group of users" />
+                {invitationsEnabled && <Tab label="Invite a new user" />}
+              </Tabs>
+            </Box>
+            {userFormTab === 0 && <AddUserForm group_id={group.id!} />}
+            {userFormTab === 1 && <AddGroupOfUsersForm groupID={group.id!} />}
+            {invitationsEnabled && userFormTab === 2 && (
+              <InviteNewUserForm group_id={group.id!} />
             )}
             <Divider />
             <GroupAdmissionRequestsManagement groupID={group.id!} />

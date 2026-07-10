@@ -2,7 +2,7 @@ import Typography from "@mui/material/Typography";
 import { Controller, useForm } from "react-hook-form";
 import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
-import { makeStyles } from "tss-react/mui";
+import Box from "@mui/material/Box";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
@@ -13,17 +13,6 @@ import {
 } from "../../ducks/groups";
 import FormValidationError from "../FormValidationError";
 import Button from "../Button";
-
-const useStyles = makeStyles()(() => ({
-  groupSelect: {
-    width: "20rem",
-    marginBottom: "0.75rem",
-  },
-  heading: {
-    fontSize: "1.0625rem",
-    fontWeight: 500,
-  },
-}));
 
 interface AddGroupOfUsersFormProps {
   groupID: number;
@@ -41,7 +30,6 @@ const AddGroupOfUsersForm = ({ groupID }: AddGroupOfUsersFormProps) => {
 
     formState: { errors },
   } = useForm();
-  const { classes } = useStyles();
   groups =
     groups?.filter((g) => g.id !== groupID && !g["single_user_group"]) || [];
 
@@ -67,56 +55,60 @@ const AddGroupOfUsersForm = ({ groupID }: AddGroupOfUsersFormProps) => {
   };
 
   return (
-    <div>
-      <Typography className={classes.heading}>
-        Add all users from other group(s)
+    <Box sx={{ width: "100%" }}>
+      <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+        Add all members of the selected group(s) to this group
       </Typography>
       <form onSubmit={handleSubmit(onSubmit)}>
         {!!errors["groups"] && (
           <FormValidationError message="Please select at least one group/user" />
         )}
-        <Controller
-          name="groups"
-          render={({ field: { onChange, value } }) => (
-            <Autocomplete
-              multiple
-              id="addUsersFromGroupsSelect"
-              onChange={(_e, data) => onChange(data)}
-              value={value}
-              options={groups}
-              getOptionLabel={(group: Group) => group.name}
-              filterSelectedOptions
-              data-testid="addUsersFromGroupsSelect"
-              renderInput={(field) => (
-                <TextField
-                  {...field}
-                  error={!!errors["groups"]}
-                  variant="outlined"
-                  label="Select Groups/Users"
-                  size="small"
-                  className={classes.groupSelect}
-                  data-testid="addUsersFromGroupsTextField"
-                />
-              )}
-            />
-          )}
-          control={control}
-          rules={{ validate: validateGroups }}
-          defaultValue={[]}
-        />
-        <div>
-          <Button
-            primary
-            type="submit"
-            name="submitAddFromGroupsButton"
-            data-testid="submitAddFromGroupsButton"
-            size="small"
-          >
-            Add users
-          </Button>
-        </div>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 2,
+          }}
+        >
+          <Controller
+            name="groups"
+            render={({ field: { onChange, value } }) => (
+              <Autocomplete
+                multiple
+                id="addUsersFromGroupsSelect"
+                onChange={(_e, data) => onChange(data)}
+                value={value}
+                options={groups}
+                getOptionLabel={(group: Group) => group.name}
+                filterSelectedOptions
+                sx={{ width: 300 }}
+                renderInput={(field) => (
+                  <TextField
+                    {...field}
+                    error={!!errors["groups"]}
+                    label="Select Groups/Users"
+                    data-testid="addUsersFromGroupsTextField"
+                  />
+                )}
+              />
+            )}
+            control={control}
+            rules={{ validate: validateGroups }}
+            defaultValue={[]}
+          />
+        </Box>
+        <Button
+          secondary
+          type="submit"
+          name="submitAddFromGroupsButton"
+          data-testid="submitAddFromGroupsButton"
+          sx={{ mt: 2 }}
+        >
+          Add users
+        </Button>
       </form>
-    </div>
+    </Box>
   );
 };
 

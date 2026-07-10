@@ -5,20 +5,13 @@ import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import { makeStyles } from "tss-react/mui";
+import Box from "@mui/material/Box";
 
 import { useAddGroupUserMutation } from "../../ducks/groups";
 import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
 
 const filter = createFilterOptions<any>();
-
-const useStyles = makeStyles()(() => ({
-  heading: {
-    fontSize: "1.0625rem",
-    fontWeight: 500,
-  },
-}));
 
 interface FormState {
   userID: number | null;
@@ -42,7 +35,6 @@ const AddUserForm = ({ group_id }: AddUserFormProps) => {
   const allUsers = usersData?.users ?? [];
   const [formState, setFormState] = useState<FormState>(defaultState);
   const [isError, setIsError] = useState(false);
-  const { classes } = useStyles();
 
   const nonMemberUsers = allUsers.filter(
     (user: any) =>
@@ -72,65 +64,72 @@ const AddUserForm = ({ group_id }: AddUserFormProps) => {
     });
   };
 
-  if (!allUsers?.length) {
-    return <CircularProgress />;
-  }
+  if (!allUsers?.length) return <CircularProgress />;
 
   return (
-    <div>
-      <Typography className={classes.heading}>
-        Add an existing user to this group
+    <Box sx={{ width: "100%" }}>
+      <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+        Add an existing user to this group.
       </Typography>
-      <Autocomplete
-        data-testid="newGroupUser"
-        onChange={(_event: any, newValue: any) => {
-          setFormState({ ...formState, userID: newValue?.id });
-          setIsError(false);
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 2,
         }}
-        filterOptions={(options, params) => filter(options, params)}
-        selectOnFocus
-        clearOnBlur
-        handleHomeEndKeys
-        options={nonMemberUsers}
-        getOptionLabel={(option: any) => option.username}
-        sx={{ width: 300, paddingBottom: 1 }}
-        defaultValue={null}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            error={isError}
-            helperText={isError ? "Please select a user" : ""}
-            label="Username"
-            data-testid="newGroupUserTextInput"
-          />
-        )}
-      />
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={formState.canSave}
-            onChange={toggleCheckbox}
-            name="canSave"
-            data-testid="canSaveCheckbox"
-          />
-        }
-        label="Can save to this group?"
-      />
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={formState.admin}
-            onChange={toggleCheckbox}
-            name="admin"
-            data-testid="adminCheckbox"
-          />
-        }
-        label="Group Admin?"
-      />
-      <Button primary onClick={handleClickSubmit} size="small">
-        Add user to group
+      >
+        <Autocomplete
+          data-testid="newGroupUser"
+          onChange={(_event: any, newValue: any) => {
+            setFormState({ ...formState, userID: newValue?.id });
+            setIsError(false);
+          }}
+          filterOptions={(options, params) => filter(options, params)}
+          selectOnFocus
+          clearOnBlur
+          handleHomeEndKeys
+          options={nonMemberUsers}
+          getOptionLabel={(option: any) => option.username}
+          sx={{ width: 300 }}
+          defaultValue={null}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              error={isError}
+              helperText={isError ? "Please select a user" : ""}
+              label="Username"
+              data-testid="newGroupUserTextInput"
+            />
+          )}
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={formState.canSave}
+              onChange={toggleCheckbox}
+              name="canSave"
+              data-testid="canSaveCheckbox"
+            />
+          }
+          label="Can save to this group?"
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={formState.admin}
+              onChange={toggleCheckbox}
+              name="admin"
+              data-testid="adminCheckbox"
+            />
+          }
+          label="Group Admin?"
+        />
+      </Box>
+      <Button secondary onClick={handleClickSubmit} sx={{ mt: 2 }}>
+        Add user
       </Button>
-    </div>
+    </Box>
   );
 };
 
