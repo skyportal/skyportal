@@ -316,6 +316,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       headerName: "Target Name",
       flex: 1,
       minWidth: 120,
+      valueGetter: (_value: any, row: any) => row.obj?.id,
       renderCell: (params: any) => {
         const objid = params.row.obj?.id;
         return (
