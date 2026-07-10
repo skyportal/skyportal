@@ -15,9 +15,8 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": true,
-    "baseUrl": ".",
     "paths": {
-      "baselayer/*": ["baselayer/static/js/*"]
+      "baselayer/*": ["./baselayer/static/js/*"]
     },
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
