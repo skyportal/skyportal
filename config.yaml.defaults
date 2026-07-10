@@ -536,6 +536,9 @@ database:
     # Real Postgres backend connections the pooler keeps per user/db.
     default_pool_size: 25
     max_client_conn: 1000
+    # Seconds before the pooler force-closes a connection left idle in a
+    # transaction; guards the pool against leaked transactions (0 = disabled).
+    idle_transaction_timeout: 0
 
 server:
   # From https://console.developers.google.com/

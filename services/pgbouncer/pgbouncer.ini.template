@@ -11,6 +11,7 @@ listen_port = {{ database.pooler.port }}
 pool_mode = {{ database.pooler.pool_mode }}
 default_pool_size = {{ database.pooler.default_pool_size }}
 max_client_conn = {{ database.pooler.max_client_conn }}
+{% if database.pooler.idle_transaction_timeout %}idle_transaction_timeout = {{ database.pooler.idle_transaction_timeout }}{% endif %}
 # psycopg3 sends these; transaction mode must not reject them.
 ignore_startup_parameters = extra_float_digits, options
 # Auth is deployment-specific; adjust to match your Postgres (md5/scram/auth_query).
