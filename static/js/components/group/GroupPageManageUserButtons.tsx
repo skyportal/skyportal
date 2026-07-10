@@ -19,6 +19,7 @@ import {
   useDeleteGroupUserMutation,
   useUpdateGroupUserMutation,
 } from "../../ducks/groups";
+import { Box } from "@mui/material";
 
 interface ManageUserButtonsProps {
   loadedId: number;
@@ -122,20 +123,23 @@ const ManageUserButtons = ({
   };
 
   return (
-    <div>
+    <Box sx={{ display: "flex", justifyContent: "space-around" }}>
       {isAdmin(currentUser) && (
-        <>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
           <Button
             size="small"
-            onClick={() => {
-              toggleUserAdmin(user);
-            }}
+            onClick={() => toggleUserAdmin(user)}
             disabled={isAdmin(user) && numAdmins === 1}
             sx={{ color: isAdmin(user) ? "#d32f2f" : "#2e7d32" }}
           >
             {`${isAdmin(user) ? "Revoke" : "Grant"} admin status`}
           </Button>
-          &nbsp;|&nbsp;
           <Tooltip title="Manage whether user can save sources to this group.">
             <Button
               size="small"
@@ -145,16 +149,13 @@ const ManageUserButtons = ({
               {`${canSave(user) ? "Revoke" : "Grant"} save access`}
             </Button>
           </Tooltip>
-          &nbsp;|&nbsp;
-        </>
+        </Box>
       )}
       <IconButton
-        edge="end"
-        aria-label="delete"
         data-testid={`delete-${user.username}`}
         onClick={() => setConfirmDeleteOpen(true)}
         disabled={isAdmin(user) && numAdmins === 1}
-        size="large"
+        color="error"
       >
         <DeleteIcon />
       </IconButton>
@@ -209,7 +210,7 @@ const ManageUserButtons = ({
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </Box>
   );
 };
 
