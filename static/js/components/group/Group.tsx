@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
-import { makeStyles } from "tss-react/mui";
 
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -23,45 +22,7 @@ import { useGetGroupQuery } from "../../ducks/group";
 import { useDeleteGroupMutation } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
 
-const useStyles = makeStyles()((theme) => ({
-  padding_bottom: {
-    paddingBottom: "2em",
-  },
-  paper: {
-    width: "100%",
-    padding: theme.spacing(1),
-    textAlign: "left",
-    color: theme.palette.text.primary,
-  },
-  nested: {
-    paddingLeft: theme.spacing(2),
-  },
-  heading: {
-    fontSize: "1.0625rem",
-    fontWeight: 500,
-  },
-  accordion_summary: {
-    borderBottom: "1px solid rgba(0, 0, 0, .125)",
-  },
-  accordion_details: {
-    flexDirection: "column",
-  },
-  button_add: {
-    maxWidth: "8.75rem",
-  },
-  selectEmpty: {
-    width: "100%",
-    marginTop: theme.spacing(2),
-  },
-  manageUserPopover: {
-    display: "flex",
-    flexDirection: "column",
-    padding: theme.spacing(1),
-  },
-}));
-
 const Group = () => {
-  const { classes } = useStyles();
   const [deleteGroup] = useDeleteGroupMutation();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -106,18 +67,9 @@ const Group = () => {
     }
   };
 
-  if (groupLoadError) {
-    return <div>{groupLoadError}</div>;
-  }
+  if (groupLoadError) return groupLoadError;
 
-  // renders
-  if (group == null) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  if (group == null) return <CircularProgress />;
 
   const isAdmin = (aUser: any) => {
     const currentGroupUser = group?.["users"]?.filter(
@@ -163,21 +115,22 @@ const Group = () => {
           </Button>
         )}
       </Box>
-      <Link to={`/group_sources/${group["id"]}`} key={group["id"]}>
-        <Button secondary sx={{ my: 2 }}>
-          Group sources
-        </Button>
-      </Link>
+      <Button
+        secondary
+        component={Link}
+        to={`/group_sources/${group["id"]}`}
+        sx={{ my: 2 }}
+      >
+        Group sources
+      </Button>
       <GroupUsers
         group={group}
         currentUser={currentUser as any}
-        classes={classes}
         theme={theme}
         isAdmin={isAdmin}
       />
       <GroupFiltersStreams
         group={group}
-        classes={classes}
         currentUser={currentUser}
         isAdmin={isAdmin}
         theme={theme}

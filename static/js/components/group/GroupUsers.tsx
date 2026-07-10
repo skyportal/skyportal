@@ -28,7 +28,6 @@ interface GroupUsersProps {
     nickname?: string | null;
     users?: any[];
   };
-  classes: Record<string, any>;
   theme: any;
   currentUser: {
     username?: string;
@@ -42,7 +41,6 @@ interface GroupUsersProps {
 
 const GroupUsers = ({
   group,
-  classes,
   currentUser,
   theme,
   isAdmin,
@@ -80,66 +78,56 @@ const GroupUsers = ({
 
   const renderAdmin = (params: any) => {
     const user = params.row;
+    if (!user?.admin) return null;
     return (
-      user &&
-      user.admin && (
-        <div id={`${user.id}-admin-chip`}>
-          <Chip label="Admin" size="small" color="primary" />
-        </div>
-      )
+      <Chip
+        id={`${user.id}-admin-chip`}
+        label="Admin"
+        size="small"
+        color="primary"
+      />
     );
   };
 
   const renderActions = (params: any) => {
     const user = params.row;
+    const actions = (
+      <ManageUserButtons
+        loadedId={group.id!}
+        user={user as any}
+        isAdmin={isAdmin}
+        group={group as any}
+        currentUser={currentUser as any}
+      />
+    );
+
+    if (!group || !mobile) return actions;
+
     return (
-      <div>
-        {group &&
-          (mobile ? (
-            <div>
-              <IconButton
-                edge="end"
-                aria-label="open-manage-user-popover"
-                onClick={(e) => handlePopoverOpen(e, user.id)}
-                size="large"
-              >
-                <MoreVertIcon />
-              </IconButton>
-              <Popover
-                id={popoverId}
-                open={openedPopoverId === user.id}
-                anchorEl={anchorEl}
-                onClose={handlePopoverClose}
-                anchorOrigin={{
-                  vertical: "bottom",
-                  horizontal: "center",
-                }}
-                transformOrigin={{
-                  vertical: "top",
-                  horizontal: "center",
-                }}
-              >
-                <div className={classes["manageUserPopover"]}>
-                  <ManageUserButtons
-                    loadedId={group.id!}
-                    user={user as any}
-                    isAdmin={isAdmin}
-                    group={group as any}
-                    currentUser={currentUser as any}
-                  />
-                </div>
-              </Popover>
-            </div>
-          ) : (
-            <ManageUserButtons
-              loadedId={group.id!}
-              user={user as any}
-              isAdmin={isAdmin}
-              group={group as any}
-              currentUser={currentUser as any}
-            />
-          ))}
-      </div>
+      <IconButton
+        edge="end"
+        aria-label="open-manage-user-popover"
+        onClick={(e) => handlePopoverOpen(e, user.id)}
+        size="large"
+      >
+        <MoreVertIcon />
+        <Popover
+          id={popoverId}
+          open={openedPopoverId === user.id}
+          anchorEl={anchorEl}
+          onClose={handlePopoverClose}
+          anchorOrigin={{
+            vertical: "bottom",
+            horizontal: "center",
+          }}
+          transformOrigin={{
+            vertical: "top",
+            horizontal: "center",
+          }}
+        >
+          {actions}
+        </Popover>
+      </IconButton>
     );
   };
 
@@ -195,50 +183,40 @@ const GroupUsers = ({
         expandIcon={<ExpandMoreIcon />}
         aria-controls="panel-members-content"
         id="panel-members-header"
-        className={classes["accordion_summary"]}
       >
-        <Typography className={classes["heading"]}>Members</Typography>
+        <Typography variant="h6">Members</Typography>
       </AccordionSummary>
-      <AccordionDetails className={classes["accordion_details"]}>
+      <AccordionDetails>
         <StyledDataGrid
           autoHeight
           columns={columns}
           rows={group?.users ? groupUsers : []}
           getRowId={(row: any) => row.id}
-          // The "actions" cell stacks the admin-toggle buttons above the delete
-          // IconButton, which is taller than the default fixed row height. With
-          // the grid's default `overflow: hidden` cells that pushes the delete
-          // button out of the clickable area. Auto row height lets the full
-          // cell content (incl. the delete button) render and stay clickable.
           getRowHeight={() => "auto"}
           initialState={{
             columns: { columnVisibilityModel: { name: hasNames } },
             pagination: { paginationModel: { pageSize: 25 } },
           }}
           pageSizeOptions={[10, 25, 50, 100, 200]}
-          // Keep all columns mounted so the rightmost "actions" column (delete
-          // buttons) is rendered even when it would otherwise be virtualized
-          // out of the horizontal viewport.
           columnBufferPx={3000}
           showToolbar
         />
         {isAdmin(currentUser) && (
-          <div className={classes["paper"]}>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <Divider />
-              <Typography variant="h6">Adding users to this group</Typography>
-              <AddUserForm group_id={group.id!} />
-              <AddGroupOfUsersForm groupID={group.id!} />
-              {invitationsEnabled && (
-                <>
-                  <Divider />
-                  <InviteNewUserForm group_id={group.id!} />
-                </>
-              )}
-              <Divider />
-              <GroupAdmissionRequestsManagement groupID={group.id!} />
-            </Box>
-          </div>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <Typography sx={{ mt: 2 }} variant="h6">
+              Adding users to this group
+            </Typography>
+            <AddUserForm group_id={group.id!} />
+            <AddGroupOfUsersForm groupID={group.id!} />
+            {invitationsEnabled && (
+              <>
+                <Divider />
+                <InviteNewUserForm group_id={group.id!} />
+              </>
+            )}
+            <Divider />
+            <GroupAdmissionRequestsManagement groupID={group.id!} />
+          </Box>
         )}
       </AccordionDetails>
     </Accordion>
