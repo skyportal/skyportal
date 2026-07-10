@@ -35867,7 +35867,7 @@ export interface components {
              * @description Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)
              * @enum {string|null}
              */
-            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "new_gz" | "ref_gz" | "sub_gz" | null;
+            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "sm" | "hst" | "chandra" | "jwst" | "new_gz" | "ref_gz" | "sub_gz" | null;
             /** @description Path of the Thumbnail on the machine running SkyPortal. */
             file_uri?: string | null;
             /** @description Publically accessible URL of the thumbnail. */
@@ -35900,7 +35900,7 @@ export interface components {
              * @description Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)
              * @enum {string|null}
              */
-            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "new_gz" | "ref_gz" | "sub_gz" | null;
+            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "sm" | "hst" | "chandra" | "jwst" | "new_gz" | "ref_gz" | "sub_gz" | null;
             /** @description Path of the Thumbnail on the machine running SkyPortal. */
             file_uri?: string | null;
             /** @description Publically accessible URL of the thumbnail. */
