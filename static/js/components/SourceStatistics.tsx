@@ -20,7 +20,7 @@ import createPlotlyComponent from "react-plotly.js/factory";
 import Plotly from "./plot/plotlyScatter3d";
 import ClassificationSelect from "./classification/ClassificationSelect";
 import VegaPhotometry from "./plot/VegaPhotometry";
-import { useGetSourcePhotometryMinimalQuery } from "../ducks/photometry_minimal";
+import { useGetSourcePhotometryOverlayQuery } from "../ducks/photometry_minimal";
 import { smoothing_func } from "../utils";
 import {
   useGetPhotStatAggregateQuery,
@@ -40,12 +40,17 @@ const MAX_OVERLAY = 40;
 // the same cache the source page uses.
 const PhotometryFetcher = ({
   sourceId,
+  includeExtinction,
   onData,
 }: {
   sourceId: string;
+  includeExtinction: boolean;
   onData: (id: string, data: any[]) => void;
 }) => {
-  const { data } = useGetSourcePhotometryMinimalQuery(sourceId);
+  const { data } = useGetSourcePhotometryOverlayQuery({
+    id: sourceId,
+    includeExtinction,
+  });
   useEffect(() => {
     if (data) onData(sourceId, data);
   }, [data, sourceId, onData]);
@@ -116,6 +121,7 @@ const LightCurveOverlay = ({
   filterBand,
   colorPair,
   absolute,
+  extinction,
   dmMap,
   onAvailableBands,
 }: {
@@ -126,6 +132,7 @@ const LightCurveOverlay = ({
   filterBand: string;
   colorPair: string;
   absolute: boolean;
+  extinction: boolean;
   dmMap: Record<string, number>;
   onAvailableBands: (bands: string[]) => void;
 }) => {
@@ -148,8 +155,17 @@ const LightCurveOverlay = ({
 
   const traces = useMemo(() => {
     const smooth = smoothWindow > 0;
+    // With extinction on, use the backend's per-filter de-reddened mag
+    // (`mag_corr`); points whose filter has no extinction coefficient are
+    // dropped. Otherwise use the raw mag. Downstream code reads `.mag`.
     const detections = (id: string) =>
-      (photMap[id] ?? []).filter((p) => p.mag !== null && p.mag !== undefined);
+      (photMap[id] ?? [])
+        .map((p) => ({
+          mjd: p.mjd,
+          filter: p.filter,
+          mag: extinction ? p.mag_corr : p.mag,
+        }))
+        .filter((p) => p.mag !== null && p.mag !== undefined);
 
     if (mode === "color") {
       const [b1, b2] = colorPair.split("-");
@@ -221,6 +237,7 @@ const LightCurveOverlay = ({
     filterBand,
     colorPair,
     absolute,
+    extinction,
     dmMap,
   ]);
 
@@ -244,7 +261,12 @@ const LightCurveOverlay = ({
   return (
     <>
       {sourceIds.map((id) => (
-        <PhotometryFetcher key={id} sourceId={id} onData={handleData} />
+        <PhotometryFetcher
+          key={id}
+          sourceId={id}
+          includeExtinction={extinction}
+          onData={handleData}
+        />
       ))}
       <Plot
         data={traces as any}
@@ -346,6 +368,7 @@ const SourceStatistics = () => {
   const [overlayBand, setOverlayBand] = useState("all");
   const [overlayBands, setOverlayBands] = useState<string[]>([]);
   const [absoluteMag, setAbsoluteMag] = useState(false);
+  const [extinction, setExtinction] = useState(false);
   const [colorPair, setColorPair] = useState("");
   const handleAvailableBands = useCallback((bands: string[]) => {
     // Ignore the transient empty report a freshly-mounted overlay emits before
@@ -524,9 +547,20 @@ const SourceStatistics = () => {
     </FormControl>
   );
 
-  // Alignment (t=0 reference) + smoothing, shared by the Overlay and Color views.
+  // Alignment (t=0 reference) + smoothing + extinction, shared by the Overlay
+  // and Color views.
   const alignSmoothControls = (
     <>
+      <FormControlLabel
+        control={
+          <Switch
+            checked={extinction}
+            onChange={(e) => setExtinction(e.target.checked)}
+            size="small"
+          />
+        }
+        label="Extinction"
+      />
       <ToggleButtonGroup
         size="small"
         exclusive
@@ -804,6 +838,7 @@ const SourceStatistics = () => {
                 filterBand={overlayBand}
                 colorPair={colorPair}
                 absolute={absoluteMag}
+                extinction={extinction}
                 dmMap={dmMap}
                 onAvailableBands={handleAvailableBands}
               />
@@ -851,6 +886,7 @@ const SourceStatistics = () => {
                 filterBand={overlayBand}
                 colorPair={colorPair}
                 absolute={false}
+                extinction={extinction}
                 dmMap={dmMap}
                 onAvailableBands={handleAvailableBands}
               />
