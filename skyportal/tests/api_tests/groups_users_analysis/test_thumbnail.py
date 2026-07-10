@@ -517,3 +517,62 @@ def test_token_user_delete_thumbnail_cascade_source(
         len(DBSession.query(Obj).filter(Obj.id == obj_id).first().thumbnails)
         == orig_source_thumbnail_count
     )
+
+
+def test_survey_thumbnail_skymapper_and_on_demand(
+    upload_data_token, super_admin_token, public_group
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    # Default survey-thumbnail generation is SDSS/PS1/LS only; SkyMapper and the
+    # pointed instruments (HST/Chandra/JWST) are on-demand.
+    status, data = api(
+        "POST",
+        "internal/survey_thumbnail",
+        data={"objID": obj_id},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
+    )
+    types = {t["type"] for t in data["data"]["thumbnails"]}
+    assert {"sdss", "ls", "ps1"} <= types
+    assert not ({"sm", "hst", "chandra", "jwst"} & types)
+
+    # Unknown thumbnail types are rejected.
+    status, data = api(
+        "POST",
+        "internal/survey_thumbnail",
+        data={"objID": obj_id, "types": ["bogus"]},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "must be a subset" in data["message"]
+
+    # SkyMapper is available on-demand (placeholder here since the cutout service
+    # is disabled in test config, but the thumbnail is created).
+    status, data = api(
+        "POST",
+        "internal/survey_thumbnail",
+        data={"objID": obj_id, "types": ["sm"]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    status, data = api(
+        "GET", f"sources/{obj_id}?includeThumbnails=true", token=upload_data_token
+    )
+    assert "sm" in {t["type"] for t in data["data"]["thumbnails"]}

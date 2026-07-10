@@ -23,7 +23,7 @@ env, cfg = load_env()
 app_url = get_app_base_url()
 
 ALERT_THUMB_TYPES = ["new", "ref", "sub"]
-ARCHIVE_THUMB_TYPES = ["sdss", "ls", "ps1"]
+ARCHIVE_THUMB_TYPES = ["sdss", "ls", "ps1", "sm", "hst", "chandra", "jwst"]
 ALLOWED_THUMBNAIL_TYPES = [
     *ALERT_THUMB_TYPES,
     *ARCHIVE_THUMB_TYPES,
