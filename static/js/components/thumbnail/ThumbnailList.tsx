@@ -116,11 +116,13 @@ const ThumbnailList = ({
     });
   }
 
-  // Drop placeholder tiles (no coverage, or the cutout service was
+  // Drop placeholder tiles (no url yet, no coverage, or the cutout service was
   // unavailable) so cycling only shows real cutouts. Loading tiles (src "#")
   // are kept — they resolve to a real image or disappear on refresh.
-  const isPlaceholder = (src: string) =>
-    src.includes("outside_survey") || src.includes("currently_unavailable");
+  const isPlaceholder = (src?: string | null) =>
+    !src ||
+    src.includes("outside_survey") ||
+    src.includes("currently_unavailable");
   const shownTiles = tiles.filter(
     (t) => !isPlaceholder(t.src) && !unavailable.has(t.name),
   );
