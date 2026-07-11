@@ -63,6 +63,28 @@ def test_gemini_followup_blank_note_title(
     assert data["status"] == "success"
 
 
+def test_winter_followup_submit(
+    public_group_winter_allocation, public_source, upload_data_token
+):
+    # Regression guard: the submit_trigger flag (a bool) must not crash the
+    # WINTER submit (yarl rejects bool in aiohttp params=).
+    request_data = {
+        "allocation_id": public_group_winter_allocation.id,
+        "obj_id": public_source.id,
+        "payload": {
+            "filter": "J",
+            "start_date": "2026-05-08 04:00:00",
+            "end_date": "2026-05-08 05:00:00",
+        },
+    }
+
+    status, data = api(
+        "POST", "followup_request", data=request_data, token=upload_data_token
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+
 def test_token_user_delete_owned_followup_request(
     public_group_generic_allocation, public_source, upload_data_token
 ):

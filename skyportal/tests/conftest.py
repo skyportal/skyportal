@@ -1491,6 +1491,47 @@ def public_group_gemini_allocation(gemini_north_instrument, public_group):
 
 
 @pytest.fixture()
+def winter_instrument(p60_telescope):
+    instrument = InstrumentFactory(
+        name=f"WINTER_{uuid.uuid4()}",
+        type="imager",
+        telescope=p60_telescope,
+        band="NIR",
+        filters=["sdssg", "sdssr", "sdssi"],
+        api_classname="WINTERAPI",
+    )
+    yield instrument
+    InstrumentFactory.teardown(instrument)
+
+
+@pytest.fixture()
+def public_group_winter_allocation(winter_instrument, public_group):
+    allocation = AllocationFactory(
+        instrument=winter_instrument,
+        group=public_group,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
+        altdata=json.dumps(
+            {
+                "program_name": "dummy-program",
+                "program_api_key": "dummy-key",
+                "username": "dummy-user",
+                "password": "dummy-pass",
+            }
+        ),
+        validity_ranges=[
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+    )
+    yield allocation
+    AllocationFactory.teardown(allocation)
+
+
+@pytest.fixture()
 def public_group2_sedm_allocation(sedm, public_group2):
     allocation = AllocationFactory(
         instrument=sedm,

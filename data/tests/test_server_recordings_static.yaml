@@ -559,4 +559,26 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+    method: POST
+    uri: http://winter.caltech.edu:82/too/winter?program_name=dummy&program_api_key=dummy&submit_trigger=False
+  response:
+    body:
+      string: '{"msg": "Schedule name is ''winter_dummy'' submitted"}'
+    headers:
+      Content-Type:
+      - application/json
+    status:
+      code: 200
+      message: OK
 version: 1

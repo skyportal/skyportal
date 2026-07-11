@@ -105,6 +105,8 @@ test_server:
     /api/v0/pointings: https://treasuremap.space
     /toop/submit_json.php: https://www.swift.psu.edu # Swift
     /api/v0.1/panstarrs/dr2/: https://catalogs.mast.stsci.edu # PS1
+    /too/winter: http://winter.caltech.edu:82 # WINTER
+    /too/spring: http://winter.caltech.edu:82 # SPRING
     /too: https://gnodb.gemini.edu:8443 # Gemini
 
 app:
@@ -146,6 +148,10 @@ app:
       dec: -5.87
       mag: "15.0/UC/Vega"
       pa: 90.0
+  winter:
+    protocol: http
+    host: localhost
+    port: 64502
   ps1_endpoint: http://localhost:64502
   # No live SEDM endpoint in tests — SEDMAPI short-circuits the HTTP call
   # and returns a stub "accepted" response when this is empty.
