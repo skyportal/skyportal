@@ -55,7 +55,7 @@ log = make_log("app/analysis")
 
 _, cfg = load_env()
 
-DEFAULT_ANALYSES_DAILY_LIMIT = 100
+DEFAULT_ANALYSES_DAILY_LIMIT = 1000
 
 # check for API key
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
