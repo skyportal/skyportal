@@ -22,6 +22,15 @@ init_db(**cfg["database"])
 
 THUMBNAIL_TYPES = {"sdss", "ls", "ps1"}
 
+# Defensive guardrail so a stuck cutout/scan query can't wedge a backend.
+STATEMENT_TIMEOUT = "120s"
+
+
+async def set_statement_timeout(session):
+    """Bound query time for this session. Under pgbouncer transaction pooling
+    this applies per-transaction, so set it right after opening a session."""
+    await session.execute(sa.text(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'"))
+
 
 async def fetch_obj(session):
     """Fetch the object with the most recent created_at timestamp that is missing at least one thumbnail.
@@ -88,41 +97,57 @@ async def _run_loop():
             log("Thumbnail queue heartbeat.")
         try:
             internal_key = None
+            # 1. Read/claim: find one obj missing thumbnails and snapshot what we
+            # need, then release the connection before the slow cutout fetch so
+            # we don't sit idle-in-transaction across it.
             # Access via the module: init_db() (above) rebinds the factory after
             # this module is imported, so a direct `from ... import` would keep
             # the pre-init None and call None() ('NoneType' object is not callable).
             async with models.async_plain_session_factory() as session:
+                await set_statement_timeout(session)
                 obj, err = await fetch_obj(session)
                 if err is not None:
                     log(f"Error fetching object with missing thumbnails: {str(err)}")
                     await asyncio.sleep(1)
-                elif obj is None:
+                    continue
+                if obj is None:
                     await asyncio.sleep(5)
-                else:
-                    log(f"Processing thumbnail request for object {obj.id}.")
-                    try:
-                        existing_thumbnail_types = [
-                            thumb.type for thumb in obj.thumbnails
-                        ]
-                        thumbnails = list(
-                            THUMBNAIL_TYPES - set(existing_thumbnail_types)
+                    continue
+                existing_thumbnail_types = [thumb.type for thumb in obj.thumbnails]
+                thumbnails = list(THUMBNAIL_TYPES - set(existing_thumbnail_types))
+                obj_id = obj.id
+                if len(thumbnails) == 0:
+                    log(f"Source {obj_id} has all thumbnails.")
+                    continue
+                log(f"Processing thumbnail request for object {obj_id}.")
+
+            # 2. Resolve the slow PanSTARRS cutout URL off the event loop with no
+            # DB transaction open. `obj` is detached but its attributes are loaded.
+            ps1_url = None
+            if "ps1" in thumbnails:
+                ps1_url = await asyncio.to_thread(lambda o=obj: o.panstarrs_url)
+
+            # 3. Short write txn: just the Thumbnail INSERTs.
+            async with models.async_plain_session_factory() as session:
+                await set_statement_timeout(session)
+                try:
+                    obj = await session.get(Obj, obj_id)
+                    if obj is not None:
+                        await obj.add_linked_thumbnails(
+                            thumbnails, session, ps1_url=ps1_url
                         )
-                        if len(thumbnails) > 0:
-                            await obj.add_linked_thumbnails(thumbnails, session)
-                            internal_key = obj.internal_key
-                        else:
-                            log(f"Source {obj.id} has all thumbnails.")
-                    except Exception as e:
-                        log(
-                            f"Error processing thumbnail request for object {obj.id}: {str(e)}"
-                        )
-                        if isinstance(e, sa.exc.SQLAlchemyError):
-                            try:
-                                await session.rollback()
-                            except Exception as rollback_err:
-                                log(
-                                    f"Error rolling back session after thumbnail failure for object {obj.id}: {str(rollback_err)}"
-                                )
+                        internal_key = obj.internal_key
+                except Exception as e:
+                    log(
+                        f"Error processing thumbnail request for object {obj_id}: {str(e)}"
+                    )
+                    if isinstance(e, sa.exc.SQLAlchemyError):
+                        try:
+                            await session.rollback()
+                        except Exception as rollback_err:
+                            log(
+                                f"Error rolling back session after thumbnail failure for object {obj_id}: {str(rollback_err)}"
+                            )
 
             if internal_key is not None:
                 flow = Flow()

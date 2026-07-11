@@ -34,6 +34,9 @@ init_db(**cfg["database"])
 
 log = make_log("sharing_service_queue")
 
+# Defensive guardrail so a stuck query can't wedge a backend.
+STATEMENT_TIMEOUT = "120s"
+
 tns_retrieval_microservice_url = (
     f"http://{cfg['hosts.tns_retrieval_queue']}:{cfg['ports.tns_retrieval_queue']}"
 )
@@ -289,6 +292,10 @@ def process_submission_requests():
     while True:
         with DBSession() as session:
             try:
+                # Guardrail so a stuck query can't wedge a backend.
+                session.execute(
+                    sa.text(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'")
+                )
                 submission_request = session.scalar(
                     sa.select(SharingServiceSubmission)
                     .where(
@@ -330,8 +337,8 @@ def process_submission_requests():
             except Exception as e:
                 try:
                     session.rollback()
-                except Exception as e:
-                    log(f"Error rolling back session: {str(e)}")
+                except Exception as rollback_err:
+                    log(f"Error rolling back session: {str(rollback_err)}")
                 else:
                     try:
                         traceback.print_exc()
@@ -371,6 +378,10 @@ def validate_submission_requests():
             # Reprocess TNS submissions with status 504. Reset to pending if older than 5 min
             # Confirm if reported. Label them appropriately if a newer one succeeded (same object/service)
             try:
+                # Guardrail so a stuck query can't wedge a backend.
+                session.execute(
+                    sa.text(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'")
+                )
                 failed_submission_requests = session.scalars(
                     sa.select(SharingServiceSubmission).where(
                         SharingServiceSubmission.tns_status.ilike(
