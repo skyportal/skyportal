@@ -262,6 +262,9 @@ class GeminiRequest:
             if round(l_exptime) != 0:
                 payload.update({"exptime": round(l_exptime)})
 
+            # yarl (aiohttp params=) rejects None; omit unset optional fields.
+            payload = {k: v for k, v in payload.items() if v is not None}
+
             payloads.append(payload)
 
         return payloads
