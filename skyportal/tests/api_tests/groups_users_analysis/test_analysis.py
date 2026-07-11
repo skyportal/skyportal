@@ -116,6 +116,60 @@ def test_update_analysis_service(analysis_service_token, public_group):
     assert data["status"] == "success"
 
 
+def test_update_analysis_service_groups(super_admin_token, public_group, public_group2):
+    # Super admin, so the group-membership check passes and we reach the
+    # groups reassignment (the fixed code path).
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "test analysis service name",
+        "description": "A test analysis service description",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:5000/analysis/{name}",
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": ["photometry", "redshift"],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=super_admin_token
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    analysis_service_id = data["data"]["id"]
+
+    # Reassigning groups on an existing service must not raise the async
+    # greenlet_spawn error from lazy-loading the old groups collection to diff it.
+    status, data = api(
+        "PATCH",
+        f"analysis_service/{analysis_service_id}",
+        data={"group_ids": [public_group.id, public_group2.id]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api(
+        "GET", f"analysis_service/{analysis_service_id}", token=super_admin_token
+    )
+    assert status == 200
+    assert sorted(g["id"] for g in data["data"]["groups"]) == sorted(
+        [public_group.id, public_group2.id]
+    )
+
+    status, data = api(
+        "DELETE",
+        f"analysis_service/{analysis_service_id}",
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+
 def test_get_two_analysis_services(analysis_service_token, public_group):
     name = str(uuid.uuid4())
     post_data = {

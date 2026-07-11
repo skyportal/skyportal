@@ -1256,6 +1256,11 @@ class AnalysisServiceHandler(BaseHandler):
                     return self.error(
                         "Cannot change groups for Analysis Services that you are not a member of."
                     )
+                # Async: preload groups before reassigning, else the lazy
+                # diff-load raises greenlet_spawn (sync IO in async).
+                await session.refresh(
+                    merged_analysis_service, attribute_names=["groups"]
+                )
                 merged_analysis_service.groups = groups
 
             await session.commit()
