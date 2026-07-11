@@ -11,6 +11,11 @@ import pandas as pd
 import requests
 import sqlalchemy as sa
 import yaml
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.app.model_util import recursive_to_dict
+from baselayer.log import make_log
 from marshmallow.exceptions import ValidationError
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from requests_oauthlib import OAuth1
@@ -18,12 +23,6 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import contains_eager, joinedload, selectinload
 from tornado.ioloop import IOLoop
-
-from baselayer.app.access import auth_or_token, permissions
-from baselayer.app.env import load_env
-from baselayer.app.flow import Flow
-from baselayer.app.model_util import recursive_to_dict
-from baselayer.log import make_log
 
 from ...app_utils import get_app_base_url
 from ...enum_types import (
@@ -173,6 +172,7 @@ def get_associated_obj_resource(associated_resource_type):
                 "magerr",
                 "filter",
                 "magsys",
+                "limiting_mag",
                 "zp",
                 "instrument_name",
             ],
@@ -372,8 +372,13 @@ def post_analysis(
                         input_filters["photometry"]["instruments_by_name"] = instruments
 
                 df = df[associated_resource["allowed_export_columns"]]
-                # drop duplicate mjd/filter points, keeping first
-                df = df.drop_duplicates(["mjd", "filter"]).reset_index(drop=True)
+                # collapse duplicate mjd/filter points, keeping the lowest-error
+                # (best) one rather than an arbitrary first
+                df = (
+                    df.sort_values("magerr")
+                    .drop_duplicates(["mjd", "filter"])
+                    .reset_index(drop=True)
+                )
             else:
                 input_data = [
                     generic_serialize(
@@ -639,8 +644,13 @@ async def post_analysis_async(
                         input_filters["photometry"]["instruments_by_name"] = instruments
 
                 df = df[associated_resource["allowed_export_columns"]]
-                # drop duplicate mjd/filter points, keeping first
-                df = df.drop_duplicates(["mjd", "filter"]).reset_index(drop=True)
+                # collapse duplicate mjd/filter points, keeping the lowest-error
+                # (best) one rather than an arbitrary first
+                df = (
+                    df.sort_values("magerr")
+                    .drop_duplicates(["mjd", "filter"])
+                    .reset_index(drop=True)
+                )
             else:
                 input_data = [
                     generic_serialize(
