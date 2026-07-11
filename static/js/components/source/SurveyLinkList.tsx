@@ -220,7 +220,7 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
       )}
       <SurveyLink
         name="NED"
-        url={`http://nedwww.ipac.caltech.edu/cgi-bin/nph-objsearch?lon=${ra}d&lat=${dec}d&radius=1.0&search_type=Near+Position+Search`}
+        url={`https://ned.ipac.caltech.edu/NED::API/ConeSearchByPosition?LON=${ra}d&LAT=${dec}d&CSYS=Equatorial&EQUINOX=J2000.0&RADIUS=1.0`}
       />
       <SurveyLink
         name="PTF"
