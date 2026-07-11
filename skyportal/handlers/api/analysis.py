@@ -1685,10 +1685,11 @@ class AnalysisHandler(BaseHandler):
                     return self.success(data=analysis_dict)
 
                 # retrieve multiple analyses
-                stmt = ObjAnalysis.select(self.current_user).options(
-                    selectinload(ObjAnalysis.groups)
-                )
+                stmt = ObjAnalysis.select(self.current_user)
                 if obj_id:
+                    # groups are only serialized for the per-source view; skip the
+                    # eager load (a big secondary query) for the global list.
+                    stmt = stmt.options(selectinload(ObjAnalysis.groups))
                     stmt = stmt.where(ObjAnalysis.obj_id.contains(obj_id.strip()))
                 if analysis_service_id:
                     stmt = stmt.where(
@@ -1700,9 +1701,48 @@ class AnalysisHandler(BaseHandler):
                 ret_array = []
                 analysis_services_dict = {}
                 for a in analyses:
-                    analysis_dict = recursive_to_dict(a)
-                    if "analysis_parameters" in analysis_dict:
-                        analysis_dict["analysis_parameters"].pop("openai_api_key", None)
+                    # Per-source queries (objID) feed the photometry overlay and
+                    # need the full record + model light curve (loaded from disk).
+                    # The global list (no objID) only renders a few columns + the
+                    # health histogram, so build a minimal dict — serializing every
+                    # column and the groups for all rows is what made it slow.
+                    if obj_id:
+                        analysis_dict = recursive_to_dict(a)
+                        if "analysis_parameters" in analysis_dict:
+                            analysis_dict["analysis_parameters"].pop(
+                                "openai_api_key", None
+                            )
+                        analysis_dict["groups"] = [
+                            {"id": g.id, "name": g.name} for g in a.groups
+                        ]
+                        if include_filename:
+                            analysis_dict["filename"] = a._full_name
+                        analysis_dict["model_lightcurve"] = None
+                        analysis_dict["model_lightcurves"] = None
+                        analysis_dict["model_name"] = None
+                        analysis_dict["n_detections"] = None
+                        try:
+                            adata = a.data or {}
+                            analysis_dict["model_lightcurve"] = adata.get(
+                                "model_lightcurve"
+                            )
+                            analysis_dict["model_lightcurves"] = adata.get(
+                                "model_lightcurves"
+                            )
+                            analysis_dict["model_name"] = adata.get("model_name")
+                            analysis_dict["n_detections"] = adata.get("n_detections")
+                        except Exception:
+                            pass
+                    else:
+                        analysis_dict = {
+                            "id": a.id,
+                            "obj_id": a.obj_id,
+                            "status": a.status,
+                            "status_message": a.status_message,
+                            "created_at": a.created_at,
+                            "last_activity": a.last_activity,
+                            "analysis_service_id": a.analysis_service_id,
+                        }
 
                     if a.analysis_service_id not in analysis_services_dict:
                         stmt = AnalysisService.select(self.current_user).where(
@@ -1729,33 +1769,6 @@ class AnalysisHandler(BaseHandler):
                             "analysis_service_description"
                         ]
 
-                    analysis_dict["groups"] = a.groups
-                    if include_filename:
-                        analysis_dict["filename"] = a._full_name
-                    # Expose the per-filter model light curve (compact) so the
-                    # photometry plot can overlay the fit without a full data load.
-                    try:
-                        adata = a.data or {}
-                        analysis_dict["model_lightcurve"] = adata.get(
-                            "model_lightcurve"
-                        )
-                        # Grouped fits pack several models into one analysis:
-                        # {model_name: {filter: [[mjd,med,lo,hi]]}}. The overlay
-                        # expands this into one toggle entry per model.
-                        analysis_dict["model_lightcurves"] = adata.get(
-                            "model_lightcurves"
-                        )
-                        # Model name for the overlay's per-model toggle label
-                        # (real fits use analysis_parameters.source; uploads set this).
-                        analysis_dict["model_name"] = adata.get("model_name")
-                        # Detections used in the fit — lets the overlay tell apart
-                        # multiple runs of the same model on one source.
-                        analysis_dict["n_detections"] = adata.get("n_detections")
-                    except Exception:
-                        analysis_dict["model_lightcurve"] = None
-                        analysis_dict["model_lightcurves"] = None
-                        analysis_dict["model_name"] = None
-                        analysis_dict["n_detections"] = None
                     if (
                         summary_only
                         and not service_info["analysis_serivce_display_as_summary"]
