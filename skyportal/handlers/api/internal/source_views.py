@@ -7,7 +7,8 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 
-from ....models import Obj, ObjTag, SourceView
+from ....models import Obj, ObjTag, SourceView, serialize_obj_tag
+from ....utils.data_access import accessible_group_ids_async
 from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
 
@@ -53,11 +54,17 @@ class SourceViewsHandler(BaseHandler):
             )
             tags_result = await session.scalars(
                 ObjTag.select(session.user_or_token)
-                .options(selectinload(ObjTag.objtagoption))
+                .options(
+                    selectinload(ObjTag.objtagoption),
+                    selectinload(ObjTag.groups),
+                )
                 .where(ObjTag.obj_id.in_(list({obj_id for _, obj_id in query_results})))
             )
             tags = tags_result.all()
-            tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+            user_group_ids = set(
+                await accessible_group_ids_async(session.user_or_token, session)
+            )
+            tags = [serialize_obj_tag(tag, user_group_ids) for tag in tags]
             # make it a hashmap of obj_id to tags
             tags_dict = defaultdict(list)
             for tag in tags:

@@ -38,11 +38,11 @@ export function allocationTitle(
   return `${instrument?.name}/${telescope?.nickname}`;
 }
 
-interface AllocationListProps {
+interface AllocationsTabProps {
   managePermission?: boolean;
 }
 
-const AllocationList = ({ managePermission = false }: AllocationListProps) => {
+const AllocationsTab = ({ managePermission = false }: AllocationsTabProps) => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? null;
@@ -103,7 +103,7 @@ const AllocationList = ({ managePermission = false }: AllocationListProps) => {
   );
 };
 
-const AllocationPage = () => {
+const AllocationList = () => {
   const { data: defaultObservationPlanList } =
     useGetDefaultObservationPlansQuery();
   const { data: defaultSurveyEfficiencyList } =
@@ -167,7 +167,7 @@ const AllocationPage = () => {
       </Grid>
       {tabIndex === 0 && (
         <Grid size={12} style={{ paddingTop: 0 }}>
-          <AllocationList managePermission={permissionAllocation} />
+          <AllocationsTab managePermission={permissionAllocation} />
         </Grid>
       )}
       {tabIndex === 1 && (
@@ -202,4 +202,4 @@ const AllocationPage = () => {
   );
 };
 
-export default AllocationPage;
+export default AllocationList;

@@ -27,6 +27,7 @@ import MenuItem from "@mui/material/MenuItem";
 import FormHelperText from "@mui/material/FormHelperText";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
+import ListItemButton from "@mui/material/ListItemButton";
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormValidationError from "../FormValidationError";
@@ -160,19 +161,19 @@ const GroupFiltersStreams = ({
                     <ListItemText primary={stream.name} />
                   </ListItem>
                   <List component="nav" disablePadding>
-                    {group.filters?.map((filter: any) =>
-                      filter.stream_id === stream.id ? (
-                        <ListItem key={filter.id}>
-                          <Link
-                            to={`/filter/${filter.id}`}
-                            className={classes.filterLink}
-                          >
-                            <ListItemText
-                              key={filter.id}
-                              className={classes.nested}
-                              primary={filter.name}
-                            />
-                          </Link>
+                    {group.filters
+                      ?.filter((f: any) => f.stream_id === stream.id)
+                      .map((filter: any) => (
+                        <ListItemButton
+                          key={filter.id}
+                          component={Link}
+                          to={`/filter/${filter.id}`}
+                        >
+                          <ListItemText
+                            key={filter.id}
+                            className={classes.nested}
+                            primary={filter.name}
+                          />
                           {isAdmin(currentUser) && (
                             <ListItemSecondaryAction>
                               <IconButton
@@ -203,11 +204,8 @@ const GroupFiltersStreams = ({
                               </IconButton>
                             </ListItemSecondaryAction>
                           )}
-                        </ListItem>
-                      ) : (
-                        ""
-                      ),
-                    )}
+                        </ListItemButton>
+                      ))}
                   </List>
                 </div>
               ))}
@@ -261,6 +259,7 @@ const GroupFiltersStreams = ({
                 rules={{ validate: isStreamIdInStreams }}
                 render={({ field: { onChange, value } }) => (
                   <Select
+                    label="Select stream"
                     labelId="alert-stream-select-required-label"
                     onChange={onChange}
                     value={value}
@@ -354,6 +353,7 @@ const GroupFiltersStreams = ({
                 rules={{ validate: isStreamIdInStreams }}
                 render={({ field: { onChange, value } }) => (
                   <Select
+                    label="Alert stream"
                     labelId="alert-stream-select-required-label"
                     onChange={onChange}
                     value={value}
@@ -366,7 +366,6 @@ const GroupFiltersStreams = ({
                   </Select>
                 )}
               />
-              <FormHelperText>Required</FormHelperText>
             </FormControl>
           </DialogContent>
           <DialogActions>

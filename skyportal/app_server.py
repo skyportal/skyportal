@@ -198,6 +198,7 @@ from skyportal.handlers.api import (
     WeatherHandler,
 )
 from skyportal.handlers.api.internal import (
+    AltdataInfoHandler,
     AnnotationsInfoHandler,
     BulkNotificationHandler,
     DBInfoHandler,
@@ -607,6 +608,7 @@ skyportal_handlers = [
     (r"/api/internal/ephemeris(/[0-9]+)?", EphemerisHandler),
     (r"/api/internal/log(/.*)?", LogHandler),
     (r"/api/internal/recent_sources(/.*)?", RecentSourcesHandler),
+    (r"/api/internal/altdata_info", AltdataInfoHandler),
     (r"/api/internal/annotations_info", AnnotationsInfoHandler),
     (r"/api/internal/notifications(/[0-9]+)?", NotificationHandler),
     (r"/api/internal/notifications/all", BulkNotificationHandler),

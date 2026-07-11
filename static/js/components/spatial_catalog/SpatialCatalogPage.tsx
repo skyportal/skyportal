@@ -271,7 +271,7 @@ const SpatialCatalogPage = () => {
       ]
     : [];
 
-  if (spatialCatalogs == null) {
+  if (!spatialCatalogs) {
     return <p>No Spatial Catalogs available...</p>;
   }
 

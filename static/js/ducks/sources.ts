@@ -118,6 +118,11 @@ export const sourcesApi = skyportalApi.injectEndpoints({
       },
       providesTags: ["Sources"],
     }),
+    // Distinct top-level altdata keys, for offering altdata columns on the table.
+    getAltdataInfo: build.query<{ keys: Record<string, string>[] }, void>({
+      query: () => "api/internal/altdata_info",
+      providesTags: ["AltdataInfo"],
+    }),
   }),
 });
 
@@ -142,4 +147,5 @@ export const {
   useFetchFavoriteSourcesQuery,
   useFetchGcnEventSourcesQuery,
   useFetchSpatialCatalogSourcesQuery,
+  useGetAltdataInfoQuery,
 } = sourcesApi;

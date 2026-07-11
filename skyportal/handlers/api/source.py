@@ -32,7 +32,12 @@ from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 from matplotlib import dates
 from sqlalchemy import func, or_
-from sqlalchemy.orm import joinedload, scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import (
+    scoped_session,
+    selectinload,
+    sessionmaker,
+)
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.sql import bindparam, text
 from tornado.ioloop import IOLoop
 from twilio.base.exceptions import TwilioException
@@ -394,6 +399,7 @@ async def get_source(
     if s.host_id:
         host = await session.scalar(sa.select(Galaxy).where(Galaxy.id == s.host_id))
         if host is not None:
+            set_committed_value(s, "host", host)
             source_info["host"] = host.to_dict()
             source_info["host_offset"] = s.host_offset.deg * 3600.0
             source_info["host_distance"] = s.host_distance.value
@@ -562,9 +568,6 @@ async def get_source(
                 [gcn.dateobs for gcn in confirmed_in_gcn]
             )
 
-        # Obj.gcn_crossmatch is an ARRAY(String), so its dateobs come as strings;
-        # normalize all to naive datetimes (deduping across types) so the
-        # GcnEvent.dateobs timestamp IN-filter gets correctly-typed params.
         crossmatch_dateobs = list(
             {arrow.get(dateobs).naive for dateobs in source_info["gcn_crossmatch"]}
         )
@@ -1624,7 +1627,10 @@ class SourceHandler(BaseHandler):
             schema:
               type: string
             description: |
-              The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"]
+              The field to sort by. Allowed options are ["id", "alias", "origin",
+              "ra", "dec", "redshift", "saved_at", "gcn_status", "favorites"],
+              "altdata.<field>" to sort on an altdata field, or
+              "annotation.<origin>.<key>" to sort on an annotation value.
           - in: query
             name: sortOrder
             nullable: true

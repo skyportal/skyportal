@@ -9,6 +9,7 @@ import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import Divider from "@mui/material/Divider";
 import Paper from "@mui/material/Paper";
+import TextField from "@mui/material/TextField";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as candidatesActions from "../../ducks/candidate/candidates";
@@ -31,6 +32,16 @@ const useStyles = makeStyles()((theme) => ({
     paddingLeft: theme.spacing(4),
     paddingTop: 0,
     paddingBottom: 0,
+  },
+  // Keep the origin header visible while scrolling through its annotations.
+  stickyOrigin: {
+    position: "sticky",
+    top: 0,
+    zIndex: 1,
+    background: theme.palette.background.paper,
+  },
+  search: {
+    padding: theme.spacing(0.5),
   },
 }));
 
@@ -109,6 +120,28 @@ const ScanningPageCandidateAnnotations = ({
     initState[annotation.origin] = true;
   });
   const [openedOrigins, setOpenedOrigins] = useState(initState);
+  const [search, setSearch] = useState("");
+
+  // Filter by origin name or any key/value text. An origin whose name matches
+  // keeps all its entries; otherwise only its matching entries are kept.
+  const query = search.trim().toLowerCase();
+  const filteredAnnotations: Annotation[] = query
+    ? annotations.reduce<Annotation[]>((acc, annotation) => {
+        if (annotation.origin.toLowerCase().includes(query)) {
+          acc.push(annotation);
+          return acc;
+        }
+        const entries = Object.entries(annotation.data).filter(
+          ([key, value]) =>
+            key.toLowerCase().includes(query) ||
+            getAnnotationValueString(value).toLowerCase().includes(query),
+        );
+        if (entries.length > 0) {
+          acc.push({ ...annotation, data: Object.fromEntries(entries) });
+        }
+        return acc;
+      }, [])
+    : annotations;
 
   const selectedAnnotationSortOptions = useAppSelector(
     (state) => (state as any).candidates.selectedAnnotationSortOptions,
@@ -134,66 +167,78 @@ const ScanningPageCandidateAnnotations = ({
 
   return (
     <Paper variant="outlined">
+      <TextField
+        className={classes.search}
+        size="small"
+        fullWidth
+        variant="standard"
+        placeholder="Filter annotations..."
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        slotProps={{
+          htmlInput: {
+            "aria-label": "Filter annotations",
+            "data-testid": "annotationSearchInput",
+          },
+        }}
+      />
       <List
         component="nav"
         aria-labelledby="nested-list-subheader"
         className={classes.root}
         dense
       >
-        {annotations.map((annotation) => (
-          <div key={`annotation_${annotation.origin}`}>
-            <Divider />
-            <ListItem
-              {...({ button: true } as any)}
-              onClick={() => handleClick(annotation.origin)}
-            >
-              <ListItemText
-                primary={`${annotation.origin}`}
-                slotProps={{ primary: { variant: "button" } }}
-              />
-              {openedOrigins[annotation.origin] ? (
-                <ExpandLess />
-              ) : (
-                <ExpandMore />
-              )}
-            </ListItem>
-            <Collapse
-              in={openedOrigins[annotation.origin]}
-              timeout="auto"
-              unmountOnExit
-            >
-              <List
-                component="div"
-                sx={{ maxWidth: listWidth }}
-                dense
-                disablePadding
+        {filteredAnnotations.map((annotation) => {
+          // While searching, force matching origins open so results show.
+          const isOpen = query ? true : openedOrigins[annotation.origin];
+          return (
+            <div key={`annotation_${annotation.origin}`}>
+              <Divider />
+              <ListItem
+                {...({ button: true } as any)}
+                className={classes.stickyOrigin}
+                onClick={() => handleClick(annotation.origin)}
               >
-                {Object.entries(annotation.data).map(([key, value]) => (
-                  <ListItem
-                    key={`key_${annotation.origin}_${key}`}
-                    {...({ button: true } as any)}
-                    className={classes.nested}
-                    selected={
-                      selectedAnnotationSortOptions &&
-                      selectedAnnotationSortOptions.origin ===
-                        annotation.origin &&
-                      selectedAnnotationSortOptions.key === key
-                    }
-                    onClick={() => handleItemSelect(annotation.origin, key)}
-                  >
-                    <ListItemText
-                      slotProps={{
-                        secondary: { sx: { maxWidth: listItemWidth } },
-                      }}
-                      secondary={`${key}: ${getAnnotationValueString(value)}`}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Collapse>
-            <Divider />
-          </div>
-        ))}
+                <ListItemText
+                  primary={`${annotation.origin}`}
+                  slotProps={{ primary: { variant: "button" } }}
+                />
+                {isOpen ? <ExpandLess /> : <ExpandMore />}
+              </ListItem>
+              <Collapse in={isOpen} timeout="auto" unmountOnExit>
+                <List
+                  component="div"
+                  sx={{ maxWidth: listWidth }}
+                  dense
+                  disablePadding
+                >
+                  {Object.entries(annotation.data).map(([key, value]) => (
+                    <ListItem
+                      key={`key_${annotation.origin}_${key}`}
+                      {...({ button: true } as any)}
+                      className={classes.nested}
+                      selected={
+                        selectedAnnotationSortOptions &&
+                        selectedAnnotationSortOptions.origin ===
+                          annotation.origin &&
+                        selectedAnnotationSortOptions.key === key
+                      }
+                      onClick={() => handleItemSelect(annotation.origin, key)}
+                    >
+                      <ListItemText
+                        slotProps={{
+                          secondary: { sx: { maxWidth: listItemWidth } },
+                        }}
+                        secondary={`${key}: ${getAnnotationValueString(value)}`}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </Collapse>
+              <Divider />
+            </div>
+          );
+        })}
       </List>
     </Paper>
   );
