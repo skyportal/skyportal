@@ -105,6 +105,7 @@ test_server:
     /api/v0/pointings: https://treasuremap.space
     /toop/submit_json.php: https://www.swift.psu.edu # Swift
     /api/v0.1/panstarrs/dr2/: https://catalogs.mast.stsci.edu # PS1
+    /too: https://gnodb.gemini.edu:8443 # Gemini
 
 app:
   atlas:
@@ -129,6 +130,22 @@ app:
     protocol: http
     host: localhost
     port: 64502
+  gemini:
+    protocol: http
+    # {prefix}.localhost resolves to loopback (systemd-resolved / CI), so the
+    # /too request reaches the test server on port 64502.
+    north_prefix: gnodbtest
+    south_prefix: gsodbtest
+    domain: localhost
+    port: 64502
+    # Canned guide star so the submit path skips the external finder-chart /
+    # Gaia lookup (see GEMINIAPI._get_guide_star).
+    mock_guide_star:
+      name: "TEST-GS"
+      ra: 123.45
+      dec: -5.87
+      mag: "15.0/UC/Vega"
+      pa: 90.0
   ps1_endpoint: http://localhost:64502
   # No live SEDM endpoint in tests — SEDMAPI short-circuits the HTTP call
   # and returns a stub "accepted" response when this is empty.

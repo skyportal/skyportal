@@ -539,4 +539,24 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+    method: POST
+    uri: https://gnodb.gemini.edu:8443/too?prog=GN-DUMMY&email=dummy&password=dummy&obsnum=21&target=TEST&ra=00:00:00.00&dec=%2B00:00:00.0&posangle=90.0&note=test&ready=True&windowDate=2026-05-08&windowTime=04:00&windowDuration=1&elevationType=airmass&elevationMin=1.0&elevationMax=1.6&gstarg=TEST-GS&gsra=123.45&gsdec=-5.87&gsmag=15.0/UC/Vega&gsprobe=OIWFS&group=TEST
+  response:
+    body:
+      string: GN-2026A-Q-102-40
+    headers:
+      Content-Type:
+      - text/html
+    status:
+      code: 200
+      message: OK
 version: 1

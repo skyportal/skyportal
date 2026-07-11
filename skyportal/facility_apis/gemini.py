@@ -49,6 +49,20 @@ class GeminiRequest:
     async def _get_guide_star(self, request, session):
         from ..models import Photometry
 
+        # Test hook: skip the external finder-chart / guide-star lookup (Gaia +
+        # image services) when a canned guide star is configured. Mirrors SEDM's
+        # config short-circuit; never set in production.
+        mock_gs = cfg.get("app.gemini.mock_guide_star")
+        if mock_gs:
+            return (
+                mock_gs["name"],
+                mock_gs["ra"],
+                mock_gs["dec"],
+                mock_gs["mag"],
+                mock_gs["pa"],
+                mock_gs.get("finding_chart_public_url"),
+            )
+
         best_ra, best_dec = request.obj.ra, request.obj.dec
 
         photometry = (
@@ -262,8 +276,13 @@ class GeminiRequest:
             if round(l_exptime) != 0:
                 payload.update({"exptime": round(l_exptime)})
 
-            # yarl (aiohttp params=) rejects None; omit unset optional fields.
-            payload = {k: v for k, v in payload.items() if v is not None}
+            # yarl (aiohttp params=) rejects None and, on newer versions, bool:
+            # omit unset optional fields and stringify bools (same wire value).
+            payload = {
+                k: (str(v) if isinstance(v, bool) else v)
+                for k, v in payload.items()
+                if v is not None
+            }
 
             payloads.append(payload)
 
