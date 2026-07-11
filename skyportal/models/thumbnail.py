@@ -62,7 +62,9 @@ class Thumbnail(Base):
 
 # Covering index for the thumbnail_queue "objs missing a thumbnail type"
 # anti-join (services/thumbnail_queue).
-Thumbnail.__table_args__ = (sa.Index("ix_thumbnails_obj_id_type", "obj_id", "type"),)
+Thumbnail.__table_args__ = (
+    sa.Index("ix_thumbnails_obj_id_type", Thumbnail.obj_id, Thumbnail.type),
+)
 
 
 @event.listens_for(Thumbnail, "before_insert")
