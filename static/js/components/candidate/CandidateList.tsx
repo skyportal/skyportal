@@ -477,7 +477,10 @@ const CandidateInfo = ({
                     ?.includes(g.id),
               ).length),
           ) && (
-            <div className={classes.saveCandidateButton}>
+            <div
+              className={classes.saveCandidateButton}
+              data-testid="tour-candidate-save"
+            >
               <SaveCandidateButton
                 candidate={candidateObj}
                 userGroups={
@@ -572,7 +575,10 @@ const CandidateInfo = ({
               />
             </div>
           )}
-          <div className={classes.infoItemPadded}>
+          <div
+            className={classes.infoItemPadded}
+            data-testid="tour-candidate-classifications"
+          >
             <b>Classification(s): </b>
             <AddClassificationsScanningPage obj_id={candidateObj.id} />
             <div className={classes.classificationsList}>

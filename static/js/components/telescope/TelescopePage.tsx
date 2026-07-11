@@ -253,7 +253,10 @@ const TelescopePage = () => {
           }}
         >
           <Paper className={classes.paperContent}>
-            <div className={classes.mapContainer}>
+            <div
+              className={classes.mapContainer}
+              data-testid="tour-telescopes-map"
+            >
               <TelescopeMap
                 key={mapKey}
                 telescopes={telescopeList}

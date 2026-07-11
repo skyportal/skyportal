@@ -54,7 +54,7 @@ const InstrumentList = () => {
 
   return (
     <Grid container spacing={2}>
-      <Grid size={12}>
+      <Grid size={12} data-testid="tour-instruments-list">
         <InstrumentTable
           instruments={instrumentList}
           telescopes={telescopeList}

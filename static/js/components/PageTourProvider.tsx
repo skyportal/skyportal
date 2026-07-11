@@ -4,6 +4,7 @@ import { useJoyride } from "react-joyride";
 import type { Step } from "react-joyride";
 
 import { PAGE_TOURS } from "./PageTours";
+import { useGetProfileQuery } from "../ducks/profile";
 
 // App-level provider, mounted once inside the router so it survives navigation
 // and can target the destination page. A Getting Started checklist item
@@ -12,6 +13,7 @@ import { PAGE_TOURS } from "./PageTours";
 const PageTourProvider = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { data: profile } = useGetProfileQuery();
   const [steps, setSteps] = useState<Step[]>([]);
   const { controls, Tour } = useJoyride({
     steps,
@@ -25,14 +27,25 @@ const PageTourProvider = () => {
   });
 
   const requested = (location.state as { tour?: string } | null)?.tour;
+  // Effective ACLs; steps tagged with an `acl` the user lacks are dropped so
+  // permission-gated features don't appear (and the tour doesn't stall on a
+  // target that isn't rendered for this user).
+  const permissions: string[] = (profile as any)?.permissions ?? [];
   useEffect(() => {
     if (requested && PAGE_TOURS[requested]) {
-      setSteps(PAGE_TOURS[requested]);
+      setSteps(
+        PAGE_TOURS[requested].filter(
+          (step) => !step.acl || permissions.includes(step.acl),
+        ),
+      );
       navigate(location.pathname + location.search + location.hash, {
         replace: true,
         state: {},
       });
     }
+    // permissions is derived from the cached profile (stable ref); intentionally
+    // not a dep — we filter with whatever ACLs are loaded when the tour launches.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requested, location.pathname, location.search, location.hash, navigate]);
 
   // Start once per newly-selected step-set, but only after the destination

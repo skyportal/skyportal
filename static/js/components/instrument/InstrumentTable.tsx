@@ -358,7 +358,11 @@ const InstrumentTable = ({
             handleSearchChange(event.target.value);
           }}
         />
-        <IconButton name="new_instrument" onClick={() => openNewDialog()}>
+        <IconButton
+          name="new_instrument"
+          data-testid="tour-instruments-new"
+          onClick={() => openNewDialog()}
+        >
           <AddIcon />
         </IconButton>
       </DataGridToolbar>

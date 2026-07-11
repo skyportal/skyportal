@@ -48,10 +48,10 @@ const Groups = () => {
         <GroupList title="My Groups" groups={userGroups} classes={classes} />
       </div>
       {!!nonMemberGroups.length && (
-        <>
+        <div data-testid="tour-groups-request">
           <br />
           <NonMemberGroupList groups={nonMemberGroups} />
-        </>
+        </div>
       )}
       <div data-testid="tour-groups-new">
         <NewGroupForm />
