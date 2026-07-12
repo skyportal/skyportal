@@ -26,6 +26,7 @@ from ...models import (
     CommentOnSpectrum,
     FollowupRequest,
     Group,
+    GroupUser,
     Instrument,
     Obj,
     Spectrum,
@@ -264,9 +265,18 @@ class SpectrumHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                # always append the single user group (sync property reading
-                # DBSession() — safe to call from async handler).
-                single_user_group = self.associated_user_object.single_user_group
+                # always append the single user group (queried async-safely
+                # instead of via the sync-DBSession `single_user_group` property).
+                single_user_group = (
+                    await session.scalars(
+                        sa.select(Group)
+                        .join(GroupUser)
+                        .where(
+                            Group.single_user_group.is_(True),
+                            GroupUser.user_id == self.associated_user_object.id,
+                        )
+                    )
+                ).first()
 
                 group_ids = data.pop("group_ids", None)
                 if group_ids == [] or group_ids is None:
@@ -877,7 +887,9 @@ class SpectrumHandler(BaseHandler):
                 result_spectra = new_result_spectra
 
             if not minimal_payload:  # add other data to each spectrum
-                for spec, spec_dict in zip(spectra, result_spectra):
+                spectra_by_id = {spec.id: spec for spec in spectra}
+                for spec_dict in result_spectra:
+                    spec = spectra_by_id[spec_dict["id"]]
                     annotations_result = await session.scalars(
                         AnnotationOnSpectrum.select(session.user_or_token)
                         .options(selectinload(AnnotationOnSpectrum.author))
@@ -1026,20 +1038,20 @@ class SpectrumHandler(BaseHandler):
             if pi:
                 existing_pis = list(spectrum.pis)
                 pis = []
-                for pi_id in reduced_by:
+                for pi_id in pi:
                     pi_user = await session.scalar(
                         User.select(session.user_or_token).where(User.id == pi_id)
                     )
                     if pi_user is None:
                         return self.error(f"Invalid pi ID: {pi_id}.")
-                    pi_association = SpectrumReducer(
+                    pi_association = SpectrumPI(
                         external_pi=external_pi, user_id=pi_user.id
                     )
                     pis.append(pi_association)
 
                 if len(pis) == 0 and external_pi is not None:
                     return self.error(
-                        "At least one valid user must be provided as a pi point of contact via the 'reduced_by' parameter."
+                        "At least one valid user must be provided as a pi point of contact via the 'pi' parameter."
                     )
 
                 for pi_assoc in existing_pis:
@@ -1287,7 +1299,16 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                     f"Cannot find instrument with ID: {json['instrument_id']}"
                 )
 
-            single_user_group = self.associated_user_object.single_user_group
+            single_user_group = (
+                await session.scalars(
+                    sa.select(Group)
+                    .join(GroupUser)
+                    .where(
+                        Group.single_user_group.is_(True),
+                        GroupUser.user_id == self.associated_user_object.id,
+                    )
+                )
+            ).first()
 
             group_ids = json.pop("group_ids", [])
             if group_ids is None:

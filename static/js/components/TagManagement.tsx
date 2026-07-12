@@ -11,7 +11,6 @@ import Tooltip from "@mui/material/Tooltip";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
-import DownloadIcon from "@mui/icons-material/Download";
 import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
 
@@ -254,28 +253,6 @@ const TagManagement = () => {
     },
   ];
 
-  const handleDownload = () => {
-    if (!tagOptions?.length) {
-      return;
-    }
-    const head = ["id", "name", "color", "created_at"];
-    const csvCell = (value: any) =>
-      `"${String(value ?? "").replace(/"/g, '""')}"`;
-    const rows = tagOptions.map((tag: any) =>
-      [tag.id, tag.name, tag.color, tag.created_at].map(csvCell).join(","),
-    );
-    const result = `${head.map(csvCell).join(",")}\n${rows.join("\n")}`;
-    const blob = new Blob([result], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "tags.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   function CustomToolbar() {
     return (
       <DataGridToolbar showFilter showQuickFilter={false} showExport>
@@ -286,16 +263,6 @@ const TagManagement = () => {
             data-testid="create-tag-button"
           >
             <AddIcon />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Download CSV">
-          <IconButton
-            size="small"
-            aria-label="Download CSV"
-            data-testid="download-tags-button"
-            onClick={handleDownload}
-          >
-            <DownloadIcon />
           </IconButton>
         </Tooltip>
       </DataGridToolbar>

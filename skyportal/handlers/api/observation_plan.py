@@ -351,11 +351,8 @@ async def send_observation_plan(
     if not observation_plan_request.allocation.altdata:
         raise ValueError("Cannot send observation plan without allocation information.")
 
-    def _send(sync_session):
-        api.send(observation_plan_request, sync_session)
-
     try:
-        await session.run_sync(_send)
+        await api.send(observation_plan_request, session)
     except Exception as e:
         raise ValueError(f"Error sending observation plan to telescope: {str(e)}")
 
@@ -1360,10 +1357,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                     "Cannot delete observation plan sent to the telescope queue."
                 )
 
-            def _delete(sync_session):
-                api.delete(observation_plan_request.id)
-
-            await session.run_sync(_delete)
+            await api.delete(observation_plan_request, session)
 
             self.push_all(
                 action="skyportal/REFRESH_GCNEVENT_OBSERVATION_PLAN_REQUESTS",
@@ -1616,11 +1610,8 @@ class ObservationPlanSubmitHandler(BaseHandler):
                     "Cannot remove observation plans from the queue of this instrument."
                 )
 
-            def _remove(sync_session):
-                api.remove(observation_plan_request)
-
             try:
-                await session.run_sync(_remove)
+                await api.remove(observation_plan_request)
             except Exception as e:
                 observation_plan_request.status = "failed to remove from queue"
                 return self.error(

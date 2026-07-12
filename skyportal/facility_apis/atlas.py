@@ -1,12 +1,15 @@
+import json
 from datetime import timedelta
 from io import StringIO
 
+import aiohttp
 import numpy as np
 import pandas as pd
 import requests
+import sqlalchemy as sa
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -233,7 +236,7 @@ def commit_photometry(
             ids = asyncio.run(
                 commit_external_photometry(
                     data_out,
-                    request.requester.id,
+                    user_id,
                     duplicates=duplicates,
                     refresh=True,
                 )
@@ -269,7 +272,7 @@ class ATLASAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a forced photometry request to ATLAS.
 
         Parameters
@@ -280,7 +283,23 @@ class ATLASAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, FacilityTransactionRequest
+        from ..models import (
+            Allocation,
+            FacilityTransaction,
+            FacilityTransactionRequest,
+            FollowupRequest,
+        )
+
+        # Reload with the chains this method (and ATLASRequest) walk eager-loaded,
+        # since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         req = ATLASRequest()
         requestgroup = req._build_payload(request)
@@ -289,22 +308,23 @@ class ATLASAPI(FollowUpAPI):
         if not altdata:
             raise ValueError("Missing allocation information.")
 
-        r = requests.post(
-            f"{ATLAS_URL}/forcedphot/queue/",
-            headers={
-                "Authorization": f"Token {altdata['api_token']}",
-                "Accept": "application/json",
-            },
-            data=requestgroup,
-        )
-        content = r.json()
+        url = f"{ATLAS_URL}/forcedphot/queue/"
+        headers = {
+            "Authorization": f"Token {altdata['api_token']}",
+            "Accept": "application/json",
+        }
 
-        if r.status_code == 201:
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(url, headers=headers, data=requestgroup) as r:
+                content = await r.text()
+                status = r.status
+
+        if status == 201:
             request.status = "submitted"
 
             request_body = {
                 "method": "GET",
-                "endpoint": content["url"],
+                "endpoint": json.loads(content)["url"],
                 "headers": {
                     "Authorization": f"Token {altdata['api_token']}",
                     "Accept": "application/json",
@@ -320,15 +340,15 @@ class ATLASAPI(FollowUpAPI):
                     f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             session.add(req)
-            session.commit()
-        elif r.status_code == 429:
-            request.status = f"throttled: {r.content}"
+            await session.commit()
+        elif status == 429:
+            request.status = f"throttled: {content}"
         else:
-            request.status = f"rejected: {r.content}"
+            request.status = f"rejected: {content}"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request("POST", url, headers, requestgroup),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -350,7 +370,7 @@ class ATLASAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a photometry request from ATLAS API.
 
         Parameters
@@ -361,22 +381,30 @@ class ATLASAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransactionRequest
+        from ..models import FacilityTransactionRequest, FollowupRequest
+
+        # Reload with the chains this method walks eager-loaded, since async
+        # sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(selectinload(FollowupRequest.obj))
+        )
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        transaction = (
-            session.query(FacilityTransactionRequest)
-            .filter(FacilityTransactionRequest.followup_request_id == request.id)
-            .first()
+        transaction = await session.scalar(
+            sa.select(FacilityTransactionRequest).where(
+                FacilityTransactionRequest.followup_request_id == request.id
+            )
         )
         if transaction is not None:
             if transaction.status == "complete":
                 raise ValueError("Request already complete. Cannot delete.")
-            session.delete(transaction)
-        session.delete(request)
-        session.commit()
+            await session.delete(transaction)
+        await session.delete(request)
+        await session.commit()
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
