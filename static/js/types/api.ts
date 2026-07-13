@@ -389,7 +389,51 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update a default analysis
+         * @description Partial update of a default analysis. Any of default_analysis_parameters,
+         *     source_filter, group_ids, daily_limit, show_parameters, show_plots,
+         *     show_corner may be supplied; omitted fields are left unchanged.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    analysis_service_id: number;
+                    default_analysis_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        default_analysis_parameters?: Record<string, never>;
+                        source_filter?: Record<string, never>;
+                        daily_limit?: number;
+                        group_ids?: number[];
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/analysis_service/{analysis_service_id}/default_analysis": {
