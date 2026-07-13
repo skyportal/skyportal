@@ -1,9 +1,13 @@
+import asyncio
+import functools
 import traceback
 from datetime import timedelta
 from json import JSONDecodeError
 
+import aiohttp
 import arrow
-import requests
+import sqlalchemy as sa
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -32,22 +36,45 @@ def get_api_url(program_id):
 
 
 class GeminiRequest:
-    def __init__(self, request, session):
-        self.payload = self._build_payload(request, session)
+    def __init__(self, payload):
+        self.payload = payload
 
-    def _get_guide_star(self, request, session):
+    @classmethod
+    async def create(cls, request, session):
+        """Async factory: build the payload, then construct the request."""
+        self = cls.__new__(cls)
+        self.payload = await self._build_payload(request, session)
+        return self
+
+    async def _get_guide_star(self, request, session):
         from ..models import Photometry
+
+        # Test hook: skip the external finder-chart / guide-star lookup (Gaia +
+        # image services) when a canned guide star is configured. Mirrors SEDM's
+        # config short-circuit; never set in production.
+        mock_gs = cfg.get("app.gemini.mock_guide_star")
+        if mock_gs:
+            return (
+                mock_gs["name"],
+                mock_gs["ra"],
+                mock_gs["dec"],
+                mock_gs["mag"],
+                mock_gs["pa"],
+                mock_gs.get("finding_chart_public_url"),
+            )
 
         best_ra, best_dec = request.obj.ra, request.obj.dec
 
-        photometry = session.scalars(
-            Photometry.select(session.user_or_token).where(
-                Photometry.obj_id == request.obj.id,
-                Photometry.origin.not_in(["alert_fp", "fp"]),
-                Photometry.flux.is_not(None),
-                Photometry.fluxerr.is_not(None),
-                Photometry.ra.is_not(None),
-                Photometry.dec.is_not(None),
+        photometry = (
+            await session.scalars(
+                Photometry.select(session.user_or_token).where(
+                    Photometry.obj_id == request.obj.id,
+                    Photometry.origin.not_in(["alert_fp", "fp"]),
+                    Photometry.flux.is_not(None),
+                    Photometry.fluxerr.is_not(None),
+                    Photometry.ra.is_not(None),
+                    Photometry.dec.is_not(None),
+                )
             )
         ).all()
 
@@ -84,18 +111,23 @@ class GeminiRequest:
         )  # middle of the observation window
         obstime = obstime.strftime("%Y-%m-%d %H:%M:%S")
 
-        finder = get_finding_chart(
-            source_ra=best_ra,
-            source_dec=best_dec,
-            source_name=request.obj.id,
-            use_cache=True,
-            how_many=3,
-            radius_degrees=2 / 60,
-            mag_limit=18,
-            mag_min=10,
-            min_sep_arcsec=2,
-            obstime=obstime,
-            use_source_pos_in_starlist=False,
+        # get_finding_chart is a sync helper doing blocking IO (requests);
+        # run it off the event loop.
+        finder = await asyncio.to_thread(
+            functools.partial(
+                get_finding_chart,
+                source_ra=best_ra,
+                source_dec=best_dec,
+                source_name=request.obj.id,
+                use_cache=True,
+                how_many=3,
+                radius_degrees=2 / 60,
+                mag_limit=18,
+                mag_min=10,
+                min_sep_arcsec=2,
+                obstime=obstime,
+                use_source_pos_in_starlist=False,
+            )
         )
 
         offset_stars = finder.get("starlist", [])
@@ -112,7 +144,7 @@ class GeminiRequest:
 
         return name, ra, dec, f"{mag:.1f}/UC/Vega", pa, finding_chart_public_url
 
-    def _build_payload(self, request, session):
+    async def _build_payload(self, request, session):
         altdata = request.allocation.altdata
         if not altdata:
             raise ValueError("Missing allocation information.")
@@ -172,9 +204,14 @@ class GeminiRequest:
         ).strip()  # maximum airmass value
 
         # Guide star selection
-        gstarg, gsra, gsdec, gsmag, gspa, finding_chart_public_url = (
-            self._get_guide_star(request, session)
-        )
+        (
+            gstarg,
+            gsra,
+            gsdec,
+            gsmag,
+            gspa,
+            finding_chart_public_url,
+        ) = await self._get_guide_star(request, session)
         if gstarg is None:
             raise ValueError("No guide star found")
 
@@ -239,6 +276,14 @@ class GeminiRequest:
             if round(l_exptime) != 0:
                 payload.update({"exptime": round(l_exptime)})
 
+            # yarl (aiohttp params=) rejects None and, on newer versions, bool:
+            # omit unset optional fields and stringify bools (same wire value).
+            payload = {
+                k: (str(v) if isinstance(v, bool) else v)
+                for k, v in payload.items()
+                if v is not None
+            }
+
             payloads.append(payload)
 
         return payloads
@@ -291,34 +336,50 @@ class GEMINIAPI(FollowUpAPI):
         return altdata
 
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """
         Submit a request to the Gemini Observatory
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method (and GeminiRequest) walks
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
             raise ValueError("Missing allocation information.")
 
         try:
-            gemini_request = GeminiRequest(request, session)
+            gemini_request = await GeminiRequest.create(request, session)
         except Exception as e:
             log(traceback.format_exc())
             raise ValueError(f"Error building Gemini request: {e}")
 
         failed_requests = []
         url = get_api_url(altdata.get("programid", ""))
-        for payload in gemini_request.payload:
-            r = requests.post(url, verify=False, params=payload)
-            if r.status_code != 200:
-                failed_requests.append(
-                    {
-                        "id": payload["obsnum"],
-                        "content": r.content.decode("utf-8"),
-                    }
-                )
+        async with aiohttp.ClientSession() as http_session:
+            for payload in gemini_request.payload:
+                async with http_session.post(url, ssl=False, params=payload) as r:
+                    content = await r.text()
+                    status = r.status
+                if status != 200:
+                    failed_requests.append(
+                        {
+                            "id": payload["obsnum"],
+                            "content": content,
+                        }
+                    )
 
         if not failed_requests:
             request.status = "submitted"
@@ -345,9 +406,10 @@ class GEMINIAPI(FollowUpAPI):
             except Exception as e:
                 log(f"Failed to send notification: {e}")
 
+        # Record the last request/response (params encoded in r.url).
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request("POST", r.url, {}, payload),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )

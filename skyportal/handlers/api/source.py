@@ -33,7 +33,12 @@ from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 from matplotlib import dates
 from sqlalchemy import func, or_
-from sqlalchemy.orm import joinedload, scoped_session, selectinload, sessionmaker
+from sqlalchemy.orm import (
+    scoped_session,
+    selectinload,
+    sessionmaker,
+)
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.sql import bindparam, text
 from tornado.ioloop import IOLoop
 from twilio.base.exceptions import TwilioException
@@ -374,21 +379,11 @@ async def get_source(
                 )  # arcsec
             return sorted(duplicates, key=lambda x: x["separation"])
 
-    async def _host():
-        if not s.host_id:
-            return None
-        async with AsyncVerifiedSession(user) as hsession:
-            host = await hsession.scalar(
-                sa.select(Galaxy).where(Galaxy.id == s.host_id)
-            )
-            return host.to_dict() if host is not None else None
-
     (
         source_info["followup_requests"],
         source_info["galaxies"],
         source_info["duplicates"],
-        host_info,
-    ) = await asyncio.gather(_followup_requests(), _galaxies(), _duplicates(), _host())
+    ) = await asyncio.gather(_followup_requests(), _galaxies(), _duplicates())
 
     # Assignments store ORM objects (serialized downstream), so keep them on
     # the caller's still-open session rather than a task-local one.
@@ -422,10 +417,13 @@ async def get_source(
                     photstat.last_detected_mjd, format="mjd"
                 ).isot
 
-    if host_info is not None:
-        source_info["host"] = host_info
-        source_info["host_offset"] = s.host_offset.deg * 3600.0
-        source_info["host_distance"] = s.host_distance.value
+    if s.host_id:
+        host = await session.scalar(sa.select(Galaxy).where(Galaxy.id == s.host_id))
+        if host is not None:
+            set_committed_value(s, "host", host)
+            source_info["host"] = host.to_dict()
+            source_info["host_offset"] = s.host_offset.deg * 3600.0
+            source_info["host_distance"] = s.host_distance.value
 
     if is_token_request:
         sv = SourceView(
@@ -591,9 +589,6 @@ async def get_source(
                 [gcn.dateobs for gcn in confirmed_in_gcn]
             )
 
-        # Obj.gcn_crossmatch is an ARRAY(String), so its dateobs come as strings;
-        # normalize all to naive datetimes (deduping across types) so the
-        # GcnEvent.dateobs timestamp IN-filter gets correctly-typed params.
         crossmatch_dateobs = list(
             {arrow.get(dateobs).naive for dateobs in source_info["gcn_crossmatch"]}
         )
@@ -1646,7 +1641,10 @@ class SourceHandler(BaseHandler):
             schema:
               type: string
             description: |
-              The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"]
+              The field to sort by. Allowed options are ["id", "alias", "origin",
+              "ra", "dec", "redshift", "saved_at", "gcn_status", "favorites"],
+              "altdata.<field>" to sort on an altdata field, or
+              "annotation.<origin>.<key>" to sort on an annotation value.
           - in: query
             name: sortOrder
             nullable: true

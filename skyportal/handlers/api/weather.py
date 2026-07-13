@@ -14,8 +14,6 @@ _, cfg = load_env()
 weather_refresh = cfg.get("weather.refresh_time")
 openweather_api_key = cfg.get("weather.openweather_api_key")
 
-default_prefs = {"telescopeID": 1}
-
 
 class WeatherHandler(BaseHandler):
     @auth_or_token
@@ -77,34 +75,47 @@ class WeatherHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        telescope_id = self.get_query_argument("telescope_id", None, type=int)
         async with self.AsyncSession() as session:
-            user_prefs = getattr(self.associated_user_object, "preferences", None) or {}
-            weather_prefs = user_prefs.get("weather", {})
-            weather_prefs = {**default_prefs, **weather_prefs}
-
-            try:
-                default_telescope_id = int(weather_prefs["telescopeID"])
-            except (TypeError, ValueError):
-                return self.error(
-                    f"telescope ID ({weather_prefs['telescopeID']}) "
-                    f"given in preferences is not a valid ID (integer)."
-                )
-
             # use the query telescope ID otherwise fall back to preferences id
-            telescope_id = self.get_query_argument(
-                "telescope_id", default_telescope_id, type=int
-            )
-
-            telescope = await session.scalar(
-                Telescope.select(self.current_user).where(Telescope.id == telescope_id)
-            )
-            if telescope is None:
-                return self.error(
-                    f"Could not load telescope with ID {weather_prefs['telescopeID']}"
+            if telescope_id is None:
+                user_prefs = (
+                    getattr(self.associated_user_object, "preferences", None) or {}
                 )
+                pref_id = user_prefs.get("weather", {}).get("telescopeID")
+                if pref_id is not None:
+                    try:
+                        telescope_id = int(pref_id)
+                    except (TypeError, ValueError):
+                        return self.error(
+                            f"telescope ID ({pref_id}) "
+                            f"given in preferences is not a valid ID (integer)."
+                        )
+
+            if telescope_id is not None:
+                telescope = await session.scalar(
+                    Telescope.select(self.current_user).where(
+                        Telescope.id == telescope_id
+                    )
+                )
+            else:
+                # no ID requested and no preference: use the first accessible telescope
+                telescope = await session.scalar(
+                    Telescope.select(self.current_user).order_by(Telescope.id)
+                )
+
+            if telescope is None:
+                if telescope_id is not None:
+                    return self.error(
+                        f"telescope with ID {telescope_id} not found or not accessible."
+                    )
+                else:
+                    # if no ID requested, no preference and no telescopes accessible,
+                    # respond gracefully so the widget can show "no weather information" instead of an error
+                    return self.success(data={"weather": None})
 
             weather = await session.scalar(
-                sa.select(Weather).where(Weather.telescope_id == telescope_id)
+                sa.select(Weather).where(Weather.telescope_id == telescope.id)
             )
             if weather is None:
                 weather = Weather(telescope=telescope)

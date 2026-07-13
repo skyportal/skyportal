@@ -105,7 +105,7 @@ const InstrumentForm = ({
   const filters = [...enum_types["ALLOWED_BANDPASSES"]].sort();
 
   const instrumentToEdit = instrumentId
-    ? instrumentList.find((inst: any) => inst.id === instrumentId)
+    ? (instrumentList.find((inst: any) => inst.id === instrumentId) as any)
     : null;
   if (instrumentId && !instrumentToEdit) {
     return <h3>Instrument not found !</h3>;
@@ -248,22 +248,30 @@ const InstrumentForm = ({
         type: "string",
         oneOf: [
           {
-            enum: ["rectangle"],
-            title: "rectangle",
+            enum: ["Rectangle"],
+            title: "Rectangle",
           },
           {
-            enum: ["circle"],
-            title: "circle",
+            enum: ["Circle"],
+            title: "Circle",
           },
         ],
         uniqueItems: true,
         title: "FOV Type",
         description: "Rectangle or Circle",
+        default: instrumentToEdit?.["region_summary"]
+          ? instrumentToEdit?.["region_summary"].includes("Rectangle")
+            ? "Rectangle"
+            : "Circle"
+          : undefined,
       },
       field_fov_attributes: {
         type: "string",
         title: "FOV Attributes",
         description: "Rectangle: width,height; Circle: radius",
+        default: instrumentToEdit?.["region_summary"]?.includes("(")
+          ? instrumentToEdit?.["region_summary"].split("(")[1].split(")")[0]
+          : undefined,
       },
       sensitivity_data: {
         type: "string",
