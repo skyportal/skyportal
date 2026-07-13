@@ -7,8 +7,10 @@ import astropy.units as u
 import numpy as np
 import sqlalchemy as sa
 from astropy.time import Time
+from astropy_healpix import nside_to_level, pixel_resolution_to_nside
 from conesearch_alchemy.math import cosd, sind
 from geojson import Feature, Point
+from mocpy import MOC
 from sqlalchemy.sql import and_, bindparam, text
 
 from baselayer.app.env import load_env
@@ -127,6 +129,35 @@ def within(ra1, dec1, ra2, dec2, radius):
     )
     bounding_box_terms, dot_product_terms = zip(*terms)
     return and_(*bounding_box_terms, sum(dot_product_terms) >= cos_radius)
+
+
+def cone_healpix_prefilter(ra, dec, radius):
+    """Index-friendly prefilter clause for a cone search.
+
+    Restricts the indexed, level-29 nested ``objs.healpix`` to the multi-order
+    coverage of the cone so the planner can range-scan the index instead of
+    computing trig over every row. This is a superset of the true cone, so
+    ``within()`` still applies the exact match. Objs with a NULL healpix fall
+    through to that exact test. Returns ``None`` if no coverage is produced.
+    """
+    # ~4 cells across the radius keeps the range count small at any radius.
+    depth = int(
+        np.clip(
+            nside_to_level(pixel_resolution_to_nside((radius / 4) * u.deg, round="up")),
+            1,
+            29,
+        )
+    )
+    ranges = MOC.from_cone(
+        lon=ra * u.deg, lat=dec * u.deg, radius=radius * u.deg, max_depth=depth
+    ).to_depth29_ranges
+    if len(ranges) == 0:
+        return None
+    terms = ["objs.healpix IS NULL"]
+    terms += [
+        f"objs.healpix >= {int(lo)} AND objs.healpix < {int(hi)}" for lo, hi in ranges
+    ]
+    return "(" + " OR ".join(terms) + ")"
 
 
 def great_circle_distance(ra1_deg, dec1_deg, ra2_deg, dec2_deg):
@@ -960,6 +991,11 @@ async def get_sources(
                     float(dec),
                     float(radius),
                 )
+                # Index-friendly healpix prefilter narrows candidates before the
+                # exact trig test below (which cannot use an index).
+                healpix_clause = cone_healpix_prefilter(ra, dec, radius)
+                if healpix_clause is not None:
+                    statements.append(healpix_clause)
                 statements.append(
                     f"""
                     {within(Obj.ra, Obj.dec, ra, dec, radius).compile(compile_kwargs={"literal_binds": True})}
