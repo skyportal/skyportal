@@ -1,6 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy import desc, or_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import load_only, selectinload
 
 from baselayer.app.access import auth_or_token
 
@@ -98,6 +98,14 @@ class NewsFeedHandler(BaseHandler):
                 selectinload(Classification.obj).options(obj_with_classifications),
             ],
             Spectrum: [
+                # Only the metadata is needed for the feed; skip the heavy
+                # wavelengths/fluxes/errors arrays and original_file_string.
+                load_only(
+                    Spectrum.obj_id,
+                    Spectrum.created_at,
+                    Spectrum.owner_id,
+                    Spectrum.instrument_id,
+                ),
                 selectinload(Spectrum.owner),
                 selectinload(Spectrum.instrument),
                 selectinload(Spectrum.obj).options(obj_with_classifications),

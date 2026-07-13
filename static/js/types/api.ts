@@ -17064,6 +17064,8 @@ export interface paths {
                     savedBefore?: string;
                     /** @description Only return sources that were saved after this UTC datetime. */
                     savedAfter?: string;
+                    /** @description Only return sources that were saved by the requesting user. */
+                    savedByCurrentUser?: boolean;
                     /** @description Only return sources with a spectrum saved after this UTC datetime */
                     hasSpectrumAfter?: string;
                     /**
