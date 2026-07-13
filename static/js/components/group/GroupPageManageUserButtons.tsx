@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { useNavigate } from "react-router-dom";
 import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -49,6 +50,7 @@ const ManageUserButtons = ({
   currentUser,
 }: ManageUserButtonsProps) => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [updateGroupUser] = useUpdateGroupUserMutation();
   const [deleteGroupUser] = useDeleteGroupUserMutation();
 
@@ -116,6 +118,7 @@ const ManageUserButtons = ({
   };
 
   const handleDelete = () => {
+    if (user.username === currentUser.username) navigate("/groups");
     deleteGroupUser({
       userID: user.id,
       group_id: group.id,
