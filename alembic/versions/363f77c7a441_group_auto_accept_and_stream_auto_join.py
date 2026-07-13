@@ -1,7 +1,7 @@
 """group auto_accept_requests and stream auto_join
 
 Revision ID: 363f77c7a441
-Revises: d7b2f4a1c9e0
+Revises: 3d9f7a1c2b45
 Create Date: 2026-07-04 16:14:45.195770
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "363f77c7a441"
-down_revision = "d7b2f4a1c9e0"
+down_revision = "3d9f7a1c2b45"
 branch_labels = None
 depends_on = None
 
