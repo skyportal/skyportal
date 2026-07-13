@@ -1,5 +1,6 @@
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
+import JoinableStreamsList from "./JoinableStreamsList";
 import NewTokenForm from "./NewTokenForm";
 import TokenList from "./TokenList";
 import UpdateProfileForm from "./UpdateProfileForm";
@@ -18,6 +19,11 @@ const Profile = () => {
       <br />
       <div>
         <UpdateProfileForm />
+      </div>
+      &nbsp;
+      <br />
+      <div>
+        <JoinableStreamsList />
       </div>
       &nbsp;
       <br />
