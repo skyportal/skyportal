@@ -38,7 +38,8 @@ def test_invite_single_user(page, super_admin_user, public_group, public_stream)
 
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
 
-    page.locator("//*[@label='Enter user email']//input").first.fill(user_email)
+    page.get_by_role("tab", name="Invite a new user").click()
+    page.locator("//*[@data-testid='newUserEmail']//input").first.fill(user_email)
     page.locator("//*[@data-testid='inviteNewUserButton']").first.click()
     page.locator("//*[@data-testid='confirmNewUserButton']").first.click()
 
