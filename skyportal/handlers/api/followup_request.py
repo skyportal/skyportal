@@ -1402,7 +1402,7 @@ class FollowupRequestHandler(BaseHandler):
 
             if status:
                 followup_requests = followup_requests.where(
-                    FollowupRequest.status.contains(status.strip())
+                    FollowupRequest.status.icontains(status.strip())
                 )
             if len(requesters) > 0:
                 followup_requests = followup_requests.where(
@@ -2526,7 +2526,7 @@ class FollowupRequestSchedulerHandler(BaseHandler):
                     )
                 if status:
                     followup_requests = followup_requests.where(
-                        FollowupRequest.status.contains(status.strip())
+                        FollowupRequest.status.icontains(status.strip())
                     )
 
                 if priority_threshold:

@@ -124,7 +124,9 @@ StreamUser.create = restricted
 # only system admins can modify user stream permissions
 StreamUser.delete = CustomUserAccessControl(stream_delete_logic)
 
-StreamPhotometry = join_model("stream_photometry", Stream, Photometry)
+StreamPhotometry = join_model(
+    "stream_photometry", Stream, Photometry, index_created_at=False, composite_pk=True
+)
 StreamPhotometry.__doc__ = "Join table mapping Streams to Photometry."
 StreamPhotometry.create = accessible_by_stream_members
 

@@ -70,7 +70,7 @@ const FollowupHealth = () => {
   // Explicit (not mapped) so the hook count/order is stable per the rules of hooks.
   const total = useGetFollowupRequestsQuery(base).data?.totalMatches ?? 0;
   const completed =
-    useGetFollowupRequestsQuery({ ...base, status: "completed" }).data
+    useGetFollowupRequestsQuery({ ...base, status: "complete" }).data
       ?.totalMatches ?? 0;
   const submitted =
     useGetFollowupRequestsQuery({ ...base, status: "submitted" }).data

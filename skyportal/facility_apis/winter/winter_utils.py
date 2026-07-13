@@ -271,7 +271,8 @@ async def submit_request(request, session, camera, log, **kwargs):
     params = {
         "program_name": altdata["program_name"],
         "program_api_key": altdata["program_api_key"],
-        "submit_trigger": SUBMIT_TRIGGER,
+        # yarl (aiohttp params=) rejects bool on newer versions; send as str.
+        "submit_trigger": str(SUBMIT_TRIGGER),
     }
     auth = aiohttp.BasicAuth(altdata["username"], altdata["password"])
 

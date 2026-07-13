@@ -21,6 +21,17 @@ class Thumbnail(Base):
 
     create = read = AccessibleIfRelatedRowsAreAccessible(obj="read")
 
+    # created_at is never queried on this table; skip the dead index.
+    index_created_at = False
+
+    __table_args__ = (
+        # Composite for the thumbnail-service anti-join (obj_id = ? AND type IN
+        # (...)) — makes the EXISTS an index-only scan. Leading obj_id also serves
+        # plain obj_id lookups, so ix_thumbnails_obj_id can be dropped once this is
+        # verified live.
+        sa.Index("ix_thumbnails_obj_id_type", "obj_id", "type"),
+    )
+
     # TODO delete file after deleting row
     type = sa.Column(
         thumbnail_types, doc="Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)"
