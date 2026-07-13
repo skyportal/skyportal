@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import datetime
 import functools
@@ -46,6 +47,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.models import AsyncVerifiedSession
 from baselayer.log import make_log
 
 from ...models import (
@@ -220,6 +222,9 @@ async def get_source(
     See Source Handler for optional arguments
     """
     user = await session.scalar(sa.select(User).where(User.id == user_id))
+    # Resolve this lazy property up front so the concurrent tasks below can
+    # use it without touching the (detached) user in another session.
+    is_admin = user.is_admin
 
     if obj_id in [None, ""] and tns_name in [None, ""]:
         raise ValueError("Either obj_id or tns_name must be provided")
@@ -290,42 +295,98 @@ async def get_source(
                 latest_by_type[t.type] = t
         source_info["thumbnails"] = list(latest_by_type.values())
 
-    followup_requests_result = await session.scalars(
-        FollowupRequest.select(
-            user,
-            options=[
-                selectinload(FollowupRequest.allocation).selectinload(
-                    Allocation.instrument
-                ),
-                selectinload(FollowupRequest.allocation).selectinload(Allocation.group),
-                selectinload(FollowupRequest.requester),
-                selectinload(FollowupRequest.watchers),
-                selectinload(FollowupRequest.transactions).load_only(
-                    FacilityTransaction.response
-                ),
-            ],
-        )
-        .where(FollowupRequest.obj_id == obj_id)
-        .where(FollowupRequest.status != "deleted")
-    )
-    followup_requests = followup_requests_result.unique().all()
+    point = ca.Point(ra=s.ra, dec=s.dec)
 
-    followup_requests_data = []
-    for req in followup_requests:
-        req_data = req.to_dict()
-        transactions = []
-        if user.is_admin:
-            for transaction in req.transactions:
-                try:
-                    content = transaction.response["content"]
-                    content = json.loads(content)
-                    transactions.append(content)
-                except Exception:
-                    continue
-        req_data["transactions"] = transactions
-        followup_requests_data.append(req_data)
-    source_info["followup_requests"] = followup_requests_data
+    # The per-source lookups below are mutually independent. Run them
+    # concurrently -- each in its own session, since a single AsyncSession
+    # can't multiplex queries -- to collapse several serial DB round-trips
+    # (including two spatial cone searches) into roughly one.
+    async def _followup_requests():
+        async with AsyncVerifiedSession(user) as fsession:
+            result = await fsession.scalars(
+                FollowupRequest.select(
+                    user,
+                    options=[
+                        selectinload(FollowupRequest.allocation).selectinload(
+                            Allocation.instrument
+                        ),
+                        selectinload(FollowupRequest.allocation).selectinload(
+                            Allocation.group
+                        ),
+                        selectinload(FollowupRequest.requester),
+                        selectinload(FollowupRequest.watchers),
+                        selectinload(FollowupRequest.transactions).load_only(
+                            FacilityTransaction.response
+                        ),
+                    ],
+                )
+                .where(FollowupRequest.obj_id == obj_id)
+                .where(FollowupRequest.status != "deleted")
+            )
+            data = []
+            for req in result.unique().all():
+                req_data = req.to_dict()
+                transactions = []
+                if is_admin:
+                    for transaction in req.transactions:
+                        try:
+                            transactions.append(
+                                json.loads(transaction.response["content"])
+                            )
+                        except Exception:
+                            continue
+                req_data["transactions"] = transactions
+                data.append(req_data)
+            return data
 
+    async def _galaxies():
+        # nearby galaxies (within 10 arcsecs)
+        async with AsyncVerifiedSession(user) as gsession:
+            result = await gsession.scalars(
+                Galaxy.select(user).where(Galaxy.within(point, 10 / 3600))
+            )
+            galaxies = result.unique().all()
+            return list({galaxy.name for galaxy in galaxies}) if galaxies else None
+
+    async def _duplicates():
+        # nearby objects (within 4 arcsecs)
+        async with AsyncVerifiedSession(user) as dsession:
+            duplicate_objs = (
+                Obj.select(user)
+                .where(Obj.within(point, 4 / 3600))
+                .where(Obj.id != s.id)
+                .subquery()
+            )
+            result = await dsession.scalars(
+                Source.select(user)
+                .options(selectinload(Source.obj))
+                .join(duplicate_objs, Source.obj_id == duplicate_objs.c.id)
+            )
+            # multiple sources per obj -> dedupe on unique obj_id keys
+            duplicates = list(
+                {
+                    dup.obj_id: {
+                        "obj_id": dup.obj_id,
+                        "ra": dup.obj.ra,
+                        "dec": dup.obj.dec,
+                    }
+                    for dup in result.unique().all()
+                }.values()
+            )
+            for dup in duplicates:
+                dup["separation"] = (
+                    great_circle_distance(s.ra, s.dec, dup["ra"], dup["dec"]) * 3600
+                )  # arcsec
+            return sorted(duplicates, key=lambda x: x["separation"])
+
+    (
+        source_info["followup_requests"],
+        source_info["galaxies"],
+        source_info["duplicates"],
+    ) = await asyncio.gather(_followup_requests(), _galaxies(), _duplicates())
+
+    # Assignments store ORM objects (serialized downstream), so keep them on
+    # the caller's still-open session rather than a task-local one.
     assignments_result = await session.scalars(
         ClassicalAssignment.select(
             user,
@@ -337,46 +398,6 @@ async def get_source(
         ).where(ClassicalAssignment.obj_id == obj_id)
     )
     source_info["assignments"] = assignments_result.unique().all()
-    point = ca.Point(ra=s.ra, dec=s.dec)
-
-    # Check for nearby galaxies (within 10 arcsecs)
-    galaxies_result = await session.scalars(
-        Galaxy.select(user).where(Galaxy.within(point, 10 / 3600))
-    )
-    galaxies = galaxies_result.unique().all()
-    if len(galaxies) > 0:
-        source_info["galaxies"] = list({galaxy.name for galaxy in galaxies})
-    else:
-        source_info["galaxies"] = None
-
-    # Check for nearby objects (within 4 arcsecs)
-    duplicate_objs = (
-        Obj.select(user)
-        .where(Obj.within(point, 4 / 3600))
-        .where(Obj.id != s.id)
-        .subquery()
-    )
-    duplicates_result = await session.scalars(
-        Source.select(user)
-        .options(selectinload(Source.obj))
-        .join(duplicate_objs, Source.obj_id == duplicate_objs.c.id)
-    )
-    duplicates = duplicates_result.unique().all()
-    # we queried sources joined on obj to enforce permissions, but we can have multiple sources per obj
-    # so we deduplicate the results (happens naturally as a dict has unique obj_id keys here)
-    duplicates = list(
-        {
-            dup.obj_id: {"obj_id": dup.obj_id, "ra": dup.obj.ra, "dec": dup.obj.dec}
-            for dup in duplicates
-        }.values()
-    )
-    # add the separation to each
-    for dup in duplicates:
-        dup["separation"] = (
-            great_circle_distance(s.ra, s.dec, dup["ra"], dup["dec"]) * 3600
-        )  # to arcsec
-    # sort by separation ascending (closest first)
-    source_info["duplicates"] = sorted(duplicates, key=lambda x: x["separation"])
 
     if "photstats" in source_info:
         photstats = source_info["photstats"]
