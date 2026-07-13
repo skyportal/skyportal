@@ -157,9 +157,9 @@ const ScanningProfilesList = ({
   };
 
   const handleDefaultChange = (checked: boolean, dataIndex: number) => {
-    const updatedProfiles = profiles.map((profile: any, i: number) => ({
+    const updatedProfiles = profiles.map((profile: any, index: number) => ({
       ...profile,
-      default: checked && i === dataIndex,
+      default: checked && index === dataIndex,
     }));
     updateUserPreferences({
       scanningProfiles: updatedProfiles,

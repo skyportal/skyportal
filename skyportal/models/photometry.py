@@ -6,6 +6,7 @@ import conesearch_alchemy
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 
@@ -60,6 +61,21 @@ class Photometry(conesearch_alchemy.Point, Base):
 
     __tablename__ = "photometry"
 
+    # created_at is never queried on this 1B-row table; skip the dead index.
+    index_created_at = False
+
+    @declared_attr
+    def __table_args__(cls):
+        # conesearch_alchemy.Point auto-creates a spatial index
+        # (ix_<table>_point) on the cartesian coords for every table that mixes
+        # it in. Photometry is only ever queried by obj_id and never
+        # cone-searched (there is no Photometry.within(...) call), so that index
+        # is enormous and unused on a large DB. Skip it by inheriting
+        # __table_args__ from Point's parent instead of Point, whose
+        # __table_args__ builds the index. Other indexes (deduplication_index)
+        # are attached after the class is defined below.
+        return super(conesearch_alchemy.Point, cls).__table_args__
+
     read = (
         accessible_by_groups_members
         | accessible_by_streams_members
@@ -92,7 +108,6 @@ class Photometry(conesearch_alchemy.Point, Base):
     ref_flux = sa.Column(
         sa.Float,
         nullable=True,
-        index=True,
         doc="Reference flux. E.g., "
         "of the source before transient started, "
         "or the mean flux of a variable source.",
@@ -124,7 +139,6 @@ class Photometry(conesearch_alchemy.Point, Base):
         sa.String,
         nullable=False,
         unique=False,
-        index=True,
         doc="Origin from which this Photometry was extracted (if any).",
         server_default="",
     )

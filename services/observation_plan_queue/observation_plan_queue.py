@@ -222,11 +222,15 @@ def service(*args, **kwargs):
                 if len(plan_requests) == 1:
                     plan_request = plan_requests[0]
                     try:
-                        plan_id = (
-                            plan_request.allocation.instrument.api_class_obsplan.submit(
-                                plan_request.id, asynchronous=False
-                            )
-                        )
+                        api = plan_request.allocation.instrument.api_class_obsplan
+
+                        # submit is async now; bridge from this sync poller on a
+                        # fresh async session (same pattern as _send below).
+                        async def _submit(api=api, rid=plan_request.id):
+                            async with models.async_plain_session_factory() as s:
+                                return await api.submit(rid, s, asynchronous=False)
+
+                        plan_id = asyncio.run(_submit())
                         plan_ids.append(plan_id)
                     except Exception as e:
                         traceback.print_exc()
@@ -235,10 +239,14 @@ def service(*args, **kwargs):
                         session.commit()
                         time.sleep(2)
                         continue
+                    # submit committed the status in its own async session, so this
+                    # sync session's cached copy is stale — populate_existing forces
+                    # a refresh (else we'd read the pre-submit status and never
+                    # advance it to "complete").
                     plan_request = session.scalar(
-                        sa.select(ObservationPlanRequest).where(
-                            ObservationPlanRequest.id == plan_request.id
-                        )
+                        sa.select(ObservationPlanRequest)
+                        .where(ObservationPlanRequest.id == plan_request.id)
+                        .execution_options(populate_existing=True)
                     )
                     log(f"Plan {plan_id} status: {plan_request.status}")
                     if plan_request.status == "running":
@@ -260,11 +268,17 @@ def service(*args, **kwargs):
 
                 else:
                     try:
-                        plan_ids = plan_requests[
-                            0
-                        ].allocation.instrument.api_class_obsplan.submit_multiple(
-                            plan_requests, asynchronous=False
-                        )
+                        api = plan_requests[0].allocation.instrument.api_class_obsplan
+                        rids = [pr.id for pr in plan_requests]
+
+                        # submit_multiple is async now; bridge from this sync poller.
+                        async def _submit_multiple(api=api, rids=rids):
+                            async with models.async_plain_session_factory() as s:
+                                return await api.submit_multiple(
+                                    rids, s, asynchronous=False
+                                )
+
+                        plan_ids = asyncio.run(_submit_multiple())
                     except Exception as e:
                         for plan_request in plan_requests:
                             plan_request.status = "failed to process"
@@ -276,10 +290,12 @@ def service(*args, **kwargs):
                         continue
 
                     for plan_request in plan_requests:
+                        # populate_existing: refresh the stale cached copy, since
+                        # submit_multiple committed the status in its own session.
                         plan_request = session.scalar(
-                            sa.select(ObservationPlanRequest).where(
-                                ObservationPlanRequest.id == plan_request.id
-                            )
+                            sa.select(ObservationPlanRequest)
+                            .where(ObservationPlanRequest.id == plan_request.id)
+                            .execution_options(populate_existing=True)
                         )
                         log(f"Plan {plan_request.id} status: {plan_request.status}")
                         if plan_request.status == "running":
