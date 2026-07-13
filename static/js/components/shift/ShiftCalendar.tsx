@@ -324,7 +324,7 @@ function MyCalendar({
       {!shifts ? (
         <CircularProgress />
       ) : (
-        <div className={classes.content}>
+        <div className={classes.content} data-testid="tour-shifts-calendar">
           <Calendar
             events={[...shifts, preSelectedRange]}
             date={defaultDate || new Date()}

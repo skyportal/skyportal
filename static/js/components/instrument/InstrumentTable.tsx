@@ -233,6 +233,7 @@ const InstrumentTable = ({
       <DataGridToolbar>
         <IconButton
           name="new_instrument"
+          data-testid="tour-instruments-new"
           onClick={() => setNewDialogOpen(true)}
         >
           <AddIcon />

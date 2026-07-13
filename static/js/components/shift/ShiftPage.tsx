@@ -105,6 +105,7 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
             <Button
               secondary
               name="add_shift_button"
+              data-testid="tour-shifts-new"
               onClick={() => setShow("new shift")}
               sx={{
                 color: "text.secondary",

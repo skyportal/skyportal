@@ -98,7 +98,7 @@ from ...utils.offset import (
     get_nearby_offset_stars,
     source_image_parameters,
 )
-from ...utils.parse import get_list_typed, get_page_and_n_per_page
+from ...utils.parse import get_list_typed, get_page_and_n_per_page, str_to_bool
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
 from .candidate.candidate import (
@@ -1576,6 +1576,13 @@ class SourceHandler(BaseHandler):
             description: |
               Only return sources that were saved after this UTC datetime.
           - in: query
+            name: savedByCurrentUser
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Only return sources that were saved by the requesting user.
+          - in: query
             name: hasSpectrumAfter
             nullable: true
             schema:
@@ -2006,6 +2013,9 @@ class SourceHandler(BaseHandler):
         requested_only = self.get_query_argument("pendingOnly", False)
         saved_after = self.get_query_argument("savedAfter", None)
         saved_before = self.get_query_argument("savedBefore", None)
+        saved_by_current_user = str_to_bool(
+            self.get_query_argument("savedByCurrentUser", False), default=False
+        )
         save_summary = self.get_query_argument("saveSummary", False)
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "desc")
@@ -2276,6 +2286,7 @@ class SourceHandler(BaseHandler):
                     has_spectrum_after=has_spectrum_after,
                     saved_before=saved_before,
                     saved_after=saved_after,
+                    saved_by_current_user=saved_by_current_user,
                     created_or_modified_after=created_or_modified_after,
                     list_name=list_name,
                     simbad_class=simbad_class,

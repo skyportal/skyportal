@@ -541,6 +541,7 @@ async def get_sources(
     followup_request_status=None,
     saved_before=None,
     saved_after=None,
+    saved_by_current_user=False,
     created_or_modified_after=None,
     list_name=None,
     simbad_class=None,
@@ -1064,6 +1065,15 @@ async def get_sources(
                 )
             except Exception as e:
                 raise ValueError(f"Invalid saved_after: {saved_after} ({e})")
+        if saved_by_current_user:
+            query_params.append(
+                bindparam("saved_by_user_id", value=user_id, type_=sa.Integer)
+            )
+            statements.append(
+                """
+                sources.saved_by_id = :saved_by_user_id
+                """
+            )
 
         # CLASSIFICATIONS
         if classified:
