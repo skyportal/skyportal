@@ -3,7 +3,7 @@
 Speeds the thumbnail_queue anti-join that finds objs missing a thumbnail type.
 
 Revision ID: b3d9f21c7a4e
-Revises: d7b2f4a1c9e0
+Revises: 3d9f7a1c2b45
 Create Date: 2026-07-10 00:00:00.000000
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "b3d9f21c7a4e"
-down_revision = "d7b2f4a1c9e0"
+down_revision = "3d9f7a1c2b45"
 branch_labels = None
 depends_on = None
 
