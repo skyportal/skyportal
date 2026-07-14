@@ -1,7 +1,7 @@
 """Add teams and group_teams tables
 
 Revision ID: 9bf2f46e850c
-Revises: d7b2f4a1c9e0
+Revises: 52b02a40ac4d
 Create Date: 2026-07-06 00:00:00.000000
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "9bf2f46e850c"
-down_revision = "d7b2f4a1c9e0"
+down_revision = "52b02a40ac4d"
 branch_labels = None
 depends_on = None
 
