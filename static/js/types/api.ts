@@ -8172,6 +8172,76 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/phot_stats/aggregate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bulk photometry statistics for plotting
+         * @description Return a compact set of PhotStat scalar fields across many accessible
+         *     sources, optionally down-selected by classification, for bulk
+         *     visualization (e.g. plotting peak magnitude against rise rate for all
+         *     sources classified as SN Ia). Each source is colored by its
+         *     highest-probability classification. Call without xField/yField to get
+         *     the list of plottable fields only.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description PhotStat field for the x axis (see the returned `fields`). */
+                    xField?: string;
+                    /** @description PhotStat field for the y axis. */
+                    yField?: string;
+                    /** @description Optional PhotStat field for a third (z) axis. */
+                    zField?: string;
+                    /**
+                     * @description Comma-separated classification names to down-select sources
+                     *     (matches any). Omit to include all accessible sources.
+                     */
+                    classifications?: string;
+                    /** @description Only count classifications at or above this probability. */
+                    classificationProbThreshold?: number;
+                    /**
+                     * @description Maximum number of points to return (default 20000, capped at
+                     *     100000). If more match, the response is truncated.
+                     */
+                    maxMatches?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/localization/tags": {
         parameters: {
             query?: never;

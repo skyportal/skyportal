@@ -1054,3 +1054,81 @@ def test_phot_stat_incremental_matches_full_recompute(
             assert stored.last_detected_mjd == pytest.approx(fresh.last_detected_mjd)
 
     asyncio.run(_run())
+
+
+def test_phot_stat_aggregate(upload_data_token, public_group, ztf_camera):
+    # metadata-only request returns the plottable field list
+    status, data = api("GET", "phot_stats/aggregate", token=upload_data_token)
+    assert status == 200
+    field_values = {f["value"] for f in data["data"]["fields"]}
+    assert "peak_mag_global" in field_values
+    assert "rise_rate" in field_values
+    assert data["data"]["points"] == []
+
+    # a source with photometry gets a PhotStat and should appear
+    source_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": source_id,
+            "ra": np.random.uniform(0, 360),
+            "dec": np.random.uniform(-90, 90),
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    for mjd, flux in zip(np.linspace(57000, 57100, 4), [10.0, 110.0, 170.0, 90.0]):
+        status, data = api(
+            "POST",
+            "photometry",
+            data={
+                "obj_id": source_id,
+                "mjd": mjd,
+                "instrument_id": ztf_camera.id,
+                "flux": flux,
+                "fluxerr": 10.0,
+                "zp": 25.0,
+                "magsys": "ab",
+                "filter": "ztfr",
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={"xField": "num_obs_global", "yField": "num_det_global"},
+        token=upload_data_token,
+    )
+    assert status == 200
+    ids = {p["id"] for p in data["data"]["points"]}
+    assert source_id in ids
+
+    # invalid field is rejected
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={"xField": "not_a_field", "yField": "num_det_global"},
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert "Invalid xField" in data["message"]
+
+    # down-selecting on a classification nothing has excludes the source
+    status, data = api(
+        "GET",
+        "phot_stats/aggregate",
+        params={
+            "xField": "num_obs_global",
+            "yField": "num_det_global",
+            "classifications": "not-a-real-classification",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert source_id not in {p["id"] for p in data["data"]["points"]}

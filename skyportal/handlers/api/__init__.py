@@ -144,7 +144,11 @@ from .observation_plan import (
     ObservationPlanWorldmapPlotHandler,
 )
 from .observingrun import ObservingRunBulkEditHandler, ObservingRunHandler
-from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
+from .phot_stat import (
+    PhotStatAggregateHandler,
+    PhotStatHandler,
+    PhotStatUpdateHandler,
+)
 from .photometric_series import PhotometricSeriesHandler
 from .photometry import (
     BulkDeletePhotometryHandler,
