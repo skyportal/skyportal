@@ -131,3 +131,46 @@ def test_spectrum_smoothing_does_not_crash(
     # and nothing threw.
     expect(smoothing_input).to_be_visible()
     assert not errors, f"Spectrum smoothing raised an error: {errors}"
+
+
+def test_spectrum_redshift_slider_does_not_crash(
+    page, user, upload_data_token, public_source, lris
+):
+    # Upload a spectrum so the spectrum plot (and its redshift control) renders.
+    n = 60
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            "obj_id": str(public_source.id),
+            "observed_at": "2021-11-02 12:00:00",
+            "instrument_id": lris.id,
+            "wavelengths": [500.0 + i for i in range(n)],
+            "fluxes": [100.0 + (i % 7) for i in range(n)],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    errors = []
+    page.on("pageerror", lambda exc: errors.append(str(exc)))
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+
+    # The Spectroscopy accordion is expanded by default; the redshift control is
+    # the number field beneath the "Redshift" label.
+    redshift_input = page.locator(
+        "//*[text()='Redshift']/following::input[@type='number'][1]"
+    ).first
+    expect(redshift_input).to_be_visible()
+
+    # Typing into the redshift box feeds its value into the shared Slider state.
+    # Before the fix this stored a raw string, and MUI's Slider threw on it.
+    redshift_input.fill("0.05")
+    page.wait_for_timeout(1500)
+
+    # The plot control is still present (an error boundary would have replaced it)
+    # and nothing threw.
+    expect(redshift_input).to_be_visible()
+    assert not errors, f"Spectrum redshift slider raised an error: {errors}"
