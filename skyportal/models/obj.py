@@ -1,5 +1,6 @@
 __all__ = ["Obj"]
 
+import asyncio
 import io
 import os
 import re
@@ -474,10 +475,14 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sharing submissions associated with this obj.",
     )
 
-    async def add_linked_thumbnails(self, thumbnails, session):
+    async def add_linked_thumbnails(self, thumbnails, session, ps1_url=None):
         """Determine the URLs of the SDSS, Legacy Survey DR10, and
         thumbnails of the object,
-        insert them into the Thumbnails table, and link them to the object."""
+        insert them into the Thumbnails table, and link them to the object.
+
+        `panstarrs_url` does a slow, blocking HTTP request; it is resolved off
+        the event loop here. Callers that already resolved it (with no DB txn
+        open) can pass `ps1_url` to avoid re-fetching."""
         if "sdss" in thumbnails:
             session.add(
                 Thumbnail(obj_id=self.id, public_url=self.sdss_url, type="sdss")
@@ -493,8 +498,9 @@ class Obj(Base, conesearch_alchemy.Point):
         await session.commit()
 
         if "ps1" in thumbnails:
-            url = self.panstarrs_url
-            session.add(Thumbnail(obj_id=self.id, public_url=url, type="ps1"))
+            if ps1_url is None:
+                ps1_url = await asyncio.to_thread(lambda: self.panstarrs_url)
+            session.add(Thumbnail(obj_id=self.id, public_url=ps1_url, type="ps1"))
             await session.commit()
 
         if "sm" in thumbnails:
