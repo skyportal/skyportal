@@ -17,14 +17,13 @@ declare global {
   interface Window {
     __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: typeof compose;
   }
-  // rspack replaces process.env.NODE_ENV at build time; declare it so the dot
-  // access typechecks under noPropertyAccessFromIndexSignature.
-  namespace NodeJS {
-    interface ProcessEnv {
-      NODE_ENV?: string;
-    }
-  }
 }
+
+// rspack replaces the literal `process.env.NODE_ENV` at build time. Declare a
+// minimal `process` locally so the guard typechecks without depending on
+// @types/node's global being picked up by the frontend tsconfig — which it
+// isn't in CI (tsc's default @types discovery doesn't find node types there).
+declare const process: { env: { NODE_ENV?: string } };
 
 const syncConfig = {
   whitelist: [
