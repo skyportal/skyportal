@@ -1884,6 +1884,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/candidates/bulk_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk-delete old, unsaved candidates
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Delete objects that appear as candidates, are not currently saved as
+         *     an active source in any group, and whose most recent candidate
+         *     `passed_at` is older than `maxAgeMonths`. Deleting the object cascades
+         *     to its candidates, photometry, annotations, thumbnails, etc. System
+         *     admin only. Intended to be driven periodically via the Recurring API.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Delete objects whose most recent candidate `passed_at` is
+                         *     older than this many months. Defaults to 6.
+                         */
+                        maxAgeMonths?: number;
+                        /**
+                         * @description Maximum number of objects to delete in this call (deleted
+                         *     oldest-first). Defaults to 1000.
+                         */
+                        batchSize?: number;
+                        /**
+                         * @description If true, only report how many objects would be deleted,
+                         *     without deleting anything. Defaults to false.
+                         */
+                        dryRun?: boolean;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                /** @description Number of objects deleted in this call. */
+                                deleted?: number;
+                                /** @description Number of matching objects still to delete. */
+                                remaining?: number;
+                                dryRun?: boolean;
+                            };
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/candidates/{obj_id}": {
         parameters: {
             query?: never;
