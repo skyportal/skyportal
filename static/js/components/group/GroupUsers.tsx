@@ -188,6 +188,7 @@ const GroupUsers = ({
         expandIcon={<ExpandMoreIcon />}
         aria-controls="panel-members-content"
         id="panel-members-header"
+        data-testid="tour-group-members"
       >
         <Typography variant="h6">Members</Typography>
       </AccordionSummary>

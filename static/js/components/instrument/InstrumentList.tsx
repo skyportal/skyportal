@@ -14,12 +14,14 @@ const InstrumentList = () => {
     false;
 
   return (
-    <InstrumentTable
-      instruments={instrumentList}
-      telescopes={telescopeList}
-      managePermission={managePermission}
-      fixedHeader={true}
-    />
+    <div data-testid="tour-instruments-list">
+      <InstrumentTable
+        instruments={instrumentList}
+        telescopes={telescopeList}
+        managePermission={managePermission}
+        fixedHeader={true}
+      />
+    </div>
   );
 };
 

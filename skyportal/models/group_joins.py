@@ -143,7 +143,9 @@ GroupClassification.delete = GroupClassification.update = (
     accessible_by_group_admins & GroupClassification.read
 )
 
-GroupPhotometry = join_model("group_photometry", Group, Photometry)
+GroupPhotometry = join_model(
+    "group_photometry", Group, Photometry, index_created_at=False, composite_pk=True
+)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 GroupPhotometry.delete = GroupPhotometry.update = (
     accessible_by_group_admins & GroupPhotometry.read

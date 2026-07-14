@@ -5,6 +5,8 @@ import Select from "@mui/material/Select";
 import Chip from "@mui/material/Chip";
 import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
@@ -26,11 +28,13 @@ const NewGroupForm = () => {
     nickname: string;
     description: string;
     group_admins: number[];
+    auto_accept_requests: boolean;
   }>({
     name: "",
     nickname: "",
     description: "",
     group_admins: [],
+    auto_accept_requests: false,
   });
 
   const userIDToName: Record<number, string> = {};
@@ -47,6 +51,7 @@ const NewGroupForm = () => {
         nickname: "",
         description: "",
         group_admins: [],
+        auto_accept_requests: false,
       });
     } catch {
       // error notification handled by the API layer
@@ -91,6 +96,24 @@ const NewGroupForm = () => {
             value={formState.description}
             onChange={handleChange}
             sx={{ width: { xs: "100%", sm: "50%" } }}
+          />
+        </Box>
+        <Box>
+          <FormControlLabel
+            control={
+              <Checkbox
+                name="auto_accept_requests"
+                checked={formState.auto_accept_requests}
+                onChange={(event) =>
+                  setState({
+                    ...formState,
+                    auto_accept_requests: event.target.checked,
+                  })
+                }
+                data-testid="autoAcceptRequestsCheckbox"
+              />
+            }
+            label="Automatically accept requests to join this group"
           />
         </Box>
         <Box>

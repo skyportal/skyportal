@@ -19,6 +19,7 @@ import Button from "../Button";
 import GroupUsers from "./GroupUsers";
 import GroupFiltersStreams from "./GroupFiltersStreams";
 import GroupSources from "./GroupSources";
+import GroupSettingsForm from "./GroupSettingsForm";
 
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupQuery } from "../../ducks/group";
@@ -108,6 +109,7 @@ const Group = () => {
             </Typography>
           )}
         </Box>
+        {isAdmin(currentUser) && <GroupSettingsForm group={group} />}
         {isAdmin(currentUser) && (
           <Button
             variant="outlined"
@@ -123,7 +125,7 @@ const Group = () => {
         <Tabs value={tab} onChange={(_event, value) => setTab(value)}>
           <Tab label="Members" />
           <Tab label="Sources" />
-          <Tab label="Streams and filters" />
+          <Tab label="Streams and filters" data-testid="tour-group-filters" />
         </Tabs>
       </Box>
       {tab === 0 && (

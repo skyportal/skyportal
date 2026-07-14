@@ -1,6 +1,7 @@
 """Test fixture configuration."""
 
 import base64
+import json
 import os
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -1437,6 +1438,88 @@ def public_group_sedm_allocation(sedm, public_group):
         pi=str(uuid.uuid4()),
         proposal_id=str(uuid.uuid4()),
         hours_allocated=100,
+        validity_ranges=[
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+    )
+    yield allocation
+    AllocationFactory.teardown(allocation)
+
+
+@pytest.fixture()
+def gemini_north_instrument(p60_telescope):
+    instrument = InstrumentFactory(
+        name=f"Gemini North_{uuid.uuid4()}",
+        type="imaging spectrograph",
+        telescope=p60_telescope,
+        band="Optical",
+        filters=["sdssg", "sdssr", "sdssi"],
+        api_classname="GEMINIAPI",
+    )
+    yield instrument
+    InstrumentFactory.teardown(instrument)
+
+
+@pytest.fixture()
+def public_group_gemini_allocation(gemini_north_instrument, public_group):
+    allocation = AllocationFactory(
+        instrument=gemini_north_instrument,
+        group=public_group,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
+        altdata=json.dumps(
+            {
+                "user_email": "dummy@example.com",
+                "user_key": "dummy-key",
+                "programid": "GN-2026A-Q-102",
+                "template_ids": [21],
+            }
+        ),
+        validity_ranges=[
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+    )
+    yield allocation
+    AllocationFactory.teardown(allocation)
+
+
+@pytest.fixture()
+def winter_instrument(p60_telescope):
+    instrument = InstrumentFactory(
+        name=f"WINTER_{uuid.uuid4()}",
+        type="imager",
+        telescope=p60_telescope,
+        band="NIR",
+        filters=["sdssg", "sdssr", "sdssi"],
+        api_classname="WINTERAPI",
+    )
+    yield instrument
+    InstrumentFactory.teardown(instrument)
+
+
+@pytest.fixture()
+def public_group_winter_allocation(winter_instrument, public_group):
+    allocation = AllocationFactory(
+        instrument=winter_instrument,
+        group=public_group,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
+        altdata=json.dumps(
+            {
+                "program_name": "dummy-program",
+                "program_api_key": "dummy-key",
+                "username": "dummy-user",
+                "password": "dummy-pass",
+            }
+        ),
         validity_ranges=[
             {
                 "start_date": "2021-02-27T00:00:00.000Z",

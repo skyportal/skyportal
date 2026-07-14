@@ -789,6 +789,156 @@ def test_sources_sorting(upload_data_token, view_only_token, public_group):
     assert data["data"]["sources"][1]["id"] == obj_id2
 
 
+def test_sources_sorting_by_annotation(
+    upload_data_token, super_admin_token, public_group, annotation_token
+):
+    obj_id = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    origin = str(uuid.uuid4())
+    key = "t_E"
+
+    for oid, ra in [(obj_id, 210), (obj_id2, 220)]:
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": oid,
+                "ra": ra,
+                "dec": -22.33,
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    # Values 9 and 10 are chosen so numeric and lexicographic order disagree.
+    for oid, value in [(obj_id, 9), (obj_id2, 10)]:
+        status, data = api(
+            "POST",
+            f"sources/{oid}/annotations",
+            data={"origin": origin, "data": {key: value}},
+            token=annotation_token,
+        )
+        assert status == 200
+
+    # Descending: 10 (obj_id2) must come first; a text sort would rank "9" first.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": f"annotation.{origin}.{key}",
+            "sortOrder": "desc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["sources"][0]["id"] == obj_id2
+    assert data["data"]["sources"][1]["id"] == obj_id
+
+    # Ascending reverses the order.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": f"annotation.{origin}.{key}",
+            "sortOrder": "asc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["sources"][0]["id"] == obj_id
+    assert data["data"]["sources"][1]["id"] == obj_id2
+
+
+def test_sources_sorting_by_annotation_no_leakage(
+    upload_data_token,
+    annotation_token,
+    annotation_token_two_groups,
+    view_only_token,
+    super_admin_token,
+    public_group,
+    public_group2,
+):
+    # Two sources both saved to public_group (so a public_group-only user sees
+    # both). obj_visible has an annotation in public_group; obj_hidden's only
+    # annotation is shared with public_group2, which that user cannot access.
+    obj_visible = str(uuid.uuid4())
+    obj_hidden = str(uuid.uuid4())
+    origin = str(uuid.uuid4())
+    key = "t_E"
+
+    for oid, ra in [(obj_visible, 210), (obj_hidden, 220)]:
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": oid,
+                "ra": ra,
+                "dec": -22.33,
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    # Accessible annotation (small value) on obj_visible.
+    status, data = api(
+        "POST",
+        f"sources/{obj_visible}/annotations",
+        data={"origin": origin, "data": {key: 5}, "group_ids": [public_group.id]},
+        token=annotation_token,
+    )
+    assert status == 200
+
+    # Larger-valued annotation on obj_hidden, shared only with public_group2.
+    status, data = api(
+        "POST",
+        f"sources/{obj_hidden}/annotations",
+        data={"origin": origin, "data": {key: 100}, "group_ids": [public_group2.id]},
+        token=annotation_token_two_groups,
+    )
+    assert status == 200
+
+    # A user who can access public_group2 (here the admin) sees the value 100
+    # and sorts obj_hidden first when descending.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": f"annotation.{origin}.{key}",
+            "sortOrder": "desc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    ids = [s["id"] for s in data["data"]["sources"]]
+    assert ids[0] == obj_hidden
+    assert ids[1] == obj_visible
+
+    # A public_group-only user must NOT see the public_group2 annotation, so its
+    # value cannot influence the sort: obj_hidden has no accessible annotation
+    # and sorts last (NULLS LAST), while obj_visible (value 5) comes first. If
+    # the hidden value leaked, obj_hidden (value 100) would sort first here.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "sortBy": f"annotation.{origin}.{key}",
+            "sortOrder": "desc",
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    ids = [s["id"] for s in data["data"]["sources"]]
+    assert obj_visible in ids and obj_hidden in ids
+    assert ids[0] == obj_visible
+    assert ids[-1] == obj_hidden
+
+
 def test_object_last_detected(
     upload_data_token,
     view_only_token,
@@ -1012,6 +1162,54 @@ def test_sources_filter_by_position(upload_data_token, view_only_token, public_g
     assert data["data"]["sources"][0]["id"] == obj_id1
 
 
+def test_sources_filter_by_position_small_radius(
+    upload_data_token, view_only_token, public_group
+):
+    # Two sources 3 arcsec apart in dec; exercises the healpix cone prefilter
+    # at arcsec scale and its radius boundary.
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    ra, dec = 100.0, 20.0
+    for oid, d in [(obj_id1, dec), (obj_id2, dec + 3 / 3600)]:
+        status, data = api(
+            "POST",
+            "sources",
+            data={"id": oid, "ra": ra, "dec": d, "group_ids": [public_group.id]},
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    # 2 arcsec radius: only obj 1 (obj 2 is 3 arcsec away, outside).
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "ra": ra,
+            "dec": dec,
+            "radius": 2 / 3600,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert {s["id"] for s in data["data"]["sources"]} == {obj_id1}
+
+    # 4 arcsec radius: both sources are within.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "ra": ra,
+            "dec": dec,
+            "radius": 4 / 3600,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert {s["id"] for s in data["data"]["sources"]} == {obj_id1, obj_id2}
+
+
 def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public_group):
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
@@ -1069,6 +1267,48 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     assert status == 200
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == obj_id2
+
+
+def test_sources_filter_by_saved_by_current_user(
+    upload_data_token, view_only_token2, public_group
+):
+    # upload_data_token and view_only_token2 are different users, both in
+    # public_group; only the former saves the source below.
+    obj_id = str(uuid.uuid4())
+
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    # The saver sees it when filtering to their own saves
+    status, data = api(
+        "GET",
+        "sources",
+        params={"savedByCurrentUser": "true", "group_ids": f"{public_group.id}"},
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert obj_id in [s["id"] for s in data["data"]["sources"]]
+
+    # Another group member who did not save it does not see it
+    status, data = api(
+        "GET",
+        "sources",
+        params={"savedByCurrentUser": "true", "group_ids": f"{public_group.id}"},
+        token=view_only_token2,
+    )
+    assert status == 200
+    assert obj_id not in [s["id"] for s in data["data"]["sources"]]
 
 
 def test_sources_filter_by_time_spectrum(

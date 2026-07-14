@@ -125,8 +125,10 @@ const DefaultFollowupRequestList = ({
     return <div>{group ? group.name : ""}</div>;
   };
 
+  // Let the tree wrap and grow so every key/value is visible (paired with the
+  // grid's auto row height); otherwise all but the first field is clipped.
   const renderPayload = (params: any) => {
-    const cellStyle = { whiteSpace: "nowrap" as const };
+    const cellStyle = { whiteSpace: "normal" as const, padding: "0.25rem 0" };
     return (
       <div style={cellStyle}>
         {params.row ? <JSONTree data={params.row.payload} hideRoot /> : ""}
@@ -135,7 +137,7 @@ const DefaultFollowupRequestList = ({
   };
 
   const renderSourceFilter = (params: any) => {
-    const cellStyle = { whiteSpace: "nowrap" as const };
+    const cellStyle = { whiteSpace: "normal" as const, padding: "0.25rem 0" };
     return (
       <div style={cellStyle}>
         {params.row ? (
@@ -236,6 +238,7 @@ const DefaultFollowupRequestList = ({
         </Typography>
         <StyledDataGrid
           autoHeight
+          getRowHeight={() => "auto"}
           rows={default_followup_requests || []}
           columns={columns}
           getRowId={(row: any) => row.id}

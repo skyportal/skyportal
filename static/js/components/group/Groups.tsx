@@ -39,16 +39,22 @@ const Groups = () => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <GroupList
-        title="My Groups"
-        groups={userGroups}
-        classes={classes}
-        listMaxHeight="65vh"
-      />
+      <div data-testid="tour-groups-list">
+        <GroupList
+          title="My Groups"
+          groups={userGroups}
+          classes={classes}
+          listMaxHeight="65vh"
+        />
+      </div>
       {!!nonMemberGroups.length && (
-        <NonMemberGroupList groups={nonMemberGroups} />
+        <div data-testid="tour-groups-request">
+          <NonMemberGroupList groups={nonMemberGroups} />
+        </div>
       )}
-      <NewGroupForm />
+      <div data-testid="tour-groups-new">
+        <NewGroupForm />
+      </div>
       {canManageGroups && (
         <GroupList
           title="All Groups"
