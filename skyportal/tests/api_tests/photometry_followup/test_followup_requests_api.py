@@ -371,6 +371,58 @@ def test_default_followup_request_stores_constraints(
     assert match["implements_update"] is False
 
 
+def test_default_followup_request_source_filter_regex_validation(
+    public_group, public_group_sedm_allocation, super_admin_token
+):
+    def make(name):
+        return _default_followup_payload(
+            public_group,
+            public_group_sedm_allocation,
+            source_filter={"name": name, "group_id": public_group.id},
+        )
+
+    # A valid regex is accepted.
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("^ZTF2[0-9].*"),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+    # A malformed regex is rejected at creation (would otherwise error in
+    # Postgres on every source save).
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("([unterminated"),
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "valid regular expression" in data["message"]
+
+    # A catastrophic-backtracking pattern is rejected at creation (ReDoS guard).
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("(a+)+$"),
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "catastrophic backtracking" in data["message"]
+
+    # An oversized pattern is rejected.
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("a" * 1001),
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "at most" in data["message"]
+
+
 def test_default_followup_request_without_constraints_is_null(
     public_group, public_group_sedm_allocation, super_admin_token
 ):
