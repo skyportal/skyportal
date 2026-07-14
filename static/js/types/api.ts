@@ -15487,6 +15487,16 @@ export interface paths {
                     type?: "png" | "pdf";
                     /** @description output desired number of offset stars [0,5] (default: 3) */
                     num_offset_stars?: number;
+                    /**
+                     * @description Brightest (smallest) offset-star magnitude to allow. Defaults to the
+                     *     facility value when omitted.
+                     */
+                    mag_min?: number;
+                    /**
+                     * @description Faintest (largest) offset-star magnitude to allow. Defaults to the
+                     *     facility value when omitted.
+                     */
+                    mag_limit?: number;
                     /** @description Return a JSON including the finding chart and star_list */
                     as_json?: boolean;
                     /** @description Use caching when generating finding charts (default: true) */
@@ -15522,6 +15532,53 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/finder_chart/facilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get finding chart facility parameters
+         * @description Retrieve the per-facility default parameters used to generate finding
+         *     charts (offset-star magnitude range, search radius, minimum
+         *     separation). Used by the frontend to populate the finder-chart form.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            /**
+                             * @description Object keyed by facility name; each value holds
+                             *     radius_degrees, mag_limit (faint end), mag_min
+                             *     (bright end), and min_sep_arcsec.
+                             */
+                            data?: Record<string, never>;
+                        };
                     };
                 };
             };

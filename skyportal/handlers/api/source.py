@@ -2891,6 +2891,8 @@ def get_finding_chart_callable(
     obstime,
     output_type,
     num_offset_stars,
+    mag_min=None,
+    mag_limit=None,
 ):
     """
     Returns a callable that generates a finding chart for the given object ID.
@@ -2915,6 +2917,12 @@ def get_finding_chart_callable(
         The desired output type for the finding chart (e.g., "pdf", "png").
     num_offset_stars: int
         The desired number of offset stars (default is 3, must be between 0 and 4).
+    mag_min: float, optional
+        Brightest (smallest) offset-star magnitude to allow. Defaults to the
+        facility value when None.
+    mag_limit: float, optional
+        Faintest (largest) offset-star magnitude to allow. Defaults to the
+        facility value when None.
 
     Returns a callable that generates the finding chart.
     """
@@ -2938,6 +2946,15 @@ def get_finding_chart_callable(
 
     if image_source not in source_image_parameters:
         raise ValueError("Invalid image source")
+
+    # Offset-star magnitude range: user overrides fall back to the facility
+    # defaults. mag_min is the bright (small) end, mag_limit the faint (large).
+    if mag_min is None:
+        mag_min = facility_parameters[facility]["mag_min"]
+    if mag_limit is None:
+        mag_limit = facility_parameters[facility]["mag_limit"]
+    if mag_min >= mag_limit:
+        raise ValueError("`mag_min` must be brighter (smaller) than `mag_limit`")
 
     photometry = (
         session.scalars(
@@ -2989,8 +3006,8 @@ def get_finding_chart_callable(
         use_cache=use_cache,
         how_many=num_offset_stars,
         radius_degrees=facility_parameters[facility]["radius_degrees"],
-        mag_limit=facility_parameters[facility]["mag_limit"],
-        mag_min=facility_parameters[facility]["mag_min"],
+        mag_limit=mag_limit,
+        mag_min=mag_min,
         min_sep_arcsec=facility_parameters[facility]["min_sep_arcsec"],
         starlist_type=facility,
         obstime=obstime,
@@ -3069,6 +3086,20 @@ class SourceFinderHandler(BaseHandler):
           description: |
             output desired number of offset stars [0,5] (default: 3)
         - in: query
+          name: mag_min
+          schema:
+            type: number
+          description: |
+            Brightest (smallest) offset-star magnitude to allow. Defaults to the
+            facility value when omitted.
+        - in: query
+          name: mag_limit
+          schema:
+            type: number
+          description: |
+            Faintest (largest) offset-star magnitude to allow. Defaults to the
+            facility value when omitted.
+        - in: query
           name: as_json
           schema:
             type: boolean
@@ -3124,22 +3155,35 @@ class SourceFinderHandler(BaseHandler):
             num_offset_stars = int(num_offset_stars)
         except ValueError:
             return self.error("Invalid argument for `num_offset_stars`")
+        mag_min = self.get_query_argument("mag_min", None)
+        mag_limit = self.get_query_argument("mag_limit", None)
+        try:
+            mag_min = float(mag_min) if mag_min not in [None, ""] else None
+            mag_limit = float(mag_limit) if mag_limit not in [None, ""] else None
+        except ValueError:
+            return self.error("Invalid argument for `mag_min`/`mag_limit`")
         as_json = self.get_query_argument("as_json", False)
         use_cache = self.get_query_argument("use_cache", True)
 
         with self.Session() as session:
-            finder = get_finding_chart_callable(
-                obj_id,
-                session,
-                imsize,
-                use_cache,
-                facility,
-                image_source,
-                use_ztfref,
-                obstime,
-                output_type,
-                num_offset_stars,
-            )
+            try:
+                finder = get_finding_chart_callable(
+                    obj_id,
+                    session,
+                    imsize,
+                    use_cache,
+                    facility,
+                    image_source,
+                    use_ztfref,
+                    obstime,
+                    output_type,
+                    num_offset_stars,
+                    mag_min=mag_min,
+                    mag_limit=mag_limit,
+                )
+            except ValueError as e:
+                status = 404 if str(e) == "Source not found" else 400
+                return self.error(str(e), status=status)
 
             self.push_notification(
                 "Finding chart generation in progress. Download will start soon."
@@ -3174,6 +3218,38 @@ class SourceFinderHandler(BaseHandler):
                 return self.error(f"Error generating finding chart: {str(e)}")
 
             await self.send_file(data, filename, output_type=output_type)
+
+
+class FinderChartFacilitiesHandler(BaseHandler):
+    @auth_or_token
+    async def get(self):
+        """
+        ---
+        summary: Get finding chart facility parameters
+        description: |
+          Retrieve the per-facility default parameters used to generate finding
+          charts (offset-star magnitude range, search radius, minimum
+          separation). Used by the frontend to populate the finder-chart form.
+        tags:
+          - sources
+          - finding chart
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          description: |
+                            Object keyed by facility name; each value holds
+                            radius_degrees, mag_limit (faint end), mag_min
+                            (bright end), and min_sep_arcsec.
+        """
+        return self.success(data=facility_parameters)
 
 
 class SourceNotificationHandler(BaseHandler):
