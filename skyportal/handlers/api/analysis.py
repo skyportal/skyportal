@@ -173,6 +173,7 @@ def get_associated_obj_resource(associated_resource_type):
                 "magerr",
                 "filter",
                 "magsys",
+                "limiting_mag",
                 "zp",
                 "instrument_name",
             ],
@@ -372,8 +373,13 @@ def post_analysis(
                         input_filters["photometry"]["instruments_by_name"] = instruments
 
                 df = df[associated_resource["allowed_export_columns"]]
-                # drop duplicate mjd/filter points, keeping first
-                df = df.drop_duplicates(["mjd", "filter"]).reset_index(drop=True)
+                # collapse duplicate mjd/filter points, keeping the lowest-error
+                # (best) one rather than an arbitrary first
+                df = (
+                    df.sort_values("magerr")
+                    .drop_duplicates(["mjd", "filter"])
+                    .reset_index(drop=True)
+                )
             else:
                 input_data = [
                     generic_serialize(
@@ -639,8 +645,13 @@ async def post_analysis_async(
                         input_filters["photometry"]["instruments_by_name"] = instruments
 
                 df = df[associated_resource["allowed_export_columns"]]
-                # drop duplicate mjd/filter points, keeping first
-                df = df.drop_duplicates(["mjd", "filter"]).reset_index(drop=True)
+                # collapse duplicate mjd/filter points, keeping the lowest-error
+                # (best) one rather than an arbitrary first
+                df = (
+                    df.sort_values("magerr")
+                    .drop_duplicates(["mjd", "filter"])
+                    .reset_index(drop=True)
+                )
             else:
                 input_data = [
                     generic_serialize(
