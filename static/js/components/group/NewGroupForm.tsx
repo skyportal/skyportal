@@ -70,7 +70,10 @@ const NewGroupForm = () => {
   return (
     <Paper sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <Typography variant="h6">Create New Group</Typography>
-      <form onSubmit={handleSubmit}>
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+      >
         <Box>
           <TextField
             label="Group Name"
@@ -96,24 +99,6 @@ const NewGroupForm = () => {
             value={formState.description}
             onChange={handleChange}
             sx={{ width: { xs: "100%", sm: "50%" } }}
-          />
-        </Box>
-        <Box>
-          <FormControlLabel
-            control={
-              <Checkbox
-                name="auto_accept_requests"
-                checked={formState.auto_accept_requests}
-                onChange={(event) =>
-                  setState({
-                    ...formState,
-                    auto_accept_requests: event.target.checked,
-                  })
-                }
-                data-testid="autoAcceptRequestsCheckbox"
-              />
-            }
-            label="Automatically accept requests to join this group"
           />
         </Box>
         <Box>
@@ -154,6 +139,24 @@ const NewGroupForm = () => {
               ))}
             </Select>
           </FormControl>
+        </Box>
+        <Box>
+          <FormControlLabel
+            control={
+              <Checkbox
+                name="auto_accept_requests"
+                checked={formState.auto_accept_requests}
+                onChange={(event) =>
+                  setState({
+                    ...formState,
+                    auto_accept_requests: event.target.checked,
+                  })
+                }
+                data-testid="autoAcceptRequestsCheckbox"
+              />
+            }
+            label="Automatically accept requests to join this group"
+          />
         </Box>
         <Box>
           <Button primary type="submit">
