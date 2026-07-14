@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
 import GroupList from "./GroupList";
@@ -29,6 +32,8 @@ const Groups = () => {
   const userGroups = groupsData?.user ?? [];
   const allGroups = groupsData?.all ?? null;
 
+  const [tab, setTab] = useState(0);
+
   if (!userGroups.length || allGroups === null) return <Spinner />;
 
   const canManageGroups = permissions?.includes("System admin");
@@ -37,31 +42,45 @@ const Groups = () => {
     (g) => !userGroups.map((ug) => ug.id).includes(g.id),
   );
 
+  const tabPanels = [
+    <GroupList
+      key="my-groups"
+      title="My Groups"
+      groups={userGroups}
+      classes={classes}
+      listMaxHeight="65vh"
+    />,
+    ...(nonMemberGroups.length
+      ? [<NonMemberGroupList key="non-member" groups={nonMemberGroups} />]
+      : []),
+    <NewGroupForm key="new-group" />,
+    ...(canManageGroups
+      ? [
+          <GroupList
+            key="all-groups"
+            title="All Groups"
+            groups={allMultiUserGroups}
+            classes={classes}
+          />,
+        ]
+      : []),
+  ];
+
+  const activeTab = Math.min(tab, tabPanels.length - 1);
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <div data-testid="tour-groups-list">
-        <GroupList
-          title="My Groups"
-          groups={userGroups}
-          classes={classes}
-          listMaxHeight="65vh"
-        />
-      </div>
-      {!!nonMemberGroups.length && (
-        <div data-testid="tour-groups-request">
-          <NonMemberGroupList groups={nonMemberGroups} />
-        </div>
-      )}
-      <div data-testid="tour-groups-new">
-        <NewGroupForm />
-      </div>
-      {canManageGroups && (
-        <GroupList
-          title="All Groups"
-          groups={allMultiUserGroups}
-          classes={classes}
-        />
-      )}
+      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+        <Tabs value={activeTab} onChange={(_event, value) => setTab(value)}>
+          <Tab label="My Groups" data-testid="tour-groups-list" />
+          {nonMemberGroups.length > 0 && (
+            <Tab label="Non-member groups" data-testid="tour-groups-request" />
+          )}
+          <Tab label="Create New Group" data-testid="tour-groups-new" />
+          {canManageGroups && <Tab label="All Groups" />}
+        </Tabs>
+      </Box>
+      {tabPanels[activeTab]}
     </Box>
   );
 };
