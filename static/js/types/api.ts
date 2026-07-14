@@ -27262,10 +27262,10 @@ export interface components {
         GroupTeam: {
             readonly group?: components["schemas"]["Group"];
             readonly team?: components["schemas"]["Team"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             team_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupTeam: {
             /** @enum {string} */
