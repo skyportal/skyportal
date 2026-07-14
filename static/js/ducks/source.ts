@@ -19,6 +19,7 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
+import { sourceTag } from "./sourceTags";
 
 export const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
 export const REFRESH_SOURCE_POSITION = "skyportal/REFRESH_SOURCE_POSITION";
@@ -108,15 +109,16 @@ export const sourceApi = skyportalApi.injectEndpoints({
       // The broad "Source" tag is kept so source mutations still refetch it.
       providesTags: (_result, _error, id) => [
         "Source",
+        { type: "Source", id },
         { type: "SourcePosition", id },
       ],
     }),
     getAssociatedGcns: build.query<AssociatedGcns, number | string>({
       query: (id) => `api/associated_gcns/${id}`,
-      // Broad tag only: matching the pre-migration behavior, associated GCNs are
-      // not refetched by the per-id REFRESH_SOURCE websocket (they refresh on
-      // source mutations via the "Source" tag).
-      providesTags: ["Source"],
+      // Broad "Source" (so any broad source mutation still refetches it) plus a
+      // per-id tag so per-source mutations (e.g. addGCNCrossmatch) refresh only
+      // this source's associated GCNs.
+      providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
     }),
     getAnalyses: build.query<
       RouteData<"GET /api/{analysis_resource_type}/analysis">,
@@ -235,7 +237,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: payload,
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
     updateSourceGroups: build.mutation<any, Record<string, any>>({
       query: (payload) => ({
@@ -254,7 +256,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: { groupID, active: true, requested: false },
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
     declineSaveRequest: build.mutation<
       any,
@@ -265,7 +267,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: { groupID, active: false, requested: false },
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
     addSourceView: build.mutation<any, number | string>({
       query: (id) => ({
@@ -281,7 +283,8 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: formData,
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, formData) =>
+        sourceTag(formData?.["obj_id"]),
     }),
     deleteClassification: build.mutation<any, number | string>({
       query: (classificationID) => ({
@@ -295,7 +298,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         url: `api/sources/${sourceID}/classifications`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
     }),
     addClassificationVote: build.mutation<
       any,
@@ -333,7 +336,8 @@ export const sourceApi = skyportalApi.injectEndpoints({
           data: result.data as RouteData<"POST /api/{associated_resource_type}/{resource_id}/comments">,
         };
       },
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, formData) =>
+        sourceTag(formData?.["obj_id"]),
     }),
     editComment: build.mutation<
       RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
@@ -355,7 +359,8 @@ export const sourceApi = skyportalApi.injectEndpoints({
           data: result.data as RouteData<"PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}">,
         };
       },
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { formData }) =>
+        sourceTag(formData?.["obj_id"]),
     }),
     deleteComment: build.mutation<
       any,
@@ -365,7 +370,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         url: `api/sources/${sourceID}/comments/${commentID}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
     deleteCommentOnSpectrum: build.mutation<
       any,
@@ -388,7 +393,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: formData,
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
     deleteAnnotation: build.mutation<
       any,
@@ -398,7 +403,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         url: `api/sources/${sourceID}/annotations/${annotationID}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
 
     // ----- Labels -----
@@ -411,7 +416,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
     deleteSourceLabels: build.mutation<
       any,
@@ -422,7 +427,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "DELETE",
         body: data,
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
 
     // ----- Follow-up requests -----
@@ -529,7 +534,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: formData,
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
 
     // ----- External-catalog annotations -----
@@ -541,7 +546,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         url: `api/sources/${sourceID}/annotations/gaia`,
         method: "POST",
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
     }),
     fetchWise: build.mutation<
       RouteData<"POST /api/sources/{obj_id}/annotations/irsa">,
@@ -551,7 +556,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         url: `api/sources/${sourceID}/annotations/irsa`,
         method: "POST",
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
     }),
     fetchVizier: build.mutation<
       RouteData<"POST /api/sources/{obj_id}/annotations/vizier">,
@@ -562,14 +567,14 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: { catalog },
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
     fetchPhotoz: build.mutation<any, number | string>({
       query: (sourceID) => ({
         url: `api/sources/${sourceID}/annotations/datalab`,
         method: "POST",
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
     }),
     fetchPS1: build.mutation<
       RouteData<"POST /api/sources/{obj_id}/annotations/ps1">,
@@ -579,7 +584,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         url: `api/sources/${sourceID}/annotations/ps1`,
         method: "POST",
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
     }),
 
     // ----- TNS / host / MPC / GCN crossmatch -----
@@ -591,7 +596,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         url: `api/sources/${id}/tns`,
         params: formData,
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
     addHost: build.mutation<
       any,
@@ -602,14 +607,14 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: formData,
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
     removeHost: build.mutation<any, number | string>({
       query: (id) => ({
         url: `api/sources/${id}/host`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, id) => sourceTag(id),
     }),
     addMPC: build.mutation<
       any,
@@ -620,7 +625,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: formData,
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
     addGCNCrossmatch: build.mutation<
       any,
@@ -631,7 +636,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: formData,
       }),
-      invalidatesTags: ["Source"],
+      invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
 
     // ----- Analyses (start / delete) -----
