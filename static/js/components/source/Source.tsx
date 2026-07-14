@@ -730,6 +730,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 className={classes.rowInfo}
                 onMouseEnter={() => handleHover("tns")}
                 onMouseLeave={() => handleStopHover("tns")}
+                data-testid="tour-source-tns"
               >
                 <b>TNS Name: &nbsp;</b>
                 {source.tns_name && (
@@ -1212,6 +1213,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 ra={source.ra}
                 dec={source.dec}
                 thumbnails={source.thumbnails}
+                objID={source.id}
                 size="100%"
                 minSize={rightPanelVisible || downLg ? "6rem" : "10rem"}
                 maxSize={rightPanelVisible || downLg ? "13rem" : "20rem"}
@@ -1365,10 +1367,14 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     Photometry Table
                   </Button>
                   <Link to={`/share_data/${source.id}`} role="link">
-                    <Button secondary>Share data</Button>
+                    <Button secondary data-testid="tour-source-share">
+                      Share data
+                    </Button>
                   </Link>
                   <Link to={`/upload_photometry/${source.id}`} role="link">
-                    <Button secondary>Upload photometry</Button>
+                    <Button secondary data-testid="tour-source-upload">
+                      Upload photometry
+                    </Button>
                   </Link>
                   {source?.photometry_exists && (
                     <Link to={`/source/${source.id}/periodogram`} role="link">
@@ -1455,6 +1461,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             defaultExpanded
             disableGutters
             className={classes.flexColumn}
+            data-testid="tour-source-followup"
           >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}

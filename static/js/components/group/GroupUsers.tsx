@@ -195,6 +195,7 @@ const GroupUsers = ({
         aria-controls="panel-members-content"
         id="panel-members-header"
         className={classes["accordion_summary"]}
+        data-testid="tour-group-members"
       >
         <Typography className={classes["heading"]}>Members</Typography>
       </AccordionSummary>

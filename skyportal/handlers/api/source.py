@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import datetime
 import functools
@@ -46,6 +47,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.models import AsyncVerifiedSession
 from baselayer.log import make_log
 
 from ...models import (
@@ -98,7 +100,7 @@ from ...utils.offset import (
     get_nearby_offset_stars,
     source_image_parameters,
 )
-from ...utils.parse import get_list_typed, get_page_and_n_per_page
+from ...utils.parse import get_list_typed, get_page_and_n_per_page, str_to_bool
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
 from .candidate.candidate import (
@@ -137,7 +139,9 @@ def remove_obj_thumbnails(obj_id):
         existing_thumbnails = session.scalars(
             sa.select(Thumbnail).where(
                 Thumbnail.obj_id == obj_id,
-                Thumbnail.type.in_(["ps1", "sdss", "ls"]),
+                Thumbnail.type.in_(
+                    ["ps1", "sdss", "ls", "sm", "hst", "chandra", "jwst"]
+                ),
             )
         )
         for thumbnail in existing_thumbnails:
@@ -220,6 +224,9 @@ async def get_source(
     See Source Handler for optional arguments
     """
     user = await session.scalar(sa.select(User).where(User.id == user_id))
+    # Resolve this lazy property up front so the concurrent tasks below can
+    # use it without touching the (detached) user in another session.
+    is_admin = user.is_admin
 
     if obj_id in [None, ""] and tns_name in [None, ""]:
         raise ValueError("Either obj_id or tns_name must be provided")
@@ -290,42 +297,98 @@ async def get_source(
                 latest_by_type[t.type] = t
         source_info["thumbnails"] = list(latest_by_type.values())
 
-    followup_requests_result = await session.scalars(
-        FollowupRequest.select(
-            user,
-            options=[
-                selectinload(FollowupRequest.allocation).selectinload(
-                    Allocation.instrument
-                ),
-                selectinload(FollowupRequest.allocation).selectinload(Allocation.group),
-                selectinload(FollowupRequest.requester),
-                selectinload(FollowupRequest.watchers),
-                selectinload(FollowupRequest.transactions).load_only(
-                    FacilityTransaction.response
-                ),
-            ],
-        )
-        .where(FollowupRequest.obj_id == obj_id)
-        .where(FollowupRequest.status != "deleted")
-    )
-    followup_requests = followup_requests_result.unique().all()
+    point = ca.Point(ra=s.ra, dec=s.dec)
 
-    followup_requests_data = []
-    for req in followup_requests:
-        req_data = req.to_dict()
-        transactions = []
-        if user.is_admin:
-            for transaction in req.transactions:
-                try:
-                    content = transaction.response["content"]
-                    content = json.loads(content)
-                    transactions.append(content)
-                except Exception:
-                    continue
-        req_data["transactions"] = transactions
-        followup_requests_data.append(req_data)
-    source_info["followup_requests"] = followup_requests_data
+    # The per-source lookups below are mutually independent. Run them
+    # concurrently -- each in its own session, since a single AsyncSession
+    # can't multiplex queries -- to collapse several serial DB round-trips
+    # (including two spatial cone searches) into roughly one.
+    async def _followup_requests():
+        async with AsyncVerifiedSession(user) as fsession:
+            result = await fsession.scalars(
+                FollowupRequest.select(
+                    user,
+                    options=[
+                        selectinload(FollowupRequest.allocation).selectinload(
+                            Allocation.instrument
+                        ),
+                        selectinload(FollowupRequest.allocation).selectinload(
+                            Allocation.group
+                        ),
+                        selectinload(FollowupRequest.requester),
+                        selectinload(FollowupRequest.watchers),
+                        selectinload(FollowupRequest.transactions).load_only(
+                            FacilityTransaction.response
+                        ),
+                    ],
+                )
+                .where(FollowupRequest.obj_id == obj_id)
+                .where(FollowupRequest.status != "deleted")
+            )
+            data = []
+            for req in result.unique().all():
+                req_data = req.to_dict()
+                transactions = []
+                if is_admin:
+                    for transaction in req.transactions:
+                        try:
+                            transactions.append(
+                                json.loads(transaction.response["content"])
+                            )
+                        except Exception:
+                            continue
+                req_data["transactions"] = transactions
+                data.append(req_data)
+            return data
 
+    async def _galaxies():
+        # nearby galaxies (within 10 arcsecs)
+        async with AsyncVerifiedSession(user) as gsession:
+            result = await gsession.scalars(
+                Galaxy.select(user).where(Galaxy.within(point, 10 / 3600))
+            )
+            galaxies = result.unique().all()
+            return list({galaxy.name for galaxy in galaxies}) if galaxies else None
+
+    async def _duplicates():
+        # nearby objects (within 4 arcsecs)
+        async with AsyncVerifiedSession(user) as dsession:
+            duplicate_objs = (
+                Obj.select(user)
+                .where(Obj.within(point, 4 / 3600))
+                .where(Obj.id != s.id)
+                .subquery()
+            )
+            result = await dsession.scalars(
+                Source.select(user)
+                .options(selectinload(Source.obj))
+                .join(duplicate_objs, Source.obj_id == duplicate_objs.c.id)
+            )
+            # multiple sources per obj -> dedupe on unique obj_id keys
+            duplicates = list(
+                {
+                    dup.obj_id: {
+                        "obj_id": dup.obj_id,
+                        "ra": dup.obj.ra,
+                        "dec": dup.obj.dec,
+                    }
+                    for dup in result.unique().all()
+                }.values()
+            )
+            for dup in duplicates:
+                dup["separation"] = (
+                    great_circle_distance(s.ra, s.dec, dup["ra"], dup["dec"]) * 3600
+                )  # arcsec
+            return sorted(duplicates, key=lambda x: x["separation"])
+
+    (
+        source_info["followup_requests"],
+        source_info["galaxies"],
+        source_info["duplicates"],
+    ) = await asyncio.gather(_followup_requests(), _galaxies(), _duplicates())
+
+    # Assignments store ORM objects (serialized downstream), so keep them on
+    # the caller's still-open session rather than a task-local one.
     assignments_result = await session.scalars(
         ClassicalAssignment.select(
             user,
@@ -337,46 +400,6 @@ async def get_source(
         ).where(ClassicalAssignment.obj_id == obj_id)
     )
     source_info["assignments"] = assignments_result.unique().all()
-    point = ca.Point(ra=s.ra, dec=s.dec)
-
-    # Check for nearby galaxies (within 10 arcsecs)
-    galaxies_result = await session.scalars(
-        Galaxy.select(user).where(Galaxy.within(point, 10 / 3600))
-    )
-    galaxies = galaxies_result.unique().all()
-    if len(galaxies) > 0:
-        source_info["galaxies"] = list({galaxy.name for galaxy in galaxies})
-    else:
-        source_info["galaxies"] = None
-
-    # Check for nearby objects (within 4 arcsecs)
-    duplicate_objs = (
-        Obj.select(user)
-        .where(Obj.within(point, 4 / 3600))
-        .where(Obj.id != s.id)
-        .subquery()
-    )
-    duplicates_result = await session.scalars(
-        Source.select(user)
-        .options(selectinload(Source.obj))
-        .join(duplicate_objs, Source.obj_id == duplicate_objs.c.id)
-    )
-    duplicates = duplicates_result.unique().all()
-    # we queried sources joined on obj to enforce permissions, but we can have multiple sources per obj
-    # so we deduplicate the results (happens naturally as a dict has unique obj_id keys here)
-    duplicates = list(
-        {
-            dup.obj_id: {"obj_id": dup.obj_id, "ra": dup.obj.ra, "dec": dup.obj.dec}
-            for dup in duplicates
-        }.values()
-    )
-    # add the separation to each
-    for dup in duplicates:
-        dup["separation"] = (
-            great_circle_distance(s.ra, s.dec, dup["ra"], dup["dec"]) * 3600
-        )  # to arcsec
-    # sort by separation ascending (closest first)
-    source_info["duplicates"] = sorted(duplicates, key=lambda x: x["separation"])
 
     if "photstats" in source_info:
         photstats = source_info["photstats"]
@@ -1576,6 +1599,13 @@ class SourceHandler(BaseHandler):
             description: |
               Only return sources that were saved after this UTC datetime.
           - in: query
+            name: savedByCurrentUser
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Only return sources that were saved by the requesting user.
+          - in: query
             name: hasSpectrumAfter
             nullable: true
             schema:
@@ -2006,6 +2036,9 @@ class SourceHandler(BaseHandler):
         requested_only = self.get_query_argument("pendingOnly", False)
         saved_after = self.get_query_argument("savedAfter", None)
         saved_before = self.get_query_argument("savedBefore", None)
+        saved_by_current_user = str_to_bool(
+            self.get_query_argument("savedByCurrentUser", False), default=False
+        )
         save_summary = self.get_query_argument("saveSummary", False)
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "desc")
@@ -2276,6 +2309,7 @@ class SourceHandler(BaseHandler):
                     has_spectrum_after=has_spectrum_after,
                     saved_before=saved_before,
                     saved_after=saved_after,
+                    saved_by_current_user=saved_by_current_user,
                     created_or_modified_after=created_or_modified_after,
                     list_name=list_name,
                     simbad_class=simbad_class,
@@ -2859,6 +2893,8 @@ def get_finding_chart_callable(
     obstime,
     output_type,
     num_offset_stars,
+    mag_min=None,
+    mag_limit=None,
 ):
     """
     Returns a callable that generates a finding chart for the given object ID.
@@ -2883,6 +2919,12 @@ def get_finding_chart_callable(
         The desired output type for the finding chart (e.g., "pdf", "png").
     num_offset_stars: int
         The desired number of offset stars (default is 3, must be between 0 and 4).
+    mag_min: float, optional
+        Brightest (smallest) offset-star magnitude to allow. Defaults to the
+        facility value when None.
+    mag_limit: float, optional
+        Faintest (largest) offset-star magnitude to allow. Defaults to the
+        facility value when None.
 
     Returns a callable that generates the finding chart.
     """
@@ -2906,6 +2948,15 @@ def get_finding_chart_callable(
 
     if image_source not in source_image_parameters:
         raise ValueError("Invalid image source")
+
+    # Offset-star magnitude range: user overrides fall back to the facility
+    # defaults. mag_min is the bright (small) end, mag_limit the faint (large).
+    if mag_min is None:
+        mag_min = facility_parameters[facility]["mag_min"]
+    if mag_limit is None:
+        mag_limit = facility_parameters[facility]["mag_limit"]
+    if mag_min >= mag_limit:
+        raise ValueError("`mag_min` must be brighter (smaller) than `mag_limit`")
 
     photometry = (
         session.scalars(
@@ -2957,8 +3008,8 @@ def get_finding_chart_callable(
         use_cache=use_cache,
         how_many=num_offset_stars,
         radius_degrees=facility_parameters[facility]["radius_degrees"],
-        mag_limit=facility_parameters[facility]["mag_limit"],
-        mag_min=facility_parameters[facility]["mag_min"],
+        mag_limit=mag_limit,
+        mag_min=mag_min,
         min_sep_arcsec=facility_parameters[facility]["min_sep_arcsec"],
         starlist_type=facility,
         obstime=obstime,
@@ -3037,6 +3088,20 @@ class SourceFinderHandler(BaseHandler):
           description: |
             output desired number of offset stars [0,5] (default: 3)
         - in: query
+          name: mag_min
+          schema:
+            type: number
+          description: |
+            Brightest (smallest) offset-star magnitude to allow. Defaults to the
+            facility value when omitted.
+        - in: query
+          name: mag_limit
+          schema:
+            type: number
+          description: |
+            Faintest (largest) offset-star magnitude to allow. Defaults to the
+            facility value when omitted.
+        - in: query
           name: as_json
           schema:
             type: boolean
@@ -3092,22 +3157,35 @@ class SourceFinderHandler(BaseHandler):
             num_offset_stars = int(num_offset_stars)
         except ValueError:
             return self.error("Invalid argument for `num_offset_stars`")
+        mag_min = self.get_query_argument("mag_min", None)
+        mag_limit = self.get_query_argument("mag_limit", None)
+        try:
+            mag_min = float(mag_min) if mag_min not in [None, ""] else None
+            mag_limit = float(mag_limit) if mag_limit not in [None, ""] else None
+        except ValueError:
+            return self.error("Invalid argument for `mag_min`/`mag_limit`")
         as_json = self.get_query_argument("as_json", False)
         use_cache = self.get_query_argument("use_cache", True)
 
         with self.Session() as session:
-            finder = get_finding_chart_callable(
-                obj_id,
-                session,
-                imsize,
-                use_cache,
-                facility,
-                image_source,
-                use_ztfref,
-                obstime,
-                output_type,
-                num_offset_stars,
-            )
+            try:
+                finder = get_finding_chart_callable(
+                    obj_id,
+                    session,
+                    imsize,
+                    use_cache,
+                    facility,
+                    image_source,
+                    use_ztfref,
+                    obstime,
+                    output_type,
+                    num_offset_stars,
+                    mag_min=mag_min,
+                    mag_limit=mag_limit,
+                )
+            except ValueError as e:
+                status = 404 if str(e) == "Source not found" else 400
+                return self.error(str(e), status=status)
 
             self.push_notification(
                 "Finding chart generation in progress. Download will start soon."
@@ -3142,6 +3220,38 @@ class SourceFinderHandler(BaseHandler):
                 return self.error(f"Error generating finding chart: {str(e)}")
 
             await self.send_file(data, filename, output_type=output_type)
+
+
+class FinderChartFacilitiesHandler(BaseHandler):
+    @auth_or_token
+    async def get(self):
+        """
+        ---
+        summary: Get finding chart facility parameters
+        description: |
+          Retrieve the per-facility default parameters used to generate finding
+          charts (offset-star magnitude range, search radius, minimum
+          separation). Used by the frontend to populate the finder-chart form.
+        tags:
+          - sources
+          - finding chart
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          description: |
+                            Object keyed by facility name; each value holds
+                            radius_degrees, mag_limit (faint end), mag_min
+                            (bright end), and min_sep_arcsec.
+        """
+        return self.success(data=facility_parameters)
 
 
 class SourceNotificationHandler(BaseHandler):
@@ -3334,6 +3444,23 @@ class SurveyThumbnailHandler(BaseHandler):
         if obj_id is not None:
             obj_ids = [obj_id]
 
+        # SDSS/PS1/LS are generated automatically (this endpoint is hit on
+        # source/candidate view). SkyMapper, HST, Chandra and JWST have slow or
+        # flaky lookups, so they are only generated when explicitly requested.
+        default_types = ["sdss", "ps1", "ls"]
+        on_demand_types = ["sm", "hst", "chandra", "jwst"]
+        requested_types = data.get("types")
+        if requested_types:
+            if not isinstance(requested_types, list) or any(
+                t not in default_types + on_demand_types for t in requested_types
+            ):
+                return self.error(
+                    f"types must be a subset of {default_types + on_demand_types}"
+                )
+            thumbnail_types = requested_types
+        else:
+            thumbnail_types = default_types
+
         async with self.AsyncSession() as session:
             objs_result = await session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id.in_(obj_ids))
@@ -3345,10 +3472,21 @@ class SurveyThumbnailHandler(BaseHandler):
 
             for obj in objs:
                 try:
-                    await obj.add_linked_thumbnails(["sdss", "ps1", "ls"], session)
+                    await obj.add_linked_thumbnails(thumbnail_types, session)
                 except Exception:
                     await session.rollback()
                     return self.error(f"Error adding thumbnails for {obj.id}")
+
+            # Explicit on-demand requests (e.g. HST/Chandra) refresh the source
+            # view so the new thumbnails appear without a manual reload.
+            if requested_types:
+                flow = Flow()
+                for obj in objs:
+                    flow.push(
+                        "*",
+                        "skyportal/REFRESH_SOURCE",
+                        payload={"obj_key": obj.internal_key},
+                    )
 
         return self.success()
 

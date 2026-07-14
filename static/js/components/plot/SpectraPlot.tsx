@@ -1035,7 +1035,9 @@ const SpectraPlot = ({
             />
             <TextField
               value={vExpInput}
-              onChange={(e) => setVExpInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this
+              // state and MUI's Slider throws on a non-numeric value.
+              onChange={(e) => setVExpInput(parseFloat(e.target.value) || 0)}
               margin="dense"
               type="number"
               slotProps={{
@@ -1064,7 +1066,11 @@ const SpectraPlot = ({
             />
             <TextField
               value={redshiftInput}
-              onChange={(e) => setRedshiftInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this
+              // state and MUI's Slider throws on a non-numeric value.
+              onChange={(e) =>
+                setRedshiftInput(parseFloat(e.target.value) || 0)
+              }
               margin="dense"
               type="number"
               slotProps={{
@@ -1126,7 +1132,11 @@ const SpectraPlot = ({
             />
             <TextField
               value={customWavelengthInput}
-              onChange={(e) => setCustomWavelengthInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this
+              // state and MUI's Slider throws on a non-numeric value.
+              onChange={(e) =>
+                setCustomWavelengthInput(parseFloat(e.target.value) || 0)
+              }
               margin="dense"
               type="number"
               slotProps={{

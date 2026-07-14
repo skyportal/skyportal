@@ -286,6 +286,7 @@ const QuickSearchBar = () => {
   return (
     <>
       <div
+        data-testid="tour-search"
         style={{
           display: "flex",
           flexDirection: "row",

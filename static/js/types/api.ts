@@ -1884,6 +1884,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/candidates/bulk_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk-delete old, unsaved candidates
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Delete objects that appear as candidates, are not currently saved as
+         *     an active source in any group, and whose most recent candidate
+         *     `passed_at` is older than `maxAgeMonths`. Deleting the object cascades
+         *     to its candidates, photometry, annotations, thumbnails, etc. System
+         *     admin only. Intended to be driven periodically via the Recurring API.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Delete objects whose most recent candidate `passed_at` is
+                         *     older than this many months. Defaults to 6.
+                         */
+                        maxAgeMonths?: number;
+                        /**
+                         * @description Maximum number of objects to delete in this call (deleted
+                         *     oldest-first). Defaults to 1000.
+                         */
+                        batchSize?: number;
+                        /**
+                         * @description If true, only report how many objects would be deleted,
+                         *     without deleting anything. Defaults to false.
+                         */
+                        dryRun?: boolean;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                /** @description Number of objects deleted in this call. */
+                                deleted?: number;
+                                /** @description Number of matching objects still to delete. */
+                                remaining?: number;
+                                dryRun?: boolean;
+                            };
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/candidates/{obj_id}": {
         parameters: {
             query?: never;
@@ -8092,6 +8170,76 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/api/phot_stats/aggregate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bulk photometry statistics for plotting
+         * @description Return a compact set of PhotStat scalar fields across many accessible
+         *     sources, optionally down-selected by classification, for bulk
+         *     visualization (e.g. plotting peak magnitude against rise rate for all
+         *     sources classified as SN Ia). Each source is colored by its
+         *     highest-probability classification. Call without xField/yField to get
+         *     the list of plottable fields only.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description PhotStat field for the x axis (see the returned `fields`). */
+                    xField?: string;
+                    /** @description PhotStat field for the y axis. */
+                    yField?: string;
+                    /** @description Optional PhotStat field for a third (z) axis. */
+                    zField?: string;
+                    /**
+                     * @description Comma-separated classification names to down-select sources
+                     *     (matches any). Omit to include all accessible sources.
+                     */
+                    classifications?: string;
+                    /** @description Only count classifications at or above this probability. */
+                    classificationProbThreshold?: number;
+                    /**
+                     * @description Maximum number of points to return (default 20000, capped at
+                     *     100000). If more match, the response is truncated.
+                     */
+                    maxMatches?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/localization/tags": {
@@ -15409,6 +15557,16 @@ export interface paths {
                     type?: "png" | "pdf";
                     /** @description output desired number of offset stars [0,5] (default: 3) */
                     num_offset_stars?: number;
+                    /**
+                     * @description Brightest (smallest) offset-star magnitude to allow. Defaults to the
+                     *     facility value when omitted.
+                     */
+                    mag_min?: number;
+                    /**
+                     * @description Faintest (largest) offset-star magnitude to allow. Defaults to the
+                     *     facility value when omitted.
+                     */
+                    mag_limit?: number;
                     /** @description Return a JSON including the finding chart and star_list */
                     as_json?: boolean;
                     /** @description Use caching when generating finding charts (default: true) */
@@ -15444,6 +15602,53 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/finder_chart/facilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get finding chart facility parameters
+         * @description Retrieve the per-facility default parameters used to generate finding
+         *     charts (offset-star magnitude range, search radius, minimum
+         *     separation). Used by the frontend to populate the finder-chart form.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            /**
+                             * @description Object keyed by facility name; each value holds
+                             *     radius_degrees, mag_limit (faint end), mag_min
+                             *     (bright end), and min_sep_arcsec.
+                             */
+                            data?: Record<string, never>;
+                        };
                     };
                 };
             };
@@ -17064,6 +17269,8 @@ export interface paths {
                     savedBefore?: string;
                     /** @description Only return sources that were saved after this UTC datetime. */
                     savedAfter?: string;
+                    /** @description Only return sources that were saved by the requesting user. */
+                    savedByCurrentUser?: boolean;
                     /** @description Only return sources with a spectrum saved after this UTC datetime */
                     hasSpectrumAfter?: string;
                     /**
@@ -18818,7 +19025,9 @@ export interface paths {
         put?: never;
         /**
          * Grant stream access to a user
-         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Grant stream access to a user
+         * @description Grant stream access to a user. System admins may add any user; a
+         *     non-admin user may add only themselves, and only to an auto-join
+         *     stream.
          */
         post: {
             parameters: {
@@ -25531,6 +25740,8 @@ export interface components {
             description?: string | null;
             /** @description Boolean indicating whether group is invisible to non-members. */
             private?: boolean;
+            /** @description Boolean indicating whether requests to join the group are automatically accepted. */
+            auto_accept_requests?: boolean;
             /** @description Flag indicating whether this group is a singleton group for one user only. */
             single_user_group?: boolean | null;
             /** @description Unique object identifier. */
@@ -26178,6 +26389,8 @@ export interface components {
             description?: string | null;
             /** @description Boolean indicating whether group is invisible to non-members. */
             private?: boolean;
+            /** @description Boolean indicating whether requests to join the group are automatically accepted. */
+            auto_accept_requests?: boolean;
             /** @description Flag indicating whether this group is a singleton group for one user only. */
             single_user_group?: boolean | null;
             readonly obj_tags?: components["schemas"]["ObjTag"][];
@@ -32412,6 +32625,8 @@ export interface components {
             readonly owner?: components["schemas"]["User"];
             readonly annotations?: components["schemas"]["AnnotationOnPhotometry"][];
             readonly validations?: components["schemas"]["PhotometryValidation"][];
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description MJD of the observation. */
             mjd: number;
             /** @description Flux of the observation in µJy. Corresponds to an AB Zeropoint of 23.9 in all filters. */
@@ -32453,8 +32668,6 @@ export interface components {
             owner_id: number;
             ra?: number | null;
             dec?: number | null;
-            /** @description Unique object identifier. */
-            id?: number;
         };
         SinglePhotometry: {
             /** @enum {string} */
@@ -35349,6 +35562,8 @@ export interface components {
             altdata?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Boolean indicating whether any user may add themselves to this stream. Auto-join streams are visible to all users. */
+            auto_join?: boolean;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -35415,6 +35630,8 @@ export interface components {
             altdata?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Boolean indicating whether any user may add themselves to this stream. Auto-join streams are visible to all users. */
+            auto_join?: boolean;
         };
         SingleStreamNoID: {
             /** @enum {string} */
@@ -35907,7 +36124,7 @@ export interface components {
              * @description Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)
              * @enum {string|null}
              */
-            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "new_gz" | "ref_gz" | "sub_gz" | null;
+            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "sm" | "hst" | "chandra" | "jwst" | "new_gz" | "ref_gz" | "sub_gz" | null;
             /** @description Path of the Thumbnail on the machine running SkyPortal. */
             file_uri?: string | null;
             /** @description Publically accessible URL of the thumbnail. */
@@ -35940,7 +36157,7 @@ export interface components {
              * @description Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)
              * @enum {string|null}
              */
-            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "new_gz" | "ref_gz" | "sub_gz" | null;
+            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "sm" | "hst" | "chandra" | "jwst" | "new_gz" | "ref_gz" | "sub_gz" | null;
             /** @description Path of the Thumbnail on the machine running SkyPortal. */
             file_uri?: string | null;
             /** @description Publically accessible URL of the thumbnail. */

@@ -19,7 +19,7 @@ from .annotation_services import (
     PS1QueryHandler,
     VizierQueryHandler,
 )
-from .candidate.candidate import CandidateHandler
+from .candidate.candidate import BulkDeleteCandidatesHandler, CandidateHandler
 from .candidate.candidate_filter import CandidateFilterHandler
 from .candidate.scan_report import ScanReportHandler
 from .candidate.scan_report_item import ScanReportItemHandler
@@ -144,7 +144,11 @@ from .observation_plan import (
     ObservationPlanWorldmapPlotHandler,
 )
 from .observingrun import ObservingRunBulkEditHandler, ObservingRunHandler
-from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
+from .phot_stat import (
+    PhotStatAggregateHandler,
+    PhotStatHandler,
+    PhotStatUpdateHandler,
+)
 from .photometric_series import PhotometricSeriesHandler
 from .photometry import (
     BulkDeletePhotometryHandler,
@@ -178,6 +182,7 @@ from .sharing_service.sharing_service_submission import (
 from .shift import ShiftHandler, ShiftSummary, ShiftUserHandler
 from .skymap_trigger import SkymapTriggerAPIHandler
 from .source import (
+    FinderChartFacilitiesHandler,
     SourceCopyPhotometryHandler,
     SourceFinderHandler,
     SourceHandler,

@@ -117,5 +117,16 @@ class SourceViewsHandler(BaseHandler):
 
 
 def t_index(t):
-    thumbnail_order = ["new", "ref", "sub", "sdss", "dr8", "ps1"]
+    thumbnail_order = [
+        "new",
+        "ref",
+        "sub",
+        "sdss",
+        "dr8",
+        "ps1",
+        "sm",
+        "hst",
+        "chandra",
+        "jwst",
+    ]
     return thumbnail_order.index(t) if t in thumbnail_order else len(thumbnail_order)

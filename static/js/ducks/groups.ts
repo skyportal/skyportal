@@ -52,6 +52,17 @@ export const groupsApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Group"],
     }),
+    updateGroup: build.mutation<
+      unknown,
+      { group_id: number | string; form_data: Record<string, unknown> }
+    >({
+      query: ({ group_id, form_data }) => ({
+        url: `api/groups/${group_id}`,
+        method: "PUT",
+        body: form_data,
+      }),
+      invalidatesTags: ["Group"],
+    }),
     deleteGroup: build.mutation<unknown, number | string>({
       query: (group_id) => ({
         url: `api/groups/${group_id}`,
@@ -117,6 +128,7 @@ invalidateOnMessage("skyportal/FETCH_GROUPS", () => ["Group"]);
 export const {
   useGetGroupsQuery,
   useAddNewGroupMutation,
+  useUpdateGroupMutation,
   useDeleteGroupMutation,
   useAddGroupUserMutation,
   useAddAllUsersFromGroupsMutation,

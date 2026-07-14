@@ -1162,6 +1162,54 @@ def test_sources_filter_by_position(upload_data_token, view_only_token, public_g
     assert data["data"]["sources"][0]["id"] == obj_id1
 
 
+def test_sources_filter_by_position_small_radius(
+    upload_data_token, view_only_token, public_group
+):
+    # Two sources 3 arcsec apart in dec; exercises the healpix cone prefilter
+    # at arcsec scale and its radius boundary.
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    ra, dec = 100.0, 20.0
+    for oid, d in [(obj_id1, dec), (obj_id2, dec + 3 / 3600)]:
+        status, data = api(
+            "POST",
+            "sources",
+            data={"id": oid, "ra": ra, "dec": d, "group_ids": [public_group.id]},
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    # 2 arcsec radius: only obj 1 (obj 2 is 3 arcsec away, outside).
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "ra": ra,
+            "dec": dec,
+            "radius": 2 / 3600,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert {s["id"] for s in data["data"]["sources"]} == {obj_id1}
+
+    # 4 arcsec radius: both sources are within.
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "ra": ra,
+            "dec": dec,
+            "radius": 4 / 3600,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert {s["id"] for s in data["data"]["sources"]} == {obj_id1, obj_id2}
+
+
 def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public_group):
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
@@ -1219,6 +1267,48 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     assert status == 200
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == obj_id2
+
+
+def test_sources_filter_by_saved_by_current_user(
+    upload_data_token, view_only_token2, public_group
+):
+    # upload_data_token and view_only_token2 are different users, both in
+    # public_group; only the former saves the source below.
+    obj_id = str(uuid.uuid4())
+
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    # The saver sees it when filtering to their own saves
+    status, data = api(
+        "GET",
+        "sources",
+        params={"savedByCurrentUser": "true", "group_ids": f"{public_group.id}"},
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert obj_id in [s["id"] for s in data["data"]["sources"]]
+
+    # Another group member who did not save it does not see it
+    status, data = api(
+        "GET",
+        "sources",
+        params={"savedByCurrentUser": "true", "group_ids": f"{public_group.id}"},
+        token=view_only_token2,
+    )
+    assert status == 200
+    assert obj_id not in [s["id"] for s in data["data"]["sources"]]
 
 
 def test_sources_filter_by_time_spectrum(

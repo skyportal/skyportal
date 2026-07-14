@@ -20,6 +20,9 @@ log = make_log("thumbnail_queue")
 
 init_db(**cfg["database"])
 
+# Cutouts generated automatically for every source. SkyMapper (sm), HST,
+# Chandra and JWST are on-demand only (their lookups are slow/flaky) — see
+# SurveyThumbnailHandler.
 THUMBNAIL_TYPES = {"sdss", "ls", "ps1"}
 
 # Defensive guardrail so a stuck cutout/scan query can't wedge a backend.

@@ -211,7 +211,7 @@ const GroupFiltersStreams = ({
               ))}
             </List>
 
-            <div>
+            <div data-testid="tour-group-filters">
               {/* only Super admins can add streams to groups */}
               {currentUser.permissions.includes("System admin") &&
                 (streams?.length ?? 0) > 0 &&
