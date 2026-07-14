@@ -34,7 +34,7 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
     page.goto("/")
     page.reload()
     page.goto("/groups")
-    expect(page.locator('//h3[text()="Create New Group"]').first).to_be_visible()
+    expect(page.locator('//h6[text()="Create New Group"]').first).to_be_visible()
     page.locator('//input[@name="name"]').first.fill(test_proj_name)
     page.locator('//input[@name="description"]').first.fill(group_description)
     page.locator('//div[@id="groupAdminsSelect"]').first.click()
@@ -120,6 +120,7 @@ def test_invite_all_users_from_other_group(
         page.locator(f'//a[contains(.,"{user_group2.username}")]').first
     ).to_be_hidden()
     page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.get_by_role("tab", name="Add a group of users").click()
     page.locator('//*[@data-testid="addUsersFromGroupsTextField"]').first.click()
     page.locator(f'//li[text()="{public_group2.name}"]').first.click()
     page.locator('//*[text()="Add users"]').first.click()
@@ -172,6 +173,7 @@ def test_add_stream_add_delete_filter_group(
     page.goto("/groups")
     page.locator('//h6[text()="All Groups"]').first.click()
     page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.get_by_role("tab", name="Streams and filters").click()
 
     # Add stream
     page.locator('//button[contains(.,"Add stream")]').first.click()
@@ -181,16 +183,10 @@ def test_add_stream_add_delete_filter_group(
     page.locator(f'//li[contains(.,"{public_stream2.name}")]').first.click()
     page.locator('//button[@data-testid="add-stream-dialog-submit"]').first.click()
 
-    # add filter
+    # add filter (via the per-stream "add filter" button)
     filter_name = str(uuid.uuid4())
-    page.locator('//button[contains(.,"Add filter")]').first.click()
-    page.locator('//input[@name="filter_name"]/..').first.click()
+    page.locator('//button[@aria-label="add filter"]').first.click()
     page.locator('//input[@name="filter_name"]').first.fill(filter_name)
-
-    page.locator(
-        '//*[@aria-labelledby="alert-stream-select-required-label"]'
-    ).first.click()
-    page.locator(f'//li[@data-value="{public_stream2.id}"]').first.click()
     page.locator('//button[@data-testid="add-filter-dialog-submit"]').first.click()
     expect(page.locator(f'//span[contains(.,"{filter_name}")]')).to_have_count(1)
 
@@ -206,6 +202,7 @@ def test_cannot_add_stream_group_users_cant_access(
     page.goto("/groups")
     page.locator('//h6[text()="All Groups"]').first.click()
     page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.get_by_role("tab", name="Streams and filters").click()
 
     # Cannot add stream that group members don't have access to
     page.locator('//button[contains(.,"Add stream")]').first.click()
