@@ -48,6 +48,32 @@ groups/=program_B/users:
   - userID: =fulluser
     admin: false
 
+teams:
+  - name: ZTF
+    nickname: ZTF
+    description: Zwicky Transient Facility
+    primary_color: "#d95f02"
+    secondary_color: "#fdae61"
+    logo_url: /static/images/team_logos/ZTF.png
+    group_ids: ["=program_A", "=program_B"]
+    =id: team_ztf
+  - name: DESC
+    nickname: DESC
+    description: LSST Dark Energy Science Collaboration
+    primary_color: "#1f78b4"
+    secondary_color: "#a6cee3"
+    logo_url: /static/images/team_logos/DESC.png
+    group_ids: ["=program_B"]
+    =id: team_desc
+  - name: TVS
+    nickname: TVS
+    description: LSST Transients and Variable Stars Collaboration
+    primary_color: "#6a3d9a"
+    secondary_color: "#cab2d6"
+    logo_url: /static/images/team_logos/TVS.png
+    group_ids: ["=program_A"]
+    =id: team_tvs
+
 streams:
   - name: ZTF Public
     altdata:

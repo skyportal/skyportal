@@ -19884,6 +19884,200 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/teams/{team_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a team
+         * @description Retrieve a team, its groups, and its derived member roster
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    team_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /**
+         * Update a team
+         * @description <b>Permission(s) required:</b> <em>Manage teams (or System admin)</em><br><br>Update a team's fields and/or its set of groups. When `group_ids` is
+         *     provided it replaces the team's groups; the user must be an admin of
+         *     each group added or removed.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    team_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /**
+         * Delete a team
+         * @description <b>Permission(s) required:</b> <em>Manage teams (or System admin)</em><br><br>Delete a team (does not affect its groups or their data)
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    team_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all accessible teams
+         * @description Retrieve all teams the current user can access
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create a new team
+         * @description <b>Permission(s) required:</b> <em>Manage teams (or System admin)</em><br><br>Create a team from a set of existing groups. The current user must be
+         *     an admin of each group added to the team.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        group_ids?: number[];
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/telescope/{telescope_id}": {
         parameters: {
             query?: never;
@@ -25717,6 +25911,7 @@ export interface components {
         Group: {
             readonly streams?: components["schemas"]["Stream"][];
             readonly filters?: components["schemas"]["Filter"][];
+            readonly teams?: components["schemas"]["Team"][];
             readonly shifts?: components["schemas"]["Shift"][];
             readonly users?: components["schemas"]["User"][];
             readonly group_users?: components["schemas"]["GroupUser"][];
@@ -26366,6 +26561,7 @@ export interface components {
         GroupNoID: {
             readonly streams?: components["schemas"]["Stream"][];
             readonly filters?: components["schemas"]["Filter"][];
+            readonly teams?: components["schemas"]["Team"][];
             readonly shifts?: components["schemas"]["Shift"][];
             readonly users?: components["schemas"]["User"][];
             readonly group_users?: components["schemas"]["GroupUser"][];
@@ -27132,6 +27328,44 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GroupTaxonomyNoID"][];
+        };
+        GroupTeam: {
+            readonly group?: components["schemas"]["Group"];
+            readonly team?: components["schemas"]["Team"];
+            group_id: number;
+            team_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGroupTeam: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupTeam"];
+        };
+        ArrayOfGroupTeams: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupTeam"][];
+        };
+        GroupTeamNoID: {
+            readonly group?: components["schemas"]["Group"];
+            readonly team?: components["schemas"]["Team"];
+            group_id: number;
+            team_id: number;
+        };
+        SingleGroupTeamNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupTeamNoID"];
+        };
+        ArrayOfGroupTeamNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupTeamNoID"][];
         };
         GroupUser: {
             readonly group?: components["schemas"]["Group"];
@@ -36044,6 +36278,66 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["TaxonomyNoID"][];
+        };
+        Team: {
+            readonly groups?: components["schemas"]["Group"][];
+            /** @description Name of the team. */
+            name: string;
+            /** @description Short team nickname. */
+            nickname?: string | null;
+            /** @description Longer description of the team. */
+            description?: string | null;
+            /** @description Hex color used to theme the app banner when this team is active. */
+            primary_color?: string | null;
+            /** @description Hex accent color for this team's theme. */
+            secondary_color?: string | null;
+            /** @description URL of a logo shown in place of the SkyPortal logo when active. */
+            logo_url?: string | null;
+            /** @description URL of a background image for this team. */
+            background_url?: string | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleTeam: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Team"];
+        };
+        ArrayOfTeams: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Team"][];
+        };
+        TeamNoID: {
+            readonly groups?: components["schemas"]["Group"][];
+            /** @description Name of the team. */
+            name: string;
+            /** @description Short team nickname. */
+            nickname?: string | null;
+            /** @description Longer description of the team. */
+            description?: string | null;
+            /** @description Hex color used to theme the app banner when this team is active. */
+            primary_color?: string | null;
+            /** @description Hex accent color for this team's theme. */
+            secondary_color?: string | null;
+            /** @description URL of a logo shown in place of the SkyPortal logo when active. */
+            logo_url?: string | null;
+            /** @description URL of a background image for this team. */
+            background_url?: string | null;
+        };
+        SingleTeamNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TeamNoID"];
+        };
+        ArrayOfTeamNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TeamNoID"][];
         };
         Telescope: {
             readonly instruments?: components["schemas"]["Instrument"][];

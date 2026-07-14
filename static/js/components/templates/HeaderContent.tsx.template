@@ -14,6 +14,7 @@ import ProfileDropdown from "../ProfileDropdown";
 import Logo from "../Logo";
 import Notifications from "../Notifications";
 import Notes from "../Notes";
+import TeamSwitcher from "../team/TeamSwitcher";
 import hydrate from "../../actions";
 import { useAppDispatch } from "../../types/hooks";
 
@@ -161,6 +162,7 @@ const HeaderContent = () => {
             </IconButton>
           </Tooltip>
         </Box>
+        <TeamSwitcher />
         <Notifications />
         <Notes />
         <ProfileDropdown />

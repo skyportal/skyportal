@@ -217,6 +217,7 @@ from .survey_efficiency import (
 from .sysinfo import SysInfoHandler
 from .tag import ObjTagHandler, ObjTagOptionHandler
 from .taxonomy import TaxonomyHandler
+from .team import TeamHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .tns.obj_tns import ObjTNSHandler

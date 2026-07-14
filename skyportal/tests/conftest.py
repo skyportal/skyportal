@@ -374,6 +374,41 @@ def public_groupstream(public_group):
 
 
 @pytest.fixture()
+def public_team(public_group):
+    from skyportal.models import Team
+
+    team = Team(name=str(uuid.uuid4()), groups=[public_group])
+    DBSession().add(team)
+    DBSession().commit()
+    team_id = team.id
+    yield team
+    try:
+        obj = DBSession().get(Team, team_id)
+        if obj is not None:
+            DBSession().delete(obj)
+            DBSession().commit()
+    except Exception:
+        DBSession().rollback()
+
+
+@pytest.fixture()
+def public_group_team(public_team, public_group):
+    from skyportal.models import GroupTeam
+
+    return (
+        DBSession()
+        .execute(
+            sa.select(GroupTeam).filter(
+                GroupTeam.team_id == public_team.id,
+                GroupTeam.group_id == public_group.id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
+@pytest.fixture()
 def public_streamuser(public_stream, user):
     return (
         DBSession()
@@ -1299,6 +1334,17 @@ def manage_groups_token(super_admin_user):
 def group_admin_token(group_admin_user):
     token_id = create_token(
         ACLs=["Upload data"], user_id=group_admin_user.id, name=str(uuid.uuid4())
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def manage_teams_token(group_admin_user):
+    token_id = create_token(
+        ACLs=["Manage teams", "Upload data"],
+        user_id=group_admin_user.id,
+        name=str(uuid.uuid4()),
     )
     yield token_id
     delete_token(token_id)

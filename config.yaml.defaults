@@ -154,6 +154,8 @@ app:
       component: group/Groups
     - path: "/group/:id"
       component: group/Group
+    - path: "/teams"
+      component: team/Teams
     - path: "/group_sources/:id"
       component: group/GroupSources
     - path: "/candidates"
@@ -262,6 +264,10 @@ app:
         - name: Groups
           icon: GroupWork
           url: /groups
+
+        - name: Teams
+          icon: Diversity3
+          url: /teams
 
         - name: Observing Runs
           icon: LocalCafe
