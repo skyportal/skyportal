@@ -106,6 +106,7 @@ User Guide
    advanced_usage
    photometric_series
    analysis
+   external_services
    extensions
    pages
    thumbnails

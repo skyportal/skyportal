@@ -389,7 +389,51 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update a default analysis
+         * @description Partial update of a default analysis. Any of default_analysis_parameters,
+         *     source_filter, group_ids, daily_limit, show_parameters, show_plots,
+         *     show_corner may be supplied; omitted fields are left unchanged.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    analysis_service_id: number;
+                    default_analysis_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        default_analysis_parameters?: Record<string, never>;
+                        source_filter?: Record<string, never>;
+                        daily_limit?: number;
+                        group_ids?: number[];
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/analysis_service/{analysis_service_id}/default_analysis": {
@@ -1821,6 +1865,84 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["Success"] & {
                             data?: components["schemas"]["ScanReport"];
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidates/bulk_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk-delete old, unsaved candidates
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Delete objects that appear as candidates, are not currently saved as
+         *     an active source in any group, and whose most recent candidate
+         *     `passed_at` is older than `maxAgeMonths`. Deleting the object cascades
+         *     to its candidates, photometry, annotations, thumbnails, etc. System
+         *     admin only. Intended to be driven periodically via the Recurring API.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Delete objects whose most recent candidate `passed_at` is
+                         *     older than this many months. Defaults to 6.
+                         */
+                        maxAgeMonths?: number;
+                        /**
+                         * @description Maximum number of objects to delete in this call (deleted
+                         *     oldest-first). Defaults to 1000.
+                         */
+                        batchSize?: number;
+                        /**
+                         * @description If true, only report how many objects would be deleted,
+                         *     without deleting anything. Defaults to false.
+                         */
+                        dryRun?: boolean;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                /** @description Number of objects deleted in this call. */
+                                deleted?: number;
+                                /** @description Number of matching objects still to delete. */
+                                remaining?: number;
+                                dryRun?: boolean;
+                            };
                         };
                     };
                 };
@@ -9905,7 +10027,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an instrument's fields
-         * @description <b>Permission(s) required:</b> <em>Delete instrument (or System admin)</em><br><br>Delete fields associated with an instrument
+         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Delete fields associated with an instrument
          */
         delete: {
             parameters: {
@@ -10154,6 +10276,11 @@ export interface paths {
                      */
                     includeRegion?: boolean;
                     /**
+                     * @description Boolean indicating whether to ignore field caching. Defaults to
+                     *     false.
+                     */
+                    ignoreCache?: boolean;
+                    /**
                      * @description Include fields within a given localization.
                      *     Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
                      *     Each localization is associated with a specific GCNEvent by
@@ -10175,6 +10302,12 @@ export interface paths {
                      *     Defaults to 0.95.
                      */
                     localizationCumprob?: number;
+                    /**
+                     * @description Time to use for airmass calculation in
+                     *     ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                     *     Defaults to localizationDateobs if not supplied.
+                     */
+                    airmassTime?: string;
                 };
                 header?: never;
                 path: {
@@ -10244,7 +10377,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an instrument
-         * @description <b>Permission(s) required:</b> <em>Delete instrument (or System admin)</em><br><br>Delete an instrument
+         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Delete an instrument
          */
         delete: {
             parameters: {
@@ -10305,53 +10438,10 @@ export interface paths {
                     /** @description Filter by name (exact match) */
                     name?: string;
                     /**
-                     * @description Boolean indicating whether to include associated GeoJSON. Defaults to
-                     *     false.
-                     */
-                    includeGeoJSON?: boolean;
-                    /**
-                     * @description Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
-                     *     false.
-                     */
-                    includeGeoJSONSummary?: boolean;
-                    /**
                      * @description Boolean indicating whether to include associated DS9 region. Defaults to
                      *     false.
                      */
                     includeRegion?: boolean;
-                    /**
-                     * @description Boolean indicating whether to ignore field caching. Defaults to
-                     *     false.
-                     */
-                    ignoreCache?: boolean;
-                    /**
-                     * @description Include fields within a given localization.
-                     *     Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                     *     Each localization is associated with a specific GCNEvent by
-                     *     the date the event happened, and this date is used as a unique
-                     *     identifier. It can be therefore found as Localization.dateobs,
-                     *     queried from the /api/localization endpoint or dateobs in the
-                     *     GcnEvent page table.
-                     */
-                    localizationDateobs?: string;
-                    /**
-                     * @description Name of localization / skymap to use.
-                     *     Can be found in Localization.localization_name queried from
-                     *     /api/localization endpoint or skymap name in GcnEvent page
-                     *     table.
-                     */
-                    localizationName?: string;
-                    /**
-                     * @description Cumulative probability up to which to include fields.
-                     *     Defaults to 0.95.
-                     */
-                    localizationCumprob?: number;
-                    /**
-                     * @description Time to use for airmass calculation in
-                     *     ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                     *     Defaults to localizationDateobs if not supplied.
-                     */
-                    airmassTime?: string;
                 };
                 header?: never;
                 path?: never;
@@ -10380,7 +10470,7 @@ export interface paths {
         put?: never;
         /**
          * Add an instrument
-         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Add a new instrument
+         * @description Add a new instrument
          */
         post: {
             parameters: {
@@ -15397,6 +15487,16 @@ export interface paths {
                     type?: "png" | "pdf";
                     /** @description output desired number of offset stars [0,5] (default: 3) */
                     num_offset_stars?: number;
+                    /**
+                     * @description Brightest (smallest) offset-star magnitude to allow. Defaults to the
+                     *     facility value when omitted.
+                     */
+                    mag_min?: number;
+                    /**
+                     * @description Faintest (largest) offset-star magnitude to allow. Defaults to the
+                     *     facility value when omitted.
+                     */
+                    mag_limit?: number;
                     /** @description Return a JSON including the finding chart and star_list */
                     as_json?: boolean;
                     /** @description Use caching when generating finding charts (default: true) */
@@ -15432,6 +15532,53 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/finder_chart/facilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get finding chart facility parameters
+         * @description Retrieve the per-facility default parameters used to generate finding
+         *     charts (offset-star magnitude range, search radius, minimum
+         *     separation). Used by the frontend to populate the finder-chart form.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            /**
+                             * @description Object keyed by facility name; each value holds
+                             *     radius_degrees, mag_limit (faint end), mag_min
+                             *     (bright end), and min_sep_arcsec.
+                             */
+                            data?: Record<string, never>;
+                        };
                     };
                 };
             };
@@ -17052,6 +17199,8 @@ export interface paths {
                     savedBefore?: string;
                     /** @description Only return sources that were saved after this UTC datetime. */
                     savedAfter?: string;
+                    /** @description Only return sources that were saved by the requesting user. */
+                    savedByCurrentUser?: boolean;
                     /** @description Only return sources with a spectrum saved after this UTC datetime */
                     hasSpectrumAfter?: string;
                     /**
@@ -17080,7 +17229,12 @@ export interface paths {
                      *     ```
                      */
                     saveSummary?: boolean;
-                    /** @description The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"] */
+                    /**
+                     * @description The field to sort by. Allowed options are ["id", "alias", "origin",
+                     *     "ra", "dec", "redshift", "saved_at", "gcn_status", "favorites"],
+                     *     "altdata.<field>" to sort on an altdata field, or
+                     *     "annotation.<origin>.<key>" to sort on an annotation value.
+                     */
                     sortBy?: string;
                     /** @description The sort order - either "asc" or "desc". Defaults to "asc" */
                     sortOrder?: string;
@@ -18801,7 +18955,9 @@ export interface paths {
         put?: never;
         /**
          * Grant stream access to a user
-         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Grant stream access to a user
+         * @description Grant stream access to a user. System admins may add any user; a
+         *     non-admin user may add only themselves, and only to an auto-join
+         *     stream.
          */
         post: {
             parameters: {
@@ -19932,7 +20088,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a telescope
-         * @description <b>Permission(s) required:</b> <em>Delete telescope (or System admin)</em><br><br>Delete a telescope
+         * @description <b>Permission(s) required:</b> <em>Manage telescopes (or System admin)</em><br><br>Delete a telescope
          */
         delete: {
             parameters: {
@@ -20020,7 +20176,7 @@ export interface paths {
         put?: never;
         /**
          * Create a telescope
-         * @description <b>Permission(s) required:</b> <em>Manage telescopes (or System admin)</em><br><br>Create telescopes
+         * @description Create telescopes
          */
         post: {
             parameters: {
@@ -22424,10 +22580,10 @@ export interface components {
         AllocationUser: {
             readonly allocation?: components["schemas"]["Allocation"];
             readonly user?: components["schemas"]["User"];
-            /** @description Unique object identifier. */
-            id?: number;
             allocation_id: number;
             user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleAllocationUser: {
             /** @enum {string} */
@@ -22987,10 +23143,10 @@ export interface components {
         CatalogQueryTargetGroup: {
             readonly catalogquery?: components["schemas"]["CatalogQuery"];
             readonly group?: components["schemas"]["Group"];
-            /** @description Unique object identifier. */
-            id?: number;
             catalog_querie_id: number;
             group_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleCatalogQueryTargetGroup: {
             /** @enum {string} */
@@ -23852,10 +24008,10 @@ export interface components {
         DefaultFollowupRequestTargetGroup: {
             readonly defaultfollowuprequest?: components["schemas"]["DefaultFollowupRequest"];
             readonly group?: components["schemas"]["Group"];
-            /** @description Unique object identifier. */
-            id?: number;
             defaultfollowuprequest_id: number;
             group_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleDefaultFollowupRequestTargetGroup: {
             /** @enum {string} */
@@ -24010,10 +24166,10 @@ export interface components {
         DefaultObservationPlanRequestTargetGroup: {
             readonly defaultobservationplanrequest?: components["schemas"]["DefaultObservationPlanRequest"];
             readonly group?: components["schemas"]["Group"];
-            /** @description Unique object identifier. */
-            id?: number;
             defaultobservationplanrequest_id: number;
             group_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleDefaultObservationPlanRequestTargetGroup: {
             /** @enum {string} */
@@ -24821,10 +24977,10 @@ export interface components {
         FollowupRequestGroup: {
             readonly followuprequest?: components["schemas"]["FollowupRequest"];
             readonly group?: components["schemas"]["Group"];
-            /** @description Unique object identifier. */
-            id?: number;
             followuprequest_id: number;
             group_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleFollowupRequestGroup: {
             /** @enum {string} */
@@ -24949,10 +25105,10 @@ export interface components {
         FollowupRequestUser: {
             readonly followuprequest?: components["schemas"]["FollowupRequest"];
             readonly user?: components["schemas"]["User"];
-            /** @description Unique object identifier. */
-            id?: number;
             followuprequest_id: number;
             user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleFollowupRequestUser: {
             /** @enum {string} */
@@ -25211,10 +25367,10 @@ export interface components {
         GcnEventMMADetector: {
             readonly gcnevent?: components["schemas"]["GcnEvent"];
             readonly mmadetector?: components["schemas"]["MMADetector"];
-            /** @description Unique object identifier. */
-            id?: number;
             gcnevent_id: number;
             mmadetector_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGcnEventMMADetector: {
             /** @enum {string} */
@@ -25305,10 +25461,10 @@ export interface components {
         GcnEventUser: {
             readonly gcnevent?: components["schemas"]["GcnEvent"];
             readonly user?: components["schemas"]["User"];
-            /** @description Unique object identifier. */
-            id?: number;
             gcnevent_id: number;
             user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGcnEventUser: {
             /** @enum {string} */
@@ -25641,11 +25797,11 @@ export interface components {
         GcnTrigger: {
             readonly gcnevent?: components["schemas"]["GcnEvent"];
             readonly allocation?: components["schemas"]["Allocation"];
-            /** @description Unique object identifier. */
-            id?: number;
             /** Format: date-time */
             dateobs: string;
             allocation_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description Whether this GCN event triggered the allocation. */
             triggered?: boolean;
         };
@@ -25709,6 +25865,8 @@ export interface components {
             description?: string | null;
             /** @description Boolean indicating whether group is invisible to non-members. */
             private?: boolean;
+            /** @description Boolean indicating whether requests to join the group are automatically accepted. */
+            auto_accept_requests?: boolean;
             /** @description Flag indicating whether this group is a singleton group for one user only. */
             single_user_group?: boolean | null;
             /** @description Unique object identifier. */
@@ -25786,10 +25944,10 @@ export interface components {
         GroupAnalysisService: {
             readonly group?: components["schemas"]["Group"];
             readonly analysisservice?: components["schemas"]["AnalysisService"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             analysis_service_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupAnalysisService: {
             /** @enum {string} */
@@ -25824,10 +25982,10 @@ export interface components {
         GroupAnnotation: {
             readonly group?: components["schemas"]["Group"];
             readonly annotation?: components["schemas"]["Annotation"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             annotation_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupAnnotation: {
             /** @enum {string} */
@@ -25862,10 +26020,10 @@ export interface components {
         GroupAnnotationOnPhotometry: {
             readonly group?: components["schemas"]["Group"];
             readonly annotationonphotometry?: components["schemas"]["AnnotationOnPhotometry"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             annotations_on_photometr_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupAnnotationOnPhotometry: {
             /** @enum {string} */
@@ -25900,10 +26058,10 @@ export interface components {
         GroupAnnotationOnSpectrum: {
             readonly group?: components["schemas"]["Group"];
             readonly annotationonspectrum?: components["schemas"]["AnnotationOnSpectrum"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             annotations_on_spectr_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupAnnotationOnSpectrum: {
             /** @enum {string} */
@@ -25938,10 +26096,10 @@ export interface components {
         GroupClassification: {
             readonly group?: components["schemas"]["Group"];
             readonly classification?: components["schemas"]["Classification"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             classification_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupClassification: {
             /** @enum {string} */
@@ -25976,10 +26134,10 @@ export interface components {
         GroupComment: {
             readonly group?: components["schemas"]["Group"];
             readonly comment?: components["schemas"]["Comment"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             comment_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupComment: {
             /** @enum {string} */
@@ -26014,10 +26172,10 @@ export interface components {
         GroupCommentOnEarthquake: {
             readonly group?: components["schemas"]["Group"];
             readonly commentonearthquake?: components["schemas"]["CommentOnEarthquake"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             comments_on_earthquake_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupCommentOnEarthquake: {
             /** @enum {string} */
@@ -26052,10 +26210,10 @@ export interface components {
         GroupCommentOnGCN: {
             readonly group?: components["schemas"]["Group"];
             readonly commentongcn?: components["schemas"]["CommentOnGCN"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             comments_on_gcn_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupCommentOnGCN: {
             /** @enum {string} */
@@ -26090,10 +26248,10 @@ export interface components {
         GroupCommentOnShift: {
             readonly group?: components["schemas"]["Group"];
             readonly commentonshift?: components["schemas"]["CommentOnShift"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             comments_on_shift_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupCommentOnShift: {
             /** @enum {string} */
@@ -26128,10 +26286,10 @@ export interface components {
         GroupCommentOnSpectrum: {
             readonly group?: components["schemas"]["Group"];
             readonly commentonspectrum?: components["schemas"]["CommentOnSpectrum"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             comments_on_spectr_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupCommentOnSpectrum: {
             /** @enum {string} */
@@ -26166,10 +26324,10 @@ export interface components {
         GroupDefaultAnalysis: {
             readonly group?: components["schemas"]["Group"];
             readonly defaultanalysis?: components["schemas"]["DefaultAnalysis"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             default_analyse_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupDefaultAnalysis: {
             /** @enum {string} */
@@ -26219,10 +26377,10 @@ export interface components {
         GroupInvitation: {
             readonly group?: components["schemas"]["Group"];
             readonly invitation?: components["schemas"]["Invitation"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             invitation_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupInvitation: {
             /** @enum {string} */
@@ -26257,10 +26415,10 @@ export interface components {
         GroupMMADetectorSpectrum: {
             readonly group?: components["schemas"]["Group"];
             readonly mmadetectorspectrum?: components["schemas"]["MMADetectorSpectrum"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             detector_spectr_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupMMADetectorSpectrum: {
             /** @enum {string} */
@@ -26295,10 +26453,10 @@ export interface components {
         GroupMMADetectorTimeInterval: {
             readonly group?: components["schemas"]["Group"];
             readonly mmadetectortimeinterval?: components["schemas"]["MMADetectorTimeInterval"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             mmadetectortimeinterval_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupMMADetectorTimeInterval: {
             /** @enum {string} */
@@ -26357,6 +26515,8 @@ export interface components {
             description?: string | null;
             /** @description Boolean indicating whether group is invisible to non-members. */
             private?: boolean;
+            /** @description Boolean indicating whether requests to join the group are automatically accepted. */
+            auto_accept_requests?: boolean;
             /** @description Flag indicating whether this group is a singleton group for one user only. */
             single_user_group?: boolean | null;
             readonly obj_tags?: components["schemas"]["ObjTag"][];
@@ -26376,10 +26536,10 @@ export interface components {
         GroupObj: {
             readonly group?: components["schemas"]["Group"];
             readonly obj?: components["schemas"]["Obj"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             obj_id: string;
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description ID of the User that saved the Obj to its Group. */
             saved_by_id?: number | null;
             /** @description User that saved the Obj to its Group. */
@@ -26418,10 +26578,10 @@ export interface components {
         GroupObjAnalysis: {
             readonly group?: components["schemas"]["Group"];
             readonly objanalysis?: components["schemas"]["ObjAnalysis"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             obj_analyse_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupObjAnalysis: {
             /** @enum {string} */
@@ -26496,10 +26656,10 @@ export interface components {
         GroupObjTag: {
             readonly group?: components["schemas"]["Group"];
             readonly objtag?: components["schemas"]["ObjTag"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             obj_tag_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupObjTag: {
             /** @enum {string} */
@@ -26534,10 +26694,10 @@ export interface components {
         GroupPhotometricSeries: {
             readonly group?: components["schemas"]["Group"];
             readonly photometricseries?: components["schemas"]["PhotometricSeries"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             photometric_serie_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupPhotometricSeries: {
             /** @enum {string} */
@@ -26572,8 +26732,6 @@ export interface components {
         GroupPhotometry: {
             readonly group?: components["schemas"]["Group"];
             readonly photometry?: components["schemas"]["Photometry"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             photometr_id: number;
         };
@@ -26610,10 +26768,10 @@ export interface components {
         GroupPublicRelease: {
             readonly group?: components["schemas"]["Group"];
             readonly publicrelease?: components["schemas"]["PublicRelease"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             publicrelease_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupPublicRelease: {
             /** @enum {string} */
@@ -26648,10 +26806,10 @@ export interface components {
         GroupReminder: {
             readonly group?: components["schemas"]["Group"];
             readonly reminder?: components["schemas"]["Reminder"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             reminder_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupReminder: {
             /** @enum {string} */
@@ -26686,10 +26844,10 @@ export interface components {
         GroupReminderOnEarthquake: {
             readonly group?: components["schemas"]["Group"];
             readonly reminderonearthquake?: components["schemas"]["ReminderOnEarthquake"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             reminders_on_earthquake_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupReminderOnEarthquake: {
             /** @enum {string} */
@@ -26724,10 +26882,10 @@ export interface components {
         GroupReminderOnGCN: {
             readonly group?: components["schemas"]["Group"];
             readonly reminderongcn?: components["schemas"]["ReminderOnGCN"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             reminders_on_gcn_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupReminderOnGCN: {
             /** @enum {string} */
@@ -26762,10 +26920,10 @@ export interface components {
         GroupReminderOnShift: {
             readonly group?: components["schemas"]["Group"];
             readonly reminderonshift?: components["schemas"]["ReminderOnShift"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             reminders_on_shift_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupReminderOnShift: {
             /** @enum {string} */
@@ -26800,10 +26958,10 @@ export interface components {
         GroupReminderOnSpectrum: {
             readonly group?: components["schemas"]["Group"];
             readonly reminderonspectrum?: components["schemas"]["ReminderOnSpectrum"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             reminders_on_spectr_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupReminderOnSpectrum: {
             /** @enum {string} */
@@ -26838,10 +26996,10 @@ export interface components {
         GroupScanReport: {
             readonly group?: components["schemas"]["Group"];
             readonly scanreport?: components["schemas"]["ScanReport"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             scanreport_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupScanReport: {
             /** @enum {string} */
@@ -26876,10 +27034,10 @@ export interface components {
         GroupSourceNotification: {
             readonly group?: components["schemas"]["Group"];
             readonly sourcenotification?: components["schemas"]["SourceNotification"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             sourcenotification_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupSourceNotification: {
             /** @enum {string} */
@@ -26914,10 +27072,10 @@ export interface components {
         GroupSpectrum: {
             readonly group?: components["schemas"]["Group"];
             readonly spectrum?: components["schemas"]["Spectrum"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             spectr_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupSpectrum: {
             /** @enum {string} */
@@ -26952,10 +27110,10 @@ export interface components {
         GroupStream: {
             readonly group?: components["schemas"]["Group"];
             readonly stream?: components["schemas"]["Stream"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             stream_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupStream: {
             /** @enum {string} */
@@ -26990,10 +27148,10 @@ export interface components {
         GroupSurveyEfficiencyForObservationPlan: {
             readonly group?: components["schemas"]["Group"];
             readonly surveyefficiencyforobservationplan?: components["schemas"]["SurveyEfficiencyForObservationPlan"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             survey_efficiency_for_observation_plan_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupSurveyEfficiencyForObservationPlan: {
             /** @enum {string} */
@@ -27028,10 +27186,10 @@ export interface components {
         GroupSurveyEfficiencyForObservations: {
             readonly group?: components["schemas"]["Group"];
             readonly surveyefficiencyforobservations?: components["schemas"]["SurveyEfficiencyForObservations"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             survey_efficiency_for_observation_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupSurveyEfficiencyForObservations: {
             /** @enum {string} */
@@ -27066,10 +27224,10 @@ export interface components {
         GroupTaxonomy: {
             readonly group?: components["schemas"]["Group"];
             readonly taxonomy?: components["schemas"]["Taxonomy"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             taxonomie_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleGroupTaxonomy: {
             /** @enum {string} */
@@ -27142,10 +27300,10 @@ export interface components {
         GroupUser: {
             readonly group?: components["schemas"]["Group"];
             readonly user?: components["schemas"]["User"];
-            /** @description Unique object identifier. */
-            id?: number;
             group_id: number;
             user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description Boolean flag indicating whether the User is an admin of the group. */
             admin?: boolean;
             /** @description Boolean flag indicating whether the user should be able to save sources to the group */
@@ -27540,10 +27698,10 @@ export interface components {
         InstrumentSharingService: {
             readonly instrument?: components["schemas"]["Instrument"];
             readonly sharingservice?: components["schemas"]["SharingService"];
-            /** @description Unique object identifier. */
-            id?: number;
             instrument_id: number;
             sharing_service_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleInstrumentSharingService: {
             /** @enum {string} */
@@ -31473,10 +31631,10 @@ export interface components {
         ObjTag: {
             readonly obj?: components["schemas"]["Obj"];
             readonly objtagoption?: components["schemas"]["ObjTagOption"];
-            /** @description Unique object identifier. */
-            id?: number;
             obj_id: string;
             objtagoption_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description ID of the user who created the tag association */
             author_id: number;
             /** @description The associated User */
@@ -31742,10 +31900,10 @@ export interface components {
         ObservationPlanRequestTargetGroup: {
             readonly observationplanrequest?: components["schemas"]["ObservationPlanRequest"];
             readonly group?: components["schemas"]["Group"];
-            /** @description Unique object identifier. */
-            id?: number;
             observationplanrequest_id: number;
             group_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleObservationPlanRequestTargetGroup: {
             /** @enum {string} */
@@ -32631,6 +32789,8 @@ export interface components {
             readonly owner?: components["schemas"]["User"];
             readonly annotations?: components["schemas"]["AnnotationOnPhotometry"][];
             readonly validations?: components["schemas"]["PhotometryValidation"][];
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description MJD of the observation. */
             mjd: number;
             /** @description Flux of the observation in µJy. Corresponds to an AB Zeropoint of 23.9 in all filters. */
@@ -32672,8 +32832,6 @@ export interface components {
             owner_id: number;
             ra?: number | null;
             dec?: number | null;
-            /** @description Unique object identifier. */
-            id?: number;
         };
         SinglePhotometry: {
             /** @enum {string} */
@@ -33823,10 +33981,10 @@ export interface components {
         RoleACL: {
             readonly role?: components["schemas"]["Role"];
             readonly acl?: components["schemas"]["ACL"];
-            /** @description Unique object identifier. */
-            id?: number;
             role_id: string;
             acl_id: string;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleRoleACL: {
             /** @enum {string} */
@@ -34399,10 +34557,10 @@ export interface components {
         ShiftUser: {
             readonly shift?: components["schemas"]["Shift"];
             readonly user?: components["schemas"]["User"];
-            /** @description Unique object identifier. */
-            id?: number;
             shift_id: number;
             user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description Boolean flag indicating whether the User is an admin of the shift. */
             admin?: boolean;
             /** @description Boolean flag indicating whether the User needs a replacement for the shift. */
@@ -35348,10 +35506,10 @@ export interface components {
         SpectrumObserver: {
             readonly spectrum?: components["schemas"]["Spectrum"];
             readonly user?: components["schemas"]["User"];
-            /** @description Unique object identifier. */
-            id?: number;
             spectr_id: number;
             user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description The actual observer for the spectrum, provided as free text if the observer is not a user in the database. Separate from the point-of-contact user designated as observer */
             external_observer?: string | null;
         };
@@ -35390,10 +35548,10 @@ export interface components {
         SpectrumPI: {
             readonly spectrum?: components["schemas"]["Spectrum"];
             readonly user?: components["schemas"]["User"];
-            /** @description Unique object identifier. */
-            id?: number;
             spectr_id: number;
             user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description The actual PI for the spectrum, provided as free text if the PI is not a user in the database. Separate from the point-of-contact user designated as PI */
             external_pi?: string | null;
         };
@@ -35516,10 +35674,10 @@ export interface components {
         SpectrumReducer: {
             readonly spectrum?: components["schemas"]["Spectrum"];
             readonly user?: components["schemas"]["User"];
-            /** @description Unique object identifier. */
-            id?: number;
             spectr_id: number;
             user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description The actual reducer for the spectrum, provided as free text if the reducer is not a user in the database. Separate from the point-of-contact user designated as reducer */
             external_reducer?: string | null;
         };
@@ -35568,6 +35726,8 @@ export interface components {
             altdata?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Boolean indicating whether any user may add themselves to this stream. Auto-join streams are visible to all users. */
+            auto_join?: boolean;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -35586,10 +35746,10 @@ export interface components {
         StreamInvitation: {
             readonly stream?: components["schemas"]["Stream"];
             readonly invitation?: components["schemas"]["Invitation"];
-            /** @description Unique object identifier. */
-            id?: number;
             stream_id: number;
             invitation_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleStreamInvitation: {
             /** @enum {string} */
@@ -35634,6 +35794,8 @@ export interface components {
             altdata?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Boolean indicating whether any user may add themselves to this stream. Auto-join streams are visible to all users. */
+            auto_join?: boolean;
         };
         SingleStreamNoID: {
             /** @enum {string} */
@@ -35650,10 +35812,10 @@ export interface components {
         StreamPhotometricSeries: {
             readonly stream?: components["schemas"]["Stream"];
             readonly photometricseries?: components["schemas"]["PhotometricSeries"];
-            /** @description Unique object identifier. */
-            id?: number;
             stream_id: number;
             photometric_serie_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleStreamPhotometricSeries: {
             /** @enum {string} */
@@ -35688,8 +35850,6 @@ export interface components {
         StreamPhotometry: {
             readonly stream?: components["schemas"]["Stream"];
             readonly photometry?: components["schemas"]["Photometry"];
-            /** @description Unique object identifier. */
-            id?: number;
             stream_id: number;
             photometr_id: number;
         };
@@ -35726,10 +35886,10 @@ export interface components {
         StreamSharingService: {
             readonly stream?: components["schemas"]["Stream"];
             readonly sharingservice?: components["schemas"]["SharingService"];
-            /** @description Unique object identifier. */
-            id?: number;
             stream_id: number;
             sharing_service_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleStreamSharingService: {
             /** @enum {string} */
@@ -35764,10 +35924,10 @@ export interface components {
         StreamUser: {
             readonly stream?: components["schemas"]["Stream"];
             readonly user?: components["schemas"]["User"];
-            /** @description Unique object identifier. */
-            id?: number;
             stream_id: number;
             user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleStreamUser: {
             /** @enum {string} */
@@ -36271,10 +36431,10 @@ export interface components {
         TokenACL: {
             readonly token?: components["schemas"]["Token"];
             readonly acl?: components["schemas"]["ACL"];
-            /** @description Unique object identifier. */
-            id?: number;
             token_id: string;
             acl_id: string;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleTokenACL: {
             /** @enum {string} */
@@ -36431,10 +36591,10 @@ export interface components {
         UserACL: {
             readonly user?: components["schemas"]["User"];
             readonly acl?: components["schemas"]["ACL"];
-            /** @description Unique object identifier. */
-            id?: number;
             user_id: number;
             acl_id: string;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleUserACL: {
             /** @enum {string} */
@@ -36469,10 +36629,10 @@ export interface components {
         UserInvitation: {
             readonly user?: components["schemas"]["User"];
             readonly invitation?: components["schemas"]["Invitation"];
-            /** @description Unique object identifier. */
-            id?: number;
             user_id: number;
             invitation_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleUserInvitation: {
             /** @enum {string} */
@@ -36660,10 +36820,10 @@ export interface components {
         UserRole: {
             readonly user?: components["schemas"]["User"];
             readonly role?: components["schemas"]["Role"];
-            /** @description Unique object identifier. */
-            id?: number;
             user_id: number;
             role_id: string;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SingleUserRole: {
             /** @enum {string} */

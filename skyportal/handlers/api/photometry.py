@@ -393,9 +393,11 @@ def _serialize_plot(phot, outsys):
             "filter": filter,
             "mjd": phot.mjd,
             "origin": phot.origin,
-            "mag": (phot.mag + db_correction)
-            if nan_to_none(phot.mag) is not None
-            else None,
+            "mag": (
+                (phot.mag + db_correction)
+                if nan_to_none(phot.mag) is not None
+                else None
+            ),
             "magerr": phot.e_mag if nan_to_none(phot.e_mag) is not None else None,
             "limiting_mag": maglimit_out,
         }
@@ -542,9 +544,11 @@ def serialize(
                 maglimit_out = -2.5 * np.log10(5 * phot.fluxerr) + corrected_db_zp
 
             mag_data = {
-                "mag": phot.mag + db_correction
-                if nan_to_none(phot.mag) is not None
-                else None,
+                "mag": (
+                    phot.mag + db_correction
+                    if nan_to_none(phot.mag) is not None
+                    else None
+                ),
                 "magerr": phot.e_mag if nan_to_none(phot.e_mag) is not None else None,
                 "magsys": outsys.name,
                 "limiting_mag": maglimit_out,
@@ -568,9 +572,11 @@ def serialize(
             ):
                 return_value.update(
                     {
-                        "magref": phot.magref + db_correction
-                        if nan_to_none(phot.magref) is not None
-                        else None,
+                        "magref": (
+                            phot.magref + db_correction
+                            if nan_to_none(phot.magref) is not None
+                            else None
+                        ),
                         "magtot": phot.magtot,
                         "e_magref": phot.e_magref,
                         "e_magtot": phot.e_magtot,
@@ -1118,7 +1124,8 @@ async def bulk_upsert_photometry(session, params, duplicates, return_inserted=Fa
                 f"fluxerr, flux): {missing}"
             )
         # DO NOTHING returns only inserted rows, so every returned row is new.
-        ids = [r.id for r in returned]
+        id_by_key = {_dedup_key(r): r.id for r in returned}
+        ids = [id_by_key[_dedup_key(p)] for p in params]
         if return_inserted:
             return ids, {_dedup_key(r) for r in returned}
         return ids
@@ -1245,10 +1252,14 @@ async def insert_new_photometry_data(
         for gid in group_ids
     ]
     if group_photometry_params:
-        gp_stmt = pg_insert(GroupPhotometry).on_conflict_do_nothing(
-            index_elements=["group_id", "photometr_id"]
+        # A single multi-row INSERT rather than executemany: pg_insert with
+        # ON CONFLICT disables SQLAlchemy's insertmanyvalues batching, so
+        # executemany would emit one INSERT per row (an N+1).
+        await session.execute(
+            pg_insert(GroupPhotometry)
+            .values(group_photometry_params)
+            .on_conflict_do_nothing(index_elements=["group_id", "photometr_id"])
         )
-        await session.execute(gp_stmt, group_photometry_params)
 
     stream_photometry_params = [
         {
@@ -1261,10 +1272,11 @@ async def insert_new_photometry_data(
         for sid in stream_ids
     ]
     if stream_photometry_params:
-        sp_stmt = pg_insert(StreamPhotometry).on_conflict_do_nothing(
-            index_elements=["stream_id", "photometr_id"]
+        await session.execute(
+            pg_insert(StreamPhotometry)
+            .values(stream_photometry_params)
+            .on_conflict_do_nothing(index_elements=["stream_id", "photometr_id"])
         )
-        await session.execute(sp_stmt, stream_photometry_params)
 
     # PhotStat update. params may span MULTIPLE objs (bulk cross-object
     # posting); do the work in 3 bulk statements instead of 3-per-obj:
@@ -1517,6 +1529,11 @@ async def add_external_photometry(
 
             id_map = {}
             id_map_no_update_needed = {}
+            # Accumulate new group/stream associations across all duplicates
+            # and bulk-insert once after the loop (avoids an N+1 of one
+            # single-row INSERT per duplicate).
+            new_group_photometry = []
+            new_stream_photometry = []
             for df_index, duplicate in duplicated_photometry:
                 id_map[df_index] = duplicate.id
 
@@ -1532,22 +1549,9 @@ async def add_external_photometry(
                 # workers race on the (group_id, photometr_id) unique index.
                 new_group_ids = set(group_ids) - duplicate_group_ids
                 if len(new_group_ids) > 0:
-                    now = utcnow_naive()
-                    gp_stmt = pg_insert(GroupPhotometry).values(
-                        [
-                            {
-                                "photometr_id": duplicate.id,
-                                "group_id": gid,
-                                "created_at": now,
-                                "modified": now,
-                            }
-                            for gid in new_group_ids
-                        ]
-                    )
-                    await session.execute(
-                        gp_stmt.on_conflict_do_nothing(
-                            index_elements=["group_id", "photometr_id"]
-                        )
+                    new_group_photometry.extend(
+                        {"photometr_id": duplicate.id, "group_id": gid}
+                        for gid in new_group_ids
                     )
                     log(f"Adding groups {new_group_ids} to photometry {duplicate.id}")
                     updated = True
@@ -1556,22 +1560,9 @@ async def add_external_photometry(
                 if stream_ids:
                     stream_ids_update = set(stream_ids) - duplicate_stream_ids
                     if len(stream_ids_update) > 0:
-                        now = utcnow_naive()
-                        sp_stmt = pg_insert(StreamPhotometry).values(
-                            [
-                                {
-                                    "photometr_id": duplicate.id,
-                                    "stream_id": sid,
-                                    "created_at": now,
-                                    "modified": now,
-                                }
-                                for sid in stream_ids_update
-                            ]
-                        )
-                        await session.execute(
-                            sp_stmt.on_conflict_do_nothing(
-                                index_elements=["stream_id", "photometr_id"]
-                            )
+                        new_stream_photometry.extend(
+                            {"photometr_id": duplicate.id, "stream_id": sid}
+                            for sid in stream_ids_update
                         )
                         log(
                             f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
@@ -1580,6 +1571,27 @@ async def add_external_photometry(
 
                 if updated:
                     id_map_no_update_needed[df_index] = duplicate.id
+
+            # Bulk-insert the accumulated group/stream associations.
+            now = utcnow_naive()
+            if new_group_photometry:
+                for row in new_group_photometry:
+                    row["created_at"] = row["modified"] = now
+                await session.execute(
+                    pg_insert(GroupPhotometry)
+                    .values(new_group_photometry)
+                    .on_conflict_do_nothing(index_elements=["group_id", "photometr_id"])
+                )
+            if new_stream_photometry:
+                for row in new_stream_photometry:
+                    row["created_at"] = row["modified"] = now
+                await session.execute(
+                    pg_insert(StreamPhotometry)
+                    .values(new_stream_photometry)
+                    .on_conflict_do_nothing(
+                        index_elements=["stream_id", "photometr_id"]
+                    )
+                )
 
             if duplicates in ["update"] and len(id_map_no_update_needed) > 0:
                 log(
@@ -1903,6 +1915,11 @@ class PhotometryHandler(BaseHandler):
 
                 updated_ids = []
                 updated_duplicate_values = []
+                # Accumulate new group/stream associations across all duplicates
+                # and bulk-insert once after the loop (avoids an N+1 of one
+                # single-row INSERT per duplicate).
+                new_group_photometry = []
+                new_stream_photometry = []
                 for df_index, duplicate in duplicated_photometry:
                     id_map[df_index] = duplicate.id
                     duplicate_group_ids = {g.id for g in duplicate.groups}
@@ -1914,22 +1931,9 @@ class PhotometryHandler(BaseHandler):
                     # (group_id, photometr_id) unique index otherwise.
                     new_group_ids = set(group_ids) - duplicate_group_ids
                     if len(new_group_ids) > 0:
-                        now = utcnow_naive()
-                        gp_stmt = pg_insert(GroupPhotometry).values(
-                            [
-                                {
-                                    "photometr_id": duplicate.id,
-                                    "group_id": gid,
-                                    "created_at": now,
-                                    "modified": now,
-                                }
-                                for gid in new_group_ids
-                            ]
-                        )
-                        await session.execute(
-                            gp_stmt.on_conflict_do_nothing(
-                                index_elements=["group_id", "photometr_id"]
-                            )
+                        new_group_photometry.extend(
+                            {"photometr_id": duplicate.id, "group_id": gid}
+                            for gid in new_group_ids
                         )
                         log(
                             f"Adding groups {new_group_ids} to photometry {duplicate.id}"
@@ -1939,22 +1943,9 @@ class PhotometryHandler(BaseHandler):
                     if stream_ids:
                         stream_ids_update = set(stream_ids) - duplicate_stream_ids
                         if len(stream_ids_update) > 0:
-                            now = utcnow_naive()
-                            sp_stmt = pg_insert(StreamPhotometry).values(
-                                [
-                                    {
-                                        "photometr_id": duplicate.id,
-                                        "stream_id": sid,
-                                        "created_at": now,
-                                        "modified": now,
-                                    }
-                                    for sid in stream_ids_update
-                                ]
-                            )
-                            await session.execute(
-                                sp_stmt.on_conflict_do_nothing(
-                                    index_elements=["stream_id", "photometr_id"]
-                                )
+                            new_stream_photometry.extend(
+                                {"photometr_id": duplicate.id, "stream_id": sid}
+                                for sid in stream_ids_update
                             )
                             log(
                                 f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
@@ -2007,6 +1998,29 @@ class PhotometryHandler(BaseHandler):
                         duplicate.modified = utcnow_naive()
                         updated_ids.append(duplicate.id)
                         updated_duplicate_values.append(duplicate_value)
+
+                # Bulk-insert the accumulated group/stream associations.
+                now = utcnow_naive()
+                if new_group_photometry:
+                    for row in new_group_photometry:
+                        row["created_at"] = row["modified"] = now
+                    await session.execute(
+                        pg_insert(GroupPhotometry)
+                        .values(new_group_photometry)
+                        .on_conflict_do_nothing(
+                            index_elements=["group_id", "photometr_id"]
+                        )
+                    )
+                if new_stream_photometry:
+                    for row in new_stream_photometry:
+                        row["created_at"] = row["modified"] = now
+                    await session.execute(
+                        pg_insert(StreamPhotometry)
+                        .values(new_stream_photometry)
+                        .on_conflict_do_nothing(
+                            index_elements=["stream_id", "photometr_id"]
+                        )
+                    )
 
                 # now safely drop the duplicates:
                 new_photometry = df.loc[new_photometry_df_idxs]

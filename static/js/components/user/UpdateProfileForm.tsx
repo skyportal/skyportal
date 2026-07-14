@@ -123,7 +123,7 @@ const UpdateProfileForm = () => {
   return (
     <div>
       <Card>
-        <CardContent>
+        <CardContent data-testid="tour-profile-details">
           <h2>Username</h2>
           <form onSubmit={handleSubmit(onSubmit)}>
             <InputLabel htmlFor="usernameInput">
@@ -395,7 +395,7 @@ const UpdateProfileForm = () => {
             </Button>
           </form>
         </CardContent>
-        <CardContent>
+        <CardContent data-testid="tour-profile-notifications">
           <NotificationPreferences />
         </CardContent>
         <CardContent>
@@ -404,7 +404,7 @@ const UpdateProfileForm = () => {
         <CardContent>
           <OpenAIPreferences />
         </CardContent>
-        <CardContent>
+        <CardContent data-testid="tour-profile-appearance">
           <UIPreferences />
         </CardContent>
         <CardContent>

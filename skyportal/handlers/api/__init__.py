@@ -19,7 +19,7 @@ from .annotation_services import (
     PS1QueryHandler,
     VizierQueryHandler,
 )
-from .candidate.candidate import CandidateHandler
+from .candidate.candidate import BulkDeleteCandidatesHandler, CandidateHandler
 from .candidate.candidate_filter import CandidateFilterHandler
 from .candidate.scan_report import ScanReportHandler
 from .candidate.scan_report_item import ScanReportItemHandler
@@ -178,6 +178,7 @@ from .sharing_service.sharing_service_submission import (
 from .shift import ShiftHandler, ShiftSummary, ShiftUserHandler
 from .skymap_trigger import SkymapTriggerAPIHandler
 from .source import (
+    FinderChartFacilitiesHandler,
     SourceCopyPhotometryHandler,
     SourceFinderHandler,
     SourceHandler,

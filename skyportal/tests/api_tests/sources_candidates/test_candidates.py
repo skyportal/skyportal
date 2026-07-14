@@ -1764,3 +1764,80 @@ def test_candidate_filter_list(view_only_token, public_candidate):
     assert isinstance(data["data"]["totalMatches"], int)
     assert "passing_alert_id" in data["data"]["candidates"][0]
     assert "obj_id" in data["data"]["candidates"][0]
+
+
+def test_bulk_delete_old_unsaved_candidates(
+    super_admin_token, upload_data_token, view_only_token, public_filter, public_group
+):
+    old = str(utcnow_naive() - datetime.timedelta(days=400))  # > 6 months
+    recent = str(utcnow_naive())
+
+    old_unsaved = str(uuid.uuid4())  # old + never saved -> should be deleted
+    old_saved = str(uuid.uuid4())  # old but actively saved -> should be kept
+    recent_unsaved = str(uuid.uuid4())  # unsaved but recent -> should be kept
+
+    for obj_id, passed_at in [
+        (old_unsaved, old),
+        (old_saved, old),
+        (recent_unsaved, recent),
+    ]:
+        status, data = api(
+            "POST",
+            "candidates",
+            data={
+                "id": obj_id,
+                "ra": 10.0,
+                "dec": 10.0,
+                "filter_ids": [public_filter.id],
+                "passed_at": passed_at,
+            },
+            token=upload_data_token,
+        )
+        assert status == 200, data
+
+    # save old_saved as an active source so it is protected
+    status, data = api(
+        "POST",
+        "sources",
+        data={"id": old_saved, "group_ids": [public_group.id]},
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    # non-admins cannot call the purge
+    status, data = api("POST", "candidates/bulk_delete", data={}, token=view_only_token)
+    assert status == 401
+
+    # dry run deletes nothing but reports the old, unsaved candidate
+    status, data = api(
+        "POST",
+        "candidates/bulk_delete",
+        data={"maxAgeMonths": 6, "dryRun": True},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["data"]["deleted"] == 0
+    assert data["data"]["remaining"] >= 1
+    # dry run did not actually delete
+    status, _ = api("HEAD", f"candidates/{old_unsaved}", token=view_only_token)
+    assert status == 200
+
+    # real purge
+    status, data = api(
+        "POST",
+        "candidates/bulk_delete",
+        data={"maxAgeMonths": 6},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["data"]["deleted"] >= 1
+
+    # old + unsaved was deleted
+    status, _ = api("HEAD", f"candidates/{old_unsaved}", token=view_only_token)
+    assert status == 404
+    # old + saved was kept (has an active source)
+    status, _ = api("HEAD", f"candidates/{old_saved}", token=view_only_token)
+    assert status == 200
+    # recent + unsaved was kept (too new)
+    status, _ = api("HEAD", f"candidates/{recent_unsaved}", token=view_only_token)
+    assert status == 200

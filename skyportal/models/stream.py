@@ -12,11 +12,11 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import (
-    AccessibleIfUserMatches,
     Base,
     CustomUserAccessControl,
     DBSession,
     User,
+    UserAccessControl,
     join_model,
     restricted,
 )
@@ -28,11 +28,27 @@ from .photometry import Photometry
 from .sharing_service import SharingService
 
 
+def stream_read_access_logic(cls, user_or_token):
+    """A stream is readable by system admins, by its members, and (so they can
+    be discovered and self-joined) by everyone if it is an auto-join stream."""
+    if user_or_token.is_admin:
+        return sa.select(cls)
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    return sa.select(cls).where(
+        sa.or_(
+            cls.auto_join.is_(True),
+            cls.id.in_(
+                sa.select(StreamUser.stream_id).where(StreamUser.user_id == user_id)
+            ),
+        )
+    )
+
+
 class Stream(Base):
     """A data stream producing alerts that can be programmatically filtered
     using a Filter."""
 
-    read = AccessibleIfUserMatches("users")
+    read = CustomUserAccessControl(stream_read_access_logic)
     create = update = delete = restricted
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
@@ -41,6 +57,14 @@ class Stream(Base):
         nullable=True,
         doc="Misc. metadata stored in JSON format, e.g. "
         "`{'collection': 'ZTF_alerts', selector: [1, 2]}`",
+    )
+    auto_join = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        default=False,
+        doc="Boolean indicating whether any user may add themselves to this "
+        "stream. Auto-join streams are visible to all users.",
     )
 
     groups = relationship(
@@ -124,7 +148,9 @@ StreamUser.create = restricted
 # only system admins can modify user stream permissions
 StreamUser.delete = CustomUserAccessControl(stream_delete_logic)
 
-StreamPhotometry = join_model("stream_photometry", Stream, Photometry)
+StreamPhotometry = join_model(
+    "stream_photometry", Stream, Photometry, index_created_at=False, composite_pk=True
+)
 StreamPhotometry.__doc__ = "Join table mapping Streams to Photometry."
 StreamPhotometry.create = accessible_by_stream_members
 
