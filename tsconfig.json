@@ -29,5 +29,10 @@
     "exactOptionalPropertyTypes": true
   },
   "include": ["static/js"],
-  "exclude": ["node_modules", "static/build"]
+  "exclude": [
+    "node_modules",
+    "static/build",
+    "static/js/**/*.test.ts",
+    "static/js/**/*.test.tsx"
+  ]
 }

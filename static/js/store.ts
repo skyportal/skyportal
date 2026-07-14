@@ -17,6 +17,13 @@ declare global {
   interface Window {
     __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: typeof compose;
   }
+  // rspack replaces process.env.NODE_ENV at build time; declare it so the dot
+  // access typechecks under noPropertyAccessFromIndexSignature.
+  namespace NodeJS {
+    interface ProcessEnv {
+      NODE_ENV?: string;
+    }
+  }
 }
 
 const syncConfig = {
@@ -60,7 +67,10 @@ function configureStore(): AppStore {
   const middlewares = [
     thunk,
     skyportalApi.middleware,
-    logger,
+    // Dev-only: logs prev/action/next state on every dispatch. Guarded so it's
+    // stripped from production builds (rspack --mode=production defines
+    // process.env.NODE_ENV), avoiding per-action console cost for every user.
+    ...(process.env.NODE_ENV === "development" ? [logger] : []),
     createStateSyncMiddleware(syncConfig),
   ];
 
