@@ -299,6 +299,74 @@ def test_gcn_from_json(super_admin_token):
     )
 
 
+def test_gcn_from_igwn_json(super_admin_token):
+    # LVK IGWN gwalert JSON (replaces the retired GCN Classic LVC VOEvents). The
+    # skymap is embedded in the alert as base64 and ingested directly.
+    datafile = f"{os.path.dirname(__file__)}/../../data/igwn_gwalert_preliminary.json"
+    with open(datafile, "rb") as fid:
+        payload = fid.read()
+
+    dateobs = "2026-06-05T11:57:26"
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    if status == 404:
+        status, data = api(
+            "POST", "gcn_event", data={"json": payload}, token=super_admin_token
+        )
+        assert status == 200, data
+        assert data["status"] == "success"
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    assert data["dateobs"] == dateobs
+    for tag in ("GW", "BNS", "Significant"):
+        assert tag in data["tags"]
+    assert "LVC#MS260605l" in data["aliases"]
+
+    skymap = "MS260605l-PRELIMINARY.multiorder.fits"
+    params = {"include2DMap": True}
+    n_retries = 0
+    while True:
+        try:
+            status, data = api(
+                "GET",
+                f"localization/{dateobs}/name/{skymap}",
+                token=super_admin_token,
+                params=params,
+            )
+            data = data["data"]
+            assert data.get("localization_name") == skymap
+            assert np.isclose(np.sum(data.get("flat_2d", [])), 1)
+            break
+        except AssertionError as e:
+            if n_retries == 10:
+                raise e
+            n_retries += 1
+            time.sleep(2)
+
+    # a retraction of the same superevent adds the "retracted" tag
+    datafile = f"{os.path.dirname(__file__)}/../../data/igwn_gwalert_retraction.json"
+    with open(datafile, "rb") as fid:
+        retraction = fid.read()
+    status, data = api(
+        "POST", "gcn_event", data={"json": retraction}, token=super_admin_token
+    )
+    assert status == 200, data
+
+    n_retries = 0
+    while True:
+        status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+        assert status == 200
+        if "retracted" in data["data"]["tags"] or n_retries == 5:
+            break
+        n_retries += 1
+        time.sleep(2)
+    assert "retracted" in data["data"]["tags"]
+
+    api("DELETE", f"localization/{dateobs}/name/{skymap}", token=super_admin_token)
+    api("DELETE", f"gcn_event/{dateobs}", token=super_admin_token)
+
+
 def test_gcn_from_polygon(super_admin_token):
     localization_name = str(uuid.uuid4())
     dateobs = "2022-09-03T14:44:12"
