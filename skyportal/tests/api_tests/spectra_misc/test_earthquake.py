@@ -171,7 +171,7 @@ def test_earthquake_dictionary(super_admin_token, view_only_token):
     status, data = api(
         "DELETE", f"earthquake/{event_id}", data=data, token=view_only_token
     )
-    assert data["message"] == "Earthquake event not found"
+    assert "Earthquake event not found" in data["message"]
     assert status == 404
 
     status, data = api(

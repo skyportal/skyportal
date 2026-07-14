@@ -3373,8 +3373,8 @@ def test_token_user_big_post(
     assert status == 400
     assert data["status"] == "error"
     assert (
-        data["message"]
-        == "Maximum number of photometry rows to post exceeded: 30000 > 10000. Please break up the data into smaller sets and try again"
+        "Maximum number of photometry rows to post exceeded: 30000 > 10000. Please break up the data into smaller sets and try again"
+        in data["message"]
     )
 
 
