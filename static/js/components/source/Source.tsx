@@ -1213,6 +1213,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 ra={source.ra}
                 dec={source.dec}
                 thumbnails={source.thumbnails}
+                objID={source.id}
                 size="100%"
                 minSize={rightPanelVisible || downLg ? "6rem" : "10rem"}
                 maxSize={rightPanelVisible || downLg ? "13rem" : "20rem"}

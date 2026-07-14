@@ -105,11 +105,17 @@ export const candidatesApi = skyportalApi.injectEndpoints({
       providesTags: ["AnnotationsInfo"],
     }),
     generateSurveyThumbnail: build.mutation({
-      query: (objID) => ({
-        url: "api/internal/survey_thumbnail",
-        method: "POST",
-        body: { objID },
-      }),
+      // Accepts either an objID string (all-sky cutouts) or
+      // { objID, types } for on-demand pointed instruments (HST/Chandra).
+      query: (arg: string | { objID: string; types?: string[] }) => {
+        const { objID, types } =
+          typeof arg === "string" ? { objID: arg, types: undefined } : arg;
+        return {
+          url: "api/internal/survey_thumbnail",
+          method: "POST",
+          body: { objID, ...(types ? { types } : {}) },
+        };
+      },
     }),
   }),
 });

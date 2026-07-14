@@ -139,7 +139,9 @@ def remove_obj_thumbnails(obj_id):
         existing_thumbnails = session.scalars(
             sa.select(Thumbnail).where(
                 Thumbnail.obj_id == obj_id,
-                Thumbnail.type.in_(["ps1", "sdss", "ls"]),
+                Thumbnail.type.in_(
+                    ["ps1", "sdss", "ls", "sm", "hst", "chandra", "jwst"]
+                ),
             )
         )
         for thumbnail in existing_thumbnails:
@@ -3442,6 +3444,23 @@ class SurveyThumbnailHandler(BaseHandler):
         if obj_id is not None:
             obj_ids = [obj_id]
 
+        # SDSS/PS1/LS are generated automatically (this endpoint is hit on
+        # source/candidate view). SkyMapper, HST, Chandra and JWST have slow or
+        # flaky lookups, so they are only generated when explicitly requested.
+        default_types = ["sdss", "ps1", "ls"]
+        on_demand_types = ["sm", "hst", "chandra", "jwst"]
+        requested_types = data.get("types")
+        if requested_types:
+            if not isinstance(requested_types, list) or any(
+                t not in default_types + on_demand_types for t in requested_types
+            ):
+                return self.error(
+                    f"types must be a subset of {default_types + on_demand_types}"
+                )
+            thumbnail_types = requested_types
+        else:
+            thumbnail_types = default_types
+
         async with self.AsyncSession() as session:
             objs_result = await session.scalars(
                 Obj.select(session.user_or_token).where(Obj.id.in_(obj_ids))
@@ -3453,10 +3472,21 @@ class SurveyThumbnailHandler(BaseHandler):
 
             for obj in objs:
                 try:
-                    await obj.add_linked_thumbnails(["sdss", "ps1", "ls"], session)
+                    await obj.add_linked_thumbnails(thumbnail_types, session)
                 except Exception:
                     await session.rollback()
                     return self.error(f"Error adding thumbnails for {obj.id}")
+
+            # Explicit on-demand requests (e.g. HST/Chandra) refresh the source
+            # view so the new thumbnails appear without a manual reload.
+            if requested_types:
+                flow = Flow()
+                for obj in objs:
+                    flow.push(
+                        "*",
+                        "skyportal/REFRESH_SOURCE",
+                        payload={"obj_key": obj.internal_key},
+                    )
 
         return self.success()
 

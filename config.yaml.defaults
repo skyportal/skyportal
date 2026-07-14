@@ -76,6 +76,7 @@ app:
   # Set to an empty string to skip the HTTP call and use the
   # "currently_unavailable.png" placeholder (useful in tests).
   ps1_cutout_url: http://ps1images.stsci.edu/cgi-bin/ps1cutouts
+  skymapper_cutout_url: https://api.skymapper.nci.org.au/public/siap/dr4/query
 
   tess_endpoint: https://tess.mit.edu/public/tesstransients/
 
