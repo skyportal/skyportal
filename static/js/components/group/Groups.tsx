@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useGetProfileQuery } from "../../ducks/profile";
-import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
@@ -8,25 +7,9 @@ import Tab from "@mui/material/Tab";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import GroupList from "./GroupList";
 import NewGroupForm from "./NewGroupForm";
-import NonMemberGroupList from "./NonMemberGroupList";
 import Spinner from "../Spinner";
 
-const useStyles = makeStyles()(() => ({
-  // Hide drag handle icon since this isn't the home page
-  widgetIcon: {
-    display: "none",
-  },
-  widgetPaperDiv: {
-    padding: "1rem",
-    height: "100%",
-  },
-  widgetPaperFillSpace: {
-    height: "100%",
-  },
-}));
-
 const Groups = () => {
-  const { classes } = useStyles();
   const { permissions } = useGetProfileQuery().data ?? {};
   const { data: groupsData } = useGetGroupsQuery();
   const userGroups = groupsData?.user ?? [];
@@ -43,25 +26,12 @@ const Groups = () => {
   );
 
   const tabPanels = [
-    <GroupList
-      key="my-groups"
-      title="My Groups"
-      groups={userGroups}
-      classes={classes}
-      listMaxHeight="65vh"
-    />,
+    <GroupList key="my-groups" groups={userGroups} />,
     ...(nonMemberGroups.length
-      ? [<NonMemberGroupList key="non-member" groups={nonMemberGroups} />]
+      ? [<GroupList key="non-member" groups={nonMemberGroups} admission />]
       : []),
     ...(canManageGroups
-      ? [
-          <GroupList
-            key="all-groups"
-            title="All Groups"
-            groups={allMultiUserGroups}
-            classes={classes}
-          />,
-        ]
+      ? [<GroupList key="all-groups" groups={allMultiUserGroups} />]
       : []),
     <NewGroupForm key="new-group" />,
   ];

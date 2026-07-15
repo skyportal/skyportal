@@ -12,19 +12,15 @@ _, cfg = load_env()
 def test_public_groups_list(page, user, public_group):
     page.goto(f"/become_user/{user.id}")
     page.goto("/groups")
-    expect(page.locator('//h6[text()="My Groups"]').first).to_be_visible()
-    expect(
-        page.locator(f'//a[contains(.,"{public_group.name}")]').first
-    ).to_be_visible()
+    expect(page.get_by_role("tab", name="My Groups")).to_be_visible()
+    expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_visible()
 
 
 def test_super_admin_groups_list(page, super_admin_user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
-    expect(
-        page.locator(f'//a[contains(.,"{public_group.name}")]').first
-    ).to_be_visible()
+    page.get_by_role("tab", name="All Groups").click()
+    expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_visible()
 
 
 def test_add_new_group(page, super_admin_user, user, super_admin_token):
@@ -34,7 +30,7 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
     page.goto("/")
     page.reload()
     page.goto("/groups")
-    expect(page.locator('//h6[text()="Create New Group"]').first).to_be_visible()
+    page.get_by_role("tab", name="Create New Group").click()
     page.locator('//input[@name="name"]').first.fill(test_proj_name)
     page.locator('//input[@name="description"]').first.fill(group_description)
     page.locator('//div[@id="groupAdminsSelect"]').first.click()
@@ -43,7 +39,8 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
     # Create Group button
     page.keyboard.press("Escape")
     page.locator('//button[contains(.,"Create Group")]').first.click()
-    expect(page.locator(f'//a[contains(.,"{test_proj_name}")]').first).to_be_visible()
+    page.get_by_role("tab", name="All Groups").click()
+    expect(page.get_by_role("gridcell", name=test_proj_name).first).to_be_visible()
     # check for group description
     status, data = api("GET", "groups", token=super_admin_token)
     assert status == 200
@@ -81,8 +78,8 @@ def test_add_new_group_user(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
-    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.get_by_role("tab", name="All Groups").click()
+    page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.locator('//div[@data-testid="newGroupUserTextInput"]').first.click()
     page.locator(f'//li[text()="{user_no_groups.username}"]').first.click()
     if checkbox is not None:
@@ -115,11 +112,11 @@ def test_invite_all_users_from_other_group(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
+    page.get_by_role("tab", name="All Groups").click()
     expect(
         page.locator(f'//a[contains(.,"{user_group2.username}")]').first
     ).to_be_hidden()
-    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.get_by_role("tab", name="Add a group of users").click()
     page.locator('//*[@data-testid="addUsersFromGroupsTextField"]').first.click()
     page.locator(f'//li[text()="{public_group2.name}"]').first.click()
@@ -135,8 +132,8 @@ def test_invite_all_users_from_other_group(
 def test_delete_group_user(page, super_admin_user, user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
-    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.get_by_role("tab", name="All Groups").click()
+    page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
 
     expect(page.locator(f'//a[contains(.,"{user.username}")]').first).to_be_visible()
     page.locator(f'//button[@data-testid="delete-{user.username}"]').first.click()
@@ -150,11 +147,12 @@ def test_delete_group_user(page, super_admin_user, user, public_group):
 def test_delete_group(page, super_admin_user, user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
-    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.get_by_role("tab", name="All Groups").click()
+    page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.locator('//button[contains(.,"Delete Group")]').first.click()
     page.locator('//button[contains(.,"Confirm")]').first.click()
-    expect(page.locator(f'//a[contains(.,"{public_group.name}")]').first).to_be_hidden()
+    page.get_by_role("tab", name="All Groups").click()
+    expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_hidden()
 
 
 @pytest.mark.flaky(reruns=2)
@@ -171,8 +169,8 @@ def test_add_stream_add_delete_filter_group(
 
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.locator('//h6[text()="All Groups"]').first.click()
-    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.get_by_role("tab", name="All Groups").click()
+    page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.get_by_role("tab", name="Streams and filters").click()
 
     # Add stream
@@ -200,8 +198,8 @@ def test_cannot_add_stream_group_users_cant_access(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.locator('//h6[text()="All Groups"]').first.click()
-    page.locator(f'//*[@data-testid="All Groups-{public_group.name}"]').first.click()
+    page.get_by_role("tab", name="All Groups").click()
+    page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.get_by_role("tab", name="Streams and filters").click()
 
     # Cannot add stream that group members don't have access to
@@ -222,14 +220,15 @@ def test_add_new_group_with_auto_accept(
     test_proj_name = str(uuid.uuid4())
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    expect(page.locator('//h3[text()="Create New Group"]').first).to_be_visible()
+    page.get_by_role("tab", name="Create New Group").click()
     page.locator('//input[@name="name"]').first.fill(test_proj_name)
     page.locator('//*[@data-testid="autoAcceptRequestsCheckbox"]').first.click()
     page.locator('//div[@id="groupAdminsSelect"]').first.click()
     page.locator(f'//li[contains(text(),"{user.username}")]').first.click()
     page.keyboard.press("Escape")
     page.locator('//button[contains(.,"Create Group")]').first.click()
-    expect(page.locator(f'//a[contains(.,"{test_proj_name}")]').first).to_be_visible()
+    page.get_by_role("tab", name="All Groups").click()
+    expect(page.get_by_role("gridcell", name=test_proj_name).first).to_be_visible()
 
     status, data = api("GET", "groups", token=super_admin_token)
     assert status == 200
