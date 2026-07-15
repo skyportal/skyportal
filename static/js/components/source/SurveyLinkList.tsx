@@ -115,8 +115,18 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
     });
   }
 
+  // ACROSS visibility calculator: default to a 7-day window starting now
+  const acrossBegin = dayjs.utc().format("YYYY-MM-DDTHH:mm:ss.SSS");
+  const acrossEnd = dayjs.utc().add(7, "day").format("YYYY-MM-DDTHH:mm:ss.SSS");
+
   return (
     <div className={styles.SurveyLinkList}>
+      <SurveyLink
+        name="ACROSS"
+        url={`https://app.across.sciencecloud.nasa.gov/visibility-calculator?ra=${ra}&dec=${dec}&date_range_begin=${encodeURIComponent(
+          acrossBegin,
+        )}&date_range_end=${encodeURIComponent(acrossEnd)}`}
+      />
       <SurveyLink
         name="ADS"
         url={`https://ui.adsabs.harvard.edu/search/q=object%22${ra}%20${
