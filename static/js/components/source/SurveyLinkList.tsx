@@ -116,8 +116,8 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
   }
 
   // ACROSS visibility calculator: default to a 7-day window starting now
-  const acrossBegin = dayjs.utc().format("YYYY-MM-DDTHH:mm:ss.SSS");
-  const acrossEnd = dayjs.utc().add(7, "day").format("YYYY-MM-DDTHH:mm:ss.SSS");
+  const acrossBegin = dayjs.utc().format("YYYY-MM-DDTHH:mm:ss");
+  const acrossEnd = dayjs.utc().add(7, "day").format("YYYY-MM-DDTHH:mm:ss");
 
   return (
     <div className={styles.SurveyLinkList}>

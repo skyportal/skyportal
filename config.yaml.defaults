@@ -680,6 +680,15 @@ weather:
   # for each telescope
   openweather_api_key:
 
+across:
+  # NASA ACROSS joint-visibility integration. Uses the public, unauthenticated
+  # ACROSS API to compute per-instrument visibility for a source; joint windows
+  # are intersected locally. See https://across.sciencecloud.nasa.gov
+  api_url: https://api.across.sciencecloud.nasa.gov/v1
+  # hi_res=true routinely exceeds the ACROSS gateway timeout; keep it off.
+  hi_res: False
+  request_timeout: 20.0
+
 external_logging:
   papertrail:
     # get an account at https://papertrailapp.com
