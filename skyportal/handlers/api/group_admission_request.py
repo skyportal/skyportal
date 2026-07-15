@@ -204,18 +204,22 @@ class GroupAdmissionRequestHandler(BaseHandler):
                     f"User {user_id} is already a member of group {group_id}"
                 )
             # Ensure user has sufficient stream access for target group
-            if group.streams:
+            if group.streams and "System admin" not in requesting_user.permissions:
+                accessible_stream_ids = {
+                    stream.id for stream in requesting_user.streams
+                }
                 missing_streams = [
                     stream
                     for stream in group.streams
-                    if stream not in requesting_user.accessible_streams
+                    if stream.id not in accessible_stream_ids
                 ]
                 if missing_streams:
                     stream_names = ", ".join(
                         [stream.name for stream in missing_streams]
                     )
                     return self.error(
-                        f"User {user_id} does not have access to the following streams required for group {group_id}: {stream_names}"
+                        f"User {user_id} does not have access to the following streams: {stream_names},"
+                        f"required to be added to group {group_id}."
                     )
             auto_accept = bool(group.auto_accept_requests)
             admission_request = GroupAdmissionRequest(
