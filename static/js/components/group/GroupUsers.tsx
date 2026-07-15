@@ -7,10 +7,6 @@ import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import IconButton from "@mui/material/IconButton";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Typography from "@mui/material/Typography";
@@ -49,8 +45,6 @@ const GroupUsers = ({
 }: GroupUsersProps) => {
   const [anchorEl, setAnchorEl] = React.useState<any>(null);
   const [openedPopoverId, setOpenedPopoverId] = React.useState<any>(null);
-  const [panelMembersExpanded, setPanelMembersExpanded] =
-    React.useState<any>("panel-members");
   const [userFormTab, setUserFormTab] = React.useState(0);
   const { invitationsEnabled } = (useGetConfigQuery().data as any) ?? {};
 
@@ -63,11 +57,6 @@ const GroupUsers = ({
     setOpenedPopoverId(null);
     setAnchorEl(null);
   };
-
-  const handlePanelMembersChange =
-    (panel: string) => (_event: any, isExpanded: boolean) => {
-      setPanelMembersExpanded(isExpanded ? panel : false);
-    };
 
   const openManageUserPopover = Boolean(anchorEl);
   const popoverId = openManageUserPopover ? "manage-user-popover" : undefined;
@@ -180,56 +169,44 @@ const GroupUsers = ({
   ];
 
   return (
-    <Accordion
-      expanded={panelMembersExpanded === "panel-members"}
-      onChange={handlePanelMembersChange("panel-members")}
-    >
-      <AccordionSummary
-        expandIcon={<ExpandMoreIcon />}
-        aria-controls="panel-members-content"
-        id="panel-members-header"
-        data-testid="tour-group-members"
-      >
-        <Typography variant="h6">Members</Typography>
-      </AccordionSummary>
-      <AccordionDetails>
-        <StyledDataGrid
-          autoHeight
-          columns={columns}
-          rows={group?.users ? groupUsers : []}
-          getRowId={(row: any) => row.id}
-          getRowHeight={() => "auto"}
-          initialState={{
-            columns: { columnVisibilityModel: { name: hasNames } },
-            pagination: { paginationModel: { pageSize: 25 } },
-          }}
-          pageSizeOptions={[10, 25, 50, 100, 200]}
-          columnBufferPx={3000}
-          showToolbar
-        />
-        {isAdmin(currentUser) && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
-            <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-              <Tabs
-                value={userFormTab}
-                onChange={(_event, value) => setUserFormTab(value)}
-              >
-                <Tab label="Add a user" />
-                <Tab label="Add a group of users" />
-                {invitationsEnabled && <Tab label="Invite a new user" />}
-              </Tabs>
-            </Box>
-            {userFormTab === 0 && <AddUserForm group_id={group.id!} />}
-            {userFormTab === 1 && <AddGroupOfUsersForm groupID={group.id!} />}
-            {invitationsEnabled && userFormTab === 2 && (
-              <InviteNewUserForm group_id={group.id!} />
-            )}
-            <Divider />
-            <GroupAdmissionRequestsManagement groupID={group.id!} />
+    <Box sx={{ p: 1.5 }}>
+      <Typography variant="h6">Members</Typography>
+      <StyledDataGrid
+        autoHeight
+        columns={columns}
+        rows={group?.users ? groupUsers : []}
+        getRowId={(row: any) => row.id}
+        getRowHeight={() => "auto"}
+        initialState={{
+          columns: { columnVisibilityModel: { name: hasNames } },
+          pagination: { paginationModel: { pageSize: 25 } },
+        }}
+        pageSizeOptions={[10, 25, 50, 100, 200]}
+        columnBufferPx={3000}
+        showToolbar
+      />
+      {isAdmin(currentUser) && (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
+          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+            <Tabs
+              value={userFormTab}
+              onChange={(_event, value) => setUserFormTab(value)}
+            >
+              <Tab label="Add a user" />
+              <Tab label="Add a group of users" />
+              {invitationsEnabled && <Tab label="Invite a new user" />}
+            </Tabs>
           </Box>
-        )}
-      </AccordionDetails>
-    </Accordion>
+          {userFormTab === 0 && <AddUserForm group_id={group.id!} />}
+          {userFormTab === 1 && <AddGroupOfUsersForm groupID={group.id!} />}
+          {invitationsEnabled && userFormTab === 2 && (
+            <InviteNewUserForm group_id={group.id!} />
+          )}
+          <Divider />
+          <GroupAdmissionRequestsManagement groupID={group.id!} />
+        </Box>
+      )}
+    </Box>
   );
 };
 

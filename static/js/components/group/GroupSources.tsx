@@ -7,7 +7,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import { showNotification } from "baselayer/components/Notifications";
 
-import Paper from "../Paper";
 import SourceTable from "../source/SourceTable";
 import withRouter from "../withRouter";
 import ProgressIndicator from "../ProgressIndicators";
@@ -18,6 +17,7 @@ import {
   useFetchPendingGroupSourcesQuery,
   useLazyFetchSavedGroupSourcesQuery,
 } from "../../ducks/sources";
+import { Box } from "@mui/material";
 
 interface GroupSourcesProps {
   route: {
@@ -194,9 +194,7 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
   };
 
   return (
-    <Paper
-      sx={{ display: "flex", flexDirection: "column", gap: "1rem", mt: 2 }}
-    >
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem", p: 1.5 }}>
       {!!savedSourcesState.sources && (
         <SourceTable
           sources={savedSourcesState.sources}
@@ -260,7 +258,7 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
           </div>
         </DialogContent>
       </Dialog>
-    </Paper>
+    </Box>
   );
 };
 

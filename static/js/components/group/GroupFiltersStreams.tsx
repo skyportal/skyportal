@@ -11,10 +11,6 @@ import ListItemText from "@mui/material/ListItemText";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
@@ -24,6 +20,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 
+import { Box } from "@mui/material";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import FormHelperText from "@mui/material/FormHelperText";
@@ -60,8 +57,6 @@ const GroupFiltersStreams = ({
 }: GroupFiltersStreamsProps) => {
   const [filterStream, setFilterStream] = useState<any>(null);
   const [addStreamOpen, setAddStreamOpen] = useState(false);
-  const [panelStreamsExpanded, setPanelStreamsExpanded] =
-    useState<any>("panel-streams");
   const dispatch = useAppDispatch();
   const { data: streams } = useGetStreamsQuery();
   const [addGroupFilter] = useAddGroupFilterMutation();
@@ -86,11 +81,6 @@ const GroupFiltersStreams = ({
   const handleAddStreamClose = () => {
     setAddStreamOpen(false);
   };
-  const handlePanelStreamsChange =
-    (panel: any) => (_event: any, isExpanded: any) => {
-      setPanelStreamsExpanded(isExpanded ? panel : false);
-    };
-
   const onSubmitAddFilter = async (data: any) => {
     try {
       await addGroupFilter({
@@ -146,87 +136,76 @@ const GroupFiltersStreams = ({
   if (!streams?.length) return null;
 
   return (
-    <>
-      <Accordion
-        expanded={panelStreamsExpanded === "panel-streams"}
-        onChange={handlePanelStreamsChange("panel-streams")}
-      >
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="panel-streams-content"
-          id="panel-streams-header"
-          style={{ borderBottom: "1px solid rgba(0, 0, 0, .125)" }}
-        >
-          <Typography variant="h6">Streams and filters</Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <List component="nav">
-            {group.streams?.map((stream: any) => (
-              <Fragment key={stream.id}>
-                <ListItem
-                  secondaryAction={
-                    isAdmin(currentUser) && (
+    <Box sx={{ p: 1.5 }}>
+      <Typography variant="h6">Streams and filters</Typography>
+      <List component="nav">
+        {group.streams?.map((stream: any, index: number) => (
+          <Fragment key={stream.id}>
+            <ListItem
+              sx={{
+                bgcolor: index % 2 === 0 ? "action.hover" : "transparent",
+              }}
+              secondaryAction={
+                isAdmin(currentUser) && (
+                  <Tooltip
+                    title={`Add filter to stream "${stream.name}"`}
+                    placement={"left"}
+                  >
+                    <IconButton
+                      edge="end"
+                      aria-label="add filter"
+                      onClick={() => handleAddFilterDialogOpen(stream)}
+                    >
+                      <AddIcon />
+                    </IconButton>
+                  </Tooltip>
+                )
+              }
+            >
+              <ListItemText primary={stream.name} />
+            </ListItem>
+            <List disablePadding>
+              {(filtersByStreamId[stream.id] ?? []).map((filter: any) => (
+                <ListItemButton
+                  key={filter.id}
+                  component={Link}
+                  to={`/filter/${filter.id}`}
+                >
+                  <ListItemText sx={{ pl: 2 }} primary={filter.name} />
+                  {isAdmin(currentUser) && (
+                    <ListItemSecondaryAction>
                       <Tooltip
-                        title={`Add filter to stream "${stream.name}"`}
+                        title={`Delete filter "${filter.name}"`}
                         placement={"left"}
                       >
-                        <IconButton
-                          edge="end"
-                          aria-label="add filter"
-                          onClick={() => handleAddFilterDialogOpen(stream)}
+                        <Button
+                          onClick={(e: any) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDeleteFilter(filter.id);
+                          }}
+                          color="error"
                         >
-                          <AddIcon />
-                        </IconButton>
+                          <DeleteIcon />
+                        </Button>
                       </Tooltip>
-                    )
-                  }
-                >
-                  <ListItemText primary={stream.name} />
-                </ListItem>
-                <List disablePadding>
-                  {(filtersByStreamId[stream.id] ?? []).map((filter: any) => (
-                    <ListItemButton
-                      key={filter.id}
-                      component={Link}
-                      to={`/filter/${filter.id}`}
-                    >
-                      <ListItemText sx={{ pl: 2 }} primary={filter.name} />
-                      {isAdmin(currentUser) && (
-                        <ListItemSecondaryAction>
-                          <Tooltip
-                            title={`Delete filter "${filter.name}"`}
-                            placement={"left"}
-                          >
-                            <Button
-                              onClick={(e: any) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleDeleteFilter(filter.id);
-                              }}
-                              color="error"
-                            >
-                              <DeleteIcon />
-                            </Button>
-                          </Tooltip>
-                        </ListItemSecondaryAction>
-                      )}
-                    </ListItemButton>
-                  ))}
-                </List>
-              </Fragment>
-            ))}
-          </List>
-          {currentUser.permissions.includes("System admin") && (
-            <Button
-              primary
-              onClick={() => setAddStreamOpen(true)}
-              disabled={group?.streams?.length >= streams.length}
-            >
-              Add stream
-            </Button>
-          )}
-        </AccordionDetails>
-      </Accordion>
+                    </ListItemSecondaryAction>
+                  )}
+                </ListItemButton>
+              ))}
+            </List>
+          </Fragment>
+        ))}
+      </List>
+      {currentUser.permissions.includes("System admin") && (
+        <Button
+          primary
+          onClick={() => setAddStreamOpen(true)}
+          disabled={group?.streams?.length >= streams.length}
+        >
+          Add stream
+        </Button>
+      )}
       <Dialog
         fullScreen={fullScreen}
         open={addStreamOpen}
@@ -341,7 +320,7 @@ const GroupFiltersStreams = ({
           </DialogActions>
         </form>
       </Dialog>
-    </>
+    </Box>
   );
 };
 
