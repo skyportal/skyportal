@@ -53,7 +53,6 @@ const Groups = () => {
     ...(nonMemberGroups.length
       ? [<NonMemberGroupList key="non-member" groups={nonMemberGroups} />]
       : []),
-    <NewGroupForm key="new-group" />,
     ...(canManageGroups
       ? [
           <GroupList
@@ -64,6 +63,7 @@ const Groups = () => {
           />,
         ]
       : []),
+    <NewGroupForm key="new-group" />,
   ];
 
   const activeTab = Math.min(tab, tabPanels.length - 1);
@@ -76,8 +76,8 @@ const Groups = () => {
           {nonMemberGroups.length > 0 && (
             <Tab label="Non-member groups" data-testid="tour-groups-request" />
           )}
-          <Tab label="Create New Group" data-testid="tour-groups-new" />
           {canManageGroups && <Tab label="All Groups" />}
+          <Tab label="Create New Group" data-testid="tour-groups-new" />
         </Tabs>
       </Box>
       {tabPanels[activeTab]}
