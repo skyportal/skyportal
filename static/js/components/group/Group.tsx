@@ -109,17 +109,19 @@ const Group = () => {
             </Typography>
           )}
         </Box>
-        {isAdmin(currentUser) && <GroupSettingsForm group={group} />}
-        {isAdmin(currentUser) && (
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={() => setConfirmDeleteOpen(true)}
-            sx={{ marginRight: 2 }}
-          >
-            Delete Group
-          </Button>
-        )}
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          {isAdmin(currentUser) && <GroupSettingsForm group={group} />}
+          {isAdmin(currentUser) && (
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => setConfirmDeleteOpen(true)}
+              sx={{ marginRight: 2 }}
+            >
+              Delete Group
+            </Button>
+          )}
+        </Box>
       </Box>
       <Box sx={{ borderBottom: 1, borderColor: "divider", mt: 2 }}>
         <Tabs value={tab} onChange={(_event, value) => setTab(value)}>
