@@ -104,7 +104,7 @@ class GeminiRequest:
         except Exception:
             raise ValueError("Invalid start_date or end_date")
 
-        duration = (end_date - start_date).seconds
+        duration = (end_date - start_date).total_seconds()
 
         obstime = start_date + timedelta(
             seconds=duration / 2
@@ -193,7 +193,7 @@ class GeminiRequest:
         )  # UTC date YYYY-MM-DD for timing window
         l_wTime = start_date.format("HH:mm")  # UTC time HH:MM for timing window
         l_wDur = str(
-            (end_date - start_date).seconds // 3600
+            int((end_date - start_date).total_seconds() // 3600)
         )  # Timing window duration, integer hours
 
         l_elmin = str(

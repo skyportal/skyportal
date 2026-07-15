@@ -90,6 +90,7 @@ from ...utils.gcn import (
     from_bytes,
     from_cone,
     from_ellipse,
+    from_igwn_gwalert,
     from_polygon,
     from_url,
     get_contour,
@@ -508,10 +509,19 @@ async def post_gcnevent_from_json(
             f"Unsupported JSON payload dtype, must be one of string, bytes, or dict, not {type(payload)}"
         )
 
+    # Raw IGWN/LVK gwalert alerts are normalized to the canonical notice shape.
+    # from_igwn_gwalert is idempotent, so this is safe if already normalized.
+    if payload.get("superevent_id") is not None and payload.get("alert_type"):
+        payload = from_igwn_gwalert(payload)
+
     user = await session.get(User, user_id)
 
-    dateobs = Time(payload["trigger_time"], format="isot", precision=0)
-    dateobs = Time(dateobs.iso).datetime
+    # A retraction (e.g. an IGWN gwalert) carries no trigger_time; its dateobs is
+    # resolved from the existing event matched below via ref_ID/aliases.
+    dateobs = None
+    if payload.get("trigger_time"):
+        dateobs = Time(payload["trigger_time"], format="isot", precision=0)
+        dateobs = Time(dateobs.iso).datetime
 
     event = None
     ref_ID = payload.get("ref_ID", None)
@@ -524,14 +534,21 @@ async def post_gcnevent_from_json(
             )
         )
 
-    if event is None:
+    if event is None and dateobs is not None:
         event = await session.scalar(
             GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
         )
 
+    aliases = payload.get("aliases") or []
     if event is None:
+        if dateobs is None:
+            raise ValueError(
+                "Cannot ingest GCN notice: no trigger_time and no existing event "
+                "to update (e.g. retraction of an unknown event)."
+            )
         event = GcnEvent(
             dateobs=dateobs,
+            aliases=aliases or None,
             sent_by_id=user.id,
         )
         session.add(event)
@@ -547,10 +564,26 @@ async def post_gcnevent_from_json(
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
+        # add any new aliases (e.g. LVC#superevent) not already present
+        new_aliases = [a for a in aliases if a not in (event.aliases or [])]
+        if new_aliases:
+            event.aliases = (event.aliases or []) + new_aliases
+            session.add(event)
+            await session.commit()
 
     event_id = event.id
 
-    tags = get_json_tags(payload)
+    tag_texts = get_json_tags(payload)
+
+    # A later notice for the same event (e.g. an IGWN update/retraction) re-emits
+    # tags already stored; skip those to avoid a unique-constraint violation.
+    existing_tags = set(
+        (
+            await session.scalars(
+                sa.select(GcnTag.text).where(GcnTag.dateobs == event.dateobs)
+            )
+        ).all()
+    )
 
     tags = [
         GcnTag(
@@ -558,7 +591,8 @@ async def post_gcnevent_from_json(
             text=text,
             sent_by_id=user.id,
         )
-        for text in tags
+        for text in tag_texts
+        if text not in existing_tags
     ]
 
     detectors = []
@@ -578,6 +612,16 @@ async def post_gcnevent_from_json(
             .options(selectinload(GcnEvent.detectors))
         )
         event_loaded.detectors = detectors
+
+    # Store classification/astro/FAR properties (e.g. from an IGWN gwalert).
+    if payload.get("properties"):
+        session.add(
+            GcnProperty(
+                dateobs=event.dateobs,
+                sent_by_id=user.id,
+                data=payload["properties"],
+            )
+        )
     await session.commit()
 
     date = dateobs
@@ -2632,9 +2676,9 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 "payload": plan.payload,
                 "default": plan.id,
                 "auto_send": plan.auto_send,
-                "requester_id": user.id
-                if plan.requester_id is None
-                else plan.requester_id,
+                "requester_id": (
+                    user.id if plan.requester_id is None else plan.requester_id
+                ),
             }
             gcn_observation_plans.append(gcn_observation_plan)
 
@@ -3422,9 +3466,13 @@ def add_gcn_summary(
                 df_rejected = df_rejected.drop(columns=["status"])
                 df = df.fillna("--")
 
-                sources_text.append(
-                    f"\nFound **{len(sources)} {'sources' if len(sources) > 1 else 'source'}** in the event's localization, {df_rejected.shape[0]} of which {'have' if df_rejected.shape[0] > 1 else 'has'} been rejected after characterization:\n"
-                ) if not no_text else None
+                (
+                    sources_text.append(
+                        f"\nFound **{len(sources)} {'sources' if len(sources) > 1 else 'source'}** in the event's localization, {df_rejected.shape[0]} of which {'have' if df_rejected.shape[0] > 1 else 'has'} been rejected after characterization:\n"
+                    )
+                    if not no_text
+                    else None
+                )
 
                 if df_confirmed_or_unknown.shape[0] > 0:
                     if not no_text:
@@ -3464,9 +3512,13 @@ def add_gcn_summary(
                         )
                     photometry = session.scalars(stmt).all()
                     if len(photometry) > 0:
-                        sources_text.append(
-                            f"""\nPhotometry of **{source["id"]}**:\n"""
-                        ) if not no_text else None
+                        (
+                            sources_text.append(
+                                f"""\nPhotometry of **{source["id"]}**:\n"""
+                            )
+                            if not no_text
+                            else None
+                        )
                         mjds, mags, filters, origins, instruments = (
                             [],
                             [],
@@ -3556,9 +3608,13 @@ def add_gcn_summary(
                 if len(galaxies_data["galaxies"]) < MAX_GALAXIES:
                     break
             if len(galaxies) > 0:
-                galaxies_text.append(
-                    f"""\nFound **{len(galaxies)} {"galaxies" if len(galaxies) > 1 else "galaxy"}** in the event's localization:\n"""
-                ) if not no_text else None
+                (
+                    galaxies_text.append(
+                        f"""\nFound **{len(galaxies)} {"galaxies" if len(galaxies) > 1 else "galaxy"}** in the event's localization:\n"""
+                    )
+                    if not no_text
+                    else None
+                )
                 names, ras, decs, distmpcs, magks, mag_nuvs, mag_w1s, probabilities = (
                     [],
                     [],
@@ -3697,9 +3753,13 @@ def add_gcn_summary(
 
                         dt = start_observation.datetime - event.dateobs
                         before_after = "after" if dt.total_seconds() > 0 else "before"
-                        observations_text.append(
-                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format="datetime").isot} UTC.  We obtained a total of **{num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)} times**, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the trigger time). Using the {localization_name} skymap, this corresponds to **~{int(100 * probability)}% of the probability enclosed in the localization region**.\n"""
-                        ) if not no_text else None
+                        (
+                            observations_text.append(
+                                f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format="datetime").isot} UTC.  We obtained a total of **{num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)} times**, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the trigger time). Using the {localization_name} skymap, this corresponds to **~{int(100 * probability)}% of the probability enclosed in the localization region**.\n"""
+                            )
+                            if not no_text
+                            else None
+                        )
                         t0s, mjds, ras, decs, filters, exposures, limmags = (
                             [],
                             [],

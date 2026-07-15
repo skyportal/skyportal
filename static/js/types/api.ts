@@ -8172,6 +8172,76 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/phot_stats/aggregate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bulk photometry statistics for plotting
+         * @description Return a compact set of PhotStat scalar fields across many accessible
+         *     sources, optionally down-selected by classification, for bulk
+         *     visualization (e.g. plotting peak magnitude against rise rate for all
+         *     sources classified as SN Ia). Each source is colored by its
+         *     highest-probability classification. Call without xField/yField to get
+         *     the list of plottable fields only.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description PhotStat field for the x axis (see the returned `fields`). */
+                    xField?: string;
+                    /** @description PhotStat field for the y axis. */
+                    yField?: string;
+                    /** @description Optional PhotStat field for a third (z) axis. */
+                    zField?: string;
+                    /**
+                     * @description Comma-separated classification names to down-select sources
+                     *     (matches any). Omit to include all accessible sources.
+                     */
+                    classifications?: string;
+                    /** @description Only count classifications at or above this probability. */
+                    classificationProbThreshold?: number;
+                    /**
+                     * @description Maximum number of points to return (default 20000, capped at
+                     *     100000). If more match, the response is truncated.
+                     */
+                    maxMatches?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/localization/tags": {
         parameters: {
             query?: never;
@@ -19814,6 +19884,200 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/teams/{team_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a team
+         * @description Retrieve a team, its groups, and its derived member roster
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    team_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /**
+         * Update a team
+         * @description <b>Permission(s) required:</b> <em>Manage teams (or System admin)</em><br><br>Update a team's fields and/or its set of groups. When `group_ids` is
+         *     provided it replaces the team's groups; the user must be an admin of
+         *     each group added or removed.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    team_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /**
+         * Delete a team
+         * @description <b>Permission(s) required:</b> <em>Manage teams (or System admin)</em><br><br>Delete a team (does not affect its groups or their data)
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    team_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all accessible teams
+         * @description Retrieve all teams the current user can access
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create a new team
+         * @description <b>Permission(s) required:</b> <em>Manage teams (or System admin)</em><br><br>Create a team from a set of existing groups. The current user must be
+         *     an admin of each group added to the team.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        group_ids?: number[];
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/telescope/{telescope_id}": {
         parameters: {
             query?: never;
@@ -25647,6 +25911,7 @@ export interface components {
         Group: {
             readonly streams?: components["schemas"]["Stream"][];
             readonly filters?: components["schemas"]["Filter"][];
+            readonly teams?: components["schemas"]["Team"][];
             readonly shifts?: components["schemas"]["Shift"][];
             readonly users?: components["schemas"]["User"][];
             readonly group_users?: components["schemas"]["GroupUser"][];
@@ -26296,6 +26561,7 @@ export interface components {
         GroupNoID: {
             readonly streams?: components["schemas"]["Stream"][];
             readonly filters?: components["schemas"]["Filter"][];
+            readonly teams?: components["schemas"]["Team"][];
             readonly shifts?: components["schemas"]["Shift"][];
             readonly users?: components["schemas"]["User"][];
             readonly group_users?: components["schemas"]["GroupUser"][];
@@ -27062,6 +27328,44 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GroupTaxonomyNoID"][];
+        };
+        GroupTeam: {
+            readonly group?: components["schemas"]["Group"];
+            readonly team?: components["schemas"]["Team"];
+            group_id: number;
+            team_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGroupTeam: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupTeam"];
+        };
+        ArrayOfGroupTeams: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupTeam"][];
+        };
+        GroupTeamNoID: {
+            readonly group?: components["schemas"]["Group"];
+            readonly team?: components["schemas"]["Team"];
+            group_id: number;
+            team_id: number;
+        };
+        SingleGroupTeamNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupTeamNoID"];
+        };
+        ArrayOfGroupTeamNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupTeamNoID"][];
         };
         GroupUser: {
             readonly group?: components["schemas"]["Group"];
@@ -32555,8 +32859,6 @@ export interface components {
             readonly owner?: components["schemas"]["User"];
             readonly annotations?: components["schemas"]["AnnotationOnPhotometry"][];
             readonly validations?: components["schemas"]["PhotometryValidation"][];
-            /** @description Unique object identifier. */
-            id?: number;
             /** @description MJD of the observation. */
             mjd: number;
             /** @description Flux of the observation in µJy. Corresponds to an AB Zeropoint of 23.9 in all filters. */
@@ -32598,6 +32900,8 @@ export interface components {
             owner_id: number;
             ra?: number | null;
             dec?: number | null;
+            /** @description Unique object identifier. */
+            id?: number;
         };
         SinglePhotometry: {
             /** @enum {string} */
@@ -35975,6 +36279,66 @@ export interface components {
             message?: string;
             data?: components["schemas"]["TaxonomyNoID"][];
         };
+        Team: {
+            readonly groups?: components["schemas"]["Group"][];
+            /** @description Name of the team. */
+            name: string;
+            /** @description Short team nickname. */
+            nickname?: string | null;
+            /** @description Longer description of the team. */
+            description?: string | null;
+            /** @description Hex color used to theme the app banner when this team is active. */
+            primary_color?: string | null;
+            /** @description Hex accent color for this team's theme. */
+            secondary_color?: string | null;
+            /** @description URL of a logo shown in place of the SkyPortal logo when active. */
+            logo_url?: string | null;
+            /** @description URL of a background image for this team. */
+            background_url?: string | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleTeam: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Team"];
+        };
+        ArrayOfTeams: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Team"][];
+        };
+        TeamNoID: {
+            readonly groups?: components["schemas"]["Group"][];
+            /** @description Name of the team. */
+            name: string;
+            /** @description Short team nickname. */
+            nickname?: string | null;
+            /** @description Longer description of the team. */
+            description?: string | null;
+            /** @description Hex color used to theme the app banner when this team is active. */
+            primary_color?: string | null;
+            /** @description Hex accent color for this team's theme. */
+            secondary_color?: string | null;
+            /** @description URL of a logo shown in place of the SkyPortal logo when active. */
+            logo_url?: string | null;
+            /** @description URL of a background image for this team. */
+            background_url?: string | null;
+        };
+        SingleTeamNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TeamNoID"];
+        };
+        ArrayOfTeamNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TeamNoID"][];
+        };
         Telescope: {
             readonly instruments?: components["schemas"]["Instrument"][];
             /** @description Unabbreviated facility name (e.g., Palomar 200-inch Hale Telescope). */
@@ -36054,7 +36418,7 @@ export interface components {
              * @description Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)
              * @enum {string|null}
              */
-            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "new_gz" | "ref_gz" | "sub_gz" | null;
+            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "sm" | "hst" | "chandra" | "jwst" | "new_gz" | "ref_gz" | "sub_gz" | null;
             /** @description Path of the Thumbnail on the machine running SkyPortal. */
             file_uri?: string | null;
             /** @description Publically accessible URL of the thumbnail. */
@@ -36063,8 +36427,8 @@ export interface components {
             origin?: string | null;
             /** @description ID of the thumbnail's obj. */
             obj_id: string;
-            /** @description Boolean indicating whether the thumbnail is (mostly) grayscale or not. */
-            is_grayscale?: boolean;
+            /** @description Whether the thumbnail is (mostly) grayscale. NULL until a remote (public_url-only) thumbnail is classified by the thumbnail_queue service. */
+            is_grayscale?: boolean | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -36087,7 +36451,7 @@ export interface components {
              * @description Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)
              * @enum {string|null}
              */
-            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "new_gz" | "ref_gz" | "sub_gz" | null;
+            type?: "new" | "ref" | "sub" | "sdss" | "dr8" | "ls" | "ps1" | "sm" | "hst" | "chandra" | "jwst" | "new_gz" | "ref_gz" | "sub_gz" | null;
             /** @description Path of the Thumbnail on the machine running SkyPortal. */
             file_uri?: string | null;
             /** @description Publically accessible URL of the thumbnail. */
@@ -36096,8 +36460,8 @@ export interface components {
             origin?: string | null;
             /** @description ID of the thumbnail's obj. */
             obj_id: string;
-            /** @description Boolean indicating whether the thumbnail is (mostly) grayscale or not. */
-            is_grayscale?: boolean;
+            /** @description Whether the thumbnail is (mostly) grayscale. NULL until a remote (public_url-only) thumbnail is classified by the thumbnail_queue service. */
+            is_grayscale?: boolean | null;
         };
         SingleThumbnailNoID: {
             /** @enum {string} */

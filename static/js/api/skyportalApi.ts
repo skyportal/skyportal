@@ -205,6 +205,7 @@ export const TAG_TYPES = [
   "InstrumentForms",
   "InstrumentObsplanForms",
   "GcnEventInstruments",
+  "Team",
   "GcnEventObservation",
   "GcnProperties",
   "Invitations",

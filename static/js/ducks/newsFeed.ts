@@ -15,10 +15,16 @@ export type NewsFeedItem = Record<string, any>;
 
 export const newsFeedApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getNewsFeed: build.query<NewsFeedItem[], void>({
-      query: () => "api/newsfeed",
-      providesTags: ["NewsFeed"],
-    }),
+    // Optional `teamID` scopes the feed to a single team's groups.
+    getNewsFeed: build.query<NewsFeedItem[], { teamID?: number | null } | void>(
+      {
+        query: (arg) =>
+          arg && arg.teamID != null
+            ? `api/newsfeed?teamID=${arg.teamID}`
+            : "api/newsfeed",
+        providesTags: ["NewsFeed"],
+      },
+    ),
   }),
 });
 

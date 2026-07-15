@@ -76,6 +76,7 @@ app:
   # Set to an empty string to skip the HTTP call and use the
   # "currently_unavailable.png" placeholder (useful in tests).
   ps1_cutout_url: http://ps1images.stsci.edu/cgi-bin/ps1cutouts
+  skymapper_cutout_url: https://api.skymapper.nci.org.au/public/siap/dr4/query
 
   tess_endpoint: https://tess.mit.edu/public/tesstransients/
 
@@ -153,6 +154,8 @@ app:
       component: group/Groups
     - path: "/group/:id"
       component: group/Group
+    - path: "/teams"
+      component: team/Teams
     - path: "/group_sources/:id"
       component: group/GroupSources
     - path: "/candidates"
@@ -203,6 +206,8 @@ app:
       component: source/Observability
     - path: "/db_stats"
       component: DBStats
+    - path: "/source_statistics"
+      component: SourceStatistics
     - path: "/gcn_events"
       component: gcn/GcnEvents
     - path: "/gcn_events/:dateobs"
@@ -260,6 +265,10 @@ app:
           icon: GroupWork
           url: /groups
 
+        - name: Teams
+          icon: Diversity3
+          url: /teams
+
         - name: Observing Runs
           icon: LocalCafe
           url: /runs
@@ -283,6 +292,10 @@ app:
         - name: Summary Search
           icon: Troubleshoot
           url: /summary_search
+
+        - name: Source Statistics
+          icon: ScatterPlot
+          url: /source_statistics
 
         - name: About
           icon: Info
@@ -845,16 +858,13 @@ gcn:
       - gcn.classic.voevent.FERMI_GBM_SUBTHRESH
       - gcn.classic.voevent.SWIFT_BAT_GRB_POS_ACK
       - gcn.classic.voevent.SWIFT_XRT_POSITION
-      - gcn.classic.voevent.LVC_PRELIMINARY
-      - gcn.classic.voevent.LVC_INITIAL
-      - gcn.classic.voevent.LVC_UPDATE
-      - gcn.classic.voevent.LVC_RETRACTION
       # - gcn.classic.voevent.AMON_ICECUBE_COINC
       # - gcn.classic.voevent.AMON_ICECUBE_HESE
       - gcn.classic.voevent.ICECUBE_ASTROTRACK_GOLD
       - gcn.classic.voevent.ICECUBE_ASTROTRACK_BRONZE
       # - gcn.classic.voevent.MAXI_UNKNOWN
     json:
+      - igwn.gwalert
       - gcn.notices.einstein_probe.wxt.alert
       - gcn.notices.swift.bat.guano
       # - gcn.notices.icecube.lvk_nu_track_search

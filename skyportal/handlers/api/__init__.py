@@ -144,7 +144,11 @@ from .observation_plan import (
     ObservationPlanWorldmapPlotHandler,
 )
 from .observingrun import ObservingRunBulkEditHandler, ObservingRunHandler
-from .phot_stat import PhotStatHandler, PhotStatUpdateHandler
+from .phot_stat import (
+    PhotStatAggregateHandler,
+    PhotStatHandler,
+    PhotStatUpdateHandler,
+)
 from .photometric_series import PhotometricSeriesHandler
 from .photometry import (
     BulkDeletePhotometryHandler,
@@ -213,6 +217,7 @@ from .survey_efficiency import (
 from .sysinfo import SysInfoHandler
 from .tag import ObjTagHandler, ObjTagOptionHandler
 from .taxonomy import TaxonomyHandler
+from .team import TeamHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .tns.obj_tns import ObjTNSHandler
