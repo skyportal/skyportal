@@ -36427,8 +36427,8 @@ export interface components {
             origin?: string | null;
             /** @description ID of the thumbnail's obj. */
             obj_id: string;
-            /** @description Boolean indicating whether the thumbnail is (mostly) grayscale or not. */
-            is_grayscale?: boolean;
+            /** @description Whether the thumbnail is (mostly) grayscale. NULL until a remote (public_url-only) thumbnail is classified by the thumbnail_queue service. */
+            is_grayscale?: boolean | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -36460,8 +36460,8 @@ export interface components {
             origin?: string | null;
             /** @description ID of the thumbnail's obj. */
             obj_id: string;
-            /** @description Boolean indicating whether the thumbnail is (mostly) grayscale or not. */
-            is_grayscale?: boolean;
+            /** @description Whether the thumbnail is (mostly) grayscale. NULL until a remote (public_url-only) thumbnail is classified by the thumbnail_queue service. */
+            is_grayscale?: boolean | null;
         };
         SingleThumbnailNoID: {
             /** @enum {string} */

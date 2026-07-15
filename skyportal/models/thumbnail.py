@@ -2,7 +2,6 @@ __all__ = ["Thumbnail"]
 
 import os
 
-import requests
 import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.orm import relationship
@@ -65,23 +64,19 @@ class Thumbnail(Base):
     )
     is_grayscale = sa.Column(
         sa.Boolean(),
-        nullable=False,
-        default=False,
-        doc="Boolean indicating whether the thumbnail is (mostly) grayscale or not.",
+        nullable=True,
+        doc="Whether the thumbnail is (mostly) grayscale. NULL until a remote "
+        "(public_url-only) thumbnail is classified by the thumbnail_queue service.",
     )
 
 
 @event.listens_for(Thumbnail, "before_insert")
 def classify_thumbnail_grayscale(mapper, connection, target):
+    # Only classify local files here (a fast disk read). Remote thumbnails are
+    # left NULL and classified in the background by the thumbnail_queue service,
+    # so no request handler blocks on a synchronous cutout-service fetch.
     if target.file_uri is not None:
         target.is_grayscale = image_is_grayscale(target.file_uri)
-    else:
-        try:
-            target.is_grayscale = image_is_grayscale(
-                requests.get(target.public_url, stream=True, timeout=10).raw
-            )
-        except requests.exceptions.RequestException:
-            pass
 
 
 # Also see the similar event listener on Obj

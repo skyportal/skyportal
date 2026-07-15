@@ -1,6 +1,7 @@
 import asyncio
 import time
 
+import requests
 import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
@@ -14,6 +15,7 @@ from skyportal.models import (
     Thumbnail,
 )
 from skyportal.utils.services import check_loaded
+from skyportal.utils.thumbnail import image_is_grayscale
 
 env, cfg = load_env()
 log = make_log("thumbnail_queue")
@@ -27,6 +29,12 @@ THUMBNAIL_TYPES = {"sdss", "ls", "ps1"}
 
 # Defensive guardrail so a stuck cutout/scan query can't wedge a backend.
 STATEMENT_TIMEOUT = "120s"
+
+# Remote (public_url-only) thumbnails are inserted unclassified (is_grayscale
+# NULL) so the request path never blocks on the cutout fetch; we classify a
+# batch per loop here, off the event loop.
+GRAYSCALE_BATCH_SIZE = 10
+REMOTE_FETCH_TIMEOUT = 10
 
 
 async def set_statement_timeout(session):
@@ -91,6 +99,56 @@ async def fetch_obj(session):
         return None, e
 
 
+def _classify_remote_thumbnail(public_url):
+    """Fetch a remote thumbnail and classify it grayscale. Runs in a worker
+    thread. Any fetch error resolves to False (definitive) so an unreachable or
+    placeholder URL isn't retried forever."""
+    try:
+        response = requests.get(public_url, stream=True, timeout=REMOTE_FETCH_TIMEOUT)
+        response.raise_for_status()
+        return image_is_grayscale(response.raw)
+    except requests.exceptions.RequestException:
+        return False
+
+
+async def classify_pending_grayscale(session_factory=None):
+    """Classify remote thumbnails the before_insert hook left as NULL.
+
+    Reads a batch and releases the connection before the (slow) image fetches so
+    no transaction is held across them, then writes the results back.
+    `session_factory` is injectable so tests can bind it to the test database.
+    """
+    session_factory = session_factory or models.async_plain_session_factory
+    async with session_factory() as session:
+        await set_statement_timeout(session)
+        pending = (
+            await session.execute(
+                sa.select(Thumbnail.id, Thumbnail.public_url)
+                .where(Thumbnail.is_grayscale.is_(None))
+                .where(Thumbnail.public_url.isnot(None))
+                .limit(GRAYSCALE_BATCH_SIZE)
+            )
+        ).all()
+
+    if not pending:
+        return
+
+    results = [
+        (thumbnail_id, await asyncio.to_thread(_classify_remote_thumbnail, public_url))
+        for thumbnail_id, public_url in pending
+    ]
+
+    async with session_factory() as session:
+        await set_statement_timeout(session)
+        for thumbnail_id, is_grayscale in results:
+            await session.execute(
+                sa.update(Thumbnail)
+                .where(Thumbnail.id == thumbnail_id)
+                .values(is_grayscale=is_grayscale)
+            )
+        await session.commit()
+
+
 async def _run_loop():
     # start a timer we'll use to have a heartbeat every 60 seconds
     heartbeat = time.time()
@@ -99,6 +157,14 @@ async def _run_loop():
             heartbeat = time.time()
             log("Thumbnail queue heartbeat.")
         try:
+            # Classify remote thumbnails left NULL by before_insert (fetch runs
+            # off the event loop with no txn held). Isolated so a failure here
+            # doesn't stall thumbnail generation below.
+            try:
+                await classify_pending_grayscale()
+            except Exception as e:
+                log(f"Error classifying pending thumbnails: {str(e)}")
+
             internal_key = None
             # 1. Read/claim: find one obj missing thumbnails and snapshot what we
             # need, then release the connection before the slow cutout fetch so

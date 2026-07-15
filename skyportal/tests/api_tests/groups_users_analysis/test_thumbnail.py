@@ -128,6 +128,67 @@ def test_thumbnail_queue_fetch_obj_finds_unprocessed_source(
     asyncio.run(_fetch_backfill_fetch())
 
 
+def test_thumbnail_queue_classifies_remote_grayscale(
+    upload_data_token, public_group, monkeypatch
+):
+    """Remote thumbnails are inserted unclassified (is_grayscale NULL) so the
+    request path never blocks on a cutout fetch; the queue's
+    classify_pending_grayscale fills them in. The fetch is stubbed to stay
+    offline and deterministic.
+    """
+    from services.thumbnail_queue import thumbnail_queue as tq
+
+    obj_id = str(uuid.uuid4())
+    status, _ = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    async def _values():
+        async with async_plain_session_factory() as session:
+            return (
+                (
+                    await session.execute(
+                        sa.select(Thumbnail.is_grayscale).where(
+                            Thumbnail.obj_id == obj_id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+    async def _run():
+        # Remote (public_url-only) thumbnails start unclassified.
+        async with async_plain_session_factory() as session:
+            obj = await session.get(Obj, obj_id)
+            await obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
+        values = await _values()
+        assert values and all(v is None for v in values)
+
+        # Stub the network fetch, then drain the (globally-batched) queue until
+        # this obj's thumbnails are classified.
+        monkeypatch.setattr(tq, "_classify_remote_thumbnail", lambda url: True)
+        for _ in range(50):
+            await tq.classify_pending_grayscale(
+                session_factory=async_plain_session_factory
+            )
+            values = await _values()
+            if values and all(v is not None for v in values):
+                break
+        assert values and all(v is True for v in values)
+
+    asyncio.run(_run())
+
+
 def test_cannot_post_thumbnail_invalid_ttype(
     upload_data_token, public_group, ztf_camera
 ):
