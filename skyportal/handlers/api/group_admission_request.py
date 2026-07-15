@@ -215,8 +215,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
                         [stream.name for stream in missing_streams]
                     )
                     return self.error(
-                        f"User {user_id} does not have access to the following streams: {stream_names},"
-                        f"required to be added to group {group_id}."
+                        f"User {user_id} does not have access to the following streams required for group {group_id}: {stream_names}"
                     )
             auto_accept = bool(group.auto_accept_requests)
             admission_request = GroupAdmissionRequest(
