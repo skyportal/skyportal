@@ -156,10 +156,12 @@ const ProfileDropdown = () => {
         {profile.is_anonymous ? (
           // read-only anonymous visitor: no account UI, just a way to sign in
           <Box
-            display="flex"
-            justifyContent="center"
-            bgcolor="background.paper"
             className={classes.signOutMargin}
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              bgcolor: "background.paper",
+            }}
           >
             <a href="/login/google-oauth2" className={classes.nodecor}>
               <Button>Log in</Button>

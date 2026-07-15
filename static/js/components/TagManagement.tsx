@@ -270,16 +270,6 @@ const TagManagement = () => {
             </IconButton>
           </Tooltip>
         )}
-        <Tooltip title="Download CSV">
-          <IconButton
-            size="small"
-            aria-label="Download CSV"
-            data-testid="download-tags-button"
-            onClick={handleDownload}
-          >
-            <DownloadIcon />
-          </IconButton>
-        </Tooltip>
       </DataGridToolbar>
     );
   }
