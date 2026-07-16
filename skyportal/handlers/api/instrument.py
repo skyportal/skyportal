@@ -933,7 +933,9 @@ class InstrumentHandler(BaseHandler):
 
             schema = Instrument.__schema__()
             try:
-                schema.load(data, partial=True)
+                # Validate only; drop the PK so the load_instance schema doesn't
+                # sync-fetch the instance (raises greenlet_spawn under async).
+                schema.load({k: v for k, v in data.items() if k != "id"}, partial=True)
             except ValidationError as e:
                 return self.error(
                     f"Invalid/missing parameters: {e.normalized_messages()}"
