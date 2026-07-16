@@ -204,11 +204,14 @@ class GroupAdmissionRequestHandler(BaseHandler):
                     f"User {user_id} is already a member of group {group_id}"
                 )
             # Ensure user has sufficient stream access for target group
-            if group.streams:
+            if group.streams and "System admin" not in requesting_user.permissions:
+                accessible_stream_ids = {
+                    stream.id for stream in requesting_user.streams
+                }
                 missing_streams = [
                     stream
                     for stream in group.streams
-                    if stream not in requesting_user.accessible_streams
+                    if stream.id not in accessible_stream_ids
                 ]
                 if missing_streams:
                     stream_names = ", ".join(
