@@ -23,7 +23,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.utils.calculations import get_airmass
 
 from ...enum_types import ALLOWED_BANDPASSES
@@ -343,7 +343,7 @@ class InstrumentHandler(BaseHandler):
                 if not {"ID", "RA", "Dec"}.issubset(field_data):
                     return self.error("ID, RA, and Dec required in field_data.")
 
-                log(f"Started generating fields for instrument {instrument.id}")
+                log.info(f"Started generating fields for instrument {instrument.id}")
                 # run async
                 IOLoop.current().run_in_executor(
                     None,
@@ -994,7 +994,7 @@ class InstrumentHandler(BaseHandler):
                     if not {"ID", "RA", "Dec"}.issubset(field_data):
                         return self.error("ID, RA, and Dec required in field_data.")
 
-                log(f"Started generating fields for instrument {instrument.id}")
+                log.info(f"Started generating fields for instrument {instrument.id}")
                 # run async
                 IOLoop.current().run_in_executor(
                     None,
@@ -1099,7 +1099,7 @@ def vaccum_analyze_instrumentfieldtiles():
     This is needed to optimize the query plans for some queries involving instrumentfieldtiles,
     such as querying for an instrument's fields overlap with a GCN event's sky localization.
     """
-    log("Running VACUUM ANALYZE on instrumentfieldtiles table")
+    log.info("Running VACUUM ANALYZE on instrumentfieldtiles table")
     start = time.time()
     with DBSession() as session:
         connection = (
@@ -1109,7 +1109,7 @@ def vaccum_analyze_instrumentfieldtiles():
         )
         connection.execute(sa.text("VACUUM ANALYZE instrumentfieldtiles"))
         connection.close()
-    log(
+    log.info(
         f"Successfully ran VACUUM ANALYZE on instrumentfieldtiles table, in {time.time() - start} seconds"
     )
 
@@ -1402,7 +1402,7 @@ def add_tiles(
             instrument.has_fields = False
         session.commit()
 
-        log(f"Successfully generated fields for instrument {instrument_id}")
+        log.info(f"Successfully generated fields for instrument {instrument_id}")
 
         # PostgreSQL has a tendency of generating really suboptimal query plans
         # for some queries involving instrumentfieldtiles, after inserting new tiles.
@@ -1414,7 +1414,7 @@ def add_tiles(
         # to do so, we need to get the connection from the session
         run_async(vaccum_analyze_instrumentfieldtiles)
     except Exception as e:
-        log(f"Unable to generate fields for instrument {instrument_id}: {e}")
+        log.error(f"Unable to generate fields for instrument {instrument_id}: {e}")
     finally:
         Session.remove()
         return field_ids

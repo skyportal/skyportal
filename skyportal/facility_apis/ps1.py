@@ -7,7 +7,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.calculations import great_circle_distance
@@ -131,7 +131,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
 
     except Exception as e:
         session.rollback()
-        log(f"Unable to commit photometry for {request_id}: {e}")
+        log.error(f"Unable to commit photometry for {request_id}: {e}")
     finally:
         session.close()
         Session.remove()
@@ -311,7 +311,7 @@ class PS1API(FollowUpAPI):
                     raise ValueError("No data returned in request")
                 request.status = "submitted"
             except Exception as e:
-                log(str(e))
+                log.info(str(e))
                 request.status = "No DR2 source"
         else:
             request.status = f"rejected: {content}"

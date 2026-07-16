@@ -5,7 +5,7 @@ import numpy as np
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...utils.offset import finding_charts_cache
 from ..base import BaseHandler
@@ -69,7 +69,7 @@ class CachedSourceFinderHandler(BaseHandler):
                 return self.error("Source not found", status=404)
 
             # otherwise, we log the error and return a 500
-            log(f"Error retrieving cached finding chart: {str(e)}")
+            log.error(f"Error retrieving cached finding chart: {str(e)}")
             traceback.print_exc()
             return self.error(f"Error generating finding chart: {str(e)}")
 

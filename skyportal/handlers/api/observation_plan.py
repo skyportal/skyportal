@@ -62,9 +62,9 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
 from skyportal.enum_types import ALLOWED_BANDPASSES
 from skyportal.handlers.api.observingrun import post_observing_run
+from skyportal.log import make_log
 from skyportal.utils.calculations import get_rise_set_time, get_target
 from skyportal.utils.observation_plan import (
     convert_plan_to_rubin_format,
@@ -170,7 +170,9 @@ with astropy.utils.data.conf.set_temp("remote_timeout", 2):
             bandwidth = bandpass.maxwave() - bandpass.minwave()
             TREASUREMAP_FILTERS[bandpass_name] = [central_wavelength, bandwidth]
         except Exception as e:
-            log(f"Error adding bandpass {bandpass_name} to treasuremap filters: {e}")
+            log.error(
+                f"Error adding bandpass {bandpass_name} to treasuremap filters: {e}"
+            )
 
 # overwrite the filters for ZTF, as i-band is will otherwise be matched to TESS by treasuremap
 TREASUREMAP_FILTERS["ztfg"] = "g"
@@ -228,12 +230,12 @@ async def send_observation_plan(
             f"Cannot send observation plan with status {observation_plan_request.status}"
         )
     if not observation_plan_request.observation_plans:
-        log(
+        log.info(
             f"No observation plans to send for observation plan {plan_id} (event {observation_plan_request.gcnevent_id}, allocation {observation_plan_request.allocation_id})"
         )
         return
     if not observation_plan_request.observation_plans[0].planned_observations:
-        log(
+        log.info(
             f"No planned observations to send for observation plan {plan_id} (event {observation_plan_request.gcnevent_id}, allocation {observation_plan_request.allocation_id})"
         )
         return
@@ -249,7 +251,7 @@ async def send_observation_plan(
             )
         )
         if existing_obs_plan_requests:
-            log(
+            log.info(
                 f"Skipping auto-send of observation plan {observation_plan_request.id}: plans have already been sent to the instrument in the last 24 hours for event {observation_plan_request.gcnevent_id} and allocation {observation_plan_request.allocation_id}"
             )
             return
@@ -260,20 +262,20 @@ async def send_observation_plan(
             )
         )
         if defaultobsplanrequest is None:
-            log(
+            log.error(
                 f"Cannot find default observation plan request with ID: {default_obsplan_id}, skipping auto send."
             )
             return
 
         filters = defaultobsplanrequest.filters
         if not filters or not isinstance(filters, dict):
-            log(
+            log.info(
                 f"Default observation plan request {default_obsplan_id} has no filters, skipping auto send."
             )
             return
 
         if observation_plan_request.created_at < utcnow_naive() - timedelta(hours=1):
-            log(
+            log.info(
                 f"Default observation plan request {default_obsplan_id} was created more than 1 hour ago, skipping auto send."
             )
             return
@@ -284,7 +286,7 @@ async def send_observation_plan(
                 arrow.get(plan_request_end_date).timestamp()
                 < utcnow_naive().timestamp()
             ):
-                log(
+                log.info(
                     f"Default observation plan request {default_obsplan_id} has an end date in the past, skipping auto send."
                 )
                 return
@@ -298,14 +300,16 @@ async def send_observation_plan(
                     .statistics
                 )
             except Exception as e:
-                log(f"Error getting statistics for observation plan {plan_id}: {e}")
+                log.error(
+                    f"Error getting statistics for observation plan {plan_id}: {e}"
+                )
                 return
 
             properties_pass = True
             for prop_filt in plan_properties:
                 prop_split = prop_filt.split(":")
                 if len(prop_split) != 3:
-                    log(
+                    log.info(
                         f"Invalid propertiesFilter value -- property filter must have 3 values, cannot auto-send default observation plan {default_obsplan_id}"
                     )
                     properties_pass = False
@@ -320,7 +324,7 @@ async def send_observation_plan(
                 try:
                     value = float(value)
                 except ValueError as e:
-                    log(
+                    log.info(
                         f"Invalid propertiesFilter value: {e}, cannot auto-send default observation plan {default_obsplan_id}"
                     )
                     properties_pass = False
@@ -328,7 +332,7 @@ async def send_observation_plan(
 
                 op = prop_split[2].strip()
                 if op not in op_options:
-                    log(
+                    log.info(
                         f"Invalid operator: {op}, skipping default observation plan {default_obsplan_id}"
                     )
                     properties_pass = False
@@ -339,7 +343,7 @@ async def send_observation_plan(
                     break
 
             if not properties_pass:
-                log(
+                log.info(
                     f"Default observation plan request {default_obsplan_id} failed plan properties/statistics filter, skipping auto send."
                 )
                 return
@@ -514,7 +518,7 @@ async def post_survey_efficiency_analysis(
                         if ddec > height:
                             height = ddec
 
-    log(
+    log.info(
         f"Simsurvey analysis in progress for ID {survey_efficiency_analysis.id}. Should be available soon."
     )
 
@@ -3327,12 +3331,12 @@ def observation_simsurvey(
         session.merge(survey_efficiency_analysis)
         session.commit()
 
-        return log(
+        return log.info(
             f"Finished survey efficiency analysis for ID {survey_efficiency_analysis.id}"
         )
 
     except Exception as e:
-        return log(
+        return log.error(
             f"Unable to complete survey efficiency analysis {survey_efficiency_analysis.id}: {e}"
         )
     finally:

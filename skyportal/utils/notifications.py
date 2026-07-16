@@ -9,9 +9,9 @@ from astropy.time import Time
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
 from skyportal.app_utils import get_app_base_url
 from skyportal.email_utils import send_email
+from skyportal.log import make_log
 from skyportal.models import GcnEvent
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 from skyportal.utils.calculations import deg2dms, deg2hms, radec2lb
@@ -473,18 +473,18 @@ def post_notification(request_body, timeout=2):
             notifications_microservice_url, json=request_body, timeout=timeout
         )
     except requests.exceptions.ReadTimeout:
-        log(
+        log.info(
             f"Notification request timed out for {request_body['target_class_name']} with ID {request_body['target_id']}"
         )
         return False
     except Exception as e:
-        log(
+        log.info(
             f"Notification request failed for {request_body['target_class_name']} with ID {request_body['target_id']}: {e}"
         )
         return False
 
     if resp.status_code != 200:
-        log(
+        log.info(
             f"Notification request failed for {request_body['target_class_name']} with ID {request_body['target_id']}: {resp.content}"
         )
         return False

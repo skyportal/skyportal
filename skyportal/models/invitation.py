@@ -9,7 +9,7 @@ from sqlalchemy_utils import EmailType
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import AccessibleIfUserMatches, Base
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..app_utils import get_app_base_url
 from ..email_utils import send_email
@@ -66,7 +66,7 @@ def send_user_invite_email(mapper, connection, target):
     link_location = f"{app_base_url}/login/google-oauth2/?invite_token={target.token}"
     if cfg.get("invitations.disable_emailing", False) is True:
         # If email sending is disabled, log the invite link for testing purposes
-        log(
+        log.info(
             f"Invitation created with token {target.token}; invite link: {link_location}"
         )
         if target.invited_by:
@@ -81,7 +81,7 @@ def send_user_invite_email(mapper, connection, target):
                     },
                 )
             except Exception as e:
-                log(f"Failed to send notification: {e}")
+                log.error(f"Failed to send notification: {e}")
     else:
         send_email(
             recipients=[target.user_email],

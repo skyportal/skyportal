@@ -8,7 +8,7 @@ from astropy.coordinates import SkyCoord
 from dust_extinction.parameter_averages import G23
 from dustmaps.config import config
 
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 config["data_dir"] = "/tmp"
 log = make_log("extinction")
@@ -54,7 +54,7 @@ class _ExtinctionCalculator:
             path = dustmaps.sfd.data_dir()
             path = os.path.join(path, "sfd")
             if not os.path.exists(path):
-                log("No SFD data for dustmaps, downloading it")
+                log.info("No SFD data for dustmaps, downloading it")
                 dustmaps.sfd.fetch()
 
             self._sfd_query = dustmaps.sfd.SFDQuery()
@@ -109,7 +109,7 @@ def calculate_extinction(
         return extinction
 
     except Exception as e:
-        log(f"Could not calculate extinction for {filter_name}: {e}")
+        log.error(f"Could not calculate extinction for {filter_name}: {e}")
         return None
 
 

@@ -18,10 +18,10 @@ from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
-from baselayer.log import make_log
 from skyportal.handlers.api.photometry import add_external_photometry
 from skyportal.handlers.api.source import post_source_async
 from skyportal.handlers.api.spectrum import post_spectrum
+from skyportal.log import make_log
 from skyportal.models import DBSession, Group, Obj, Source, User
 from skyportal.utils.calculations import great_circle_distance
 from skyportal.utils.parse import is_null
@@ -70,7 +70,7 @@ def refresh_obj_on_frontend(obj, user_id="*"):
             payload={"obj_key": obj.internal_key},
         )
     except Exception:
-        log(f"Error refreshing object {obj.id} on frontend")
+        log.error(f"Error refreshing object {obj.id} on frontend")
 
 
 def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, session):
@@ -131,10 +131,10 @@ def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, se
                     continue
 
                 session.commit()
-                log(f"Updated object {obj.id} with TNS name {tns_name}")
+                log.info(f"Updated object {obj.id} with TNS name {tns_name}")
                 refresh_obj_on_frontend(obj)
             except Exception as e:
-                log(f"Error updating object: {str(e)}")
+                log.error(f"Error updating object: {str(e)}")
                 session.rollback()
 
 
@@ -157,14 +157,14 @@ def add_tns_photometry(tns_name, tns_source, tns_source_data, public_group_id, s
 
     user = session.scalar(sa.select(User).where(User.id == USER_ID))
     if user is None:
-        log(
+        log.error(
             f"Error getting user {USER_ID}, required to add photometry with add_external_photometry()"
         )
         return
 
     photometry = tns_source_data.get("photometry", [])
     if len(photometry) == 0:
-        log(f"No photometry found on TNS for source {tns_source}")
+        log.info(f"No photometry found on TNS for source {tns_source}")
         return
 
     failed_photometry = []
@@ -182,7 +182,7 @@ def add_tns_photometry(tns_name, tns_source, tns_source_data, public_group_id, s
         except Exception as e:
             failed_photometry.append(phot)
             failed_photometry_errors.append(str(e))
-            log(f"Cannot read TNS photometry {str(phot)}: {str(e)}")
+            log.error(f"Cannot read TNS photometry {str(phot)}: {str(e)}")
             continue
         if read_photometry:
             try:
@@ -199,11 +199,11 @@ def add_tns_photometry(tns_name, tns_source, tns_source_data, public_group_id, s
                 continue
 
     if len(failed_photometry) > 0:
-        log(
+        log.error(
             f"Failed to retrieve {len(failed_photometry)}/{len(photometry)} TNS photometry points from {tns_name}: {str(list(set(failed_photometry_errors)))}"
         )
     else:
-        log(
+        log.info(
             f"Successfully retrieved {len(photometry)} TNS photometry points from {tns_name}"
         )
 
@@ -226,7 +226,7 @@ def add_tns_spectra(tns_name, tns_source, tns_source_data, public_group_id, sess
     """
     spectra = tns_source_data.get("spectra", [])
     if len(spectra) == 0:
-        log(f"No spectra found on TNS for source {tns_source}")
+        log.info(f"No spectra found on TNS for source {tns_source}")
         return
 
     failed_spectra = []
@@ -236,7 +236,7 @@ def add_tns_spectra(tns_name, tns_source, tns_source_data, public_group_id, sess
         try:
             data = read_tns_spectrum(spectrum, session)
         except Exception as e:
-            log(f"Cannot read TNS spectrum {str(spectrum)}: {str(e)}")
+            log.error(f"Cannot read TNS spectrum {str(spectrum)}: {str(e)}")
             continue
         data["obj_id"] = tns_source
         data["group_ids"] = [public_group_id]
@@ -249,11 +249,11 @@ def add_tns_spectra(tns_name, tns_source, tns_source_data, public_group_id, sess
         asyncio.run(_post_spectrum())
 
     if len(failed_spectra) > 0:
-        log(
+        log.error(
             f"Failed to retrieve {len(failed_spectra)}/{len(spectra)} TNS spectra from {tns_name}: {str(list(set(failed_spectra_errors)))}"
         )
     else:
-        log(f"Successfully retrieved {len(spectra)} TNS spectra from {tns_name}")
+        log.info(f"Successfully retrieved {len(spectra)} TNS spectra from {tns_name}")
 
 
 def process_queue(queue):
@@ -265,7 +265,7 @@ def process_queue(queue):
         Tasks to be processed
     """
     if TNS_URL is None or bot_id is None or bot_name is None or api_key is None:
-        log("TNS watcher not configured, skipping")
+        log.info("TNS watcher not configured, skipping")
         return
     tns_headers = get_tns_headers(bot_id, bot_name)
 
@@ -285,7 +285,7 @@ def process_queue(queue):
                     sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
                 )
                 if public_group is None:
-                    log(
+                    log.warning(
                         f"WARNING: Public group {cfg['misc.public_group_name']} not found in the database, stopping TNS watcher"
                     )
                     return
@@ -298,7 +298,7 @@ def process_queue(queue):
                         sa.select(Obj).where(Obj.id == task.get("obj_id"))
                     )
                     if existing_obj is None:
-                        log(
+                        log.info(
                             f"Object {task['obj_id']} not found in the database, skipping"
                         )
                         continue
@@ -312,7 +312,7 @@ def process_queue(queue):
                         radius=float(task.get("radius", DEFAULT_RADIUS)),
                         closest=True,  # get the closest object to the input coordinates as the TNS source
                     )
-                    log(
+                    log.info(
                         f"Found TNS source {tns_source} for object {existing_obj.id} with prefix {tns_prefix}"
                     )
                     if is_null(tns_source):
@@ -329,9 +329,9 @@ def process_queue(queue):
                         tns_name = f"{tns_prefix} {tns_source}"
                     else:
                         tns_name = tns_source
-                    log(f"Processing TNS source {tns_name}")
+                    log.info(f"Processing TNS source {tns_name}")
                 else:
-                    log("No obj_id or tns_name provided, skipping")
+                    log.info("No obj_id or tns_name provided, skipping")
                     continue
 
                 # fetch the data from TNS
@@ -365,7 +365,7 @@ def process_queue(queue):
                     time.sleep(retry_delay)
 
                 if status_code != 200:
-                    log(f"Error getting TNS data for {tns_name}: {r.text}")
+                    log.error(f"Error getting TNS data for {tns_name}: {r.text}")
                     continue
 
                 try:
@@ -373,7 +373,9 @@ def process_queue(queue):
                 except Exception:
                     tns_source_data = None
                 if tns_source_data is None:
-                    log(f"Error getting TNS data for {tns_name}: no reply in data")
+                    log.error(
+                        f"Error getting TNS data for {tns_name}: no reply in data"
+                    )
                     continue
 
                 try:
@@ -384,14 +386,14 @@ def process_queue(queue):
                         .get("message", None)
                     )
                     if msg == "No results found.":
-                        log(f"Could not find {tns_name} on TNS at {TNS_URL}")
+                        log.error(f"Could not find {tns_name} on TNS at {TNS_URL}")
                         continue
                 except Exception:
                     pass
 
                 tns_prefix = tns_source_data.get("name_prefix", None)
                 if tns_prefix is None:
-                    log(
+                    log.error(
                         f"Error processing TNS source {tns_name}: obj has no prefix ({str(r.json())})"
                     )
                     continue
@@ -403,7 +405,7 @@ def process_queue(queue):
                     tns_source_data.get("decdeg", None),
                 )
                 if ra is None or dec is None:
-                    log(f"Error processing TNS source {tns_name}: no coordinates")
+                    log.error(f"Error processing TNS source {tns_name}: no coordinates")
                     continue
 
                 if existing_obj:
@@ -433,7 +435,7 @@ def process_queue(queue):
                         existing_tns_obj.tns_name = tns_name
                         existing_tns_obj.tns_info = tns_source_data
                         session.commit()
-                        log(
+                        log.info(
                             f"TNS obj {tns_name} already exists in the database, updated its TNS name."
                         )
                         refresh_obj_on_frontend(existing_tns_obj)
@@ -441,7 +443,7 @@ def process_queue(queue):
                     # if the obj does not exist or if it exists but is saved to the public group,
                     # we create/save the TNS source to the public group
                     if existing_tns_public_source is None:
-                        log(
+                        log.info(
                             f"Saving TNS source {tns_name} to the database (public group)"
                         )
                         new_source_data = {
@@ -476,7 +478,7 @@ def process_queue(queue):
                         )
         except Exception as e:
             traceback.print_exc()
-            log(f"Error processing TNS source {tns_name}: {e}")
+            log.error(f"Error processing TNS source {tns_name}: {e}")
             user_id = task.get("user_id", None)
             if user_id is not None:
                 flow = Flow()
@@ -509,7 +511,7 @@ def tns_watcher(queue):
         The queue to add the TNS sources to, shared across threads
     """
     if not TNS_URL or not bot_id or not bot_name or not api_key or not look_back_days:
-        log("TNS watcher not configured, skipping")
+        log.info("TNS watcher not configured, skipping")
         return
     tns_headers = get_tns_headers(bot_id, bot_name)
 
@@ -534,14 +536,16 @@ def tns_watcher(queue):
                         "obj_id": None,
                     }
                 )
-                log(f"Added TNS source {tns_source['id']} to the queue for processing")
+                log.info(
+                    f"Added TNS source {tns_source['id']} to the queue for processing"
+                )
 
             # if we got any sources, we update the start date to now - 1 hour
             # otherwise we keep querying TNS starting from same start date
             if tns_sources:
                 start_date = datetime.now() - timedelta(hours=1)
         except Exception as e:
-            log(f"Error getting TNS sources: {e}, retrying in 4 minutes")
+            log.error(f"Error getting TNS sources: {e}, retrying in 4 minutes")
 
         time.sleep(60 * 4)  # sleep for 4 minutes
 
@@ -621,7 +625,7 @@ def service(*args, **kwargs):
     t2.start()
     t3.start()
     while True:
-        log(f"Current TNS retrieval queue length: {len(queue)}")
+        log.info(f"Current TNS retrieval queue length: {len(queue)}")
         time.sleep(120)
 
 
@@ -630,4 +634,4 @@ if __name__ == "__main__":
     try:
         service()
     except Exception as e:
-        log(f"Error occurred in TNS retrieval queue: {str(e)}")
+        log.error(f"Error occurred in TNS retrieval queue: {str(e)}")

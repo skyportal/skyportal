@@ -29,7 +29,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     Allocation,
@@ -107,7 +107,7 @@ def add_queued_observations(instrument_id, obstable):
                 .first()
             )
             if field is None:
-                return log(
+                return log.error(
                     f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
                 )
 
@@ -129,11 +129,11 @@ def add_queued_observations(instrument_id, obstable):
         flow = Flow()
         flow.push("*", "skyportal/REFRESH_QUEUED_OBSERVATIONS")
 
-        return log(
+        return log.info(
             f"Successfully added queued observations for instrument {instrument_id}"
         )
     except Exception as e:
-        return log(
+        return log.error(
             f"Unable to add queued observations for instrument {instrument_id}: {e}"
         )
     finally:
@@ -192,7 +192,7 @@ def add_observations(instrument_id, obstable):
             )
             missing = list(set(field_ids) - {f.field_id for f in fields})
             if len(missing) > 0:
-                return log(
+                return log.error(
                     f"Unable to add observations for instrument {instrument_id}: {len(missing)} fields are missing: {missing[:100]}"
                 )
             for field in fields:
@@ -216,7 +216,7 @@ def add_observations(instrument_id, obstable):
             missing.extend(set(observation_ids) - set(observations))
 
         if len(missing) < len(unique_observation_ids):
-            log(
+            log.error(
                 f"Unable to add some observations for instrument {instrument_id}: {len(unique_observation_ids) - len(missing)} observations (out of {len(unique_observation_ids)}) already exist. These will be skipped"
             )
 
@@ -262,16 +262,20 @@ def add_observations(instrument_id, obstable):
                 session.commit()
             except Exception as e:
                 session.rollback()
-                return log(
+                return log.error(
                     f"Unable to add observations for instrument {instrument_id}: {e}"
                 )
 
         flow = Flow()
         flow.push("*", "skyportal/REFRESH_OBSERVATIONS")
 
-        return log(f"Successfully added observations for instrument {instrument_id}")
+        return log.info(
+            f"Successfully added observations for instrument {instrument_id}"
+        )
     except Exception as e:
-        return log(f"Unable to add observations for instrument {instrument_id}: {e}")
+        return log.error(
+            f"Unable to add observations for instrument {instrument_id}: {e}"
+        )
     finally:
         session.close()
         Session.remove()
@@ -561,7 +565,7 @@ async def get_observations(
                 )
                 localization_tiles = localization_tiles_result.all()
                 if stats_logging:
-                    log(
+                    log.info(
                         "STATS: ",
                         f"Number of localization tiles= {len(localization_tiles)}. "
                         f"Runtime= {time.time() - t0:.2f}s. ",
@@ -587,7 +591,7 @@ async def get_observations(
                 field_upper_bounds = np.array([f[1] for f in instrument_field_tuples])
 
                 if stats_logging:
-                    log(
+                    log.info(
                         "STATS: ",
                         f"Number of field tiles= {len(instrument_field_tuples)}. "
                         f"Runtime= {time.time() - t0:.2f}s. ",
@@ -598,7 +602,7 @@ async def get_observations(
                 total_area = sum(t[1] - t[0] for t in merged_tuples)
                 total_area *= ha.constants.PIXEL_AREA
                 if stats_logging:
-                    log(
+                    log.info(
                         "STATS: ",
                         f"len(merged_tuples)= {len(merged_tuples)}, "
                         f"total_area= {total_area:.2f}. "
@@ -645,7 +649,7 @@ async def get_observations(
                 intprob *= ha.constants.PIXEL_AREA
 
                 if stats_logging:
-                    log(
+                    log.info(
                         "STATS: ",
                         f"area= {intarea}, prob= {intprob}. Runtime= {time.time() - t0:.2f}s. ",
                     )
@@ -700,7 +704,7 @@ async def get_observations(
                     intarea = 0.0
 
                 if stats_logging:
-                    log(
+                    log.info(
                         f"STATS: area= {intarea}, prob= {intprob}. Runtime= {time.time() - t0:.2f}s. "
                     )
             else:

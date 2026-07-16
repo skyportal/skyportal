@@ -4,7 +4,7 @@ import requests
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.models import Obj
 from skyportal.utils.http import serialize_requests_response
 
@@ -143,14 +143,14 @@ def submit_to_hermes(
             timeout=5.0,
         )
         if response.status_code != 200:
-            log(
+            log.error(
                 f"Failed to publish to topic '{topic}' with status code {response.status_code}: {response.text}"
             )
             status = f"Error: Failed to publish to topic '{topic}' with status code {response.status_code}"
             notif_text = f"Hermes error: Failed to publish to topic '{topic}' with status code {response.status_code}"
         else:
             if testing:
-                log(
+                log.info(
                     f"Successfully submitted {obj_id} to Hermes test topic {topic} for sharing service {sharing_service_id}"
                 )
                 notif_text = (
@@ -158,7 +158,7 @@ def submit_to_hermes(
                 )
                 status = f"Testing mode, submitted to Hermes test topic '{topic}'."
             else:
-                log(
+                log.info(
                     f"Successfully submitted {obj_id} to Hermes with request ID {submission_request_id} for sharing service {sharing_service_id}"
                 )
                 status = f"Successfully submitted {obj_id} to Hermes."
@@ -169,7 +169,7 @@ def submit_to_hermes(
             serialized_response = serialize_requests_response(response)
             submission_request.hermes_response = serialized_response
     except Exception as e:
-        log(str(e))
+        log.info(str(e))
         status = f"Error: {e}"
         notif_text = f"Hermes error: {e}"
 

@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 
 from baselayer.app.access import permissions
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import Obj, Source
 from ...utils.asynchronous import run_async

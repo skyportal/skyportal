@@ -2,7 +2,7 @@ from astropy import cosmology
 from astropy import units as u
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 log = make_log("cosmology")
 _, cfg = load_env()
@@ -38,15 +38,15 @@ def establish_cosmology(cfg=cfg):
                     Ob0=user_cosmo.get("Ob0", 0.0455),
                 )
         except (KeyError, NameError) as e:
-            log(f"{e}")
-            log("Exception while processing user-defined cosmology")
+            log.info(f"{e}")
+            log.info("Exception while processing user-defined cosmology")
             raise RuntimeError("Error parsing user-defined cosmology")
 
     else:
-        log(f"Invalid user-defined cosmology [{user_cosmo}]")
-        log(f"Try setting it to one of [{cosmology.realizations.available}]")
+        log.info(f"Invalid user-defined cosmology [{user_cosmo}]")
+        log.info(f"Try setting it to one of [{cosmology.realizations.available}]")
         raise RuntimeError("No valid cosmology specified")
 
-    log(f"Using {cosmo} for cosmological calculations")
+    log.info(f"Using {cosmo} for cosmological calculations")
 
     return cosmo

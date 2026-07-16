@@ -25,8 +25,8 @@ from baselayer.app.models import (
     join_model,
     public,
 )
-from baselayer.log import make_log
 from skyportal import facility_apis
+from skyportal.log import make_log
 
 from ..enum_types import (
     allowed_bandpasses,

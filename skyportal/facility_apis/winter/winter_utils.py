@@ -287,7 +287,7 @@ async def submit_request(request, session, camera, log, **kwargs):
         request.status = "submitted"
     else:
         request.status = f"rejected: {content}"
-        log(
+        log.error(
             f"Failed to submit {camera} request for {request.id} (obj {request.obj.id}): {content}"
         )
         try:
@@ -301,7 +301,7 @@ async def submit_request(request, session, camera, log, **kwargs):
                 },
             )
         except Exception as e:
-            log(f"Failed to send notification for failed {camera} request: {e}")
+            log.error(f"Failed to send notification for failed {camera} request: {e}")
 
     transaction = FacilityTransaction(
         request=http.serialize_aiohttp_request("POST", url, None, [payload]),
@@ -346,7 +346,7 @@ async def submit_request(request, session, camera, log, **kwargs):
             )
     except Exception as e:
         traceback.print_exc()
-        log(f"Error sending notification: {e}")
+        log.error(f"Error sending notification: {e}")
 
 
 def build_form_json_schema(filter_defaults):

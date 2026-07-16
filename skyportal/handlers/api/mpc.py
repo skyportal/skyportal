@@ -12,7 +12,7 @@ from tornado.ioloop import IOLoop
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     DBSession,
@@ -176,7 +176,7 @@ def query_mpc(obj_id, user_id, url):
     else:
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
-    log(f"Querying MPC for {obj_id}: {url}")
+    log.info(f"Querying MPC for {obj_id}: {url}")
 
     try:
         user = session.query(User).get(user_id)
@@ -190,17 +190,17 @@ def query_mpc(obj_id, user_id, url):
             responseSplit = response.text.split("(1)")[-1].split(" ")
             mpc_name = list(filter(None, responseSplit))[0]
 
-            log(f"{obj_id}: identified MPC name {mpc_name}")
+            log.info(f"{obj_id}: identified MPC name {mpc_name}")
 
             obj.is_roid = True
             obj.mpc_name = mpc_name
             session.commit()
         elif re.findall("No known minor planets,.*", response.text):
-            log(f"{obj_id}: No known minor planets")
+            log.info(f"{obj_id}: No known minor planets")
             obj.is_roid = False
             session.commit()
         else:
-            log(f"Message from MPC for {obj_id} not parsable: {response.text}")
+            log.info(f"Message from MPC for {obj_id} not parsable: {response.text}")
 
         flow = Flow()
         flow.push(
@@ -210,7 +210,7 @@ def query_mpc(obj_id, user_id, url):
         )
 
     except Exception as e:
-        log(f"Error checking MPC for {obj_id}: {(str(e))}")
+        log.error(f"Error checking MPC for {obj_id}: {(str(e))}")
         session.rollback()
     finally:
         session.close()

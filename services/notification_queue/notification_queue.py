@@ -17,9 +17,9 @@ from twilio.twiml.voice_response import Say, VoiceResponse
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
-from baselayer.log import make_log
 from skyportal.app_utils import get_app_base_url
 from skyportal.email_utils import send_email
+from skyportal.log import make_log
 from skyportal.models import (
     Allocation,
     AnalysisService,
@@ -214,11 +214,11 @@ def send_slack_notification(target):
             data=data,
             headers={"Content-Type": "application/json"},
         )
-        log(
+        log.info(
             f"Sent slack notification to user {target['user']['id']} at slack_url: {integration_url}, body: {target['text']}, resource_type: {resource_type}"
         )
     except Exception as e:
-        log(f"Error sending slack notification: {e}")
+        log.error(f"Error sending slack notification: {e}")
 
 
 def send_email_notification(target):
@@ -281,14 +281,14 @@ def send_email_notification(target):
                     subject=subject,
                     body=body,
                 )
-                log(
+                log.info(
                     f"Sent email notification to user {target['user']['id']} at email: {target['user']['contact_email']}, subject: {subject}, body: {body}, resource_type: {resource_type}"
                 )
             except Exception as e:
-                log(f"Error sending email notification: {e}")
+                log.error(f"Error sending email notification: {e}")
 
     except Exception as e:
-        log(f"Error sending email notification: {e}")
+        log.error(f"Error sending email notification: {e}")
 
 
 def send_sms_notification(target):
@@ -326,11 +326,11 @@ def send_sms_notification(target):
                 from_=from_number,
                 to=target["user"]["contact_phone"].e164,
             )
-            log(
+            log.info(
                 f"Sent SMS notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
             )
         except Exception as e:
-            log(f"Error sending sms notification: {e}")
+            log.error(f"Error sending sms notification: {e}")
 
 
 def send_phone_notification(target):
@@ -370,11 +370,11 @@ def send_phone_notification(target):
                 from_=from_number,
                 to=target["user"]["contact_phone"].e164,
             )
-            log(
+            log.info(
                 f"Sent Phone Call notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, message: {message}, resource_type: {resource_type}"
             )
         except Exception as e:
-            log(f"Error sending phone call notification: {e}")
+            log.error(f"Error sending phone call notification: {e}")
 
 
 def send_whatsapp_notification(target):
@@ -412,11 +412,11 @@ def send_whatsapp_notification(target):
                 from_="whatsapp:" + str(from_number),
                 to="whatsapp" + str(target["user"]["contact_phone"].e164),
             )
-            log(
+            log.info(
                 f"Sent WhatsApp notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
             )
         except Exception as e:
-            log(f"Error sending WhatsApp notification: {e}")
+            log.error(f"Error sending WhatsApp notification: {e}")
 
 
 def push_frontend_notification(target):
@@ -431,12 +431,12 @@ def push_frontend_notification(target):
         user_id = None
 
     if user_id is None:
-        log(
+        log.error(
             "Error sending frontend notification: user_id or user.id not found in notification's target"
         )
         return
     resource_type = notification_resource_type(target)
-    log(
+    log.info(
         f"Sent frontend notification to user {user_id}, body: {target['text']}, resource_type: {resource_type}"
     )
     ws_flow = Flow()
@@ -472,7 +472,9 @@ def service(queue):
             send_email_notification(notification)
             send_slack_notification(notification)
         except Exception as e:
-            log(f"Error processing notification ID {notification['id']}: {str(e)}")
+            log.error(
+                f"Error processing notification ID {notification['id']}: {str(e)}"
+            )
 
 
 def api(queue):
@@ -1506,14 +1508,14 @@ def api(queue):
                                                 queue.append(target)
                         except Exception as e:
                             failure_count += 1
-                            log(
+                            log.error(
                                 f"Error processing notification for user {user.id}: {str(e)}"
                             )
                             DBSession().rollback()
                             continue
 
                     if failure_count == nb_users and nb_users > 0:
-                        log("Failed to notify all users")
+                        log.error("Failed to notify all users")
                         raise Exception("Failed to notify all users")
                     self.set_status(200)
                     return self.write(
@@ -1524,7 +1526,7 @@ def api(queue):
                         }
                     )
                 except Exception as e:
-                    log(f"Error processing notification: {str(e)}")
+                    log.error(f"Error processing notification: {str(e)}")
                     DBSession().rollback()
                     self.set_status(400)
                     return self.write(
@@ -1549,16 +1551,16 @@ if __name__ == "__main__":
         t2.start()
 
         while True:
-            log(f"Current notification queue length: {len(queue)}")
+            log.info(f"Current notification queue length: {len(queue)}")
             time.sleep(60)
             if not t.is_alive():
-                log("Notification queue service thread died, restarting")
+                log.info("Notification queue service thread died, restarting")
                 t = Thread(target=service, args=(queue,))
                 t.start()
             if not t2.is_alive():
-                log("Notification queue API thread died, restarting")
+                log.info("Notification queue API thread died, restarting")
                 t2 = Thread(target=api, args=(queue,))
                 t2.start()
     except Exception as e:
-        log(f"Error starting notification queue: {str(e)}")
+        log.error(f"Error starting notification queue: {str(e)}")
         raise e

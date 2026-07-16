@@ -3,7 +3,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import DBSession, GcnReport
 from ...utils.cache import Cache

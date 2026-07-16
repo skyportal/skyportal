@@ -1,7 +1,7 @@
 import re
 import subprocess
 
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 log = make_log("gitlog")
 
@@ -98,7 +98,7 @@ def parse_gitlog(gitlog):
 
         m = re.match(log_re, line)
         if m is None:
-            log(f"sysinfo: could not parse gitlog line: `{line}`")
+            log.info(f"sysinfo: could not parse gitlog line: `{line}`")
             continue
 
         log_fields = m.groupdict()

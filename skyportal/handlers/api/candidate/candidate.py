@@ -24,7 +24,7 @@ from sqlalchemy.types import Boolean, Float, Integer, String
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ....models import (
     Allocation,
@@ -787,7 +787,7 @@ class CandidateHandler(BaseHandler):
                 if query_size >= SIZE_WARNING_THRESHOLD:
                     end = time.time()
                     duration = end - start
-                    log(
+                    log.info(
                         f"User {self.associated_user_object.id} candidate query for object {obj_id} returned {query_size} bytes in {duration} seconds"
                     )
 
@@ -1516,7 +1516,7 @@ class CandidateHandler(BaseHandler):
             if query_size >= SIZE_WARNING_THRESHOLD:
                 end = time.time()
                 duration = end - start
-                log(
+                log.info(
                     f"User {self.associated_user_object.id} candidate query returned {query_size} bytes in {duration} seconds"
                 )
 
@@ -1940,7 +1940,7 @@ class BulkDeleteCandidatesHandler(BaseHandler):
             session.commit()
 
             remaining = int(session.scalar(count_stmt) or 0)
-            log(
+            log.info(
                 f"Bulk-deleted {n} unsaved candidate object(s) older than "
                 f"{max_age_months} months; {remaining} remaining."
             )

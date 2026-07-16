@@ -29,7 +29,7 @@ from sqlalchemy.sql.ddl import DDL
 
 from baselayer.app.env import load_env
 from baselayer.app.models import AccessibleIfUserMatches, Base
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils.files import delete_file_data, save_file_data
 
@@ -299,7 +299,7 @@ class Localization(Base):
             # reset the filename
             self._localization_path = None
         except Exception:
-            log(
+            log.error(
                 f"Failed to delete localization ID {self.id} file {self._localization_path}"
             )
 
@@ -561,5 +561,5 @@ class LocalizationTag(Base):
 
 @event.listens_for(Localization, "after_delete")
 def delete_localization_data_from_disk(mapper, connection, target):
-    log(f"Deleting localization data for localization id={target.id}")
+    log.info(f"Deleting localization data for localization id={target.id}")
     target.delete_data()

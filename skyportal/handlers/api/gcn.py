@@ -49,7 +49,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.json_util import to_json
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.models.gcn import SOURCE_RADIUS_THRESHOLD
 from skyportal.models.photometry import Photometry
 
@@ -148,7 +148,7 @@ async def post_gcn_source(
     try:
         ra, dec, error = (float(val) for val in localization_name.split("_"))
         if error < SOURCE_RADIUS_THRESHOLD:
-            log(
+            log.info(
                 f"Creating source for event {dateobs} with Localization {localization_name}."
             )
             dateobs_txt = Time(dateobs).isot
@@ -190,7 +190,7 @@ async def post_gcn_source(
                 sa.select(Group).where(Group.name == cfg["misc.public_group_name"])
             )
             if public_group is None:
-                log(
+                log.warning(
                     f"WARNING: Public group {cfg['misc.public_group_name']} not found in the database, cannot post source"
                 )
             else:
@@ -202,7 +202,7 @@ async def post_gcn_source(
                         Source.select(user).where(Source.obj_id == source["id"])
                     )
                     if existing_source is None:
-                        log(
+                        log.info(
                             f"Posting source for event {dateobs} with Localization {localization_name} with id {source['id']}."
                         )
                         if source["origin"] is None:
@@ -210,7 +210,7 @@ async def post_gcn_source(
                         await post_source_async(source, user.id, session)
                         return True
         else:
-            log(
+            log.info(
                 f"Source radius {error:.4f} is larger than threshold {SOURCE_RADIUS_THRESHOLD:.4f}, not creating source for event {dateobs} with Localization {localization_name}."
             )
 
@@ -218,8 +218,8 @@ async def post_gcn_source(
         if not (
             isinstance(e, ValueError) and "could not convert string to float" in str(e)
         ):
-            log(traceback.format_exc())
-            log(
+            log.error(traceback.format_exc())
+            log.error(
                 f"Failed to create source for event {dateobs} with Localization {localization_name}: {str(e)}."
             )
     finally:
@@ -448,7 +448,9 @@ async def post_skymap_from_notice(
         await session.commit()
         localization_id = localization.id
 
-        log(f"Generating tiles/properties/contours for localization {localization.id}")
+        log.info(
+            f"Generating tiles/properties/contours for localization {localization.id}"
+        )
         # The tiles/properties helpers run in a sync executor thread with their
         # own sync session — async caller cannot await them, so always dispatch.
         try:
@@ -478,7 +480,7 @@ async def post_skymap_from_notice(
 
     else:
         localization_id = localization.id
-        log(f"Localization {localization_id} already exists.")
+        log.info(f"Localization {localization_id} already exists.")
 
     return localization_id
 
@@ -811,7 +813,9 @@ async def post_gcnevent_from_dictionary(payload, user_id, session, asynchronous=
         await session.commit()
         localization_id = localization.id
 
-        log(f"Generating tiles/properties/contours for localization {localization_id}")
+        log.info(
+            f"Generating tiles/properties/contours for localization {localization_id}"
+        )
         try:
             loop = asyncio.get_event_loop()
         except Exception:
@@ -2344,7 +2348,7 @@ def add_tiles_and_properties_and_contour(
             sa.select(Localization).where(Localization.id == localization_id)
         )
 
-        log(f"Retrieving skymap properties for localization {localization_id}")
+        log.info(f"Retrieving skymap properties for localization {localization_id}")
         properties_dict, tags_list = get_skymap_properties(localization)
         if properties is not None:
             properties_dict.update(properties)
@@ -2366,7 +2370,7 @@ def add_tiles_and_properties_and_contour(
         ]
         session.add_all(tags)
 
-        log(f"Adding default localization tags for localization {localization_id}")
+        log.info(f"Adding default localization tags for localization {localization_id}")
         gcn_tags = add_default_gcn_tags(user, session, localization=localization)
         if gcn_tags is not None and len(gcn_tags) > 0:
             session.add_all(gcn_tags)
@@ -2388,7 +2392,7 @@ def add_tiles_and_properties_and_contour(
                 lambda: post_notification(request_body, timeout=30),
             )
 
-        log(f"Adding tiles for localization {localization_id}")
+        log.info(f"Adding tiles for localization {localization_id}")
         tiles = [
             LocalizationTile(
                 localization_id=localization_id,
@@ -2404,7 +2408,7 @@ def add_tiles_and_properties_and_contour(
         session.add_all(tiles)
         session.commit()
 
-        log(f"Adding contour for localization {localization_id}")
+        log.info(f"Adding contour for localization {localization_id}")
         localization = get_contour(localization)
         session.add(localization)
         session.commit()
@@ -2423,7 +2427,7 @@ def add_tiles_and_properties_and_contour(
         )
 
         if url is not None:
-            log(f"Fetching and saving raw skymap data to disk {localization_id}")
+            log.info(f"Fetching and saving raw skymap data to disk {localization_id}")
             try:
                 r = requests.get(url, allow_redirects=True, timeout=15)
                 data_to_disk = r.content
@@ -2433,22 +2437,22 @@ def add_tiles_and_properties_and_contour(
                     localization.save_data(localization_name, data_to_disk)
                     session.commit()
             except Exception as e:
-                log(
+                log.info(
                     f"Localization {localization_id} URL {url} failed to download: {str(e)}."
                 )
-        log(
+        log.info(
             f"Generated tiles / properties / contour for localization {localization_id}"
         )
         return
     except ObjectDeletedError:
         # Localization was deleted (e.g. event removed) mid-generation; benign race.
-        log(
+        log.info(
             f"Localization {localization_id} was deleted during contour generation; skipping."
         )
         session.rollback()
     except Exception as e:
         traceback.print_exc()
-        log(
+        log.error(
             f"Unable to generate tiles / properties / contour for localization {localization_id}: {e}"
         )
         session.rollback()
@@ -2522,7 +2526,7 @@ def add_default_gcn_tags(user, session, dateobs=None, localization=None):
             for text in gcn_tags
         ]
     except Exception as e:
-        log(f"Unable to add default GCN tags: {str(e)}")
+        log.error(f"Unable to add default GCN tags: {str(e)}")
         gcn_tags = []
 
     return gcn_tags
@@ -2596,7 +2600,7 @@ async def add_default_gcn_tags_async(user, session, dateobs=None, localization=N
             for text in gcn_tags
         ]
     except Exception as e:
-        log(f"Unable to add default GCN tags: {str(e)}")
+        log.error(f"Unable to add default GCN tags: {str(e)}")
         gcn_tags = []
 
     return gcn_tags
@@ -2619,7 +2623,9 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
         if localization is None:
             # Localization was deleted (e.g. event removed) while this
             # background job ran; nothing to plan for.
-            log(f"Localization {localization_id} no longer exists; skipping obs plans.")
+            log.info(
+                f"Localization {localization_id} no longer exists; skipping obs plans."
+            )
             return
         dateobs = localization.dateobs
         localization_tags = [
@@ -2642,7 +2648,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
             GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
         ).first()
         if not isinstance(event.gcn_notices, list) or len(event.gcn_notices) == 0:
-            log(
+            log.info(
                 f"No GCN notices found for event {event.id}, skipping default observation plan"
             )
             return
@@ -2654,13 +2660,13 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
         event_properties = event.properties
         if not isinstance(event_properties, list) or len(event_properties) == 0:
-            log(
+            log.info(
                 f"No GCN properties found for event {event.id}, skipping default observation plan"
             )
             return
         event_properties = sorted(event_properties, key=lambda x: x.created_at)[-1].data
         if not isinstance(event_properties, dict):
-            log(
+            log.info(
                 f"No GCN valid properties found for event {event.id}, skipping default observation plan"
             )
             return
@@ -2724,7 +2730,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     localization.notice_id is None
                     or notice.id != localization.notice_id
                 ):
-                    log(
+                    log.info(
                         f"Skipping default observation plan {gcn_observation_plan.id} because it does not match the localization notice"
                     )
                     continue
@@ -2771,7 +2777,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     for prop_filt in filters["gcn_properties"]:
                         prop_split = prop_filt.split(":")
                         if len(prop_split) != 3:
-                            log(
+                            log.info(
                                 f"Invalid propertiesFilter value -- property filter must have 3 values, skipping default observation plan {gcn_observation_plan.id}"
                             )
                             properties_pass = False
@@ -2786,7 +2792,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                         try:
                             value = float(value)
                         except ValueError as e:
-                            log(
+                            log.info(
                                 f"Invalid propertiesFilter value: {e}, skipping default observation plan {gcn_observation_plan.id}"
                             )
                             properties_pass = False
@@ -2794,7 +2800,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
                         op = prop_split[2].strip()
                         if op not in op_options:
-                            log(
+                            log.info(
                                 f"Invalid operator: {op}, skipping default observation plan {gcn_observation_plan.id}"
                             )
                             properties_pass = False
@@ -2812,7 +2818,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     and len(filters["localization_properties"]) > 0
                 ):
                     if not isinstance(localization_properties, dict):
-                        log(
+                        log.info(
                             f"Skipping default observation plan {gcn_observation_plan.id} because localization properties are not available"
                         )
                         continue
@@ -2820,7 +2826,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                     for prop_filt in filters["localization_properties"]:
                         prop_split = prop_filt.split(":")
                         if len(prop_split) != 3:
-                            log(
+                            log.info(
                                 f"Invalid propertiesFilter value -- property filter must have 3 values, skipping default observation plan {gcn_observation_plan.id}"
                             )
                             valid_properties = False
@@ -2835,7 +2841,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                         try:
                             value = float(value)
                         except ValueError as e:
-                            log(
+                            log.info(
                                 f"Invalid propertiesFilter value: {e}, skipping default observation plan {gcn_observation_plan.id}"
                             )
                             valid_properties = False
@@ -2843,7 +2849,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
                         op = prop_split[2].strip()
                         if op not in op_options:
-                            log(
+                            log.info(
                                 f"Invalid operator: {op}, skipping default observation plan {gcn_observation_plan.id}"
                             )
                             valid_properties = False
@@ -2861,7 +2867,7 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
 
             elif gcn_observation_plan.get("auto_send", False):
                 # default plans must have filters defined to use auto_send
-                log(
+                log.info(
                     f"auto_send set to True but no filters, skipping default observation plan {gcn_observation_plan.id}"
                 )
 
@@ -2872,10 +2878,10 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 default_plan=True,
                 asynchronous=False,
             )
-        log(f"Triggered observation plans for localization {localization_id}")
+        log.info(f"Triggered observation plans for localization {localization_id}")
     except Exception as e:
         traceback.print_exc()
-        log(
+        log.error(
             f"Unable to trigger observation plans for localization {localization_id}: {e}"
         )
     finally:
@@ -2914,7 +2920,7 @@ def add_tiles_properties_contour_and_obsplan(
         add_observation_plans(localization_id, user_id, session)
     except Exception as e:
         traceback.print_exc()
-        log(
+        log.error(
             f"Unable to generate tiles / properties / observation plans / contour for localization {localization_id}: {e}"
         )
     finally:
@@ -3854,7 +3860,7 @@ def add_gcn_summary(
         session.add(notification)
         session.commit()
 
-        log(f"Successfully generated GCN summary {gcn_summary.id}")
+        log.info(f"Successfully generated GCN summary {gcn_summary.id}")
 
     except Exception as e:
         try:
@@ -3863,7 +3869,7 @@ def add_gcn_summary(
             session.commit()
         except Exception:
             pass
-        log(f"Unable to create GCN summary: {e}")
+        log.error(f"Unable to create GCN summary: {e}")
         raise e
     finally:
         session.close()
@@ -4639,7 +4645,7 @@ def add_gcn_report(
             session.add(notification)
             session.commit()
 
-            log(f"Successfully generated GCN report {gcn_report.id}")
+            log.info(f"Successfully generated GCN report {gcn_report.id}")
         except Exception as e:
             try:
                 session.rollback()
@@ -4648,10 +4654,10 @@ def add_gcn_report(
                 session.commit()
             except Exception:
                 session.rollback()
-            log(f"Unable to update GCN report: {str(e)}")
+            log.error(f"Unable to update GCN report: {str(e)}")
 
     except Exception as e:
-        log(f"Unable to create GCN report: {str(e)}")
+        log.error(f"Unable to create GCN report: {str(e)}")
         raise e
     finally:
         session.close()
@@ -5890,9 +5896,9 @@ def crossmatch_gcn_objects(obj_id, event_ids, user_id, integrated_probability=0.
             payload={"obj_key": obj.internal_key},
         )
 
-        log(f"Generated GCN crossmatch for {obj_id}")
+        log.info(f"Generated GCN crossmatch for {obj_id}")
     except Exception as e:
-        log(f"Unable to generate GCN crossmatch for {obj_id}: {e}")
+        log.error(f"Unable to generate GCN crossmatch for {obj_id}: {e}")
     finally:
         session.close()
         Session.remove()

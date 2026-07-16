@@ -1,7 +1,7 @@
 from PIL import Image, ImageStat, UnidentifiedImageError
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 _, cfg = load_env()
 

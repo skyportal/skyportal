@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive

@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.models.group import Group
 
 from ....models import Obj, ObjTag, Source, serialize_obj_tag
@@ -133,7 +133,7 @@ class RecentSourcesHandler(BaseHandler):
                 )
 
                 if s is None or source_entry is None:
-                    log(f"Source with obj_id {obj_id} not found.")
+                    log.info(f"Source with obj_id {obj_id} not found.")
                     continue
 
                 sources.append(

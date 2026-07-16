@@ -20,7 +20,7 @@ from baselayer.app.models import (
     DBSession,
     public,
 )
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils.cache import Cache, dict_to_bytes
 
@@ -124,7 +124,7 @@ class Telescope(Base):
             )
 
         except Exception as e:
-            log(
+            log.info(
                 f'Telescope {self.id} ("{self.name}") cannot calculate an observer: {e}'
             )
             self._observer = None
@@ -172,7 +172,7 @@ class Telescope(Base):
             )
 
         except Exception as e:
-            log(
+            log.info(
                 f'Telescope {self.id} ("{self.name}") cannot calculate an observer: {e}'
             )
             self._observer_timezone = None
@@ -390,7 +390,7 @@ class Telescope(Base):
                 ):
                     return time_info
             except Exception:
-                log(f"Failed to load cached time info for telescope {self.id}")
+                log.error(f"Failed to load cached time info for telescope {self.id}")
 
         is_night_astronomical = False
         try:
@@ -399,7 +399,7 @@ class Telescope(Base):
             if morning is not None and evening is not None:
                 is_night_astronomical = bool(morning.jd < evening.jd)
         except Exception:
-            log(f"Failed to calculate current time for telescope {self.id}")
+            log.error(f"Failed to calculate current time for telescope {self.id}")
             is_night_astronomical = False
             morning = False
             evening = False

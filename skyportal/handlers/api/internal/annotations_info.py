@@ -5,7 +5,7 @@ from sqlalchemy import func, literal
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ....models import Annotation
 from ....utils.cache import Cache, dict_to_bytes
@@ -93,5 +93,5 @@ class AnnotationsInfoHandler(BaseHandler):
                     return self.success(data=grouped)
 
         except Exception as e:
-            log(f"Failed to get annotations info: {e}")
+            log.error(f"Failed to get annotations info: {e}")
             return self.error(f"Failed to get annotations info: {e}")

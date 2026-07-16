@@ -15,7 +15,7 @@ from paramiko import SSHClient
 from scp import SCPClient
 from sqlalchemy.orm import selectinload
 
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from . import MMAAPI, GenericRequest
 

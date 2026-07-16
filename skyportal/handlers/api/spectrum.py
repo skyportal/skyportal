@@ -17,7 +17,7 @@ from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 from ...models import (

@@ -10,7 +10,7 @@ from astroplan import Observer
 from astropy.coordinates import AltAz, SkyCoord, get_body
 from astropy.time import Time
 
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.models import (
     InstrumentField,
     InstrumentFieldTile,
@@ -141,7 +141,7 @@ def get_ephemeris(
         try:
             data = np.load(cached_data, allow_pickle=True).item()
         except Exception as e:
-            log(f"Failed to load cached data: {e}")
+            log.error(f"Failed to load cached data: {e}")
             data = None
 
     if cached_data is None or data is None:

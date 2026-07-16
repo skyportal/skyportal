@@ -19,8 +19,8 @@ from confluent_kafka import Consumer
 
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db, session_context_id
-from baselayer.log import make_log
 from skyportal.handlers.api.photometry import nan_to_none
+from skyportal.log import make_log
 from skyportal.models import (
     DBSession,
     Group,
@@ -61,7 +61,7 @@ def create_or_get_obj(session, obj_id: str, ra: float, dec: float):
     if obj is None:
         obj = Obj(id=obj_id, ra=ra, dec=dec)
         session.add(obj)
-        log(f"Created new Obj: {obj_id}")
+        log.info(f"Created new Obj: {obj_id}")
 
 
 def build_instrument_mapping(session, tns_ids: list[int]):
@@ -134,7 +134,7 @@ def create_source(session, obj_id: str, group_ids: list[int], user_id: int):
             )
             session.add(source)
             sources_created += 1
-            log(f"Created Source for {obj_id} in group {group_id}")
+            log.info(f"Created Source for {obj_id} in group {group_id}")
 
     if sources_created > 0:
         session.flush()
@@ -291,7 +291,7 @@ class SourceProcessor:
             Kafka message data
         """
         title = data.get("title", "No title")
-        log_verbose(f"Processing message: {title}")
+        log_verbose.info(f"Processing message: {title}")
 
         targets = data.get("data", {}).get("targets", [])
         photometry = data.get("data", {}).get("photometry", [])
@@ -317,9 +317,9 @@ class SourceProcessor:
         ra = target.get("ra")
         dec = target.get("dec")
 
-        log_verbose(f"  Target: {name}")
-        log_verbose(f"    RA: {ra}")
-        log_verbose(f"    Dec: {dec}")
+        log_verbose.info(f"  Target: {name}")
+        log_verbose.info(f"    RA: {ra}")
+        log_verbose.info(f"    Dec: {dec}")
 
         target_photometry = [p for p in photometry if p.get("target_name") == name]
 
@@ -330,9 +330,9 @@ class SourceProcessor:
             )
 
             for inst_key, count in sorted(instrument_counts.items()):
-                log_verbose(f"      {inst_key}: {count} points")
+                log_verbose.info(f"      {inst_key}: {count} points")
         else:
-            log_verbose("    No photometry data for this target")
+            log_verbose.info("    No photometry data for this target")
 
         self._sync_with_skyportal(session, name, target, target_photometry)
 
@@ -366,7 +366,9 @@ class SourceProcessor:
                     not self.instrument_name_mapping
                     and not self.instrument_tns_id_mapping
                 ):
-                    log_verbose("    ✗ No instruments configured, skipping photometry")
+                    log_verbose.info(
+                        "    ✗ No instruments configured, skipping photometry"
+                    )
                     return
 
                 # Group photometry by resolved instrument_id
@@ -410,10 +412,10 @@ class SourceProcessor:
                         unresolved_instruments[key] += 1
 
                 for tns_id, count in matched_by_tns_id.items():
-                    log_verbose(f"    Matched {count} points by TNS ID {tns_id}")
+                    log_verbose.info(f"    Matched {count} points by TNS ID {tns_id}")
 
                 for key, count in unresolved_instruments.items():
-                    log_verbose(
+                    log_verbose.info(
                         f"    ✗ Instrument '{key}' not in configured instruments, skipping {count} points"
                     )
 
@@ -429,15 +431,15 @@ class SourceProcessor:
 
                     skipped_count = len(inst_phot) - added_count - duplicate_count
                     inst_name = inst_phot[0].get("instrument", instrument_id)
-                    log_verbose(
+                    log_verbose.info(
                         f"    → {inst_name}: {added_count} added, {duplicate_count} duplicates skipped, {skipped_count} invalid/skipped"
                     )
 
             session.commit()
-            log_verbose(f"    ✓ Successfully synced {obj_id}")
+            log_verbose.info(f"    ✓ Successfully synced {obj_id}")
 
         except Exception as e:
-            log(f"    ✗ Error syncing {obj_id} with SkyPortal: {e}")
+            log.info(f"    ✗ Error syncing {obj_id} with SkyPortal: {e}")
             traceback.print_exc()
             session.rollback()
 
@@ -476,7 +478,7 @@ class HermesSyncService:
         instrument_names = (
             list(instrument_name_mapping.keys()) if instrument_name_mapping else []
         )
-        log_verbose(
+        log_verbose.info(
             f"Initialized Hermes sync service with bot_user_id={bot_user_id}, "
             f"group_ids={group_ids}, instruments={instrument_names}"
         )
@@ -511,15 +513,15 @@ class HermesSyncService:
 
     def run(self) -> None:
         """Main monitoring loop."""
-        log("Starting Hermes SkyPortal Synchronization Service")
-        log_verbose(f"Username: {self.username}")
-        log_verbose(f"Read from start: {self.from_start}")
-        log_verbose(f"Max age (days): {self.max_age_days}")
+        log.info("Starting Hermes SkyPortal Synchronization Service")
+        log_verbose.info(f"Username: {self.username}")
+        log_verbose.info(f"Read from start: {self.from_start}")
+        log_verbose.info(f"Max age (days): {self.max_age_days}")
 
         self.consumer = self.build_consumer()
         self.consumer.subscribe([self.topic])
-        log_verbose(f"Subscribed to {self.topic}")
-        log("Waiting for messages...")
+        log_verbose.info(f"Subscribed to {self.topic}")
+        log.info("Waiting for messages...")
 
         try:
             while True:
@@ -529,12 +531,12 @@ class HermesSyncService:
                     continue
 
                 if msg.error():
-                    log(f"Kafka error: {msg.error()}")
+                    log.info(f"Kafka error: {msg.error()}")
                     continue
 
                 ts = msg.timestamp()[1]
                 if ts > 0 and self.is_too_old(ts):
-                    log_verbose(f"Skipping old message (offset {msg.offset()})")
+                    log_verbose.info(f"Skipping old message (offset {msg.offset()})")
                     continue
 
                 self._process_kafka_message(msg)
@@ -548,19 +550,19 @@ class HermesSyncService:
             ts = msg.timestamp()[1]
             if ts > 0:
                 msg_timestamp = datetime.fromtimestamp(ts / 1000, tz=UTC)
-                log_verbose("=" * 60)
-                log_verbose(f"Message timestamp: {msg_timestamp.isoformat()}")
+                log_verbose.info("=" * 60)
+                log_verbose.info(f"Message timestamp: {msg_timestamp.isoformat()}")
 
             payload = msg.value()
             if not payload:
-                log_verbose("Empty payload received")
+                log_verbose.info("Empty payload received")
                 return
 
             try:
                 data = json.loads(payload)
             except json.JSONDecodeError as e:
-                log(f"JSON parse error: {e}")
-                log(f"Raw payload: {payload[:200]}...")
+                log.info(f"JSON parse error: {e}")
+                log.info(f"Raw payload: {payload[:200]}...")
                 return
 
             session_context_id.set(uuid.uuid4().hex)
@@ -568,19 +570,19 @@ class HermesSyncService:
                 try:
                     self.processor.process_message(session, data)
                 except Exception as e:
-                    log(f"Error processing message: {e}")
+                    log.error(f"Error processing message: {e}")
                     traceback.print_exc()
                     session.rollback()
 
         except Exception as e:
-            log(f"Error in Kafka message handler: {e}")
+            log.error(f"Error in Kafka message handler: {e}")
             traceback.print_exc()
 
     def _cleanup(self) -> None:
         """Clean up resources."""
         if self.consumer:
             self.consumer.close()
-            log("Hermes sync service stopped")
+            log.info("Hermes sync service stopped")
 
 
 @check_loaded(logger=log)
@@ -613,7 +615,7 @@ def service(*args, **kwargs):
 
     missing = [name for name, value in required_configs.items() if not value]
     if missing:
-        log(
+        log.info(
             f"Missing required configuration: {', '.join(missing)}. "
             "Please configure these values in config.yaml"
         )
@@ -623,11 +625,11 @@ def service(*args, **kwargs):
     with DBSession() as session:
         bot_user = session.scalar(sa.select(User).where(User.id == bot_user_id))
         if bot_user is None:
-            log(
+            log.info(
                 f"Bot user with ID {bot_user_id} not found. Please create a bot user or configure 'bot_user_id' in config.yaml"
             )
             return
-        log(f"Using bot user: {bot_user.username} (ID: {bot_user_id})")
+        log.info(f"Using bot user: {bot_user.username} (ID: {bot_user_id})")
 
         # Build instrument mapping from TNS IDs
         if instrument_tns_ids:
@@ -636,22 +638,22 @@ def service(*args, **kwargs):
             )
 
             if missing_tns_ids:
-                log(
+                log.warning(
                     f"Warning: Instruments with TNS IDs {missing_tns_ids} not found in database. "
                 )
 
             if instrument_name_mapping:
-                log_verbose(
+                log_verbose.info(
                     f"Configured instruments: {list(instrument_name_mapping.keys())}"
                 )
             else:
-                log(
+                log.warning(
                     "Warning: No instruments found for configured TNS IDs. Photometry will be skipped."
                 )
         else:
             instrument_name_mapping = {}
             instrument_tns_id_mapping = {}
-            log(
+            log.warning(
                 "Warning: No instrument_tns_ids configured. Photometry will be skipped. "
                 "Please configure 'app.hermes.sync.instrument_tns_ids' in config.yaml"
             )
@@ -676,5 +678,5 @@ if __name__ == "__main__":
     try:
         service()
     except Exception as e:
-        log(f"Error starting Hermes sync service: {str(e)}")
+        log.error(f"Error starting Hermes sync service: {str(e)}")
         raise e

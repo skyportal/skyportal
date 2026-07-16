@@ -6,12 +6,12 @@ from astropy.time import Time
 
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
-from baselayer.log import make_log
 from skyportal.handlers.api.alert import (
     alert_available,
     get_alerts_by_position,
     post_alert,
 )
+from skyportal.log import make_log
 from skyportal.models import DBSession, Listing, Telescope, User
 from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import check_loaded
@@ -46,7 +46,7 @@ def check_watch_list(time_info):
                 Listing.select(user).where(Listing.list_name == "watchlist")
             ).all()
         except Exception as e:
-            log(e)
+            log.info(e)
             return
 
         listing_ids = [listing.id for listing in listings]
@@ -198,11 +198,11 @@ def check_watch_list(time_info):
                         timeout=30,
                     )
                     if resp.status_code != 200:
-                        log(
+                        log.info(
                             f"Notification request failed for {request_body['target_class_name']} with ID {request_body['target_id']}: {resp.content}"
                         )
             except Exception as e:
-                log(e)
+                log.info(e)
                 DBSession.rollback()
                 continue
     end = time.time()
@@ -219,13 +219,13 @@ def service(*args, **kwargs):
             try:
                 time_info = ztf_observing_times()
             except Exception as e:
-                log(e)
+                log.info(e)
                 time.sleep(5)
                 continue
             try:
                 check_watch_list(time_info)
             except Exception as e:
-                log(e)
+                log.info(e)
                 time.sleep(5)
         else:
             time.sleep(60)

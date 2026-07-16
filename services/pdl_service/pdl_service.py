@@ -7,8 +7,8 @@ from watchdog.observers import Observer
 from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
-from baselayer.log import make_log
 from skyportal.handlers.api.earthquake import post_earthquake_from_xml
+from skyportal.log import make_log
 
 env, cfg = load_env()
 
@@ -49,11 +49,11 @@ def service():
             observer.join()
 
         except Exception as e:
-            log(f"Failed to consume earthquake: {e}")
+            log.error(f"Failed to consume earthquake: {e}")
 
 
 if __name__ == "__main__":
     try:
         service()
     except Exception as e:
-        log(f"Error: {e}")
+        log.error(f"Error: {e}")

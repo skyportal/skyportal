@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.model_util import all_acl_ids, role_acls
 
 from ...models import (
@@ -213,7 +213,7 @@ async def add_user_and_setup_groups(
         await session.flush()
     except Exception as e:
         await session.rollback()
-        log(str(e))
+        log.info(str(e))
         raise e
     return user.id
 

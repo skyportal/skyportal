@@ -4,7 +4,7 @@ import os
 import tornado.web
 
 from baselayer.app.access import permissions
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.utils.files import filesize_to_human_readable
 
 from ...base import BaseHandler
@@ -17,7 +17,7 @@ class LogHandler(BaseHandler):
     async def post(self, *ignored_args):
         """Log a frontend error to the server logs, tracking user crash reports."""
         data = self.get_json()
-        log(f"{data['error']}{data['stack']}")
+        log.info(f"{data['error']}{data['stack']}")
         return self.success()
 
     @permissions(["System admin"])

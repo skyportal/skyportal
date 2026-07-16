@@ -12,7 +12,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
@@ -551,7 +551,7 @@ def download_observations(request_id, results, count):
         session.commit()
     except Exception as e:
         session.rollback()
-        log(f"Unable to post data for {request_id}: {e}")
+        log.error(f"Unable to post data for {request_id}: {e}")
     finally:
         session.close()
         Session.remove()

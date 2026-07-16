@@ -1,4 +1,3 @@
-import inspect
 from enum import Enum
 
 import astropy.units as u
@@ -9,7 +8,7 @@ from sncosmo.bandpasses import _BANDPASSES
 from sncosmo.magsystems import _MAGSYSTEMS
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from .facility_apis import APIS, LISTENERS
 
@@ -33,7 +32,7 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
     if not name:
         continue
     if name in existing_bandpasses_names:
-        log(
+        log.info(
             f"Additional Bandpass name={name} is already in the sncosmo registry. Skipping."
         )
     try:
@@ -41,14 +40,14 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
         transmission = np.array(additional_bandpasses.get("transmission"))
         band = sncosmo.Bandpass(wavelength, transmission, name=name, wave_unit=u.AA)
     except Exception as e:
-        log(f"Could not make bandpass for {name}: {e}")
+        log.error(f"Could not make bandpass for {name}: {e}")
         continue
 
     sncosmo.registry.register(band)
     additional_bandpasses_names.append(name)
 
 if len(additional_bandpasses_names) > 0:
-    log(f"registered custom bandpasses: {additional_bandpasses_names}")
+    log.info(f"registered custom bandpasses: {additional_bandpasses_names}")
 
 
 def force_render_enum_markdown(values):

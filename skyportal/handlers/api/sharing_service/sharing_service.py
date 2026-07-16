@@ -4,7 +4,7 @@ from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ....models import (
     Group,

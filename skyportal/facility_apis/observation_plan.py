@@ -14,7 +14,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..email_utils import send_email
 from ..utils import http
@@ -207,7 +207,7 @@ class MMAAPI(FollowUpAPI):
                 request.status = "running"
                 await session.commit()
 
-                log(
+                log.info(
                     f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
                 )
 
@@ -225,7 +225,7 @@ class MMAAPI(FollowUpAPI):
                     f"plan_name {request.payload['queue_name']} already exists."
                 )
 
-        log(f"Generating schedule for observation plan {plan.id}")
+        log.info(f"Generating schedule for observation plan {plan.id}")
         requester_id = request.requester.id
 
         if asynchronous:
@@ -297,7 +297,7 @@ class MMAAPI(FollowUpAPI):
         ):
             request.status = "complete"
             await session.commit()
-            log(
+            log.info(
                 f"Plan {plan.id} is already complete. Marking request {request.id} as complete."
             )
             return plan.id
@@ -310,7 +310,7 @@ class MMAAPI(FollowUpAPI):
             and plan.status == "pending submission"
             and request.status == "running"
         ):
-            log(
+            log.info(
                 f"Plan {plan.id} has been pending submission for more than 24 hours. Deleting and creating a new plan."
             )
             await session.delete(plan)
@@ -381,7 +381,7 @@ class MMAAPI(FollowUpAPI):
             request.status = "running"
             await session.commit()
 
-            log(
+            log.info(
                 f"Created observation plan request for ID {plan.id} in session {plan._sa_instance_state.session_id}"
             )
 
@@ -397,7 +397,7 @@ class MMAAPI(FollowUpAPI):
                 "skyportal/REFRESH_OBSERVATION_PLAN_NAMES",
             )
 
-            log(f"Generating schedule for observation plan {plan.id}")
+            log.info(f"Generating schedule for observation plan {plan.id}")
             requester_id = request.requester.id
 
             if asynchronous:

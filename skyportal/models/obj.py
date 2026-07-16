@@ -31,7 +31,7 @@ from baselayer.app.models import (
     public,
     restricted,
 )
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from .candidate import Candidate
 from .cosmo import cosmo
@@ -589,17 +589,19 @@ class Obj(Base, conesearch_alchemy.Point):
             if match:
                 cutout_url = match.group().replace('src="', "https:").replace('"', "")
         except requests.exceptions.HTTPError as http_err:
-            log(f"HTTPError getting thumbnail for {self.id}: {http_err}")
+            log.info(f"HTTPError getting thumbnail for {self.id}: {http_err}")
         except requests.exceptions.Timeout as timeout_err:
-            log(f"Timeout in getting thumbnail for {self.id}: {timeout_err}")
+            log.info(f"Timeout in getting thumbnail for {self.id}: {timeout_err}")
         except requests.exceptions.ChunkedEncodingError as chunk_err:
-            log(
+            log.info(
                 f"Chunked encoding error in getting thumbnail for {self.id}: {chunk_err}"
             )
         except requests.exceptions.RequestException as other_err:
-            log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
+            log.info(
+                f"Unexpected error in getting thumbnail for {self.id}: {other_err}"
+            )
         except Exception as e:
-            log(f"Unexpected error in getting thumbnail for {self.id}: {e}")
+            log.info(f"Unexpected error in getting thumbnail for {self.id}: {e}")
         return cutout_url
 
     @property
@@ -642,13 +644,15 @@ class Obj(Base, conesearch_alchemy.Point):
             else:
                 cutout_url = "/static/images/outside_survey.png"
         except requests.exceptions.HTTPError as http_err:
-            log(f"HTTPError getting thumbnail for {self.id}: {http_err}")
+            log.info(f"HTTPError getting thumbnail for {self.id}: {http_err}")
         except requests.exceptions.Timeout as timeout_err:
-            log(f"Timeout in getting thumbnail for {self.id}: {timeout_err}")
+            log.info(f"Timeout in getting thumbnail for {self.id}: {timeout_err}")
         except requests.exceptions.RequestException as other_err:
-            log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
+            log.info(
+                f"Unexpected error in getting thumbnail for {self.id}: {other_err}"
+            )
         except Exception as e:
-            log(f"Unexpected error in getting thumbnail for {self.id}: {e}")
+            log.info(f"Unexpected error in getting thumbnail for {self.id}: {e}")
         return cutout_url
 
     @property
@@ -672,7 +676,7 @@ class Obj(Base, conesearch_alchemy.Point):
                 coordinates=coord, radius=1 * u.arcsec, obs_collection="HST"
             )
         except Exception as e:
-            log(f"Error querying HST coverage for {self.id}: {e}")
+            log.error(f"Error querying HST coverage for {self.id}: {e}")
             return None
         if table is None or len(table) == 0:
             return None
@@ -721,7 +725,7 @@ class Obj(Base, conesearch_alchemy.Point):
                 return match.group().replace('href="', "").replace('"', "")
             return None
         except Exception as e:
-            log(f"Error getting Chandra thumbnail for {self.id}: {e}")
+            log.error(f"Error getting Chandra thumbnail for {self.id}: {e}")
             return None
 
     @property
@@ -738,7 +742,7 @@ class Obj(Base, conesearch_alchemy.Point):
                 dataproduct_type="image",
             )
         except Exception as e:
-            log(f"Error querying JWST coverage for {self.id}: {e}")
+            log.error(f"Error querying JWST coverage for {self.id}: {e}")
             return None
         if table is None or len(table) == 0 or "jpegURL" not in table.colnames:
             return None
@@ -963,4 +967,4 @@ def delete_obj_thumbnails_from_disk(mapper, connection, target):
             try:
                 os.remove(file_uri)
             except (FileNotFoundError, OSError) as e:
-                log(f"Error deleting thumbnail file {file_uri}: {e}")
+                log.error(f"Error deleting thumbnail file {file_uri}: {e}")

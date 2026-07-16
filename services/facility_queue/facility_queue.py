@@ -11,7 +11,7 @@ from requests.auth import HTTPBasicAuth
 
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.models import (
     DBSession,
     FacilityTransactionRequest,
@@ -81,7 +81,7 @@ def service():
                     if followup_request is not None:
                         queue.append(req.id)
         except Exception as e:
-            log(f"Error retrieving requests to process: {e}")
+            log.error(f"Error retrieving requests to process: {e}")
             time.sleep(15)
             continue
 
@@ -93,7 +93,7 @@ def service():
 
         for req_id in queue:
             if req_id is None:
-                log("No request ID found in queue. Continuing to next request.")
+                log.info("No request ID found in queue. Continuing to next request.")
                 continue
 
             time.sleep(5)
@@ -105,17 +105,19 @@ def service():
                         )
                     ).first()
                     if req is None:
-                        log(f"Facility transaction request {req_id} not found.")
+                        log.info(f"Facility transaction request {req_id} not found.")
                         continue
 
-                    log(f"Executing request {req.id}")
+                    log.info(f"Executing request {req.id}")
                     followup_request = session.scalars(
                         sa.select(FollowupRequest).where(
                             FollowupRequest.id == req.followup_request_id
                         )
                     ).first()
                     if followup_request is None:
-                        log(f"Follow-up request {req.followup_request_id} not found.")
+                        log.info(
+                            f"Follow-up request {req.followup_request_id} not found."
+                        )
                         continue
                     instrument = followup_request.allocation.instrument
                     altdata = followup_request.allocation.altdata
@@ -155,10 +157,10 @@ def service():
                                     req.status = "complete"
                                     session.add(req)
                                     session.commit()
-                                    log(f"Job with ID {req.id} completed")
+                                    log.info(f"Job with ID {req.id} completed")
                                     continue
                                 except Exception as e:
-                                    log(f"Error committing photometry: {str(e)}")
+                                    log.error(f"Error committing photometry: {str(e)}")
                                     status = f"error: {str(e)}"
                                     if followup_request.status != status:
                                         followup_request.status = status
@@ -169,7 +171,7 @@ def service():
                                     continue
 
                             elif json_response["starttimestamp"]:
-                                log(
+                                log.info(
                                     f"Job {req.id}: running (started at {json_response['starttimestamp']})"
                                 )
                                 status = f"Job is running (started at {json_response['starttimestamp']})"
@@ -179,7 +181,7 @@ def service():
                                 req.last_query = utcnow_naive()
                                 session.add(req)
                                 session.commit()
-                                log(f"Job {req.id}: {status}")
+                                log.info(f"Job {req.id}: {status}")
                             else:
                                 status = f"Waiting for job to start (queued at {json_response['timestamp']})"
                                 if followup_request.status != status:
@@ -188,7 +190,7 @@ def service():
                                 req.last_query = utcnow_naive()
                                 session.add(req)
                                 session.commit()
-                                log(f"Job {req.id}: {status}")
+                                log.info(f"Job {req.id}: {status}")
                         else:
                             status = f"error: {response.content}"
                             if followup_request.status != status:
@@ -197,7 +199,7 @@ def service():
                             req.last_query = utcnow_naive()
                             session.add(req)
                             session.commit()
-                            log(f"Job {req.id}: {status}")
+                            log.info(f"Job {req.id}: {status}")
 
                     elif instrument.name == "ZTF":
                         from skyportal.facility_apis.ztf import commit_photometry
@@ -216,7 +218,7 @@ def service():
                         )
 
                         if "Zero records returned" in str(response.text):
-                            log(
+                            log.info(
                                 "Found no records yet for this ZTF forced photometry account."
                             )
                             continue
@@ -235,7 +237,7 @@ def service():
                                 req.last_query = utcnow_naive()
                                 session.add(req)
                                 session.commit()
-                                log(f"Job {req.id}: {status}")
+                                log.info(f"Job {req.id}: {status}")
                                 continue
 
                             index_match = None
@@ -264,7 +266,7 @@ def service():
                                 req.last_query = utcnow_naive()
                                 session.add(req)
                                 session.commit()
-                                log(f"Job {req.id}: {status}")
+                                log.info(f"Job {req.id}: {status}")
                                 continue
 
                             lightcurve = row["lightcurve"]
@@ -280,7 +282,7 @@ def service():
                                 req.status = "complete"
                                 session.add(req)
                                 session.commit()
-                                log(
+                                log.info(
                                     f"Job with ID {req.id} has no forced photometry: {exitcode_text}"
                                 )
                             else:
@@ -298,7 +300,7 @@ def service():
                                     req.status = "complete"
                                     session.add(req)
                                     session.commit()
-                                    log(f"Job with ID {req.id} completed")
+                                    log.info(f"Job with ID {req.id} completed")
                                 except Exception as e:
                                     if "Failed to commit photometry" in str(e):
                                         status = f"error: {str(e)}"
@@ -310,7 +312,7 @@ def service():
                                     req.last_query = utcnow_naive()
                                     session.add(req)
                                     session.commit()
-                                    log(f"Job {req.id}: {status}")
+                                    log.info(f"Job {req.id}: {status}")
                         elif (
                             "Error: database is busy; try again a minute later."
                             in str(response.content)
@@ -322,7 +324,7 @@ def service():
                             req.last_query = utcnow_naive()
                             session.add(req)
                             session.commit()
-                            log(f"Job {req.id}: {status}")
+                            log.info(f"Job {req.id}: {status}")
                         else:
                             status = f"error: {response.content}"
                             if followup_request.status != status:
@@ -331,12 +333,12 @@ def service():
                             req.last_query = utcnow_naive()
                             session.add(req)
                             session.commit()
-                            log(f"Job {req.id}: {status}")
+                            log.info(f"Job {req.id}: {status}")
                     else:
-                        log(f"Job {req.id}: API for {instrument.name} unknown")
+                        log.info(f"Job {req.id}: API for {instrument.name} unknown")
 
                 except Exception as e:
-                    log(f"Error processing follow-up request {req_id}: {str(e)}")
+                    log.error(f"Error processing follow-up request {req_id}: {str(e)}")
                     try:
                         session.rollback()
                     except Exception:
@@ -347,5 +349,5 @@ if __name__ == "__main__":
     try:
         service()
     except Exception as e:
-        log(f"Error occurred in service: {e}")
+        log.error(f"Error occurred in service: {e}")
         raise e

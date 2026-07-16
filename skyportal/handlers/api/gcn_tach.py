@@ -10,7 +10,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import DBSession, GcnEvent, User
 from ..base import BaseHandler
@@ -260,7 +260,7 @@ def post_aliases(dateobs, tach_id, user_id):
             payload={"gcnEvent_dateobs": dateobs},
         )
     except Exception:
-        log(f"Failed to post aliases for {dateobs}")
+        log.error(f"Failed to post aliases for {dateobs}")
     finally:
         session.close()
         Session.remove()

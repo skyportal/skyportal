@@ -4,7 +4,7 @@ import time
 import requests
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 env, cfg = load_env()
 log = make_log("health")
@@ -72,12 +72,12 @@ def restart_app(app_nr):
     try:
         subprocess.run(supervisorctl + cmd, check=True)
     except subprocess.CalledProcessError as e:
-        log(f"Failure calling supervisorctl; could not restart app {app_nr}")
-        log(f"Exception: {e}")
+        log.info(f"Failure calling supervisorctl; could not restart app {app_nr}")
+        log.info(f"Exception: {e}")
 
 
 if __name__ == "__main__":
-    log(
+    log.info(
         f"Monitoring system health [{SECONDS_BETWEEN_CHECKS}s interval, max downtime {ALLOWED_DOWNTIME_SECONDS}s, max times down {ALLOWED_TIMES_DOWN}]"
     )
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     downtimes = {}
 
     while not migrated():
-        log("Database not migrated; waiting")
+        log.info("Database not migrated; waiting")
         time.sleep(30)
 
     while True:
@@ -99,11 +99,11 @@ if __name__ == "__main__":
         up = all_backends - down
         newly_seen = up - backends_seen
         if newly_seen:
-            log(f"New healthy app(s) {newly_seen}")
+            log.info(f"New healthy app(s) {newly_seen}")
 
         recovered = set(downtimes) & up
         if recovered:
-            log(f"App(s) recovered: {recovered}")
+            log.info(f"App(s) recovered: {recovered}")
 
         backends_seen = backends_seen | newly_seen
 
@@ -118,11 +118,11 @@ if __name__ == "__main__":
             if downtime > ALLOWED_DOWNTIME_SECONDS:
                 message = f"App {app} unresponsive {times_down} times, total of {downtime:.1f}s"
                 if times_down >= ALLOWED_TIMES_DOWN:
-                    log(f"{message}: restarting")
+                    log.info(f"{message}: restarting")
                     # Give app a few second head start to fire up
                     downtimes[app] = DownStatus(
                         nr_times=0, timestamp=time.time() + STARTUP_GRACE_SECONDS
                     )
                     restart_app(app)
                 else:
-                    log(message)
+                    log.info(message)

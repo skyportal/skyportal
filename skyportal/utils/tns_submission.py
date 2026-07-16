@@ -8,8 +8,8 @@ from astropy.time import Time
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
 from skyportal.handlers.api.photometry import serialize
+from skyportal.log import make_log
 from skyportal.models import Stream
 from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.parse import is_null
@@ -64,7 +64,7 @@ def apply_existing_tns_report_rules(
 
     # if the sharing service is in test mode, we skip the existing TNS report check
     if sharing_service.testing:
-        log(f"Skipping existing TNS report check for {obj_id} in test mode.")
+        log.info(f"Skipping existing TNS report check for {obj_id} in test mode.")
         return
 
     _, existing_tns_name = get_IAUname(
@@ -285,7 +285,7 @@ def send_tns_report(
     serialized_response = None
 
     if testing:
-        log(
+        log.info(
             f"Sharing service {sharing_service_id} is in testing mode, skipping TNS submission for {obj_id}."
         )
         return "Testing mode, not submitted", None, None
@@ -300,14 +300,14 @@ def send_tns_report(
         if r.status_code != 429:
             break  # If not rate-limited, exit the retry loop
 
-        log(
+        log.info(
             f"{exceeded_rate_message}, waiting {retry_delay} seconds before retrying..."
         )
         time.sleep(retry_delay)
 
     if r.status_code == 200:
         submission_id = r.json()["data"]["report_id"]
-        log(
+        log.info(
             f"Successfully submitted {obj_id} to TNS with request ID {submission_id} for sharing service {sharing_service_id}"
         )
         status = "submitted"
@@ -424,13 +424,13 @@ def submit_to_tns(
         notif_type = "warning"
         notif_text = f"TNS warning: {e}"
         status = f"Error: {e}"
-        log(str(e))
+        log.info(str(e))
 
     except Exception as e:
         notif_type = "error"
         notif_text = f"TNS error: {e}"
         status = f"Error: {e}"
-        log(str(e))
+        log.info(str(e))
 
     try:
         flow = Flow()
@@ -554,7 +554,7 @@ def check_at_report(submission_id, sharing_service):
             if obj_name is None:
                 raise ValueError("Object found and report posted but no name found.")
     except Exception as e:
-        log(f"Error checking report: {e}")
+        log.error(f"Error checking report: {e}")
         raise ValueError(f"Error checking report: {e}")
 
     # for now catching errors from TNS is not implemented, so we just return None for the error

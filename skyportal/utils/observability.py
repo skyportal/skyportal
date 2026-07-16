@@ -1,6 +1,6 @@
 import os
 
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 log = make_log("observability")
 
@@ -29,7 +29,7 @@ def setup_observability(cfg):
         from opentelemetry.sdk.metrics import MeterProvider
         from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     except ImportError:
-        log("OpenTelemetry packages not installed; skipping observability setup")
+        log.info("OpenTelemetry packages not installed; skipping observability setup")
         return False
 
     service_name = cfg.get("observability.service_name", "skyportal")
@@ -42,7 +42,7 @@ def setup_observability(cfg):
     )
 
     TornadoInstrumentor().instrument()
-    log(
+    log.info(
         "OpenTelemetry instrumentation enabled; "
         "Prometheus metrics at /api/internal/metrics"
     )

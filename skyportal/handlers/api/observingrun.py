@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     ClassicalAssignment,
@@ -260,7 +260,7 @@ class ObservingRunHandler(BaseHandler):
                 if updated:
                     await session.commit()
             except Exception as e:
-                log(f"Error calculating run_end_utc: {e}")
+                log.error(f"Error calculating run_end_utc: {e}")
 
             runs_list = [run.to_dict() for run in runs]
 

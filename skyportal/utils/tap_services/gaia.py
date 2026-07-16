@@ -11,7 +11,7 @@ from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError, ReadTimeout
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 log = make_log("tap/gaia")
 
@@ -152,20 +152,22 @@ class GaiaQuery:
                         wait_time = min(
                             1 + 2**retry, self.timeout
                         )  # Exponential backoff, capped at timeout
-                        log(
+                        log.info(
                             f"Query attempt {retry + 1} failed on {server_url}, retrying in {wait_time}s: {e}"
                         )
                         time.sleep(wait_time)
                     else:
-                        log(f"All {n_retries + 1} attempts failed on {server_url}: {e}")
+                        log.info(
+                            f"All {n_retries + 1} attempts failed on {server_url}: {e}"
+                        )
                         break  # Move to next server
 
                 except Exception as e:
-                    log(f"Unexpected error on {server_url}: {e}")
+                    log.info(f"Unexpected error on {server_url}: {e}")
                     break  # Move to next server
 
         # If we get here, all servers failed
-        log("All servers failed for the query")
+        log.info("All servers failed for the query")
         return None
 
     # Context manager methods remain the same

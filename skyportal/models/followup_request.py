@@ -27,7 +27,7 @@ from baselayer.app.models import (
     join_model,
     public,
 )
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from .allocation import Allocation
 from .classification import Classification

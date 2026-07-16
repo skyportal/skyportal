@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.calculations import get_next_valid_observing_time
@@ -513,7 +513,7 @@ class TAROTAPI(FollowUpAPI):
                     request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
                 )
         except Exception as e:
-            log(f"Failed to send notification: {str(e)}")
+            log.error(f"Failed to send notification: {str(e)}")
 
     @staticmethod
     @catch_timeout_and_no_endpoint
@@ -707,7 +707,7 @@ class TAROTAPI(FollowUpAPI):
                     },
                 )
         except Exception as e:
-            log(f"Failed to send notification: {str(e)}")
+            log.error(f"Failed to send notification: {str(e)}")
 
     @staticmethod
     @catch_timeout_and_no_endpoint
@@ -809,7 +809,7 @@ class TAROTAPI(FollowUpAPI):
                     "skyportal/REFRESH_FOLLOWUP_REQUESTS",
                 )
         except Exception as e:
-            log(f"Failed to send notification: {str(e)}")
+            log.error(f"Failed to send notification: {str(e)}")
 
     def custom_json_schema(instrument, user, **kwargs):
         config = instrument.configuration_data

@@ -1,4 +1,4 @@
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from .. import FollowUpAPI
 from .mmt_utils import (

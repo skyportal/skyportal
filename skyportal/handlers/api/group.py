@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.access import AccessError, auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.models import RoleACL, UserACL, UserRole
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     Filter,
@@ -228,7 +228,7 @@ class GroupHandler(BaseHandler):
                     await session.commit()
                     group["filters"] = filters
                 except AccessError as e:
-                    log(f"Insufficient filter permissions: {e}.")
+                    log.info(f"Insufficient filter permissions: {e}.")
 
                 return self.success(data=group)
 

@@ -4,7 +4,6 @@ from sentry_sdk.integrations.tornado import TornadoIntegration
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app.model_util import create_tables
-from baselayer.log import make_log
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
 from skyportal.handlers.api import (
     ACLHandler,
@@ -231,6 +230,7 @@ from skyportal.handlers.public import (
     ReportHandler,
     SourcePageHandler,
 )
+from skyportal.log import make_log
 
 from . import model_util, openapi
 from .models import init_db

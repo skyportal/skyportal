@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     Annotation,
@@ -178,7 +178,7 @@ class AnnotationHandler(BaseHandler):
                 if query_size >= SIZE_WARNING_THRESHOLD:
                     end = time.time()
                     duration = end - start
-                    log(
+                    log.info(
                         f"User {self.associated_user_object.id} annotation query returned {query_size} bytes in {duration} seconds"
                     )
                 return self.success(data=query_output)
@@ -211,7 +211,7 @@ class AnnotationHandler(BaseHandler):
             if query_size >= SIZE_WARNING_THRESHOLD:
                 end = time.time()
                 duration = end - start
-                log(
+                log.info(
                     f"User {self.associated_user_object.id} annotation query returned {query_size} bytes in {duration} seconds"
                 )
 

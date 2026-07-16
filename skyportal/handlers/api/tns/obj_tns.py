@@ -1,7 +1,7 @@
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ....models import (
     Obj,

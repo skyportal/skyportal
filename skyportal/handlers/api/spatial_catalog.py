@@ -10,7 +10,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     DBSession,
@@ -32,7 +32,7 @@ MAX_SPATIAL_CATALOG_ENTRIES = 1000
 
 
 def add_catalog(catalog_id, catalog_data):
-    log(f"Generating catalog with ID {catalog_id}")
+    log.info(f"Generating catalog with ID {catalog_id}")
     start = time.time()
 
     if Session.registry.has():
@@ -111,16 +111,16 @@ def add_catalog(catalog_id, catalog_data):
         end = time.time()
         duration = end - start
 
-        log(f"Generated catalog with ID {catalog_id} in {duration} seconds")
+        log.info(f"Generated catalog with ID {catalog_id} in {duration} seconds")
     except Exception as e:
-        log(f"Unable to generate catalog: {e}")
+        log.error(f"Unable to generate catalog: {e}")
     finally:
         session.close()
         Session.remove()
 
 
 def delete_catalog(catalog_id):
-    log(f"Deleting catalog with ID {catalog_id}")
+    log.info(f"Deleting catalog with ID {catalog_id}")
 
     if Session.registry.has():
         session = Session()
@@ -140,9 +140,9 @@ def delete_catalog(catalog_id):
             "skyportal/REFRESH_SPATIAL_CATALOGS",
         )
 
-        log(f"Deleted catalog with ID {catalog_id}")
+        log.info(f"Deleted catalog with ID {catalog_id}")
     except Exception as e:
-        log(f"Unable to delete catalog: {e}")
+        log.error(f"Unable to delete catalog: {e}")
     finally:
         session.close()
         Session.remove()

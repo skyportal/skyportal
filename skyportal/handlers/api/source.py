@@ -48,7 +48,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.models import AsyncVerifiedSession
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     Allocation,
@@ -134,7 +134,7 @@ def confirmed_in_gcn_status_to_str(status):
 
 
 def remove_obj_thumbnails(obj_id):
-    log(f"removing existing public_url thumbnails for {obj_id}")
+    log.info(f"removing existing public_url thumbnails for {obj_id}")
     with DBSession() as session:
         existing_thumbnails = session.scalars(
             sa.select(Thumbnail).where(
@@ -879,7 +879,7 @@ async def post_source_async(data, user_id, session, refresh_source=True):
                             f"member of the group). Using current user "
                             f"{user.id} instead."
                         )
-                        log(f"WARNING: {warning_msg}")
+                        log.warning(f"WARNING: {warning_msg}")
                         warnings.append(warning_msg)
                     else:
                         saver_per_group_id[gid] = group_saver_for_gid.user
@@ -956,7 +956,7 @@ async def post_source_async(data, user_id, session, refresh_source=True):
             )
             existing_sources = existing_sources_result.all()
             if len(existing_sources) > 0:
-                log(
+                log.info(
                     f"Not saving to group {group.id} because there is already a source saved to one or more of the ignore_if_in_group_ids: {ignore_if_in_group_ids[group.id]}"
                 )
                 not_saved_to_group_ids.append(group.id)
@@ -1134,7 +1134,7 @@ def post_source(data, user_id, session, refresh_source=True):
                     )
                     if not group_saver_for_gid:
                         warning_msg = f"Could not save to group {gid} as user {saver_id_per_group_id[gid]} (user is not a member of the group). Using current user {user.id} instead."
-                        log(f"WARNING: {warning_msg}")
+                        log.warning(f"WARNING: {warning_msg}")
                         warnings.append(warning_msg)
                     else:
                         saver_per_group_id[gid] = group_saver_for_gid.user
@@ -1212,7 +1212,7 @@ def post_source(data, user_id, session, refresh_source=True):
                 )
             ).all()
             if len(existing_sources) > 0:
-                log(
+                log.info(
                     f"Not saving to group {group.id} because there is already a source saved to one or more of the ignore_if_in_group_ids: {ignore_if_in_group_ids[group.id]}"
                 )
                 not_saved_to_group_ids.append(group.id)
@@ -2290,7 +2290,7 @@ class SourceHandler(BaseHandler):
                 if query_size >= SIZE_WARNING_THRESHOLD:
                     end = time.time()
                     duration = end - start
-                    log(
+                    log.info(
                         f"User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds"
                     )
 
@@ -2389,7 +2389,7 @@ class SourceHandler(BaseHandler):
             if query_size >= SIZE_WARNING_THRESHOLD:
                 end = time.time()
                 duration = end - start
-                log(
+                log.info(
                     f"User {self.associated_user_object.id} source query returned {query_size} bytes in {duration} seconds"
                 )
             return self.success(data=query_results)
@@ -2876,7 +2876,7 @@ class SourceOffsetsHandler(BaseHandler):
                     used_ztfref,
                 ) = await IOLoop.current().run_in_executor(None, offset_func)
             except ValueError as e:
-                log(f"Error querying for nearby offset stars: {e}")
+                log.error(f"Error querying for nearby offset stars: {e}")
                 traceback.print_exc()
                 return self.error(f"Error querying for nearby offset stars: {e}")
 
@@ -3233,7 +3233,7 @@ class SourceFinderHandler(BaseHandler):
                     return self.error("Source not found", status=404)
 
                 # otherwise, we log the error and return a 500
-                log(f"Error generating finding chart for {obj_id}: {str(e)}")
+                log.error(f"Error generating finding chart for {obj_id}: {str(e)}")
                 traceback.print_exc()
                 return self.error(f"Error generating finding chart: {str(e)}")
 
