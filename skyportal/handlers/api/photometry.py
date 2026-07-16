@@ -1,6 +1,5 @@
 import copy
 import json
-import traceback
 import uuid
 from collections import defaultdict
 from io import StringIO
@@ -1776,7 +1775,8 @@ class PhotometryHandler(BaseHandler):
                 await session.rollback()
                 if "The following photometry already exists in the database:" in str(e):
                     return self.error(str(e))
-                return self.error(traceback.format_exc())
+                log.exception("Error posting photometry")
+                return self.error(str(e))
 
             log.info(
                 f"Request from {username} for object {obj_id} with {len(df.index)} rows complete with upload_id {upload_id}"
@@ -2077,9 +2077,10 @@ class PhotometryHandler(BaseHandler):
                     )
                 return self.success(data={"ids": ids})
 
-            except Exception:
+            except Exception as e:
                 await session.rollback()
-                return self.error(traceback.format_exc())
+                log.exception("Error updating photometry")
+                return self.error(str(e))
 
     @auth_or_token
     def get(self, photometry_id: int):

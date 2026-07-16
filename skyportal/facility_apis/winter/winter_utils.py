@@ -1,5 +1,4 @@
 import json
-import traceback
 import urllib
 from datetime import timedelta
 
@@ -345,8 +344,7 @@ async def submit_request(request, session, camera, log, **kwargs):
                 is_update=False,
             )
     except Exception as e:
-        traceback.print_exc()
-        log.error(f"Error sending notification: {e}")
+        log.exception("Error sending notification")
 
 
 def build_form_json_schema(filter_defaults):

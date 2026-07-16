@@ -9,7 +9,6 @@ import json
 import operator  # noqa: F401
 import os
 import tempfile
-import traceback
 from urllib.parse import urlparse, urlsplit
 
 import arrow
@@ -218,9 +217,8 @@ async def post_gcn_source(
         if not (
             isinstance(e, ValueError) and "could not convert string to float" in str(e)
         ):
-            log.error(traceback.format_exc())
-            log.error(
-                f"Failed to create source for event {dateobs} with Localization {localization_name}: {str(e)}."
+            log.exception(
+                f"Failed to create source for event {dateobs} with Localization {localization_name}"
             )
     finally:
         return False
@@ -2451,9 +2449,8 @@ def add_tiles_and_properties_and_contour(
         )
         session.rollback()
     except Exception as e:
-        traceback.print_exc()
-        log.error(
-            f"Unable to generate tiles / properties / contour for localization {localization_id}: {e}"
+        log.exception(
+            f"Unable to generate tiles / properties / contour for localization {localization_id}"
         )
         session.rollback()
     finally:
@@ -2880,9 +2877,8 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
             )
         log.info(f"Triggered observation plans for localization {localization_id}")
     except Exception as e:
-        traceback.print_exc()
-        log.error(
-            f"Unable to trigger observation plans for localization {localization_id}: {e}"
+        log.exception(
+            f"Unable to trigger observation plans for localization {localization_id}"
         )
     finally:
         if parent_session is None:
@@ -2919,9 +2915,8 @@ def add_tiles_properties_contour_and_obsplan(
         )
         add_observation_plans(localization_id, user_id, session)
     except Exception as e:
-        traceback.print_exc()
-        log.error(
-            f"Unable to generate tiles / properties / observation plans / contour for localization {localization_id}: {e}"
+        log.exception(
+            f"Unable to generate tiles / properties / observation plans / contour for localization {localization_id}"
         )
     finally:
         if parent_session is None:

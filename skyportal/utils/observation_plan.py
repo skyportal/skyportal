@@ -1,5 +1,4 @@
 import time
-import traceback
 
 import astropy_healpix as ah
 import healpix_alchemy as ha
@@ -903,9 +902,8 @@ def generate_plan(
         log.info(f"Finished plan(s) for ID(s): {','.join(observation_plan_id_strings)}")
 
     except Exception as e:
-        traceback.print_exc()
-        log.error(
-            f"Failed to generate plans for ID(s): {','.join(observation_plan_id_strings)}: {str(e)}."
+        log.exception(
+            f"Failed to generate plans for ID(s): {','.join(observation_plan_id_strings)}."
         )
         session.rollback()
         # mark the request and plan as failed

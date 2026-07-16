@@ -1,5 +1,4 @@
 import time
-import traceback
 import uuid
 from datetime import UTC, datetime, timedelta
 from threading import Thread
@@ -341,9 +340,8 @@ def process_submission_requests():
                     log.error(f"Error rolling back session: {str(rollback_err)}")
                 else:
                     try:
-                        traceback.print_exc()
-                        log.error(
-                            f"Error processing sharing submission request {submission_request_id}: {str(e)}"
+                        log.exception(
+                            f"Error processing sharing submission request {submission_request_id}"
                         )
                         submission_request = session.scalar(
                             sa.select(SharingServiceSubmission).where(
@@ -590,8 +588,7 @@ def validate_submission_requests():
                     )
             except Exception as e:
                 session.rollback()
-                traceback.print_exc()
-                log.info(f"Unexpected error checking TNS report: {str(e)}")
+                log.exception("Unexpected error checking TNS report")
                 continue
 
 

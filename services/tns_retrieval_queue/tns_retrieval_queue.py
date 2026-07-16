@@ -1,7 +1,6 @@
 import asyncio
 import json
 import time
-import traceback
 import urllib
 from datetime import datetime, timedelta
 from threading import Thread
@@ -477,8 +476,7 @@ def process_queue(queue):
                             session,
                         )
         except Exception as e:
-            traceback.print_exc()
-            log.error(f"Error processing TNS source {tns_name}: {e}")
+            log.exception(f"Error processing TNS source {tns_name}")
             user_id = task.get("user_id", None)
             if user_id is not None:
                 flow = Flow()

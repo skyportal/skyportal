@@ -4,7 +4,6 @@ import io
 import json
 import os
 import tempfile
-import traceback
 
 import joblib
 import matplotlib
@@ -207,8 +206,7 @@ def run_spectral_cube_model(data_dict):
                 }
             )
     except Exception as e:
-        traceback.print_exc()
-        log.info(f"Exception: {e}")
+        log.exception("Exception while running the model")
         rez.update({"status": "failure", "message": f"problem running the model {e}"})
     finally:
         # clean up local files
@@ -241,9 +239,8 @@ class MainHandler(tornado.web.RequestHandler):
         """
         try:
             data_dict = tornado.escape.json_decode(self.request.body)
-        except json.decoder.JSONDecodeError:
-            err = traceback.format_exc()
-            log.info(f"JSON decode error: {err}")
+        except json.decoder.JSONDecodeError as e:
+            log.info(f"JSON decode error: {e}")
             return self.error(400, "Invalid JSON")
 
         required_keys = ["inputs", "callback_url", "callback_method"]

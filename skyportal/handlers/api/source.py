@@ -7,7 +7,6 @@ import json
 import operator  # noqa: F401
 import re
 import time
-import traceback
 from json.decoder import JSONDecodeError
 
 import arrow
@@ -2283,7 +2282,7 @@ class SourceHandler(BaseHandler):
                     # candidate but isn't saved): return a clean 404, no traceback.
                     return self.error(str(e), status=404)
                 except Exception as e:
-                    traceback.print_exc()
+                    log.exception("Cannot retrieve source")
                     return self.error(f"Cannot retrieve source: {str(e)}")
 
                 query_size = sizeof(source_info)
@@ -2382,7 +2381,7 @@ class SourceHandler(BaseHandler):
                     verbose=False,
                 )
             except Exception as e:
-                traceback.print_exc()
+                log.exception("Cannot retrieve sources")
                 return self.error(f"Cannot retrieve sources: {str(e)}")
 
             query_size = sizeof(query_results)
@@ -2876,8 +2875,7 @@ class SourceOffsetsHandler(BaseHandler):
                     used_ztfref,
                 ) = await IOLoop.current().run_in_executor(None, offset_func)
             except ValueError as e:
-                log.error(f"Error querying for nearby offset stars: {e}")
-                traceback.print_exc()
+                log.exception("Error querying for nearby offset stars")
                 return self.error(f"Error querying for nearby offset stars: {e}")
 
             starlist_str = "\n".join(
@@ -3233,8 +3231,7 @@ class SourceFinderHandler(BaseHandler):
                     return self.error("Source not found", status=404)
 
                 # otherwise, we log the error and return a 500
-                log.error(f"Error generating finding chart for {obj_id}: {str(e)}")
-                traceback.print_exc()
+                log.exception(f"Error generating finding chart for {obj_id}")
                 return self.error(f"Error generating finding chart: {str(e)}")
 
             await self.send_file(data, filename, output_type=output_type)
