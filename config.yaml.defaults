@@ -616,6 +616,13 @@ cache:
     # specify one.
     default: 300
 
+# Optional: route the source page's photometry fetch through a custom endpoint
+# (e.g. a broker passthrough that merges saved DB photometry with on-demand
+# broker photometry). "{id}" is substituted with the object id; the endpoint
+# must return the same response shape as /api/sources/{id}/photometry (a bare
+# list of serialized points). Null (default) uses the standard endpoint.
+photometry_display_endpoint:
+
 server:
   # From https://console.developers.google.com/
   #
