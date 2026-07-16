@@ -205,15 +205,25 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
                 <AccordionDetails>
                   <Card className={classes.root} variant="outlined">
                     <CardContent>
-                      {Object.keys(analysisResults).map((k) => (
-                        <span
-                          className={classes.div}
-                          key={`display_results_${k}`}
-                        >
-                          <b>{k}</b>: {JSON.stringify(analysisResults[k])}
-                          <br />
+                      {typeof analysisResults === "object" &&
+                      analysisResults !== null &&
+                      !Array.isArray(analysisResults) ? (
+                        Object.keys(analysisResults).map((k) => (
+                          <span
+                            className={classes.div}
+                            key={`display_results_${k}`}
+                          >
+                            <b>{k}</b>: {JSON.stringify(analysisResults[k])}
+                            <br />
+                          </span>
+                        ))
+                      ) : (
+                        // Not a plain object (e.g. an undecodable string) — show
+                        // it verbatim rather than spreading it into characters.
+                        <span className={classes.div}>
+                          {JSON.stringify(analysisResults)}
                         </span>
-                      ))}
+                      )}
                     </CardContent>
                   </Card>
                   <Button

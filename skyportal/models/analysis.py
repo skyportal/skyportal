@@ -271,7 +271,20 @@ class AnalysisMixin:
             return {}
 
         if results.get("format", None) == "json":
-            return results.get("data", {})
+            data = results.get("data", {})
+            # Some services (e.g. Fiesta) post the JSON results as a base64- or
+            # JSON-encoded string even under the "json" format; decode so callers
+            # get a dict instead of a character-indexed string. Leave the value
+            # untouched if it isn't an encoded object.
+            if isinstance(data, str):
+                try:
+                    data = json.loads(base64.b64decode(data, validate=True))
+                except Exception:
+                    try:
+                        data = json.loads(data)
+                    except Exception:
+                        pass
+            return data
         elif results.get("format", None) == "joblib":
             try:
                 buf = io.BytesIO()
