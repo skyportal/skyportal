@@ -9,7 +9,11 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 from skyportal.models.group import Group
 
-from ....models import Obj, ObjTag, Source
+from ....models import Obj, ObjTag, Source, serialize_obj_tag
+from ....utils.data_access import (
+    accessible_group_ids_async,
+    team_scoped_group_ids,
+)
 from ....utils.parse import get_list_typed
 from ...base import BaseHandler
 from .source_views import t_index
@@ -29,7 +33,7 @@ log = make_log("api/recent_sources")
 
 class RecentSourcesHandler(BaseHandler):
     @classmethod
-    async def get_recent_source_ids(cls, current_user, session):
+    async def get_recent_source_ids(cls, current_user, session, team_group_ids=None):
         user_prefs = getattr(current_user, "preferences", None) or {}
         recent_sources_prefs = user_prefs.get("recentSources", {})
         recent_sources_prefs = {**default_prefs, **recent_sources_prefs}
@@ -44,7 +48,10 @@ class RecentSourcesHandler(BaseHandler):
 
         stmt = Source.select(session.user_or_token).where(Source.active.is_(True))
 
-        if len(group_ids) > 0:
+        if team_group_ids is not None:
+            # Team view: restrict to the team's (accessible) groups.
+            stmt = stmt.where(Source.group_id.in_(team_group_ids))
+        elif len(group_ids) > 0:
             stmt = stmt.where(Source.group_id.in_(group_ids))
         elif not include_sitewide:
             public_group_id = await session.scalar(
@@ -65,16 +72,31 @@ class RecentSourcesHandler(BaseHandler):
     @auth_or_token
     async def get(self):
         async with self.AsyncSession() as session:
+            user_group_ids = set(
+                await accessible_group_ids_async(session.user_or_token, session)
+            )
+            try:
+                team_group_ids = await team_scoped_group_ids(
+                    session,
+                    self.current_user,
+                    self.get_query_argument("teamID", None),
+                    user_group_ids,
+                )
+            except ValueError as e:
+                return self.error(str(e))
             query_results = await RecentSourcesHandler.get_recent_source_ids(
-                self.current_user, session
+                self.current_user, session, team_group_ids=team_group_ids
             )
             tags_result = await session.scalars(
                 ObjTag.select(session.user_or_token)
-                .options(selectinload(ObjTag.objtagoption))
+                .options(
+                    selectinload(ObjTag.objtagoption),
+                    selectinload(ObjTag.groups),
+                )
                 .where(ObjTag.obj_id.in_(list(set(query_results))))
             )
             tags = tags_result.all()
-            tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
+            tags = [serialize_obj_tag(tag, user_group_ids) for tag in tags]
             # make it a hashmap of obj_id to tags
             tags_dict = defaultdict(list)
             for tag in tags:

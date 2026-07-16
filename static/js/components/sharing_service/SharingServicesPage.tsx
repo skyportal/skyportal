@@ -1208,9 +1208,11 @@ const SharingServicesPage = () => {
       >
         <DialogTitle id="form-dialog-title">
           <Box
-            display="flex"
-            gap={1}
             style={{ alignItems: "center", justifyContent: "space-between" }}
+            sx={{
+              display: "flex",
+              gap: 1,
+            }}
           >
             {sharingServiceToManage.id ? "Edit" : "New"} sharing service
             <div

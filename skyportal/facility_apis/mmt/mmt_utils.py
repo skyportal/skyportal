@@ -2,7 +2,10 @@ import functools
 import io
 import json
 
+import aiohttp
 import requests
+import sqlalchemy as sa
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -29,10 +32,10 @@ def catch_timeout_and_no_endpoint(func):
     """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         try:
-            return func(*args, **kwargs)
-        except requests.exceptions.Timeout:
+            return await func(*args, **kwargs)
+        except (TimeoutError, aiohttp.ServerTimeoutError):
             raise ValueError("Unable to reach the MMT server")
         except KeyError as e:
             if "endpoint" in str(e):
@@ -186,7 +189,25 @@ def send_finder_to_mmt(finder_callable, id_to_upload_chart_to, altdata, user_id)
         )
 
 
-def submit_mmt_request(
+async def reload_mmt_request(session, request):
+    """Reload a FollowupRequest with the lazy chains MMT submit/check walk
+    (allocation altdata, obj photstats) eager-loaded, since async sessions
+    raise on implicit lazy loads. Returns the same identity-mapped object."""
+    from ...models import Allocation, FollowupRequest
+
+    return await session.scalar(
+        sa.select(FollowupRequest)
+        .where(FollowupRequest.id == request.id)
+        .options(
+            selectinload(FollowupRequest.allocation).selectinload(
+                Allocation.instrument
+            ),
+            selectinload(FollowupRequest.obj),
+        )
+    )
+
+
+async def submit_mmt_request(
     session, request, specific_payload, instrument_id, log, **kwargs
 ):
     """
@@ -197,7 +218,7 @@ def submit_mmt_request(
     session : SQLAlchemy session
         The current session
     request : FollowupRequest
-        The request to submit
+        The request to submit (already reloaded with eager chains)
     specific_payload : dict
         The payload specific to an instrument
     instrument_id : int
@@ -222,31 +243,30 @@ def submit_mmt_request(
         "instrumentid": instrument_id,
     }
 
-    response = requests.post(
-        f"{cfg['app.mmt_endpoint']}/catalogTarget",
-        json=json_payload,
-        data=None,
-        files=None,
-        timeout=10.0,
-    )
+    url = f"{cfg['app.mmt_endpoint']}/catalogTarget"
+    timeout = aiohttp.ClientTimeout(total=10.0)
+    async with aiohttp.ClientSession(timeout=timeout) as http_session:
+        async with http_session.post(url, json=json_payload) as response:
+            content = await response.text()
+            status = response.status
 
-    if response.status_code != 200:
-        if response.status_code == 500 and "Invalid token" in response.text:
-            request.status = f"rejected: invalid token"
+    if status != 200:
+        if status == 500 and "Invalid token" in content:
+            request.status = "rejected: invalid token"
         else:
-            request.status = f"rejected: status code {response.status_code}"
+            request.status = f"rejected: status code {status}"
     else:
         request.status = "submitted"
 
     transaction = FacilityTransaction(
-        request=http.serialize_requests_request(response.request),
-        response=http.serialize_requests_response(response),
+        request=http.serialize_aiohttp_request("POST", url, None, json_payload),
+        response=await http.serialize_aiohttp_response(response, content),
         followup_request=request,
         initiator_id=request.last_modified_by_id,
     )
 
     session.add(transaction)
-    session.commit()
+    await session.commit()
 
     # If include_finder_chart is True, we try to upload the finder chart
     if request.status == "submitted" and request.payload.get(
@@ -254,9 +274,9 @@ def submit_mmt_request(
     ):
         from skyportal.handlers.api.source import get_finding_chart_callable
 
-        if response.content is None:
+        if not content:
             raise ValueError("Impossible to upload finder chart: no response content")
-        id_to_upload_chart_to = json.loads(response.content).get("id")
+        id_to_upload_chart_to = json.loads(content).get("id")
         if id_to_upload_chart_to is None:
             raise ValueError("No ID found in response to upload finder chart to")
 
@@ -272,6 +292,7 @@ def submit_mmt_request(
             output_type="pdf",
             num_offset_stars=request.payload.get("number_offset_Stars", 3),
         )
+        # send_finder_to_mmt runs blocking requests IO in its own thread/session scope
         run_async(
             send_finder_to_mmt,
             finder_callable,
@@ -296,7 +317,7 @@ def submit_mmt_request(
         log(f"Failed to send notification: {str(e)}")
 
 
-def delete_mmt_request(session, request, log, **kwargs):
+async def delete_mmt_request(session, request, log, **kwargs):
     """
     Delete a request from the MMT queue
 
@@ -311,15 +332,31 @@ def delete_mmt_request(session, request, log, **kwargs):
     kwargs : dict
         Additional keyword arguments
     """
-    from ...models import FacilityTransaction, FollowupRequest
+    from ...models import Allocation, FacilityTransaction, FollowupRequest
+
+    # Reload with the lazy chains walked here (allocation, obj, transactions)
+    # eager-loaded, since async sessions raise on implicit lazy loads.
+    request = await session.scalar(
+        sa.select(FollowupRequest)
+        .where(FollowupRequest.id == request.id)
+        .options(
+            selectinload(FollowupRequest.allocation).selectinload(
+                Allocation.instrument
+            ),
+            selectinload(FollowupRequest.obj),
+            selectinload(FollowupRequest.transactions),
+        )
+    )
 
     last_modified_by_id = request.last_modified_by_id
     obj_internal_key = request.obj.internal_key
 
     # this happens for failed submissions, just go ahead and delete
     if len(request.transactions) == 0 or str(request.status).startswith("rejected"):
-        session.query(FollowupRequest).filter(FollowupRequest.id == request.id).delete()
-        session.commit()
+        await session.execute(
+            sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+        )
+        await session.commit()
     else:
         request_response = request.transactions[-1].response
         if request_response is None or request_response.get("content") is None:
@@ -337,27 +374,27 @@ def delete_mmt_request(session, request, log, **kwargs):
         if not altdata or "token" not in altdata:
             raise ValueError("Missing allocation information.")
 
-        response = requests.delete(
-            f"{cfg['app.mmt_endpoint']}/catalogTarget/{id_to_delete}",
-            timeout=5.0,
-        )
+        url = f"{cfg['app.mmt_endpoint']}/catalogTarget/{id_to_delete}"
+        timeout = aiohttp.ClientTimeout(total=5.0)
+        async with aiohttp.ClientSession(timeout=timeout) as http_session:
+            async with http_session.delete(url) as response:
+                content = await response.text()
+                status = response.status
 
-        if response.status_code != 200 or not response.json().get("success"):
-            raise ValueError(
-                f"Failed to delete request: status code {response.status_code}"
-            )
+        if status != 200 or not json.loads(content).get("success"):
+            raise ValueError(f"Failed to delete request: status code {status}")
         else:
             request.status = "deleted"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(response.request),
-            response=http.serialize_requests_response(response),
+            request=http.serialize_aiohttp_request("DELETE", url, None, None),
+            response=await http.serialize_aiohttp_response(response, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
 
         session.add(transaction)
-        session.commit()
+        await session.commit()
 
     try:
         flow = Flow()

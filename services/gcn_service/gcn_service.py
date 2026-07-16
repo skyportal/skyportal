@@ -21,7 +21,12 @@ from skyportal.handlers.api.gcn import (
     post_skymap_from_notice,
 )
 from skyportal.models import GcnEvent, User
-from skyportal.utils.gcn import get_dateobs, get_skymap_metadata, get_trigger
+from skyportal.utils.gcn import (
+    from_igwn_gwalert,
+    get_dateobs,
+    get_skymap_metadata,
+    get_trigger,
+)
 from skyportal.utils.notifications import post_notification
 from skyportal.utils.services import check_loaded
 
@@ -166,7 +171,13 @@ def poll_events(*args, **kwargs):
                 elif any(topic in notice_type for notice_type in json_notice_types):
                     alert_type = "json"
                     payload = json.loads(payload.decode("utf8"))
-                    payload["notice_type"] = notice_type
+                    if "igwn.gwalert" in notice_type:
+                        # LVK JSON alert (GCN Classic LVC VOEvents ceased in 2026):
+                        # normalize to the canonical JSON-notice shape.
+                        payload = from_igwn_gwalert(payload)
+                        notice_type = payload["notice_type"]
+                    else:
+                        payload["notice_type"] = notice_type
                     tags = get_json_tags(payload)
 
                     if payload["notice_type"] == "icecube.lvk_nu_track_search":
@@ -203,7 +214,9 @@ def poll_events(*args, **kwargs):
                         session.user_or_token = user
 
                         # skip ingesting a retraction if the event does not exist
-                        if notice_type == "LVC_RETRACTION":
+                        # (VOEvent path; JSON retractions are resolved by alias in
+                        # post_gcnevent_from_json).
+                        if alert_type == "voevent" and notice_type == "LVC_RETRACTION":
                             dateobs = get_dateobs(root)
                             trigger_id = get_trigger(root)
                             existing_event = None
@@ -273,7 +286,7 @@ def poll_events(*args, **kwargs):
                                 payload, notice_type, 15
                             )
 
-                        if status in ["available", "cone"]:
+                        if status in ["available", "cone", "healpix_file"]:
                             log(
                                 f"Ingesting skymap for gcn_event: {dateobs}, notice_id: {notice_id}"
                             )

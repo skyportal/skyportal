@@ -233,7 +233,7 @@ function ShiftUsersSelect({
               ))}
             </Box>
           )}
-          MenuProps={{ PaperProps: { style: { maxHeight: "25vh" } } }}
+          MenuProps={{ slotProps: { paper: { style: { maxHeight: "25vh" } } } }}
         >
           {users.map((user: any) => (
             <MenuItem id={`select-${usersType}`} key={user.id} value={user.id}>

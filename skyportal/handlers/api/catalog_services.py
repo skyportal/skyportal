@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import glob
 import tempfile
@@ -45,7 +46,7 @@ from ...utils.catalog import get_conesearch_centers, query_fink, query_kowalski
 from ...utils.data_access import accessible_group_ids_async
 from ..base import BaseHandler
 from .photometric_series import post_photometric_series, update_photometric_series
-from .photometry import add_external_photometry
+from .photometry import commit_external_photometry
 from .source import post_source
 
 _, cfg = load_env()
@@ -282,7 +283,10 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     obj_ids.append(obj_id)
 
                 if len(df.index) > 0:
-                    add_external_photometry(data_out, user, parent_session=session)
+                    # add_external_photometry is async; bridge to it from this sync
+                    # executor. The obj is already committed by post_source above, so
+                    # the bridge's separate session can see it.
+                    asyncio.run(commit_external_photometry(data_out, user_id))
                     log(f"Photometry committed to database for {source['id']}")
                 else:
                     log(f"No photometry to commit to database for {source['id']}")
@@ -565,7 +569,9 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
                     }
 
                     if len(df.index) > 0:
-                        add_external_photometry(data_out, user, parent_session=session)
+                        # async add_external_photometry, bridged from this sync executor;
+                        # obj already committed above so the bridge's session sees it.
+                        asyncio.run(commit_external_photometry(data_out, user_id))
                         log(f"Photometry committed to database for {obj_id}")
                     else:
                         log(f"No photometry to commit to database for {obj_id}")
@@ -807,7 +813,9 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
             }
 
             if len(df.index) > 0:
-                add_external_photometry(data_out, user, parent_session=session)
+                # async add_external_photometry, bridged from this sync executor;
+                # obj already committed above so the bridge's session sees it.
+                asyncio.run(commit_external_photometry(data_out, user_id))
                 log(f"Photometry committed to database for {obj_id}")
             else:
                 log(f"No photometry to commit to database for {obj_id}")

@@ -106,6 +106,10 @@ def submit_to_hermes(
     session,
 ):
     flow = Flow()
+    # Snapshot ids up front: the flow push below also runs on error paths, and
+    # these ORM attrs expire once we commit before the HTTP call.
+    sharing_service_id = sharing_service.id
+    user_id = submission_request.user_id
     try:
         check_hermes_configuration()
 
@@ -125,6 +129,13 @@ def submit_to_hermes(
             obj, photometry, reporters, remarks, topic
         )
         validate_payload_and_header(payload, header)
+
+        # Snapshot what we still need, then commit so the DB connection is
+        # released before the Hermes HTTP call (no idle-in-transaction).
+        testing = sharing_service.testing
+        submission_request_id = submission_request.id
+        session.commit()
+
         response = requests.post(
             f"{HERMES_URL}/submit_message/",
             data=payload,
@@ -138,9 +149,9 @@ def submit_to_hermes(
             status = f"Error: Failed to publish to topic '{topic}' with status code {response.status_code}"
             notif_text = f"Hermes error: Failed to publish to topic '{topic}' with status code {response.status_code}"
         else:
-            if sharing_service.testing:
+            if testing:
                 log(
-                    f"Successfully submitted {obj_id} to Hermes test topic {topic} for sharing service {sharing_service.id}"
+                    f"Successfully submitted {obj_id} to Hermes test topic {topic} for sharing service {sharing_service_id}"
                 )
                 notif_text = (
                     f"Successfully submitted {obj_id} to Hermes test topic '{topic}'"
@@ -148,7 +159,7 @@ def submit_to_hermes(
                 status = f"Testing mode, submitted to Hermes test topic '{topic}'."
             else:
                 log(
-                    f"Successfully submitted {obj_id} to Hermes with request ID {submission_request.id} for sharing service {sharing_service.id}"
+                    f"Successfully submitted {obj_id} to Hermes with request ID {submission_request_id} for sharing service {sharing_service_id}"
                 )
                 status = f"Successfully submitted {obj_id} to Hermes."
                 notif_text = status
@@ -166,10 +177,10 @@ def submit_to_hermes(
         flow.push(
             "*",
             "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
-            payload={"sharing_service_id": sharing_service.id},
+            payload={"sharing_service_id": sharing_service_id},
         )
         flow.push(
-            user_id=submission_request.user_id,
+            user_id=user_id,
             action_type="baselayer/SHOW_NOTIFICATION",
             payload={
                 "note": notif_text,

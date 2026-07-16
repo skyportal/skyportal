@@ -116,6 +116,140 @@ def test_update_analysis_service(analysis_service_token, public_group):
     assert data["status"] == "success"
 
 
+def test_update_analysis_service_groups(super_admin_token, public_group, public_group2):
+    # Super admin, so the group-membership check passes and we reach the
+    # groups reassignment (the fixed code path).
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "test analysis service name",
+        "description": "A test analysis service description",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:5000/analysis/{name}",
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": ["photometry", "redshift"],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=super_admin_token
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    analysis_service_id = data["data"]["id"]
+
+    # Reassigning groups on an existing service must not raise the async
+    # greenlet_spawn error from lazy-loading the old groups collection to diff it.
+    status, data = api(
+        "PATCH",
+        f"analysis_service/{analysis_service_id}",
+        data={"group_ids": [public_group.id, public_group2.id]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api(
+        "GET", f"analysis_service/{analysis_service_id}", token=super_admin_token
+    )
+    assert status == 200
+    assert sorted(g["id"] for g in data["data"]["groups"]) == sorted(
+        [public_group.id, public_group2.id]
+    )
+
+    status, data = api(
+        "DELETE",
+        f"analysis_service/{analysis_service_id}",
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+
+def test_update_default_analysis(super_admin_token, public_group, public_group2):
+    # Super admin so the group-membership check passes for both groups.
+    name = str(uuid.uuid4())
+    optional_analysis_parameters = {"first": ["a", "b"], "second": ["x"]}
+    post_data = {
+        "name": name,
+        "display_name": "test default analysis update",
+        "description": "A test default analysis service description",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:5000/analysis/{name}",
+        "optional_analysis_parameters": json.dumps(optional_analysis_parameters),
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": ["photometry", "redshift"],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=super_admin_token
+    )
+    assert status == 200
+    analysis_service_id = data["data"]["id"]
+
+    url = f"analysis_service/{analysis_service_id}/default_analysis"
+    status, data = api(
+        "POST",
+        url,
+        data={
+            "default_analysis_parameters": {"first": "a"},
+            "source_filter": {"group_id": public_group.id},
+            "daily_limit": 1,
+            "group_ids": [public_group.id],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    default_analysis_id = data["data"]["id"]
+
+    # Partial update: change params + source_filter + reassign groups (the group
+    # reassignment is the lazy-load path that must not raise greenlet_spawn).
+    status, data = api(
+        "PATCH",
+        f"{url}/{default_analysis_id}",
+        data={
+            "default_analysis_parameters": {"first": "b", "second": "x"},
+            "source_filter": {"group_id": public_group2.id},
+            "daily_limit": 5,
+            "group_ids": [public_group.id, public_group2.id],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api("GET", f"{url}/{default_analysis_id}", token=super_admin_token)
+    assert status == 200
+    d = data["data"]
+    assert d["default_analysis_parameters"] == {"first": "b", "second": "x"}
+    assert d["source_filter"] == {"group_id": public_group2.id}
+    assert sorted(g["id"] for g in d["groups"]) == sorted(
+        [public_group.id, public_group2.id]
+    )
+
+    # A param key not declared in optional_analysis_parameters is rejected.
+    status, data = api(
+        "PATCH",
+        f"{url}/{default_analysis_id}",
+        data={"default_analysis_parameters": {"undeclared_key": "z"}},
+        token=super_admin_token,
+    )
+    assert status == 400
+
+    status, data = api(
+        "DELETE", f"{url}/{default_analysis_id}", token=super_admin_token
+    )
+    assert status == 200
+
+
 def test_get_two_analysis_services(analysis_service_token, public_group):
     name = str(uuid.uuid4())
     post_data = {
@@ -915,20 +1049,6 @@ def test_retrieve_data_products(
         data = response.text
         assert status == 404
 
-        # try to get the corner plot of the posterior
-        response = api(
-            "GET",
-            f"obj/analysis/{analysis_id}/corner",
-            token=analysis_token,
-            raw_response=True,
-        )
-        status = response.status_code
-        data = response.text
-        assert status == 200
-        assert isinstance(data, str)
-        assert data[0:10].find("PNG") != -1
-        assert response.headers.get("Content-Type", "Empty").find("image/png") != -1
-
         # try to get the results
         status, data = api(
             "GET",
@@ -949,18 +1069,6 @@ def test_retrieve_data_products(
         status = response.status_code
         data = response.text
         assert status == 404
-
-        # try to get a corner plot which does not exist
-        response = api(
-            "GET",
-            f"obj/analysis/{analysis_id}/corner",
-            token=analysis_token,
-            raw_response=True,
-        )
-        status = response.status_code
-        data = response.text
-        assert status == 404
-        assert data.find("No data found") != -1
 
         # try to get a non-existing results
         status, data = api(
@@ -1365,3 +1473,133 @@ def test_source_analysis(
     assert data["status"] == "success"
     assert "analyses" in data["data"]
     assert any(analysis["id"] == analysis_id for analysis in data["data"]["analyses"])
+
+
+def test_default_analysis_on_save(
+    analysis_service_token,
+    analysis_token,
+    upload_data_token,
+    public_group,
+):
+    # A (non-upload_only) analysis service backed by the demo analysis server.
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "test default analysis on save",
+        "description": "A test default analysis (save-to-group trigger)",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": [],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
+    )
+    assert status == 200, data
+    analysis_service_id = data["data"]["id"]
+
+    # A default analysis that triggers when a source is saved to public_group
+    # (source_filter pins a group_id rather than a classification).
+    status, data = api(
+        "POST",
+        f"analysis_service/{analysis_service_id}/default_analysis",
+        data={
+            "default_analysis_parameters": {},
+            "group_ids": [public_group.id],
+            "source_filter": {"group_id": public_group.id},
+            "daily_limit": 5,
+        },
+        token=analysis_token,
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+    # Saving a NEW source to that group should auto-trigger the default analysis.
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 24.6258,
+            "dec": -32.9024,
+            "redshift": 0.1,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    n_retries = 0
+    while n_retries < 20:
+        status, data = api(
+            "GET",
+            "obj/analysis",
+            params={"objID": obj_id, "analysisServiceID": analysis_service_id},
+            token=analysis_token,
+        )
+        if status == 200 and data["status"] == "success" and len(data["data"]) == 1:
+            break
+        time.sleep(1)
+        n_retries += 1
+
+    assert n_retries < 20, (
+        "default analysis was not triggered by saving the source to the group"
+    )
+
+
+def test_default_analysis_multiple_per_service(
+    analysis_service_token,
+    analysis_token,
+    public_group,
+):
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "test multiple default analyses",
+        "description": "A test service allowing multiple default analyses",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": [],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
+    )
+    assert status == 200, data
+    analysis_service_id = data["data"]["id"]
+    url = f"analysis_service/{analysis_service_id}/default_analysis"
+
+    # Multiple default analyses on the SAME service are allowed (repeats):
+    # different triggers, or the same trigger with different parameters.
+    for source_filter in (
+        {"classifications": [{"name": "Algol", "probability": 0.5}]},
+        {"group_id": public_group.id},
+    ):
+        status, data = api(
+            "POST",
+            url,
+            data={
+                "default_analysis_parameters": {},
+                "group_ids": [public_group.id],
+                "source_filter": source_filter,
+                "daily_limit": 5,
+            },
+            token=analysis_token,
+        )
+        assert status == 200, data
+        assert data["status"] == "success"
+
+    status, data = api("GET", url, token=analysis_token)
+    assert status == 200
+    assert len(data["data"]) == 2

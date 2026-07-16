@@ -44,14 +44,18 @@ const Groups = () => {
 
   return (
     <div>
-      <GroupList title="My Groups" groups={userGroups} classes={classes} />
+      <div data-testid="tour-groups-list">
+        <GroupList title="My Groups" groups={userGroups} classes={classes} />
+      </div>
       {!!nonMemberGroups.length && (
-        <>
+        <div data-testid="tour-groups-request">
           <br />
           <NonMemberGroupList groups={nonMemberGroups} />
-        </>
+        </div>
       )}
-      <NewGroupForm />
+      <div data-testid="tour-groups-new">
+        <NewGroupForm />
+      </div>
       {permissions?.includes("System admin") && <GroupManagement />}
     </div>
   );

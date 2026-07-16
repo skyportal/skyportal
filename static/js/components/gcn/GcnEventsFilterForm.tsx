@@ -82,7 +82,12 @@ const GcnEventsFilterForm = ({
         flexDirection: "column",
       }}
     >
-      <Box display="flex" gap="0.2rem">
+      <Box
+        sx={{
+          display: "flex",
+          gap: "0.2rem",
+        }}
+      >
         <Controller
           name="startDate"
           control={control}
@@ -109,7 +114,12 @@ const GcnEventsFilterForm = ({
         />
       </Box>
       <Divider />
-      <Box display="flex" gap="0.2rem">
+      <Box
+        sx={{
+          display: "flex",
+          gap: "0.2rem",
+        }}
+      >
         <GcnTagsSelect
           title="GCN Tags to Keep"
           selectedGcnTags={selectedGcnTags}
@@ -128,7 +138,12 @@ const GcnEventsFilterForm = ({
         comparators={comparators}
       />
       <Divider />
-      <Box display="flex" gap="0.2rem">
+      <Box
+        sx={{
+          display: "flex",
+          gap: "0.2rem",
+        }}
+      >
         <LocalizationTagsSelect
           title="Localization Tags to Keep"
           selectedLocalizationTags={selectedLocalizationTags}

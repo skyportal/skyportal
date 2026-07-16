@@ -110,7 +110,9 @@ const GenerateReportForm = ({
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        PaperProps={{ style: { maxWidth: "800px" } }}
+        slotProps={{
+          paper: { style: { maxWidth: "800px" } },
+        }}
       >
         <DialogTitle sx={{ textAlign: "center", fontSize: "1.5em" }}>
           Generate candidate scanning report

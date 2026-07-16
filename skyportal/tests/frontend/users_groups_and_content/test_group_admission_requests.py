@@ -45,6 +45,34 @@ def test_group_admission_request_and_acceptance(
     expect(page.locator(f'//a[text()="{user.username}"]').first).to_be_visible()
 
 
+def test_group_admission_auto_accept_join_button(
+    page, user_group2, public_group, group_admin_token
+):
+    # A group admin enables auto-accept on the group
+    status, _ = api(
+        "PUT",
+        f"groups/{public_group.id}",
+        data={"name": public_group.name, "auto_accept_requests": True},
+        token=group_admin_token,
+    )
+    assert status == 200
+
+    page.goto(f"/become_user/{user_group2.id}")
+    page.goto("/groups")
+    expect(page.locator('//h6[text()="My Groups"]').first).to_be_visible()
+    filter_for_value(page, public_group.name)
+    # For an auto-accept group the action reads "Join group", not "Request admission"
+    join_button = page.locator(
+        f'//*[@data-testid="requestAdmissionButton{public_group.id}"]'
+    ).first
+    expect(join_button).to_have_text("Join group")
+    join_button.click()
+    # After joining, the group moves into the user's "My Groups" list
+    expect(
+        page.locator(f'//a[contains(.,"{public_group.name}")]').first
+    ).to_be_visible()
+
+
 def test_group_admission_request_insufficient_stream_access(
     page,
     user_no_groups_no_streams,

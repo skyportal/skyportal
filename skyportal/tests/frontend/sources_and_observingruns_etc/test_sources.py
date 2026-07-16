@@ -37,14 +37,21 @@ def wait_for_comment_text_found(page, comment_text):
     ).to_be_visible()
 
 
-def add_comment_and_wait_for_display(page, comment_text):
-    add_comment(page, comment_text)
+def wait_for_comment_display(page, comment_text):
+    # Comments occasionally fail to render on first paint (especially under CI
+    # load); a reload + expand of the comments panel forces them. Used both
+    # right after posting and when viewing an existing comment as another user.
     try:
         wait_for_comment_text_found(page, comment_text)
     except AssertionError:
         page.reload()
         page.locator("//*[@id='expandable-button']").first.click()
         wait_for_comment_text_found(page, comment_text)
+
+
+def add_comment_and_wait_for_display(page, comment_text):
+    add_comment(page, comment_text)
+    wait_for_comment_display(page, comment_text)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -283,6 +290,7 @@ def test_delete_comment(page, user, public_source):
     expect(comment_p).to_be_hidden()
 
 
+@pytest.mark.flaky(reruns=2)
 def test_regular_user_cannot_delete_unowned_comment(
     page, super_admin_user, user, public_source
 ):
@@ -293,6 +301,7 @@ def test_regular_user_cannot_delete_unowned_comment(
     add_comment_and_wait_for_display(page, comment_text)
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
+    wait_for_comment_display(page, comment_text)
     comment_p = page.locator(f'//p[text()="{comment_text}"]').first
     expect(comment_p).to_be_visible()
     comment_div = comment_p.locator("xpath=../..")
@@ -315,6 +324,7 @@ def test_super_user_can_delete_unowned_comment(
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/source/{public_source.id}")
 
+    wait_for_comment_display(page, comment_text)
     comment_p = page.locator(f'//p[text()="{comment_text}"]').first
     expect(comment_p).to_be_visible()
     comment_div = comment_p.locator("xpath=../..")

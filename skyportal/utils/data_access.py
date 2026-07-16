@@ -21,6 +21,7 @@ from ..models import (
     Stream,
     StreamPhotometry,
     StreamSharingService,
+    Team,
     Thumbnail,
     Token,
 )
@@ -971,6 +972,31 @@ async def auto_source_publishing_async(session, saver, group_id, obj, publish_to
                     release=release,
                     user_id=saver.id,
                 )
+
+
+async def team_scoped_group_ids(session, user_or_token, team_id, accessible_group_ids):
+    """Resolve a home-page ``teamID`` view filter to a list of group ids.
+
+    A view filter, never a permission: the team's groups are intersected with
+    ``accessible_group_ids`` so it can only narrow what a widget shows. Returns
+    None when ``team_id`` is None (no scoping). Raises ValueError on a missing or
+    inaccessible team id (handlers should surface it via ``self.error``).
+    """
+    if team_id is None:
+        return None
+    try:
+        team_id = int(team_id)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid teamID: {team_id}")
+    team = await session.scalar(
+        Team.select(user_or_token)
+        .options(selectinload(Team.groups))
+        .where(Team.id == team_id)
+    )
+    if team is None:
+        raise ValueError(f"Cannot find Team with id {team_id}")
+    accessible = set(accessible_group_ids)
+    return [g.id for g in team.groups if g.id in accessible]
 
 
 async def accessible_group_ids_async(user_or_token, session):

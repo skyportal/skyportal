@@ -455,11 +455,23 @@ class UserHandler(BaseHandler):
                 stmt = stmt.limit(n_per_page).offset((page_number - 1) * n_per_page)
             info = {}
             return_values = []
-            user_accessible_group_ids = {
-                g.id
-                for g in self.current_user.accessible_groups
-                if not g.single_user_group
-            }
+            # accessible_groups' admin branch runs a sync Group.query.all(); query
+            # it async-safely instead. Non-admins use their selectin-loaded groups
+            # (already populated at auth — no DB IO).
+            if "System admin" in self.current_user.permissions:
+                user_accessible_group_ids = set(
+                    (
+                        await session.scalars(
+                            sa.select(Group.id).where(
+                                Group.single_user_group.is_(False)
+                            )
+                        )
+                    ).all()
+                )
+            else:
+                user_accessible_group_ids = {
+                    g.id for g in self.current_user.groups if not g.single_user_group
+                }
 
             users_result = await session.scalars(stmt)
             for user in users_result.all():

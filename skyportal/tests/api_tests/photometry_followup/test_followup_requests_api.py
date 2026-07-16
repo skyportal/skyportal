@@ -37,6 +37,54 @@ def test_token_user_post_robotic_followup_request(
         assert data["data"][key] == request_data[key]
 
 
+def test_gemini_followup_blank_note_title(
+    public_group_gemini_allocation, public_source, upload_data_token
+):
+    # Regression guard: a blank note title must not crash the Gemini submit.
+    # An unset optional param became None and yarl rejected it in `params=`.
+    request_data = {
+        "allocation_id": public_group_gemini_allocation.id,
+        "obj_id": public_source.id,
+        "payload": {
+            "template_ids": "21",
+            "start_date": "2026-05-08 04:00:00",
+            "end_date": "2026-05-08 05:00:00",
+            "l_exptime": 0,
+            "l_elmin": 1.0,
+            "l_elmax": 1.6,
+            "note_title": "",
+        },
+    }
+
+    status, data = api(
+        "POST", "followup_request", data=request_data, token=upload_data_token
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+
+def test_winter_followup_submit(
+    public_group_winter_allocation, public_source, upload_data_token
+):
+    # Regression guard: the submit_trigger flag (a bool) must not crash the
+    # WINTER submit (yarl rejects bool in aiohttp params=).
+    request_data = {
+        "allocation_id": public_group_winter_allocation.id,
+        "obj_id": public_source.id,
+        "payload": {
+            "filter": "J",
+            "start_date": "2026-05-08 04:00:00",
+            "end_date": "2026-05-08 05:00:00",
+        },
+    }
+
+    status, data = api(
+        "POST", "followup_request", data=request_data, token=upload_data_token
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+
 def test_token_user_delete_owned_followup_request(
     public_group_generic_allocation, public_source, upload_data_token
 ):
@@ -321,6 +369,58 @@ def test_default_followup_request_stores_constraints(
     assert match["validity_days"] == 3
     assert match["comment"] == "auto-trigger test"
     assert match["implements_update"] is False
+
+
+def test_default_followup_request_source_filter_regex_validation(
+    public_group, public_group_sedm_allocation, super_admin_token
+):
+    def make(name):
+        return _default_followup_payload(
+            public_group,
+            public_group_sedm_allocation,
+            source_filter={"name": name, "group_id": public_group.id},
+        )
+
+    # A valid regex is accepted.
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("^ZTF2[0-9].*"),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+    # A malformed regex is rejected at creation (would otherwise error in
+    # Postgres on every source save).
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("([unterminated"),
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "valid regular expression" in data["message"]
+
+    # A catastrophic-backtracking pattern is rejected at creation (ReDoS guard).
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("(a+)+$"),
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "catastrophic backtracking" in data["message"]
+
+    # An oversized pattern is rejected.
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=make("a" * 1001),
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "at most" in data["message"]
 
 
 def test_default_followup_request_without_constraints_is_null(

@@ -4,11 +4,11 @@
  * RTK Query conversion of the old `candidates` duck. This duck is a COMPOSITE of
  * three different concerns, handled three different ways:
  *
- *  1. Server LIST with page accumulation (`getCandidates`). The scanning page
+ *  1. Server LIST with discrete pagination (`getCandidates`). The scanning page
  *     pages through `/api/candidates`. All pages of one filter/query share a
  *     single cache entry (`serializeQueryArgs` drops `pageNumber`); `merge`
- *     replaces the list on page 1 and appends on later pages, mirroring the old
- *     `FETCH_CANDIDATES` / `FETCH_CANDIDATES_AND_APPEND` reducers.
+ *     replaces the list on every page (Previous/Next show one page at a time),
+ *     mirroring the old `FETCH_CANDIDATES` reducer used by page navigation.
  *
  *  2. Server cache (simple): `getAnnotationsInfo` (query) and
  *     `generateSurveyThumbnail` (mutation).
@@ -75,15 +75,12 @@ export const candidatesApi = skyportalApi.injectEndpoints({
         ).toString();
         return `api/candidates?${queryString}`;
       },
-      // All pages of one filter/query share a single cache entry.
+      // All pages of one filter/query share a single cache entry. The scanning
+      // page is discrete pagination (Previous/Next show one page at a time), so
+      // every page replaces the list rather than accumulating.
       serializeQueryArgs: ({ queryArgs }) => candidatesCacheKey(queryArgs),
-      merge: (currentCacheData, newData, { arg }) => {
-        const pageNumber = arg?.pageNumber ?? 1;
-        if (pageNumber === 1) {
-          currentCacheData.candidates = newData.candidates;
-        } else {
-          currentCacheData.candidates.push(...newData.candidates);
-        }
+      merge: (currentCacheData, newData) => {
+        currentCacheData.candidates = newData.candidates;
         currentCacheData.pageNumber = newData.pageNumber;
         currentCacheData.totalMatches = newData.totalMatches;
         currentCacheData.queryID = newData.queryID;
@@ -108,11 +105,17 @@ export const candidatesApi = skyportalApi.injectEndpoints({
       providesTags: ["AnnotationsInfo"],
     }),
     generateSurveyThumbnail: build.mutation({
-      query: (objID) => ({
-        url: "api/internal/survey_thumbnail",
-        method: "POST",
-        body: { objID },
-      }),
+      // Accepts either an objID string (all-sky cutouts) or
+      // { objID, types } for on-demand pointed instruments (HST/Chandra).
+      query: (arg: string | { objID: string; types?: string[] }) => {
+        const { objID, types } =
+          typeof arg === "string" ? { objID: arg, types: undefined } : arg;
+        return {
+          url: "api/internal/survey_thumbnail",
+          method: "POST",
+          body: { objID, ...(types ? { types } : {}) },
+        };
+      },
     }),
   }),
 });
