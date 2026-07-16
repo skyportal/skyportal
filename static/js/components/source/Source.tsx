@@ -773,6 +773,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList
                     gcn_crossmatches={gcn_crossmatches}
+                    source={source}
                   />
                 )}
                 {hovering === "gcn" && (

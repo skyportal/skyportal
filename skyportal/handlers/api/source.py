@@ -2381,6 +2381,10 @@ class SourceHandler(BaseHandler):
                     query_id=query_id,
                     verbose=False,
                 )
+            except ValueError as e:
+                # Invalid query parameters (e.g. a stale/unknown localization) are
+                # client errors: return a clean 400 without a server traceback.
+                return self.error(f"Cannot retrieve sources: {str(e)}", status=400)
             except Exception as e:
                 traceback.print_exc()
                 return self.error(f"Cannot retrieve sources: {str(e)}")
