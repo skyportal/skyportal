@@ -25,6 +25,7 @@ import {
 } from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useGetTopSaversQuery } from "../../ducks/topSavers";
+import { useActiveTeam } from "../../ducks/teams";
 
 interface TopSaversSearchProps {
   savers?: any[];
@@ -229,7 +230,10 @@ const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
 
 const TopSavers = ({ classes }: TopSaversProps) => {
   const { classes: styles } = useStyles();
-  const { data: savers } = useGetTopSaversQuery();
+  const { activeTeam } = useActiveTeam();
+  const { data: savers } = useGetTopSaversQuery(
+    activeTeam ? { teamID: activeTeam.id } : undefined,
+  );
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 

@@ -297,8 +297,8 @@ const TeamCard = ({ team, canManage }: { team: Team; canManage: boolean }) => {
         <Typography variant="body2">{team.description}</Typography>
       ) : null}
       <Typography variant="caption">
-        {(team.groups ?? []).length} group(s) · {(team.users ?? []).length}{" "}
-        member(s)
+        {(team.groups ?? []).length} group(s) ·{" "}
+        {team.num_members ?? (team.users ?? []).length} member(s)
       </Typography>
       <div className={classes.chips}>
         {(team.groups ?? []).map((g) => (
