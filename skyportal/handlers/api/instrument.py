@@ -807,7 +807,9 @@ class InstrumentHandler(BaseHandler):
         async with self.AsyncSession() as session:
             instrument = await session.scalar(
                 Instrument.select(session.user_or_token, mode="update")
-                .options(selectinload(Instrument.fields))
+                # undefer `region` (a deferred column) so the has_region branch
+                # below doesn't sync lazy-load it under the async session.
+                .options(selectinload(Instrument.fields), undefer(Instrument.region))
                 .where(Instrument.id == instrument_id)
             )
             if instrument is None:
@@ -933,7 +935,9 @@ class InstrumentHandler(BaseHandler):
 
             schema = Instrument.__schema__()
             try:
-                schema.load(data, partial=True)
+                # Validate only; drop the PK so the load_instance schema doesn't
+                # sync-fetch the instance (raises greenlet_spawn under async).
+                schema.load({k: v for k, v in data.items() if k != "id"}, partial=True)
             except ValidationError as e:
                 return self.error(
                     f"Invalid/missing parameters: {e.normalized_messages()}"
