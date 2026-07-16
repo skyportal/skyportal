@@ -22,6 +22,7 @@ export interface Team {
   background_url?: string | null;
   groups?: { id: number; name: string; nickname?: string | null }[];
   users?: { id: number; username: string }[];
+  num_members?: number;
   [key: string]: unknown;
 }
 

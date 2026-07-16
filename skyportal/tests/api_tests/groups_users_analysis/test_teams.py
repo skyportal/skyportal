@@ -72,6 +72,35 @@ def test_team_appears_in_list(manage_teams_token, public_group):
     assert team_id in ids
 
 
+def test_team_list_reports_num_members(
+    manage_teams_token, group_admin_user, public_group
+):
+    name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "teams",
+        data={"name": name, "group_ids": [public_group.id]},
+        token=manage_teams_token,
+    )
+    assert status == 200
+    team_id = data["data"]["id"]
+
+    # Detail view exposes the full roster; num_members matches its length.
+    status, data = api("GET", f"teams/{team_id}", token=manage_teams_token)
+    assert status == 200
+    member_ids = {u["id"] for u in data["data"]["users"]}
+    assert group_admin_user.id in member_ids
+    assert data["data"]["num_members"] == len(member_ids)
+
+    # List view omits the roster but still reports the count (regression: it
+    # previously rendered 0 members because `users` was absent from the list).
+    status, data = api("GET", "teams", token=manage_teams_token)
+    assert status == 200
+    team = next(t for t in data["data"]["teams"] if t["id"] == team_id)
+    assert "users" not in team
+    assert team["num_members"] == len(member_ids)
+
+
 def test_cannot_create_team_without_name(manage_teams_token, public_group):
     status, data = api(
         "POST",
