@@ -166,12 +166,20 @@ const TransferList = ({
       container
       size={12}
       spacing={1}
-      justifyContent="center"
-      alignItems="baseline"
+      sx={{
+        justifyContent: "center",
+        alignItems: "baseline",
+      }}
     >
       <Grid size={5}>{customList(leftLabel || "Choices", left)}</Grid>
       <Grid size={2}>
-        <Grid container direction="column" alignItems="center">
+        <Grid
+          container
+          sx={{
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
           <Button
             sx={{ my: 0.5 }}
             variant="outlined"

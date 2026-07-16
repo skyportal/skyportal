@@ -168,7 +168,11 @@ const AboutPlugins = () => {
         <>
           <Typography variant="h5">Recent Changelog</Typography>
           <Paper className={classes.gitlogPaper}>
-            <Box p={1}>
+            <Box
+              sx={{
+                p: 1,
+              }}
+            >
               <div>
                 See all pull requests at{" "}
                 <a href="https://github.com/skyportal/skyportal/pulls?q=is%3Apr+">

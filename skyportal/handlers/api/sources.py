@@ -7,8 +7,10 @@ import astropy.units as u
 import numpy as np
 import sqlalchemy as sa
 from astropy.time import Time
+from astropy_healpix import nside_to_level, pixel_resolution_to_nside
 from conesearch_alchemy.math import cosd, sind
 from geojson import Feature, Point
+from mocpy import MOC
 from sqlalchemy.sql import and_, bindparam, text
 
 from baselayer.app.env import load_env
@@ -127,6 +129,35 @@ def within(ra1, dec1, ra2, dec2, radius):
     )
     bounding_box_terms, dot_product_terms = zip(*terms)
     return and_(*bounding_box_terms, sum(dot_product_terms) >= cos_radius)
+
+
+def cone_healpix_prefilter(ra, dec, radius):
+    """Index-friendly prefilter clause for a cone search.
+
+    Restricts the indexed, level-29 nested ``objs.healpix`` to the multi-order
+    coverage of the cone so the planner can range-scan the index instead of
+    computing trig over every row. This is a superset of the true cone, so
+    ``within()`` still applies the exact match. Objs with a NULL healpix fall
+    through to that exact test. Returns ``None`` if no coverage is produced.
+    """
+    # ~4 cells across the radius keeps the range count small at any radius.
+    depth = int(
+        np.clip(
+            nside_to_level(pixel_resolution_to_nside((radius / 4) * u.deg, round="up")),
+            1,
+            29,
+        )
+    )
+    ranges = MOC.from_cone(
+        lon=ra * u.deg, lat=dec * u.deg, radius=radius * u.deg, max_depth=depth
+    ).to_depth29_ranges
+    if len(ranges) == 0:
+        return None
+    terms = ["objs.healpix IS NULL"]
+    terms += [
+        f"objs.healpix >= {int(lo)} AND objs.healpix < {int(hi)}" for lo, hi in ranges
+    ]
+    return "(" + " OR ".join(terms) + ")"
 
 
 def great_circle_distance(ra1_deg, dec1_deg, ra2_deg, dec2_deg):
@@ -510,6 +541,7 @@ async def get_sources(
     followup_request_status=None,
     saved_before=None,
     saved_after=None,
+    saved_by_current_user=False,
     created_or_modified_after=None,
     list_name=None,
     simbad_class=None,
@@ -589,11 +621,22 @@ async def get_sources(
         elif sort_order.lower() not in SORT_ORDER:
             raise ValueError(f"Invalid sort_order: {sort_order}")
 
+        # Sort by an annotation value, encoded as "annotation.<origin>.<key>".
+        # The origin is the first token; the key is the remainder (may contain dots).
+        annotation_sort = False
+        sort_ann_origin = sort_ann_key = None
         if sort_by in [None, "", "none"]:
             if localization_dateobs is not None:
                 sort_by = "gcn_status"
             else:
                 sort_by = "saved_at"
+        elif sort_by.startswith("annotation."):
+            sort_by_parts = sort_by.split(".")
+            if len(sort_by_parts) < 3 or not all(sort_by_parts):
+                raise ValueError(f"Invalid sort_by: {sort_by}")
+            annotation_sort = True
+            sort_ann_origin = sort_by_parts[1]
+            sort_ann_key = ".".join(sort_by_parts[2:])
         elif sort_by.startswith("altdata."):
             sort_by_parts = sort_by.split(".")
             if not all(sort_by_parts):
@@ -949,6 +992,11 @@ async def get_sources(
                     float(dec),
                     float(radius),
                 )
+                # Index-friendly healpix prefilter narrows candidates before the
+                # exact trig test below (which cannot use an index).
+                healpix_clause = cone_healpix_prefilter(ra, dec, radius)
+                if healpix_clause is not None:
+                    statements.append(healpix_clause)
                 statements.append(
                     f"""
                     {within(Obj.ra, Obj.dec, ra, dec, radius).compile(compile_kwargs={"literal_binds": True})}
@@ -1017,6 +1065,15 @@ async def get_sources(
                 )
             except Exception as e:
                 raise ValueError(f"Invalid saved_after: {saved_after} ({e})")
+        if saved_by_current_user:
+            query_params.append(
+                bindparam("saved_by_user_id", value=user_id, type_=sa.Integer)
+            )
+            statements.append(
+                """
+                sources.saved_by_id = :saved_by_user_id
+                """
+            )
 
         # CLASSIFICATIONS
         if classified:
@@ -1834,7 +1891,37 @@ async def get_sources(
                         )
                         query_params.extend(allocation_bindparams)
 
-                    if sort_by == "gcn_status":
+                    if annotation_sort:
+                        # Correlated subquery on the grouped obj id; -> keeps the
+                        # JSONB type so numeric values sort numerically. Restrict
+                        # to annotations the user can access so sorting can't leak
+                        # values from groups they don't belong to.
+                        ann_access_clause = ""
+                        if not is_admin:
+                            ann_groups_str, ann_groups_bindparams = array2sql(
+                                user_accessible_group_ids,
+                                type=sa.Integer,
+                                prefix="sort_ann_group",
+                            )
+                            query_params.extend(ann_groups_bindparams)
+                            ann_access_clause = (
+                                "AND annotations_sort.id in (select annotation_id "
+                                "from group_annotations where group_id in "
+                                f"{ann_groups_str}) "
+                            )
+                        statement += (
+                            "ORDER BY (SELECT annotations_sort.data -> :sort_ann_key "
+                            "FROM annotations AS annotations_sort "
+                            "WHERE annotations_sort.obj_id = objs.id "
+                            "AND annotations_sort.origin = :sort_ann_origin "
+                            f"{ann_access_clause}LIMIT 1) "
+                            f"{sort_order.upper()} NULLS LAST"
+                        )
+                        query_params.append(sa.bindparam("sort_ann_key", sort_ann_key))
+                        query_params.append(
+                            sa.bindparam("sort_ann_origin", sort_ann_origin)
+                        )
+                    elif sort_by == "gcn_status":
                         statement += f"""ORDER BY
                             CASE
                                 WHEN bool_and(sourcesconfirmedingcns.obj_id IS NULL) = true THEN 4
@@ -1903,7 +1990,37 @@ async def get_sources(
                         )
                         query_params.extend(allocation_bindparams)
 
-                    if sort_by == "favorites":
+                    if annotation_sort:
+                        # Correlated subquery on the grouped obj id; -> keeps the
+                        # JSONB type so numeric values sort numerically. Restrict
+                        # to annotations the user can access so sorting can't leak
+                        # values from groups they don't belong to.
+                        ann_access_clause = ""
+                        if not is_admin:
+                            ann_groups_str, ann_groups_bindparams = array2sql(
+                                user_accessible_group_ids,
+                                type=sa.Integer,
+                                prefix="sort_ann_group",
+                            )
+                            query_params.extend(ann_groups_bindparams)
+                            ann_access_clause = (
+                                "AND annotations_sort.id in (select annotation_id "
+                                "from group_annotations where group_id in "
+                                f"{ann_groups_str}) "
+                            )
+                        statement += (
+                            "ORDER BY (SELECT annotations_sort.data -> :sort_ann_key "
+                            "FROM annotations AS annotations_sort "
+                            "WHERE annotations_sort.obj_id = objs.id "
+                            "AND annotations_sort.origin = :sort_ann_origin "
+                            f"{ann_access_clause}LIMIT 1) "
+                            f"{sort_order.upper()} NULLS LAST"
+                        )
+                        query_params.append(sa.bindparam("sort_ann_key", sort_ann_key))
+                        query_params.append(
+                            sa.bindparam("sort_ann_origin", sort_ann_origin)
+                        )
+                    elif sort_by == "favorites":
                         statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
                     elif sort_by in NULL_FIELDS:
                         statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""

@@ -794,9 +794,12 @@ async def get_observations(
     t0 = time.time()
     # eager-load `field` relationship for serialization below.
     # also undefer `contour_summary` when GeoJSON is requested.
-    field_load = joinedload(Observation.field)
     if includeGeoJSON:
-        field_load = field_load.undefer(InstrumentField.contour_summary)
+        field_load = selectinload(Observation.field).undefer(
+            InstrumentField.contour_summary
+        )
+    else:
+        field_load = joinedload(Observation.field)
     obs_query = obs_query.options(field_load)
     observations_result = await session.scalars(obs_query)
     observations = observations_result.unique().all()
@@ -1117,7 +1120,20 @@ class ObservationHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfExecutedObservations
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              observations:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/ExecutedObservation'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:
@@ -1451,7 +1467,7 @@ class ObservationExternalAPIHandler(BaseHandler):
             try:
                 # we now retrieve and commit to the database the
                 # executed observations
-                instrument.api_class_obsplan.retrieve(
+                await instrument.api_class_obsplan.retrieve(
                     allocation, data["start_date"], data["end_date"]
                 )
                 self.push_notification(
@@ -1552,7 +1568,7 @@ class ObservationExternalAPIHandler(BaseHandler):
             try:
                 # we now retrieve and commit to the database the
                 # executed observations
-                queue_names = instrument.api_class_obsplan.queued(
+                queue_names = await instrument.api_class_obsplan.queued(
                     allocation,
                     data["start_date"],
                     data["end_date"],
@@ -1633,7 +1649,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error("Cannot delete queues from this Instrument.")
 
             try:
-                instrument.api_class_obsplan.remove_queue(
+                await instrument.api_class_obsplan.remove_queue(
                     allocation, queue_name, self.associated_user_object.username
                 )
                 return self.success()

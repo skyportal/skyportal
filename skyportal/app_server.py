@@ -18,6 +18,7 @@ from skyportal.handlers.api import (
     AnalysisWebhookHandler,
     AnnotationHandler,
     AssignmentHandler,
+    BulkDeleteCandidatesHandler,
     BulkDeletePhotometryHandler,
     CandidateFilterHandler,
     CandidateHandler,
@@ -41,6 +42,7 @@ from skyportal.handlers.api import (
     EnumTypesHandler,
     FacilityMessageHandler,
     FilterHandler,
+    FinderChartFacilitiesHandler,
     FollowupAPIsHandler,
     FollowupRequestCommentHandler,
     FollowupRequestHandler,
@@ -88,6 +90,7 @@ from skyportal.handlers.api import (
     LocalizationNoticeHandler,
     LocalizationPropertiesHandler,
     LocalizationTagsHandler,
+    MetricsHandler,
     MMADetectorHandler,
     MMADetectorSpectrumHandler,
     MMADetectorTimeIntervalHandler,
@@ -137,6 +140,7 @@ from skyportal.handlers.api import (
     PhotometryRangeHandler,
     PhotometryRequestHandler,
     PhotometryValidationHandler,
+    PhotStatAggregateHandler,
     PhotStatHandler,
     PhotStatUpdateHandler,
     PS1QueryHandler,
@@ -185,6 +189,7 @@ from skyportal.handlers.api import (
     SyntheticPhotometryHandler,
     SysInfoHandler,
     TaxonomyHandler,
+    TeamHandler,
     TelescopeHandler,
     ThumbnailHandler,
     ThumbnailPathHandler,
@@ -197,6 +202,7 @@ from skyportal.handlers.api import (
     WeatherHandler,
 )
 from skyportal.handlers.api.internal import (
+    AltdataInfoHandler,
     AnnotationsInfoHandler,
     BulkNotificationHandler,
     DBInfoHandler,
@@ -228,6 +234,7 @@ from skyportal.handlers.public import (
 
 from . import model_util, openapi
 from .models import init_db
+from .utils.observability import setup_observability
 
 log = make_log("app_server")
 
@@ -264,6 +271,7 @@ skyportal_handlers = [
     (r"/api/candidates_filter", CandidateFilterHandler),
     (r"/api/candidates/scan_reports/([0-9]+)/items(/[0-9]+)?", ScanReportItemHandler),
     (r"/api/candidates/scan_reports", ScanReportHandler),
+    (r"/api/candidates/bulk_delete", BulkDeleteCandidatesHandler),
     (r"/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)", CandidateHandler),
     (r"/api/candidates(/.*)?", CandidateHandler),
     (r"/api/catalogs/swift_lsxps", SwiftLSXPSQueryHandler),
@@ -378,6 +386,7 @@ skyportal_handlers = [
     (r"/api/comment_attachment", CommentAttachmentUpdateHandler),
     (r"/api/sources/([0-9A-Za-z-_\.\+]+)/phot_stat", PhotStatHandler),
     (r"/api/phot_stats", PhotStatUpdateHandler),
+    (r"/api/phot_stats/aggregate", PhotStatAggregateHandler),
     (r"/api/localization/tags", LocalizationTagsHandler),
     (r"/api/localization/properties", LocalizationPropertiesHandler),
     (r"/api/localization(/.*)/name(/.*)/download", LocalizationDownloadHandler),
@@ -478,6 +487,7 @@ skyportal_handlers = [
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/host", ObjHostHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/offsets", SourceOffsetsHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/finder", SourceFinderHandler),
+    (r"/api/finder_chart/facilities", FinderChartFacilitiesHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications", ObjClassificationHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/groups", ObjGroupsHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/labels", SourceLabelsHandler),
@@ -547,6 +557,7 @@ skyportal_handlers = [
     (r"/api/sysinfo", SysInfoHandler),
     (r"/api/config", ConfigHandler),
     (r"/api/taxonomy(/.*)?", TaxonomyHandler),
+    (r"/api/teams(/[0-9]+)?", TeamHandler),
     (r"/api/telescope(/[0-9]+)?", TelescopeHandler),
     (r"/api/thumbnail(/[0-9]+)?", ThumbnailHandler),
     (r"/api/thumbnailPath", ThumbnailPathHandler),
@@ -605,6 +616,7 @@ skyportal_handlers = [
     (r"/api/internal/ephemeris(/[0-9]+)?", EphemerisHandler),
     (r"/api/internal/log(/.*)?", LogHandler),
     (r"/api/internal/recent_sources(/.*)?", RecentSourcesHandler),
+    (r"/api/internal/altdata_info", AltdataInfoHandler),
     (r"/api/internal/annotations_info", AnnotationsInfoHandler),
     (r"/api/internal/notifications(/[0-9]+)?", NotificationHandler),
     (r"/api/internal/notifications/all", BulkNotificationHandler),
@@ -664,6 +676,11 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print("!" * 80)
 
     handlers = baselayer_handlers + skyportal_handlers
+
+    # Opt-in OpenTelemetry instrumentation; exposes Prometheus metrics at
+    # /api/internal/metrics (matched before the /api/.* catch-all) per worker.
+    if setup_observability(cfg):
+        handlers = [(r"/api/internal/metrics", MetricsHandler), *handlers]
 
     settings = baselayer_settings
     settings.update(

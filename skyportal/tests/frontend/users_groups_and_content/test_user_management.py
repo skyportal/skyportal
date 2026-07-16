@@ -219,8 +219,11 @@ def test_user_expiration(page, user, super_admin_user, super_admin_token):
 
     # Set expiration date to 3000
     page.locator(f"//*[@data-testid='editUserExpirationDate{user.id}']").first.click()
-    date_input = page.locator("//input[@placeholder='MM/DD/YYYY']").first
-    date_input.click()
+    # x-date-pickers v9 sectioned field: target the section group inside the
+    # open expiration dialog (the value <input> is now aria-hidden).
+    date_input = page.get_by_role("dialog").get_by_role("group").first
+    # Click the leftmost (MM) section so the digits fill MM/DD/YYYY in order.
+    date_input.click(position={"x": 8, "y": 10})
     date_input.press_sequentially("01013000")
     page.locator(f"//*[@data-testid='submitExpirationDateButton']").first.click()
     expect(

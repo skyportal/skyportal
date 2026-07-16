@@ -74,11 +74,7 @@ const GroupUsers = ({
 
   const renderUsername = (params: any) => {
     const user = params.row;
-    return (
-      <Link to={`/user/${user.id}`} className={classes["filterLink"]}>
-        {user.username}
-      </Link>
-    );
+    return <Link to={`/user/${user.id}`}>{user.username}</Link>;
   };
 
   const renderAdmin = (params: any) => {
@@ -86,8 +82,8 @@ const GroupUsers = ({
     return (
       user &&
       user.admin && (
-        <div style={{ display: "inline-block" }} id={`${user.id}-admin-chip`}>
-          <Chip label="Admin" size="small" color="secondary" />
+        <div id={`${user.id}-admin-chip`}>
+          <Chip label="Admin" size="small" color="primary" />
         </div>
       )
     );
@@ -199,6 +195,7 @@ const GroupUsers = ({
         aria-controls="panel-members-content"
         id="panel-members-header"
         className={classes["accordion_summary"]}
+        data-testid="tour-group-members"
       >
         <Typography className={classes["heading"]}>Members</Typography>
       </AccordionSummary>

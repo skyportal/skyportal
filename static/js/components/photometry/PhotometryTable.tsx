@@ -286,15 +286,14 @@ const PhotometryTable = ({
         sortable: false,
         renderCell: (params: any) => {
           const phot = params.row;
-          let statusIcon = null;
-          if (phot?.validations.length === 0) {
+          const validation = phot?.validations?.[0];
+          let statusIcon = <QuestionMarkIcon color="primary" />;
+          if (!validation) {
             statusIcon = <PriorityHigh color="primary" />;
-          } else if (phot?.validations[0]?.validated === true) {
+          } else if (validation.validated === true) {
             statusIcon = <CheckIcon {...({ color: "green" } as any)} />;
-          } else if (phot?.validations[0]?.validated === false) {
+          } else if (validation.validated === false) {
             statusIcon = <ClearIcon color="secondary" />;
-          } else {
-            statusIcon = <QuestionMarkIcon color="primary" />;
           }
           return (
             <div
@@ -319,7 +318,7 @@ const PhotometryTable = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) =>
-          row?.validations.length === 0 ? "" : row?.validations[0]?.explanation,
+          row?.validations?.[0]?.explanation || "",
       });
 
       cols.push({
@@ -328,7 +327,7 @@ const PhotometryTable = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) =>
-          row?.validations.length === 0 ? "" : row?.validations[0]?.notes,
+          row?.validations?.[0]?.notes || "",
       });
     }
 
@@ -388,7 +387,7 @@ const PhotometryTable = ({
     () =>
       function PhotometryTableToolbar() {
         return (
-          <DataGridToolbar showQuickFilter>
+          <DataGridToolbar showQuickFilter showExport>
             <Button
               size="small"
               startIcon={<DownloadIcon />}
@@ -483,7 +482,9 @@ const PhotometryTable = ({
       fullScreen
       open={open}
       onClose={onClose}
-      TransitionComponent={Transition}
+      slots={{
+        transition: Transition,
+      }}
     >
       <DialogContent>{bodyContent}</DialogContent>
     </Dialog>

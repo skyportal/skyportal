@@ -1,45 +1,40 @@
-import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect } from "react";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
-import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 
+import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
+import { Telescope as TelescopeType } from "../../types/domain";
+import { useGetTelescopeQuery } from "../../ducks/telescopes";
+import { useGetWeatherQuery } from "../../ducks/weather";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import AllocationTable from "../allocation/AllocationTable";
 import InstrumentTable from "../instrument/InstrumentTable";
 import SkyCam from "../SkyCam";
 import { WeatherView } from "../widget/WeatherWidget";
 import Spinner from "../Spinner";
-
+import Paper from "../Paper";
 import withRouter from "../withRouter";
 
-import { useGetTelescopeQuery } from "../../ducks/telescopes";
-import { useGetWeatherQuery } from "../../ducks/weather";
-import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
-import { Telescope } from "../../types/domain";
-import { useGetInstrumentsQuery } from "../../ducks/instruments";
-
-const useStyles = makeStyles()((theme) => ({
+const useStyles = makeStyles()(() => ({
   title: {
     fontSize: "0.875rem",
   },
   displayInlineBlock: {
     display: "inline-block",
   },
-  paper: {
-    padding: theme.spacing(2),
-  },
 }));
 
-interface TelescopeSummaryProps {
+interface TelescopeProps {
   route: {
     id: string;
   };
 }
 
-const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
+const Telescope = ({ route }: TelescopeProps) => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
@@ -58,17 +53,11 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
     }
   }, [telescopeError, dispatch]);
 
-  if (!telescope) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  if (!telescope) return <CircularProgress color="secondary" />;
 
   return (
     <div>
-      <Grid container spacing={2} className={(classes as any).source}>
+      <Grid container spacing={2}>
         <Grid size={12}>
           <Typography variant="h5">
             {telescope["name"]} ({telescope["nickname"]})
@@ -78,13 +67,13 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
           size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 6 }}
           className={classes.displayInlineBlock}
         >
-          <SkyCam telescope={telescope as unknown as Telescope} />
+          <SkyCam telescope={telescope as unknown as TelescopeType} />
         </Grid>
         <Grid
           size={{ xs: 12, sm: 12, md: 6, lg: 6, xl: 6 }}
           className={classes.displayInlineBlock}
         >
-          <Paper elevation={1} className={classes.paper}>
+          <Paper>
             <Typography className={classes.title} color="textSecondary">
               Weather
             </Typography>
@@ -102,7 +91,7 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
               telescopeInfo={false}
             />
           ) : (
-            <Paper className={classes.paper}>
+            <Paper>
               <Typography className={classes.title} color="textSecondary">
                 No instruments available
               </Typography>
@@ -118,7 +107,7 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
               telescopeInfo={false}
             />
           ) : (
-            <Paper className={classes.paper}>
+            <Paper>
               <Typography className={classes.title} color="textSecondary">
                 No allocations available
               </Typography>
@@ -130,4 +119,4 @@ const TelescopeSummary = ({ route }: TelescopeSummaryProps) => {
   );
 };
 
-export default withRouter(TelescopeSummary);
+export default withRouter(Telescope);

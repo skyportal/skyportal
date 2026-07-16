@@ -251,9 +251,9 @@ const Periodogram = () => {
     fmax: null,
   });
 
-  const dataplotRef = useRef<any>();
-  const glsplotRef = useRef<any>();
-  const phaseplotRef = useRef<any>();
+  const dataplotRef = useRef<any>(null);
+  const glsplotRef = useRef<any>(null);
+  const phaseplotRef = useRef<any>(null);
 
   // plotting functions
   function plotline(graph: any, x: any) {
@@ -450,7 +450,7 @@ const Periodogram = () => {
     dispatch,
   ]);
 
-  const componentRef = useRef<any>();
+  const componentRef = useRef<any>(null);
 
   const initialFormState = {
     ...params,
@@ -527,9 +527,11 @@ const Periodogram = () => {
         <Grid
           container
           direction="row"
-          justifyContent="flex-start"
-          alignItems="flex-start"
           spacing={1}
+          sx={{
+            justifyContent: "flex-start",
+            alignItems: "flex-start",
+          }}
         >
           <Grid size={10}>
             <Card>
@@ -571,10 +573,12 @@ const Periodogram = () => {
                   <form onSubmit={handleSubmit(onSubmit)}>
                     <Grid
                       container
-                      direction="column"
-                      justifyContent="space-evenly"
-                      alignItems="flex-start"
                       spacing={2}
+                      sx={{
+                        flexDirection: "column",
+                        justifyContent: "space-evenly",
+                        alignItems: "flex-start",
+                      }}
                     >
                       {params.instrument && (
                         <Grid size={12}>

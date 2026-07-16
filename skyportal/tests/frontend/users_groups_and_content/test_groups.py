@@ -217,3 +217,41 @@ def test_cannot_add_stream_group_users_cant_access(
     expect(
         page.locator('//*[contains(.,"Not all users have stream access with")]').first
     ).to_be_visible()
+
+
+def test_add_new_group_with_auto_accept(
+    page, super_admin_user, user, super_admin_token
+):
+    test_proj_name = str(uuid.uuid4())
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto("/groups")
+    expect(page.locator('//h3[text()="Create New Group"]').first).to_be_visible()
+    page.locator('//input[@name="name"]').first.fill(test_proj_name)
+    page.locator('//*[@data-testid="autoAcceptRequestsCheckbox"]').first.click()
+    page.locator('//div[@id="groupAdminsSelect"]').first.click()
+    page.locator(f'//li[contains(text(),"{user.username}")]').first.click()
+    page.keyboard.press("Escape")
+    page.locator('//button[contains(.,"Create Group")]').first.click()
+    expect(page.locator(f'//a[contains(.,"{test_proj_name}")]').first).to_be_visible()
+
+    status, data = api("GET", "groups", token=super_admin_token)
+    assert status == 200
+    group = next(g for g in data["data"]["user_groups"] if g["name"] == test_proj_name)
+    assert group["auto_accept_requests"] is True
+
+
+def test_edit_group_toggle_auto_accept(
+    page, super_admin_user, public_group, super_admin_token
+):
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/group/{public_group.id}")
+    page.locator('//*[@data-testid="editGroupButton"]').first.click()
+    page.locator('//*[@data-testid="editAutoAcceptRequestsCheckbox"]').first.click()
+    submit = page.locator('//*[@data-testid="submitEditGroupButton"]').first
+    submit.click()
+    # On success the dialog closes; wait for it so the PUT has completed.
+    expect(submit).to_be_hidden()
+
+    status, data = api("GET", f"groups/{public_group.id}", token=super_admin_token)
+    assert status == 200
+    assert data["data"]["auto_accept_requests"] is True

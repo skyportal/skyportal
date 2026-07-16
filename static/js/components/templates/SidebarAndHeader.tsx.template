@@ -216,7 +216,20 @@ const SidebarAndHeader = () => {
     {% else %}
     <Link to="{{ item.url }}" onClick={() => hydrateIfDashboardClicked("{{ item.url }}")} className={classes.link}>
     {%- endif %}
-      <ListItem {...({ name: "sidebar{{ item.name }}Button" } as any)} disablePadding sx={{ "{{ display: 'block' }}" }}>
+      <ListItem
+        {...({ name: "sidebar{{ item.name }}Button" } as any)}
+        {%- if item.url == '/sources' %}
+        data-testid="tour-nav-sources"
+        {%- elif item.url == '/candidates' %}
+        data-testid="tour-nav-candidates"
+        {%- elif item.url == '/groups' %}
+        data-testid="tour-nav-groups"
+        {%- elif item.url == '/gcn_events' %}
+        data-testid="tour-nav-gcn"
+        {%- endif %}
+        disablePadding
+        sx={{ "{{ display: 'block' }}" }}
+      >
         <ListItemButton
             sx={{"{{
               minHeight: 48,
@@ -319,12 +332,13 @@ const SidebarAndHeader = () => {
       </AppBar>
       <Drawer
         className={classes.drawer}
+        data-testid="tour-sidebar"
         variant={drawerType}
         anchor="left"
         open={open || temporaryOpen}
         onClose={isSmall ? handleToggleSidebarOpen : undefined}
         classes={{ "{{ paper: drawerType === 'temporary' ? classes.drawerPaperTemporary : classes.drawerPaper }}" }}
-        PaperProps={{ "{{ onMouseEnter: mouseEnter, onMouseLeave: mouseLeave }}" }}
+        slotProps={{ "{{ paper: { onMouseEnter: mouseEnter, onMouseLeave: mouseLeave } }}" }}
       >
         {!isSmall && <div className={classes.drawerHeader} />}
         <List>

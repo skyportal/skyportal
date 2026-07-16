@@ -66,7 +66,6 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
       <Typography variant="h5">
         Generate New Token for Command-Line Authentication
       </Typography>
-
       <Card>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)}>
@@ -80,7 +79,13 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
               />
             </Box>
             <Box>
-              <Box component="span" mr={1} fontWeight="bold">
+              <Box
+                component="span"
+                sx={{
+                  mr: 1,
+                  fontWeight: "bold",
+                }}
+              >
                 ACLs:
               </Box>
               {availableAcls?.map((acl, idx) => (

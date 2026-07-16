@@ -3,9 +3,10 @@ import traceback
 import urllib
 from datetime import timedelta
 
-import requests
+import aiohttp
+import sqlalchemy as sa
 from astropy.time import Time
-from requests.auth import HTTPBasicAuth
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
@@ -136,7 +137,7 @@ def prepare_payload(payload, filter_defaults, existing_payload=None):
     return payload
 
 
-def delete_request(request, session, **kwargs):
+async def delete_request(request, session, **kwargs):
     """Delete a follow-up request from WINTER/SPRING queue.
 
     Parameters
@@ -146,7 +147,21 @@ def delete_request(request, session, **kwargs):
     session: sqlalchemy.Session
         Database session for this transaction
     """
-    from ...models import FacilityTransaction, FollowupRequest
+    from ...models import Allocation, FacilityTransaction, FollowupRequest
+
+    # Reload with the lazy chains walked here (allocation, obj, transactions)
+    # eager-loaded, since async sessions raise on implicit lazy loads.
+    request = await session.scalar(
+        sa.select(FollowupRequest)
+        .where(FollowupRequest.id == request.id)
+        .options(
+            selectinload(FollowupRequest.allocation).selectinload(
+                Allocation.instrument
+            ),
+            selectinload(FollowupRequest.obj),
+            selectinload(FollowupRequest.transactions),
+        )
+    )
 
     last_modified_by_id = request.last_modified_by_id
     obj_internal_key = request.obj.internal_key
@@ -154,8 +169,10 @@ def delete_request(request, session, **kwargs):
     # this happens for failed submissions
     # just go ahead and delete
     if len(request.transactions) == 0:
-        session.query(FollowupRequest).filter(FollowupRequest.id == request.id).delete()
-        session.commit()
+        await session.execute(
+            sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+        )
+        await session.commit()
     else:
         altdata = request.allocation.altdata
         if not altdata:
@@ -165,25 +182,27 @@ def delete_request(request, session, **kwargs):
         name = req.schedule_name(request)
 
         url = urllib.parse.urljoin(WINTER_URL, "too/delete")
-        r = requests.delete(
-            url,
-            params={
-                "program_name": altdata["program_name"],
-                "program_api_key": altdata["program_api_key"],
-                "schedule_name": name,
-            },
-            auth=HTTPBasicAuth(altdata["username"], altdata["password"]),
-        )
-        if r.status_code == 404:
+        params = {
+            "program_name": altdata["program_name"],
+            "program_api_key": altdata["program_api_key"],
+            "schedule_name": name,
+        }
+        auth = aiohttp.BasicAuth(altdata["username"], altdata["password"])
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.delete(url, params=params, auth=auth) as r:
+                content = await r.text()
+                status = r.status
+        if status == 404:
             raise ValueError(
                 "Failed to delete request, could not find a request with the given schedule name. Please wait a few seconds if you just submitted the request."
             )
-        r.raise_for_status()
+        if status >= 400:
+            raise ValueError(f"Failed to delete request: status {status}: {content}")
         request.status = "deleted"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request("DELETE", url, None, params),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -204,7 +223,7 @@ def delete_request(request, session, **kwargs):
         )
 
 
-def submit_request(request, session, camera, log, **kwargs):
+async def submit_request(request, session, camera, log, **kwargs):
     """Submit a follow-up request to WINTER or SPRING.
 
     Parameters
@@ -218,7 +237,20 @@ def submit_request(request, session, camera, log, **kwargs):
     log : callable
         Logger function for this API.
     """
-    from ...models import FacilityTransaction
+    from ...models import Allocation, FacilityTransaction, FollowupRequest
+
+    # Reload with the lazy chains walked here (allocation altdata, obj)
+    # eager-loaded, since async sessions raise on implicit lazy loads.
+    request = await session.scalar(
+        sa.select(FollowupRequest)
+        .where(FollowupRequest.id == request.id)
+        .options(
+            selectinload(FollowupRequest.allocation).selectinload(
+                Allocation.instrument
+            ),
+            selectinload(FollowupRequest.obj),
+        )
+    )
 
     req = WINTERRequest()
 
@@ -236,24 +268,27 @@ def submit_request(request, session, camera, log, **kwargs):
 
     payload = req._build_payload(request)
     url = urllib.parse.urljoin(WINTER_URL, f"too/{camera}")
+    params = {
+        "program_name": altdata["program_name"],
+        "program_api_key": altdata["program_api_key"],
+        # yarl (aiohttp params=) rejects bool on newer versions; send as str.
+        "submit_trigger": str(SUBMIT_TRIGGER),
+    }
+    auth = aiohttp.BasicAuth(altdata["username"], altdata["password"])
 
-    r = requests.post(
-        url,
-        params={
-            "program_name": altdata["program_name"],
-            "program_api_key": altdata["program_api_key"],
-            "submit_trigger": SUBMIT_TRIGGER,
-        },
-        json=[payload],
-        auth=HTTPBasicAuth(altdata["username"], altdata["password"]),
-    )
+    async with aiohttp.ClientSession() as http_session:
+        async with http_session.post(
+            url, params=params, json=[payload], auth=auth
+        ) as r:
+            content = await r.text()
+            status = r.status
 
-    if r.status_code == 200:
+    if status == 200:
         request.status = "submitted"
     else:
-        request.status = f"rejected: {r.content}"
+        request.status = f"rejected: {content}"
         log(
-            f"Failed to submit {camera} request for {request.id} (obj {request.obj.id}): {r.content}"
+            f"Failed to submit {camera} request for {request.id} (obj {request.obj.id}): {content}"
         )
         try:
             flow = Flow()
@@ -261,7 +296,7 @@ def submit_request(request, session, camera, log, **kwargs):
                 request.last_modified_by_id,
                 "baselayer/SHOW_NOTIFICATION",
                 payload={
-                    "note": f"Failed to submit {camera} request: {r.content}",
+                    "note": f"Failed to submit {camera} request: {content}",
                     "type": "error",
                 },
             )
@@ -269,8 +304,8 @@ def submit_request(request, session, camera, log, **kwargs):
             log(f"Failed to send notification for failed {camera} request: {e}")
 
     transaction = FacilityTransaction(
-        request=http.serialize_requests_request(r.request),
-        response=http.serialize_requests_response(r),
+        request=http.serialize_aiohttp_request("POST", url, None, [payload]),
+        response=await http.serialize_aiohttp_response(r, content),
         followup_request=request,
         initiator_id=request.last_modified_by_id,
     )
@@ -296,7 +331,7 @@ def submit_request(request, session, camera, log, **kwargs):
         if notification_type == "slack":
             from ...utils.notifications import request_notify_by_slack
 
-            request_notify_by_slack(
+            await request_notify_by_slack(
                 request,
                 session,
                 is_update=False,
@@ -304,7 +339,7 @@ def submit_request(request, session, camera, log, **kwargs):
         elif notification_type == "email":
             from ...utils.notifications import request_notify_by_email
 
-            request_notify_by_email(
+            await request_notify_by_email(
                 request,
                 session,
                 is_update=False,

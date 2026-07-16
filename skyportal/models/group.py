@@ -320,6 +320,14 @@ class Group(Base):
         index=True,
         doc="Boolean indicating whether group is invisible to non-members.",
     )
+    auto_accept_requests = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        default=False,
+        doc="Boolean indicating whether requests to join the group are "
+        "automatically accepted.",
+    )
     streams = relationship(
         "Stream",
         secondary="group_streams",
@@ -332,6 +340,14 @@ class Group(Base):
         back_populates="group",
         passive_deletes=True,
         doc="All filters (not just active) associated with a group.",
+    )
+
+    teams = relationship(
+        "Team",
+        secondary="group_teams",
+        back_populates="groups",
+        passive_deletes=True,
+        doc="Teams this group belongs to.",
     )
 
     shifts = relationship(

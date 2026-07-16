@@ -3,8 +3,10 @@ import { makeStyles } from "tss-react/mui";
 import Chip from "@mui/material/Chip";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
+import ListSubheader from "@mui/material/ListSubheader";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
+import TextField from "@mui/material/TextField";
 import { useTheme } from "@mui/material/styles";
 
 const useStyles = makeStyles()(() => ({
@@ -25,7 +27,7 @@ const getStyles = (option: any, opts: any[], theme: any) => ({
       : theme.typography.fontWeightMedium,
 });
 
-const menuProps = { PaperProps: { style: { maxHeight: "20rem" } } };
+const menuProps = { slotProps: { paper: { style: { maxHeight: "20rem" } } } };
 
 interface SelectWithChipsProps {
   label: string;
@@ -33,13 +35,28 @@ interface SelectWithChipsProps {
   initValue?: string[];
   onChange: (...args: any[]) => void;
   options: string[];
+  searchable?: boolean;
 }
 
 const SelectWithChips = (props: SelectWithChipsProps) => {
   const { classes } = useStyles();
   const theme = useTheme();
   const [opts, setOpts] = useState<string[]>([]);
-  const { label, id, initValue = [], onChange, options } = props;
+  const [search, setSearch] = useState("");
+  const {
+    label,
+    id,
+    initValue = [],
+    onChange,
+    options,
+    searchable = false,
+  } = props;
+  const displayedOptions =
+    searchable && search
+      ? options.filter((option) =>
+          option.toLowerCase().includes(search.toLowerCase()),
+        )
+      : options;
   const MAX_CHAR = 90;
   const cumSum: number[] = [];
 
@@ -68,6 +85,7 @@ const SelectWithChips = (props: SelectWithChipsProps) => {
               : event.target.value,
           );
         }}
+        onClose={() => setSearch("")}
         renderValue={(selected: any) => (
           <div className={classes.chips}>
             {selected.slice(0, max_chips_nb).map((value: any) => (
@@ -80,9 +98,29 @@ const SelectWithChips = (props: SelectWithChipsProps) => {
         )}
         MenuProps={menuProps}
       >
-        {options?.map((option, index) => (
+        {searchable && (
+          // Sticky search box at the top of the dropdown; stop keydown
+          // propagation so the Select's type-ahead doesn't steal input.
+          <ListSubheader sx={{ p: 1, lineHeight: "unset" }}>
+            <TextField
+              size="small"
+              autoFocus
+              fullWidth
+              placeholder="Search..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              slotProps={{ htmlInput: { "data-testid": `${id}-search` } }}
+              onKeyDown={(event) => {
+                if (event.key !== "Escape") {
+                  event.stopPropagation();
+                }
+              }}
+            />
+          </ListSubheader>
+        )}
+        {displayedOptions?.map((option) => (
           <MenuItem
-            key={index}
+            key={option}
             value={option}
             style={getStyles(option, opts, theme)}
           >

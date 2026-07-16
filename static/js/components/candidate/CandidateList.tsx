@@ -477,7 +477,10 @@ const CandidateInfo = ({
                     ?.includes(g.id),
               ).length),
           ) && (
-            <div className={classes.saveCandidateButton}>
+            <div
+              className={classes.saveCandidateButton}
+              data-testid="tour-candidate-save"
+            >
               <SaveCandidateButton
                 candidate={candidateObj}
                 userGroups={
@@ -572,7 +575,10 @@ const CandidateInfo = ({
               />
             </div>
           )}
-          <div className={classes.infoItemPadded}>
+          <div
+            className={classes.infoItemPadded}
+            data-testid="tour-candidate-classifications"
+          >
             <b>Classification(s): </b>
             <AddClassificationsScanningPage obj_id={candidateObj.id} />
             <div className={classes.classificationsList}>
@@ -733,7 +739,11 @@ const Candidate = ({
               paddingTop: "0.5rem",
             }}
           >
-            <Typography fontWeight="bold">
+            <Typography
+              sx={{
+                fontWeight: "bold",
+              }}
+            >
               {`${index}/${totalMatches}`}
             </Typography>
           </div>
@@ -828,9 +838,14 @@ const CandidateList = () => {
     }
   };
 
+  // ViewportList only knows a candidate's position within the current page, so
+  // add the page offset to get its position in the full result set.
+  const globalIndex = (pageIndex: number) =>
+    (pageNumber - 1) * numPerPage + pageIndex + 1;
+
   return (
-    <div style={{ position: "relative" }}>
-      <div>
+    <div style={{ position: "relative" }} data-testid="tour-candidates-page">
+      <div data-testid="tour-candidates-filter">
         <FilterCandidateList
           userAccessibleGroups={userAccessibleGroups}
           setQueryInProgress={setQueryInProgress}
@@ -880,7 +895,7 @@ const CandidateList = () => {
                       <Candidate
                         candidate={candidates[index]}
                         filterGroups={filterGroups}
-                        index={index + 1}
+                        index={globalIndex(index)}
                         totalMatches={totalMatches}
                       />
                     </div>
