@@ -17,6 +17,7 @@ interface NonMemberGroup {
   name?: string;
   nickname?: string | null;
   id?: number;
+  auto_accept_requests?: boolean;
 }
 
 interface NonMemberGroupListProps {
@@ -39,13 +40,19 @@ const NonMemberGroupList = ({ groups }: NonMemberGroupListProps) => {
     ?.filter((request: any) => request.status === "declined")
     ?.map((request: any) => request.group_id);
 
-  const handleRequestAdmission = async (groupID: number) => {
+  const handleRequestAdmission = async (group: NonMemberGroup) => {
     try {
       await requestGroupAdmission({
         userID: currentUserID,
-        groupID,
+        groupID: group.id as number,
       }).unwrap();
-      dispatch(showNotification("Successfully requested admission to group."));
+      dispatch(
+        showNotification(
+          group.auto_accept_requests
+            ? "Successfully joined group."
+            : "Successfully requested admission to group.",
+        ),
+      );
     } catch {
       // error notification handled by the base query
     }
@@ -83,10 +90,10 @@ const NonMemberGroupList = ({ groups }: NonMemberGroupListProps) => {
       <Button
         secondary
         size="small"
-        onClick={() => handleRequestAdmission(group.id as number)}
+        onClick={() => handleRequestAdmission(group)}
         data-testid={`requestAdmissionButton${group.id}`}
       >
-        Request admission
+        {group.auto_accept_requests ? "Join group" : "Request admission"}
       </Button>
     );
   };

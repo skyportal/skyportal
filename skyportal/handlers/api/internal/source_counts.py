@@ -6,6 +6,10 @@ from sqlalchemy import func
 from baselayer.app.access import auth_or_token
 
 from ....models import Source
+from ....utils.data_access import (
+    accessible_group_ids_async,
+    team_scoped_group_ids,
+)
 from ...base import BaseHandler
 
 default_prefs = {"sinceDaysAgo": 7}
@@ -26,9 +30,23 @@ class SourceCountHandler(BaseHandler):
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
 
         async with self.AsyncSession() as session:
+            accessible = set(
+                await accessible_group_ids_async(session.user_or_token, session)
+            )
+            try:
+                team_group_ids = await team_scoped_group_ids(
+                    session,
+                    self.current_user,
+                    self.get_query_argument("teamID", None),
+                    accessible,
+                )
+            except ValueError as e:
+                return self.error(str(e))
             stmt = Source.select(session.user_or_token).where(
                 Source.created_at >= cutoff_day
             )
+            if team_group_ids is not None:
+                stmt = stmt.where(Source.group_id.in_(team_group_ids))
             count_stmt = sa.select(func.count()).select_from(stmt.distinct())
             result = await session.scalar(count_stmt)
             data = {"count": result, "sinceDaysAgo": since_days_ago}

@@ -1,6 +1,7 @@
 import uuid
 
 from playwright.sync_api import expect
+
 from skyportal.tests import api
 
 
@@ -39,6 +40,32 @@ def _set_num_items(page, value):
     n_items_input.click()
     n_items_input.press("ControlOrMeta+a")
     n_items_input.press_sequentially(value)
+
+
+def test_news_feed_refresh_button(
+    page, user, public_group, upload_data_token, comment_token
+):
+    # Load the dashboard first so the news feed is fetched and cached.
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/")
+    expect(page.locator('//h6[text()="News Feed"]').first).to_be_visible()
+
+    # Create activity *after* the feed has loaded. With nothing forcing a
+    # refetch, the cached feed shouldn't show it yet.
+    obj_id_base = _seed_sources_and_comments(
+        api, public_group, upload_data_token, comment_token
+    )
+    new_source_xpath = (
+        '//div[contains(@class, "entryContent")]'
+        '[.//p[text()="New source saved"]]'
+        f'[.//a[@href="/source/{obj_id_base}_0"]]'
+    )
+    expect(page.locator(new_source_xpath).first).to_be_hidden()
+
+    # The header Refresh button must force the news feed to refetch (regression:
+    # a bare initiate() was a no-op for the already-subscribed query).
+    page.locator('//*[@data-testid="refreshButton"]').first.click()
+    expect(page.locator(new_source_xpath).first).to_be_visible()
 
 
 def test_news_feed_prefs_widget(

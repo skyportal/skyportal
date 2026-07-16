@@ -298,7 +298,12 @@ const GcnEventSourcesPage = ({
             alignItems: "center",
           }}
         >
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            sx={{
+              display: "inline",
+            }}
+          >
             Downloading {downloadProgressTotal} sources
           </Typography>
           <div
@@ -334,19 +339,23 @@ const MyObjectFieldTemplate = (props: MyObjectFieldTemplateProps) => {
   return (
     <Grid
       container
-      direction="column"
-      alignItems="center"
       spacing={2}
       {...({ justify: "space-between" } as any)}
+      sx={{
+        flexDirection: "column",
+        alignItems: "center",
+      }}
     >
       {uiSchema["ui:grid"].map((row: any) => (
         <Grid
           container
           direction="row"
-          alignItems="center"
           spacing={2}
           key={JSON.stringify(row)}
           {...({ justify: "space-between" } as any)}
+          sx={{
+            alignItems: "center",
+          }}
         >
           {Object.keys(row).map((fieldName) => (
             <Grid size={row[fieldName]} key={fieldName}>
@@ -1076,7 +1085,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
             container
             spacing={1}
             className={classes.formContainer}
-            alignItems="center"
+            sx={{
+              alignItems: "center",
+            }}
           >
             <Grid size={{ sm: 12 }} className={classes.formContainerItem}>
               <InputLabel id="localizationSelectLabel">Localization</InputLabel>
@@ -1256,7 +1267,12 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                           alignItems: "center",
                         }}
                       >
-                        <Typography variant="h6" display="inline">
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            display: "inline",
+                          }}
+                        >
                           Downloading {downloadProgressTotal} observations
                         </Typography>
                         <div

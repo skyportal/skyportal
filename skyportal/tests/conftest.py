@@ -1,6 +1,7 @@
 """Test fixture configuration."""
 
 import base64
+import json
 import os
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -12,7 +13,7 @@ import pandas as pd
 import pytest
 import sqlalchemy as sa
 
-from baselayer.app import models
+from skyportal import models
 from skyportal.model_util import create_token, delete_token
 from skyportal.models import (
     Allocation,
@@ -54,11 +55,9 @@ from skyportal.models import (
     GcnSummary,
     GcnTag,
     GcnTrigger,
-    Group,
     GroupAdmissionRequest,
     GroupAnalysisService,
     GroupAnnotation,
-    GroupAnnotationOnPhotometry,
     GroupAnnotationOnSpectrum,
     GroupClassification,
     GroupComment,
@@ -67,7 +66,6 @@ from skyportal.models import (
     GroupCommentOnShift,
     GroupCommentOnSpectrum,
     GroupDefaultAnalysis,
-    GroupInvitation,
     GroupMMADetectorSpectrum,
     GroupMMADetectorTimeInterval,
     GroupObjAnalysis,
@@ -81,7 +79,6 @@ from skyportal.models import (
     GroupReminderOnShift,
     GroupReminderOnSpectrum,
     GroupScanReport,
-    GroupSourceNotification,
     GroupSpectrum,
     GroupStream,
     GroupTaxonomy,
@@ -89,7 +86,6 @@ from skyportal.models import (
     Instrument,
     InstrumentField,
     InstrumentLog,
-    InstrumentSharingService,
     Invitation,
     Listing,
     Localization,
@@ -126,7 +122,6 @@ from skyportal.models import (
     ShiftUser,
     Source,
     SourceLabel,
-    SourceNotification,
     SourcesConfirmedInGCN,
     SourceView,
     SpatialCatalog,
@@ -134,7 +129,6 @@ from skyportal.models import (
     SpectrumObserver,
     SpectrumPI,
     SpectrumReducer,
-    Stream,
     StreamInvitation,
     StreamPhotometricSeries,
     StreamPhotometry,
@@ -149,6 +143,7 @@ from skyportal.models import (
     UserInvitation,
     Weather,
 )
+from skyportal.models.mmadetector import GcnEventMMADetector
 from skyportal.tests.fixtures import (
     TMP_DIR,  # noqa: F401
     AllocationFactory,
@@ -156,7 +151,6 @@ from skyportal.tests.fixtures import (
     ClassicalAssignmentFactory,
     ClassificationFactory,
     CommentFactory,
-    CommentOnGCNFactory,
     FilterFactory,
     FollowupRequestFactory,
     GcnEventFactory,
@@ -177,13 +171,7 @@ from skyportal.tests.fixtures import (
 )
 from skyportal.tests.test_util import page  # noqa: F401
 
-from ..models.obj import cfg as _obj_cfg
 from ..utils.naive_datetime import utcnow_naive
-
-# Models load config via load_env(), which omits test_config.yaml, so the
-# production PS1 URL leaks in. Empty it so in-process thumbnail builds skip the
-# real ps1images.stsci.edu call (it can hang ~18 min when STScI is unreachable).
-_obj_cfg["app"]["ps1_cutout_url"] = ""
 
 # Add a "test factory" User so that all factory-generated comments have a
 # proper author, if it doesn't already exist (the user may already be in
@@ -378,6 +366,41 @@ def public_groupstream(public_group):
             sa.select(GroupStream).filter(
                 GroupStream.group_id == public_group.id,
                 GroupStream.stream_id == public_group.streams[0].id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_team(public_group):
+    from skyportal.models import Team
+
+    team = Team(name=str(uuid.uuid4()), groups=[public_group])
+    DBSession().add(team)
+    DBSession().commit()
+    team_id = team.id
+    yield team
+    try:
+        obj = DBSession().get(Team, team_id)
+        if obj is not None:
+            DBSession().delete(obj)
+            DBSession().commit()
+    except Exception:
+        DBSession().rollback()
+
+
+@pytest.fixture()
+def public_group_team(public_team, public_group):
+    from skyportal.models import GroupTeam
+
+    return (
+        DBSession()
+        .execute(
+            sa.select(GroupTeam).filter(
+                GroupTeam.team_id == public_team.id,
+                GroupTeam.group_id == public_group.id,
             )
         )
         .scalars()
@@ -1317,6 +1340,17 @@ def group_admin_token(group_admin_user):
 
 
 @pytest.fixture()
+def manage_teams_token(group_admin_user):
+    token_id = create_token(
+        ACLs=["Manage teams", "Upload data"],
+        user_id=group_admin_user.id,
+        name=str(uuid.uuid4()),
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
 def manage_users_token(super_admin_user):
     token_id = create_token(
         ACLs=["Manage users", "Upload data"],
@@ -1450,6 +1484,88 @@ def public_group_sedm_allocation(sedm, public_group):
         pi=str(uuid.uuid4()),
         proposal_id=str(uuid.uuid4()),
         hours_allocated=100,
+        validity_ranges=[
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+    )
+    yield allocation
+    AllocationFactory.teardown(allocation)
+
+
+@pytest.fixture()
+def gemini_north_instrument(p60_telescope):
+    instrument = InstrumentFactory(
+        name=f"Gemini North_{uuid.uuid4()}",
+        type="imaging spectrograph",
+        telescope=p60_telescope,
+        band="Optical",
+        filters=["sdssg", "sdssr", "sdssi"],
+        api_classname="GEMINIAPI",
+    )
+    yield instrument
+    InstrumentFactory.teardown(instrument)
+
+
+@pytest.fixture()
+def public_group_gemini_allocation(gemini_north_instrument, public_group):
+    allocation = AllocationFactory(
+        instrument=gemini_north_instrument,
+        group=public_group,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
+        altdata=json.dumps(
+            {
+                "user_email": "dummy@example.com",
+                "user_key": "dummy-key",
+                "programid": "GN-2026A-Q-102",
+                "template_ids": [21],
+            }
+        ),
+        validity_ranges=[
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+    )
+    yield allocation
+    AllocationFactory.teardown(allocation)
+
+
+@pytest.fixture()
+def winter_instrument(p60_telescope):
+    instrument = InstrumentFactory(
+        name=f"WINTER_{uuid.uuid4()}",
+        type="imager",
+        telescope=p60_telescope,
+        band="NIR",
+        filters=["sdssg", "sdssr", "sdssi"],
+        api_classname="WINTERAPI",
+    )
+    yield instrument
+    InstrumentFactory.teardown(instrument)
+
+
+@pytest.fixture()
+def public_group_winter_allocation(winter_instrument, public_group):
+    allocation = AllocationFactory(
+        instrument=winter_instrument,
+        group=public_group,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
+        altdata=json.dumps(
+            {
+                "program_name": "dummy-program",
+                "program_api_key": "dummy-key",
+                "username": "dummy-user",
+                "password": "dummy-pass",
+            }
+        ),
         validity_ranges=[
             {
                 "start_date": "2021-02-27T00:00:00.000Z",
@@ -1710,13 +1826,6 @@ def public_comment(user_no_groups, public_source, public_group):
     )
     yield comment
     CommentFactory.teardown(comment)
-
-
-@pytest.fixture()
-def public_comment_on_gcn(gcn, public_group):
-    comment = CommentOnGCNFactory(gcn=gcn, groups=[public_group])
-    yield comment
-    CommentOnGCNFactory.teardown(comment)
 
 
 @pytest.fixture()
@@ -2311,11 +2420,7 @@ def photometric_series_undetected(
     user, public_source, public_group, public_group2, ztf_camera, phot_series_maker
 ):
     df = phot_series_maker(number=100, use_mags=False, format="pandas")
-    # Force all fluxes negative so no point's SNR can exceed the detection
-    # threshold (is_detected = any snr > threshold). The previous symmetric
-    # noise occasionally produced a high-SNR point, making this "undetected"
-    # series flakily come back detected.
-    df["flux"] = -np.abs(np.random.normal(-50, 50, 100))
+    df["flux"] = np.random.normal(-50, 50, 100)
 
     data = {
         "obj_id": public_source.id,
@@ -2355,49 +2460,8 @@ def photometric_series_undetected(
 
 
 # ---------------------------------------------------------------------------
-# Auto-generated permission-coverage fixtures (burn-down of KNOWN_UNCOVERED).
-# One per access-controlled model; used by tests/models/test_permissions.py.
+# Auto-generated permission-coverage fixtures (ground-truth probed subset).
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture()
-def public_allocation_user(public_group, user):
-    allocation = AllocationFactory(group=public_group)
-    DBSession().commit()
-    allocation_id = allocation.id
-    instrument = allocation.instrument
-
-    allocation_user = AllocationUser(
-        allocation_id=allocation_id,
-        user_id=user.id,
-    )
-    DBSession().add(allocation_user)
-    DBSession().commit()
-    allocation_user_id = allocation_user.id
-    yield allocation_user
-
-    au = (
-        DBSession()
-        .execute(
-            sa.select(AllocationUser).filter(AllocationUser.id == allocation_user_id)
-        )
-        .scalars()
-        .first()
-    )
-    if au is not None:
-        DBSession().delete(au)
-        DBSession().commit()
-
-    alloc = (
-        DBSession()
-        .execute(sa.select(Allocation).filter(Allocation.id == allocation_id))
-        .scalars()
-        .first()
-    )
-    if alloc is not None:
-        DBSession().delete(alloc)
-        DBSession().commit()
-        InstrumentFactory.teardown(instrument)
 
 
 @pytest.fixture()
@@ -2491,8 +2555,6 @@ def public_annotation_on_spectrum(public_source, public_group, user):
 
 @pytest.fixture()
 def public_catalog_query(public_group, user):
-    from skyportal.models import Allocation, CatalogQuery
-
     # Build an Instrument (+ Telescope) inline via the factory; associate the
     # Allocation with public_group so row-level access is meaningful.
     instrument = InstrumentFactory()
@@ -2610,9 +2672,9 @@ def public_comment_on_earthquake(public_group, user):
 
 
 @pytest.fixture()
-def public_comment_on_gcn(public_group, user):
+def public_comment_on_gcn_perm(public_group, user):
     gcn_event = GcnEvent(
-        dateobs=datetime.utcnow(),
+        dateobs=utcnow_naive(),
         sent_by_id=user.id,
     )
     DBSession.add(gcn_event)
@@ -2651,50 +2713,13 @@ def public_comment_on_gcn(public_group, user):
 
 
 @pytest.fixture()
-def public_comment_on_shift(public_group, user):
-    shift = Shift(
-        name=str(uuid.uuid4()),
-        start_date=datetime.datetime.utcnow(),
-        end_date=datetime.datetime.utcnow() + datetime.timedelta(days=1),
-        group_id=public_group.id,
-    )
-    DBSession.add(shift)
-    DBSession.commit()
-    shift_id = shift.id
-
-    comment = CommentOnShift(
-        text=str(uuid.uuid4()),
-        shift_id=shift_id,
-        author_id=user.id,
-        bot=False,
-    )
-    comment.groups = [public_group]
-    DBSession.add(comment)
-    DBSession.commit()
-    comment_id = comment.id
-    yield comment
-    for model, ident in ((CommentOnShift, comment_id), (Shift, shift_id)):
-        row = (
-            DBSession()
-            .execute(sa.select(model).filter(model.id == ident))
-            .scalars()
-            .first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
-
-
-@pytest.fixture()
 def public_comment_on_spectrum(public_source, public_group, user):
-    from skyportal.models import CommentOnSpectrum, Spectrum
-
     instrument = InstrumentFactory()
     spectrum = Spectrum(
         wavelengths=np.array([5000.0, 5100.0, 5200.0]),
         fluxes=np.array([1.0, 2.0, 3.0]),
         obj_id=public_source.id,
-        observed_at=datetime.utcnow(),
+        observed_at=utcnow_naive(),
         type="source",
         instrument_id=instrument.id,
         owner_id=user.id,
@@ -2907,8 +2932,6 @@ def public_default_gcn_tag(user):
 
 @pytest.fixture()
 def public_default_observation_plan_request(public_group, user):
-    from skyportal.models import DefaultObservationPlanRequest
-
     allocation = AllocationFactory(
         group=public_group,
         pi=str(uuid.uuid4()),
@@ -2951,7 +2974,6 @@ def public_default_observation_plan_request(public_group, user):
 @pytest.fixture()
 def public_default_observation_plan_request_target_group(public_group, user):
     from skyportal.models.observation_plan import (
-        DefaultObservationPlanRequest,
         DefaultObservationPlanRequestTargetGroup,
     )
 
@@ -3026,82 +3048,6 @@ def public_default_observation_plan_request_target_group(public_group, user):
 
 
 @pytest.fixture()
-def public_default_survey_efficiency_request(public_group):
-    # Build the parent DefaultObservationPlanRequest chain inline.
-    # Telescope -> Instrument -> Allocation (scoped to public_group) ->
-    # DefaultObservationPlanRequest -> DefaultSurveyEfficiencyRequest.
-    telescope = TelescopeFactory(
-        name=f"Telescope_{uuid.uuid4()}",
-        nickname=f"Scope_{uuid.uuid4()}",
-        lat=0.0,
-        lon=0.0,
-        elevation=0.0,
-        diameter=1.0,
-    )
-    telescope_id = telescope.id
-
-    instrument = InstrumentFactory(
-        name=f"Instrument_{uuid.uuid4()}",
-        type="imaging spectrograph",
-        telescope=telescope,
-        band="Optical",
-        filters=["sdssu", "sdssg", "sdssr", "sdssi"],
-        api_classname="GENERICAPI",
-    )
-
-    allocation = AllocationFactory(
-        instrument=instrument,
-        group=public_group,
-        pi=str(uuid.uuid4()),
-        proposal_id=str(uuid.uuid4()),
-        hours_allocated=100,
-        validity_ranges=[
-            {
-                "start_date": "2021-02-27T00:00:00.000Z",
-                "end_date": "3021-07-20T00:00:00.000Z",
-            }
-        ],
-    )
-
-    default_obs_plan = DefaultObservationPlanRequest(
-        payload={},
-        allocation_id=allocation.id,
-        default_plan_name=str(uuid.uuid4()),
-    )
-    DBSession.add(default_obs_plan)
-    DBSession.commit()
-    default_obs_plan_id = default_obs_plan.id
-
-    default_survey_efficiency = DefaultSurveyEfficiencyRequest(
-        default_observationplan_request_id=default_obs_plan_id,
-        payload={},
-    )
-    DBSession.add(default_survey_efficiency)
-    DBSession.commit()
-    default_survey_efficiency_id = default_survey_efficiency.id
-
-    yield default_survey_efficiency
-
-    for model, ident in (
-        (DefaultSurveyEfficiencyRequest, default_survey_efficiency_id),
-        (DefaultObservationPlanRequest, default_obs_plan_id),
-    ):
-        row = (
-            DBSession()
-            .execute(sa.select(model).filter(model.id == ident))
-            .scalars()
-            .first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
-
-    AllocationFactory.teardown(allocation)
-    InstrumentFactory.teardown(instrument)
-    TelescopeFactory.teardown(telescope_id)
-
-
-@pytest.fixture()
 def public_earthquake_event(user):
     event = EarthquakeEvent(
         event_id=str(uuid.uuid4()),
@@ -3125,9 +3071,6 @@ def public_earthquake_event(user):
 
 @pytest.fixture()
 def public_earthquake_measured(user):
-    from skyportal.models import EarthquakeEvent, MMADetector
-    from skyportal.models.earthquake import EarthquakeMeasured
-
     event = EarthquakeEvent(
         event_id=str(uuid.uuid4()),
         status="initial",
@@ -3193,7 +3136,7 @@ def public_earthquake_notice(user):
         lon=0.0,
         depth=0.0,
         magnitude=5.0,
-        date=datetime.utcnow(),
+        date=utcnow_naive(),
     )
     DBSession.add(notice)
     DBSession.commit()
@@ -3289,107 +3232,7 @@ def public_earthquake_prediction(user):
 
 
 @pytest.fixture()
-def public_event_observation_plan(public_group, user):
-    # Build the parent chain inline: Instrument (+Telescope) and Allocation via
-    # factories, a GcnEvent with a Localization, then an ObservationPlanRequest,
-    # and finally the EventObservationPlan itself.
-    allocation = AllocationFactory(group=public_group)
-    instrument = allocation.instrument
-
-    dateobs = datetime.utcnow()
-    gcnevent = GcnEventFactory(dateobs=dateobs, sent_by=user)
-
-    localization = LocalizationFactory(
-        dateobs=dateobs,
-        sent_by=user,
-        localization_name=str(uuid.uuid4().hex),
-    )
-    DBSession().add(localization)
-    DBSession().commit()
-
-    request = ObservationPlanRequest(
-        requester_id=user.id,
-        gcnevent_id=gcnevent.id,
-        localization_id=localization.id,
-        allocation_id=allocation.id,
-        payload={},
-        status="pending submission",
-    )
-    DBSession().add(request)
-    DBSession().commit()
-
-    plan = EventObservationPlan(
-        observation_plan_request_id=request.id,
-        instrument_id=instrument.id,
-        dateobs=dateobs,
-        plan_name=str(uuid.uuid4()),
-        validity_window_start=dateobs,
-        validity_window_end=dateobs + timedelta(days=1),
-        status="pending submission",
-    )
-    DBSession().add(plan)
-    DBSession().commit()
-
-    plan_id = plan.id
-    request_id = request.id
-    localization_id = localization.id
-
-    yield plan
-
-    plan_obj = (
-        DBSession()
-        .execute(
-            sa.select(EventObservationPlan).filter(EventObservationPlan.id == plan_id)
-        )
-        .scalars()
-        .first()
-    )
-    if plan_obj is not None:
-        DBSession().delete(plan_obj)
-        DBSession().commit()
-
-    request_obj = (
-        DBSession()
-        .execute(
-            sa.select(ObservationPlanRequest).filter(
-                ObservationPlanRequest.id == request_id
-            )
-        )
-        .scalars()
-        .first()
-    )
-    if request_obj is not None:
-        DBSession().delete(request_obj)
-        DBSession().commit()
-
-    localization_obj = (
-        DBSession()
-        .execute(sa.select(Localization).filter(Localization.id == localization_id))
-        .scalars()
-        .first()
-    )
-    if localization_obj is not None:
-        LocalizationFactory.teardown(localization_obj)
-
-    GcnEventFactory.teardown(gcnevent)
-    AllocationFactory.teardown(allocation)
-
-
-@pytest.fixture()
 def public_event_observation_plan_statistics(public_group, super_admin_user):
-    from datetime import datetime, timedelta
-
-    from skyportal.models import (
-        Allocation,
-        EventObservationPlan,
-        EventObservationPlanStatistics,
-        GcnEvent,
-        Instrument,
-        Localization,
-        ObservationPlanRequest,
-        Telescope,
-    )
-
     # Build the full dependency chain inline:
     # Telescope -> Instrument -> Allocation -> GcnEvent -> Localization
     # -> ObservationPlanRequest -> EventObservationPlan -> Statistics
@@ -3427,7 +3270,7 @@ def public_event_observation_plan_statistics(public_group, super_admin_user):
     DBSession.commit()
     allocation_id = allocation.id
 
-    dateobs = datetime.utcnow().replace(microsecond=0)
+    dateobs = utcnow_naive().replace(microsecond=0)
     gcnevent = GcnEvent(
         dateobs=dateobs,
         sent_by_id=super_admin_user.id,
@@ -3504,33 +3347,6 @@ def public_event_observation_plan_statistics(public_group, super_admin_user):
         if row is not None:
             DBSession().delete(row)
             DBSession().commit()
-
-
-@pytest.fixture()
-def public_facility_transaction(user):
-    transaction = FacilityTransaction(
-        created_at=datetime.datetime.utcnow(),
-        request={"method": "POST", "endpoint": str(uuid.uuid4())},
-        response={"status": 200, "content": str(uuid.uuid4())},
-        initiator_id=user.id,
-    )
-    DBSession.add(transaction)
-    DBSession.commit()
-    transaction_id = transaction.id
-    yield transaction
-    obj = (
-        DBSession()
-        .execute(
-            sa.select(FacilityTransaction).filter(
-                FacilityTransaction.id == transaction_id
-            )
-        )
-        .scalars()
-        .first()
-    )
-    if obj is not None:
-        DBSession().delete(obj)
-        DBSession().commit()
 
 
 @pytest.fixture()
@@ -3659,36 +3475,6 @@ def public_followup_request_user(public_group, public_source, user):
 
 
 @pytest.fixture()
-def public_galaxy():
-    catalog = GalaxyCatalog(name=str(uuid.uuid4()))
-    DBSession.add(catalog)
-    DBSession.commit()
-    catalog_id = catalog.id
-    galaxy = Galaxy(
-        catalog_id=catalog_id,
-        name=str(uuid.uuid4()),
-        ra=30.0,
-        dec=45.0,
-        distmpc=100.0,
-        redshift=0.02,
-    )
-    DBSession.add(galaxy)
-    DBSession.commit()
-    galaxy_id = galaxy.id
-    yield galaxy
-    for model, ident in ((Galaxy, galaxy_id), (GalaxyCatalog, catalog_id)):
-        row = (
-            DBSession()
-            .execute(sa.select(model).filter(model.id == ident))
-            .scalars()
-            .first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
-
-
-@pytest.fixture()
 def public_galaxy_catalog():
     catalog = GalaxyCatalog(
         name=str(uuid.uuid4()),
@@ -3713,13 +3499,9 @@ def public_galaxy_catalog():
 @pytest.fixture()
 def public_gcnevent(user):
     gcnevent = GcnEvent(
-        dateobs=datetime.utcnow(),
+        dateobs=utcnow_naive(),
         sent_by_id=user.id,
         trigger_id=str(uuid.uuid4().int)[:10],
-        aliases=[],
-        circulars={},
-        gracedb_log={},
-        gracedb_labels={},
     )
     DBSession.add(gcnevent)
     DBSession.commit()
@@ -3738,13 +3520,8 @@ def public_gcnevent(user):
 
 @pytest.fixture()
 def public_gcn_event_mmadetector(user):
-    from datetime import datetime
-
-    from skyportal.models.gcn import GcnEvent
-    from skyportal.models.mmadetector import GcnEventMMADetector, MMADetector
-
     # GcnEvent.dateobs is unique; use a deterministic-but-unique value
-    dateobs = datetime.utcnow().replace(microsecond=int(uuid.uuid4().int % 1000000))
+    dateobs = utcnow_naive().replace(microsecond=int(uuid.uuid4().int % 1000000))
     event = GcnEvent(
         dateobs=dateobs,
         sent_by_id=user.id,
@@ -3816,9 +3593,7 @@ def public_gcnevent_user(user):
     )
     # dateobs must be a real datetime; use a unique time to satisfy the unique
     # constraint without colliding with other tests
-    gcnevent.dateobs = datetime.utcnow() + timedelta(
-        seconds=np.random.randint(0, 10**8)
-    )
+    gcnevent.dateobs = utcnow_naive() + timedelta(seconds=np.random.randint(0, 10**8))
     DBSession.add(gcnevent)
     DBSession.commit()
     gcnevent_id = gcnevent.id
@@ -3837,6 +3612,519 @@ def public_gcnevent_user(user):
         (GcnEventUser, gcnevent_user_id),
         (GcnEvent, gcnevent_id),
     ):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_gcn_property(public_group, user):
+    dateobs = utcnow_naive().replace(microsecond=0) + timedelta(
+        seconds=int(uuid.uuid4().int % 1000000)
+    )
+    gcnevent = GcnEvent(
+        dateobs=dateobs,
+        sent_by_id=user.id,
+    )
+    DBSession.add(gcnevent)
+    DBSession.commit()
+
+    gcn_property = GcnProperty(
+        dateobs=dateobs,
+        sent_by_id=user.id,
+        data={"test_property": 1.0},
+    )
+    DBSession.add(gcn_property)
+    DBSession.commit()
+    gcn_property_id = gcn_property.id
+    yield gcn_property
+    for model, ident, col in (
+        (GcnProperty, gcn_property_id, GcnProperty.id),
+        (GcnEvent, dateobs, GcnEvent.dateobs),
+    ):
+        row = (
+            DBSession().execute(sa.select(model).filter(col == ident)).scalars().first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_gcn_report(public_group, user):
+    # Create a parent GcnEvent inline (only sent_by_id and dateobs are required).
+    dateobs = utcnow_naive().replace(microsecond=0)
+    gcnevent = GcnEvent(
+        dateobs=dateobs,
+        sent_by_id=user.id,
+    )
+    DBSession.add(gcnevent)
+    DBSession.commit()
+
+    report = GcnReport(
+        sent_by_id=user.id,
+        dateobs=dateobs,
+        group_id=public_group.id,
+        data={},
+        report_name=str(uuid.uuid4()),
+        published=False,
+    )
+    DBSession.add(report)
+    DBSession.commit()
+    report_id = report.id
+    yield report
+    for model, ident, attr in (
+        (GcnReport, report_id, "id"),
+        (GcnEvent, dateobs, "dateobs"),
+    ):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(getattr(model, attr) == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_gcn_summary(public_group, user):
+    dateobs = datetime.now(UTC).replace(tzinfo=None)
+
+    gcnevent = GcnEvent(
+        dateobs=dateobs,
+        sent_by_id=user.id,
+    )
+    DBSession.add(gcnevent)
+    DBSession.commit()
+    event_dateobs = gcnevent.dateobs
+
+    summary = GcnSummary(
+        sent_by_id=user.id,
+        dateobs=event_dateobs,
+        group_id=public_group.id,
+        title=str(uuid.uuid4()),
+        text=str(uuid.uuid4()),
+    )
+    DBSession.add(summary)
+    DBSession.commit()
+    summary_id = summary.id
+    yield summary
+    for model, ident in ((GcnSummary, summary_id), (GcnEvent, event_dateobs)):
+        if model is GcnSummary:
+            row = (
+                DBSession()
+                .execute(sa.select(model).filter(model.id == ident))
+                .scalars()
+                .first()
+            )
+        else:
+            row = (
+                DBSession()
+                .execute(sa.select(model).filter(model.dateobs == ident))
+                .scalars()
+                .first()
+            )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_gcn_tag(public_group, user):
+    # GcnTag is keyed to a GcnEvent via the dateobs foreign key, so we
+    # create a parent GcnEvent inline (unique dateobs to avoid the unique
+    # constraint) and tear it down alongside the tag.
+    dateobs = utcnow_naive().replace(microsecond=0) + timedelta(
+        seconds=int(uuid.uuid4().int % 1000000)
+    )
+    gcnevent = GcnEvent(
+        dateobs=dateobs,
+        sent_by_id=user.id,
+    )
+    DBSession.add(gcnevent)
+    DBSession.commit()
+    gcnevent_id = gcnevent.id
+
+    tag = GcnTag(
+        dateobs=dateobs,
+        text=str(uuid.uuid4()),
+        sent_by_id=user.id,
+    )
+    DBSession.add(tag)
+    DBSession.commit()
+    tag_id = tag.id
+
+    yield tag
+
+    for model, ident in ((GcnTag, tag_id), (GcnEvent, gcnevent_id)):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_group_admission_request(public_group, user):
+    request = GroupAdmissionRequest(
+        user_id=user.id,
+        group_id=public_group.id,
+        status="pending",
+    )
+    DBSession.add(request)
+    DBSession.commit()
+    request_id = request.id
+    yield request
+    obj = (
+        DBSession()
+        .execute(
+            sa.select(GroupAdmissionRequest).filter(
+                GroupAdmissionRequest.id == request_id
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_group_analysis_service(public_group):
+    analysis_service = AnalysisService(
+        name=str(uuid.uuid4()),
+        display_name=str(uuid.uuid4()),
+        url="http://localhost:5000/analysis/" + str(uuid.uuid4()),
+        authentication_type="none",
+        analysis_type="lightcurve_fitting",
+    )
+    DBSession.add(analysis_service)
+    DBSession.commit()
+    analysis_service_id = analysis_service.id
+
+    group_analysis_service = GroupAnalysisService(
+        group_id=public_group.id,
+        analysis_service_id=analysis_service_id,
+    )
+    DBSession.add(group_analysis_service)
+    DBSession.commit()
+    group_analysis_service_id = group_analysis_service.id
+
+    yield group_analysis_service
+
+    for model, ident in (
+        (GroupAnalysisService, group_analysis_service_id),
+        (AnalysisService, analysis_service_id),
+    ):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_allocation_user(public_group, user):
+    allocation = AllocationFactory(group=public_group)
+    DBSession().commit()
+    allocation_id = allocation.id
+    instrument = allocation.instrument
+
+    allocation_user = AllocationUser(
+        allocation_id=allocation_id,
+        user_id=user.id,
+    )
+    DBSession().add(allocation_user)
+    DBSession().commit()
+    allocation_user_id = allocation_user.id
+    yield allocation_user
+
+    au = (
+        DBSession()
+        .execute(
+            sa.select(AllocationUser).filter(AllocationUser.id == allocation_user_id)
+        )
+        .scalars()
+        .first()
+    )
+    if au is not None:
+        DBSession().delete(au)
+        DBSession().commit()
+
+    alloc = (
+        DBSession()
+        .execute(sa.select(Allocation).filter(Allocation.id == allocation_id))
+        .scalars()
+        .first()
+    )
+    if alloc is not None:
+        DBSession().delete(alloc)
+        DBSession().commit()
+        InstrumentFactory.teardown(instrument)
+
+
+@pytest.fixture()
+def public_comment_on_shift(public_group, user):
+    shift = Shift(
+        name=str(uuid.uuid4()),
+        start_date=datetime.utcnow(),
+        end_date=datetime.utcnow() + timedelta(days=1),
+        group_id=public_group.id,
+    )
+    DBSession.add(shift)
+    DBSession.commit()
+    shift_id = shift.id
+
+    comment = CommentOnShift(
+        text=str(uuid.uuid4()),
+        shift_id=shift_id,
+        author_id=user.id,
+        bot=False,
+    )
+    comment.groups = [public_group]
+    DBSession.add(comment)
+    DBSession.commit()
+    comment_id = comment.id
+    yield comment
+    for model, ident in ((CommentOnShift, comment_id), (Shift, shift_id)):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_default_survey_efficiency_request(public_group):
+    # Build the parent DefaultObservationPlanRequest chain inline.
+    # Telescope -> Instrument -> Allocation (scoped to public_group) ->
+    # DefaultObservationPlanRequest -> DefaultSurveyEfficiencyRequest.
+    telescope = TelescopeFactory(
+        name=f"Telescope_{uuid.uuid4()}",
+        nickname=f"Scope_{uuid.uuid4()}",
+        lat=0.0,
+        lon=0.0,
+        elevation=0.0,
+        diameter=1.0,
+    )
+    telescope_id = telescope.id
+
+    instrument = InstrumentFactory(
+        name=f"Instrument_{uuid.uuid4()}",
+        type="imaging spectrograph",
+        telescope=telescope,
+        band="Optical",
+        filters=["sdssu", "sdssg", "sdssr", "sdssi"],
+        api_classname="GENERICAPI",
+    )
+
+    allocation = AllocationFactory(
+        instrument=instrument,
+        group=public_group,
+        pi=str(uuid.uuid4()),
+        proposal_id=str(uuid.uuid4()),
+        hours_allocated=100,
+        validity_ranges=[
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+    )
+
+    default_obs_plan = DefaultObservationPlanRequest(
+        payload={},
+        allocation_id=allocation.id,
+        default_plan_name=str(uuid.uuid4()),
+    )
+    DBSession.add(default_obs_plan)
+    DBSession.commit()
+    default_obs_plan_id = default_obs_plan.id
+
+    default_survey_efficiency = DefaultSurveyEfficiencyRequest(
+        default_observationplan_request_id=default_obs_plan_id,
+        payload={},
+    )
+    DBSession.add(default_survey_efficiency)
+    DBSession.commit()
+    default_survey_efficiency_id = default_survey_efficiency.id
+
+    yield default_survey_efficiency
+
+    for model, ident in (
+        (DefaultSurveyEfficiencyRequest, default_survey_efficiency_id),
+        (DefaultObservationPlanRequest, default_obs_plan_id),
+    ):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+    AllocationFactory.teardown(allocation)
+    InstrumentFactory.teardown(instrument)
+    TelescopeFactory.teardown(telescope_id)
+
+
+@pytest.fixture()
+def public_event_observation_plan(public_group, user):
+    # Build the parent chain inline: Instrument (+Telescope) and Allocation via
+    # factories, a GcnEvent with a Localization, then an ObservationPlanRequest,
+    # and finally the EventObservationPlan itself.
+    allocation = AllocationFactory(group=public_group)
+    instrument = allocation.instrument
+
+    dateobs = datetime.utcnow()
+    gcnevent = GcnEventFactory(dateobs=dateobs, sent_by=user)
+
+    localization = LocalizationFactory(
+        dateobs=dateobs,
+        sent_by=user,
+        localization_name=str(uuid.uuid4().hex),
+        notice_id=None,
+    )
+    DBSession().add(localization)
+    DBSession().commit()
+
+    request = ObservationPlanRequest(
+        requester_id=user.id,
+        gcnevent_id=gcnevent.id,
+        localization_id=localization.id,
+        allocation_id=allocation.id,
+        payload={},
+        status="pending submission",
+    )
+    DBSession().add(request)
+    DBSession().commit()
+
+    plan = EventObservationPlan(
+        observation_plan_request_id=request.id,
+        instrument_id=instrument.id,
+        dateobs=dateobs,
+        plan_name=str(uuid.uuid4()),
+        validity_window_start=dateobs,
+        validity_window_end=dateobs + timedelta(days=1),
+        status="pending submission",
+    )
+    DBSession().add(plan)
+    DBSession().commit()
+
+    plan_id = plan.id
+    request_id = request.id
+    localization_id = localization.id
+
+    yield plan
+
+    plan_obj = (
+        DBSession()
+        .execute(
+            sa.select(EventObservationPlan).filter(EventObservationPlan.id == plan_id)
+        )
+        .scalars()
+        .first()
+    )
+    if plan_obj is not None:
+        DBSession().delete(plan_obj)
+        DBSession().commit()
+
+    request_obj = (
+        DBSession()
+        .execute(
+            sa.select(ObservationPlanRequest).filter(
+                ObservationPlanRequest.id == request_id
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if request_obj is not None:
+        DBSession().delete(request_obj)
+        DBSession().commit()
+
+    localization_obj = (
+        DBSession()
+        .execute(sa.select(Localization).filter(Localization.id == localization_id))
+        .scalars()
+        .first()
+    )
+    if localization_obj is not None:
+        LocalizationFactory.teardown(localization_obj)
+
+    GcnEventFactory.teardown(gcnevent)
+    AllocationFactory.teardown(allocation)
+
+
+@pytest.fixture()
+def public_facility_transaction(user):
+    transaction = FacilityTransaction(
+        created_at=datetime.utcnow(),
+        request={"method": "POST", "endpoint": str(uuid.uuid4())},
+        response={"status": 200, "content": str(uuid.uuid4())},
+        initiator_id=user.id,
+    )
+    DBSession.add(transaction)
+    DBSession.commit()
+    transaction_id = transaction.id
+    yield transaction
+    obj = (
+        DBSession()
+        .execute(
+            sa.select(FacilityTransaction).filter(
+                FacilityTransaction.id == transaction_id
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_galaxy():
+    catalog = GalaxyCatalog(name=str(uuid.uuid4()))
+    DBSession.add(catalog)
+    DBSession.commit()
+    catalog_id = catalog.id
+    galaxy = Galaxy(
+        catalog_id=catalog_id,
+        name=str(uuid.uuid4()),
+        ra=30.0,
+        dec=45.0,
+        distmpc=100.0,
+        redshift=0.02,
+    )
+    DBSession.add(galaxy)
+    DBSession.commit()
+    galaxy_id = galaxy.id
+    yield galaxy
+    for model, ident in ((Galaxy, galaxy_id), (GalaxyCatalog, catalog_id)):
         row = (
             DBSession()
             .execute(sa.select(model).filter(model.id == ident))
@@ -3886,164 +4174,6 @@ def public_gcn_notice(user):
                     else (GcnEvent.dateobs == ident)
                 )
             )
-            .scalars()
-            .first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
-
-
-@pytest.fixture()
-def public_gcn_property(public_group, user):
-    dateobs = datetime.utcnow().replace(microsecond=0) + timedelta(
-        seconds=int(uuid.uuid4().int % 1000000)
-    )
-    gcnevent = GcnEvent(
-        dateobs=dateobs,
-        sent_by_id=user.id,
-    )
-    DBSession.add(gcnevent)
-    DBSession.commit()
-
-    gcn_property = GcnProperty(
-        dateobs=dateobs,
-        sent_by_id=user.id,
-        data={"test_property": 1.0},
-    )
-    DBSession.add(gcn_property)
-    DBSession.commit()
-    gcn_property_id = gcn_property.id
-    yield gcn_property
-    for model, ident, col in (
-        (GcnProperty, gcn_property_id, GcnProperty.id),
-        (GcnEvent, dateobs, GcnEvent.dateobs),
-    ):
-        row = (
-            DBSession().execute(sa.select(model).filter(col == ident)).scalars().first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
-
-
-@pytest.fixture()
-def public_gcn_report(public_group, user):
-    # Create a parent GcnEvent inline (only sent_by_id and dateobs are required).
-    dateobs = datetime.utcnow().replace(microsecond=0)
-    gcnevent = GcnEvent(
-        dateobs=dateobs,
-        sent_by_id=user.id,
-    )
-    DBSession.add(gcnevent)
-    DBSession.commit()
-
-    report = GcnReport(
-        sent_by_id=user.id,
-        dateobs=dateobs,
-        group_id=public_group.id,
-        data={},
-        report_name=str(uuid.uuid4()),
-        published=False,
-    )
-    DBSession.add(report)
-    DBSession.commit()
-    report_id = report.id
-    yield report
-    for model, ident, attr in (
-        (GcnReport, report_id, "id"),
-        (GcnEvent, dateobs, "dateobs"),
-    ):
-        row = (
-            DBSession()
-            .execute(sa.select(model).filter(getattr(model, attr) == ident))
-            .scalars()
-            .first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
-
-
-@pytest.fixture()
-def public_gcn_summary(public_group, user):
-    from datetime import datetime, timezone
-
-    from skyportal.models import GcnEvent, GcnSummary
-
-    dateobs = datetime.now(UTC).replace(tzinfo=None)
-
-    gcnevent = GcnEvent(
-        dateobs=dateobs,
-        sent_by_id=user.id,
-        aliases=[],
-    )
-    DBSession.add(gcnevent)
-    DBSession.commit()
-    event_dateobs = gcnevent.dateobs
-
-    summary = GcnSummary(
-        sent_by_id=user.id,
-        dateobs=event_dateobs,
-        group_id=public_group.id,
-        title=str(uuid.uuid4()),
-        text=str(uuid.uuid4()),
-    )
-    DBSession.add(summary)
-    DBSession.commit()
-    summary_id = summary.id
-    yield summary
-    for model, ident in ((GcnSummary, summary_id), (GcnEvent, event_dateobs)):
-        if model is GcnSummary:
-            row = (
-                DBSession()
-                .execute(sa.select(model).filter(model.id == ident))
-                .scalars()
-                .first()
-            )
-        else:
-            row = (
-                DBSession()
-                .execute(sa.select(model).filter(model.dateobs == ident))
-                .scalars()
-                .first()
-            )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
-
-
-@pytest.fixture()
-def public_gcn_tag(public_group, user):
-    # GcnTag is keyed to a GcnEvent via the dateobs foreign key, so we
-    # create a parent GcnEvent inline (unique dateobs to avoid the unique
-    # constraint) and tear it down alongside the tag.
-    dateobs = datetime.utcnow().replace(microsecond=0) + timedelta(
-        seconds=int(uuid.uuid4().int % 1000000)
-    )
-    gcnevent = GcnEvent(
-        dateobs=dateobs,
-        sent_by_id=user.id,
-    )
-    DBSession.add(gcnevent)
-    DBSession.commit()
-    gcnevent_id = gcnevent.id
-
-    tag = GcnTag(
-        dateobs=dateobs,
-        text=str(uuid.uuid4()),
-        sent_by_id=user.id,
-    )
-    DBSession.add(tag)
-    DBSession.commit()
-    tag_id = tag.id
-
-    yield tag
-
-    for model, ident in ((GcnTag, tag_id), (GcnEvent, gcnevent_id)):
-        row = (
-            DBSession()
-            .execute(sa.select(model).filter(model.id == ident))
             .scalars()
             .first()
         )
@@ -4133,74 +4263,9 @@ def public_gcn_trigger(public_group, user):
 
 
 @pytest.fixture()
-def public_group_admission_request(public_group, user):
-    request = GroupAdmissionRequest(
-        user_id=user.id,
-        group_id=public_group.id,
-        status="pending",
-    )
-    DBSession.add(request)
-    DBSession.commit()
-    request_id = request.id
-    yield request
-    obj = (
-        DBSession()
-        .execute(
-            sa.select(GroupAdmissionRequest).filter(
-                GroupAdmissionRequest.id == request_id
-            )
-        )
-        .scalars()
-        .first()
-    )
-    if obj is not None:
-        DBSession().delete(obj)
-        DBSession().commit()
-
-
-@pytest.fixture()
-def public_group_analysis_service(public_group):
-    analysis_service = AnalysisService(
-        name=str(uuid.uuid4()),
-        display_name=str(uuid.uuid4()),
-        url="http://localhost:5000/analysis/" + str(uuid.uuid4()),
-        authentication_type="none",
-        analysis_type="lightcurve_fitting",
-    )
-    DBSession.add(analysis_service)
-    DBSession.commit()
-    analysis_service_id = analysis_service.id
-
-    group_analysis_service = GroupAnalysisService(
-        group_id=public_group.id,
-        analysis_service_id=analysis_service_id,
-    )
-    DBSession.add(group_analysis_service)
-    DBSession.commit()
-    group_analysis_service_id = group_analysis_service.id
-
-    yield group_analysis_service
-
-    for model, ident in (
-        (GroupAnalysisService, group_analysis_service_id),
-        (AnalysisService, analysis_service_id),
-    ):
-        row = (
-            DBSession()
-            .execute(sa.select(model).filter(model.id == ident))
-            .scalars()
-            .first()
-        )
-        if row is not None:
-            DBSession().delete(row)
-            DBSession().commit()
-
-
-@pytest.fixture()
 def public_group_annotation_on_photometry(public_group, public_source, user):
     # Build an Instrument (+ Telescope) inline for the Photometry parent.
     instrument = InstrumentFactory()
-    telescope = instrument.telescope
 
     # Photometry parent, shared with public_group and owned by `user`
     # so that group members and the owner can read it.
@@ -4235,7 +4300,7 @@ def public_group_annotation_on_photometry(public_group, public_source, user):
     # The join row coupling the Group and the AnnotationOnPhotometry.
     join = models.GroupAnnotationOnPhotometry(
         group_id=public_group.id,
-        annotationonphotometr_id=annotation_id,
+        annotations_on_photometr_id=annotation_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -4274,7 +4339,6 @@ def public_group_annotation_on_spectrum(public_group, public_source, user):
         instrument_id=instrument.id,
         owner_id=user.id,
         type="source",
-        groups=[public_group],
     )
     DBSession.add(spectrum)
     DBSession.commit()
@@ -4286,7 +4350,6 @@ def public_group_annotation_on_spectrum(public_group, public_source, user):
         author_id=user.id,
         origin=str(uuid.uuid4()),
         data={"value": 1.0},
-        groups=[public_group],
     )
     DBSession.add(annotation)
     DBSession.commit()
@@ -4294,7 +4357,7 @@ def public_group_annotation_on_spectrum(public_group, public_source, user):
 
     join = GroupAnnotationOnSpectrum(
         group_id=public_group.id,
-        annotationonspectrum_id=annotation_id,
+        annotations_on_spectr_id=annotation_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -4336,7 +4399,6 @@ def public_group_comment_on_earthquake(public_group, user):
         bot=False,
         earthquake_id=earthquake_id,
         author_id=user.id,
-        groups=[public_group],
     )
     DBSession.add(comment)
     DBSession.commit()
@@ -4344,7 +4406,7 @@ def public_group_comment_on_earthquake(public_group, user):
 
     group_comment = GroupCommentOnEarthquake(
         group_id=public_group.id,
-        commentonearthquake_id=comment_id,
+        comments_on_earthquake_id=comment_id,
     )
     DBSession.add(group_comment)
     DBSession.commit()
@@ -4372,7 +4434,7 @@ def public_group_comment_on_earthquake(public_group, user):
 def public_group_comment_on_gcn(public_group, user):
     # Create a parent GcnEvent inline (GcnEvent read/create is public).
     gcn_event = GcnEvent(
-        dateobs=datetime.utcnow(),
+        dateobs=utcnow_naive(),
         sent_by_id=user.id,
     )
     DBSession.add(gcn_event)
@@ -4385,7 +4447,6 @@ def public_group_comment_on_gcn(public_group, user):
         bot=False,
         author_id=user.id,
         gcn_id=gcn_event_id,
-        groups=[public_group],
     )
     DBSession.add(comment)
     DBSession.commit()
@@ -4394,7 +4455,7 @@ def public_group_comment_on_gcn(public_group, user):
     # Create the join row linking the Group and the CommentOnGCN.
     group_comment = GroupCommentOnGCN(
         group_id=public_group.id,
-        commentongcn_id=comment_id,
+        comments_on_gcn_id=comment_id,
     )
     DBSession.add(group_comment)
     DBSession.commit()
@@ -4439,15 +4500,11 @@ def public_group_comment_on_gcn(public_group, user):
 
 @pytest.fixture()
 def public_group_comment_on_shift(public_group, user):
-    from datetime import datetime, timedelta
-
-    from skyportal.models import CommentOnShift, GroupCommentOnShift, Shift
-
     shift = Shift(
         name=str(uuid.uuid4()),
         group_id=public_group.id,
-        start_date=datetime.utcnow(),
-        end_date=datetime.utcnow() + timedelta(days=1),
+        start_date=utcnow_naive(),
+        end_date=utcnow_naive() + timedelta(days=1),
     )
     DBSession.add(shift)
     DBSession.commit()
@@ -4459,14 +4516,13 @@ def public_group_comment_on_shift(public_group, user):
         author_id=user.id,
         bot=False,
     )
-    comment.groups = [public_group]
     DBSession.add(comment)
     DBSession.commit()
     comment_id = comment.id
 
     group_comment = GroupCommentOnShift(
         group_id=public_group.id,
-        commentonshift_id=comment_id,
+        comments_on_shift_id=comment_id,
     )
     DBSession.add(group_comment)
     DBSession.commit()
@@ -4492,16 +4548,12 @@ def public_group_comment_on_shift(public_group, user):
 
 @pytest.fixture()
 def public_group_comment_on_spectrum(public_group, public_source, user):
-    from skyportal.models import CommentOnSpectrum, GroupCommentOnSpectrum
-    from skyportal.tests.fixtures import SpectrumFactory
-
     # Parent 1: a Spectrum on the public_source's obj, visible to public_group.
     # SpectrumFactory creates (and tears down) its own Instrument/Telescope and
     # the reducer/observer users; we just attach the obj, group, and owner.
     spectrum = SpectrumFactory(
         obj=public_source,
         groups=[public_group],
-        owner=user,
     )
     DBSession().add(spectrum)
     DBSession().commit()
@@ -4512,7 +4564,6 @@ def public_group_comment_on_spectrum(public_group, public_source, user):
         obj_id=public_source.id,
         spectrum_id=spectrum.id,
         author=user,
-        groups=[public_group],
         bot=False,
     )
     DBSession().add(comment)
@@ -4521,7 +4572,7 @@ def public_group_comment_on_spectrum(public_group, public_source, user):
     # The join row coupling public_group <-> the CommentOnSpectrum.
     join = GroupCommentOnSpectrum(
         group_id=public_group.id,
-        commentonspectrum_id=comment.id,
+        comments_on_spectr_id=comment.id,
     )
     DBSession().add(join)
     DBSession().commit()
@@ -4594,7 +4645,7 @@ def public_group_default_analysis(public_group, user):
 
     group_default_analysis = GroupDefaultAnalysis(
         group_id=public_group.id,
-        defaultanalysis_id=default_analysis_id,
+        default_analyse_id=default_analysis_id,
     )
     DBSession.add(group_default_analysis)
     DBSession.commit()
@@ -4679,7 +4730,7 @@ def public_group_mmadetector_spectrum(public_group, user):
 
     join = GroupMMADetectorSpectrum(
         group_id=public_group.id,
-        mmadetectorspectrum_id=spectrum_id,
+        detector_spectr_id=spectrum_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -4719,7 +4770,6 @@ def public_group_mmadetector_time_interval(public_group, user):
         detector_id=detector_id,
         owner_id=user.id,
     )
-    time_interval.groups = [public_group]
     DBSession.add(time_interval)
     DBSession.commit()
     time_interval_id = time_interval.id
@@ -4752,8 +4802,6 @@ def public_group_mmadetector_time_interval(public_group, user):
 
 @pytest.fixture()
 def public_group_obj_analysis(public_group, public_source, user):
-    from skyportal.models import AnalysisService, GroupObjAnalysis, ObjAnalysis
-
     # Inline parent: AnalysisService required by ObjAnalysis (analysis_service_id).
     analysis_service = AnalysisService(
         name=str(uuid.uuid4()),
@@ -4762,7 +4810,6 @@ def public_group_obj_analysis(public_group, public_source, user):
         authentication_type="none",
         analysis_type="lightcurve_fitting",
         input_data_types=[],
-        groups=[public_group],
     )
     DBSession.add(analysis_service)
     DBSession.commit()
@@ -4777,7 +4824,6 @@ def public_group_obj_analysis(public_group, public_source, user):
         analysis_service_id=analysis_service_id,
         handled_by_url="/api/webhook/obj_analysis",
         status="completed",
-        groups=[public_group],
     )
     DBSession.add(obj_analysis)
     DBSession.commit()
@@ -4785,7 +4831,7 @@ def public_group_obj_analysis(public_group, public_source, user):
 
     group_obj_analysis = GroupObjAnalysis(
         group_id=public_group.id,
-        objanalysis_id=obj_analysis_id,
+        obj_analyse_id=obj_analysis_id,
     )
     DBSession.add(group_obj_analysis)
     DBSession.commit()
@@ -4901,7 +4947,7 @@ def public_group_photometric_series(user, public_source, public_group):
         .execute(
             sa.select(GroupPhotometricSeries).filter(
                 GroupPhotometricSeries.group_id == public_group.id,
-                GroupPhotometricSeries.photometricseries_id == ps_id,
+                GroupPhotometricSeries.photometric_serie_id == ps_id,
             )
         )
         .scalars()
@@ -4940,7 +4986,7 @@ def public_group_public_release(public_group):
 
     group_public_release = GroupPublicRelease(
         group_id=public_group.id,
-        public_release_id=release_id,
+        publicrelease_id=release_id,
     )
     DBSession.add(group_public_release)
     DBSession.commit()
@@ -4975,13 +5021,11 @@ def public_group_public_release(public_group):
 
 @pytest.fixture()
 def public_group_reminder(public_source, public_group, user):
-    from skyportal.models import GroupReminder, Reminder
-
     reminder = Reminder(
         text=str(uuid.uuid4()),
         obj_id=public_source.id,
         user_id=user.id,
-        next_reminder=datetime.utcnow(),
+        next_reminder=utcnow_naive(),
         reminder_delay=1.0,
         number_of_reminders=1,
         bot=False,
@@ -5017,8 +5061,6 @@ def public_group_reminder(public_source, public_group, user):
 
 @pytest.fixture()
 def public_group_reminder_on_earthquake(public_group, user):
-    from datetime import datetime, timezone
-
     # Parent 1: an EarthquakeEvent (read defaults to public)
     earthquake = EarthquakeEvent(
         event_id=str(uuid.uuid4()),
@@ -5039,7 +5081,6 @@ def public_group_reminder_on_earthquake(public_group, user):
         user_id=user.id,
         earthquake_id=earthquake_id,
     )
-    reminder.groups = [public_group]
     DBSession.add(reminder)
     DBSession.commit()
     reminder_id = reminder.id
@@ -5047,7 +5088,7 @@ def public_group_reminder_on_earthquake(public_group, user):
     # The join row linking the Group to the ReminderOnEarthquake
     group_reminder = GroupReminderOnEarthquake(
         group_id=public_group.id,
-        reminderonearthquake_id=reminder_id,
+        reminders_on_earthquake_id=reminder_id,
     )
     DBSession.add(group_reminder)
     DBSession.commit()
@@ -5076,7 +5117,7 @@ def public_group_reminder_on_gcn(public_group, user):
     # Minimal GcnEvent (read is public by default; only dateobs + sent_by_id required,
     # all JSONB/array required cols have server_defaults so no parquet/localization needed).
     gcnevent = GcnEvent(
-        dateobs=datetime.utcnow(),
+        dateobs=utcnow_naive(),
         trigger_id=str(uuid.uuid4().int)[:12],
         sent_by_id=user.id,
     )
@@ -5088,7 +5129,7 @@ def public_group_reminder_on_gcn(public_group, user):
     # user is the owner so update/delete (AccessibleIfUserMatches('user')) resolves for them.
     reminder = ReminderOnGCN(
         text=str(uuid.uuid4()),
-        next_reminder=datetime.utcnow() + timedelta(days=1),
+        next_reminder=utcnow_naive() + timedelta(days=1),
         reminder_delay=1.0,
         number_of_reminders=1,
         bot=False,
@@ -5101,7 +5142,7 @@ def public_group_reminder_on_gcn(public_group, user):
 
     group_reminder = GroupReminderOnGCN(
         group_id=public_group.id,
-        reminderongcn_id=reminder_id,
+        reminders_on_gcn_id=reminder_id,
     )
     DBSession.add(group_reminder)
     DBSession.commit()
@@ -5127,7 +5168,7 @@ def public_group_reminder_on_gcn(public_group, user):
 
 @pytest.fixture()
 def public_group_reminder_on_shift(public_group, user):
-    now = datetime.utcnow()
+    now = utcnow_naive()
     shift = Shift(
         name=str(uuid.uuid4()),
         start_date=now,
@@ -5147,14 +5188,13 @@ def public_group_reminder_on_shift(public_group, user):
         user_id=user.id,
         shift_id=shift_id,
     )
-    reminder.groups = [public_group]
     DBSession.add(reminder)
     DBSession.commit()
     reminder_id = reminder.id
 
     join = GroupReminderOnShift(
         group_id=public_group.id,
-        reminderonshift_id=reminder_id,
+        reminders_on_shift_id=reminder_id,
     )
     DBSession.add(join)
     DBSession.commit()
@@ -5188,10 +5228,10 @@ def public_group_reminder_on_spectrum(public_group, public_source, user):
         wavelengths=[600.0, 650.0, 700.0],
         fluxes=[1.0, 1.5, 2.0],
         obj_id=public_source.id,
-        observed_at=datetime.utcnow(),
+        observed_at=utcnow_naive(),
         type="source",
         instrument_id=instrument.id,
-        owner_id=user.id,
+        owner_id=1,
         groups=[public_group],
     )
     DBSession.add(spectrum)
@@ -5202,14 +5242,13 @@ def public_group_reminder_on_spectrum(public_group, public_source, user):
     # scoped to public_group and authored by `user`.
     reminder = ReminderOnSpectrum(
         text=str(uuid.uuid4()),
-        next_reminder=datetime.utcnow() + timedelta(days=1),
+        next_reminder=utcnow_naive() + timedelta(days=1),
         reminder_delay=1.0,
         number_of_reminders=1,
         bot=False,
         user_id=user.id,
         obj_id=public_source.id,
         spectrum_id=spectrum_id,
-        groups=[public_group],
     )
     DBSession.add(reminder)
     DBSession.commit()
@@ -5218,7 +5257,7 @@ def public_group_reminder_on_spectrum(public_group, public_source, user):
     # The actual join-model row mapping public_group -> reminder.
     group_reminder = GroupReminderOnSpectrum(
         group_id=public_group.id,
-        reminderonspectrum_id=reminder_id,
+        reminders_on_spectr_id=reminder_id,
     )
     DBSession.add(group_reminder)
     DBSession.commit()
@@ -5339,8 +5378,6 @@ def public_group_source_notification(public_group, public_source, user):
 
 @pytest.fixture()
 def public_instrument_field():
-    from skyportal.models import InstrumentField
-
     instrument = InstrumentFactory()
     field = InstrumentField(
         instrument_id=instrument.id,
@@ -5368,8 +5405,6 @@ def public_instrument_field():
 
 @pytest.fixture()
 def public_instrument_log():
-    from skyportal.models import Instrument, InstrumentLog, Telescope
-
     telescope = Telescope(
         name=str(uuid.uuid4()),
         nickname=str(uuid.uuid4())[:10],
@@ -5534,9 +5569,6 @@ def public_listing(public_source, user):
 
 @pytest.fixture()
 def public_localization(user):
-    from skyportal.models.gcn import GcnEvent
-    from skyportal.models.localization import Localization
-
     dateobs = utcnow_naive().replace(microsecond=0)
 
     gcnevent = GcnEvent(
@@ -5618,8 +5650,8 @@ def public_mmadetector_spectrum(public_group, user):
     spectrum = MMADetectorSpectrum(
         frequencies=np.array([1.0, 2.0, 3.0]),
         amplitudes=np.array([1.0e-23, 2.0e-23, 3.0e-23]),
-        start_time=datetime.utcnow(),
-        end_time=datetime.utcnow() + timedelta(hours=1),
+        start_time=utcnow_naive(),
+        end_time=utcnow_naive() + timedelta(hours=1),
         detector_id=detector_id,
         owner_id=user.id,
         groups=[public_group],
@@ -5657,7 +5689,7 @@ def public_mmadetector_time_interval(public_group, user):
     time_interval = MMADetectorTimeInterval(
         detector_id=detector_id,
         owner_id=user.id,
-        time_interval=[datetime(2020, 1, 1), datetime(2020, 1, 2)],
+        time_interval="[2020-01-01 00:00:00,2020-01-02 00:00:00]",
         groups=[public_group],
     )
     DBSession.add(time_interval)
@@ -5711,8 +5743,6 @@ def public_obj_model(public_group):
 
 @pytest.fixture()
 def public_obj_analysis(public_source, public_group, user):
-    from skyportal.models import AnalysisService, ObjAnalysis
-
     analysis_service = AnalysisService(
         name=str(uuid.uuid4()),
         display_name="Test Analysis Service",
@@ -5781,7 +5811,7 @@ def public_obj_tag_option():
 def public_observation_plan_request(public_group, user):
     # Build a GcnEvent with an ingested Localization inline (needs HEALPix
     # localization data files shipped with the test suite).
-    dateobs = datetime.utcnow()
+    dateobs = utcnow_naive()
     notice_dict = {
         "notice_type": "Test",
         "notice_format": "Test",
@@ -5849,14 +5879,6 @@ def public_observation_plan_request(public_group, user):
 
 @pytest.fixture()
 def public_observation_plan_request_target_group(public_group, user):
-    from skyportal.models import (
-        Allocation,
-        Instrument,
-        ObservationPlanRequest,
-        ObservationPlanRequestTargetGroup,
-        Telescope,
-    )
-
     # --- Telescope + Instrument (inline parents) ---
     telescope = Telescope(
         name=f"Telescope_{uuid.uuid4().hex}",
@@ -5977,12 +5999,19 @@ def public_observation_plan_request_target_group(public_group, user):
 
 @pytest.fixture()
 def public_phot_stat(public_source):
-    phot_stat = PhotStat(obj_id=public_source.id)
-    phot_stat.num_obs_global = 0
-    phot_stat.num_det_global = 0
-    phot_stat.num_det_no_forced_phot_global = 0
-    DBSession.add(phot_stat)
-    DBSession.commit()
+    phot_stat = (
+        DBSession()
+        .execute(sa.select(PhotStat).filter(PhotStat.obj_id == public_source.id))
+        .scalars()
+        .first()
+    )
+    if phot_stat is None:
+        phot_stat = PhotStat(obj_id=public_source.id)
+        phot_stat.num_obs_global = 0
+        phot_stat.num_det_global = 0
+        phot_stat.num_det_no_forced_phot_global = 0
+        DBSession.add(phot_stat)
+        DBSession.commit()
     phot_stat_id = phot_stat.id
     yield phot_stat
     row = (
@@ -6101,7 +6130,7 @@ def public_recurring_api(user):
         endpoint=f"api/{uuid.uuid4().hex}",
         payload={},
         method="GET",
-        next_call=datetime.datetime.utcnow(),
+        next_call=utcnow_naive(),
         call_delay=1.0,
         number_of_retries=10,
         active=True,
@@ -6126,7 +6155,7 @@ def public_reminder(public_source, public_group, user):
     reminder = Reminder(
         text=str(uuid.uuid4()),
         bot=False,
-        next_reminder=datetime.datetime.utcnow(),
+        next_reminder=utcnow_naive(),
         reminder_delay=1.0,
         number_of_reminders=1,
         obj_id=public_source.id,
@@ -6202,8 +6231,6 @@ def public_reminder_on_earthquake(public_group, user):
 
 @pytest.fixture()
 def public_reminder_on_gcn(public_group, user):
-    from skyportal.models import GcnEvent, ReminderOnGCN
-
     dateobs = datetime.now()
     gcnevent = GcnEvent(
         dateobs=dateobs,
@@ -6244,13 +6271,10 @@ def public_reminder_on_gcn(public_group, user):
 
 @pytest.fixture()
 def public_reminder_on_shift(public_group, user):
-    from skyportal.models import Shift
-    from skyportal.models.reminder import ReminderOnShift
-
     shift = Shift(
         name=str(uuid.uuid4()),
-        start_date=datetime.utcnow(),
-        end_date=datetime.utcnow() + timedelta(days=1),
+        start_date=utcnow_naive(),
+        end_date=utcnow_naive() + timedelta(days=1),
         group_id=public_group.id,
     )
     DBSession.add(shift)
@@ -6259,7 +6283,7 @@ def public_reminder_on_shift(public_group, user):
 
     reminder = ReminderOnShift(
         text=str(uuid.uuid4()),
-        next_reminder=datetime.utcnow() + timedelta(days=1),
+        next_reminder=utcnow_naive() + timedelta(days=1),
         reminder_delay=1.0,
         number_of_reminders=1,
         bot=False,
@@ -6288,7 +6312,7 @@ def public_reminder_on_spectrum(public_source, public_group, user):
     instrument = InstrumentFactory()
     spectrum = Spectrum(
         obj_id=public_source.id,
-        observed_at=datetime.utcnow(),
+        observed_at=utcnow_naive(),
         wavelengths=[1.0, 2.0, 3.0],
         fluxes=[1.0, 2.0, 3.0],
         instrument_id=instrument.id,
@@ -6302,7 +6326,7 @@ def public_reminder_on_spectrum(public_source, public_group, user):
 
     reminder = ReminderOnSpectrum(
         text=str(uuid.uuid4()),
-        next_reminder=datetime.utcnow() + timedelta(days=1),
+        next_reminder=utcnow_naive() + timedelta(days=1),
         reminder_delay=1.0,
         number_of_reminders=1,
         bot=False,
@@ -6391,8 +6415,6 @@ def public_scan_report_item(public_source, public_group, user):
 
 @pytest.fixture()
 def public_sharing_service(public_group):
-    from skyportal.models import SharingService, SharingServiceGroup
-
     sharing_service = SharingService(
         name=str(uuid.uuid4()),
         acknowledgments="",
@@ -6513,12 +6535,6 @@ def public_sharing_service_group(public_group):
 
 @pytest.fixture()
 def public_sharing_service_group_auto_publisher(public_group, user):
-    from skyportal.models import (
-        SharingService,
-        SharingServiceGroup,
-        SharingServiceGroupAutoPublisher,
-    )
-
     # ensure the user is a member of public_group so a GroupUser row exists
     if public_group not in user.groups:
         user.groups.append(public_group)
@@ -6655,13 +6671,11 @@ def public_sharing_service_submission(public_group, public_source, user):
 
 @pytest.fixture()
 def public_shift(public_group):
-    from datetime import datetime, timedelta
-
     shift = Shift(
         name=str(uuid.uuid4()),
         description="test shift",
-        start_date=datetime.utcnow(),
-        end_date=datetime.utcnow() + timedelta(days=1),
+        start_date=utcnow_naive(),
+        end_date=utcnow_naive() + timedelta(days=1),
         group_id=public_group.id,
     )
     DBSession.add(shift)
@@ -6683,8 +6697,8 @@ def public_shift(public_group):
 def public_shift_user(public_group, user):
     shift = Shift(
         name=str(uuid.uuid4()),
-        start_date=datetime.datetime.utcnow(),
-        end_date=datetime.datetime.utcnow() + datetime.timedelta(days=1),
+        start_date=utcnow_naive(),
+        end_date=utcnow_naive() + timedelta(days=1),
         group_id=public_group.id,
     )
     DBSession.add(shift)
@@ -6758,11 +6772,7 @@ def public_source_view(public_source, user):
 
 @pytest.fixture()
 def public_sources_confirmed_in_gcn(public_source, user):
-    from datetime import datetime
-
-    from skyportal.models import GcnEvent, SourcesConfirmedInGCN
-
-    dateobs = datetime.utcnow().replace(microsecond=0)
+    dateobs = utcnow_naive().replace(microsecond=0)
 
     gcnevent = GcnEvent(
         dateobs=dateobs,
@@ -6832,8 +6842,6 @@ def public_spatial_catalog():
 
 @pytest.fixture()
 def public_spectrum_observer(public_source, public_group, user):
-    from skyportal.models import Spectrum, SpectrumObserver
-
     # Build a Spectrum owned by `user`, associated with public_group so that
     # row-level read access is meaningful (user/group_admin_user = insiders,
     # user_group2 = outsider). SpectrumFactory creates its own instrument
@@ -6848,7 +6856,7 @@ def public_spectrum_observer(public_source, public_group, user):
     spectrum_id = spectrum.id
 
     spectrum_observer = SpectrumObserver(
-        spectrum_id=spectrum_id,
+        spectr_id=spectrum_id,
         user_id=user.id,
     )
     DBSession.add(spectrum_observer)
@@ -6883,8 +6891,6 @@ def public_spectrum_observer(public_source, public_group, user):
 
 @pytest.fixture()
 def public_spectrum_pi(public_source, public_group, user):
-    from skyportal.models import Spectrum, SpectrumPI
-
     instrument = InstrumentFactory()
     instrument_id = instrument.id
 
@@ -6902,7 +6908,7 @@ def public_spectrum_pi(public_source, public_group, user):
     spectrum_id = spectrum.id
 
     spectrum_pi = SpectrumPI(
-        spectrum_id=spectrum_id,
+        spectr_id=spectrum_id,
         user_id=user.id,
         external_pi=str(uuid.uuid4()),
     )
@@ -6952,7 +6958,7 @@ def public_spectrum_reducer(public_source, public_group, user):
     DBSession.commit()
     spectrum_id = spectrum.id
 
-    reducer = SpectrumReducer(spectrum_id=spectrum_id, user_id=user.id)
+    reducer = SpectrumReducer(spectr_id=spectrum_id, user_id=user.id)
     DBSession.add(reducer)
     DBSession.commit()
     reducer_id = reducer.id
@@ -7094,7 +7100,7 @@ def public_stream_photometric_series(
     # Create the join row coupling the Stream and the PhotometricSeries.
     join = StreamPhotometricSeries(
         stream_id=public_stream.id,
-        photometricseries_id=ps_id,
+        photometric_serie_id=ps_id,
     )
     DBSession().add(join)
     DBSession().commit()
@@ -7138,7 +7144,6 @@ def public_stream_photometry(public_stream, public_source):
     # We build a Photometry inline (with its own Instrument), associate it with
     # public_stream so that stream-members can read it, then link it to the
     # stream via StreamPhotometry.
-    from skyportal.models import Photometry, StreamPhotometry
 
     instrument = InstrumentFactory()
     instrument_id = instrument.id
@@ -7153,14 +7158,13 @@ def public_stream_photometry(public_stream, public_source):
         filter="ztfg",
         origin=str(uuid.uuid4()),
         upload_id=str(uuid.uuid4()),
-        streams=[public_stream],
     )
     DBSession().add(photometry)
     DBSession().commit()
     photometry_id = photometry.id
 
     stream_photometry = StreamPhotometry(
-        stream_id=public_stream.id, photometry_id=photometry_id
+        stream_id=public_stream.id, photometr_id=photometry_id
     )
     DBSession().add(stream_photometry)
     DBSession().commit()
@@ -7254,16 +7258,8 @@ def public_survey_efficiency_for_observation_plan(public_group, user):
     public_group (user, group_admin_user) are insiders and members of
     public_group2 only (user_group2) are outsiders.
     """
-    from skyportal.models import (
-        Allocation,
-        EventObservationPlan,
-        GcnEvent,
-        Localization,
-        ObservationPlanRequest,
-        SurveyEfficiencyForObservationPlan,
-    )
 
-    dateobs = datetime.utcnow().replace(microsecond=0)
+    dateobs = utcnow_naive().replace(microsecond=0)
 
     # Telescope + Instrument via existing factories
     telescope = TelescopeFactory(
@@ -7376,14 +7372,6 @@ def public_survey_efficiency_for_observation_plan(public_group, user):
 
 @pytest.fixture()
 def public_survey_efficiency_for_observations(public_group, user):
-    from skyportal.models import (
-        GcnEvent,
-        Instrument,
-        Localization,
-        SurveyEfficiencyForObservations,
-        Telescope,
-    )
-
     # Parent GcnEvent (read is public by default)
     gcnevent = GcnEventFactory(sent_by=user)
     dateobs = gcnevent.dateobs
@@ -7540,7 +7528,7 @@ def public_weather():
     weather = Weather(
         telescope_id=telescope_id,
         weather_info={},
-        retrieved_at=datetime.datetime.utcnow(),
+        retrieved_at=utcnow_naive(),
     )
     DBSession.add(weather)
     DBSession.commit()

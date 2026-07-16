@@ -238,9 +238,12 @@ class AllocationHandler(BaseHandler):
 
                 page_number = self.get_query_argument("pageNumber", 1, type=int)
                 n_per_page = self.get_query_argument("numPerPage", 50, type=int)
-                page_number, n_per_page = get_page_and_n_per_page(
-                    page_number, n_per_page, MAX_FOLLOWUP_REQUESTS
-                )
+                try:
+                    page_number, n_per_page = get_page_and_n_per_page(
+                        page_number, n_per_page, MAX_FOLLOWUP_REQUESTS
+                    )
+                except ValueError as e:
+                    return self.error(str(e))
 
                 sortBy = self.get_query_argument("sortBy", "created_at")
                 sortOrder = self.get_query_argument("sortOrder", "asc")

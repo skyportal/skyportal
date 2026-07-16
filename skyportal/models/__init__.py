@@ -52,6 +52,7 @@ from .super_obj import *
 from .survey_efficiency import *
 from .tag import *
 from .taxonomy import *
+from .team import *
 from .telescope import *
 from .thumbnail import *
 from .user_notification import *

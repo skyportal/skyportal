@@ -240,9 +240,13 @@ class ObservingRunHandler(BaseHandler):
                 return self.success(data=data)
 
             result = await session.scalars(
-                ObservingRun.select(session.user_or_token).order_by(
-                    ObservingRun.calendar_date.asc()
+                ObservingRun.select(session.user_or_token)
+                .options(
+                    selectinload(ObservingRun.instrument).selectinload(
+                        Instrument.telescope
+                    )
                 )
+                .order_by(ObservingRun.calendar_date.asc())
             )
             runs = result.all()
 

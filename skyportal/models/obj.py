@@ -1,5 +1,7 @@
 __all__ = ["Obj"]
 
+import asyncio
+import io
 import os
 import re
 import uuid
@@ -13,6 +15,9 @@ import requests
 import sqlalchemy as sa
 from astropy import coordinates as ap_coord
 from astropy import units as u
+from astropy.io.votable import parse as votable_parse
+from astropy.table import unique as table_unique
+from astroquery.mast import Observations
 from dustmaps.config import config
 from sqlalchemy import event
 from sqlalchemy.dialects.postgresql import JSONB
@@ -42,6 +47,9 @@ log = make_log("models.obj")
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 PS1_CUTOUT_TIMEOUT = 15  # seconds
+# SkyMapper's SIAP (also used for HST/Chandra/JWST lookups) can be slow; give it
+# more headroom since these are on-demand.
+SKYMAPPER_CUTOUT_TIMEOUT = 30  # seconds
 
 # download dustmap if required
 config["data_dir"] = cfg["misc.dustmap_folder"]
@@ -206,7 +214,7 @@ class Obj(Base, conesearch_alchemy.Point):
         sa.Float, default=0.0, doc="Offset from nearest static object [arcsec]."
     )
     t0 = sa.Column(sa.Float, nullable=True, doc="Reference time.")
-    redshift = sa.Column(sa.Float, nullable=True, index=True, doc="Redshift.")
+    redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
     redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
     redshift_origin = sa.Column(sa.String, nullable=True, doc="Redshift source.")
     redshift_history = sa.Column(
@@ -223,7 +231,6 @@ class Obj(Base, conesearch_alchemy.Point):
     host_id = sa.Column(
         sa.ForeignKey("galaxys.id", ondelete="CASCADE"),
         nullable=True,
-        index=True,
         doc="The ID of the Galaxy to which this Obj is associated.",
     )
     summary = sa.Column(sa.String, nullable=True, doc="Summary of the obj.")
@@ -290,7 +297,7 @@ class Obj(Base, conesearch_alchemy.Point):
         sa.ARRAY(sa.String), nullable=True, doc="Alternative names for this object."
     )
 
-    healpix = sa.Column(healpix_alchemy.Point, index=True)
+    healpix = sa.Column(healpix_alchemy.Point)
 
     internal_key = sa.Column(
         sa.String,
@@ -468,10 +475,14 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sharing submissions associated with this obj.",
     )
 
-    async def add_linked_thumbnails(self, thumbnails, session):
+    async def add_linked_thumbnails(self, thumbnails, session, ps1_url=None):
         """Determine the URLs of the SDSS, Legacy Survey DR10, and
         thumbnails of the object,
-        insert them into the Thumbnails table, and link them to the object."""
+        insert them into the Thumbnails table, and link them to the object.
+
+        `panstarrs_url` does a slow, blocking HTTP request; it is resolved off
+        the event loop here. Callers that already resolved it (with no DB txn
+        open) can pass `ps1_url` to avoid re-fetching."""
         if "sdss" in thumbnails:
             session.add(
                 Thumbnail(obj_id=self.id, public_url=self.sdss_url, type="sdss")
@@ -487,13 +498,42 @@ class Obj(Base, conesearch_alchemy.Point):
         await session.commit()
 
         if "ps1" in thumbnails:
-            url = self.panstarrs_url
-            session.add(Thumbnail(obj_id=self.id, public_url=url, type="ps1"))
+            if ps1_url is None:
+                ps1_url = await asyncio.to_thread(lambda: self.panstarrs_url)
+            session.add(Thumbnail(obj_id=self.id, public_url=ps1_url, type="ps1"))
             await session.commit()
 
+        if "sm" in thumbnails:
+            url = self.skymapper_url
+            session.add(Thumbnail(obj_id=self.id, public_url=url, type="sm"))
+            await session.commit()
+
+        # HST and Chandra are pointed (not all-sky); only add a thumbnail when
+        # the position actually has coverage (url is not None).
+        if "hst" in thumbnails:
+            url = self.hst_url
+            if url is not None:
+                session.add(Thumbnail(obj_id=self.id, public_url=url, type="hst"))
+                await session.commit()
+
+        if "chandra" in thumbnails:
+            url = self.chandra_url
+            if url is not None:
+                session.add(Thumbnail(obj_id=self.id, public_url=url, type="chandra"))
+                await session.commit()
+
+        if "jwst" in thumbnails:
+            url = self.jwst_url
+            if url is not None:
+                session.add(Thumbnail(obj_id=self.id, public_url=url, type="jwst"))
+                await session.commit()
+
+    # Survey cutouts share a common ~60 arcsec field of view so the object sits
+    # at the same scale across SDSS/LS/PS1 thumbnails.
     @property
     def sdss_url(self):
         """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout, using DR18."""
+        # 0.3 arcsec/pixel * 200 pixels = 60 arcsec FOV.
         return (
             f"https://skyserver.sdss.org/dr18/SkyServerWS/ImgCutout/getjpeg"
             "?TaskName=SkyServer.Chart.List"
@@ -504,9 +544,10 @@ class Obj(Base, conesearch_alchemy.Point):
     @property
     def legacysurvey_dr10_url(self):
         """Construct URL for public Legacy Survey DR10 cutout."""
+        # 0.3 arcsec/pixel * 200 pixels = 60 arcsec FOV.
         return (
             f"https://www.legacysurvey.org/viewer/jpeg-cutout?ra={self.ra}"
-            f"&dec={self.dec}&size=200&layer=ls-dr10&pixscale=0.262&bands=griz"
+            f"&dec={self.dec}&size=200&layer=ls-dr10&pixscale=0.3&bands=griz"
         )
 
     @property
@@ -531,10 +572,11 @@ class Obj(Base, conesearch_alchemy.Point):
         )
         if not ps1_cutout_base:
             return cutout_url
+        # 0.25 arcsec/pixel * 240 pixels = 60 arcsec FOV.
         ps_query_url = (
             f"{ps1_cutout_base}"
             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
-            f"&filter=r&filter=i&filetypes=stack&size=250"
+            f"&filter=r&filter=i&filetypes=stack&size=240"
         )
         try:
             response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
@@ -559,6 +601,152 @@ class Obj(Base, conesearch_alchemy.Point):
         except Exception as e:
             log(f"Unexpected error in getting thumbnail for {self.id}: {e}")
         return cutout_url
+
+    @property
+    def skymapper_url(self):
+        """Construct URL for a public SkyMapper DR4 (southern sky) cutout.
+
+        Like PanSTARRS, the SIAP service doesn't return an image directly: we
+        query it for images covering the position and use the `get_image` cutout
+        URL from the first match (already parameterized with pos/size).
+
+        Test environments can set `app.skymapper_cutout_url` to an empty string
+        to skip the external HTTP call and fall back to the placeholder image.
+        """
+        cutout_url = "/static/images/currently_unavailable.png"
+        skymapper_base = cfg.get(
+            "app.skymapper_cutout_url",
+            "https://api.skymapper.nci.org.au/public/siap/dr4/query",
+        )
+        if not skymapper_base:
+            return cutout_url
+        # 0.0167 deg = 60 arcsec FOV, matching the SDSS/LS/PS1 cutouts.
+        query_url = (
+            f"{skymapper_base}"
+            f"?POS={self.ra},{self.dec}&SIZE=0.0167&BAND=g,r,i"
+            f"&FORMAT=image/png&INTERSECT=CENTER&RESPONSEFORMAT=CSV&VERB=3"
+        )
+        try:
+            response = requests.get(query_url, timeout=SKYMAPPER_CUTOUT_TIMEOUT)
+            response.raise_for_status()
+            content = response.content.decode()
+            # get_image URLs are quote-delimited in the CSV and contain commas
+            # (pos/size), so match to the closing quote; pin format=png.
+            match = re.search(
+                r"https://api\.skymapper\.nci\.org\.au/public/siap/dr4/"
+                r"get_image\?[^\"]*format=png[^\"]*",
+                content,
+            )
+            if match:
+                cutout_url = match.group()
+            else:
+                cutout_url = "/static/images/outside_survey.png"
+        except requests.exceptions.HTTPError as http_err:
+            log(f"HTTPError getting thumbnail for {self.id}: {http_err}")
+        except requests.exceptions.Timeout as timeout_err:
+            log(f"Timeout in getting thumbnail for {self.id}: {timeout_err}")
+        except requests.exceptions.RequestException as other_err:
+            log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
+        except Exception as e:
+            log(f"Unexpected error in getting thumbnail for {self.id}: {e}")
+        return cutout_url
+
+    @property
+    def hst_url(self):
+        """URL for a public Hubble (HST) cutout via the Hubble Legacy Archive,
+        or None if the position has no HST coverage. HST is pointed rather than
+        all-sky, so most sources have no cutout."""
+        instrument_names = {
+            "WFPC2/WFC",
+            "PC/WFC",
+            "ACS/WFC",
+            "ACS/HRC",
+            "ACS/SBC",
+            "WFC3/UVIS",
+            "WFC3/IR",
+            "STIS/CCD",
+        }
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
+        try:
+            table = Observations.query_criteria(
+                coordinates=coord, radius=1 * u.arcsec, obs_collection="HST"
+            )
+        except Exception as e:
+            log(f"Error querying HST coverage for {self.id}: {e}")
+            return None
+        if table is None or len(table) == 0:
+            return None
+        obstable = table[
+            [inst in instrument_names for inst in table["instrument_name"]]
+        ]
+        if len(obstable) == 0:
+            return None
+        for obsid in set(obstable["obs_id"]):
+            hst_url = (
+                f"https://hla.stsci.edu/cgi-bin/fitscut.cgi"
+                f"?red={obsid}&RA={self.ra}&DEC={self.dec}&size=256"
+                f"&format=jpg&config=ops&asinh=1&autoscale=90"
+            )
+            try:
+                response = requests.get(hst_url, timeout=SKYMAPPER_CUTOUT_TIMEOUT)
+                if response.status_code == 200:
+                    return hst_url
+            except Exception:
+                continue
+        return None
+
+    @property
+    def chandra_url(self):
+        """URL for a public Chandra cutout via the Chandra footprint service, or
+        None if the position has no Chandra coverage."""
+        query_url = (
+            f"https://cxcfps.cfa.harvard.edu/cgi-bin/cda/footprint/get_vo_table.pl?"
+            f"pos={self.ra},{self.dec}&size=0.1&inst=ACIS-I,ACIS-S&grating=NONE"
+        )
+        try:
+            response = requests.get(query_url, timeout=SKYMAPPER_CUTOUT_TIMEOUT)
+            response.raise_for_status()
+            votable = votable_parse(io.BytesIO(response.text.encode()))
+            obsdata = votable.get_first_table().to_table()
+            if len(obsdata) == 0:
+                return None
+            table = table_unique(obsdata, keys="ObsId")
+            uri = table["preview_uri"][0].replace("redirect", "link")
+            response = requests.get(uri, timeout=SKYMAPPER_CUTOUT_TIMEOUT)
+            match = re.search(
+                'href="https://cdaftp.cfa.harvard.edu.*?"',
+                response.content.decode(),
+            )
+            if match:
+                return match.group().replace('href="', "").replace('"', "")
+            return None
+        except Exception as e:
+            log(f"Error getting Chandra thumbnail for {self.id}: {e}")
+            return None
+
+    @property
+    def jwst_url(self):
+        """URL for a public JWST image preview via MAST, or None if the position
+        has no JWST coverage. Like HST, JWST is pointed rather than all-sky; the
+        preview is the observation mosaic rather than a tight cutout."""
+        coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
+        try:
+            table = Observations.query_criteria(
+                coordinates=coord,
+                radius=5 * u.arcsec,
+                obs_collection="JWST",
+                dataproduct_type="image",
+            )
+        except Exception as e:
+            log(f"Error querying JWST coverage for {self.id}: {e}")
+            return None
+        if table is None or len(table) == 0 or "jpegURL" not in table.colnames:
+            return None
+        for uri in table["jpegURL"]:
+            uri = str(uri)
+            if uri and uri not in ("", "--"):
+                return f"https://mast.stsci.edu/api/v0.1/Download/file?uri={uri}"
+        return None
 
     @property
     def target(self):
@@ -767,9 +955,12 @@ Obj.candidates = relationship(
 
 @event.listens_for(Obj, "before_delete")
 def delete_obj_thumbnails_from_disk(mapper, connection, target):
-    for thumb in target.thumbnails:
-        if thumb.file_uri is not None:
+    file_uris = connection.execute(
+        sa.select(Thumbnail.file_uri).where(Thumbnail.obj_id == target.id)
+    ).scalars()
+    for file_uri in file_uris:
+        if file_uri is not None:
             try:
-                os.remove(thumb.file_uri)
+                os.remove(file_uri)
             except (FileNotFoundError, OSError) as e:
-                log(f"Error deleting thumbnail file {thumb.file_uri}: {e}")
+                log(f"Error deleting thumbnail file {file_uri}: {e}")

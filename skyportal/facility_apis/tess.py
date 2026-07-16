@@ -1,8 +1,10 @@
+import asyncio
+
 import numpy as np
 import sqlalchemy as sa
 from astropy.table import Table
 from astropy.time import Time, TimeDelta
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
@@ -170,7 +172,7 @@ class TESSAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Get photometry from TESS API.
 
         Parameters
@@ -185,23 +187,33 @@ class TESSAPI(FollowUpAPI):
             Allocation,
             FacilityTransaction,
             FollowupRequest,
-            Instrument,
         )
 
-        instrument = (
-            Instrument.query_records_accessible_by(request.requester)
-            .join(Allocation)
-            .join(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .first()
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
+            )
         )
+
+        instrument = request.allocation.instrument
 
         name = request.obj.tns_name
         if name is None:
             request.status = "No TNS name"
         else:
             try:
-                lc = Table.read(
+                # astropy Table.read does its own blocking HTTP IO over the
+                # light-curve URL, so run it off the event loop.
+                lc = await asyncio.to_thread(
+                    Table.read,
                     f"{lightcurve_url}/lc_{name}_cleaned",
                     format="ascii",
                     header_start=1,
@@ -246,7 +258,7 @@ class TESSAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a photometry request from TESS API.
 
         Parameters
@@ -257,10 +269,20 @@ class TESSAPI(FollowUpAPI):
             Database session for this transaction
         """
 
+        from ..models import FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(selectinload(FollowupRequest.obj))
+        )
+
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
-        session.delete(request)
+        await session.delete(request)
 
         if kwargs.get("refresh_source", False):
             flow = Flow()

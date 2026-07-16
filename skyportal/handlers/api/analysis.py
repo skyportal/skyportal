@@ -31,6 +31,7 @@ from ...enum_types import (
     ANALYSIS_TYPES,
     AUTHENTICATION_TYPES,
     DEFAULT_ANALYSIS_FILTER_TYPES,
+    DEFAULT_ANALYSIS_SCALAR_FILTERS,
 )
 from ...models import (
     AnalysisService,
@@ -54,7 +55,7 @@ log = make_log("app/analysis")
 
 _, cfg = load_env()
 
-DEFAULT_ANALYSES_DAILY_LIMIT = 100
+DEFAULT_ANALYSES_DAILY_LIMIT = 1000
 
 # check for API key
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
@@ -172,6 +173,7 @@ def get_associated_obj_resource(associated_resource_type):
                 "magerr",
                 "filter",
                 "magsys",
+                "limiting_mag",
                 "zp",
                 "instrument_name",
             ],
@@ -371,8 +373,13 @@ def post_analysis(
                         input_filters["photometry"]["instruments_by_name"] = instruments
 
                 df = df[associated_resource["allowed_export_columns"]]
-                # drop duplicate mjd/filter points, keeping first
-                df = df.drop_duplicates(["mjd", "filter"]).reset_index(drop=True)
+                # collapse duplicate mjd/filter points, keeping the lowest-error
+                # (best) one rather than an arbitrary first
+                df = (
+                    df.sort_values("magerr")
+                    .drop_duplicates(["mjd", "filter"])
+                    .reset_index(drop=True)
+                )
             else:
                 input_data = [
                     generic_serialize(
@@ -638,8 +645,13 @@ async def post_analysis_async(
                         input_filters["photometry"]["instruments_by_name"] = instruments
 
                 df = df[associated_resource["allowed_export_columns"]]
-                # drop duplicate mjd/filter points, keeping first
-                df = df.drop_duplicates(["mjd", "filter"]).reset_index(drop=True)
+                # collapse duplicate mjd/filter points, keeping the lowest-error
+                # (best) one rather than an arbitrary first
+                df = (
+                    df.sort_values("magerr")
+                    .drop_duplicates(["mjd", "filter"])
+                    .reset_index(drop=True)
+                )
             else:
                 input_data = [
                     generic_serialize(
@@ -1255,6 +1267,11 @@ class AnalysisServiceHandler(BaseHandler):
                     return self.error(
                         "Cannot change groups for Analysis Services that you are not a member of."
                     )
+                # Async: preload groups before reassigning, else the lazy
+                # diff-load raises greenlet_spawn (sync IO in async).
+                await session.refresh(
+                    merged_analysis_service, attribute_names=["groups"]
+                )
                 merged_analysis_service.groups = groups
 
             await session.commit()
@@ -1514,7 +1531,12 @@ class AnalysisHandler(BaseHandler):
                     return self.error(f"Error posting analysis: {e}")
 
     @auth_or_token
-    async def get(self, analysis_resource_type: str, analysis_id: int | None = None):
+    async def get(
+        self,
+        analysis_resource_type: str,
+        obj_id_path: str | None = None,
+        analysis_id: int | None = None,
+    ):
         """
         ---
         single:
@@ -1609,7 +1631,20 @@ class AnalysisHandler(BaseHandler):
         include_filename = self.get_query_argument("includeFilename", False)
         summary_only = self.get_query_argument("summaryOnly", False)
 
-        obj_id = self.get_query_argument("objID", None)
+        # This GET serves two routes that pass path captures positionally:
+        #   /api/(obj)/<obj_id>/analysis(/<analysis_id>)  -> (obj_id_path, analysis_id)
+        #   /api/(obj)/analysis(/<analysis_id>)           -> the analysis_id lands in
+        #       the obj_id_path slot (it's the first optional capture).
+        # A bare numeric first capture with no analysis_id is therefore the
+        # analysis_id, not an obj_id (SkyPortal obj ids are non-numeric).
+        if (
+            analysis_id is None
+            and obj_id_path is not None
+            and str(obj_id_path).isdigit()
+        ):
+            analysis_id = int(obj_id_path)
+            obj_id_path = None
+        obj_id = obj_id_path or self.get_query_argument("objID", None)
         analysis_service_id = self.get_query_argument(
             "analysisServiceID", None, type=int
         )
@@ -1661,10 +1696,11 @@ class AnalysisHandler(BaseHandler):
                     return self.success(data=analysis_dict)
 
                 # retrieve multiple analyses
-                stmt = ObjAnalysis.select(self.current_user).options(
-                    selectinload(ObjAnalysis.groups)
-                )
+                stmt = ObjAnalysis.select(self.current_user)
                 if obj_id:
+                    # groups are only serialized for the per-source view; skip the
+                    # eager load (a big secondary query) for the global list.
+                    stmt = stmt.options(selectinload(ObjAnalysis.groups))
                     stmt = stmt.where(ObjAnalysis.obj_id.contains(obj_id.strip()))
                 if analysis_service_id:
                     stmt = stmt.where(
@@ -1676,9 +1712,48 @@ class AnalysisHandler(BaseHandler):
                 ret_array = []
                 analysis_services_dict = {}
                 for a in analyses:
-                    analysis_dict = recursive_to_dict(a)
-                    if "analysis_parameters" in analysis_dict:
-                        analysis_dict["analysis_parameters"].pop("openai_api_key", None)
+                    # Per-source queries (objID) feed the photometry overlay and
+                    # need the full record + model light curve (loaded from disk).
+                    # The global list (no objID) only renders a few columns + the
+                    # health histogram, so build a minimal dict — serializing every
+                    # column and the groups for all rows is what made it slow.
+                    if obj_id:
+                        analysis_dict = recursive_to_dict(a)
+                        if "analysis_parameters" in analysis_dict:
+                            analysis_dict["analysis_parameters"].pop(
+                                "openai_api_key", None
+                            )
+                        analysis_dict["groups"] = [
+                            {"id": g.id, "name": g.name} for g in a.groups
+                        ]
+                        if include_filename:
+                            analysis_dict["filename"] = a._full_name
+                        analysis_dict["model_lightcurve"] = None
+                        analysis_dict["model_lightcurves"] = None
+                        analysis_dict["model_name"] = None
+                        analysis_dict["n_detections"] = None
+                        try:
+                            adata = a.data or {}
+                            analysis_dict["model_lightcurve"] = adata.get(
+                                "model_lightcurve"
+                            )
+                            analysis_dict["model_lightcurves"] = adata.get(
+                                "model_lightcurves"
+                            )
+                            analysis_dict["model_name"] = adata.get("model_name")
+                            analysis_dict["n_detections"] = adata.get("n_detections")
+                        except Exception:
+                            pass
+                    else:
+                        analysis_dict = {
+                            "id": a.id,
+                            "obj_id": a.obj_id,
+                            "status": a.status,
+                            "status_message": a.status_message,
+                            "created_at": a.created_at,
+                            "last_activity": a.last_activity,
+                            "analysis_service_id": a.analysis_service_id,
+                        }
 
                     if a.analysis_service_id not in analysis_services_dict:
                         stmt = AnalysisService.select(self.current_user).where(
@@ -1705,9 +1780,6 @@ class AnalysisHandler(BaseHandler):
                             "analysis_service_description"
                         ]
 
-                    analysis_dict["groups"] = a.groups
-                    if include_filename:
-                        analysis_dict["filename"] = a._full_name
                     if (
                         summary_only
                         and not service_info["analysis_serivce_display_as_summary"]
@@ -1837,7 +1909,7 @@ class AnalysisProductsHandler(BaseHandler):
             type: string
           description: |
             What type of data to retrieve:
-            must be one of "corner", "results", or "plot"
+            must be one of "results" or "plot"
         - in: path
           name: plot_number
           required: false
@@ -1892,22 +1964,7 @@ class AnalysisProductsHandler(BaseHandler):
                             "No data found for this Analysis.", status=404
                         )
 
-                    if product_type.lower() == "corner":
-                        if not analysis.has_inference_data:
-                            return self.error(
-                                "No inference data found for this Analysis.", status=404
-                            )
-
-                        plot_kwargs = self.get_query_argument("plot_kwargs", {})
-                        filename = f"analysis_{analysis.obj_id}_corner.png"
-                        output_type = "png"
-                        output_data = analysis.generate_corner_plot(**plot_kwargs)
-                        if output_data is not None:
-                            await self.send_file(
-                                output_data, filename, output_type=output_type
-                            )
-                            return
-                    elif product_type.lower() == "results":
+                    if product_type.lower() == "results":
                         if not analysis.has_results_data:
                             return self.error(
                                 "No results data found for this Analysis.", status=404
@@ -2366,16 +2423,9 @@ class DefaultAnalysisHandler(BaseHandler):
                         f"Analysis service {analysis_service_id} not found", status=404
                     )
 
-                stmt = DefaultAnalysis.select(self.current_user).where(
-                    DefaultAnalysis.analysis_service_id == analysis_service_id,
-                    DefaultAnalysis.author_id == self.associated_user_object.id,
-                )
-                default_analysis = await session.scalar(stmt)
-                if default_analysis is not None:
-                    return self.error(
-                        "You already have a default analysis for this analysis service. Delete it first, or update it.",
-                        status=400,
-                    )
+                # Multiple default analyses per service are allowed — e.g. one
+                # per classification, or the same trigger with different
+                # parameters. Each matching default runs independently.
 
                 default_analysis_parameters = data.get(
                     "default_analysis_parameters", {}
@@ -2454,14 +2504,22 @@ class DefaultAnalysisHandler(BaseHandler):
                         f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
-                # # check that the keys of the source_filter are valid from the enum DEFAULT_ANALYSIS_SOURCE_FILTERS
+                # check that the source_filter keys are valid: either a
+                # list-of-dicts filter (classifications) or a scalar (group_id).
                 if not set(source_filter.keys()).issubset(
                     set(DEFAULT_ANALYSIS_FILTER_TYPES.keys())
+                    | set(DEFAULT_ANALYSIS_SCALAR_FILTERS.keys())
                 ):
                     return self.error(f"Invalid source_filter: {source_filter}.")
 
                 for key, value in source_filter.items():
-                    if isinstance(value, list):
+                    if key in DEFAULT_ANALYSIS_SCALAR_FILTERS:
+                        if not isinstance(value, DEFAULT_ANALYSIS_SCALAR_FILTERS[key]):
+                            return self.error(
+                                f"Invalid source_filter. Key {key} must be a "
+                                f"{DEFAULT_ANALYSIS_SCALAR_FILTERS[key].__name__}."
+                            )
+                    elif isinstance(value, list):
                         for v in value:
                             if isinstance(v, dict):
                                 if not set(v.keys()).issubset(
@@ -2499,6 +2557,187 @@ class DefaultAnalysisHandler(BaseHandler):
             except Exception as e:
                 return self.error(
                     f"Unexpected error posting default analysis: {str(e)}"
+                )
+
+    @auth_or_token
+    async def patch(self, analysis_service_id: int, default_analysis_id: int):
+        """
+        ---
+        summary: Update a default analysis
+        description: |
+            Partial update of a default analysis. Any of default_analysis_parameters,
+            source_filter, group_ids, daily_limit, show_parameters, show_plots,
+            show_corner may be supplied; omitted fields are left unchanged.
+        tags:
+          - default analyses
+        parameters:
+          - in: path
+            name: analysis_service_id
+            required: true
+            schema:
+              type: integer
+          - in: path
+            name: default_analysis_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            default_analysis_parameters:
+                                type: object
+                            source_filter:
+                                type: object
+                            daily_limit:
+                                type: integer
+                            group_ids:
+                                type: array
+                                items:
+                                    type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if default_analysis_id is None:
+            return self.error("Missing required parameter: default_analysis_id")
+        try:
+            analysis_service_id = int(analysis_service_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid analysis_service_id: {analysis_service_id}")
+        try:
+            default_analysis_id = int(default_analysis_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid default_analysis_id: {default_analysis_id}")
+
+        data = self.get_json()
+        async with self.AsyncSession() as session:
+            try:
+                # Eager-load groups: we may reassign them below, and a lazy diff-load
+                # in the async session would raise greenlet_spawn.
+                default_analysis = await session.scalar(
+                    DefaultAnalysis.select(self.current_user, mode="update")
+                    .options(selectinload(DefaultAnalysis.groups))
+                    .where(
+                        DefaultAnalysis.analysis_service_id == analysis_service_id,
+                        DefaultAnalysis.id == default_analysis_id,
+                    )
+                )
+                if default_analysis is None:
+                    return self.error(
+                        f"Could not find default analysis {default_analysis_id}",
+                        status=400,
+                    )
+
+                if "default_analysis_parameters" in data:
+                    params = data["default_analysis_parameters"]
+                    if not isinstance(params, dict):
+                        try:
+                            params = json.loads(params)
+                        except Exception:
+                            return self.error(
+                                f"Invalid analysis_parameters: {params}.", status=400
+                            )
+                    analysis_service = await session.scalar(
+                        AnalysisService.select(self.current_user).where(
+                            AnalysisService.id == analysis_service_id
+                        )
+                    )
+                    oap = analysis_service.optional_analysis_parameters
+                    if isinstance(oap, str):
+                        oap = json.loads(oap)
+                    if not set(params.keys()).issubset(set(oap.keys())):
+                        return self.error(
+                            f"Invalid default_analysis_parameters: {params}.",
+                            status=400,
+                        )
+                    default_analysis.default_analysis_parameters = params
+
+                if "source_filter" in data:
+                    source_filter = data["source_filter"]
+                    if not isinstance(source_filter, dict):
+                        try:
+                            source_filter = json.loads(source_filter)
+                        except Exception:
+                            return self.error(
+                                f"Invalid source_filter: {source_filter}.", status=400
+                            )
+                    if not set(source_filter.keys()).issubset(
+                        set(DEFAULT_ANALYSIS_FILTER_TYPES.keys())
+                        | set(DEFAULT_ANALYSIS_SCALAR_FILTERS.keys())
+                    ):
+                        return self.error(f"Invalid source_filter: {source_filter}.")
+                    for key, value in source_filter.items():
+                        if key in DEFAULT_ANALYSIS_SCALAR_FILTERS:
+                            if not isinstance(
+                                value, DEFAULT_ANALYSIS_SCALAR_FILTERS[key]
+                            ):
+                                return self.error(
+                                    f"Invalid source_filter. Key {key} must be a "
+                                    f"{DEFAULT_ANALYSIS_SCALAR_FILTERS[key].__name__}."
+                                )
+                        elif isinstance(value, list):
+                            for v in value:
+                                if not isinstance(v, dict) or not set(
+                                    v.keys()
+                                ).issubset(set(DEFAULT_ANALYSIS_FILTER_TYPES[key])):
+                                    return self.error(
+                                        f"Invalid source_filter. Key {key} must be a list of dicts with keys {str(DEFAULT_ANALYSIS_FILTER_TYPES[key])}."
+                                    )
+                        else:
+                            return self.error(
+                                f"Invalid source_filter with key {key}. Value must be a list."
+                            )
+                    default_analysis.source_filter = source_filter
+
+                if "daily_limit" in data:
+                    daily_limit = data["daily_limit"]
+                    if not isinstance(daily_limit, int):
+                        try:
+                            daily_limit = int(daily_limit)
+                        except Exception:
+                            return self.error(
+                                f"Invalid daily_limit: {daily_limit}.", status=400
+                            )
+                    if daily_limit > DEFAULT_ANALYSES_DAILY_LIMIT or daily_limit <= 0:
+                        return self.error(
+                            f"Invalid daily_limit: {daily_limit}. Must be between 1 and {DEFAULT_ANALYSES_DAILY_LIMIT}",
+                            status=400,
+                        )
+                    default_analysis.stats = {
+                        **(default_analysis.stats or {}),
+                        "daily_limit": daily_limit,
+                    }
+
+                for flag in ("show_parameters", "show_plots", "show_corner"):
+                    if flag in data:
+                        setattr(default_analysis, flag, bool(data[flag]))
+
+                group_ids = data.get("group_ids", None)
+                if group_ids is not None:
+                    groups_result = await session.scalars(
+                        Group.select(self.current_user).where(Group.id.in_(group_ids))
+                    )
+                    groups = groups_result.unique().all()
+                    if {g.id for g in groups} != set(group_ids):
+                        return self.error(
+                            f"Cannot find one or more groups with IDs: {group_ids}."
+                        )
+                    default_analysis.groups = groups
+
+                await session.commit()
+                return self.success()
+            except Exception as e:
+                return self.error(
+                    f"Unexpected error updating default analysis: {str(e)}"
                 )
 
     @auth_or_token

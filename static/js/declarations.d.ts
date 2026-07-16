@@ -21,3 +21,7 @@ declare module "numeral";
 declare module "dygraphs";
 declare module "d3-geo-projection";
 declare module "convert-css-length";
+
+// Side-effect CSS imports (e.g. `import "foo/bar.css"`). tsc tolerates these
+// untyped; the native compiler (tsgo/TS7) reports TS2882 without a declaration.
+declare module "*.css";

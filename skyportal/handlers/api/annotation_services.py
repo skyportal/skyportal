@@ -21,6 +21,7 @@ import sqlalchemy as sa
 from astroquery.ipac.irsa import Irsa
 from astroquery.vizier import Vizier
 from sqlalchemy.exc import IntegrityError
+from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -860,7 +861,11 @@ class PS1QueryHandler(BaseHandler):
             }
 
             url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/mean.csv"
-            r = requests.get(url, params=params)
+            # Offload the blocking external call so it doesn't stall the event
+            # loop (and time-bound it so a hung request can't pin a worker thread).
+            r = await IOLoop.current().run_in_executor(
+                None, lambda: requests.get(url, params=params, timeout=30)
+            )
             not_found_msg = f"No PS1 sources available within {radius_arcsec} arcsec and with at least {min_detections} detections."
             if r.status_code == 200:
                 if len(r.text) == 0:

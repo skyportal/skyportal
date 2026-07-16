@@ -3,21 +3,24 @@ import json
 import urllib
 from datetime import timedelta
 
+import aiohttp
 import astropy
 import numpy as np
 import pandas as pd
 import requests
 import sqlalchemy as sa
+from aiohttp import BasicAuth
 from astropy.io import ascii
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
-from requests import Request, Session
+from requests import Session
 from requests.auth import HTTPBasicAuth
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
+from baselayer.app.models import async_plain_session_factory
 from baselayer.log import make_log
 
 from ..utils import http
@@ -43,7 +46,7 @@ log = make_log("facility_apis/ztf")
 class ZTFRequest:
     """A dictionary structure for ZTF ToO requests."""
 
-    def _build_triggered_payload(self, request, session):
+    async def _build_triggered_payload(self, request, session):
         """Payload json for ZTF object queue requests.
 
         Parameters
@@ -62,11 +65,11 @@ class ZTFRequest:
 
         from ..models import Allocation, InstrumentField
 
-        allocation = (
-            session.scalars(
-                sa.select(Allocation).where(Allocation.id == request.allocation_id)
-            )
-        ).first()
+        allocation = await session.scalar(
+            sa.select(Allocation)
+            .where(Allocation.id == request.allocation_id)
+            .options(selectinload(Allocation.instrument))
+        )
         instrument = allocation.instrument
 
         start_mjd = Time(request.payload["start_date"], format="iso").mjd
@@ -91,12 +94,12 @@ class ZTFRequest:
             for field_id in request.payload["field_ids"].split(","):
                 field_id = int(field_id)
 
-                field = session.scalars(
+                field = await session.scalar(
                     sa.select(InstrumentField).where(
                         InstrumentField.instrument_id == instrument.id,
                         InstrumentField.field_id == field_id,
                     )
-                ).first()
+                )
 
                 if field is None:
                     raise ValueError(f"Could not find field {field_id} in instrument.")
@@ -118,7 +121,7 @@ class ZTFRequest:
         json_data["targets"] = targets
         return json_data
 
-    def _build_forced_payload(self, request):
+    async def _build_forced_payload(self, request, session):
         """Payload json for ZTF object queue requests.
 
         Parameters
@@ -126,6 +129,8 @@ class ZTFRequest:
 
         request : skyportal.models.FollowupRequest
             The request to add to the IPAC forced photometry queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
 
         Returns
         ----------
@@ -134,7 +139,7 @@ class ZTFRequest:
         error : str
             error message if the request is invalid.
         """
-        from ..models import DBSession, Instrument, Photometry
+        from ..models import Instrument, Photometry
 
         error = None
 
@@ -158,76 +163,80 @@ class ZTFRequest:
             # 4. have coordinates (ra and dec)
             # 5. do not have "fp" in the origin column
             # 6. have abs(snr) = abs(flux/fluxerr) > 3
-            with DBSession() as session:
-                photometry = (
-                    session.scalars(
-                        sa.select(Photometry).where(
-                            sa.and_(
-                                Photometry.obj_id == request.obj.id,
-                                ~Photometry.origin.ilike("%fp%"),
-                            )
+            # eager-load streams since async sessions raise on lazy access
+            photometry = (
+                await session.scalars(
+                    sa.select(Photometry)
+                    .where(
+                        sa.and_(
+                            Photometry.obj_id == request.obj.id,
+                            ~Photometry.origin.ilike("%fp%"),
                         )
                     )
-                ).all()
-                additional_constraints = []
-                if "alert photometry only" in position:
-                    additional_constraints.append(lambda p: p and len(p.streams) > 0)
-                if "ZTF alert photometry only" in position:
-                    # grab the id of the ZTF instrument (one of ZTF or CFH12k)
-                    ztf_instrument_id = session.scalar(
-                        sa.select(Instrument.id).where(
-                            sa.or_(
-                                Instrument.name == "ZTF",
-                                Instrument.name == "CFH12k",
-                            )
+                    .options(selectinload(Photometry.streams))
+                )
+            ).all()
+            additional_constraints = []
+            if "alert photometry only" in position:
+                additional_constraints.append(lambda p: p and len(p.streams) > 0)
+            if "ZTF alert photometry only" in position:
+                # grab the id of the ZTF instrument (one of ZTF or CFH12k)
+                ztf_instrument_id = await session.scalar(
+                    sa.select(Instrument.id).where(
+                        sa.or_(
+                            Instrument.name == "ZTF",
+                            Instrument.name == "CFH12k",
                         )
                     )
-                    if ztf_instrument_id is not None:
-                        additional_constraints.append(
-                            lambda p: p and p.instrument_id == ztf_instrument_id
-                        )
-                    else:
-                        error = "Could not find the ZTF instrument in the database."
-                        return target, error
-                photometry = [
-                    (p.ra, p.dec, p.flux, p.fluxerr)
-                    for p in photometry
-                    if not np.isnan(p.flux)
-                    and not np.isnan(p.fluxerr)
-                    and not np.isnan(p.ra)
-                    and not np.isnan(p.dec)
-                    and len(p.streams) > 0
-                    and all(constraint(p) for constraint in additional_constraints)
-                ]
-                if len(photometry) > 0:
-                    # calculate the weighted centroid based on the object's photometry
-                    ras, decs, flux, fluxerr = np.array(photometry).T
-                    snr = np.abs(flux / fluxerr)
-
-                    # only keep the ras, decs, flux, and fluxerr where the snr is above 3
-                    snr_cut_indices = np.where(snr > 3)
-                    if len(snr_cut_indices[0]) == 0:
-                        error = "No photometry found that meets the criteria for flux weighted centroid calculation (all snr < 3)."
-                        return target, error
-
-                    ras, decs, flux, fluxerr, snr = (
-                        ras[snr_cut_indices],
-                        decs[snr_cut_indices],
-                        flux[snr_cut_indices],
-                        fluxerr[snr_cut_indices],
-                        snr[snr_cut_indices],
+                )
+                if ztf_instrument_id is not None:
+                    additional_constraints.append(
+                        lambda p: p and p.instrument_id == ztf_instrument_id
                     )
-                    ra, dec = (
-                        np.sum(ras * snr) / np.sum(snr),
-                        np.sum(decs * snr) / np.sum(snr),
-                    )
-
-                    if np.isnan(ra) or np.isnan(dec):
-                        error = "Could not compute the flux weighted centroid for the object."
-                        return target, error
                 else:
-                    error = "No photometry found that meets the criteria for flux weighted centroid calculation."
+                    error = "Could not find the ZTF instrument in the database."
                     return target, error
+            photometry = [
+                (p.ra, p.dec, p.flux, p.fluxerr)
+                for p in photometry
+                if not np.isnan(p.flux)
+                and not np.isnan(p.fluxerr)
+                and not np.isnan(p.ra)
+                and not np.isnan(p.dec)
+                and len(p.streams) > 0
+                and all(constraint(p) for constraint in additional_constraints)
+            ]
+            if len(photometry) > 0:
+                # calculate the weighted centroid based on the object's photometry
+                ras, decs, flux, fluxerr = np.array(photometry).T
+                snr = np.abs(flux / fluxerr)
+
+                # only keep the ras, decs, flux, and fluxerr where the snr is above 3
+                snr_cut_indices = np.where(snr > 3)
+                if len(snr_cut_indices[0]) == 0:
+                    error = "No photometry found that meets the criteria for flux weighted centroid calculation (all snr < 3)."
+                    return target, error
+
+                ras, decs, flux, fluxerr, snr = (
+                    ras[snr_cut_indices],
+                    decs[snr_cut_indices],
+                    flux[snr_cut_indices],
+                    fluxerr[snr_cut_indices],
+                    snr[snr_cut_indices],
+                )
+                ra, dec = (
+                    np.sum(ras * snr) / np.sum(snr),
+                    np.sum(decs * snr) / np.sum(snr),
+                )
+
+                if np.isnan(ra) or np.isnan(dec):
+                    error = (
+                        "Could not compute the flux weighted centroid for the object."
+                    )
+                    return target, error
+            else:
+                error = "No photometry found that meets the criteria for flux weighted centroid calculation."
+                return target, error
 
         elif "Source (object's coordinates)" in position:
             ra, dec = request.obj.ra, request.obj.dec
@@ -436,15 +445,21 @@ def commit_photometry(
             **df.to_dict(orient="list"),
         }
 
-        from skyportal.handlers.api.photometry import add_external_photometry
+        import asyncio
+
+        from skyportal.handlers.api.photometry import commit_external_photometry
 
         if len(df.index) > 0:
-            ids, _ = add_external_photometry(
-                data_out,
-                request.requester,
-                parent_session=session,
-                duplicates=duplicates,
-                refresh=True,
+            # add_external_photometry is async; bridge to it from this sync
+            # facility worker. The request's obj is already saved, so the
+            # bridge's separate session sees it.
+            ids = asyncio.run(
+                commit_external_photometry(
+                    data_out,
+                    user_id,
+                    duplicates=duplicates,
+                    refresh=True,
+                )
             )
             if ids is None:
                 raise ValueError("Failed to commit photometry")
@@ -474,7 +489,7 @@ class ZTFAPI(FollowUpAPI):
     """An interface to ZTF operations."""
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from ZTF queue.
 
         Parameters
@@ -486,9 +501,25 @@ class ZTFAPI(FollowUpAPI):
         """
 
         from ..models import (
+            Allocation,
             FacilityTransaction,
             FacilityTransactionRequest,
             FollowupRequest,
+        )
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
+                selectinload(FollowupRequest.transactions),
+            )
         )
 
         last_modified_by_id = request.last_modified_by_id
@@ -497,10 +528,10 @@ class ZTFAPI(FollowUpAPI):
         # this happens for failed submissions
         # just go ahead and delete
         if len(request.transactions) == 0:
-            session.query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            session.commit()
+            await session.execute(
+                sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+            )
+            await session.commit()
         elif request.payload["request_type"] == "triggered":
             altdata = request.allocation.altdata
             if not altdata:
@@ -513,34 +544,34 @@ class ZTFAPI(FollowUpAPI):
             payload = {"queue_name": queue_name, "user": request.requester.username}
 
             url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
-            s = Session()
-            req = Request("DELETE", url, json=payload, headers=headers)
-            prepped = req.prepare()
-            r = s.send(prepped)
-            if r.status_code == 200:
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.delete(url, json=payload, headers=headers) as r:
+                    content = await r.text()
+                    status = r.status
+            if status == 200:
                 request.status = "deleted"
             else:
-                request.status = f"rejected: {r.content}"
+                request.status = f"rejected: {content}"
 
             transaction = FacilityTransaction(
-                request=http.serialize_requests_request(r.request),
-                response=http.serialize_requests_response(r),
+                request=http.serialize_aiohttp_request("DELETE", url, headers, payload),
+                response=await http.serialize_aiohttp_response(r, content),
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
             session.add(transaction)
         elif request.payload["request_type"] == "forced_photometry":
-            transaction = (
-                session.query(FacilityTransactionRequest)
-                .filter(FacilityTransactionRequest.followup_request_id == request.id)
-                .first()
+            transaction = await session.scalar(
+                sa.select(FacilityTransactionRequest).where(
+                    FacilityTransactionRequest.followup_request_id == request.id
+                )
             )
             if transaction is not None:
                 if transaction.status == "complete":
                     raise ValueError("Request already complete. Cannot delete.")
-                session.delete(transaction)
-            session.delete(request)
-            session.commit()
+                await session.delete(transaction)
+            await session.delete(request)
+            await session.commit()
             log(f"Deleted request {request.id} from ZTF queue.")
         else:
             raise ValueError("Unknown request type.")
@@ -561,7 +592,7 @@ class ZTFAPI(FollowUpAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to ZTF.
 
         Parameters
@@ -572,7 +603,26 @@ class ZTFAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, FacilityTransactionRequest
+        from ..models import (
+            Allocation,
+            FacilityTransaction,
+            FacilityTransactionRequest,
+            FollowupRequest,
+        )
+
+        # Reload with the lazy chains this method (and the payload builders)
+        # walk eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
+            )
+        )
 
         req = ZTFRequest()
 
@@ -581,10 +631,10 @@ class ZTFAPI(FollowUpAPI):
             raise ValueError("Missing allocation information.")
 
         if request.payload["request_type"] == "triggered":
-            requestgroup = req._build_triggered_payload(request, session)
+            requestgroup = await req._build_triggered_payload(request, session)
             url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
         elif request.payload["request_type"] == "forced_photometry":
-            requestgroup, error = req._build_forced_payload(request)
+            requestgroup, error = await req._build_forced_payload(request, session)
             if error:
                 raise ValueError(error)
             requestgroup["email"] = altdata["ipac_email"]
@@ -604,19 +654,26 @@ class ZTFAPI(FollowUpAPI):
             }
 
             url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
-            s = Session()
-            req = Request("PUT", url, json=payload, headers=headers)
-            prepped = req.prepare()
-            r = s.send(prepped)
-        elif request.payload["request_type"] == "forced_photometry":
-            r = requests.get(
-                url,
-                auth=HTTPBasicAuth(
-                    altdata["ipac_http_user"], altdata["ipac_http_password"]
-                ),
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.put(url, json=payload, headers=headers) as r:
+                    content = await r.text()
+                    status = r.status
+            transaction_request = http.serialize_aiohttp_request(
+                "PUT", url, headers, payload
             )
+        elif request.payload["request_type"] == "forced_photometry":
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.get(
+                    url,
+                    auth=BasicAuth(
+                        altdata["ipac_http_user"], altdata["ipac_http_password"]
+                    ),
+                ) as r:
+                    content = await r.text()
+                    status = r.status
+            transaction_request = http.serialize_aiohttp_request("GET", url)
 
-        if r.status_code == 200:
+        if status == 200:
             request.status = "submitted"
 
             if request.payload["request_type"] == "forced_photometry":
@@ -640,20 +697,20 @@ class ZTFAPI(FollowUpAPI):
                     "initiator_id": request.last_modified_by_id,
                 }
                 try:
-                    req = FacilityTransactionRequest(**request_body)
+                    facility_request = FacilityTransactionRequest(**request_body)
                 except ValidationError as e:
                     raise ValidationError(
                         f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
 
-                session.add(req)
-                session.commit()
+                session.add(facility_request)
+                await session.commit()
         else:
-            request.status = f"rejected: {r.content}"
+            request.status = f"rejected: {content}"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=transaction_request,
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -789,7 +846,7 @@ class ZTFMMAAPI(MMAAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def send(request, session):
+    async def send(request, session):
         """Submit an EventObservationPlan to ZTF.
 
         Parameters
@@ -798,7 +855,26 @@ class ZTFMMAAPI(MMAAPI):
             The request to add to the queue and the SkyPortal database.
         """
 
-        from ..models import FacilityTransaction
+        from ..models import (
+            EventObservationPlan,
+            FacilityTransaction,
+            ObservationPlanRequest,
+            PlannedObservation,
+        )
+
+        # Reload with the lazy chains _build_observation_plan_payload walks
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(ObservationPlanRequest)
+            .where(ObservationPlanRequest.id == request.id)
+            .options(
+                selectinload(ObservationPlanRequest.allocation),
+                selectinload(ObservationPlanRequest.requester),
+                selectinload(ObservationPlanRequest.observation_plans)
+                .selectinload(EventObservationPlan.planned_observations)
+                .selectinload(PlannedObservation.field),
+            )
+        )
 
         req = ZTFRequest()
         requestgroup = req._build_observation_plan_payload(request)
@@ -821,19 +897,19 @@ class ZTFMMAAPI(MMAAPI):
         }
 
         url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
-        s = Session()
-        ztfreq = Request("PUT", url, json=payload, headers=headers)
-        prepped = ztfreq.prepare()
-        r = s.send(prepped)
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.put(url, json=payload, headers=headers) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code == 200:
+        if status == 200:
             request.status = "submitted to telescope queue"
         else:
-            request.status = f"rejected from telescope queue: {r.content}"
+            request.status = f"rejected from telescope queue: {content}"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request("PUT", url, headers, payload),
+            response=await http.serialize_aiohttp_response(r, content),
             observation_plan_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -841,7 +917,7 @@ class ZTFMMAAPI(MMAAPI):
         session.add(transaction)
 
     @staticmethod
-    def remove(request):
+    async def remove(request):
         """Delete an EventObservationPlan from ZTF queue.
 
         Parameters
@@ -850,54 +926,69 @@ class ZTFMMAAPI(MMAAPI):
             The request to delete from the queue and the SkyPortal database.
         """
 
-        from ..models import DBSession, FacilityTransaction, ObservationPlanRequest
-
-        req = (
-            DBSession()
-            .query(ObservationPlanRequest)
-            .filter(ObservationPlanRequest.id == request.id)
-            .one()
+        from ..models import (
+            Allocation,
+            FacilityTransaction,
+            ObservationPlanRequest,
         )
 
-        # this happens for failed submissions
-        # just go ahead and delete
-        if len(req.transactions) == 0:
-            DBSession().query(ObservationPlanRequest).filter(
-                ObservationPlanRequest.id == request.id
-            ).delete()
-            DBSession().commit()
-            return
+        # No session is passed; open our own async session and reload the
+        # request with the lazy chains this method walks eager-loaded.
+        async with async_plain_session_factory() as session:
+            request = await session.scalar(
+                sa.select(ObservationPlanRequest)
+                .where(ObservationPlanRequest.id == request.id)
+                .options(
+                    selectinload(ObservationPlanRequest.allocation).selectinload(
+                        Allocation.instrument
+                    ),
+                    selectinload(ObservationPlanRequest.requester),
+                    selectinload(ObservationPlanRequest.transactions),
+                )
+            )
 
-        altdata = request.allocation.altdata
-        if not altdata:
-            raise ValueError("Missing allocation information.")
+            # this happens for failed submissions
+            # just go ahead and delete
+            if len(request.transactions) == 0:
+                await session.execute(
+                    sa.delete(ObservationPlanRequest).where(
+                        ObservationPlanRequest.id == request.id
+                    )
+                )
+                await session.commit()
+                return
 
-        queue_name = "ToO_" + request.payload["queue_name"]
-        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+            altdata = request.allocation.altdata
+            if not altdata:
+                raise ValueError("Missing allocation information.")
 
-        payload = {"queue_name": queue_name, "user": request.requester.username}
+            queue_name = "ToO_" + request.payload["queue_name"]
+            headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
-        url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
-        s = Session()
-        ztfreq = Request("DELETE", url, json=payload, headers=headers)
-        prepped = ztfreq.prepare()
-        r = s.send(prepped)
-        if r.status_code == 200:
-            request.status = "deleted from telescope queue"
-        else:
-            request.status = f"rejected: {r.content}"
+            payload = {"queue_name": queue_name, "user": request.requester.username}
 
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            observation_plan_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
+            url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.delete(url, json=payload, headers=headers) as r:
+                    content = await r.text()
+                    status = r.status
+            if status == 200:
+                request.status = "deleted from telescope queue"
+            else:
+                request.status = f"rejected: {content}"
 
-        DBSession().add(transaction)
+            transaction = FacilityTransaction(
+                request=http.serialize_aiohttp_request("DELETE", url, headers, payload),
+                response=await http.serialize_aiohttp_response(r, content),
+                observation_plan_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+            session.add(transaction)
+            await session.commit()
 
     @staticmethod
-    def queued(allocation, start_date=None, end_date=None, queues_only=False):
+    async def queued(allocation, start_date=None, end_date=None, queues_only=False):
         """Retrieve queued observations by ZTF.
 
         Parameters
@@ -919,13 +1010,13 @@ class ZTFMMAAPI(MMAAPI):
         headers = {"Authorization": f"Bearer {altdata['access_token']}"}
 
         url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
-        s = Session()
-        ztfreq = Request("GET", url, headers=headers, json={})
-        prepped = ztfreq.prepare()
-        r = s.send(prepped)
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.get(url, headers=headers, json={}) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code == 200:
-            df = pd.DataFrame(r.json()["data"])
+        if status == 200:
+            df = pd.DataFrame(json.loads(content)["data"])
             queue_names = sorted(set(df["queue_name"]))
 
             if not queues_only:
@@ -939,10 +1030,10 @@ class ZTFMMAAPI(MMAAPI):
                 IOLoop.current().run_in_executor(None, fetch_obs)
             return queue_names
         else:
-            return ValueError(f"Error querying for queued observations: {r.text}")
+            return ValueError(f"Error querying for queued observations: {content}")
 
     @staticmethod
-    def remove_queue(allocation, queue_name, username):
+    async def remove_queue(allocation, queue_name, username):
         """Remove a queue from ZTF.
 
         Parameters
@@ -954,7 +1045,7 @@ class ZTFMMAAPI(MMAAPI):
         username: str
             Username for the removal
         """
-        from ..models import DBSession, ObservationPlanRequest
+        from ..models import ObservationPlanRequest
 
         altdata = allocation.altdata
         if not altdata:
@@ -964,23 +1055,24 @@ class ZTFMMAAPI(MMAAPI):
         payload = {"queue_name": queue_name, "user": username}
 
         url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztf")
-        s = Session()
-        ztfreq = Request("DELETE", url, json=payload, headers=headers)
-        prepped = ztfreq.prepare()
-
-        r = s.send(prepped)
-        if r.status_code != 200:
-            return ValueError(f"Error deleting queue: {r.text}")
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.delete(url, json=payload, headers=headers) as r:
+                content = await r.text()
+                status = r.status
+        if status != 200:
+            return ValueError(f"Error deleting queue: {content}")
 
         # check if there is an observation plan request associated with this queue (same queue name)
         # if so, mark it as removed from queue
         try:
-            with DBSession() as session:
-                observation_plan_request = session.scalar(
-                    session.query(ObservationPlanRequest).filter(
+            async with async_plain_session_factory() as session:
+                observation_plan_request = await session.scalar(
+                    sa.select(ObservationPlanRequest)
+                    .where(
                         ObservationPlanRequest.payload["queue_name"] == queue_name,
                         ObservationPlanRequest.allocation_id == allocation.id,
                     )
+                    .options(selectinload(ObservationPlanRequest.gcnevent))
                 )
                 if (
                     observation_plan_request
@@ -988,7 +1080,7 @@ class ZTFMMAAPI(MMAAPI):
                     == "submitted to telescope queue"
                 ):
                     observation_plan_request.status = "deleted from telescope queue"
-                    session.commit()
+                    await session.commit()
 
                     flow = Flow()
                     flow.push(
@@ -1004,7 +1096,7 @@ class ZTFMMAAPI(MMAAPI):
             )
 
     @staticmethod
-    def retrieve(allocation, start_date, end_date):
+    async def retrieve(allocation, start_date, end_date):
         """Retrieve executed observations by ZTF.
 
         Parameters
@@ -1042,7 +1134,7 @@ class ZTFMMAAPI(MMAAPI):
         IOLoop.current().run_in_executor(None, fetch_obs)
 
     @staticmethod
-    def send_skymap(allocation, payload):
+    async def send_skymap(allocation, payload):
         """Submit skymap queue to ZTF.
 
         Parameters
@@ -1061,16 +1153,16 @@ class ZTFMMAAPI(MMAAPI):
 
         url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztfmma")
 
-        s = Session()
-        ztfreq = Request("PUT", url, json=payload, headers=headers)
-        prepped = ztfreq.prepare()
-        r = s.send(prepped)
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.put(url, json=payload, headers=headers) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code != 200:
-            raise ValueError(f"rejected from skymap queue: {r.content}")
+        if status != 200:
+            raise ValueError(f"rejected from skymap queue: {content}")
 
     @staticmethod
-    def queued_skymap(allocation):
+    async def queued_skymap(allocation):
         """Get all the skymap-based triggers name."""
 
         altdata = allocation.altdata
@@ -1081,18 +1173,18 @@ class ZTFMMAAPI(MMAAPI):
 
         url = urllib.parse.urljoin(ZTF_URL, "api/triggers/ztfmma")
 
-        s = Session()
-        ztfreq = Request("GET", url, headers=headers, json={})
-        prepped = ztfreq.prepare()
-        r = s.send(prepped)
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.get(url, headers=headers, json={}) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code == 200:
-            return [d["trigger_name"] for d in r.json()["data"]]
+        if status == 200:
+            return [d["trigger_name"] for d in json.loads(content)["data"]]
         else:
-            raise ValueError(f"Error querying for queued skymaps: {r.text}")
+            raise ValueError(f"Error querying for queued skymaps: {content}")
 
     @staticmethod
-    def remove_skymap(allocation, trigger_name, username=None):
+    async def remove_skymap(allocation, trigger_name, username=None):
         """Delete a skymap trigger by trigger_name."""
         altdata = allocation.altdata
         if not altdata:
@@ -1110,13 +1202,13 @@ class ZTFMMAAPI(MMAAPI):
 
         payload = {"trigger_name": trigger_name, "user": username}
 
-        s = Session()
-        ztfreq = Request("DELETE", url, json=payload, headers=headers)
-        prepped = ztfreq.prepare()
-        r = s.send(prepped)
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.delete(url, json=payload, headers=headers) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code != 200:
-            raise ValueError(f"Error deleting skymap: {r.text}")
+        if status != 200:
+            raise ValueError(f"Error deleting skymap: {content}")
 
     def custom_json_schema(instrument, user, **kwargs):
         form_json_schema = MMAAPI.custom_json_schema(instrument, user, **kwargs)

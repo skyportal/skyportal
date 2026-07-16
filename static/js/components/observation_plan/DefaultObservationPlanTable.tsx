@@ -192,7 +192,7 @@ const DefaultObservationPlanTable = ({
   ];
 
   const CustomToolbar = () => (
-    <DataGridToolbar>
+    <DataGridToolbar showExport>
       <IconButton size="small" onClick={() => setNewDialogOpen(true)}>
         <AddIcon />
       </IconButton>

@@ -15,7 +15,7 @@ dependencies = [
     "joblib>=1.5.0, <2.0.0",
     "seaborn>=0.13.2, <1.0.0",
     "factory-boy==3.3.3",
-    "astropy==7.2.0",
+    "astropy==8.0.0",
     "distributed>=2024.5.2",
     "dust_extinction==1.7",
     "dustmaps==1.0.13",
@@ -23,14 +23,14 @@ dependencies = [
     "avro-python3==1.10.2",
     "fastavro>=1.9.4,<2.0.0",
     "tqdm>=4.27,<4.68",
-    "matplotlib==3.10.9",
+    "matplotlib==3.11.0",
     "astroquery==0.4.11",
     "apispec>=6.3.0, <7.0.0",
     "marshmallow==4.3.0",
     "marshmallow-sqlalchemy==1.5.0",
     "Pillow>=8.4.0",
     "pyproj==3.7.0",
-    "sncosmo==2.12.1",
+    "sncosmo==2.13.0",
     "tdtax==0.1.7",
     "healpix-alchemy==1.1.0",
     "mocpy==0.18.0",
@@ -44,7 +44,7 @@ dependencies = [
     "astroplan==0.10.1",
     "email-validator==2.3.0",
     "alembic==1.18.4",
-    "paramiko==4.0.0",
+    "paramiko==5.0.0",
     "scp==0.15.0",
     "requests_toolbelt==1.0.0",
     "sendgrid==6.12.5",
@@ -52,7 +52,7 @@ dependencies = [
     "twilio==9.10.9",
     "numba>=0.59.0",
     "pyvo==1.8",
-    "lxml==6.1.0",
+    "lxml==6.1.1",
     "suds-py3==1.4.5.0",
     "aiohttp==3.14.1",
     # vcrpy >=8.2.1 supports aiohttp 3.14 (8.1.1's aiohttp stub imported the
@@ -66,6 +66,10 @@ dependencies = [
     "pysedm==0.41.0",
     "xmlschema==4.3.1",
     "requests>=2.30.0, <3.0.0",
+    # tornado comes in via baselayer (which declares >=6.0.3); pin the security
+    # floor here so the lock can't resolve to a vulnerable version and the bump
+    # sticks (a lock-only floor reverts to baselayer's on the next uv resolve).
+    "tornado>=6.5.6",
     "geojson==3.2.0",
     "typing-extensions==4.15.0",
     "swifttools==3.0.23",
@@ -76,24 +80,27 @@ dependencies = [
     "noaodatalab==2.20.0",
     "black==26.5.1",
     "click==8.1.7",
-    "arviz==0.19.0",
-    "corner==2.2.3",
     "penquins==2.4.2",
     "afterglowpy==0.8.1",
     "gcn-kafka==0.3.3",
-    "confluent_kafka==2.14.0",
+    "confluent_kafka==2.15.0",
     "iminuit==2.32.0",
     "watchdog==6.0.0",
     "PyAstronomy==0.24.0",
     "shapely==2.1.2",
     "openai==2.40.0",
-    "tiktoken==0.12.0",
+    "tiktoken==0.13.0",
     "simplejson==3.20.1",
-    "langchain==1.3.9",
+    "langchain==1.3.11",
     "langchain-openai==1.2.2",
     "pinecone==8.0.0",
     "pydantic==2.13.4",
-    "sentry-sdk==2.34.1",
+    # Optional observability stack (opt-in via config `observability.enabled`)
+    "opentelemetry-sdk>=1.30.0",
+    "opentelemetry-exporter-prometheus>=0.51b0",
+    "opentelemetry-instrumentation-tornado>=0.51b0",
+    "prometheus-client>=0.20.0",
+    "sentry-sdk==2.64.0",
     "typing-inspect==0.9.0",
     "brotli==1.2.0",
     "numexpr==2.14.1",
@@ -104,17 +111,16 @@ dependencies = [
 dev = [
     "pre-commit",
     "pytest>=9.0.3,<10.0.0",
-    "pytest-randomly==4.0.1",
+    "pytest-randomly==4.1.0",
     "pytest-rerunfailures>=14.0",
     "playwright==1.58.0",
-    "pytest-playwright==0.7.2",
+    "pytest-playwright==0.8.0",
 ]
 docs = [
     "sphinx>=9.1.0; python_version >= '3.12'",
     "sphinx-book-theme",
     "recommonmark",
     "numpydoc",
-    "notedown",
     "jsx-lexer",
     "eralchemy2",
     "jinja2<3.2.0",
@@ -123,7 +129,6 @@ docs = [
 [tool.uv]
 package = false
 workspace = { members = ["baselayer"] }
-no-binary-package = ["sncosmo"]  # no arm64 macOS wheel on PyPI for Python 3.10+
 
 [tool.uv.sources]
 baselayer = { workspace = true }
