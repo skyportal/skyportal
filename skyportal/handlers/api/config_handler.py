@@ -93,6 +93,7 @@ class ConfigHandler(BaseHandler):
             data={
                 "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
+                "photometryDisplayEndpoint": cfg["photometry_display_endpoint"],
                 "cosmology": str(cosmo),
                 "openai_summary_apikey_set": openai_summary_apikey_set,
                 "openai_summary_parameters": openai_summary_parameters,
