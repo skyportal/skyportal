@@ -277,7 +277,6 @@ const CandidateThumbnails = ({
   dec,
   thumbnails = null,
 }: CandidateThumbnailsProps) => {
-  const { classes } = useStyles();
   const [generateSurveyThumbnailMutation] =
     useGenerateSurveyThumbnailMutation();
 
