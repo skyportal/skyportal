@@ -3,7 +3,6 @@ import functools
 import json
 import os
 import tempfile
-import traceback
 
 import joblib
 import matplotlib
@@ -218,8 +217,7 @@ def run_sn_model(data_dict):
             rez.update({"status": "failure", "message": "model failed to converge"})
 
     except Exception as e:
-        log.info(f"Exception while running the model: {e}")
-        log.error(f"{traceback.format_exc()}")
+        log.exception("Exception while running the model")
         log.info(f"Data: {data}")
         rez.update({"status": "failure", "message": f"problem running the model {e}"})
     finally:
@@ -252,9 +250,8 @@ class MainHandler(tornado.web.RequestHandler):
         """
         try:
             data_dict = tornado.escape.json_decode(self.request.body)
-        except json.decoder.JSONDecodeError:
-            err = traceback.format_exc()
-            log.info(f"JSON decode error: {err}")
+        except json.decoder.JSONDecodeError as e:
+            log.info(f"JSON decode error: {e}")
             return self.error(400, "Invalid JSON")
 
         required_keys = ["inputs", "callback_url", "callback_method"]

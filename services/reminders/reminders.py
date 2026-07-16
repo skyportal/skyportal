@@ -1,5 +1,4 @@
 import time
-import traceback
 from datetime import timedelta
 
 from baselayer.app.env import load_env
@@ -52,9 +51,8 @@ def send_reminders():
                 for reminder_class in reminder_classes
             )
             reminders = [reminder for sublist in reminders for reminder in sublist]
-        except Exception as e:
-            log.info(e)
-            traceback.print_exc()
+        except Exception:
+            log.exception("Error fetching due reminders")
 
         ws_flow = Flow()
         for reminder in reminders:
@@ -128,9 +126,9 @@ def send_reminders():
                             "</body></html>"
                         ),
                     )
-                except Exception as e:
-                    log(
-                        f"Failed to send reminder email to {reminder.user.contact_email}: {e}"
+                except Exception:
+                    log.exception(
+                        f"Failed to send reminder email to {reminder.user.contact_email}"
                     )
 
             session.add(
@@ -170,9 +168,8 @@ def send_reminders():
             next_reminders = [
                 reminder for reminder in next_reminders if reminder is not None
             ]
-        except Exception as e:
-            log.info(e)
-            traceback.print_exc()
+        except Exception:
+            log.exception("Error updating next reminders")
 
         if len(next_reminders) > 0:
             next_reminder = min(next_reminders, key=lambda x: x.next_reminder)
@@ -187,9 +184,8 @@ def service(*args, **kwargs):
     while True:
         try:
             send_reminders()
-        except Exception as e:
-            log.info(e)
-            traceback.print_exc()
+        except Exception:
+            log.exception("Error sending reminders")
 
 
 if __name__ == "__main__":

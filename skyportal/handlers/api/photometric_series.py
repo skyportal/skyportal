@@ -1,6 +1,5 @@
 import os
 import textwrap
-import traceback
 
 import arrow
 import conesearch_alchemy as ca
@@ -451,25 +450,23 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
             if v is None:
                 metadata.pop(k)
 
-    except Exception:
-        raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
+    except Exception as e:
+        raise ValueError(f"Problem parsing data/metadata: {e}") from e
 
     # check all the related DB objects are valid:
     try:
         group_ids = get_group_ids(metadata, user, session)
-    except Exception:
-        raise ValueError(f"Could not parse group IDs: {traceback.format_exc()}")
+    except Exception as e:
+        raise ValueError(f"Could not parse group IDs: {e}") from e
     try:
         stream_ids = get_stream_ids(metadata, user, session)
-    except Exception:
-        raise ValueError(f"Could not parse stream IDs: {traceback.format_exc()}")
+    except Exception as e:
+        raise ValueError(f"Could not parse stream IDs: {e}") from e
 
     try:
         check_objects_exist(metadata, user, session)
-    except Exception:
-        raise ValueError(
-            f"Problems accessing database objects: {traceback.format_exc()}"
-        )
+    except Exception as e:
+        raise ValueError(f"Problems accessing database objects: {e}") from e
 
     try:
         # load the group, stream and owner IDs:
@@ -486,29 +483,27 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
         # parse all attributes into correct type
         metadata = verify_metadata(metadata)
 
-    except Exception:
-        raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
+    except Exception as e:
+        raise ValueError(f"Problem parsing data/metadata: {e}") from e
 
     try:
         individual_enum_checks(metadata)
-    except Exception:
-        raise ValueError(f"Problem parsing metadata: {traceback.format_exc()}")
+    except Exception as e:
+        raise ValueError(f"Problem parsing metadata: {e}") from e
 
     try:
         ps = PhotometricSeries(data, **metadata)
         # allow the config to change the default behavior:
         ps.autodelete = cfg.get("photometric_series_autodelete", True)
 
-    except Exception:
-        raise ValueError(
-            f"Could not create PhotometricSeries object: {traceback.format_exc()}"
-        )
+    except Exception as e:
+        raise ValueError(f"Could not create PhotometricSeries object: {e}") from e
 
     try:
         # make sure we can get the file name:
         full_name, path = ps.make_full_name()
-    except Exception:
-        raise ValueError(f"Errors when making file name: {traceback.format_exc()}")
+    except Exception as e:
+        raise ValueError(f"Errors when making file name: {e}") from e
 
     # make sure the file does not exist:
     if os.path.isfile(full_name):
@@ -550,10 +545,10 @@ def post_photometric_series(json_data, data, attributes_metadata, user, session)
 
         return ps.id
 
-    except Exception:
+    except Exception as e:
         session.rollback()
         ps.delete_data()  # make sure not to leave files behind
-        raise ValueError(f"Could not save photometric series: {traceback.format_exc()}")
+        raise ValueError(f"Could not save photometric series: {e}") from e
 
 
 def update_photometric_series(ps, json_data, data, attributes_metadata, user, session):
@@ -584,8 +579,8 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
         try:
             verify_data(data)
             inferred_metadata = infer_metadata(data)
-        except Exception:
-            raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
+        except Exception as e:
+            raise ValueError(f"Problem parsing data/metadata: {e}") from e
 
     prev_filename = ps.filename
 
@@ -600,19 +595,17 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
     # check all the related DB objects are valid:
     try:
         group_ids = get_group_ids(metadata, user, session)
-    except Exception:
-        raise ValueError(f"Could not parse group IDs: {traceback.format_exc()}")
+    except Exception as e:
+        raise ValueError(f"Could not parse group IDs: {e}") from e
     try:
         stream_ids = get_stream_ids(metadata, user, session)
-    except Exception:
-        raise ValueError(f"Could not parse stream IDs: {traceback.format_exc()}")
+    except Exception as e:
+        raise ValueError(f"Could not parse stream IDs: {e}") from e
 
     try:
         check_objects_exist(metadata, user, session)
-    except Exception:
-        raise ValueError(
-            f"Problems accessing database objects: {traceback.format_exc()}"
-        )
+    except Exception as e:
+        raise ValueError(f"Problems accessing database objects: {e}") from e
 
     try:
         # load the group and stream IDs:
@@ -629,20 +622,20 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
         # parse all attributes into correct type
         metadata = verify_metadata(metadata)
 
-    except Exception:
-        raise ValueError(f"Problem parsing data/metadata: {traceback.format_exc()}")
+    except Exception as e:
+        raise ValueError(f"Problem parsing data/metadata: {e}") from e
 
     try:
         individual_enum_checks(metadata)
-    except Exception:
-        raise ValueError(f"Problem parsing metadata: {traceback.format_exc()}")
+    except Exception as e:
+        raise ValueError(f"Problem parsing metadata: {e}") from e
 
     # update the underlying data (if given)
     if data is not None:
         try:
             ps.data = data  # also run calc_flux_mag() and calc_stats()
-        except Exception:
-            raise ValueError(f"Could not update data: {traceback.format_exc()}")
+        except Exception as e:
+            raise ValueError(f"Could not update data: {e}") from e
 
     # update the metadata on the PhotometricSeries object
     for k, v in metadata.items():
@@ -657,8 +650,8 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
     try:
         # make sure we can get the file name:
         full_name, path = ps.make_full_name()
-    except Exception:
-        raise ValueError(f"Errors when making file name: {traceback.format_exc()}")
+    except Exception as e:
+        raise ValueError(f"Errors when making file name: {e}") from e
 
     # make sure the file does not exist:
     if prev_filename != full_name and os.path.isfile(full_name):
@@ -683,19 +676,17 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
         session.add(ps)
         session.commit()
 
-    except Exception:
+    except Exception as e:
         session.rollback()
         ps.delete_data(temp=True)  # make sure not to leave files behind
-        raise ValueError(f"Could not save photometric series: {traceback.format_exc()}")
+        raise ValueError(f"Could not save photometric series: {e}") from e
 
     # get rid of the old data, regardless of new name
     try:
         if os.path.isfile(prev_filename):
             os.remove(prev_filename)
     except Exception:
-        log.error(
-            f"Could not remove old file {prev_filename}: {traceback.format_exc()}"
-        )
+        log.exception(f"Could not remove old file {prev_filename}")
     ps.move_temp_data()  # make the temp file permanent
 
     return ps.id
@@ -744,17 +735,13 @@ class PhotometricSeriesHandler(BaseHandler):
         if isinstance(data, dict):
             try:
                 data = pd.DataFrame(data)
-            except Exception:
-                return self.error(
-                    f"Could not convert data to a DataFrame. {traceback.format_exc()} "
-                )
+            except Exception as e:
+                return self.error(f"Could not convert data to a DataFrame. {e} ")
         elif isinstance(data, str):
             try:
                 data, attributes_metadata = load_dataframe_from_bytestream(data)
-            except Exception:
-                return self.error(
-                    f"Could not load DataFrame from HDF5 file. {traceback.format_exc()} "
-                )
+            except Exception as e:
+                return self.error(f"Could not load DataFrame from HDF5 file. {e} ")
         else:
             return self.error(
                 "Data must be a dictionary (JSON) or dataframe in HDF5 format. "
@@ -770,6 +757,7 @@ class PhotometricSeriesHandler(BaseHandler):
                     session,
                 )
             except Exception as e:
+                log.exception("Unable to post photometric series")
                 return self.error(f"Unable to post photometric series: {str(e)}")
 
         return self.success(data={"id": photometric_series_id})
@@ -840,17 +828,13 @@ class PhotometricSeriesHandler(BaseHandler):
             if isinstance(data, dict):
                 try:
                     data = pd.DataFrame(data)
-                except Exception:
-                    return self.error(
-                        f"Could not convert data to a DataFrame. {traceback.format_exc()} "
-                    )
+                except Exception as e:
+                    return self.error(f"Could not convert data to a DataFrame. {e} ")
             elif isinstance(data, str):
                 try:
                     data, attributes_metadata = load_dataframe_from_bytestream(data)
-                except Exception:
-                    return self.error(
-                        f"Could not load DataFrame from HDF5 file. {traceback.format_exc()} "
-                    )
+                except Exception as e:
+                    return self.error(f"Could not load DataFrame from HDF5 file. {e} ")
 
             try:
                 photometric_series_id = update_photometric_series(
@@ -862,6 +846,7 @@ class PhotometricSeriesHandler(BaseHandler):
                     session,
                 )
             except Exception as e:
+                log.exception("Unable to update photometric series")
                 return self.error(f"Unable to update photometric series: {str(e)}")
 
             return self.success(data={"id": photometric_series_id})
@@ -1355,9 +1340,10 @@ class PhotometricSeriesHandler(BaseHandler):
 
                 try:
                     output_dict = ps.to_dict(data_format=data_format)
-                except Exception:
+                except Exception as e:
+                    log.exception("Cannot convert photometric series to dictionary")
                     return self.error(
-                        f"Cannot convert photometric series to dictionary: {traceback.format_exc()}"
+                        f"Cannot convert photometric series to dictionary: {e}"
                     )
 
                 return self.success(data=output_dict)
@@ -1481,50 +1467,38 @@ class PhotometricSeriesHandler(BaseHandler):
         if start_after is not None:
             try:
                 start_after_mjd = Time(arrow.get(start_after).datetime).mjd
-            except Exception:
-                return self.error(
-                    f"Cannot parse time {start_after}: {traceback.format_exc()}"
-                )
+            except Exception as e:
+                return self.error(f"Cannot parse time {start_after}: {e}")
             stmt = stmt.where(PhotometricSeries.mjd_first > start_after_mjd)
         if start_before is not None:
             try:
                 start_before_mjd = Time(arrow.get(start_before).datetime).mjd
-            except Exception:
-                return self.error(
-                    f"Cannot parse time {start_before}: {traceback.format_exc()}"
-                )
+            except Exception as e:
+                return self.error(f"Cannot parse time {start_before}: {e}")
             stmt = stmt.where(PhotometricSeries.mjd_first < start_before_mjd)
         if middle_after is not None:
             try:
                 middle_after_mjd = Time(arrow.get(middle_after).datetime).mjd
-            except Exception:
-                return self.error(
-                    f"Cannot parse time {middle_after}: {traceback.format_exc()}"
-                )
+            except Exception as e:
+                return self.error(f"Cannot parse time {middle_after}: {e}")
             stmt = stmt.where(PhotometricSeries.mjd_mid > middle_after_mjd)
         if middle_before is not None:
             try:
                 middle_before_mjd = Time(arrow.get(middle_before).datetime).mjd
-            except Exception:
-                return self.error(
-                    f"Cannot parse time {middle_before}: {traceback.format_exc()}"
-                )
+            except Exception as e:
+                return self.error(f"Cannot parse time {middle_before}: {e}")
             stmt = stmt.where(PhotometricSeries.mjd_mid < middle_before_mjd)
         if end_after is not None:
             try:
                 end_after_mjd = Time(arrow.get(end_after).datetime).mjd
-            except Exception:
-                return self.error(
-                    f"Cannot parse time {end_after}: {traceback.format_exc()}"
-                )
+            except Exception as e:
+                return self.error(f"Cannot parse time {end_after}: {e}")
             stmt = stmt.where(PhotometricSeries.mjd_last > end_after_mjd)
         if end_before is not None:
             try:
                 end_before_mjd = Time(arrow.get(end_before).datetime).mjd
-            except Exception:
-                return self.error(
-                    f"Cannot parse time {end_before}: {traceback.format_exc()}"
-                )
+            except Exception as e:
+                return self.error(f"Cannot parse time {end_before}: {e}")
             stmt = stmt.where(PhotometricSeries.mjd_last < end_before_mjd)
 
         if detected is not None:
@@ -1535,10 +1509,8 @@ class PhotometricSeriesHandler(BaseHandler):
 
             try:
                 detected = bool(detected)
-            except ValueError:
-                return self.error(
-                    f"Cannot parse detected value {detected}: {traceback.format_exc()}"
-                )
+            except ValueError as e:
+                return self.error(f"Cannot parse detected value {detected}: {e}")
             stmt = stmt.where(PhotometricSeries.is_detected.is_(detected))
 
         if exp_time_exact is not None:
@@ -1868,10 +1840,9 @@ class PhotometricSeriesHandler(BaseHandler):
                     "numPerPage": num_per_page,
                     "pageNumber": page_number,
                 }
-            except Exception:
-                return self.error(
-                    f"Could not convert series to dict {traceback.format_exc()}"
-                )
+            except Exception as e:
+                log.exception("Could not convert series to dict")
+                return self.error(f"Could not convert series to dict {e}")
             return self.success(data=results)
 
     @permissions(["Upload data"])

@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-import traceback
 import uuid
 
 import lxml
@@ -271,9 +270,8 @@ def poll_events(*args, **kwargs):
                                     notify=False,
                                 )
                         except Exception as e:
-                            traceback.print_exc()
-                            log.error(
-                                f"Failed to ingest gcn_event from {message.topic()}: {e}"
+                            log.exception(
+                                f"Failed to ingest gcn_event from {message.topic()}"
                             )
                             return
 
@@ -331,8 +329,7 @@ def poll_events(*args, **kwargs):
                 asyncio.run(_ingest())
 
         except Exception as e:
-            traceback.print_exc()
-            log.error(f"Failed to consume gcn event: {e}")
+            log.exception("Failed to consume gcn event")
 
 
 def service():

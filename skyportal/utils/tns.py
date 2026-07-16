@@ -1,7 +1,6 @@
 import json
 import re
 import time
-import traceback
 import urllib
 
 import astropy.units as u
@@ -297,8 +296,7 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
         json_response = json.loads(r.text)
         reply = json_response["data"]
     except Exception as e:
-        traceback.print_exc()
-        log.info(f"TNS request failed: {str(e)}.")
+        log.exception("TNS request failed.")
         return []
 
     sources = []

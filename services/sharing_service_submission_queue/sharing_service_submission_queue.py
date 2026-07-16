@@ -1,6 +1,5 @@
 import sys
 import time
-import traceback
 import uuid
 from datetime import UTC, datetime, timedelta
 from threading import Thread
@@ -345,9 +344,8 @@ def process_submission_requests():
                         log.error(f"Error rolling back session: {str(rollback_err)}")
                     else:
                         try:
-                            traceback.print_exc()
-                            log.error(
-                                f"Error processing sharing submission request {submission_request_id}: {str(e)}"
+                            log.exception(
+                                f"Error processing sharing submission request {submission_request_id}"
                             )
                             submission_request = session.scalar(
                                 sa.select(SharingServiceSubmission).where(
@@ -581,7 +579,9 @@ def validate_submission_requests():
                                 json={"tns_source": tns_source},
                             )
                         except Exception as e:
-                            log.error(f"Error submitting TNS name to retrieval queue: {e}")
+                            log.error(
+                                f"Error submitting TNS name to retrieval queue: {e}"
+                            )
                     elif err == "report not found":
                         # Sometimes TNS accepts a report but it disappears.
                         # If it's been <1 min since last update, wait; otherwise, mark as pending to retry.
@@ -607,8 +607,7 @@ def validate_submission_requests():
                         )
                 except Exception as e:
                     session.rollback()
-                    traceback.print_exc()
-                    log.info(f"Unexpected error checking TNS report: {str(e)}")
+                    log.exception("Unexpected error checking TNS report")
                     continue
         except Exception as e:
             # A dropped DB connection can raise on the DBSession context-manager
@@ -630,7 +629,9 @@ def service(*args, **kwargs):
         # Exit if either worker thread died (e.g. DB connection drop in a context
         # manager exit, outside the loop's try/except) so supervisor restarts us.
         if not (t.is_alive() and t2.is_alive()):
-            log.error("A sharing service worker thread died, exiting for supervisor restart")
+            log.error(
+                "A sharing service worker thread died, exiting for supervisor restart"
+            )
             sys.exit(1)
 
 

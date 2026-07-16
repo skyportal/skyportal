@@ -7,7 +7,6 @@ and synchronizes it with SkyPortal by creating sources and uploading photometry.
 
 import json
 import time
-import traceback
 import uuid
 from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
@@ -439,8 +438,7 @@ class SourceProcessor:
             log_verbose.info(f"    ✓ Successfully synced {obj_id}")
 
         except Exception as e:
-            log.info(f"    ✗ Error syncing {obj_id} with SkyPortal: {e}")
-            traceback.print_exc()
+            log.exception(f"    ✗ Error syncing {obj_id} with SkyPortal")
             session.rollback()
 
 
@@ -570,13 +568,11 @@ class HermesSyncService:
                 try:
                     self.processor.process_message(session, data)
                 except Exception as e:
-                    log.error(f"Error processing message: {e}")
-                    traceback.print_exc()
+                    log.exception("Error processing message")
                     session.rollback()
 
         except Exception as e:
-            log.error(f"Error in Kafka message handler: {e}")
-            traceback.print_exc()
+            log.exception("Error in Kafka message handler")
 
     def _cleanup(self) -> None:
         """Clean up resources."""

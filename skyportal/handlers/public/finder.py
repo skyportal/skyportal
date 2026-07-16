@@ -1,5 +1,4 @@
 import io
-import traceback
 
 import numpy as np
 
@@ -69,8 +68,7 @@ class CachedSourceFinderHandler(BaseHandler):
                 return self.error("Source not found", status=404)
 
             # otherwise, we log the error and return a 500
-            log.error(f"Error retrieving cached finding chart: {str(e)}")
-            traceback.print_exc()
+            log.exception("Error retrieving cached finding chart")
             return self.error(f"Error generating finding chart: {str(e)}")
 
         await self.send_file(data, filename, output_type=output_type)

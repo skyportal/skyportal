@@ -5,7 +5,6 @@ import json
 import os
 import tarfile
 import tempfile
-import traceback
 from datetime import timedelta
 
 import aiohttp
@@ -667,8 +666,7 @@ class UVOTXRTAPI(FollowUpAPI):
                     is_update=False,
                 )
         except Exception as e:
-            traceback.print_exc()
-            log.error(f"Error sending notification: {e}")
+            log.exception("Error sending notification")
 
     form_json_schema = {
         "type": "object",

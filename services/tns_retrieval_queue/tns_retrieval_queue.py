@@ -2,7 +2,6 @@ import asyncio
 import json
 import sys
 import time
-import traceback
 import urllib
 from datetime import datetime, timedelta
 from threading import Thread
@@ -478,8 +477,7 @@ def process_queue(queue):
                             session,
                         )
         except Exception as e:
-            traceback.print_exc()
-            log.error(f"Error processing TNS source {tns_name}: {e}")
+            log.exception(f"Error processing TNS source {tns_name}")
             user_id = task.get("user_id", None)
             if user_id is not None:
                 flow = Flow()
@@ -631,7 +629,9 @@ def service(*args, **kwargs):
         # Exit if any worker thread died (e.g. DB connection drop in a context
         # manager exit, outside the loop's try/except) so supervisor restarts us.
         if not (t.is_alive() and t2.is_alive() and t3.is_alive()):
-            log("A TNS retrieval worker thread died, exiting for supervisor restart")
+            log.error(
+                "A TNS retrieval worker thread died, exiting for supervisor restart"
+            )
             sys.exit(1)
 
 

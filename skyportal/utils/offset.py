@@ -3,7 +3,6 @@ import math
 import os
 import re
 import string
-import traceback
 import urllib
 import warnings
 from functools import wraps
@@ -1852,7 +1851,6 @@ def get_finding_chart(
         try:
             finding_charts_cache[cache_key] = dict_to_bytes(data)
         except Exception as e:
-            traceback.print_exc()
-            log.error(f"Failed to cache finding chart: {e}")
+            log.exception("Failed to cache finding chart")
 
     return data

@@ -1,7 +1,6 @@
 import asyncio
 import itertools
 import time
-import traceback
 
 import arrow
 import sqlalchemy as sa
@@ -170,8 +169,7 @@ def prioritize_requests(requests):
 
         return plan_with_priority["plan_id"]
     except Exception as e:
-        traceback.print_exc()
-        log.error(f"Error occured prioritizing the observation plan queue: {e}")
+        log.exception("Error occured prioritizing the observation plan queue")
         return 0
 
 
@@ -273,14 +271,11 @@ def service(*args, **kwargs):
                             return await api.submit(rid, s, asynchronous=False)
 
                     plan_ids = [asyncio.run(_submit())]
-            except Exception as e:
-                traceback.print_exc()
+            except Exception:
                 if is_combined:
-                    log.error(f"Error processing combined plans: {rids}: {str(e)}")
+                    log.exception(f"Error processing combined plans: {rids}")
                 else:
-                    log.error(
-                        f"Error processing observation plan: {e.args[0] if e.args else e}"
-                    )
+                    log.exception("Error processing observation plan")
                 mark_failed(rids)
                 time.sleep(2)
                 continue
@@ -391,9 +386,8 @@ def service(*args, **kwargs):
                             else:
                                 raise e
                 except Exception as e:
-                    traceback.print_exc()
-                    log.error(
-                        f"Error occured processing default queue submission or survey efficiency for plan {id}: {e}"
+                    log.exception(
+                        f"Error occured processing default queue submission or survey efficiency for plan {id}"
                     )
                     time.sleep(2)
 

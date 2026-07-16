@@ -7,7 +7,6 @@ import operator
 import re
 import tempfile
 import time
-import traceback
 import uuid
 from datetime import timedelta
 
@@ -843,8 +842,7 @@ async def post_followup_request_async(
             refresh_requests=refresh_requests,
         )
     except Exception as e:
-        log.error(f"Failed to submit follow-up request: {e}, traceback:")
-        log.error(traceback.format_exc())
+        log.exception("Failed to submit follow-up request")
         followup_request.status = f"failed to submit: {e}"
         raise
     finally:
@@ -1095,8 +1093,7 @@ async def _post_default_followup_requests_async(
                         f"allocation ID {allocation_id} (constraint not met): {e}"
                     )
                 else:
-                    traceback.print_exc()
-                    log.error(f"Error posting default followup request: {e}")
+                    log.exception("Error posting default followup request")
 
 
 def post_default_followup_requests(obj_id, default_followup_request_ids, user_id):
@@ -1823,7 +1820,7 @@ class FollowupRequestHandler(BaseHandler):
                 )
                 await session.commit()
             except Exception as e:
-                traceback.print_exc()
+                log.exception("Failed to delete follow-up request")
                 return self.error(f"Failed to delete follow-up request: {e}")
             return self.success()
 

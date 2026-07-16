@@ -1,6 +1,5 @@
 import asyncio
 import functools
-import traceback
 from datetime import timedelta
 from json import JSONDecodeError
 
@@ -363,7 +362,7 @@ class GEMINIAPI(FollowUpAPI):
         try:
             gemini_request = await GeminiRequest.create(request, session)
         except Exception as e:
-            log.error(traceback.format_exc())
+            log.exception("Error building Gemini request")
             raise ValueError(f"Error building Gemini request: {e}")
 
         failed_requests = []

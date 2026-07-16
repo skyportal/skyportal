@@ -190,7 +190,9 @@ def deredden_photometry_df(df, ra, dec):
     # partially-corrected multi-survey light curve isn't a silent surprise.
     skipped = sorted(f for f, v in a_lambda.items() if v is None)
     if skipped:
-        log(f"deredden: no extinction coefficient for {skipped}; left uncorrected")
+        log.warning(
+            f"deredden: no extinction coefficient for {skipped}; left uncorrected"
+        )
     a = df["filter"].map(a_lambda).astype(float)
     mask = a.notna()
     if not mask.any():

@@ -1,5 +1,4 @@
 import json
-import traceback
 
 import tornado.escape
 import tornado.ioloop
@@ -34,9 +33,8 @@ class MainHandler(tornado.web.RequestHandler):
         """
         try:
             data = tornado.escape.json_decode(self.request.body)
-        except json.decoder.JSONDecodeError:
-            err = traceback.format_exc()
-            log.info(err)
+        except json.decoder.JSONDecodeError as e:
+            log.info(f"JSON decode error: {e}")
             return self.error(400, "Invalid JSON")
 
         url = data.pop("url", "")
