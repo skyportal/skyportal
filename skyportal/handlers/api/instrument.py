@@ -959,8 +959,16 @@ class InstrumentHandler(BaseHandler):
             if configuration_data:
                 instrument.configuration_data = configuration_data
 
-            # temporary, to migrate old instruments
-            if instrument.region is not None or field_region is not None:
+            # temporary, to migrate old instruments. `region` is a deferred
+            # column; fetch it via SQL (rather than the lazy attribute) to avoid
+            # a sync lazy-load under the async session.
+            if "region" in data:
+                region = data["region"]
+            else:
+                region = await session.scalar(
+                    sa.select(Instrument.region).where(Instrument.id == instrument.id)
+                )
+            if region is not None or field_region is not None:
                 instrument.has_region = True
             # Count fields via SQL: CustomUserAccessControl-emitted statements
             # don't reliably propagate selectinload across to the lazy
@@ -1224,11 +1232,17 @@ def add_tiles(
             zip(ids, field_data["RA"], field_data["Dec"], coords_icrs)
         ):
             if field_id == -1:
-                field = InstrumentField.query.filter(
-                    InstrumentField.instrument_id == instrument_id,
-                    InstrumentField.ra == ra,
-                    InstrumentField.dec == dec,
-                ).first()
+                field = (
+                    DBSession()
+                    .scalars(
+                        sa.select(InstrumentField).where(
+                            InstrumentField.instrument_id == instrument_id,
+                            InstrumentField.ra == ra,
+                            InstrumentField.dec == dec,
+                        )
+                    )
+                    .first()
+                )
                 if field is not None:
                     field_ids.append(field.field_id)
                     continue

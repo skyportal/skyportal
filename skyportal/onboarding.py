@@ -162,7 +162,11 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
     elif existing_user is not None and invite_token is None:
         return
 
-    invitation = Invitation.query.filter(Invitation.token == invite_token).first()
+    invitation = (
+        DBSession()
+        .scalars(sa.select(Invitation).where(Invitation.token == invite_token))
+        .first()
+    )
     if invitation is None:
         raise Exception(
             "Authentication Error: Invalid invite token. A valid invite token is required."
