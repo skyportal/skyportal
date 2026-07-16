@@ -11,9 +11,9 @@ from ...models import (
     Photometry,
     Source,
     Spectrum,
-    Team,
     basic_user_display_info,
 )
+from ...utils.data_access import team_scoped_group_ids
 from ..base import BaseHandler, format_doc
 
 MAX_NEWSFEED_ITEMS = 1000
@@ -123,27 +123,17 @@ class NewsFeedHandler(BaseHandler):
                 g.id for g in self.associated_user_object.accessible_groups
             ]
 
-            # Optionally scope the feed to a single team. This is a view filter,
-            # never a permission: the team's groups are intersected with the
-            # user's accessible groups, so it can only narrow what is shown.
-            team_id = self.get_query_argument("teamID", None)
-            team_scoped_group_ids = None
-            if team_id is not None:
-                try:
-                    team_id = int(team_id)
-                except (TypeError, ValueError):
-                    return self.error(f"Invalid teamID: {team_id}")
-                team = await session.scalar(
-                    Team.select(self.current_user)
-                    .options(selectinload(Team.groups))
-                    .where(Team.id == team_id)
+            # Optionally scope the feed to a single team (view filter, never a
+            # permission — intersected with the user's accessible groups).
+            try:
+                scoped_group_ids = await team_scoped_group_ids(
+                    session,
+                    self.current_user,
+                    self.get_query_argument("teamID", None),
+                    user_accessible_group_ids,
                 )
-                if team is None:
-                    return self.error(f"Cannot find Team with id {team_id}")
-                accessible = set(user_accessible_group_ids)
-                team_scoped_group_ids = [
-                    g.id for g in team.groups if g.id in accessible
-                ]
+            except ValueError as e:
+                return self.error(str(e))
 
             async def fetch_newest(
                 model, include_bot_comments=False, include_ml_classifications=False
@@ -182,11 +172,11 @@ class NewsFeedHandler(BaseHandler):
                                 )
                             )
                         )
-                if team_scoped_group_ids is not None:
+                if scoped_group_ids is not None:
                     query = query.where(
                         model.obj_id.in_(
                             sa.select(Source.obj_id).where(
-                                Source.group_id.in_(team_scoped_group_ids),
+                                Source.group_id.in_(scoped_group_ids),
                                 Source.active.is_(True),
                             )
                         )

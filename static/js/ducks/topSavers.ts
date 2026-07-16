@@ -16,8 +16,11 @@ export type TopSaver = Record<string, any>;
 
 export const topSaversApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getTopSavers: build.query<TopSaver[], void>({
-      query: () => "api/internal/source_savers",
+    getTopSavers: build.query<TopSaver[], { teamID?: number | null } | void>({
+      query: (arg) =>
+        arg && arg.teamID != null
+          ? `api/internal/source_savers?teamID=${arg.teamID}`
+          : "api/internal/source_savers",
       providesTags: ["TopSaver"],
     }),
   }),

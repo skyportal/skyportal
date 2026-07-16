@@ -20,8 +20,14 @@ export interface SourceCounts {
 
 export const sourceCountsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getSourceCounts: build.query<SourceCounts, void>({
-      query: () => "api/internal/source_counts",
+    getSourceCounts: build.query<
+      SourceCounts,
+      { teamID?: number | null } | void
+    >({
+      query: (arg) =>
+        arg && arg.teamID != null
+          ? `api/internal/source_counts?teamID=${arg.teamID}`
+          : "api/internal/source_counts",
       providesTags: ["SourceCounts"],
     }),
   }),

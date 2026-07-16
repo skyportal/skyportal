@@ -22,6 +22,7 @@ import {
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";
 import { useGetTopSourcesQuery } from "../../ducks/topSources";
+import { useActiveTeam } from "../../ducks/teams";
 
 interface TopSourcesListProps {
   sources?: any[];
@@ -305,7 +306,10 @@ const TopSources = ({ classes }: TopSourcesProps) => {
     invertThumbnails,
   });
 
-  const { data: sourceViews } = useGetTopSourcesQuery();
+  const { activeTeam } = useActiveTeam();
+  const { data: sourceViews } = useGetTopSourcesQuery(
+    activeTeam ? { teamID: activeTeam.id } : undefined,
+  );
   const prefs = (profile?.preferences as any)?.topSources || defaultPrefs;
 
   const topSourcesPrefs = prefs ? { ...defaultPrefs, ...prefs } : defaultPrefs;
