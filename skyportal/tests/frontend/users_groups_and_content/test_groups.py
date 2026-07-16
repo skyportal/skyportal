@@ -51,7 +51,7 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
             id = group["id"]
             break
     page.goto(f"/group/{id}")
-    expect(page.locator('//h6[@data-testid="description"]').first).to_be_visible()
+    expect(page.locator('//*[@data-testid="description"]').first).to_be_visible()
     expect(
         page.locator(f'//*[text()[contains(., "{group_description}")]]').first
     ).to_be_visible()
