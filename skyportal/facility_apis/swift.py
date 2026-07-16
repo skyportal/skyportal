@@ -19,7 +19,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
@@ -403,7 +403,7 @@ def download_observations(request_id, oq):
 
     except Exception as e:
         session.rollback()
-        log(f"Unable to post data for {request_id}: {e}")
+        log.error(f"Unable to post data for {request_id}: {e}")
     finally:
         session.close()
         Session.remove()
@@ -572,7 +572,7 @@ class UVOTXRTAPI(FollowUpAPI):
                 request.status = "submitted"
             else:
                 request.status = f"rejected: {content}"
-                log(
+                log.error(
                     f"Failed to submit Swift request for {request.id} (obj {request.obj.id}): {content}"
                 )
                 try:
@@ -586,7 +586,7 @@ class UVOTXRTAPI(FollowUpAPI):
                         },
                     )
                 except Exception as e:
-                    log(f"Failed to send notification: {e}")
+                    log.error(f"Failed to send notification: {e}")
 
             transaction = FacilityTransaction(
                 request=http.serialize_aiohttp_request("POST", API_URL, None, payload),
@@ -668,7 +668,7 @@ class UVOTXRTAPI(FollowUpAPI):
                 )
         except Exception as e:
             traceback.print_exc()
-            log(f"Error sending notification: {e}")
+            log.error(f"Error sending notification: {e}")
 
     form_json_schema = {
         "type": "object",

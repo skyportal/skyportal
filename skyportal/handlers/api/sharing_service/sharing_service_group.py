@@ -2,7 +2,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ....models import (
     GroupUser,

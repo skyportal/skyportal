@@ -17,7 +17,7 @@ from baselayer.app.models import (
     AccessibleIfUserMatches,
     Base,
 )
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils.files import delete_file_data, save_file_data
 from .group import accessible_by_groups_members
@@ -298,5 +298,5 @@ class CommentOnShift(Base, CommentMixin):
 @event.listens_for(CommentOnGCN, "after_delete")
 @event.listens_for(CommentOnShift, "after_delete")
 def delete_comment_data_from_disk(mapper, connection, target):
-    log(f"Deleting comment data for comment id={target.id}")
+    log.info(f"Deleting comment data for comment id={target.id}")
     target.delete_data()

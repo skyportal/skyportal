@@ -5,9 +5,9 @@ from datetime import timedelta
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import User, init_db
-from baselayer.log import make_log
 from skyportal.app_utils import get_app_base_url
 from skyportal.email_utils import send_email
+from skyportal.log import make_log
 from skyportal.models import (
     DBSession,
     Reminder,
@@ -53,7 +53,7 @@ def send_reminders():
             )
             reminders = [reminder for sublist in reminders for reminder in sublist]
         except Exception as e:
-            log(e)
+            log.info(e)
             traceback.print_exc()
 
         ws_flow = Flow()
@@ -171,7 +171,7 @@ def send_reminders():
                 reminder for reminder in next_reminders if reminder is not None
             ]
         except Exception as e:
-            log(e)
+            log.info(e)
             traceback.print_exc()
 
         if len(next_reminders) > 0:
@@ -188,7 +188,7 @@ def service(*args, **kwargs):
         try:
             send_reminders()
         except Exception as e:
-            log(e)
+            log.info(e)
             traceback.print_exc()
 
 

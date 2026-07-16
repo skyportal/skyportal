@@ -2,7 +2,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ....models import Filter, Group, Source
 from ....models.candidate import Candidate
@@ -57,7 +57,7 @@ async def get_sources_by_objs_in_range(
         )
         return result.all()
     except Exception as e:
-        log(f"Error while retrieving saved candidates: {e}")
+        log.error(f"Error while retrieving saved candidates: {e}")
         return []
 
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 log = make_log("cache")
 
@@ -85,7 +85,7 @@ class Cache:
         if not cache_file.exists():
             return None
 
-        log(f"hit [{name}]")
+        log.info(f"hit [{name}]")
         cache_file.touch()  # Make newest in cache
 
         return cache_file
@@ -108,7 +108,7 @@ class Cache:
         with open(fn, "wb") as f:
             f.write(data)
 
-        log(f"save [{name}] to [{os.path.basename(fn)}]")
+        log.info(f"save [{name}] to [{os.path.basename(fn)}]")
 
         self.clean_cache()
 
@@ -130,7 +130,7 @@ class Cache:
         except FileNotFoundError:
             return
 
-        log(f"cleanup [{os.path.basename(fn)}]")
+        log.info(f"cleanup [{os.path.basename(fn)}]")
         self.clean_cache()
 
     def _remove(self, filenames):
@@ -145,7 +145,7 @@ class Cache:
         for f in filenames:
             try:
                 os.remove(f)
-                log(f'cleanup [{os.path.basename(f)}]')
+                log.info(f'cleanup [{os.path.basename(f)}]')
             except FileNotFoundError:
                 pass
         # fmt: on

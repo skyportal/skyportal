@@ -14,7 +14,7 @@ from astropy.time import Time
 from bs4 import BeautifulSoup
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..models import Instrument
 from .calculations import great_circle_distance
@@ -246,7 +246,7 @@ def _tns_request(
             content = r.json()
         except Exception:
             content = r.text
-        log(
+        log.info(
             f"TNS request rate limited: {str(content)}.  Waiting {retry_delay} seconds to try again."
         )
         time.sleep(retry_delay)
@@ -291,18 +291,20 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
             content = r.json()
         except Exception:
             content = r.text
-        log(f"TNS request failed: {str(content)}.")
+        log.info(f"TNS request failed: {str(content)}.")
         return []
     try:
         json_response = json.loads(r.text)
         reply = json_response["data"]
     except Exception as e:
         traceback.print_exc()
-        log(f"TNS request failed: {str(e)}.")
+        log.info(f"TNS request failed: {str(e)}.")
         return []
 
     sources = []
-    log(f"Found {len(reply)} recent sources from TNS since {str(public_timestamp)}")
+    log.info(
+        f"Found {len(reply)} recent sources from TNS since {str(public_timestamp)}"
+    )
     for i, obj in enumerate(reply):
         if get_data:
             r = _tns_request(
@@ -320,7 +322,9 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
                 try:
                     source_data = r.json().get("data", {})
                 except Exception as e:
-                    log(f"Failed to parse TNS response: {str(e)} ({str(r.json())})")
+                    log.error(
+                        f"Failed to parse TNS response: {str(e)} ({str(r.json())})"
+                    )
                     source_data = None
                 if source_data:
                     sources.append(
@@ -331,7 +335,7 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
                         }
                     )
             if i % 10 == 0 and get_data:
-                log(f"Fetched data of {i + 1}/{len(reply)} recent TNS sources")
+                log.info(f"Fetched data of {i + 1}/{len(reply)} recent TNS sources")
         else:
             sources.append(
                 {
@@ -414,7 +418,7 @@ def get_IAUname(
     try:
         reply = r.json().get("data", {})
     except Exception as e:
-        log(f"Failed to parse TNS response: {str(e)} ({str(r.json())})")
+        log.error(f"Failed to parse TNS response: {str(e)} ({str(r.json())})")
         reply = []
 
     if reply:
@@ -537,7 +541,7 @@ def get_tns(
 
     resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
     if resp.status_code != 200:
-        log(
+        log.info(
             f"TNS request failed for {str(request_body['obj_id'])} by user ID {request_body['user_id']}: {resp.content}"
         )
 

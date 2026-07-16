@@ -7,7 +7,7 @@ from sqlalchemy import event
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import AccessibleIfRelatedRowsAreAccessible, Base
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..enum_types import thumbnail_types
 from ..utils.thumbnail import image_is_grayscale
@@ -86,4 +86,4 @@ def delete_thumbnail_from_disk(mapper, connection, target):
         try:
             os.remove(target.file_uri)
         except (FileNotFoundError, OSError) as e:
-            log(f"Error deleting thumbnail file {target.file_uri}: {e}")
+            log.error(f"Error deleting thumbnail file {target.file_uri}: {e}")

@@ -29,7 +29,7 @@ from reproject import reproject_adaptive
 from scipy.ndimage import gaussian_filter
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from .. import __version__
 from .cache import Cache, dict_to_bytes
@@ -237,15 +237,15 @@ def get_ps1_url(ra, dec, imsize, *args, **kwargs):
         # see models.py for how this URL is constructed
         match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
         if match is None:
-            log(f"PS1 image not found for {ra} {dec}")
+            log.info(f"PS1 image not found for {ra} {dec}")
             return ""
         url = match.group().replace('src="', "http:").replace('"', "")
         url += f"&format=fits&imagename=ps1{ra}{dec:+f}.fits"
     except (requests.exceptions.SSLError, requests.exceptions.ReadTimeout) as e:
-        log(f"Error getting PS1 image URL {str(e)}")
+        log.error(f"Error getting PS1 image URL {str(e)}")
         return ""
     except Exception as e:
-        log(f"Error getting PS1 image URL {e.message}")
+        log.error(f"Error getting PS1 image URL {e.message}")
         return ""
 
     return url
@@ -312,7 +312,9 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
         quad = f"{c.loc[0, 'qid']}"
         ccd = f"{c.loc[0, 'ccdid']:02d}"
     except KeyError:
-        log(f"Note: ZTF does not have a reference image at the position {ra} {dec}")
+        log.info(
+            f"Note: ZTF does not have a reference image at the position {ra} {dec}"
+        )
         return ""
 
     path_ursa_ref = os.path.join(
@@ -483,7 +485,7 @@ def get_ztfcatalog(
 
     refurl = get_ztfref_url(ra, dec, imsize=5)
     if refurl is None or refurl == "":
-        log("Empty ZTF reference image URL. Returning empty table.")
+        log.info("Empty ZTF reference image URL. Returning empty table.")
         return Table()
 
     # the catalog data is in the same directory as the reference images
@@ -547,7 +549,9 @@ def _calculate_best_position_for_offset_stars(
         Remove positions that are this number of std away from the median
     """
     if not isinstance(photometry, list):
-        log("Warning: No photometry given. Falling back to original source position.")
+        log.warning(
+            "Warning: No photometry given. Falling back to original source position."
+        )
         return fallback
 
     # convert the photometry into a dataframe
@@ -558,7 +562,7 @@ def _calculate_best_position_for_offset_stars(
     try:
         df = df[(df["flux"].notnull()) & (df["fluxerr"].notnull())]
     except KeyError:
-        log(
+        log.info(
             "Photometry does not include fluxes. Falling back to "
             " original source position."
         )
@@ -573,18 +577,18 @@ def _calculate_best_position_for_offset_stars(
         # point)
         med_ra, med_dec = np.nanmedian(df["ra"]), np.nanmedian(df["dec"])
     except (TypeError, AttributeError):
-        log(
+        log.warning(
             "Warning: could not find the median of the positions"
             " from the photometry data associated with this source "
         )
         return fallback
     except Exception as e:
-        log(e)
-        log("Uncaught error in ra, dec determination")
+        log.info(e)
+        log.info("Uncaught error in ra, dec determination")
         return fallback
 
     if np.isnan(med_ra) or np.isnan(med_dec):
-        log(
+        log.warning(
             "Warning: the median of the positions"
             " from the photometry data associated with this source "
             " retured nan, using fallback"
@@ -598,7 +602,7 @@ def _calculate_best_position_for_offset_stars(
         c2 = SkyCoord(fallback[0] * u.deg, fallback[1] * u.deg, frame="icrs")
         sep = c1.separation(c2)
         if np.abs(sep) > max_offset * u.arcsec:
-            log(
+            log.warning(
                 "Warning: calculated source position is too far from the"
                 " fiducial. Falling back to the fiducial "
             )
@@ -623,14 +627,18 @@ def _calculate_best_position_for_offset_stars(
             diff_ra = np.average(df["ra_offset"], weights=1 / df["ra_unc"] ** 2)
             diff_dec = np.average(df["dec_offset"], weights=1 / df["dec_unc"] ** 2)
         else:
-            log(f"Warning: do not recognize {how} as a valid way to weight astrometry")
+            log.warning(
+                f"Warning: do not recognize {how} as a valid way to weight astrometry"
+            )
             return (med_ra, med_dec)
     except ZeroDivisionError as e:
-        log(f"ZeroDivisionError in calculating position with {how}: {e}")
+        log.info(f"ZeroDivisionError in calculating position with {how}: {e}")
         return (med_ra, med_dec)
 
     if not np.isfinite([diff_ra, diff_dec]).all():
-        log(f"Error calculating position correction with {how}: {[diff_ra, diff_dec]}")
+        log.error(
+            f"Error calculating position correction with {how}: {[diff_ra, diff_dec]}"
+        )
         return (med_ra, med_dec)
 
     position = (
@@ -683,12 +691,12 @@ def get_formatted_standards_list(
 
     standard_file = standard_stars.get(standard_type)
     if standard_file is None:
-        log(f"Warning: '{standard_type}' not defined in the config.yaml.")
+        log.warning(f"Warning: '{standard_type}' not defined in the config.yaml.")
         return result
 
     starlist_format = starlist_formats.get(starlist_type)
     if starlist_format is None:
-        log("Warning: Do not recognize this starlist format. Using Keck.")
+        log.warning("Warning: Do not recognize this starlist format. Using Keck.")
         starlist_format = starlist_formats["Keck"]
 
     space = " "
@@ -701,7 +709,7 @@ def get_formatted_standards_list(
 
     df = pd.read_csv(standard_file, comment="#")
     if not {"name", "ra", "dec", "epoch", "comment"}.issubset(set(df.columns.values)):
-        log("Error: Standard star CSV file is missing necessary headers.")
+        log.error("Error: Standard star CSV file is missing necessary headers.")
         return result
 
     tab = SkyCoord(df["ra"], df["dec"], unit=(u.hourangle, u.deg))
@@ -735,7 +743,7 @@ def get_formatted_standards_list(
         df = df[(df["mag"] <= magnitude_range[0]) & (df["mag"] >= magnitude_range[1])]
 
     if len(df) == 0:
-        log("Warning: No standards stars match the filter criteria.")
+        log.warning("Warning: No standards stars match the filter criteria.")
         return result
 
     if return_dataframe:
@@ -914,7 +922,9 @@ def get_nearby_offset_stars(
         try:
             r = g.query(query_string)
         except Exception as e:
-            log(f"Error querying Gaia: {e}. Falling back to ZTFref or empty result.")
+            log.error(
+                f"Error querying Gaia: {e}. Falling back to ZTFref or empty result."
+            )
             r = None
 
     # ...otherwise fall back to ZTFref public sources or return
@@ -966,7 +976,7 @@ def get_nearby_offset_stars(
     if use_ztfref:
         ztfcatalog = get_ztfcatalog(source_ra, source_dec)
         if ztfcatalog is None or len(ztfcatalog) == 0:
-            log(
+            log.warning(
                 "Warning: Could not find the ZTF reference catalog"
                 f" at position {source_ra} {source_dec}"
             )
@@ -979,7 +989,7 @@ def get_nearby_offset_stars(
                 == 0
             ):
                 ztfcatalog = None
-                log(
+                log.warning(
                     "Warning: The ZTF reference catalog is empty near"
                     f" position {source_ra} {source_dec}. This probably means"
                     " that the source is at the edge of the ref catalog."
@@ -1040,7 +1050,7 @@ def get_nearby_offset_stars(
                         )
                         use_original = False
                 except Exception as e:
-                    log(
+                    log.warning(
                         f"Warning: ZTF catalog matching failed... "
                         f"Error: {str(e)} "
                         f"Failed catalog: {str(ztfcatalog)}"
@@ -1092,7 +1102,7 @@ def get_nearby_offset_stars(
 
     starlist_format = starlist_formats.get(starlist_type)
     if starlist_format is None:
-        log("Warning: Do not recognize this starlist format. Using Keck.")
+        log.warning("Warning: Do not recognize this starlist format. Using Keck.")
         starlist_format = starlist_formats["Keck"]
 
     col_sep = starlist_format["col_sep"]
@@ -1299,7 +1309,7 @@ def fits_image(
         )
 
     if url in [None, ""]:
-        log(f"Could not get FITS image for source {image_source}")
+        log.error(f"Could not get FITS image for source {image_source}")
         return None
 
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
@@ -1467,12 +1477,12 @@ def get_finding_chart(
                             f"existing cache was computed with obstime={cached_obstime.iso}, request has obstime={request_time.iso} (max age is {cache_max_age_days} days)"
                         )
                 except Exception as e:
-                    log(f"Could not parse obstime: {e}")
+                    log.error(f"Could not parse obstime: {e}")
                     del finding_charts_cache[cache_key]
                     raise Exception("Could not parse obstime")
                 return value
             except Exception as e:
-                log(f"Failed to load cached finding chart: {e}")
+                log.error(f"Failed to load cached finding chart: {e}")
 
     if (imsize < 2.0) or (imsize > 15):
         return {
@@ -1539,7 +1549,7 @@ def get_finding_chart(
 
         if source_image_parameters[image_source].get("reproject", False):
             # project image to the skeleton WCS solution
-            log("Reprojecting image to requested position and orientation")
+            log.info("Reprojecting image to requested position and orientation")
             im, _ = reproject_adaptive(hdu, wcs, shape_out=(npixels, npixels))
         else:
             wcs = WCS(hdu.header)
@@ -1572,7 +1582,7 @@ def get_finding_chart(
         # and return the results from that call
         if fallback_image_source is not None:
             if fallback_image_source != image_source:
-                log(f"Falling back on image source {fallback_image_source}")
+                log.info(f"Falling back on image source {fallback_image_source}")
                 return get_finding_chart(
                     source_ra,
                     source_dec,
@@ -1843,6 +1853,6 @@ def get_finding_chart(
             finding_charts_cache[cache_key] = dict_to_bytes(data)
         except Exception as e:
             traceback.print_exc()
-            log(f"Failed to cache finding chart: {e}")
+            log.error(f"Failed to cache finding chart: {e}")
 
     return data

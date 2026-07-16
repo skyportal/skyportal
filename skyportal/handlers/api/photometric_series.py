@@ -13,7 +13,7 @@ from sqlalchemy.sql.expression import case
 
 from baselayer.app.access import permissions  # , auth_or_token
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...enum_types import ALLOWED_BANDPASSES
 from ...models.assignment import ClassicalAssignment
@@ -693,7 +693,9 @@ def update_photometric_series(ps, json_data, data, attributes_metadata, user, se
         if os.path.isfile(prev_filename):
             os.remove(prev_filename)
     except Exception:
-        log(f"Could not remove old file {prev_filename}: {traceback.format_exc()}")
+        log.error(
+            f"Could not remove old file {prev_filename}: {traceback.format_exc()}"
+        )
     ps.move_temp_data()  # make the temp file permanent
 
     return ps.id

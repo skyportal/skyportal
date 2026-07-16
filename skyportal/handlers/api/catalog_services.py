@@ -18,7 +18,7 @@ from tornado.ioloop import IOLoop
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 try:
     from .alert import post_alert
@@ -195,7 +195,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
 
             program_id_selector = list(program_id_selector)
 
-            log("Querying kowalski for sources")
+            log.info("Querying kowalski for sources")
             # Query kowalski
             sources = query_kowalski(
                 token=altdata["access_token"],
@@ -221,20 +221,20 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             session.commit()
 
             obj_ids = []
-            log(f"Found {len(sources)} sources, posting...")
+            log.info(f"Found {len(sources)} sources, posting...")
             for source in sources:
-                log(f"Retrieving {source['id']}")
+                log.info(f"Retrieving {source['id']}")
                 s = session.scalars(
                     Obj.select(user).where(Obj.id == source["id"])
                 ).first()
                 if s is None:
-                    log(f"Posting {source['id']} as source")
+                    log.info(f"Posting {source['id']} as source")
                     source["group_ids"] = group_ids
                     (obj_id,) = post_source(source, user_id, session)
                     obj_ids.append(obj_id)
 
                 if alert_available:
-                    log(f"Posting photometry from {source['id']}")
+                    log.info(f"Posting photometry from {source['id']}")
                     post_alert(
                         source["id"],
                         group_ids,
@@ -242,7 +242,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                         session,
                         program_id_selector=program_id_selector,
                     )
-            log("Finished querying Kowalski for sources")
+            log.info("Finished querying Kowalski for sources")
 
         elif payload["catalogName"] == "ZTF-Fink":
             instrument = session.scalars(
@@ -256,16 +256,16 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 healpix, level=payload["localizationCumprob"]
             )
 
-            log("Querying Fink for sources")
+            log.info("Querying Fink for sources")
             sources = query_fink(
                 jd_trigger, ra_center, dec_center, max_days=dt, within_days=dt
             )
 
             obj_ids = []
-            log("Looping over sources")
+            log.info("Looping over sources")
             for source in sources:
                 df = source.pop("data")
-                log(f"Retrieving {source['id']}")
+                log.info(f"Retrieving {source['id']}")
 
                 data_out = {
                     "obj_id": source["id"],
@@ -287,10 +287,10 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                     # executor. The obj is already committed by post_source above, so
                     # the bridge's separate session can see it.
                     asyncio.run(commit_external_photometry(data_out, user_id))
-                    log(f"Photometry committed to database for {source['id']}")
+                    log.info(f"Photometry committed to database for {source['id']}")
                 else:
-                    log(f"No photometry to commit to database for {source['id']}")
-            log("Finished querying Fink for sources")
+                    log.info(f"No photometry to commit to database for {source['id']}")
+            log.info("Finished querying Fink for sources")
 
         elif payload["catalogName"] == "LSXPS":
             telescope_name = "Swift"
@@ -300,9 +300,9 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             if telescope is None:
                 raise AttributeError(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
-            log("Querying Swift for sources")
+            log.info("Querying Swift for sources")
             obj_ids = fetch_swift_transients(instrument.id, user_id, group_ids)
-            log("Finished querying Swift for sources")
+            log.info("Finished querying Swift for sources")
 
         elif payload["catalogName"] == "Gaia":
             telescope_name = "Gaia"
@@ -312,14 +312,14 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             if telescope is None:
                 raise AttributeError(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
-            log("Querying Gaia for sources")
+            log.info("Querying Gaia for sources")
             obj_ids = fetch_gaia_transients(
                 instrument.id,
                 user_id,
                 group_ids,
                 {"start_date": start_date, "end_date": end_date},
             )
-            log("Finished querying Gaia for sources")
+            log.info("Finished querying Gaia for sources")
         elif payload["catalogName"] == "TESS":
             telescope_name = "TESS"
             telescope = session.scalars(
@@ -328,14 +328,14 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             if telescope is None:
                 raise AttributeError(f"Expected a Telescope named {telescope_name}")
             instrument = telescope.instruments[0]
-            log("Querying TESS for sources")
+            log.info("Querying TESS for sources")
             obj_ids = fetch_tess_transients(
                 instrument.id,
                 user_id,
                 group_ids,
                 {"start_date": start_date, "end_date": end_date},
             )
-            log("Finished querying TESS for sources")
+            log.info("Finished querying TESS for sources")
         else:
             return AttributeError(f"Catalog name {payload['catalogName']} unknown")
 
@@ -363,7 +363,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 payload={},
             )
         except Exception as e:
-            log(f"Could not add notification: {e}")
+            log.error(f"Could not add notification: {e}")
 
         # frontend refresh
         try:
@@ -376,7 +376,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
             pass
 
     except Exception as e:
-        return log(f"Unable to commit transient catalog: {e}")
+        return log.error(f"Unable to commit transient catalog: {e}")
 
 
 class SwiftLSXPSQueryHandler(BaseHandler):
@@ -572,9 +572,9 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
                         # async add_external_photometry, bridged from this sync executor;
                         # obj already committed above so the bridge's session sees it.
                         asyncio.run(commit_external_photometry(data_out, user_id))
-                        log(f"Photometry committed to database for {obj_id}")
+                        log.info(f"Photometry committed to database for {obj_id}")
                     else:
-                        log(f"No photometry to commit to database for {obj_id}")
+                        log.info(f"No photometry to commit to database for {obj_id}")
 
                 if transient in q.spectra:
                     filenames = glob.glob(f"{tmpdirname}/{transient}/interval*")
@@ -599,7 +599,7 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
         return obj_ids
 
     except Exception as e:
-        return log(f"Unable to commit Swift XRT transient catalog: {e}")
+        return log.error(f"Unable to commit Swift XRT transient catalog: {e}")
 
 
 class GaiaPhotometricAlertsQueryHandler(BaseHandler):
@@ -724,7 +724,7 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
                 nretries = nretries + 1
                 time.sleep(10)
         if not file_read:
-            log("Failed to read Gaia alert catalog")
+            log.error("Failed to read Gaia alert catalog")
             return
 
         start_date = payload.get("start_date", None)
@@ -760,7 +760,7 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
                     header_start=1,
                 )
             except FileNotFoundError:
-                log(f"Gaia alert {name} not found.")
+                log.info(f"Gaia alert {name} not found.")
                 continue
 
             lc["mjd"] = Time(lc["JD(TCB)"], format="jd").mjd
@@ -816,13 +816,13 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
                 # async add_external_photometry, bridged from this sync executor;
                 # obj already committed above so the bridge's session sees it.
                 asyncio.run(commit_external_photometry(data_out, user_id))
-                log(f"Photometry committed to database for {obj_id}")
+                log.info(f"Photometry committed to database for {obj_id}")
             else:
-                log(f"No photometry to commit to database for {obj_id}")
+                log.info(f"No photometry to commit to database for {obj_id}")
 
         return obj_ids
     except Exception as e:
-        return log(f"Unable to commit Gaia Photometric Alert catalog: {e}")
+        return log.error(f"Unable to commit Gaia Photometric Alert catalog: {e}")
 
 
 class TessTransientsQueryHandler(BaseHandler):
@@ -949,7 +949,7 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
                 nretries = nretries + 1
                 time.sleep(10)
         if not file_read:
-            log("Failed to read TESS alert catalog")
+            log.error("Failed to read TESS alert catalog")
             return
 
         start_date = payload.get("start_date", None)
@@ -985,16 +985,16 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
                     header_start=1,
                 )
             except FileNotFoundError:
-                log(f"TESS alert {name} not found.")
+                log.info(f"TESS alert {name} not found.")
                 continue
             except Exception:
-                log(
+                log.info(
                     f"TESS alert {name} could not be ingested: {lightcurve_url}/lc_{name}_cleaned"
                 )
                 continue
 
             if "BTJD" not in list(lc.columns):
-                log(
+                log.info(
                     f"TESS alert {name} could not be ingested: {lightcurve_url}/lc_{name}_cleaned"
                 )
                 continue
@@ -1063,7 +1063,7 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
             if len(df.index) > 0:
                 try:
                     post_photometric_series(data_out, df, {}, user, session)
-                    log(f"Photometry committed to database for {obj_id}")
+                    log.info(f"Photometry committed to database for {obj_id}")
                 except Exception:
                     ps = session.scalars(
                         sa.select(PhotometricSeries).where(
@@ -1073,12 +1073,12 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
                     ).first()
                     if ps is not None:
                         update_photometric_series(ps, data_out, df, {}, user, session)
-                        log(f"Photometry updated in database for {obj_id}")
+                        log.info(f"Photometry updated in database for {obj_id}")
                     else:
-                        log(f"No photometry to commit to database for {obj_id}")
+                        log.info(f"No photometry to commit to database for {obj_id}")
             else:
-                log(f"No photometry to commit to database for {obj_id}")
+                log.info(f"No photometry to commit to database for {obj_id}")
 
         return obj_ids
     except Exception as e:
-        return log(f"Unable to commit TESS transient catalog: {e}")
+        return log.error(f"Unable to commit TESS transient catalog: {e}")

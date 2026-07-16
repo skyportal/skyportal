@@ -8,7 +8,7 @@ from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import AuthResult
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 
 # For SMTP testing
@@ -23,10 +23,10 @@ class CustomSMTPHandler:
         mail_from = envelope.mail_from
         rcpt_tos = envelope.rcpt_tos
         data = envelope.content  # type: bytes
-        log(f"Receiving message from: {peer}")
-        log(f"Message addressed from: {mail_from}")
-        log(f"Message addressed to  : {rcpt_tos}")
-        log(f"Message length        : {len(data)}")
+        log.info(f"Receiving message from: {peer}")
+        log.info(f"Message addressed from: {mail_from}")
+        log.info(f"Message addressed to  : {rcpt_tos}")
+        log.info(f"Message length        : {len(data)}")
         return "250 OK"
 
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     if "test_server" in cfg:
         smtp_port = cfg["test_server.smtp_port"]
 
-        log(f"Listening for test SMTP requests on port {smtp_port}")
+        log.info(f"Listening for test SMTP requests on port {smtp_port}")
         # SMTP TLS context
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         cert_file = os.path.join(os.path.dirname(__file__), "cert.pem")
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
         # On process close, close SMTP sub-process
         def signal_handler(sig, frame):
-            log("Closing SMTP server")
+            log.info("Closing SMTP server")
             controller.stop()
             sys.exit(0)
 

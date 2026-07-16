@@ -13,7 +13,7 @@ from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
@@ -259,7 +259,7 @@ def commit_photometry(
 
     except Exception as e:
         session.rollback()
-        log(f"Unable to commit photometry for {request_id}: {e}")
+        log.error(f"Unable to commit photometry for {request_id}: {e}")
         raise Exception(f"Unable to commit photometry for {request_id}: {e}")
     finally:
         if parent_session is None:

@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.calculations import deg2dms, deg2hms
@@ -79,7 +79,7 @@ class GeminiRequest:
         ).all()
 
         if len(photometry) == 0:
-            log(
+            log.info(
                 f"No photometry found for {request.obj.id}, defaulting to object position"
             )
         else:
@@ -90,7 +90,7 @@ class GeminiRequest:
                     how="snr2",
                 )
             except JSONDecodeError:
-                log(
+                log.error(
                     f"Error calculating best position for {request.obj.id}, defaulting to object position"
                 )
                 best_ra, best_dec = request.obj.ra, request.obj.dec
@@ -363,7 +363,7 @@ class GEMINIAPI(FollowUpAPI):
         try:
             gemini_request = await GeminiRequest.create(request, session)
         except Exception as e:
-            log(traceback.format_exc())
+            log.error(traceback.format_exc())
             raise ValueError(f"Error building Gemini request: {e}")
 
         failed_requests = []
@@ -390,7 +390,7 @@ class GEMINIAPI(FollowUpAPI):
             else:
                 request.status = f"submitted: not all templates were submitted successfully, {failure_ids} failed"
 
-            log(
+            log.error(
                 f"Failed to submit some Gemini request for {request.id} (obj {request.obj.id}, template_ids {failure_ids}): {' / '.join(fail['content'] for fail in failed_requests)}"
             )
             try:
@@ -404,7 +404,7 @@ class GEMINIAPI(FollowUpAPI):
                     },
                 )
             except Exception as e:
-                log(f"Failed to send notification: {e}")
+                log.error(f"Failed to send notification: {e}")
 
         # Record the last request/response (params encoded in r.url).
         transaction = FacilityTransaction(

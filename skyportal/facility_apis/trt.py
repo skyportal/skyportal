@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
@@ -136,7 +136,7 @@ def download_observations(request_id, urls):
                         bot=True,
                     )
                 except Exception as e:
-                    log(
+                    log.info(
                         f"TRT API Retrieve: unable to download data for {request_id}: {e}"
                     )
                     comment = Comment(
@@ -151,7 +151,7 @@ def download_observations(request_id, urls):
             session.commit()
         except Exception as e:
             session.rollback()
-            log(f"Unable to post data for {request_id}: {e}")
+            log.error(f"Unable to post data for {request_id}: {e}")
 
 
 class TRTAPI(FollowUpAPI):
@@ -252,7 +252,7 @@ class TRTAPI(FollowUpAPI):
                     },
                 )
         except Exception as e:
-            log(f"Failed to send notification: {e}")
+            log.error(f"Failed to send notification: {e}")
 
     @staticmethod
     async def get(request, session, **kwargs):
@@ -400,7 +400,7 @@ class TRTAPI(FollowUpAPI):
                     },
                 )
         except Exception as e:
-            log(f"Failed to send notification: {e}")
+            log.error(f"Failed to send notification: {e}")
 
     @staticmethod
     async def delete(request, session, **kwargs):

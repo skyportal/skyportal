@@ -44,7 +44,7 @@ from tornado.ioloop import IOLoop
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.app.models import async_plain_session_factory
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     Allocation,
@@ -684,7 +684,7 @@ async def post_followup_request_async(
                         tns_time = tns_info.get("discoverydate", None)
                         tns_time = arrow.get(tns_time).datetime
                 except Exception as e:
-                    log(
+                    log.error(
                         f"Error parsing TNS info for source {existing_tns_source.id}: {e}, skipping."
                     )
                     continue
@@ -843,8 +843,8 @@ async def post_followup_request_async(
             refresh_requests=refresh_requests,
         )
     except Exception as e:
-        log(f"Failed to submit follow-up request: {e}, traceback:")
-        log(traceback.format_exc())
+        log.error(f"Failed to submit follow-up request: {e}, traceback:")
+        log.error(traceback.format_exc())
         followup_request.status = f"failed to submit: {e}"
         raise
     finally:
@@ -1022,20 +1022,20 @@ async def _post_default_followup_requests_async(
                                 candidate, session
                             )
                             await session.commit()
-                            log(
+                            log.info(
                                 f"Bumped priority of existing followup request "
                                 f"{candidate.id} for {obj_id} (allocation "
                                 f"{allocation_id}) from {existing_priority} to {new_priority}."
                             )
                         except Exception as e:
                             await session.rollback()
-                            log(
+                            log.error(
                                 f"Failed to bump priority of followup request "
                                 f"{candidate.id} for {obj_id} (allocation "
                                 f"{allocation_id}): {e}"
                             )
                     else:
-                        log(
+                        log.info(
                             f"Skipping default followup request for {obj_id} with "
                             f"allocation ID {allocation_id} because an equivalent one "
                             f"already exists."
@@ -1054,7 +1054,7 @@ async def _post_default_followup_requests_async(
                 await post_followup_request_async(
                     data, constraints, session, refresh_source=False
                 )
-                log(
+                log.info(
                     f"Posted default followup request for {obj_id} with allocation ID {allocation_id}."
                 )
 
@@ -1090,13 +1090,13 @@ async def _post_default_followup_requests_async(
                 # A failed trigger constraint raises ValueError("...not
                 # submitting request"); that is an expected skip, not an error.
                 if "not submitting request" in str(e):
-                    log(
+                    log.info(
                         f"Not submitting default followup request for {obj_id} with "
                         f"allocation ID {allocation_id} (constraint not met): {e}"
                     )
                 else:
                     traceback.print_exc()
-                    log(f"Error posting default followup request: {e}")
+                    log.error(f"Error posting default followup request: {e}")
 
 
 def post_default_followup_requests(obj_id, default_followup_request_ids, user_id):
@@ -1590,7 +1590,7 @@ class FollowupRequestHandler(BaseHandler):
                     and constraints is not None
                     and len(list(constraints.keys())) > 0
                 ):
-                    log(
+                    log.info(
                         f"Not submitting request with allocation_id {data['allocation_id']}: {e}"
                     )
                     return self.success(
@@ -2039,7 +2039,7 @@ def observation_schedule(
     # FIXME: account for different instrument readout times
     read_out = 10.0 * u.s
 
-    log(f"Generating requested schedule for {instrument.name}")
+    log.info(f"Generating requested schedule for {instrument.name}")
 
     start_time = time.time()
 
@@ -2156,7 +2156,7 @@ def observation_schedule(
             else:
                 toos.append(False)
 
-    log(
+    log.info(
         f"Assembled {len(blocks)} observations in schedule for {instrument.name} in {time.time() - start_time} s"
     )
 
@@ -2221,7 +2221,9 @@ def observation_schedule(
     # Call the schedule with the observing blocks and schedule to schedule the blocks
     prior_scheduler(blocks, priority_schedule)
 
-    log(f"Generated schedule for {instrument.name} in {time.time() - start_time} s")
+    log.info(
+        f"Generated schedule for {instrument.name} in {time.time() - start_time} s"
+    )
 
     if len(priority_schedule.observing_blocks) == 0:
         raise ValueError("Scheduling failed: there are probably no observable targets.")

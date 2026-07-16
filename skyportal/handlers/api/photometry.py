@@ -23,7 +23,7 @@ from sqlalchemy.orm import joinedload, load_only, selectinload
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...enum_types import ALLOWED_BANDPASSES, ALLOWED_MAGSYSTEMS
 from ...models import (
@@ -221,7 +221,7 @@ def get_color(bandpass, format="hex"):
     elif 1e5 < wavelength <= 3e5:  # JWST miri and miri-tophat
         bandcolor = rgb2hex(cmap_deep_ir((5.48 - np.log10(wavelength)) / 0.48)[:3])
     else:
-        log(
+        log.info(
             f"{bandpass} with effective wavelength {wavelength} is out of range for color maps, using black"
         )
         bandcolor = "#000000"
@@ -245,7 +245,7 @@ def get_bandpasses_to_colors(bandpasses, colors_type="rgb"):
         try:
             out[bandpass] = get_color(bandpass, colors_type)
         except Exception as e:
-            log(f"Skipping bandpass {bandpass} in color mapping due to error: {e}")
+            log.info(f"Skipping bandpass {bandpass} in color mapping due to error: {e}")
     return out
 
 
@@ -258,7 +258,9 @@ def _safe_effective_wavelength(bandpass):
     try:
         return get_effective_wavelength(bandpass)
     except Exception as e:
-        log(f"Skipping bandpass {bandpass} in wavelength mapping due to error: {e}")
+        log.info(
+            f"Skipping bandpass {bandpass} in wavelength mapping due to error: {e}"
+        )
         return None
 
 
@@ -1514,7 +1516,7 @@ async def add_external_photometry(
         )
 
     username = user.username
-    log(f"Pending request from {username} with {len(df.index)} rows")
+    log.info(f"Pending request from {username} with {len(df.index)} rows")
 
     try:
         if duplicates in ["ignore", "update"]:
@@ -1553,7 +1555,9 @@ async def add_external_photometry(
                         {"photometr_id": duplicate.id, "group_id": gid}
                         for gid in new_group_ids
                     )
-                    log(f"Adding groups {new_group_ids} to photometry {duplicate.id}")
+                    log.info(
+                        f"Adding groups {new_group_ids} to photometry {duplicate.id}"
+                    )
                     updated = True
 
                 # posting to new streams? Same ON CONFLICT handling.
@@ -1564,7 +1568,7 @@ async def add_external_photometry(
                             {"photometr_id": duplicate.id, "stream_id": sid}
                             for sid in stream_ids_update
                         )
-                        log(
+                        log.info(
                             f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
                         )
                         updated = True
@@ -1594,11 +1598,11 @@ async def add_external_photometry(
                 )
 
             if duplicates in ["update"] and len(id_map_no_update_needed) > 0:
-                log(
+                log.info(
                     f"A total of ({len(id_map_no_update_needed)}) duplicate photometry points did not need to be updated: {id_map_no_update_needed.values()}"
                 )
             new_photometry = df.loc[new_photometry_df_idxs]
-            log(
+            log.info(
                 f"Inserting {len(new_photometry.index)} "
                 f"(out of {len(df.index)}) new photometry points"
             )
@@ -1628,19 +1632,19 @@ async def add_external_photometry(
             ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
 
         if len(new_photometry) > 0:
-            log(
+            log.info(
                 f"Request from {username} with "
                 f"{len(new_photometry.index)} rows complete with upload_id {upload_id}."
             )
         else:
-            log(
+            log.info(
                 f"Request from {username} with "
                 f"{len(new_photometry.index)} rows complete with no new photometry."
             )
         return ids, upload_id
     except Exception as e:
         await session.rollback()
-        log(f"Unable to post photometry: {e}")
+        log.error(f"Unable to post photometry: {e}")
         return None, None
 
 
@@ -1754,7 +1758,7 @@ class PhotometryHandler(BaseHandler):
 
             obj_id = df["obj_id"].unique()[0]
             username = self.associated_user_object.username
-            log(
+            log.info(
                 f"Pending request from {username} for object {obj_id} with {len(df.index)} rows"
             )
 
@@ -1774,7 +1778,7 @@ class PhotometryHandler(BaseHandler):
                     return self.error(str(e))
                 return self.error(traceback.format_exc())
 
-            log(
+            log.info(
                 f"Request from {username} for object {obj_id} with {len(df.index)} rows complete with upload_id {upload_id}"
             )
 
@@ -1890,7 +1894,7 @@ class PhotometryHandler(BaseHandler):
 
             obj_id = df["obj_id"].unique()[0]
             username = self.associated_user_object.username
-            log(
+            log.info(
                 f"Pending request from {username} for object {obj_id} with {len(df.index)} rows"
             )
 
@@ -1935,7 +1939,7 @@ class PhotometryHandler(BaseHandler):
                             {"photometr_id": duplicate.id, "group_id": gid}
                             for gid in new_group_ids
                         )
-                        log(
+                        log.info(
                             f"Adding groups {new_group_ids} to photometry {duplicate.id}"
                         )
 
@@ -1947,7 +1951,7 @@ class PhotometryHandler(BaseHandler):
                                 {"photometr_id": duplicate.id, "stream_id": sid}
                                 for sid in stream_ids_update
                             )
-                            log(
+                            log.info(
                                 f"Adding streams {stream_ids_update} to photometry {duplicate.id}"
                             )
 
@@ -2024,12 +2028,12 @@ class PhotometryHandler(BaseHandler):
 
                 # now safely drop the duplicates:
                 new_photometry = df.loc[new_photometry_df_idxs]
-                log(
+                log.info(
                     f"Inserting {len(new_photometry.index)} "
                     f"(out of {len(df.index)}) new photometry points"
                 )
                 if ignore_flux and overwrite_flux and len(updated_ids) > 0:
-                    log(
+                    log.info(
                         f"A total of {len(updated_ids)} duplicate photometry points (by obj_id, instrument_id, mjd, origin only, ignoring flux/fluxerr) were updated as requested."
                     )
 
@@ -2062,12 +2066,12 @@ class PhotometryHandler(BaseHandler):
                 ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
 
                 if len(new_photometry) > 0:
-                    log(
+                    log.info(
                         f"Request from {username} for object {obj_id} with "
                         f"{len(new_photometry.index)} rows complete with upload_id {upload_id}."
                     )
                 else:
-                    log(
+                    log.info(
                         f"Request from {username} for object {obj_id} with "
                         f"{len(new_photometry.index)} rows complete with no new photometry."
                     )

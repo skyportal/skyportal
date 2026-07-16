@@ -2,7 +2,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.models import RoleACL, UserACL, UserRole
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..models import (
     Filter,
@@ -638,11 +638,11 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
                     )
                     session.add(submission_request)
                     session.commit()
-                    log(
+                    log.info(
                         f"Added SharingServiceSubmission for obj_id {obj.id}, group {group_id}, sharing_service_id {sharing_service_id}, user_id {saver.id}, services {service_name}"
                     )
             else:
-                log(
+                log.info(
                     "No auto-sharing services associated with this group are selected to auto publish to TNS or Hermes."
                 )
 
@@ -936,11 +936,11 @@ async def auto_source_publishing_async(session, saver, group_id, obj, publish_to
                     )
                     session.add(submission_request)
                     await session.commit()
-                    log(
+                    log.info(
                         f"Added SharingServiceSubmission for obj_id {obj.id}, group {group_id}, sharing_service_id {sharing_service_id}, user_id {saver.id}, services {service_name}"
                     )
             else:
-                log(
+                log.info(
                     "No auto-sharing services associated with this group are selected to auto publish to TNS or Hermes."
                 )
 

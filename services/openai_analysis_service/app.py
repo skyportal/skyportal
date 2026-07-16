@@ -19,7 +19,7 @@ from pinecone import Pinecone
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 _, cfg = load_env()
 log = make_log("openai_analysis_service")
@@ -37,7 +37,7 @@ if (
     and summarize_embedding_config.get("index_name")
     and summarize_embedding_config.get("index_size")
 ):
-    log("initializing pinecone...")
+    log.info("initializing pinecone...")
     pinecone_client = Pinecone(
         api_key=summarize_embedding_config.get("api_key"),
     )
@@ -64,7 +64,7 @@ if (
         if has_pod_spec:
             USE_PINECONE = True
         else:
-            log(
+            log.info(
                 "Pod spec not found in the config file, cannot create index in pinecone"
             )
 
@@ -90,11 +90,11 @@ if (
                 dimension=summarize_embedding_config.get("index_size"),
                 spec=spec,
             )
-            log(f"index {summarize_embedding_index} created in pinecone")
+            log.info(f"index {summarize_embedding_index} created in pinecone")
     else:
         USE_PINECONE = True
 else:
-    log(
+    log.info(
         "Pinecone access does not seem to be configured in the config file, not using pinecone"
     )
 
@@ -125,9 +125,9 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
     Upload the results to the webhook.
     """
 
-    log("Uploading results to webhook")
+    log.info("Uploading results to webhook")
     if data_dict["callback_method"] != "POST":
-        log("Callback URL is not a POST URL. Skipping.")
+        log.info("Callback URL is not a POST URL. Skipping.")
         return
     url = data_dict["callback_url"]
     try:
@@ -141,9 +141,9 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
         # we cannot write back to the SkyPortal instance.
         # So returning something doesn't make sense in this case.
         # Just log it and move on...
-        log("Callback URL timedout. Skipping.")
+        log.info("Callback URL timedout. Skipping.")
     except Exception as e:
-        log(f"Callback exception {e}.")
+        log.info(f"Callback exception {e}.")
 
 
 def create_summary_string(source_id, prompt, comments, classifications, redshift):
@@ -198,7 +198,9 @@ def run_openai_summarization(data_dict):
     rez = {"status": "failure", "message": "", "analysis": {}}
 
     if analysis_parameters.get("openai_api_key") is None:
-        log("No OpenAI API key set. Skipping and setting this analysis to failure.")
+        log.info(
+            "No OpenAI API key set. Skipping and setting this analysis to failure."
+        )
         rez.update(
             {
                 "status": "failure",
@@ -249,7 +251,7 @@ def run_openai_summarization(data_dict):
         )
         return rez
 
-    log("Running OpenAI summarization")
+    log.info("Running OpenAI summarization")
     # create the summary string
     summary_string = create_summary_string(
         source_id, analysis_parameters.get("prompt"), comments, classifications, z
@@ -283,7 +285,7 @@ def run_openai_summarization(data_dict):
             presence_penalty=analysis_parameters["presence_penalty"],
         )
     except Exception as e:
-        log(f"OpenAI summarization failed {e}")
+        log.info(f"OpenAI summarization failed {e}")
         rez.update(
             {
                 "status": "failure",
@@ -316,7 +318,7 @@ def run_openai_summarization(data_dict):
                 model=summarize_embedding_config.get("model", "text-embedding-3-small"),
             )
         except Exception as e:
-            log(f"OpenAI embedding failed {e}")
+            log.info(f"OpenAI embedding failed {e}")
             rez.update(
                 {
                     "status": "failure",
@@ -359,7 +361,7 @@ def run_openai_summarization(data_dict):
         }
     )
 
-    log(f"OpenAI summarization for {source_id} completed")
+    log.info(f"OpenAI summarization for {source_id} completed")
     return rez
 
 
@@ -385,13 +387,13 @@ class SummarizeHandler(tornado.web.RequestHandler):
             data_dict = tornado.escape.json_decode(self.request.body)
         except json.decoder.JSONDecodeError:
             err = traceback.format_exc()
-            log(f"JSON decode error: {err}")
+            log.info(f"JSON decode error: {err}")
             return self.error(400, "Invalid JSON")
 
         required_keys = ["inputs", "callback_url", "callback_method"]
         for key in required_keys:
             if key not in data_dict:
-                log(f"missing required key {key} in data_dict")
+                log.info(f"missing required key {key} in data_dict")
                 return self.error(400, f"missing required key {key} in data_dict")
 
         def openai_analysis_done_callback(
@@ -412,7 +414,7 @@ class SummarizeHandler(tornado.web.RequestHandler):
                 # catch all the exceptions and log them,
                 # try to write back to SkyPortal something
                 # informative.
-                logger(f"{str(future.exception())[:1024]} {e}")
+                logger.info(f"{str(future.exception())[:1024]} {e}")
                 result = {
                     "status": "failure",
                     "message": f"{str(future.exception())[:1024]}{e}",
@@ -444,5 +446,5 @@ if __name__ == "__main__":
     openai_analysis = make_app()
     port = cfg["analysis_services.openai_analysis_service.port"]
     openai_analysis.listen(port)
-    log(f"Listening on port {port}")
+    log.info(f"Listening on port {port}")
     tornado.ioloop.IOLoop.current().start()

@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     Allocation,
@@ -350,7 +350,7 @@ class CommentHandler(BaseHandler):
                 if query_size >= SIZE_WARNING_THRESHOLD:
                     end = time.time()
                     duration = end - start
-                    log(
+                    log.info(
                         f"User {self.associated_user_object.id} comment query returned {query_size} bytes in {duration} seconds"
                     )
 
@@ -435,7 +435,7 @@ class CommentHandler(BaseHandler):
             if query_size >= SIZE_WARNING_THRESHOLD:
                 end = time.time()
                 duration = end - start
-                log(
+                log.info(
                     f"User {self.associated_user_object.id} comment query returned {query_size} bytes in {duration} seconds"
                 )
 
@@ -1494,7 +1494,7 @@ class CommentAttachmentHandler(BaseHandler):
                         attachment = get_fits_preview(attachment_name, attachment)
                         attachment_name = os.path.splitext(attachment_name)[0] + ".png"
                     except Exception as e:
-                        log(f"Cannot render {attachment_name} as image: {str(e)}")
+                        log.error(f"Cannot render {attachment_name} as image: {str(e)}")
                         return self.error(
                             f"Cannot render {attachment_name} as image: {str(e)}"
                         )
@@ -1522,7 +1522,7 @@ class CommentAttachmentHandler(BaseHandler):
 
             query_size = sizeof(comment_data)
             if query_size >= SIZE_WARNING_THRESHOLD:
-                log(
+                log.info(
                     f"User {self.associated_user_object.id} comment attachment query ({table.__tablename__} with ID {comment_id}) returned {query_size} bytes"
                 )
 

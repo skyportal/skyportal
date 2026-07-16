@@ -15,7 +15,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.instrument_log import read_logs
@@ -382,16 +382,16 @@ class SEDMV2API(FollowUpAPI):
         altdata = allocation.altdata
 
         if altdata.get("ssh_host") is None:
-            log(f"Host not specified for instrument with ID {instrument.id}")
+            log.info(f"Host not specified for instrument with ID {instrument.id}")
             return
         if altdata.get("ssh_port", 22) is None:
-            log(f"Port not specified for instrument with ID {instrument.id}")
+            log.info(f"Port not specified for instrument with ID {instrument.id}")
             return
         if altdata.get("ssh_username") is None:
-            log(f"Username not specified for instrument with ID {instrument.id}")
+            log.info(f"Username not specified for instrument with ID {instrument.id}")
             return
         if altdata.get("ssh_password") is None:
-            log(f"Password not specified for instrument with ID {instrument.id}")
+            log.info(f"Password not specified for instrument with ID {instrument.id}")
             return
 
         def _fetch_status():
@@ -420,7 +420,9 @@ class SEDMV2API(FollowUpAPI):
             await session.commit()
 
         except Exception as e:
-            log(f"Unable to commit status for instrument with ID {instrument.id}: {e}")
+            log.error(
+                f"Unable to commit status for instrument with ID {instrument.id}: {e}"
+            )
             await session.rollback()
             raise e
 
@@ -608,7 +610,9 @@ def fetch_nightly_logs(instrument_id, altdata, request_start, request_end):
             logs = read_logs(r.text)
 
             if not logs["logs"]:
-                log(f"Log for {day} unavailable for instrument with ID {instrument_id}")
+                log.info(
+                    f"Log for {day} unavailable for instrument with ID {instrument_id}"
+                )
                 continue
 
             start_date = None
@@ -639,7 +643,7 @@ def fetch_nightly_logs(instrument_id, altdata, request_start, request_end):
             session.commit()
 
     except Exception as e:
-        log(f"Unable to commit logs for instrument with ID {instrument_id}: {e}")
+        log.error(f"Unable to commit logs for instrument with ID {instrument_id}: {e}")
     finally:
         session.close()
         Session.remove()

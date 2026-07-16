@@ -12,7 +12,6 @@ from gcn_kafka import Consumer
 from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
-from baselayer.log import make_log
 from skyportal.handlers.api.gcn import (
     get_json_tags,
     get_tags,
@@ -20,6 +19,7 @@ from skyportal.handlers.api.gcn import (
     post_gcnevent_from_xml,
     post_skymap_from_notice,
 )
+from skyportal.log import make_log
 from skyportal.models import GcnEvent, User
 from skyportal.utils.gcn import (
     from_igwn_gwalert,
@@ -65,10 +65,12 @@ def get_root_from_payload(payload):
 
 def is_configured():
     if client_id is None or client_id == "":
-        log("No client_id configured to poll gcn events (config: gcn.client_id")
+        log.info("No client_id configured to poll gcn events (config: gcn.client_id")
         return False
     if client_secret is None or client_secret == "":
-        log("No client_secret configured to poll gcn events (config: gcn.client_secret")
+        log.info(
+            "No client_secret configured to poll gcn events (config: gcn.client_secret"
+        )
         return False
     if (
         voevent_notice_types is None
@@ -77,7 +79,7 @@ def is_configured():
     ) and (
         json_notice_types is None or json_notice_types == "" or json_notice_types == []
     ):
-        log(
+        log.info(
             "No notice_types configured to poll gcn events (config: gcn.notice_types and/or gcn.json_notice_types)"
         )
         return False
@@ -103,12 +105,12 @@ def poll_events(*args, **kwargs):
             domain=cfg["gcn.server"],
         )
     except Exception as e:
-        log(f"Failed to initiate consumer to poll gcn events: {e}")
+        log.error(f"Failed to initiate consumer to poll gcn events: {e}")
         return
     try:
         consumer.subscribe(voevent_notice_types + json_notice_types)
     except Exception as e:
-        log(f"Failed to subscribe to gcn events: {e}")
+        log.error(f"Failed to subscribe to gcn events: {e}")
         return
     while True:
         try:
@@ -148,13 +150,13 @@ def poll_events(*args, **kwargs):
                             "./WhereWhen/ObsDataLocation/ObservationLocation"
                         )
                         if loc is None:
-                            log(
+                            log.info(
                                 f"Rejecting gcn_event from {topic} due to missing location"
                             )
                             continue
                         error = loc.find("./AstroCoords/Position2D/Error2Radius")
                         if error is None:
-                            log(
+                            log.info(
                                 f"Rejecting gcn_event from {topic} due to missing error"
                             )
                             continue
@@ -163,7 +165,7 @@ def poll_events(*args, **kwargs):
                             if error < 0:
                                 raise ValueError("error is negative")
                         except ValueError:
-                            log(
+                            log.info(
                                 f"Rejecting gcn_event from {topic} due to invalid error: {error}"
                             )
                             continue
@@ -187,14 +189,14 @@ def poll_events(*args, **kwargs):
                             not isinstance(pval_bayesian, int | float)
                             or pval_bayesian > 0.05
                         ):
-                            log(
+                            log.info(
                                 f"Rejecting gcn_event from {topic} due to pval_bayesian: {pval_bayesian}"
                             )
                             continue
 
                 tags_intersection = list(set(tags).intersection(set(reject_tags)))
                 if len(tags_intersection) > 0:
-                    log(
+                    log.info(
                         f"Rejecting gcn_event from {topic} due to tag(s): {tags_intersection}"
                     )
                     continue
@@ -207,7 +209,7 @@ def poll_events(*args, **kwargs):
                             sa.select(User).where(User.id == user_id)
                         )
                         if user is None:
-                            log(
+                            log.info(
                                 f"User {user_id} not found in DB, cannot ingest gcn_event"
                             )
                             return
@@ -233,13 +235,13 @@ def poll_events(*args, **kwargs):
                                     )
                                 )
                             if existing_event is None:
-                                log(
+                                log.info(
                                     f"No event found to retract for gcn_event from {message.topic()}, skipping"
                                 )
                                 return
 
                         # event ingestion
-                        log(f"Ingesting gcn_event from {message.topic()}")
+                        log.info(f"Ingesting gcn_event from {message.topic()}")
                         try:
                             if alert_type == "voevent":
                                 (
@@ -270,7 +272,7 @@ def poll_events(*args, **kwargs):
                                 )
                         except Exception as e:
                             traceback.print_exc()
-                            log(
+                            log.error(
                                 f"Failed to ingest gcn_event from {message.topic()}: {e}"
                             )
                             return
@@ -287,7 +289,7 @@ def poll_events(*args, **kwargs):
                             )
 
                         if status in ["available", "cone", "healpix_file"]:
-                            log(
+                            log.info(
                                 f"Ingesting skymap for gcn_event: {dateobs}, notice_id: {notice_id}"
                             )
                             try:
@@ -307,15 +309,15 @@ def poll_events(*args, **kwargs):
                                     request_body, timeout=30
                                 )
                             except Exception as e:
-                                log(
+                                log.error(
                                     f"Failed to ingest skymap for gcn_event: {dateobs}, notice_id: {notice_id}: {e}"
                                 )
                         elif status == "unavailable":
-                            log(
+                            log.info(
                                 f"No skymap available for gcn_event: {dateobs}, notice_id: {notice_id} with url: {metadata.get('url', None)}"
                             )
                         else:
-                            log(
+                            log.info(
                                 f"No skymap available for gcn_event: {dateobs}, notice_id: {notice_id}"
                             )
 
@@ -330,7 +332,7 @@ def poll_events(*args, **kwargs):
 
         except Exception as e:
             traceback.print_exc()
-            log(f"Failed to consume gcn event: {e}")
+            log.error(f"Failed to consume gcn event: {e}")
 
 
 def service():
@@ -340,11 +342,11 @@ def service():
         try:
             poll_events()
         except Exception as e:
-            log(e)
+            log.info(e)
 
 
 if __name__ == "__main__":
     try:
         service()
     except Exception as e:
-        log(f"Error: {e}")
+        log.error(f"Error: {e}")

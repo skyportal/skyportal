@@ -16,7 +16,7 @@ from astropy.table import Table
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 _, cfg = load_env()
 log = make_log("sn_analysis_service")
@@ -34,9 +34,9 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
     Upload the results to the webhook.
     """
 
-    log("Uploading results to webhook")
+    log.info("Uploading results to webhook")
     if data_dict["callback_method"] != "POST":
-        log("Callback URL is not a POST URL. Skipping.")
+        log.info("Callback URL is not a POST URL. Skipping.")
         return
     url = data_dict["callback_url"]
     try:
@@ -50,9 +50,9 @@ def upload_analysis_results(results, data_dict, request_timeout=60):
         # we cannot write back to the SkyPortal instance.
         # So returning something doesn't make sense in this case.
         # Just log it and move on...
-        log("Callback URL timedout. Skipping.")
+        log.info("Callback URL timedout. Skipping.")
     except Exception as e:
-        log(f"Callback exception {e}.")
+        log.info(f"Callback exception {e}.")
 
 
 def run_sn_model(data_dict):
@@ -214,13 +214,13 @@ def run_sn_model(data_dict):
                 }
             )
         else:
-            log("Fit failed.")
+            log.info("Fit failed.")
             rez.update({"status": "failure", "message": "model failed to converge"})
 
     except Exception as e:
-        log(f"Exception while running the model: {e}")
-        log(f"{traceback.format_exc()}")
-        log(f"Data: {data}")
+        log.info(f"Exception while running the model: {e}")
+        log.error(f"{traceback.format_exc()}")
+        log.info(f"Data: {data}")
         rez.update({"status": "failure", "message": f"problem running the model {e}"})
     finally:
         # clean up local files
@@ -254,13 +254,13 @@ class MainHandler(tornado.web.RequestHandler):
             data_dict = tornado.escape.json_decode(self.request.body)
         except json.decoder.JSONDecodeError:
             err = traceback.format_exc()
-            log(f"JSON decode error: {err}")
+            log.info(f"JSON decode error: {err}")
             return self.error(400, "Invalid JSON")
 
         required_keys = ["inputs", "callback_url", "callback_method"]
         for key in required_keys:
             if key not in data_dict:
-                log(f"missing required key {key} in data_dict")
+                log.info(f"missing required key {key} in data_dict")
                 return self.error(400, f"missing required key {key} in data_dict")
 
         def sn_analysis_done_callback(
@@ -281,7 +281,7 @@ class MainHandler(tornado.web.RequestHandler):
                 # catch all the exceptions and log them,
                 # try to write back to SkyPortal something
                 # informative.
-                logger(f"{str(future.exception())[:1024]} {e}")
+                logger.info(f"{str(future.exception())[:1024]} {e}")
                 result = {
                     "status": "failure",
                     "message": f"{str(future.exception())[:1024]}{e}",
@@ -310,5 +310,5 @@ if __name__ == "__main__":
     sn_analysis = make_app()
     port = cfg["analysis_services.sn_analysis_service.port"]
     sn_analysis.listen(port)
-    log(f"Listening on port {port}")
+    log.info(f"Listening on port {port}")
     tornado.ioloop.IOLoop.current().start()

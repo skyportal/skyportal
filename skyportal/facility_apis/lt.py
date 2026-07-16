@@ -13,7 +13,7 @@ from suds import Client
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
@@ -136,7 +136,7 @@ class LTRequest:
             etree.SubElement(date_const, "DateTimeStart", system="UT", value=start)
             etree.SubElement(date_const, "DateTimeEnd", system="UT", value=end)
         except Exception as e:
-            log(f"Error parsing dates for LT request: {e}")
+            log.error(f"Error parsing dates for LT request: {e}")
             raise ValueError(
                 "Error parsing dates for LT request, should be in ISO format"
             )
@@ -457,7 +457,7 @@ class LTAPI(FollowUpAPI):
                     "skyportal/REFRESH_FOLLOWUP_REQUESTS",
                 )
         else:
-            log(
+            log.info(
                 f"Unknown mode {mode} response from LT. Unable to delete request {request.id} from LT queue: {response}"
             )
 
@@ -541,7 +541,7 @@ class IOOAPI(LTAPI):
         else:
             error = list(response_rtml.iter("{http://www.rtml.org/v3.1a}Error"))[0].text
             request.status = f"rejected: {error}"
-            log(
+            log.error(
                 f"Failed to submit IOO request: {str(error)}. Full payload: {str(full_payload)}"
             )
             try:
@@ -555,7 +555,7 @@ class IOOAPI(LTAPI):
                     },
                 )
             except Exception as e:
-                log(f"Failed to send notification: {e}")
+                log.error(f"Failed to send notification: {e}")
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request_xml(full_payload),
@@ -711,7 +711,7 @@ class IOIAPI(LTAPI):
         else:
             error = list(response_rtml.iter("{http://www.rtml.org/v3.1a}Error"))[0].text
             request.status = f"rejected: {error}"
-            log(
+            log.error(
                 f"Failed to submit IOI request: {str(error)}. Full payload: {str(full_payload)}"
             )
             try:
@@ -725,7 +725,7 @@ class IOIAPI(LTAPI):
                     },
                 )
             except Exception as e:
-                log(f"Failed to send notification: {e}")
+                log.error(f"Failed to send notification: {e}")
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request_xml(full_payload),
@@ -882,7 +882,7 @@ class SPRATAPI(LTAPI):
         else:
             error = list(response_rtml.iter("{http://www.rtml.org/v3.1a}Error"))[0].text
             request.status = f"rejected: {error}"
-            log(
+            log.error(
                 f"Failed to submit SPRAT request: {str(error)}. Full payload: {str(full_payload)}"
             )
             try:
@@ -896,7 +896,7 @@ class SPRATAPI(LTAPI):
                     },
                 )
             except Exception as e:
-                log(f"Failed to send notification: {e}")
+                log.error(f"Failed to send notification: {e}")
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request_xml(full_payload),
