@@ -81,13 +81,6 @@ const useStyles = makeStyles()((theme) => ({
       gridTemplateColumns: "100%",
     },
   },
-  thumbnailsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))",
-    columnGap: 0,
-    rowGap: "0.5rem",
-    gridAutoFlow: "row",
-  },
   backToTop: {
     position: "absolute",
     bottom: 0,
@@ -284,7 +277,6 @@ const CandidateThumbnails = ({
   dec,
   thumbnails = null,
 }: CandidateThumbnailsProps) => {
-  const { classes } = useStyles();
   const [generateSurveyThumbnailMutation] =
     useGenerateSurveyThumbnailMutation();
 
@@ -313,7 +305,8 @@ const CandidateThumbnails = ({
         </div>
       ) : (
         <div>
-          <div className={classes.thumbnailsGrid}>
+          <div>
+            {/* 3 columns over 2 rows (6 at a time); cycle through any extras. */}
             <ThumbnailList
               ra={ra}
               dec={dec}
@@ -324,6 +317,7 @@ const CandidateThumbnails = ({
               titleSize="0.7rem"
               displayTypes={displayTypes}
               useGrid={false}
+              columns={3}
               noMargin
             />
           </div>
