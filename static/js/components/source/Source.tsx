@@ -1193,22 +1193,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 />
               </div>
             </div>
-            <div
-              style={{
-                display: "grid",
-                gap: "0.5rem",
-                gridAutoFlow: "row",
-                ...(rightPanelVisible || downLg
-                  ? {
-                      gridTemplateColumns: "1fr 1fr 1fr",
-                      alignItems: "center",
-                      maxWidth: "fit-content",
-                    }
-                  : {
-                      gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
-                    }),
-              }}
-            >
+            <div style={{ maxWidth: "fit-content" }}>
+              {/* 3 columns over 2 rows (6 at a time); cycle through the rest. */}
               <ThumbnailList
                 ra={source.ra}
                 dec={source.dec}
@@ -1219,6 +1205,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 maxSize={rightPanelVisible || downLg ? "13rem" : "20rem"}
                 titleSize={downSm ? "0.55rem" : undefined}
                 useGrid={false}
+                columns={3}
                 noMargin
               />
             </div>
