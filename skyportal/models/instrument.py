@@ -399,6 +399,14 @@ class Instrument(Base):
         doc="TNS API ID for this instrument",
     )
 
+    across_id = sa.Column(
+        sa.String,
+        nullable=True,
+        index=True,
+        doc="NASA ACROSS instrument UUID, used to route visibility queries to "
+        "the ACROSS calculator. See https://across.sciencecloud.nasa.gov",
+    )
+
     region = deferred(
         sa.Column(
             sa.String, nullable=True, doc="Instrument astropy.regions representation."

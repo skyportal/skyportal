@@ -27477,6 +27477,8 @@ export interface components {
             treasuremap_id?: number | null;
             /** @description TNS API ID for this instrument */
             tns_id?: number | null;
+            /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
+            across_id?: string | null;
             /** @description Instrument astropy.regions representation. */
             region?: string | null;
             /** @description Whether the instrument has fields or not. */
@@ -27746,6 +27748,8 @@ export interface components {
             treasuremap_id?: number | null;
             /** @description TNS API ID for this instrument */
             tns_id?: number | null;
+            /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
+            across_id?: string | null;
             /** @description Instrument astropy.regions representation. */
             region?: string | null;
             /** @description Whether the instrument has fields or not. */

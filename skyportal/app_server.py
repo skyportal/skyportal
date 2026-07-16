@@ -202,6 +202,8 @@ from skyportal.handlers.api import (
     WeatherHandler,
 )
 from skyportal.handlers.api.internal import (
+    AcrossInstrumentsHandler,
+    AcrossJointVisibilityHandler,
     AltdataInfoHandler,
     AnnotationsInfoHandler,
     BulkNotificationHandler,
@@ -614,6 +616,11 @@ skyportal_handlers = [
         PlotHoursBelowAirmassHandler,
     ),
     (r"/api/internal/ephemeris(/[0-9]+)?", EphemerisHandler),
+    (r"/api/internal/across/instruments", AcrossInstrumentsHandler),
+    (
+        r"/api/internal/across/joint_visibility/(.*)",
+        AcrossJointVisibilityHandler,
+    ),
     (r"/api/internal/log(/.*)?", LogHandler),
     (r"/api/internal/recent_sources(/.*)?", RecentSourcesHandler),
     (r"/api/internal/altdata_info", AltdataInfoHandler),
