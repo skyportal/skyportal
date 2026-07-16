@@ -1,4 +1,4 @@
-import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
@@ -361,6 +361,7 @@ const CandidateInfo = ({
     (g) => !g["single_user_group"],
   );
   const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const isReadOnly = useIsReadOnly();
 
   const candidateHasAnnotationWithSelectedKey = (obj: any) => {
     const annotation = obj.annotations.find(
@@ -461,47 +462,48 @@ const CandidateInfo = ({
             </div>
           )}
           {/* If candidate is either unsaved or is not yet saved to all groups being filtered on, show the "Save to..." button */}{" "}
-          {Boolean(
-            !candidateObj.is_source ||
-            (candidateObj.is_source &&
-              filterGroups?.filter(
-                (g) =>
-                  !candidateObj.saved_groups
-                    ?.map((x: any) => x.id)
-                    ?.includes(g.id),
-              ).length),
-          ) && (
-            <div
-              className={classes.saveCandidateButton}
-              data-testid="tour-candidate-save"
-            >
-              <SaveCandidateButton
-                candidate={candidateObj}
-                userGroups={
-                  // Filter out groups the candidate is already saved to
-                  candidateObj.is_source
-                    ? userAccessibleGroups?.filter(
-                        (g) =>
-                          !candidateObj.saved_groups
-                            ?.map((x: any) => x.id)
-                            ?.includes(g.id),
-                      )
-                    : userAccessibleGroups
-                }
-                filterGroups={
-                  // Filter out groups the candidate is already saved to
-                  candidateObj.is_source
-                    ? filterGroups?.filter(
-                        (g) =>
-                          !candidateObj.saved_groups
-                            ?.map((x: any) => x.id)
-                            ?.includes(g.id),
-                      )
-                    : filterGroups
-                }
-              />
-            </div>
-          )}
+          {!isReadOnly &&
+            Boolean(
+              !candidateObj.is_source ||
+              (candidateObj.is_source &&
+                filterGroups?.filter(
+                  (g) =>
+                    !candidateObj.saved_groups
+                      ?.map((x: any) => x.id)
+                      ?.includes(g.id),
+                ).length),
+            ) && (
+              <div
+                className={classes.saveCandidateButton}
+                data-testid="tour-candidate-save"
+              >
+                <SaveCandidateButton
+                  candidate={candidateObj}
+                  userGroups={
+                    // Filter out groups the candidate is already saved to
+                    candidateObj.is_source
+                      ? userAccessibleGroups?.filter(
+                          (g) =>
+                            !candidateObj.saved_groups
+                              ?.map((x: any) => x.id)
+                              ?.includes(g.id),
+                        )
+                      : userAccessibleGroups
+                  }
+                  filterGroups={
+                    // Filter out groups the candidate is already saved to
+                    candidateObj.is_source
+                      ? filterGroups?.filter(
+                          (g) =>
+                            !candidateObj.saved_groups
+                              ?.map((x: any) => x.id)
+                              ?.includes(g.id),
+                        )
+                      : filterGroups
+                  }
+                />
+              </div>
+            )}
           {/* if we have associated_objs, show their IDs here (clickable, send to source page in another tab when clicked) */}
           {candidateObj.associated_objs &&
             candidateObj.associated_objs.length > 0 && (
