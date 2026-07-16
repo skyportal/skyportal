@@ -45,7 +45,7 @@ services:
   # Valkey (redis-protocol) server backing skyportal.utils.valkey_cache.
   # ALLOW_EMPTY_PASSWORD is for local development only.
   valkey:
-    image: valkey/valkey:7.2.6
+    image: valkey/valkey:9.1.0
     container_name: valkey
     ports:
       - "6379:6379"
