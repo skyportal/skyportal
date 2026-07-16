@@ -807,7 +807,9 @@ class InstrumentHandler(BaseHandler):
         async with self.AsyncSession() as session:
             instrument = await session.scalar(
                 Instrument.select(session.user_or_token, mode="update")
-                .options(selectinload(Instrument.fields))
+                # undefer `region` (a deferred column) so the has_region branch
+                # below doesn't sync lazy-load it under the async session.
+                .options(selectinload(Instrument.fields), undefer(Instrument.region))
                 .where(Instrument.id == instrument_id)
             )
             if instrument is None:

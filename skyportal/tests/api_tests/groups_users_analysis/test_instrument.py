@@ -239,6 +239,9 @@ def test_token_user_update_instrument(
 
 def test_update_instrument_across_id(super_admin_token):
     # Regression: PUT-updating an instrument must not 500 with greenlet_spawn.
+    # The instrument is given a region so the update exercises both async
+    # lazy-load traps: the deferred `region` column and the load_instance
+    # schema's sync instance fetch.
     name = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -257,6 +260,8 @@ def test_update_instrument_across_id(super_admin_token):
             "type": "imager",
             "filters": ["f110w"],
             "telescope_id": telescope_id,
+            "field_fov_type": "circle",
+            "field_fov_attributes": 3.0,
         },
         token=super_admin_token,
     )
