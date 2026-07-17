@@ -2066,6 +2066,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brokers/{broker_id}/cone_search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cross-match a position against a broker's archival catalogs
+         * @description Positional cone-search against a broker's reference catalogs (e.g. Gaia, PS1, AllWISE), dispatched to the broker's provider. Returns matched sources keyed by catalog name.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description RA in degrees (0 <= ra < 360). */
+                    ra: number;
+                    /** @description Declination in degrees (-90 <= dec <= 90). */
+                    dec: number;
+                    radius: number;
+                    radius_units?: "deg" | "arcmin" | "arcsec";
+                };
+                header?: never;
+                path: {
+                    broker_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brokers/{broker_id}/alerts/{alert_id}/photometry": {
         parameters: {
             query?: never;

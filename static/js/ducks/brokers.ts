@@ -48,6 +48,21 @@ export const brokersApi = skyportalApi.injectEndpoints({
       query: ({ brokerId, alertId }) =>
         `api/brokers/${brokerId}/alerts/${alertId}`,
     }),
+    // Cross-match a position against a broker's reference catalogs (Gaia, PS1,
+    // AllWISE, ...). Returns matched sources keyed by catalog name.
+    getBrokerConeSearch: build.query<
+      Record<string, any[]>,
+      {
+        brokerId: number;
+        ra: number | string;
+        dec: number | string;
+        radius: number | string;
+        radiusUnits?: string;
+      }
+    >({
+      query: ({ brokerId, ra, dec, radius, radiusUnits = "arcsec" }) =>
+        `api/brokers/${brokerId}/cone_search?ra=${ra}&dec=${dec}&radius=${radius}&radius_units=${radiusUnits}`,
+    }),
     // Display photometry for an object: persisted DB rows merged with photometry
     // fetched on demand from the broker (never written to Postgres). Returns the
     // same point shape as GET /sources/{id}/photometry.
@@ -167,6 +182,7 @@ export const {
   useLazyGetBrokerAlertsQuery,
   useGetBrokerAlertQuery,
   useGetBrokerPhotometryQuery,
+  useLazyGetBrokerConeSearchQuery,
   useGetSourceIfSavedQuery,
   useSaveBrokerAlertAsSourceMutation,
   useLazyTestBrokerFilterQuery,
