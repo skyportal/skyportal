@@ -216,9 +216,6 @@ const AutocompleteFields = ({
     if (allGroups.length > 0 && allGroups.length > collapsedGroups.size) {
       setCollapsedGroups(new Set(allGroups));
     }
-    // Intentionally only re-collapse when the field groups change, not on every
-    // manual collapse/expand (which mutates collapsedGroups).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allGroups]);
 
   // Auto-expand groups that contain search matches

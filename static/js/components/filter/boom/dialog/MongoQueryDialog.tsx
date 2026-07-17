@@ -41,12 +41,9 @@ import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import FormValidationError from "../../../FormValidationError";
 import ReactJson from "react-json-view";
 import { makeStyles } from "tss-react/mui";
-import { useAppDispatch, useAppSelector } from "../../../../types/hooks";
-import {
-  runBoomFilter,
-  runBoomTestFilter,
-  clearBoomFilter,
-} from "../../../../ducks/boom_run_filter";
+import { useAppDispatch } from "../../../../types/hooks";
+import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
+import { useRunBoomFilterMutation } from "../../../../ducks/boom_run_filter";
 import { useGetProfileQuery } from "../../../../ducks/profile";
 import PipelineViewer from "./PipelineViewer";
 import FullscreenResultsDialog from "./FullscreenResultsDialog";
@@ -140,11 +137,12 @@ const MongoQueryDialog = () => {
   } = useCurrentBuilder();
   const { classes } = useStyles();
 
-  const filter_stream = useAppSelector(
-    (state: any) => state.boom_filter_v.stream?.name?.split(" ")[0],
-  );
-  const filter_id = useAppSelector((state: any) => state.boom_filter_v.id);
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const filter_stream = boomFilterVersion?.stream?.name?.split(" ")[0];
+  const filter_id = boomFilterVersion?.id;
   const dispatch = useAppDispatch();
+  const [runBoomFilter, { reset: clearBoomFilter }] =
+    useRunBoomFilterMutation();
   const { data: profile } = useGetProfileQuery();
   const { useAMPM } = profile?.preferences ?? {};
 
@@ -185,7 +183,7 @@ const MongoQueryDialog = () => {
       const currentQueryString = getFormattedMongoQuery();
 
       if (lastQueryString && lastQueryString !== currentQueryString) {
-        dispatch(clearBoomFilter());
+        clearBoomFilter();
         resetPaginationAndQueryState({
           setExpandedCells,
           setCurrentPage,
@@ -203,7 +201,7 @@ const MongoQueryDialog = () => {
       setLastQueryString(currentQueryString);
     } else {
       if (lastQueryString) {
-        dispatch(clearBoomFilter());
+        clearBoomFilter();
         setLastQueryString("");
         resetPaginationAndQueryState({
           setExpandedCells,
@@ -235,7 +233,7 @@ const MongoQueryDialog = () => {
       selectedCollection !== ""
     ) {
       setSelectedCollection(newCollection);
-      dispatch(clearBoomFilter());
+      clearBoomFilter();
       resetPaginationAndQueryState({
         setExpandedCells,
         setCurrentPage,
@@ -262,9 +260,7 @@ const MongoQueryDialog = () => {
     endDate: defaultEndDate,
   } as any);
 
-  // Watch for date changes and validate. react-hook-form's watch() is not
-  // React-Compiler-memoizable; that's fine here (only read locally below).
-  // eslint-disable-next-line react-hooks/incompatible-library
+  // Watch for date changes and validate
   const watchedStartDate = watch("startDate" as any);
   const watchedEndDate = watch("endDate" as any);
 
@@ -425,28 +421,24 @@ const MongoQueryDialog = () => {
 
     const sortOrder = direction === "backward" ? "Descending" : "Ascending";
     const result: any = countOnly
-      ? await dispatch(
-          runBoomFilter({
-            pipeline: pipeline,
-            selectedCollection: selectedCollection,
-            start_jd: startDate,
-            end_jd: endDate,
-            filter_id: filter_id,
-          }),
-        )
-      : await dispatch(
-          runBoomTestFilter({
-            pipeline: pipeline,
-            selectedCollection: selectedCollection,
-            start_jd: startDate,
-            end_jd: endDate,
-            filter_id: filter_id,
-            sort_by: "_id",
-            sort_order: sortOrder,
-            limit: limit,
-            cursor: cursor,
-          }),
-        );
+      ? await runBoomFilter({
+          pipeline: pipeline,
+          selectedCollection: selectedCollection,
+          start_jd: startDate,
+          end_jd: endDate,
+          filter_id: filter_id,
+        })
+      : await runBoomFilter({
+          pipeline: pipeline,
+          selectedCollection: selectedCollection,
+          start_jd: startDate,
+          end_jd: endDate,
+          filter_id: filter_id,
+          sort_by: "_id",
+          sort_order: sortOrder,
+          limit: limit,
+          cursor: cursor,
+        });
 
     if (countOnly) {
       return {
@@ -543,17 +535,10 @@ const MongoQueryDialog = () => {
     });
 
     try {
-      dispatch(clearBoomFilter());
+      clearBoomFilter();
 
       // Get first page data first
       const firstPageQueryResult = await executeQuery(false);
-
-      if (firstPageQueryResult.result?.data) {
-        dispatch({
-          type: "skyportal/RUN_BOOM_FILTER_OK",
-          data: firstPageQueryResult.result.data,
-        } as any);
-      }
 
       setHasNextPage(firstPageQueryResult.hasNext);
 

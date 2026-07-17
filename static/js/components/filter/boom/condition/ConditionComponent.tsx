@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useCurrentBuilder } from "../../../../hooks/useContexts";
 import { Box, IconButton } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
-import { useAppSelector } from "../../../../types/hooks";
+import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
+import { useFilterSchema } from "../../../../ducks/boom_filter_modules";
 import AutocompleteFields from "./AutocompleteFields";
 import OperatorSelector from "./OperatorSelector";
 import ListConditionPopover from "./ListConditionPopover";
@@ -121,10 +122,9 @@ const ConditionComponentInner = ({
   const [listPopoverAnchor, setListPopoverAnchor] = useState<any>(null);
   const [switchPopoverAnchor, setSwitchPopoverAnchor] = useState<any>(null);
   const [equationAnchor, setEquationAnchor] = useState<any>(null);
-  const schema = useAppSelector((state: any) => state.filter_modules?.schema);
-  const currentStream = useAppSelector(
-    (state: any) => state.boom_filter_v.stream?.name,
-  );
+  const schema = useFilterSchema().data;
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const currentStream = boomFilterVersion?.stream?.name;
   const final_schema = schema?.versions?.find(
     (v: any) => v.vid === schema.active_id,
   )?.schema;

@@ -1,13 +1,9 @@
-import { useEffect } from "react";
-
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 
 import { UnifiedBuilderProvider } from "../../contexts/UnifiedBuilderContext";
-import { fetchSchema } from "../../ducks/boom_filter_modules";
 import { setBrokerFilterTarget } from "../../ducks/brokerFilterTarget";
 import { useFilterBuilder } from "../../hooks/useContexts";
-import { useAppDispatch } from "../../types/hooks";
 import FilterBuilderContent from "../filter/boom/FilterBuilderContent";
 
 interface LasairFilterBuilderProps {
@@ -22,19 +18,17 @@ const LasairBuilderInner = ({
   survey,
   onPreview,
 }: LasairFilterBuilderProps) => {
-  const dispatch = useAppDispatch();
   const { filters, localFilterData, hasBeenModified } = useFilterBuilder();
-  useEffect(() => {
-    setBrokerFilterTarget(brokerId);
-    // Load the broker's field schema so the builder offers valid columns.
-    dispatch(fetchSchema(survey));
-  }, [brokerId, survey, dispatch]);
+  // Point the filter ducks at this broker. There is no filter version here, so
+  // the builder's schema is loaded from the `survey` prop (FilterBuilderContent
+  // forwards it to useFilterSchema).
+  setBrokerFilterTarget(brokerId);
 
   const tree = hasBeenModified && localFilterData ? localFilterData : filters;
 
   return (
     <Box sx={{ mt: 2 }}>
-      <FilterBuilderContent />
+      <FilterBuilderContent survey={survey} />
       <Button
         variant="contained"
         sx={{ mt: 1 }}

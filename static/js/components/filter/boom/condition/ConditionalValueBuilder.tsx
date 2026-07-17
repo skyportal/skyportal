@@ -14,7 +14,8 @@ import {
   ExpandLess as ExpandLessIcon,
 } from "@mui/icons-material";
 import Latex from "react-latex-next";
-import { useAppSelector } from "../../../../types/hooks";
+import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
+import { useFilterSchema } from "../../../../ducks/boom_filter_modules";
 import BlockComponent from "../block/BlockComponent";
 import AutocompleteFields from "./AutocompleteFields";
 import { useCurrentBuilder } from "../../../../hooks/useContexts";
@@ -65,10 +66,9 @@ const ConditionalValueBuilder = ({
   fieldOptionsList = [],
 }: ConditionalValueBuilderProps) => {
   // Get schema from Redux and flatten to field options
-  const schema = useAppSelector((state: any) => state.filter_modules?.schema);
-  const currentStream = useAppSelector(
-    (state: any) => state.boom_filter_v.stream?.name,
-  );
+  const schema = useFilterSchema().data;
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const currentStream = boomFilterVersion?.stream?.name;
   const final_schema = schema?.versions?.find(
     (v: any) => v.vid === schema.active_id,
   )?.schema;

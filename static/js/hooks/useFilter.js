@@ -1,8 +1,8 @@
 import { useContext, useEffect, useCallback, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 import { UnifiedBuilderContext } from "../contexts/UnifiedBuilderContext";
-import { fetchAllElements } from "../ducks/boom_filter_modules";
+import { useLazyGetFilterElementsQuery } from "../ducks/boom_filter_modules";
+import { useBoomFilterVersion } from "../ducks/boom_filter";
 import { useFilterBuilder } from "./useContexts";
 
 export const useCurrentBuilder = () => {
@@ -43,23 +43,20 @@ export const useFilterBuilderData = () => {
     setHasInitialized,
   ]);
 
-  const dispatch = useDispatch();
-  const currentStream = useSelector(
-    (state) => state.boom_filter_v.stream?.name,
-  );
+  const [fetchAllElements] = useLazyGetFilterElementsQuery();
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const currentStream = boomFilterVersion?.stream?.name;
 
   // Load saved data on mount
   useEffect(() => {
     const loadData = async () => {
       try {
         // Load all saved data in parallel
-        const blocks = await dispatch(fetchAllElements({ elements: "blocks" }));
-        const variables = await dispatch(
-          fetchAllElements({ elements: "variables" }),
-        );
-        const listVariables = await dispatch(
-          fetchAllElements({ elements: "listVariables" }),
-        );
+        const blocks = await fetchAllElements({ elements: "blocks" });
+        const variables = await fetchAllElements({ elements: "variables" });
+        const listVariables = await fetchAllElements({
+          elements: "listVariables",
+        });
 
         // Filter variables by stream - only show variables matching current stream or with no stream set
         const filterByStream = (items) => {
@@ -93,7 +90,7 @@ export const useFilterBuilderData = () => {
     setCustomBlocks,
     setCustomVariables,
     setCustomListVariables,
-    dispatch,
+    fetchAllElements,
     currentStream,
   ]);
 

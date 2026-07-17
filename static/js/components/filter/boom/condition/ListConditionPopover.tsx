@@ -12,10 +12,9 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
-import { useAppDispatch } from "../../../../types/hooks";
 import BlockComponent from "../block/BlockComponent";
 import { useCurrentBuilder } from "../../../../hooks/useContexts";
-import { putElement } from "../../../../ducks/boom_filter_modules";
+import { usePutFilterElementMutation } from "../../../../ducks/boom_filter_modules";
 import { normalizeFieldValue } from "../../../../utils/conditionHelpers";
 
 const OPERATOR_LABELS: Record<string, any> = {
@@ -91,7 +90,7 @@ const ListConditionPopover = ({
   const [editingOperator, setEditingOperator] = useState(false);
   const [editedOperator, setEditedOperator] = useState<any>(null);
   const { setCustomListVariables } = useCurrentBuilder();
-  const dispatch = useAppDispatch();
+  const [putElement] = usePutFilterElementMutation();
 
   // Handle focus management when popover opens/closes
   useEffect(() => {
@@ -142,16 +141,14 @@ const ListConditionPopover = ({
 
       try {
         // Update in the database using Redux action
-        await dispatch(
-          putElement({
-            name: listVar.name,
-            data: {
-              listCondition: updatedListCondition,
-              type: listVar.type || "array",
-            },
-            elements: "listVariables",
-          }),
-        );
+        await putElement({
+          name: listVar.name,
+          data: {
+            listCondition: updatedListCondition,
+            type: listVar.type || "array",
+          },
+          elements: "listVariables",
+        });
 
         // Update in the context (local state) - this will trigger a re-render
         setCustomListVariables((prev: any) => {
