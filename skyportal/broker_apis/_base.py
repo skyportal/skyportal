@@ -32,9 +32,10 @@ class _Base:
     @classmethod
     def implements(cls):
         caps = {name: cls._isimplemented(name) for name in cls._methods}
-        # save_as_source is provided by the base default (interface.py) for any
-        # provider that can fetch an object, so gate it on get_alert.
+        # save_as_source and get_photometry are base defaults (interface.py) for
+        # any provider that can fetch an object, so gate both on get_alert.
         caps["save_as_source"] = cls._isimplemented("get_alert")
+        caps["get_photometry"] = cls._isimplemented("get_alert")
         return caps
 
     # subclasses should not modify this

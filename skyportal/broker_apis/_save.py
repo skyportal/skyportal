@@ -32,6 +32,79 @@ async def programid_to_stream_ids(session):
     return mapper
 
 
+def build_photometry_groups(object_id, survey, data, instrument_id, programid2streamid):
+    """Transform a standard alert object's photometry arrays into per-(survey,
+    programid) groups in skyportal units, keyed by the stream that gates them.
+
+    Pure (no I/O), so the persisting path and the read-only passthrough
+    (``_photometry.py``) share one transform and cannot drift: what a
+    passthrough displays is exactly what a save would have written.
+    """
+    import numpy as np
+
+    zp = ZP_PER_SURVEY.get(survey)
+    if zp is None:
+        raise ValueError(f"No zeropoint configured for survey '{survey}'.")
+
+    photometry_data: dict = {}
+    for array_name in ["prv_candidates", "prv_nondetections", "fp_hists"]:
+        for phot in data.get(array_name) or []:
+            jd, band = phot.get("jd"), phot.get("band")
+            if jd is None or band is None:
+                continue
+
+            # Flux space (psfFlux, e.g. BOOM/babamul) or magnitude space
+            # (magpsf, e.g. Lasair) — a source is homogeneous either way.
+            flux_err = phot.get("psfFluxErr")
+            if flux_err is not None:
+                flux = phot.get("psfFlux")
+                flux_err *= 1e-9
+                if flux is not None and not np.isnan(flux):
+                    flux *= 1e-9
+                    if not np.isnan(flux_err) and abs(flux) / flux_err <= 3:
+                        flux = np.nan
+                columns = {"flux": flux, "fluxerr": flux_err, "zp": zp}
+            elif phot.get("magpsf") is not None and phot.get("sigmapsf") is not None:
+                # Magnitude space (e.g. Lasair): convert to flux with the survey
+                # zeropoint so it flows through the flux path (skyportal's mag path
+                # also requires a limiting_mag, which these brokers don't provide).
+                # mag = -2.5*log10(flux) + zp, so flux = 10**(-0.4*(mag - zp)).
+                mag, magerr = phot["magpsf"], phot["sigmapsf"]
+                flux = 10.0 ** (-0.4 * (mag - zp))
+                flux_err = flux * magerr * 0.9210340371976184  # ln(10)/2.5
+                columns = {"flux": flux, "fluxerr": flux_err, "zp": zp}
+            else:
+                continue
+
+            programid = phot.get("programid", 1) if survey == "ZTF" else 1
+            key = (survey, programid)
+            if key not in photometry_data:
+                stream_ids = programid2streamid.get(key)
+                if not stream_ids:
+                    continue
+                photometry_data[key] = {
+                    "obj_id": object_id,
+                    "stream_ids": stream_ids,
+                    "instrument_id": instrument_id,
+                    "mjd": [],
+                    "filter": [],
+                    "magsys": [],
+                    "ra": [],
+                    "dec": [],
+                    **{col: [] for col in columns},
+                }
+            pd = photometry_data[key]
+            pd["mjd"].append(jd - 2400000.5)
+            pd["filter"].append(f"{survey.lower()}{str(band).lower()}")
+            pd["magsys"].append("ab")
+            pd["ra"].append(phot.get("ra"))
+            pd["dec"].append(phot.get("dec"))
+            for col, value in columns.items():
+                pd.setdefault(col, []).append(value)
+
+    return photometry_data
+
+
 async def _ingest_object(
     data,
     survey,
@@ -61,7 +134,6 @@ async def _ingest_object(
         ``{cutoutScience, cutoutTemplate, cutoutDifference}`` FITS payloads, if
         the provider supplies them, rendered into science/template/diff thumbnails.
     """
-    import numpy as np
     import sqlalchemy as sa
 
     from ..handlers.api.photometry import add_external_photometry
@@ -131,65 +203,9 @@ async def _ingest_object(
     if created or filter_ids:
         await session.flush()
 
-    zp = ZP_PER_SURVEY.get(survey)
-    if zp is None:
-        raise ValueError(f"No zeropoint configured for survey '{survey}'.")
-
-    photometry_data: dict = {}
-    for array_name in ["prv_candidates", "prv_nondetections", "fp_hists"]:
-        for phot in data.get(array_name) or []:
-            jd, band = phot.get("jd"), phot.get("band")
-            if jd is None or band is None:
-                continue
-
-            # Flux space (psfFlux, e.g. BOOM/babamul) or magnitude space
-            # (magpsf, e.g. Lasair) — a source is homogeneous either way.
-            flux_err = phot.get("psfFluxErr")
-            if flux_err is not None:
-                flux = phot.get("psfFlux")
-                flux_err *= 1e-9
-                if flux is not None and not np.isnan(flux):
-                    flux *= 1e-9
-                    if not np.isnan(flux_err) and abs(flux) / flux_err <= 3:
-                        flux = np.nan
-                columns = {"flux": flux, "fluxerr": flux_err, "zp": zp}
-            elif phot.get("magpsf") is not None and phot.get("sigmapsf") is not None:
-                # Magnitude space (e.g. Lasair): convert to flux with the survey
-                # zeropoint so it flows through the flux path (skyportal's mag path
-                # also requires a limiting_mag, which these brokers don't provide).
-                # mag = -2.5*log10(flux) + zp, so flux = 10**(-0.4*(mag - zp)).
-                mag, magerr = phot["magpsf"], phot["sigmapsf"]
-                flux = 10.0 ** (-0.4 * (mag - zp))
-                flux_err = flux * magerr * 0.9210340371976184  # ln(10)/2.5
-                columns = {"flux": flux, "fluxerr": flux_err, "zp": zp}
-            else:
-                continue
-
-            programid = phot.get("programid", 1) if survey == "ZTF" else 1
-            key = (survey, programid)
-            if key not in photometry_data:
-                stream_ids = programid2streamid.get(key)
-                if not stream_ids:
-                    continue
-                photometry_data[key] = {
-                    "obj_id": object_id,
-                    "stream_ids": stream_ids,
-                    "instrument_id": instrument_id,
-                    "mjd": [],
-                    "filter": [],
-                    "magsys": [],
-                    "ra": [],
-                    "dec": [],
-                    **{col: [] for col in columns},
-                }
-            pd = photometry_data[key]
-            pd["mjd"].append(jd - 2400000.5)
-            pd["filter"].append(f"{survey.lower()}{str(band).lower()}")
-            pd["magsys"].append("ab")
-            pd["ra"].append(phot.get("ra"))
-            pd["dec"].append(phot.get("dec"))
-            for col, value in columns.items():
-                pd.setdefault(col, []).append(value)
+    photometry_data = build_photometry_groups(
+        object_id, survey, data, instrument_id, programid2streamid
+    )
 
     for pd in photometry_data.values():
         if pd["mjd"]:  # never post empty photometry (breaks JSON coercion)

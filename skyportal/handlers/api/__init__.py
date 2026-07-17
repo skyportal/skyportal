@@ -26,7 +26,9 @@ from .broker import (
     BrokerFiltersHandler,
     BrokerFilterTestHandler,
     BrokerHandler,
+    BrokerPhotometryHandler,
     BrokerSaveHandler,
+    BrokerSurveyPhotometryHandler,
 )
 from .broker_apis import BrokerAPIsHandler
 from .candidate.candidate import BulkDeleteCandidatesHandler, CandidateHandler
