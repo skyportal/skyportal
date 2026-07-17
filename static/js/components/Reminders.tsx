@@ -386,7 +386,7 @@ const Reminders = ({
             resourceId={resourceId}
             resourceType={resourceType}
             handleClose={() => setOpen(false)}
-            resourceStartDate={resourceStartDate}
+            {...(resourceStartDate !== undefined && { resourceStartDate })}
           />
         </DialogContent>
       </Dialog>

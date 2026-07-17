@@ -231,7 +231,7 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
               <Reminders
                 resourceId={currentShift.id.toString()}
                 resourceType="shift"
-                resourceStartDate={currentShift.start_date as Date}
+                resourceStartDate={new Date(currentShift.start_date)}
               />
             </Paper>
           </>
