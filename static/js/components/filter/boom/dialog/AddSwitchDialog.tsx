@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useAppDispatch, useAppSelector } from "../../../../types/hooks";
+import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
 import {
   Dialog,
   DialogTitle,
@@ -28,7 +28,7 @@ import {
   getFieldOptionsWithVariable,
   normalizeFieldValue,
 } from "../../../../utils/conditionHelpers";
-import { postElement } from "../../../../ducks/boom_filter_modules";
+import { usePostFilterElementMutation } from "../../../../ducks/boom_filter_modules";
 
 const defaultBlock = () => ({
   id: uuidv4(),
@@ -49,10 +49,9 @@ const defaultBlock = () => ({
 });
 
 const AddSwitchDialog = () => {
-  const dispatch = useAppDispatch();
-  const stream = useAppSelector(
-    (state: any) => state.boom_filter_v.stream?.name,
-  );
+  const [postElement] = usePostFilterElementMutation();
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const stream = boomFilterVersion?.stream?.name;
   const {
     switchDialog,
     closeSwitchDialog,
@@ -204,13 +203,11 @@ const AddSwitchDialog = () => {
     };
 
     // Save to database
-    dispatch(
-      postElement({
-        name: switchName.trim(),
-        data: { switchCondition, type: "switch_variable", streams: [stream] },
-        elements: "switchCases",
-      }),
-    );
+    postElement({
+      name: switchName.trim(),
+      data: { switchCondition, type: "switch_variable", streams: [stream] },
+      elements: "switchCases",
+    });
 
     // Add to custom switch cases - use functional update to ensure latest state
     setCustomSwitchCases((prev: any[]) => {

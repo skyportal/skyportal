@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -23,8 +22,12 @@ import AnnotationBuilderContent from "./AnnotationBuilderContent";
 import { useForm, Controller } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as filterActions from "../../../ducks/boom_filter";
+import { useAppDispatch } from "../../../types/hooks";
+import {
+  useBoomFilterVersion,
+  useEditBoomFilterVersionMutation,
+  useUpdateBoomGroupFilterMutation,
+} from "../../../ducks/boom_filter";
 import { useGetGroupsQuery } from "../../../ducks/groups";
 
 interface BoomFilterPluginsProps {
@@ -113,10 +116,10 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
 
   const theme = useTheme();
 
-  const filter_v = useAppSelector((state: any) => state.boom_filter_v);
-
-  const { fid } = useParams();
-  const loadedId = useAppSelector((state: any) => state.boom_filter_v?.id);
+  const { data: filter_v = {}, refetch: refetchFilterVersion } =
+    useBoomFilterVersion();
+  const [editFilterVersion] = useEditBoomFilterVersionMutation();
+  const [updateGroupFilter] = useUpdateBoomGroupFilterMutation();
 
   const { data: groupsData } = useGetGroupsQuery();
   const allGroups = groupsData?.all;
@@ -136,32 +139,28 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
 
   const handleChangeActiveFilter = async (event: any) => {
     const active_target = event.target.checked;
-    const result: any = await dispatch(
-      filterActions.editFilterVersion({
-        filter_id: filter_v.id,
-        active: active_target,
-        active_fid: filter_v.active_fid,
-      }),
-    );
-    if (result.status === "success") {
+    const result: any = await editFilterVersion({
+      filter_id: filter_v.id,
+      active: active_target,
+      active_fid: filter_v.active_fid,
+    });
+    if (!result.error) {
       dispatch(showNotification(`Set active to ${active_target}`));
     }
-    dispatch(filterActions.fetchFilterVersion(fid));
+    refetchFilterVersion();
   };
 
   const handleFidChange = async (event: any) => {
     const activeFidTarget = event.target.value;
-    const result: any = await dispatch(
-      filterActions.editFilterVersion({
-        filter_id: filter_v.id,
-        active: filter_v.active,
-        active_fid: activeFidTarget,
-      }),
-    );
-    if (result.status === "success") {
+    const result: any = await editFilterVersion({
+      filter_id: filter_v.id,
+      active: filter_v.active,
+      active_fid: activeFidTarget,
+    });
+    if (!result.error) {
       dispatch(showNotification(`Set active filter ID to ${activeFidTarget}`));
     }
-    dispatch(filterActions.fetchFilterVersion(fid));
+    refetchFilterVersion();
   };
 
   // forms
@@ -184,30 +183,25 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
 
   // save new filter version
   const onSubmitSaveFilterVersion = async (data: any) => {
-    const result: any = await dispatch(
-      filterActions.updateGroupFilter(filter_v.id, data.pipeline),
-    );
-    if (result.status === "success") {
+    const result: any = await updateGroupFilter({
+      filter_id: filter_v.id,
+      altdata: data.pipeline,
+    });
+    if (!result.error) {
       dispatch(showNotification(`Saved new filter version`));
       setInlineNewVersion(false);
       setShowAnnotationBuilder(false);
     }
-    dispatch(filterActions.fetchFilterVersion(fid));
+    refetchFilterVersion();
   };
 
   const handleNew = () => {
     if (!inlineNewVersion) {
       // Only fetch when opening the builder
-      dispatch(filterActions.fetchFilterVersion(fid));
+      refetchFilterVersion();
     }
     setInlineNewVersion(!inlineNewVersion);
   };
-
-  useEffect(() => {
-    if (loadedId !== fid) {
-      dispatch(filterActions.fetchFilterVersion(fid));
-    }
-  }, [fid, loadedId, dispatch]);
 
   // renders
   if (!filter_v) {

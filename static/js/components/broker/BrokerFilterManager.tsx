@@ -15,18 +15,17 @@ import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
-import { addGroupFilter } from "../../ducks/boom_filter";
 import { setBrokerFilterTarget } from "../../ducks/brokerFilterTarget";
 import { useGetBrokerFiltersQuery } from "../../ducks/brokers";
+import { useAddGroupFilterMutation } from "../../ducks/filter";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
-import { useAppDispatch } from "../../types/hooks";
 
 // Lists a pipeline-broker's filters and lets the user create a new one, linking
 // each to the full builder page (BoomFilterPlugins) at /brokers/{id}/filter/{fid}.
 const BrokerFilterManager = ({ brokerId }: { brokerId: number }) => {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const [addGroupFilter] = useAddGroupFilterMutation();
   setBrokerFilterTarget(brokerId);
 
   const { data: filters } = useGetBrokerFiltersQuery(brokerId);
@@ -52,16 +51,17 @@ const BrokerFilterManager = ({ brokerId }: { brokerId: number }) => {
 
   const onCreate = async () => {
     if (!name || groupId === "" || streamId === "") return;
-    const result = (await dispatch(
-      addGroupFilter({
+    try {
+      const created = (await addGroupFilter({
         name,
         group_id: groupId,
         stream_id: streamId,
-        altdata: {},
-      }),
-    )) as { status?: string; data?: { id?: number } };
-    if (result?.status === "success" && result.data?.id) {
-      navigate(`/brokers/${brokerId}/filter/${result.data.id}`);
+      }).unwrap()) as { id?: number };
+      if (created?.id) {
+        navigate(`/brokers/${brokerId}/filter/${created.id}`);
+      }
+    } catch {
+      // error notification is surfaced by the base query
     }
   };
 

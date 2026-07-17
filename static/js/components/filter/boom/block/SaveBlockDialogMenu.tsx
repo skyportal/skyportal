@@ -7,11 +7,11 @@ import {
   Button,
 } from "@mui/material";
 import {
-  fetchElement,
-  postElement,
+  useLazyGetFilterElementsQuery,
+  usePostFilterElementMutation,
 } from "../../../../ducks/boom_filter_modules";
 import { useCurrentBuilder } from "../../../../hooks/useContexts";
-import { useAppDispatch, useAppSelector } from "../../../../types/hooks";
+import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
 
 const SaveBlockDialogMenu = () => {
   const {
@@ -27,10 +27,10 @@ const SaveBlockDialogMenu = () => {
     localFiltersUpdater,
   } = useCurrentBuilder();
 
-  const dispatch = useAppDispatch();
-  const stream = useAppSelector(
-    (state: any) => state.boom_filter_v.stream?.name,
-  );
+  const [fetchElement] = useLazyGetFilterElementsQuery();
+  const [postElement] = usePostFilterElementMutation();
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const stream = boomFilterVersion?.stream?.name;
 
   const handleSaveDialogConfirm = async () => {
     if (!saveName || !saveName.trim()) {
@@ -41,9 +41,10 @@ const SaveBlockDialogMenu = () => {
     const nameValue = saveName.trim();
     const streamName = stream?.split(" ")[0];
 
-    const notAvailable: any = await dispatch(
-      fetchElement({ survey: nameValue, elements: "blocks" }),
-    );
+    const notAvailable: any = await fetchElement({
+      survey: nameValue,
+      elements: "blocks",
+    });
     if (notAvailable?.data?.blocks != null) {
       const existingStreams = notAvailable.data.blocks.streams;
       // Name conflicts only if the existing block belongs to the same stream
@@ -58,13 +59,11 @@ const SaveBlockDialogMenu = () => {
       }
     }
 
-    const saved = await dispatch(
-      postElement({
-        name: nameValue,
-        data: { block: saveDialog.block, streams: [stream] },
-        elements: "blocks",
-      }),
-    );
+    const saved = await postElement({
+      name: nameValue,
+      data: { block: saveDialog.block, streams: [stream] },
+      elements: "blocks",
+    });
     if (saved) {
       const blockId = saveDialog.block.id;
 

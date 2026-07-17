@@ -1,7 +1,11 @@
 import React, { useState, createContext, useEffect } from "react";
 import { useFilterManipulation, useFilterFactories } from "../hooks/useFilter";
 import { useDialogStates } from "../hooks/useDialog";
-import { fetchAllElements } from "../ducks/boom_filter_modules";
+import {
+  useLazyGetFilterElementsQuery,
+  useFilterSchema,
+} from "../ducks/boom_filter_modules";
+import { useBoomFilterVersion } from "../ducks/boom_filter";
 import {
   convertToMongoAggregation,
   formatMongoAggregation,
@@ -9,7 +13,6 @@ import {
   convertArithmeticExpression,
 } from "../utils/mongoPipelineBuilder";
 import { flattenFieldOptions } from "../constants/filterConstants";
-import { useAppDispatch, useAppSelector } from "../types/hooks";
 
 export const UnifiedBuilderContext = createContext<any>(undefined);
 
@@ -22,7 +25,7 @@ export const UnifiedBuilderProvider = ({
   children,
   mode = "filter",
 }: UnifiedBuilderProviderProps) => {
-  const dispatch = useAppDispatch();
+  const [fetchAllElements] = useLazyGetFilterElementsQuery();
 
   // Core state
   const [filters, setFilters] = useState<any[]>([]);
@@ -45,9 +48,7 @@ export const UnifiedBuilderProvider = ({
   // Local filters updater function reference (for FilterBuilderContent)
   const [localFiltersUpdater, setLocalFiltersUpdater] = useState<any>(null);
 
-  const store_schema = useAppSelector(
-    (state) => (state as any).filter_modules?.schema,
-  );
+  const { data: store_schema } = useFilterSchema();
 
   const [schema, setSchema] = useState<any>(null);
   const [fieldOptions, setFieldOptions] = useState<any[]>([]);
@@ -59,27 +60,24 @@ export const UnifiedBuilderProvider = ({
     }
   }, [store_schema]);
 
-  const currentStream = useAppSelector(
-    (state) => (state as any).boom_filter_v.stream?.name,
-  );
+  const { data: boomFilterVersion } = useBoomFilterVersion();
+  const currentStream = boomFilterVersion?.stream?.name;
 
   // Load saved data on mount (similar to useFilterBuilderData)
   useEffect(() => {
     const loadData = async () => {
       try {
         // Load all saved data in parallel using the same pattern as FilterBuilderData
-        const blocks: any = await dispatch(
-          fetchAllElements({ elements: "blocks" }),
-        );
-        const variables: any = await dispatch(
-          fetchAllElements({ elements: "variables" }),
-        );
-        const listVariables: any = await dispatch(
-          fetchAllElements({ elements: "listVariables" }),
-        );
-        const switchCases: any = await dispatch(
-          fetchAllElements({ elements: "switchCases" }),
-        );
+        const blocks: any = await fetchAllElements({ elements: "blocks" });
+        const variables: any = await fetchAllElements({
+          elements: "variables",
+        });
+        const listVariables: any = await fetchAllElements({
+          elements: "listVariables",
+        });
+        const switchCases: any = await fetchAllElements({
+          elements: "switchCases",
+        });
 
         // Filter variables by stream - only show variables matching current stream or with no stream set
         // If no current stream is set, show all variables
@@ -112,7 +110,7 @@ export const UnifiedBuilderProvider = ({
     };
 
     loadData();
-  }, [dispatch, mode, currentStream]);
+  }, [fetchAllElements, mode, currentStream]);
 
   const currentData = filters;
   const setCurrentData = setFilters;
