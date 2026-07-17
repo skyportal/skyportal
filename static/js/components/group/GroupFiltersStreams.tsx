@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
@@ -37,6 +40,7 @@ import { useAppDispatch } from "../../types/hooks";
 import {
   useAddGroupFilterMutation,
   useDeleteGroupFilterMutation,
+  useUpdateFilterNameMutation,
 } from "../../ducks/filter";
 import { groupApi } from "../../ducks/group";
 import {
@@ -63,11 +67,14 @@ const GroupFiltersStreams = ({
   const [addStreamOpen, setAddStreamOpen] = useState(false);
   const [panelStreamsExpanded, setPanelStreamsExpanded] =
     useState<any>("panel-streams");
+  const [editingFilterId, setEditingFilterId] = useState<any>(null);
+  const [editNameInput, setEditNameInput] = useState("");
   const dispatch = useAppDispatch();
   const { data: streams } = useGetStreamsQuery();
   const [addGroupFilter] = useAddGroupFilterMutation();
   const [deleteGroupFilter] = useDeleteGroupFilterMutation();
   const [addGroupStream] = useAddGroupStreamMutation();
+  const [updateFilterName] = useUpdateFilterNameMutation();
 
   const {
     register,
@@ -131,6 +138,36 @@ const GroupFiltersStreams = ({
     }
   };
 
+  const handleStartRename = (filter: any) => {
+    setEditingFilterId(filter.id);
+    setEditNameInput(filter.name);
+  };
+
+  const handleCancelRename = () => {
+    setEditingFilterId(null);
+    setEditNameInput("");
+  };
+
+  const handleSaveRename = async () => {
+    const trimmed = editNameInput.trim();
+    if (!trimmed) {
+      dispatch(showNotification("Filter name cannot be empty.", "error"));
+      return;
+    }
+    try {
+      await updateFilterName({
+        filter_id: editingFilterId,
+        name: trimmed,
+      }).unwrap();
+      dispatch(showNotification("Filter name updated."));
+      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
+    } catch {
+      // error notification handled by the base query
+    }
+    setEditingFilterId(null);
+    setEditNameInput("");
+  };
+
   const groupStreamIds = group?.streams?.map((stream: any) => stream.id);
 
   const isStreamIdInStreams = (sid: any) =>
@@ -163,49 +200,100 @@ const GroupFiltersStreams = ({
                   <List component="nav" disablePadding>
                     {group.filters
                       ?.filter((f: any) => f.stream_id === stream.id)
-                      .map((filter: any) => (
-                        <ListItemButton
-                          key={filter.id}
-                          component={Link}
-                          to={`/filter/${filter.id}`}
-                        >
-                          <ListItemText
-                            key={filter.id}
-                            className={classes.nested}
-                            primary={filter.name}
-                          />
-                          {isAdmin(currentUser) && (
+                      .map((filter: any) =>
+                        editingFilterId === filter.id ? (
+                          <ListItem key={filter.id} className={classes.nested}>
+                            <TextField
+                              value={editNameInput}
+                              onChange={(e) => setEditNameInput(e.target.value)}
+                              size="small"
+                              variant="outlined"
+                              slotProps={{
+                                htmlInput: {
+                                  "data-testid": "filter-name-input",
+                                },
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSaveRename();
+                                if (e.key === "Escape") handleCancelRename();
+                              }}
+                              autoFocus
+                            />
                             <ListItemSecondaryAction>
                               <IconButton
-                                edge="end"
-                                aria-label="delete"
-                                onClick={async () => {
-                                  try {
-                                    await deleteGroupFilter({
-                                      filter_id: filter.id,
-                                    }).unwrap();
-                                    dispatch(
-                                      showNotification(
-                                        "Deleted filter from group",
-                                      ),
-                                    );
-                                  } catch {
-                                    // error notification handled by the base query
-                                  }
-                                  dispatch(
-                                    groupApi.util.invalidateTags([
-                                      { type: "Group", id: group.id },
-                                    ]),
-                                  );
-                                }}
-                                size="large"
+                                size="small"
+                                onClick={handleSaveRename}
+                                aria-label="save filter name"
+                                data-testid="save-filter-name-button"
                               >
-                                <DeleteIcon />
+                                <CheckIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={handleCancelRename}
+                                aria-label="cancel rename filter"
+                                data-testid="cancel-filter-name-button"
+                              >
+                                <CloseIcon fontSize="small" />
                               </IconButton>
                             </ListItemSecondaryAction>
-                          )}
-                        </ListItemButton>
-                      ))}
+                          </ListItem>
+                        ) : (
+                          <ListItemButton
+                            key={filter.id}
+                            component={Link}
+                            to={`/filter/${filter.id}`}
+                          >
+                            <ListItemText
+                              key={filter.id}
+                              className={classes.nested}
+                              primary={filter.name}
+                            />
+                            {isAdmin(currentUser) && (
+                              <ListItemSecondaryAction>
+                                <IconButton
+                                  edge="end"
+                                  aria-label="rename filter"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleStartRename(filter);
+                                  }}
+                                  size="large"
+                                >
+                                  <EditIcon />
+                                </IconButton>
+                                <IconButton
+                                  edge="end"
+                                  aria-label="delete"
+                                  onClick={async () => {
+                                    try {
+                                      await deleteGroupFilter({
+                                        filter_id: filter.id,
+                                      }).unwrap();
+                                      dispatch(
+                                        showNotification(
+                                          "Deleted filter from group",
+                                        ),
+                                      );
+                                    } catch {
+                                      // error notification handled by the base query
+                                    }
+                                    dispatch(
+                                      groupApi.util.invalidateTags([
+                                        { type: "Group", id: group.id },
+                                      ]),
+                                    );
+                                  }}
+                                  size="large"
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </ListItemSecondaryAction>
+                            )}
+                          </ListItemButton>
+                        ),
+                      )}
                   </List>
                 </div>
               ))}

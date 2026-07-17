@@ -95,3 +95,44 @@ def test_post_filter_with_unauthorized_stream(
         token=manage_groups_token,
     )
     assert status in [401, 500]
+
+
+def test_group_admin_can_rename_filter(group_admin_token, public_filter):
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"name": "renamed_by_group_admin"},
+        token=group_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=group_admin_token)
+    assert status == 200
+    assert data["data"]["name"] == "renamed_by_group_admin"
+
+
+def test_non_admin_member_cannot_rename_filter(upload_data_token, public_filter):
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"name": "should_be_rejected"},
+        token=upload_data_token,
+    )
+    assert status == 403
+    assert data["status"] == "error"
+
+
+def test_super_admin_can_rename_filter(super_admin_token, public_filter):
+    status, data = api(
+        "PATCH",
+        f"filters/{public_filter.id}",
+        data={"name": "renamed_by_super_admin"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=super_admin_token)
+    assert status == 200
+    assert data["data"]["name"] == "renamed_by_super_admin"

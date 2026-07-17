@@ -5,6 +5,7 @@ from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Filter
 from ..base import BaseHandler
+from .group import has_admin_access_for_group
 
 
 class FilterHandler(BaseHandler):
@@ -144,6 +145,14 @@ class FilterHandler(BaseHandler):
             )
             if f is None:
                 return self.error(f"Cannot find a filter with ID: {filter_id}.")
+
+            if not await has_admin_access_for_group(
+                self.associated_user_object, f.group_id, session
+            ):
+                return self.error(
+                    "Insufficient permissions: must be a group admin or system admin to rename a filter.",
+                    status=403,
+                )
 
             data = self.get_json()
             data["id"] = filter_id
