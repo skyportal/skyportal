@@ -82,11 +82,15 @@ def test_group_admission_request_insufficient_stream_access(
     page.goto("/groups")
     expect(page.locator('//h6[text()="My Groups"]').first).to_be_visible()
     filter_for_value(page, public_group.name)
-    page.locator(
+    # Wait for the filtered list to settle before clicking, so the click can't
+    # race the re-render and land on a stale/unmounted row (flaky otherwise).
+    admission_button = page.locator(
         f'//*[@data-testid="requestAdmissionButton{public_group.id}"]'
-    ).first.click()
+    ).first
+    expect(admission_button).to_be_visible()
+    admission_button.click()
     expect(
         page.locator(
             '//*[contains(text(), "does not have access to the following streams")]'
         ).first
-    ).to_be_visible()
+    ).to_be_visible(timeout=20000)

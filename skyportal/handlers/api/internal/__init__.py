@@ -2,6 +2,7 @@ from baselayer.app.env import load_env
 
 _, cfg = load_env()
 
+from .across import AcrossInstrumentsHandler, AcrossJointVisibilityHandler
 from .altdata_info import AltdataInfoHandler
 from .annotations_info import AnnotationsInfoHandler
 from .dbinfo import DBInfoHandler

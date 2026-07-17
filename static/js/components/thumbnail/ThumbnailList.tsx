@@ -22,7 +22,9 @@ const ARCHIVAL_THUMBNAIL_TYPES = ["sdss", "ls", "ps1", "sm", "hst", "chandra"];
 const LOADING_PLACEHOLDER_TYPES = ["ps1"];
 // On-demand cutouts (loaded via the button, not auto-generated).
 const ON_DEMAND_TYPES = ["sm", "hst", "chandra", "jwst"];
-// At most this many thumbnails are visible at once; the rest are cycled through.
+// When paginating (compact, single-row callers), show at most this many at once
+// and cycle through the rest. Callers with room (e.g. the source page) pass
+// paginate={false} to show every thumbnail wrapped across rows instead.
 const MAX_VISIBLE_THUMBNAILS = 3;
 
 const thumbnailTypes = [...ALERT_THUMBNAIL_TYPES, ...ARCHIVAL_THUMBNAIL_TYPES];
@@ -52,6 +54,12 @@ interface ThumbnailListProps {
   displayTypes?: string[] | undefined;
   // When set, show a control to generate on-demand pointed cutouts (HST/Chandra).
   objID?: string | undefined;
+  // Show a limited window with prev/next arrows (true, default) vs. all
+  // thumbnails at once, wrapped across rows by the parent layout (false).
+  paginate?: boolean | undefined;
+  // Lay the visible thumbnails out in this many columns over (up to) 2 rows,
+  // with the cycle arrows placed outside the grid so they don't disrupt it.
+  columns?: number | undefined;
 }
 
 const ThumbnailList = ({
@@ -66,6 +74,8 @@ const ThumbnailList = ({
   titleSize = "0.875rem",
   displayTypes = thumbnailTypes,
   objID = undefined,
+  paginate = true,
+  columns = undefined,
 }: ThumbnailListProps) => {
   const [offset, setOffset] = useState(0);
   // Types that resolved to "no coverage" client-side (e.g. Legacy Survey blanks);
@@ -145,14 +155,17 @@ const ThumbnailList = ({
     </Grid>
   );
 
-  // Show at most MAX_VISIBLE_THUMBNAILS at once; cycle through the rest.
-  const maxOffset = Math.max(0, shownTiles.length - MAX_VISIBLE_THUMBNAILS);
+  // When paginating, show at most `windowSize` at once and cycle through the
+  // rest; otherwise show all and let the parent layout wrap them. In columns
+  // mode the window is 2 rows and we page a full screen at a time.
+  const windowSize = columns ? columns * 2 : MAX_VISIBLE_THUMBNAILS;
+  const step = columns ? windowSize : 1;
+  const maxOffset = Math.max(0, shownTiles.length - windowSize);
   const clampedOffset = Math.min(offset, maxOffset);
-  const visibleTiles = shownTiles.slice(
-    clampedOffset,
-    clampedOffset + MAX_VISIBLE_THUMBNAILS,
-  );
-  const showControls = shownTiles.length > MAX_VISIBLE_THUMBNAILS;
+  const visibleTiles = paginate
+    ? shownTiles.slice(clampedOffset, clampedOffset + windowSize)
+    : shownTiles;
+  const showControls = paginate && shownTiles.length > windowSize;
 
   // On-demand cutouts (SkyMapper/HST/Chandra/JWST): offer a control if we have
   // an objID and no *real* one is loaded yet. Placeholders (no coverage / the
@@ -167,48 +180,70 @@ const ThumbnailList = ({
     }
   };
 
+  const prevButton = (
+    <IconButton
+      size="small"
+      aria-label="previous thumbnails"
+      disabled={clampedOffset === 0}
+      onClick={() => setOffset(Math.max(0, clampedOffset - step))}
+    >
+      <ChevronLeftIcon />
+    </IconButton>
+  );
+  const nextButton = (
+    <IconButton
+      size="small"
+      aria-label="next thumbnails"
+      disabled={clampedOffset >= maxOffset}
+      onClick={() => setOffset(Math.min(maxOffset, clampedOffset + step))}
+    >
+      <ChevronRightIcon />
+    </IconButton>
+  );
+  const onDemandButton = (
+    <Tooltip title="Load SkyMapper, HST, Chandra & JWST cutouts">
+      <span>
+        <Button
+          size="small"
+          onClick={handleLoadOnDemand}
+          disabled={onDemandLoading}
+        >
+          {onDemandLoading ? "Loading…" : "Request more thumbnails"}
+        </Button>
+      </span>
+    </Tooltip>
+  );
+
+  // Self-contained grid mode: up to `columns`-wide, 2 rows, with the cycle
+  // arrows flanking the grid (outside it) so they never disrupt the tiling.
+  if (columns) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          {showControls && prevButton}
+          <div
+            style={{
+              display: "grid",
+              gap: "0.5rem",
+              gridTemplateColumns: `repeat(${columns}, 1fr)`,
+              flex: "1 1 auto",
+            }}
+          >
+            {visibleTiles.map(renderTile)}
+          </div>
+          {showControls && nextButton}
+        </div>
+        {showOnDemandButton && <div>{onDemandButton}</div>}
+      </div>
+    );
+  }
+
   const items = (
     <>
-      {showControls && (
-        <Grid>
-          <IconButton
-            size="small"
-            aria-label="previous thumbnails"
-            disabled={clampedOffset === 0}
-            onClick={() => setOffset(Math.max(0, clampedOffset - 1))}
-          >
-            <ChevronLeftIcon />
-          </IconButton>
-        </Grid>
-      )}
+      {showControls && <Grid>{prevButton}</Grid>}
       {visibleTiles.map(renderTile)}
-      {showControls && (
-        <Grid>
-          <IconButton
-            size="small"
-            aria-label="next thumbnails"
-            disabled={clampedOffset >= maxOffset}
-            onClick={() => setOffset(Math.min(maxOffset, clampedOffset + 1))}
-          >
-            <ChevronRightIcon />
-          </IconButton>
-        </Grid>
-      )}
-      {showOnDemandButton && (
-        <Grid>
-          <Tooltip title="Load SkyMapper, HST, Chandra & JWST cutouts">
-            <span>
-              <Button
-                size="small"
-                onClick={handleLoadOnDemand}
-                disabled={onDemandLoading}
-              >
-                {onDemandLoading ? "Loading…" : "Request more thumbnails"}
-              </Button>
-            </span>
-          </Tooltip>
-        </Grid>
-      )}
+      {showControls && <Grid>{nextButton}</Grid>}
+      {showOnDemandButton && <Grid>{onDemandButton}</Grid>}
     </>
   );
 

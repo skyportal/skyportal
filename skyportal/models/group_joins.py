@@ -34,7 +34,6 @@ import sqlalchemy as sa
 from baselayer.app.models import (
     AccessibleIfUserMatches,
     CustomUserAccessControl,
-    DBSession,
     User,
     join_model,
     restricted,
@@ -283,8 +282,7 @@ GroupStream.delete = (
     # Can only delete a stream from the group if none of the group's filters
     # are operating on the stream.
     lambda cls, user_or_token: (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .outerjoin(Stream)
         .outerjoin(
             Filter,
@@ -308,8 +306,7 @@ GroupStream.create = (
         # access to the stream.
         # Also, cannot add stream access to single user groups.
         lambda cls, user_or_token: (
-            DBSession()
-            .query(cls)
+            sa.select(cls)
             .join(Group, cls.group)
             .outerjoin(User, Group.users)
             .outerjoin(
@@ -319,7 +316,7 @@ GroupStream.create = (
                     User.id == StreamUser.user_id,
                 ),
             )
-            .filter(Group.single_user_group.is_(False))
+            .where(Group.single_user_group.is_(False))
             .group_by(cls.id)
             .having(
                 sa.or_(

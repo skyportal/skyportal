@@ -74,6 +74,41 @@ teams:
     group_ids: ["=program_A"]
     =id: team_tvs
 
+# Public (no-auth) alert brokers, available out of the box. Credentialed ones
+# (BOOM, Babamul, Lasair, Pitt-Google) are configured per-deployment via
+# /broker_admin. See doc/broker_plugins.md.
+brokers:
+  - name: ALeRCE (ZTF)
+    broker_classname: ALERCEBROKER
+    active: true
+    altdata:
+      survey: ZTF
+  - name: ALeRCE (LSST)
+    broker_classname: ALERCEBROKER
+    active: true
+    altdata:
+      survey: LSST
+  - name: ANTARES (ZTF)
+    broker_classname: ANTARESBROKER
+    active: true
+    altdata:
+      survey: ZTF
+  - name: ANTARES (LSST)
+    broker_classname: ANTARESBROKER
+    active: true
+    altdata:
+      survey: LSST
+  - name: Fink (ZTF)
+    broker_classname: FINKBROKER
+    active: true
+    altdata:
+      survey: ZTF
+  - name: Fink (LSST)
+    broker_classname: FINKBROKER
+    active: true
+    altdata:
+      survey: LSST
+
 streams:
   - name: ZTF Public
     altdata:

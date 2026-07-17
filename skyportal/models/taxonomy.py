@@ -8,7 +8,6 @@ from baselayer.app.models import (
     AccessibleIfRelatedRowsAreAccessible,
     Base,
     CustomUserAccessControl,
-    DBSession,
     restricted,
 )
 
@@ -22,9 +21,9 @@ def taxonomy_update_logic(cls, user_or_token):
     """
     if len({"Delete taxonomy", "System admin"} & set(user_or_token.permissions)) == 0:
         # nothing accessible
-        return restricted.query_accessible_rows(cls, user_or_token)
+        return restricted.select_accessible_rows(cls, user_or_token)
 
-    return DBSession().query(cls)
+    return sa.select(cls)
 
 
 def taxonomy_delete_logic(cls, user_or_token):
@@ -39,12 +38,11 @@ def taxonomy_delete_logic(cls, user_or_token):
 
     if len({"Delete taxonomy", "System admin"} & set(user_or_token.permissions)) == 0:
         # nothing accessible
-        return restricted.query_accessible_rows(cls, user_or_token)
+        return restricted.select_accessible_rows(cls, user_or_token)
 
     # dont allow deletion of any taxonomies that have classifications attached
     return (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .outerjoin(Classification)
         .group_by(cls.id)
         .having(sa.func.bool_and(Classification.id.is_(None)))
