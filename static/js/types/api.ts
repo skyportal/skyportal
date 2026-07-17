@@ -2066,6 +2066,128 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brokers/{broker_id}/alerts/{alert_id}/photometry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Display photometry for an object (DB + on-demand broker)
+         * @description Return an object's photometry for display: the persisted,
+         *     access-controlled photometry from the database merged with photometry
+         *     fetched on demand from the broker (deduped by instrument/filter/mjd,
+         *     so the broker only augments saved points). The broker half is held in
+         *     a read-through cache keyed by the object and the requester's access
+         *     scope, and is never written to the database. Returns a bare list of
+         *     points, matching GET /sources/{id}/photometry.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    survey?: string;
+                    format?: string;
+                    magsys?: string;
+                    /** @description Bypass any cached broker payload and re-fetch. */
+                    refresh?: boolean;
+                };
+                header?: never;
+                path: {
+                    broker_id: number;
+                    /** @description Object identifier (objectId) to fetch photometry for. */
+                    alert_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/photometry/{object_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Display photometry for an object via the survey's broker
+         * @description Broker-address-free variant of the photometry passthrough for the
+         *     source-page lightcurve: resolves the active provider that supports
+         *     get_photometry for ``?survey=`` server-side, so a deployment can set
+         *     `photometry_display_endpoint:
+         *     /api/brokers/photometry/{id}?survey=ZTF` without pinning a broker id.
+         *     If no such broker is configured, degrades to the object's DB
+         *     photometry. Returns a bare list of points, matching
+         *     GET /sources/{id}/photometry.
+         */
+        get: {
+            parameters: {
+                query: {
+                    survey: string;
+                    format?: string;
+                    magsys?: string;
+                    refresh?: boolean;
+                };
+                header?: never;
+                path: {
+                    object_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brokers/{broker_id}/alerts/{alert_id}/save": {
         parameters: {
             query?: never;

@@ -459,4 +459,148 @@ def test_ampel_normalize_report():
 def test_fink_survey_routing():
     assert _fink_survey(_MockBroker({"survey": "LSST"})) == "LSST"
     assert _fink_survey(_MockBroker({}), {"survey": "ztf"}) == "ZTF"
+
+
+# --- photometry passthrough --------------------------------------------------
+#
+# The broker-canonical photometry passthrough (GET
+# /api/brokers/{id}/alerts/{oid}/photometry) is a base default free to any
+# provider that implements get_alert. These cover the pure, security-critical
+# pieces with no broker or cache: the transform shared with the save path, the
+# access-scope hash / stream filter (the no-leakage guarantee), the DB∪broker
+# merge, and the capability gating. The live fetch/cache path is an integration
+# concern.
+
+from skyportal.broker_apis._photometry import (  # noqa: E402
+    filter_groups_by_streams,
+    merge_photometry_points,
+    photometry_key,
+    scope_hash,
+    variant_hash,
+)
+from skyportal.broker_apis._save import build_photometry_groups  # noqa: E402
+
+
+def test_build_photometry_groups_flux_and_mag_space():
+    """The transform (shared verbatim with the save path) handles flux-space
+    brokers (psfFlux, e.g. BOOM) and magnitude-space brokers (magpsf, e.g.
+    Lasair), keying by (survey, programid) and carrying the gating stream."""
+    data = {
+        "prv_candidates": [
+            {
+                "jd": 2459000.5,
+                "band": "g",
+                "psfFlux": 100.0,
+                "psfFluxErr": 1.0,
+                "programid": 1,
+                "ra": 1.0,
+                "dec": 2.0,
+            },
+        ],
+        "fp_hists": [
+            # magnitude space: mag=20 at zp=23.9 -> flux = 10**(-0.4*(20-23.9))
+            {
+                "jd": 2459001.5,
+                "band": "r",
+                "magpsf": 20.0,
+                "sigmapsf": 0.1,
+                "programid": 1,
+            },
+        ],
+    }
+    groups = build_photometry_groups("ZTF1", "ZTF", data, 42, {("ZTF", 1): [10]})
+    g = groups[("ZTF", 1)]
+    assert g["instrument_id"] == 42 and g["stream_ids"] == [10]
+    assert g["mjd"] == [59000.0, 59001.0]
+    assert g["filter"] == ["ztfg", "ztfr"]
+    assert g["flux"][0] == 100.0 * 1e-9
+    assert g["flux"][1] == pytest.approx(10.0 ** (-0.4 * (20.0 - 23.9)))
+
+
+def test_build_photometry_groups_drops_ungated_programs():
+    """A program with no mapped stream is dropped (never displayed) rather than
+    leaked with empty gating."""
+    data = {
+        "prv_candidates": [
+            {
+                "jd": 2459000.5,
+                "band": "g",
+                "psfFlux": 1.0,
+                "psfFluxErr": 1.0,
+                "programid": 2,
+            },
+        ]
+    }
+    # only programid 1 is mapped -> the programid-2 point has no home
+    assert build_photometry_groups("ZTF1", "ZTF", data, 42, {("ZTF", 1): [10]}) == {}
+
+
+def test_scope_hash_order_independent_and_sensitive():
+    assert scope_hash(7, [3, 1], [9, 5]) == scope_hash(7, [1, 3], [5, 9])
+    base = scope_hash(7, [1], [9])
+    assert base != scope_hash(8, [1], [9])  # user
+    assert base != scope_hash(7, [1, 2], [9])  # groups
+    assert base != scope_hash(7, [1], [9, 10])  # streams
+    assert scope_hash(7, [1], [9], is_admin=True) == "admin"
+
+
+def test_variant_hash_separates_shape_from_visibility():
+    assert variant_hash({"format": "mag", "magsys": "ab"}) == variant_hash(
+        {"magsys": "ab", "format": "mag"}
+    )
+    assert variant_hash({"format": "mag"}) != variant_hash({"format": "flux"})
+
+
+def test_photometry_key_is_broker_and_object_scoped():
+    a = photometry_key(1, "ZTF1", "admin", variant_hash({"format": "mag"}))
+    assert a.startswith("photcache:v1:1:ZTF1:")
+    # a different broker serving the same object gets a different key
+    assert a != photometry_key(2, "ZTF1", "admin", variant_hash({"format": "mag"}))
+
+
+def _scoped_groups():
+    return {
+        ("ZTF", 1): {"stream_ids": [10], "mjd": [1.0]},  # public
+        ("ZTF", 2): {"stream_ids": [20], "mjd": [2.0]},  # partnership
+    }
+
+
+def test_scope_filter_no_leakage():
+    """A requester with only the public stream must never receive the
+    partnership group; admins see everything; no streams sees nothing."""
+    assert set(filter_groups_by_streams(_scoped_groups(), [10])) == {("ZTF", 1)}
+    assert filter_groups_by_streams(_scoped_groups(), []) == {}
+    assert set(filter_groups_by_streams(_scoped_groups(), [], is_admin=True)) == {
+        ("ZTF", 1),
+        ("ZTF", 2),
+    }
+
+
+def test_merge_broker_augments_db_and_dedups():
+    """DB is authoritative: a broker point matching a DB point on
+    (instrument, filter, mjd) is dropped (float noise absorbed), broker-only
+    points are appended, DB points keep their identity."""
+    db = [{"instrument_id": 1, "filter": "ztfg", "mjd": 59000.0, "id": 5}]
+    broker = [
+        {"instrument_id": 1, "filter": "ztfg", "mjd": 59000.0000001, "id": None},
+        {"instrument_id": 1, "filter": "ztfg", "mjd": 59002.5, "id": None},
+    ]
+    merged = merge_photometry_points(db, broker)
+    assert [p for p in merged if p.get("id") is not None] == db
+    appended = [p for p in merged if p.get("id") is None]
+    assert len(appended) == 1 and appended[0]["mjd"] == 59002.5
+    assert merge_photometry_points([], []) == []
+
+
+def test_get_photometry_capability_gated_on_get_alert():
+    """get_photometry is a base default: advertised iff the provider can fetch an
+    object (implements get_alert), exactly like save_as_source."""
+    assert BOOMBROKER.implements()["get_photometry"] is True
+
+    from skyportal.broker_apis.interface import BrokerAPI
+
+    class _BareBroker(BrokerAPI):
+        surveys = []
+
+    assert _BareBroker.implements()["get_photometry"] is False
     assert FINKBROKER.implements()["query_alerts"] is True

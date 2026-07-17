@@ -425,6 +425,194 @@ class BrokerSaveHandler(BaseHandler):
             return self.success(data=result)
 
 
+class BrokerPhotometryHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, broker_id, alert_id):
+        """
+        ---
+        summary: Display photometry for an object (DB + on-demand broker)
+        description: |
+          Return an object's photometry for display: the persisted,
+          access-controlled photometry from the database merged with photometry
+          fetched on demand from the broker (deduped by instrument/filter/mjd,
+          so the broker only augments saved points). The broker half is held in
+          a read-through cache keyed by the object and the requester's access
+          scope, and is never written to the database. Returns a bare list of
+          points, matching GET /sources/{id}/photometry.
+        tags:
+          - brokers
+          - photometry
+        parameters:
+          - in: path
+            name: broker_id
+            required: true
+            schema:
+              type: integer
+          - in: path
+            name: alert_id
+            required: true
+            schema:
+              type: string
+            description: Object identifier (objectId) to fetch photometry for.
+          - in: query
+            name: survey
+            schema:
+              type: string
+          - in: query
+            name: format
+            schema:
+              type: string
+              default: mag
+          - in: query
+            name: magsys
+            schema:
+              type: string
+              default: ab
+          - in: query
+            name: refresh
+            schema:
+              type: boolean
+              default: false
+            description: Bypass any cached broker payload and re-fetch.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        async with self.AsyncSession() as session:
+            broker = await session.scalar(
+                Broker.select(self.current_user).where(Broker.id == int(broker_id))
+            )
+            if broker is None:
+                return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
+            if not broker.broker_class.implements()["get_photometry"]:
+                return self.error(f"Broker {broker.name} does not support photometry.")
+            return await self._respond_photometry(session, broker, alert_id)
+
+    async def _respond_photometry(self, session, broker, object_id):
+        """Serve merged DB + on-demand broker photometry for ``object_id``. When
+        ``broker`` is None (no configured provider for the survey), degrade to
+        the object's access-controlled DB photometry so the caller still works."""
+        from ...broker_apis._photometry import db_photometry_points
+        from ...utils.parse import str_to_bool
+        from ...utils.valkey_cache import get_cache
+
+        survey = self.get_query_argument("survey", None)
+        fmt = self.get_query_argument("format", "mag")
+        outsys = self.get_query_argument("magsys", "ab")
+        refresh = str_to_bool(
+            self.get_query_argument("refresh", "false"), default=False
+        )
+
+        if broker is None:
+            db_points = await db_photometry_points(
+                object_id, self.associated_user_object, session, outsys=outsys, fmt=fmt
+            )
+            return self.success(data=db_points)
+        try:
+            merged = await broker.broker_class.get_photometry(
+                broker,
+                object_id,
+                session,
+                self.associated_user_object,
+                cache=get_cache(),
+                survey=survey,
+                outsys=outsys,
+                fmt=fmt,
+                refresh=refresh,
+            )
+        except Exception as e:
+            return self.error(f"Error fetching photometry from {broker.name}: {e}")
+        return self.success(data=merged)
+
+
+class BrokerSurveyPhotometryHandler(BrokerPhotometryHandler):
+    @auth_or_token
+    async def get(self, object_id):
+        """
+        ---
+        summary: Display photometry for an object via the survey's broker
+        description: |
+          Broker-address-free variant of the photometry passthrough for the
+          source-page lightcurve: resolves the active provider that supports
+          get_photometry for ``?survey=`` server-side, so a deployment can set
+          `photometry_display_endpoint:
+          /api/brokers/photometry/{id}?survey=ZTF` without pinning a broker id.
+          If no such broker is configured, degrades to the object's DB
+          photometry. Returns a bare list of points, matching
+          GET /sources/{id}/photometry.
+        tags:
+          - brokers
+          - photometry
+        parameters:
+          - in: path
+            name: object_id
+            required: true
+            schema:
+              type: string
+          - in: query
+            name: survey
+            required: true
+            schema:
+              type: string
+          - in: query
+            name: format
+            schema:
+              type: string
+              default: mag
+          - in: query
+            name: magsys
+            schema:
+              type: string
+              default: ab
+          - in: query
+            name: refresh
+            schema:
+              type: boolean
+              default: false
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        survey = self.get_query_argument("survey", None)
+        if not survey:
+            return self.error("Missing required query parameter: survey")
+
+        async with self.AsyncSession() as session:
+            # First active provider that can fetch photometry for this survey.
+            # A deployment typically configures one such broker per survey.
+            brokers = (
+                await session.scalars(
+                    Broker.select(self.current_user)
+                    .where(Broker.active.is_(True))
+                    .order_by(Broker.id)
+                )
+            ).all()
+            broker = next(
+                (
+                    b
+                    for b in brokers
+                    if survey in b.broker_class.surveys
+                    and b.broker_class.implements()["get_photometry"]
+                ),
+                None,
+            )
+            return await self._respond_photometry(session, broker, object_id)
+
+
 class BrokerFilterTestHandler(BaseHandler):
     @auth_or_token
     def post(self, broker_id):
