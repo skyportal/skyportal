@@ -1045,3 +1045,8 @@ boom:
   port: 4000
   username: admin
   password: adminsecret
+  filter_modules:
+    # MongoDB holding the filter builder's reusable elements (blocks,
+    # variables, schemas). Override credentials in production.
+    mongodb_uri: "mongodb://mongoadmin:mongoadminsecret@localhost:27017/?authSource=admin"
+    database: "boom_filter_modules"

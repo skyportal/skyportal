@@ -119,7 +119,8 @@ const Filter = () => {
         {filter.name}
       </Typography>
 
-      <Grid container spacing={2}>
+      {/* overflow must stay visible for the filter builder's sticky block headers */}
+      <Grid container spacing={2} sx={{ overflow: "visible" }}>
         <Grid size={{ sm: 12, md: 12 }}>
           <Card className={classes.root}>
             <CardContent>
@@ -139,7 +140,7 @@ const Filter = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid size={{ sm: 12, md: 12 }}>
+        <Grid size={{ sm: 12, md: 12 }} sx={{ overflow: "visible" }}>
           <FilterPlugins {...({ group } as any)} />
         </Grid>
       </Grid>

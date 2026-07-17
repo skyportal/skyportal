@@ -1,3 +1,4 @@
+import requests
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm import joinedload
 
@@ -5,6 +6,7 @@ from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Filter
 from ..base import BaseHandler
+from .boom.utils import boom_token, boom_url, get_boom_token
 
 
 class FilterHandler(BaseHandler):
@@ -158,6 +160,36 @@ class FilterHandler(BaseHandler):
 
             if fil.group_id != f.group_id or fil.stream_id != f.stream_id:
                 return self.error("Cannot update group_id or stream_id.")
+
+            # If the filter is registered in Boom and the name is changing, rename it there too
+            new_name = data.get("name")
+            if (
+                new_name is not None
+                and new_name != f.name
+                and f.altdata is not None
+                and "boom" in f.altdata
+            ):
+                global_boom_token = boom_token
+                try:
+                    boom_filter_id = f.altdata["boom"]["filter_id"]
+                    url = f"{boom_url}/filters/{boom_filter_id}"
+                    headers = {
+                        "Authorization": f"Bearer {global_boom_token}",
+                        "Content-Type": "application/json",
+                    }
+                    response = requests.patch(
+                        url, json={"name": new_name}, headers=headers
+                    )
+                    if response.status_code == 401:
+                        # Token may have expired — refresh and retry once
+                        global_boom_token, _ = get_boom_token()
+                        headers["Authorization"] = f"Bearer {global_boom_token}"
+                        response = requests.patch(
+                            url, json={"name": new_name}, headers=headers
+                        )
+                    response.raise_for_status()
+                except Exception as e:
+                    return self.error(f"Failed to rename filter in Boom: {str(e)}")
 
             for k in data:
                 setattr(f, k, data[k])

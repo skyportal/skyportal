@@ -108,6 +108,7 @@ User Guide
    analysis
    external_services
    extensions
+   boom_filters
    pages
    thumbnails
 
