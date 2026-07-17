@@ -1271,13 +1271,11 @@ def post_source(data, user_id, session, refresh_source=True):
 
 def apply_active_or_requested_filtering(query, include_requested, requested_only):
     if include_requested:
-        query = query.filter(or_(Source.requested.is_(True), Source.active.is_(True)))
+        query = query.where(or_(Source.requested.is_(True), Source.active.is_(True)))
     elif not requested_only:
-        query = query.filter(Source.active.is_(True))
+        query = query.where(Source.active.is_(True))
     if requested_only:
-        query = query.filter(Source.active.is_(False)).filter(
-            Source.requested.is_(True)
-        )
+        query = query.where(Source.active.is_(False)).where(Source.requested.is_(True))
     return query
 
 
@@ -2381,6 +2379,10 @@ class SourceHandler(BaseHandler):
                     query_id=query_id,
                     verbose=False,
                 )
+            except ValueError as e:
+                # Invalid query parameters (e.g. a stale/unknown localization) are
+                # client errors: return a clean 400 without a server traceback.
+                return self.error(f"Cannot retrieve sources: {str(e)}", status=400)
             except Exception as e:
                 traceback.print_exc()
                 return self.error(f"Cannot retrieve sources: {str(e)}")

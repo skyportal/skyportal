@@ -526,16 +526,23 @@ def test_obj_page_unsaved_source(public_obj, page, user):
 def test_show_photometry_table(public_source, page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
+    # Wait for the source page to render before interacting, so a click can't
+    # land while the page is still mounting and get dropped (flaky otherwise).
+    expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
-    page.locator('//*[@data-testid="show-photometry-table-button"]').first.click()
+    show_button = page.locator('//*[@data-testid="show-photometry-table-button"]').first
+    expect(show_button).to_be_visible()
+    show_button.click()
     expect(
         page.locator(f'//*[contains(text(), "Photometry of {public_source.id}")]').first
-    ).to_be_visible()
+    ).to_be_visible(timeout=20000)
 
-    page.locator('//*[@data-testid="close-photometry-table-button"]').first.click()
-    expect(
-        page.locator('//*[@data-testid="close-photometry-table-button"]').first
-    ).to_be_hidden()
+    close_button = page.locator(
+        '//*[@data-testid="close-photometry-table-button"]'
+    ).first
+    expect(close_button).to_be_visible()
+    close_button.click()
+    expect(close_button).to_be_hidden()
 
 
 def test_javascript_sexagesimal_conversion(public_source, page, user):

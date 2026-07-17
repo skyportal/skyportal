@@ -42,7 +42,28 @@ services:
       timeout: 5s
       retries: 10
 
+  # Valkey (redis-protocol) server backing skyportal.utils.valkey_cache.
+  # ALLOW_EMPTY_PASSWORD is for local development only.
+  valkey:
+    image: valkey/valkey:9.1.0
+    container_name: valkey
+    ports:
+      - "6379:6379"
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
+      - VALKEY_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+    volumes:
+      - valkeydata:/data
+    restart: on-failure:3
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 volumes:
   dbdata:
+  valkeydata:
   thumbnails:
   persistentdata:

@@ -153,33 +153,51 @@ const ProfileDropdown = () => {
         </Box>
         <Divider />
 
-        <MenuList className={classes.popoverMenu}>
-          <Link
-            to="/profile"
-            role="link"
-            className={classes.nodecor}
-            onClick={handleClose}
+        {profile.is_anonymous ? (
+          // read-only anonymous visitor: no account UI, just a way to sign in
+          <Box
+            className={classes.signOutMargin}
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              bgcolor: "background.paper",
+            }}
           >
-            <MenuItem className={classes.centerContent}>Profile</MenuItem>
-          </Link>
-        </MenuList>
+            <a href="/login/google-oauth2" className={classes.nodecor}>
+              <Button>Log in</Button>
+            </a>
+          </Box>
+        ) : (
+          <>
+            <MenuList className={classes.popoverMenu}>
+              <Link
+                to="/profile"
+                role="link"
+                className={classes.nodecor}
+                onClick={handleClose}
+              >
+                <MenuItem className={classes.centerContent}>Profile</MenuItem>
+              </Link>
+            </MenuList>
 
-        <Box
-          className={classes.signOutMargin}
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            bgcolor: "background.paper",
-          }}
-        >
-          <a
-            href="/logout"
-            className={classes.nodecor}
-            data-testid="signOutButton"
-          >
-            <Button>Sign out</Button>
-          </a>
-        </Box>
+            <Box
+              className={classes.signOutMargin}
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                bgcolor: "background.paper",
+              }}
+            >
+              <a
+                href="/logout"
+                className={classes.nodecor}
+                data-testid="signOutButton"
+              >
+                <Button>Sign out</Button>
+              </a>
+            </Box>
+          </>
+        )}
       </Popover>
     </>
   );

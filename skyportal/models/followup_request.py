@@ -45,11 +45,15 @@ EQ_OP = getattr(operator, "eq")
 
 def updatable_by_token_with_listener_acl(cls, user_or_token):
     if user_or_token.is_admin:
-        return public.query_accessible_rows(cls, user_or_token)
+        return public.select_accessible_rows(cls, user_or_token)
 
     instruments_with_apis = (
-        Instrument.query_records_accessible_by(user_or_token)
-        .filter(Instrument.listener_classname.isnot(None))
+        DBSession()
+        .scalars(
+            Instrument.select(user_or_token).where(
+                Instrument.listener_classname.isnot(None)
+            )
+        )
         .all()
     )
 
@@ -65,11 +69,10 @@ def updatable_by_token_with_listener_acl(cls, user_or_token):
     ]
 
     return (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .join(Allocation)
         .join(Instrument)
-        .filter(Instrument.id.in_(accessible_instrument_ids))
+        .where(Instrument.id.in_(accessible_instrument_ids))
     )
 
 

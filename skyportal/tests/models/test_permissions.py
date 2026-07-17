@@ -73,6 +73,7 @@ def _recover_session_after_test():
 # than guessed (e.g. ``public_source_object`` is a GroupObj and
 # ``public_candidate_object`` is a Candidate). Drives the coverage ratchet.
 FIXTURE_MODEL = {
+    "broker": "Broker",
     "invitation": "Invitation",
     "keck1_telescope": "Telescope",
     "problematic_assignment": "ClassicalAssignment",
@@ -219,6 +220,23 @@ FIXTURE_MODEL = {
 
 # (role_fixture, object_fixture, mode, expected_is_accessible)
 CASES = [
+    # --- Broker  (broker): read public, create/update/delete sysadmin-only ---
+    ("user", "broker", "create", False),
+    ("user", "broker", "read", True),
+    ("user", "broker", "update", False),
+    ("user", "broker", "delete", False),
+    ("user_group2", "broker", "create", False),
+    ("user_group2", "broker", "read", True),
+    ("user_group2", "broker", "update", False),
+    ("user_group2", "broker", "delete", False),
+    ("group_admin_user", "broker", "create", False),
+    ("group_admin_user", "broker", "read", True),
+    ("group_admin_user", "broker", "update", False),
+    ("group_admin_user", "broker", "delete", False),
+    ("super_admin_user", "broker", "create", True),
+    ("super_admin_user", "broker", "read", True),
+    ("super_admin_user", "broker", "update", True),
+    ("super_admin_user", "broker", "delete", True),
     # --- Allocation  (public_group_sedm_allocation) ---
     ("user", "public_group_sedm_allocation", "create", True),
     ("user", "public_group_sedm_allocation", "read", True),

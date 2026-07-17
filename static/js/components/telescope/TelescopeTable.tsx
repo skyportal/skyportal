@@ -21,6 +21,7 @@ import {
   useUpdateTelescopeMutation,
 } from "../../ducks/telescopes";
 import { useAppDispatch } from "../../types/hooks";
+import { useIsReadOnly } from "../../ducks/profile";
 
 import EditIcon from "@mui/icons-material/Edit";
 import Box from "@mui/material/Box";
@@ -37,6 +38,7 @@ const TelescopeTable = ({
   hideTitle = false,
 }: TelescopeTableProps) => {
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [deleteTelescopeMutation] = useDeleteTelescopeMutation();
   const [submitTelescopeMutation] = useSubmitTelescopeMutation();
   const [updateTelescopeMutation] = useUpdateTelescopeMutation();
@@ -268,16 +270,18 @@ const TelescopeTable = ({
       function TelescopeTableToolbar() {
         return (
           <DataGridToolbar showExport>
-            <IconButton
-              name="new_telescope"
-              onClick={() => setNewDialogOpen(true)}
-            >
-              <AddIcon />
-            </IconButton>
+            {!isReadOnly && (
+              <IconButton
+                name="new_telescope"
+                onClick={() => setNewDialogOpen(true)}
+              >
+                <AddIcon />
+              </IconButton>
+            )}
           </DataGridToolbar>
         );
       },
-    [],
+    [isReadOnly],
   );
 
   return (
