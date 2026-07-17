@@ -348,6 +348,86 @@ class BrokerCutoutsHandler(BaseHandler):
             return self.success(data=data)
 
 
+class BrokerConeSearchHandler(BaseHandler):
+    @auth_or_token
+    def get(self, broker_id):
+        """
+        ---
+        summary: Cross-match a position against a broker's archival catalogs
+        description: Positional cone-search against a broker's reference catalogs
+          (e.g. Gaia, PS1, AllWISE), dispatched to the broker's provider. Returns
+          matched sources keyed by catalog name.
+        tags:
+          - brokers
+        parameters:
+          - in: path
+            name: broker_id
+            required: true
+            schema:
+              type: integer
+          - in: query
+            name: ra
+            required: true
+            schema:
+              type: number
+            description: RA in degrees (0 <= ra < 360).
+          - in: query
+            name: dec
+            required: true
+            schema:
+              type: number
+            description: Declination in degrees (-90 <= dec <= 90).
+          - in: query
+            name: radius
+            required: true
+            schema:
+              type: number
+          - in: query
+            name: radius_units
+            schema:
+              type: string
+              enum: [deg, arcmin, arcsec]
+              default: arcsec
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        ra = self.get_query_argument("ra", None)
+        dec = self.get_query_argument("dec", None)
+        radius = self.get_query_argument("radius", None)
+        radius_units = self.get_query_argument("radius_units", "arcsec")
+        if ra is None or dec is None or radius is None:
+            return self.error("Missing required parameters: ra, dec, radius.")
+        try:
+            ra, dec, radius = float(ra), float(dec), float(radius)
+        except ValueError:
+            return self.error("ra, dec and radius must be numbers.")
+
+        with self.Session() as session:
+            broker = session.scalars(
+                Broker.select(self.current_user).where(Broker.id == int(broker_id))
+            ).first()
+            if broker is None:
+                return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
+            if not broker.broker_class.implements()["cone_search"]:
+                return self.error(f"Broker {broker.name} does not support cone_search.")
+            try:
+                data = broker.broker_class.cone_search(
+                    broker, ra, dec, radius, session, radius_units=radius_units
+                )
+            except Exception as e:
+                return self.error(f"Error cross-matching with {broker.name}: {e}")
+            return self.success(data=data)
+
+
 class BrokerSaveHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(self, broker_id, alert_id):

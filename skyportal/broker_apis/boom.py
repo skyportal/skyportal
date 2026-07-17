@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta, timezone
 
 import requests
@@ -115,6 +116,65 @@ def _normalize_boom_alert(record):
         },
         "prv_candidates": prv,
     }
+
+
+# Collections that belong to surveys/alerts, not reference catalogs.
+_SURVEY_CATALOG_PREFIXES = ("ZTF_", "LSST_", "PTF_", "PGIR_", "WNTR_")
+_CATALOGS_TTL = timedelta(hours=1)
+# base_url -> (catalog_names, expiry); the reference-catalog list is stable, so
+# cache it to avoid hitting /catalogs on every cross-match.
+_CATALOGS_CACHE: dict = {}
+
+
+def _reference_catalogs(broker):
+    """BOOM's non-survey (reference) catalog names, cached per host with a TTL."""
+    base_url = _base_url(broker.altdata or {})
+    cached = _CATALOGS_CACHE.get(base_url)
+    if cached and datetime.now(UTC) < cached[1]:
+        return cached[0]
+    catalogs = _request(broker, "GET", "catalogs") or []
+    names = [
+        str(c["name"])
+        for c in catalogs
+        if isinstance(c, dict)
+        and c.get("name")
+        and not str(c["name"]).startswith(_SURVEY_CATALOG_PREFIXES)
+    ]
+    _CATALOGS_CACHE[base_url] = (names, datetime.now(UTC) + _CATALOGS_TTL)
+    return names
+
+
+def _cone_search_catalog(broker, catalog, ra, dec, radius, unit):
+    """Cone-search one BOOM catalog; returns ``(catalog, [normalized sources])``."""
+    try:
+        data = _request(
+            broker,
+            "POST",
+            "queries/cone_search",
+            json={
+                "catalog_name": catalog,
+                "object_coordinates": {"query": [ra, dec]},
+                "radius": radius,
+                "unit": unit,
+                "max_time_ms": 5000,
+            },
+        )
+    except Exception as e:
+        log(f"cone_search against {catalog} failed: {e}")
+        return catalog, []
+    results = (data or {}).get("query", []) if isinstance(data, dict) else []
+    for source in results:
+        source["_id"] = str(source.get("_id", ""))
+        coords = (
+            source.get("coordinates", {})
+            .get("radec_geojson", {})
+            .get("coordinates", [])
+        )
+        if len(coords) == 2:
+            # BOOM stores GeoJSON longitude in [-180, 180]; shift back to RA.
+            source["ra"] = coords[0] + 180
+            source["dec"] = coords[1]
+    return catalog, results
 
 
 class BOOMBROKER(BrokerAPI):
@@ -245,6 +305,25 @@ class BOOMBROKER(BrokerAPI):
             f"surveys/{survey}/cutouts",
             params={"candid": alert_id},
         )
+
+    @staticmethod
+    def cone_search(broker, ra, dec, radius, session, **kwargs):
+        """Cross-match a position against BOOM's reference catalogs (Gaia, PS1,
+        AllWISE, ...). Returns ``{catalog_name: [sources]}`` for catalogs with a
+        hit; each catalog is searched concurrently."""
+        unit = RADIUS_UNIT_MAP.get(kwargs.get("radius_units", "arcsec"))
+        if unit is None:
+            raise ValueError("radius_units must be one of 'deg', 'arcmin', 'arcsec'.")
+        catalogs = _reference_catalogs(broker)
+        results = {}
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            for catalog, sources in pool.map(
+                lambda c: _cone_search_catalog(broker, c, ra, dec, radius, unit),
+                catalogs,
+            ):
+                if sources:
+                    results[catalog] = sources
+        return results
 
     @staticmethod
     async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):

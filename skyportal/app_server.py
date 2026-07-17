@@ -20,6 +20,7 @@ from skyportal.handlers.api import (
     AssignmentHandler,
     BrokerAlertsHandler,
     BrokerAPIsHandler,
+    BrokerConeSearchHandler,
     BrokerCutoutsHandler,
     BrokerFilterModulesHandler,
     BrokerFiltersHandler,
@@ -284,6 +285,7 @@ skyportal_handlers = [
     (r"/api/brokers/([0-9]+)/filter_modules(?:/([^/]+))?", BrokerFilterModulesHandler),
     (r"/api/brokers/([0-9]+)/filters(?:/([0-9]+))?", BrokerFiltersHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/cutouts", BrokerCutoutsHandler),
+    (r"/api/brokers/([0-9]+)/cone_search", BrokerConeSearchHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/photometry", BrokerPhotometryHandler),
     # Survey-addressed passthrough for the source-page lightcurve (resolves the
     # broker server-side); "photometry" is non-numeric so it never shadows the

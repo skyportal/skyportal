@@ -1,3 +1,4 @@
+import json
 import uuid
 from types import SimpleNamespace
 from urllib.parse import parse_qs
@@ -218,3 +219,114 @@ def test_lasairbroker_query_routing():
         ["30.0"],
         ["all"],
     )
+
+
+# --- BOOMBROKER cone_search (reference-catalog cross-match) ---
+
+
+def _boom_broker():
+    return SimpleNamespace(
+        altdata={
+            "protocol": "https",
+            "host": "boom.test",
+            "username": "u",
+            "password": "p",
+        }
+    )
+
+
+def test_boombroker_capabilities():
+    from skyportal.broker_apis import BOOMBROKER
+
+    caps = BOOMBROKER.implements()
+    assert caps["cone_search"] is True
+    assert caps["get_photometry"] is True
+
+
+@responses.activate
+def test_boombroker_cone_search():
+    from skyportal.broker_apis import BOOMBROKER
+    from skyportal.broker_apis.boom import _CATALOGS_CACHE, _TOKENS
+
+    # module-scope caches persist across tests; reset so this run is deterministic
+    _CATALOGS_CACHE.clear()
+    _TOKENS.clear()
+
+    responses.add(
+        responses.POST,
+        "https://boom.test/auth",
+        json={"access_token": "tok", "expires_in": 3600},
+        status=200,
+    )
+    # a reference catalog plus a survey/alert catalog that must be filtered out
+    responses.add(
+        responses.GET,
+        "https://boom.test/catalogs",
+        json={"data": [{"name": "Gaia_DR3"}, {"name": "ZTF_alerts"}]},
+        status=200,
+    )
+    responses.add(
+        responses.POST,
+        "https://boom.test/queries/cone_search",
+        json={
+            "data": {
+                "query": [
+                    {
+                        "_id": 42,
+                        "coordinates": {
+                            "radec_geojson": {"coordinates": [-100.0, 20.0]}
+                        },
+                    }
+                ]
+            }
+        },
+        status=200,
+    )
+
+    result = BOOMBROKER.cone_search(
+        _boom_broker(), 80.0, 20.0, 5.0, None, radius_units="arcsec"
+    )
+
+    # ZTF_alerts (survey) is excluded; only the reference catalog is searched
+    assert set(result.keys()) == {"Gaia_DR3"}
+    source = result["Gaia_DR3"][0]
+    assert source["_id"] == "42"  # coerced to str
+    assert source["ra"] == 80.0  # GeoJSON longitude (-100) shifted +180
+    assert source["dec"] == 20.0
+    # BOOM's cone_search was sent the mapped unit label
+    cone_call = next(
+        c for c in responses.calls if c.request.url.endswith("cone_search")
+    )
+    assert json.loads(cone_call.request.body)["unit"] == "Arcseconds"
+
+
+def test_broker_cone_search_unsupported(super_admin_token):
+    """A broker whose provider does not implement cone_search is rejected."""
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200
+    broker_id = data["data"]["id"]
+
+    status, data = api(
+        "GET",
+        f"brokers/{broker_id}/cone_search",
+        params={"ra": 10.0, "dec": 20.0, "radius": 5.0},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "does not support cone_search" in data["message"]
+
+
+def test_broker_cone_search_missing_params(super_admin_token):
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200
+    broker_id = data["data"]["id"]
+
+    status, data = api(
+        "GET", f"brokers/{broker_id}/cone_search", token=super_admin_token
+    )
+    assert status == 400
+    assert "Missing required parameters" in data["message"]
