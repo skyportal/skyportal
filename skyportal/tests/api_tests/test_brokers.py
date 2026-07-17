@@ -1,5 +1,6 @@
 import uuid
 from types import SimpleNamespace
+from urllib.parse import parse_qs
 
 import pytest
 import responses
@@ -114,7 +115,9 @@ def test_genericbroker_capabilities():
     assert caps["query_alerts"] is True
     assert caps["get_alert"] is True
     assert caps["validate_config"] is True
-    assert caps["save_as_source"] is False
+    # save_as_source is provided by the base for any provider that can fetch an
+    # object, so it's gated on get_alert (which GENERICBROKER implements).
+    assert caps["save_as_source"] is True
 
 
 @responses.activate
@@ -152,28 +155,21 @@ def test_genericbroker_validate_config():
 # --- LASAIRBROKER (mock the lasair client so no lib/network is needed) ---
 
 
-def _install_fake_lasair(monkeypatch):
-    import sys
-    import types
-
-    calls = {}
-
-    class FakeClient:
-        def __init__(self, **kwargs):
-            calls["init"] = kwargs
-
-        def cone(self, ra, dec, radius=5, requestType="all"):
-            calls["cone"] = (ra, dec, radius, requestType)
-            return {"count": 1, "objects": [{"objectId": "L1"}]}
-
-        def object(self, object_id, **kwargs):
-            calls["object"] = object_id
-            return {"objectId": object_id, "diaSourcesList": []}
-
-    fake = types.ModuleType("lasair")
-    fake.lasair_client = lambda **kwargs: FakeClient(**kwargs)
-    monkeypatch.setitem(sys.modules, "lasair", fake)
-    return calls
+def _add_lasair_responses():
+    """Mock the Lasair REST methods the provider POSTs to (it calls the API
+    directly rather than via the `lasair` client)."""
+    responses.add(
+        responses.POST,
+        "https://x/api/object/",
+        json={"objectId": "L9", "diaSourcesList": []},
+        status=200,
+    )
+    responses.add(
+        responses.POST,
+        "https://x/api/cone/",
+        json={"count": 1, "objects": [{"objectId": "L1"}]},
+        status=200,
+    )
 
 
 def test_lasairbroker_capabilities():
@@ -188,21 +184,37 @@ def test_lasairbroker_capabilities():
         LASAIRBROKER.validate_config({})
 
 
-def test_lasairbroker_query_routing(monkeypatch):
+@responses.activate
+def test_lasairbroker_query_routing():
     from skyportal.broker_apis import LASAIRBROKER
 
-    calls = _install_fake_lasair(monkeypatch)
+    _add_lasair_responses()
     broker = SimpleNamespace(altdata={"token": "t", "endpoint": "https://x/api"})
 
     # objectId -> object()
     assert LASAIRBROKER.query_alerts(broker, None, objectId="L9")["objectId"] == "L9"
-    assert calls["object"] == "L9"
+    assert responses.calls[0].request.url == "https://x/api/object/"
+    assert parse_qs(responses.calls[0].request.body)["objectId"] == ["L9"]
 
     # ra/dec -> cone()
     res = LASAIRBROKER.query_alerts(broker, None, ra=194.0, dec=-3.0, radius=60)
     assert res["count"] == 1
-    assert calls["cone"] == (194.0, -3.0, 60.0, "all")
+    assert responses.calls[1].request.url == "https://x/api/cone/"
+    cone = parse_qs(responses.calls[1].request.body)
+    assert (cone["ra"], cone["dec"], cone["radius"], cone["requestType"]) == (
+        ["194.0"],
+        ["-3.0"],
+        ["60.0"],
+        ["all"],
+    )
 
     # direct cone_search()
     LASAIRBROKER.cone_search(broker, 10.0, 20.0, 30.0, None)
-    assert calls["cone"] == (10.0, 20.0, 30.0, "all")
+    assert responses.calls[2].request.url == "https://x/api/cone/"
+    cone = parse_qs(responses.calls[2].request.body)
+    assert (cone["ra"], cone["dec"], cone["radius"], cone["requestType"]) == (
+        ["10.0"],
+        ["20.0"],
+        ["30.0"],
+        ["all"],
+    )

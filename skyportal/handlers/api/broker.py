@@ -335,6 +335,8 @@ class BrokerCutoutsHandler(BaseHandler):
             ).first()
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
             if not broker.broker_class.implements()["get_cutouts"]:
                 return self.error(f"Broker {broker.name} does not support cutouts.")
             try:
@@ -404,6 +406,8 @@ class BrokerSaveHandler(BaseHandler):
             )
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
             if not broker.broker_class.implements()["save_as_source"]:
                 return self.error(
                     f"Broker {broker.name} does not support save_as_source."
@@ -462,6 +466,8 @@ class BrokerFilterTestHandler(BaseHandler):
             ).first()
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
             if not broker.broker_class.implements()["test_filter"]:
                 return self.error(
                     f"Broker {broker.name} does not support filter preview."
@@ -516,6 +522,8 @@ class BrokerFilterModulesHandler(BaseHandler):
             broker = _get_broker(self, session, broker_id)
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
             if not broker.broker_class.implements()["filter_modules"]:
                 return self.error(
                     f"Broker {broker.name} does not support filter modules."
@@ -622,6 +630,8 @@ class BrokerFilterModulesHandler(BaseHandler):
             broker = _get_broker(self, session, broker_id)
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
             # Round-trip the whole altdata (credentials preserved, never exposed);
             # only the filter_modules sub-key is mutated.
             altdata = broker.altdata or {}
@@ -683,6 +693,8 @@ class BrokerFiltersHandler(BaseHandler):
             broker = _get_broker(self, session, broker_id)
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
             if filter_id is None:
                 filters = session.scalars(Filter.select(self.current_user)).all()
                 return self.success(
@@ -775,6 +787,8 @@ class BrokerFiltersHandler(BaseHandler):
             broker = _get_broker(self, session, broker_id)
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
             if not broker.broker_class.implements()["create_filter"]:
                 return self.error(f"Broker {broker.name} does not support filters.")
             f = session.scalars(
@@ -871,6 +885,8 @@ class BrokerFiltersHandler(BaseHandler):
             broker = _get_broker(self, session, broker_id)
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
             f = session.scalars(
                 Filter.select(self.current_user, mode="update").where(
                     Filter.id == int(filter_id)
@@ -931,6 +947,8 @@ class BrokerFiltersHandler(BaseHandler):
             broker = _get_broker(self, session, broker_id)
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
             f = session.scalars(
                 Filter.select(self.current_user, mode="delete").where(
                     Filter.id == int(filter_id)
