@@ -38,6 +38,18 @@ class _Base:
         caps["get_photometry"] = cls._isimplemented("get_alert")
         return caps
 
+    @classmethod
+    def configured_surveys(cls, altdata):
+        """Surveys a *configured* broker record serves, for per-record routing.
+
+        Defaults to every survey the provider supports (``cls.surveys``): most
+        providers serve all their surveys from one connection (e.g. BOOM picks
+        the survey per query). A provider whose instance is survey-specific — one
+        deployment/endpoint/token per survey, like Lasair — overrides this to
+        narrow it to the deployment's survey.
+        """
+        return list(cls.surveys)
+
     # subclasses should not modify this
     @classmethod
     def frontend_render_api_info(cls):
