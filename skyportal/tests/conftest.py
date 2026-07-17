@@ -21,6 +21,7 @@ from skyportal.models import (
     AnalysisService,
     AnnotationOnPhotometry,
     AnnotationOnSpectrum,
+    Broker,
     Candidate,
     CatalogQuery,
     ClassificationVote,
@@ -525,6 +526,28 @@ def public_release(public_group):
     obj = (
         DBSession()
         .execute(sa.select(PublicRelease).filter(PublicRelease.id == release_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def broker():
+    b = Broker(
+        name=f"TestBroker_{uuid.uuid4()}",
+        broker_classname="GENERICBROKER",
+        active=True,
+    )
+    DBSession.add(b)
+    DBSession.commit()
+    broker_id = b.id
+    yield b
+    obj = (
+        DBSession()
+        .execute(sa.select(Broker).filter(Broker.id == broker_id))
         .scalars()
         .first()
     )

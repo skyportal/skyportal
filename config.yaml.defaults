@@ -177,6 +177,12 @@ app:
       component: candidate/scan_reports/ReportsList
     - path: "/profile"
       component: user/Profile
+    - path: "/brokers"
+      component: broker/BrokerAlerts
+    - path: "/brokers/:brokerId/filter/:fid"
+      component: broker/BrokerFilterPage
+    - path: "/broker_admin"
+      component: broker/BrokerAdmin
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
@@ -283,6 +289,10 @@ app:
         - name: Candidates
           icon: Search
           url: /candidates
+
+        - name: Alerts
+          icon: NotificationsActive
+          url: /brokers
 
         - name: Favorites
           icon: Star
@@ -411,6 +421,10 @@ app:
           icon: Group
           permissions: ["Manage users", "System admin"]
           url: /user_management
+        - name: Brokers
+          icon: Hub
+          permissions: ["System admin"]
+          url: /broker_admin
 
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package
@@ -681,6 +695,17 @@ server:
 
 services:
   dask: False
+
+# Alert brokers (BOOM, Kowalski, Fink, Lasair, ...) are configured at runtime as
+# `Broker` database records (name + provider class + encrypted credentials), not
+# here; see doc/broker_plugins.md. Providers are registered in
+# skyportal/broker_apis/.
+brokers:
+  # Run the in-core ingestion service (services/broker_ingest): for each active
+  # broker whose provider implements run_ingestion, consume its stream and ingest
+  # alerts via the shared save transform. Off by default; interactive access
+  # (the /brokers alerts page) works regardless of this setting.
+  ingest_enabled: False
 
 misc:
   days_to_keep_unsaved_candidates: 7

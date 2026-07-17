@@ -110,6 +110,18 @@ dependencies = [
     "setuptools<82.1.0",
 ]
 
+# Per-broker transport clients. Most brokers (Generic, ALeRCE, ANTARES, Lasair,
+# Fink) talk plain REST and/or self-describing Kafka, needing only core deps
+# (`requests`, and `confluent-kafka` via gcn-kafka). Pitt-Google is the one broker
+# needing an extra (first-party Google SDKs, no third-party client):
+# `pip install 'skyportal[pittgoogle]'`.
+[project.optional-dependencies]
+pittgoogle = [
+    "google-cloud-bigquery>=3.0.0,<4.0.0",
+    "google-cloud-pubsub>=2.0.0,<3.0.0",
+]
+brokers-all = ["skyportal[pittgoogle]"]
+
 [dependency-groups]
 dev = [
     "pre-commit",
