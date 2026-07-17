@@ -166,7 +166,12 @@ const GeoJSONGlobePlot = ({
     const center = [svgwidth / 2, svgheight / 2];
     let projection: any = null;
     if (projectionType === "orthographic") {
-      projection = d3.geoOrthographic().translate(center).scale(300);
+      // Globe radius scales with the canvas so smaller widths (e.g. hover
+      // insets) fit; width 600 keeps the historical scale of 300.
+      projection = d3
+        .geoOrthographic()
+        .translate(center)
+        .scale(Math.min(svgwidth, svgheight) / 2);
     } else if (projectionType === "mollweide") {
       projection = geoMollweide().translate(center).scale(100);
     } else {

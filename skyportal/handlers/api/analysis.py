@@ -477,7 +477,7 @@ def post_analysis(
         # grab the analysis (only Obj for now)
         if analysis_resource_type.lower() == "obj":
             try:
-                analysis = session.query(ObjAnalysis).get(analysis_id)
+                analysis = session.get(ObjAnalysis, analysis_id)
                 if analysis is None:
                     logger.error(f"Analysis {analysis_id} not found")
                     return
@@ -763,7 +763,7 @@ async def post_analysis_async(
             # grab the analysis (only Obj for now)
             if analysis_resource_type.lower() == "obj":
                 try:
-                    analysis = db_session.query(ObjAnalysis).get(analysis_id)
+                    analysis = db_session.get(ObjAnalysis, analysis_id)
                     if analysis is None:
                         logger.error(f"Analysis {analysis_id} not found")
                         return

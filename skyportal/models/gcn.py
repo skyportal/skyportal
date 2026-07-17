@@ -78,9 +78,9 @@ def gcn_update_delete_logic(cls, user_or_token):
 
     if len({"Manage GCNs", "System admin"} & set(user_or_token.permissions)) == 0:
         # nothing accessible
-        return restricted.query_accessible_rows(cls, user_or_token)
+        return restricted.select_accessible_rows(cls, user_or_token)
 
-    return DBSession().query(cls)
+    return sa.select(cls)
 
 
 class DefaultGcnTag(Base):
@@ -193,16 +193,19 @@ class GcnReport(Base):
         if localization_name is None:
             localization = (
                 DBSession()
-                .query(Localization)
-                .where(Localization.dateobs == self.dateobs)
+                .scalars(
+                    sa.select(Localization).where(Localization.dateobs == self.dateobs)
+                )
                 .first()
             )
         else:
             localization = (
                 DBSession()
-                .query(Localization)
-                .where(Localization.dateobs == self.dateobs)
-                .where(Localization.localization_name == localization_name)
+                .scalars(
+                    sa.select(Localization)
+                    .where(Localization.dateobs == self.dateobs)
+                    .where(Localization.localization_name == localization_name)
+                )
                 .first()
             )
 
@@ -712,12 +715,7 @@ class GcnEvent(Base):
     @tags.expression
     def tags(cls):
         """List of tags."""
-        return (
-            DBSession()
-            .query(GcnTag.text)
-            .filter(GcnTag.dateobs == cls.dateobs)
-            .subquery()
-        )
+        return sa.select(GcnTag.text).where(GcnTag.dateobs == cls.dateobs).subquery()
 
     @hybrid_property
     def retracted(self):
@@ -873,18 +871,18 @@ def gcntrigger_allocationuser_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     user_allocation_admin = (
-        DBSession()
-        .query(Allocation)
+        sa.select(Allocation)
         .join(AllocationUser, AllocationUser.allocation_id == Allocation.id)
-        .filter(sa.and_(AllocationUser.user_id == user_id))
+        .where(sa.and_(AllocationUser.user_id == user_id))
     )
-    query = (
-        DBSession().query(cls).join(aliased, cls.allocation_id == aliased.allocation_id)
-    )
+    query = sa.select(cls).join(aliased, cls.allocation_id == aliased.allocation_id)
     if not user_or_token.is_system_admin:
-        query = query.filter(
+        query = query.where(
             aliased.allocation_id.in_(
-                [allocation.id for allocation in user_allocation_admin.all()]
+                [
+                    allocation.id
+                    for allocation in DBSession().scalars(user_allocation_admin).all()
+                ]
             )
         )
     return query
@@ -916,9 +914,9 @@ GcnTrigger.create = GcnTrigger.update = GcnTrigger.delete = CustomUserAccessCont
 def gcnevent_user_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = DBSession().query(cls)
+    query = sa.select(cls)
     if not user_or_token.is_system_admin:
-        query = query.filter(aliased.user_id == user_id)
+        query = query.where(aliased.user_id == user_id)
     return query
 
 

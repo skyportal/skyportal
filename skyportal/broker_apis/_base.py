@@ -1,0 +1,50 @@
+class _Base:
+    # The operations a broker provider may implement. A concrete provider
+    # overrides only the ones it supports; the rest stay as the base stub and
+    # are reported as unimplemented so handlers/frontend can gate on them.
+    _methods = (
+        "query_alerts",
+        "get_alert",
+        "get_cutouts",
+        "cone_search",
+        "get_filters",
+        "create_filter",
+        "update_filter",
+        "delete_filter",
+        "test_filter",
+        "filter_modules",
+        "run_ingestion",
+        "validate_config",
+    )
+
+    # subclasses should not modify this
+    @classmethod
+    def _isimplemented(cls, method_name):
+        from .interface import BrokerAPI
+
+        # a method is "implemented" only if the subclass overrode the
+        # BrokerAPI stub (compare method identity, as facility_apis does).
+        func = getattr(cls, method_name)
+        default_implementation = getattr(BrokerAPI, method_name)
+        return func is not default_implementation
+
+    # subclasses should not modify this
+    @classmethod
+    def implements(cls):
+        caps = {name: cls._isimplemented(name) for name in cls._methods}
+        # save_as_source is provided by the base default (interface.py) for any
+        # provider that can fetch an object, so gate it on get_alert.
+        caps["save_as_source"] = cls._isimplemented("get_alert")
+        return caps
+
+    # subclasses should not modify this
+    @classmethod
+    def frontend_render_api_info(cls):
+        return {
+            "methodsImplemented": cls.implements(),
+            "formSchemaConfig": cls.form_json_schema_config,
+            "uiSchema": cls.ui_json_schema,
+            "aliasLookup": cls.alias_lookup,
+            "surveys": list(cls.surveys),
+            "filterKind": cls.filter_kind,
+        }

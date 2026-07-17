@@ -75,18 +75,27 @@ const skyportalBaseQuery: BaseQueryFn<
 > = async (args, api, extraOptions) => {
   const result = await rawBaseQuery(args, api, extraOptions);
 
+  // Endpoints that expect misses (e.g. "is this object already a source?") can
+  // opt out of the automatic error notification.
+  const quiet = (extraOptions as { suppressErrorNotification?: boolean })
+    ?.suppressErrorNotification;
+
   if (result.error) {
-    const message =
-      (result.error.data as ApiEnvelope | undefined)?.message ??
-      `Request failed (${result.error.status})`;
-    api.dispatch(showNotification(`${message}`, "error"));
+    if (!quiet) {
+      const message =
+        (result.error.data as ApiEnvelope | undefined)?.message ??
+        `Request failed (${result.error.status})`;
+      api.dispatch(showNotification(`${message}`, "error"));
+    }
     return result;
   }
 
   const envelope = result.data as ApiEnvelope;
   if (envelope?.status !== "success") {
     const message = envelope?.message ?? "Unknown API error";
-    api.dispatch(showNotification(`${message}`, "error"));
+    if (!quiet) {
+      api.dispatch(showNotification(`${message}`, "error"));
+    }
     return {
       error: {
         status: "CUSTOM_ERROR",
@@ -109,6 +118,7 @@ const skyportalBaseQuery: BaseQueryFn<
  */
 export const TAG_TYPES = [
   "SysInfo",
+  "Broker",
   "DBStats",
   "DBInfo",
   "Acls",

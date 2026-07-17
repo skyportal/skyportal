@@ -67,9 +67,17 @@ const isFloat = (x: any) =>
 // floats are fixed to 6 (or 8 for *jd* columns) decimals, and altdata objects
 // are stringified. Used as a DataGrid valueFormatter so sorting still operates
 // on the underlying numeric/object value.
+const COLUMN_PRECISION: Record<string, number> = {
+  mjd: 3,
+  mag: 4,
+  magerr: 4,
+  limiting_mag: 2,
+};
+
 const formatCell = (key: string) => (value: any) => {
   if (isFloat(value)) {
-    return value.toFixed(key.includes("jd") ? 8 : 6);
+    const precision = COLUMN_PRECISION[key] ?? 6;
+    return value.toFixed(precision);
   }
   if (key === "altdata" && typeof value === "object" && value !== null) {
     return JSON.stringify(value);
@@ -463,6 +471,7 @@ const PhotometryTable = ({
           objId={obj_id}
           usePhotometryValidation={usePhotometryValidation}
           onDownload={handleDownloadClose}
+          t0={t0}
         />
       </div>
     );
