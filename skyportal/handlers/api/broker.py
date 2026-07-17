@@ -16,7 +16,9 @@ def broker_to_dict(broker, include_altdata=False):
         "broker_classname": broker.broker_classname,
         "active": broker.active,
         "capabilities": broker.broker_class.implements(),
-        "surveys": list(broker.broker_class.surveys),
+        # Per-record surveys (what THIS connection serves), so survey-based
+        # routing is deterministic for one-deployment-per-survey providers.
+        "surveys": broker.broker_class.configured_surveys(broker.altdata),
         "filter_kind": broker.broker_class.filter_kind,
     }
     if include_altdata:

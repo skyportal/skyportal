@@ -185,6 +185,22 @@ def test_lasairbroker_capabilities():
         LASAIRBROKER.validate_config({})
 
 
+def test_configured_surveys_per_record():
+    """A record's surveys reflect the deployment for one-survey-per-instance
+    providers (Lasair), but stay the full list for multi-survey ones (BOOM)."""
+    from skyportal.broker_apis import BOOMBROKER, LASAIRBROKER
+
+    # BOOM serves both surveys from one connection (survey is a per-query kwarg)
+    assert set(BOOMBROKER.configured_surveys({"survey": "ZTF"})) == {"ZTF", "LSST"}
+
+    # Lasair's ZTF/LSST are separate deployments (distinct endpoint + token)
+    assert LASAIRBROKER.configured_surveys(
+        {"endpoint": "https://lasair-ztf.lsst.ac.uk/api"}
+    ) == ["ZTF"]
+    assert LASAIRBROKER.configured_surveys({"survey": "LSST"}) == ["LSST"]
+    assert LASAIRBROKER.configured_surveys({}) == ["LSST"]  # default endpoint
+
+
 @responses.activate
 def test_lasairbroker_query_routing():
     from skyportal.broker_apis import LASAIRBROKER

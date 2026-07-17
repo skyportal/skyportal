@@ -23,15 +23,19 @@ def _band(cand):
     return _FID_TO_BAND.get(cand.get("fid")) or (cand.get("filter") or None)
 
 
-def _survey(broker, kwargs=None):
-    """Resolve the Lasair instance's survey: explicit kwarg -> altdata.survey ->
+def _survey_from_altdata(altdata, kwargs=None):
+    """Resolve a Lasair instance's survey: explicit kwarg -> altdata.survey ->
     detected from the endpoint (only the ZTF instance's host contains 'ztf')."""
-    altdata = broker.altdata or {}
+    altdata = altdata or {}
     survey = (kwargs or {}).get("survey") or altdata.get("survey")
     if not survey:
         endpoint = (altdata.get("endpoint") or DEFAULT_ENDPOINT).lower()
         survey = "ZTF" if "ztf" in endpoint else "LSST"
     return survey.upper()
+
+
+def _survey(broker, kwargs=None):
+    return _survey_from_altdata(broker.altdata or {}, kwargs)
 
 
 def _normalize_object(obj, object_id):
@@ -188,6 +192,12 @@ class LASAIRBROKER(BrokerAPI):
 
     surveys = ["ZTF", "LSST"]
     filter_kind = "query"
+
+    @classmethod
+    def configured_surveys(cls, altdata):
+        # Lasair's ZTF and LSST are separate deployments (distinct endpoint +
+        # token), so a record serves exactly one, derived from its config.
+        return [_survey_from_altdata(altdata)]
 
     form_json_schema_config = {
         "type": "object",

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -112,6 +113,47 @@ const BrokerAlerts = () => {
   const selectedBroker = activeBrokers.find((b) => b.id === brokerId);
   const survey = selectedBroker?.surveys?.[0] ?? "ZTF";
   const canPreview = Boolean(selectedBroker?.capabilities?.["test_filter"]);
+
+  // Deep link (e.g. the source page's "Search alerts" button): prefill the
+  // search from ?objectId=/ra/dec/radius, auto-select a broker for ?survey=, and
+  // run the search once brokers have loaded. Uses the URL values directly so the
+  // query isn't delayed by the state updates it also seeds.
+  const [searchParams] = useSearchParams();
+  const autoSearched = useRef(false);
+  useEffect(() => {
+    if (autoSearched.current || !activeBrokers.length) return;
+    const oid = searchParams.get("objectId") || "";
+    const uRa = searchParams.get("ra") || "";
+    const uDec = searchParams.get("dec") || "";
+    const uRadius = searchParams.get("radius") || "";
+    if (!oid && !uRa) return;
+    const uSurvey = searchParams.get("survey");
+    const match =
+      (uSurvey && activeBrokers.find((b) => b.surveys?.includes(uSurvey))) ||
+      activeBrokers.find((b) => b.capabilities?.["query_alerts"]) ||
+      activeBrokers[0];
+    if (!match) return;
+
+    autoSearched.current = true;
+    setBrokerId(match.id);
+    setObjectId(oid);
+    setRa(uRa);
+    setDec(uDec);
+    setRadius(uRadius);
+    setMode("search");
+    setPage(1);
+    triggerAlerts({
+      brokerId: match.id,
+      params: {
+        objectId: oid || undefined,
+        ra: uRa || undefined,
+        dec: uDec || undefined,
+        radius: uRadius || undefined,
+        radius_units: uRadius ? "arcsec" : undefined,
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBrokers.length]);
 
   const onSearch = () => {
     if (brokerId === "") return;
