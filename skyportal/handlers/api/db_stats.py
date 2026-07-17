@@ -138,20 +138,19 @@ class StatsHandler(BaseHandler):
                 sa.select(sa.func.count()).select_from(GcnEvent)
             )
             data["Latest cron job run times & statuses"] = []
-            scripts_result = await session.execute(
-                sa.select(CronJobRun.script).distinct()
-            )
-            cron_job_scripts = scripts_result.all()
+            cron_job_scripts = (
+                await session.scalars(sa.select(CronJobRun.script).distinct())
+            ).all()
             for script in cron_job_scripts:
-                row_result = await session.execute(
-                    sa.select(CronJobRun)
-                    .where(CronJobRun.script == script)
-                    .order_by(CronJobRun.created_at.desc())
-                )
-                row = row_result.first()
-                if row is None:
+                cron_job_run = (
+                    await session.scalars(
+                        sa.select(CronJobRun)
+                        .where(CronJobRun.script == script)
+                        .order_by(CronJobRun.created_at.desc())
+                    )
+                ).first()
+                if cron_job_run is None:
                     continue
-                (cron_job_run,) = row
                 data["Latest cron job run times & statuses"].append(
                     {
                         "summary": f"{script} ran at {cron_job_run.created_at} with exit status {cron_job_run.exit_status}",
