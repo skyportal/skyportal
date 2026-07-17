@@ -1036,3 +1036,12 @@ docs:
       description: Development server
     - url: https://skyportal.io
       description: Production server
+
+# BOOM alert-broker integration.
+# The boom API endpoints and filter-builder UI require a reachable instance.
+boom:
+  protocol: http
+  host: localhost
+  port: 4000
+  username: admin
+  password: adminsecret

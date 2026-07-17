@@ -201,6 +201,11 @@ from skyportal.handlers.api import (
     VizierQueryHandler,
     WeatherHandler,
 )
+from skyportal.handlers.api.boom import (
+    BoomFilterHandler,
+    BoomFilterModulesHandler,
+    BoomRunFilterHandler,
+)
 from skyportal.handlers.api.internal import (
     AcrossInstrumentsHandler,
     AcrossJointVisibilityHandler,
@@ -270,6 +275,9 @@ skyportal_handlers = [
         AnalysisProductsHandler,
     ),
     (r"/api/assignment(/.*)?", AssignmentHandler),
+    (r"/api/boom/filters(/.*)", BoomFilterHandler),
+    (r"/api/boom/filter_modules(/.*)?", BoomFilterModulesHandler),
+    (r"/api/boom/run_filter", BoomRunFilterHandler),
     (r"/api/candidates_filter", CandidateFilterHandler),
     (r"/api/candidates/scan_reports/([0-9]+)/items(/[0-9]+)?", ScanReportItemHandler),
     (r"/api/candidates/scan_reports", ScanReportHandler),
