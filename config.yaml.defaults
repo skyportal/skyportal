@@ -265,6 +265,10 @@ app:
       component: sharing_service/SharingServiceSubmissionsPage
     - path: "/moving_objects/obsplan"
       component: moving_object/MovingObjectObsPlanPage
+    - path: "/alerts"
+      component: alert/Alerts
+    - path: "/alerts/:survey/:id"
+      component: alert/Alert
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -1036,3 +1040,12 @@ docs:
       description: Development server
     - url: https://skyportal.io
       description: Production server
+
+# BOOM alert-broker integration.
+# The boom API endpoints and alert pages require a reachable instance.
+boom:
+  protocol: http
+  host: localhost
+  port: 4000
+  username: admin
+  password: adminsecret
