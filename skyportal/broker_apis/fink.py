@@ -151,6 +151,14 @@ class FINKBROKER(BrokerAPI):
                     "password": {"type": "string"},
                     "group_id": {"type": "string"},
                     "topics": {"type": "array", "items": {"type": "string"}},
+                    "topic_filter_ids": {
+                        "type": "object",
+                        "title": "Per-topic Filter ids",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                        },
+                    },
                 },
             },
             "survey": {
@@ -320,11 +328,14 @@ class FINKBROKER(BrokerAPI):
     @staticmethod
     async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):
         """Consume Fink's science-topic Kafka livestream and register each alert
-        as a Candidate under ``filter_ids``. Uses confluent_kafka + fastavro
-        directly (Fink ships the Avro schema in each message key), so no
-        fink-client is needed. Config in ``broker.altdata['fink']``: ``servers``
-        (Kafka bootstrap, required), ``topics``, ``group_id``, ``username`` +
-        ``password`` (enable SASL SCRAM), ``maxtimeout``."""
+        as a Candidate. Uses confluent_kafka + fastavro directly (Fink ships the
+        Avro schema in each message key), so no fink-client is needed. Config in
+        ``broker.altdata['fink']``: ``servers`` (Kafka bootstrap, required),
+        ``topics``, ``group_id``, ``username`` + ``password`` (enable SASL SCRAM),
+        ``maxtimeout``, and optionally ``topic_filter_ids`` -- a ``{topic:
+        [filter_id, ...]}`` map routing each topic to its own SkyPortal Filters
+        (Fink topics are the science filters). Alerts from an unmapped topic fall
+        back to the broker-wide ``altdata['filter_ids']``."""
         import asyncio
 
         import sqlalchemy as sa
@@ -339,8 +350,15 @@ class FINKBROKER(BrokerAPI):
         fink = altdata.get("fink") or {}
         survey = altdata.get("survey", "ZTF")
         filter_ids = altdata.get("filter_ids") or []
+        # Optional per-topic routing: {topic: [filter_id, ...]}. Alerts from a
+        # mapped topic become Candidates under those Filters; unmapped topics fall
+        # back to the broker-wide filter_ids.
+        topic_filter_ids = fink.get("topic_filter_ids") or {}
         maxtimeout = float(fink.get("maxtimeout", 5))
-        topics = fink.get("topics") or []
+        # Subscribe to the explicit topics plus any keyed in the routing map.
+        topics = list(
+            dict.fromkeys((fink.get("topics") or []) + list(topic_filter_ids))
+        )
 
         servers = fink.get("servers")
         if not servers:
@@ -376,6 +394,9 @@ class FINKBROKER(BrokerAPI):
                 msg = await asyncio.to_thread(consumer.poll, maxtimeout)
                 if msg is None or msg.error():
                     continue
+                # Route by the topic the alert arrived on (Fink topics are the
+                # science filters); unmapped topics use the broker-wide filter_ids.
+                alert_filter_ids = topic_filter_ids.get(msg.topic(), filter_ids)
                 try:
                     alert = _decode_fink_message(msg)
                 except Exception as e:
@@ -394,7 +415,7 @@ class FINKBROKER(BrokerAPI):
                             survey,
                             session,
                             user,
-                            filter_ids,
+                            alert_filter_ids,
                             passing_alert_id=candid,
                         )
                 except Exception as e:
