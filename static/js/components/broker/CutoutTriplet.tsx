@@ -34,6 +34,14 @@ const CutoutTriplet = ({
 
   useEffect(() => {
     let alive = true;
+    // Reset to the loading state on every candid change so switching alerts in
+    // the dropdown re-fetches cleanly (otherwise a stale/empty payload can stick
+    // and the cutouts never reappear).
+    setDataUris(null);
+    if (candid == null || candid === "") {
+      setDataUris({});
+      return;
+    }
     fetch(`/api/brokers/${brokerId}/alerts/${candid}/cutouts`, {
       credentials: "include",
     })
@@ -77,6 +85,11 @@ const CutoutTriplet = ({
       ra={ra}
       dec={dec}
       displayTypes={["new", "ref", "sub"]}
+      // Compact triplet for the alert card: the default (13rem, for the source
+      // page) is too large here and the three cutouts overlap.
+      size="5rem"
+      titleSize="0.7rem"
+      noMargin
     />
   );
 };
