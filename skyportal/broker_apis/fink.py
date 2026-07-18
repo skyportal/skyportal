@@ -348,13 +348,15 @@ class FINKBROKER(BrokerAPI):
                 "Fink ingestion requires altdata['fink']['servers'] "
                 "(Kafka bootstrap servers)."
             )
-        # Fink authenticates with SASL SCRAM-SHA-512 over sasl_plaintext.
         config = {
             "bootstrap.servers": servers,
             "group.id": fink.get("group_id", f"skyportal-broker-{broker.id}"),
             "auto.offset.reset": fink.get("auto_offset_reset", "earliest"),
         }
-        if fink.get("username"):
+        # Fink's public livestream is passwordless (fink-client sends no SASL when
+        # `password` is null); only enable SASL SCRAM when a password is actually
+        # configured, else an empty password fails the auth handshake.
+        if fink.get("username") and fink.get("password"):
             config.update(
                 {
                     "security.protocol": "sasl_plaintext",
