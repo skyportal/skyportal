@@ -4,7 +4,7 @@ Widen photometry.id, its sequence, and the four inbound FK columns from int4
 to bigint to avoid sequence overflow.
 
 Revision ID: 52b02a40ac4d
-Revises: 363f77c7a441
+Revises: 3b123ce8702b
 Create Date: 2026-07-14
 
 """
@@ -15,7 +15,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "52b02a40ac4d"
-down_revision = "363f77c7a441"
+down_revision = "3b123ce8702b"
 branch_labels = None
 depends_on = None
 
