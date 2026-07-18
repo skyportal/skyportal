@@ -33776,6 +33776,8 @@ export interface components {
             readonly owner?: components["schemas"]["User"];
             readonly annotations?: components["schemas"]["AnnotationOnPhotometry"][];
             readonly validations?: components["schemas"]["PhotometryValidation"][];
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description MJD of the observation. */
             mjd: number;
             /** @description Flux of the observation in µJy. Corresponds to an AB Zeropoint of 23.9 in all filters. */
@@ -33817,8 +33819,6 @@ export interface components {
             owner_id: number;
             ra?: number | null;
             dec?: number | null;
-            /** @description Unique object identifier. */
-            id?: number;
         };
         SinglePhotometry: {
             /** @enum {string} */
