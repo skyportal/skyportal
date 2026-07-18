@@ -130,6 +130,23 @@ export const brokersApi = skyportalApi.injectEndpoints({
       query: (brokerId) => `api/brokers/${brokerId}/filters`,
       providesTags: ["Broker"],
     }),
+    // Save a query-kind broker filter (Lasair): stores selected/tables/conditions
+    // on the skyportal Filter's altdata.
+    saveBrokerFilter: build.mutation<
+      { id: number; altdata?: Record<string, unknown> },
+      {
+        brokerId: number;
+        filterId: number;
+        query: { selected: string; tables: string; conditions: string };
+      }
+    >({
+      query: ({ brokerId, filterId, query }) => ({
+        url: `api/brokers/${brokerId}/filters/${filterId}`,
+        method: "POST",
+        body: { query },
+      }),
+      invalidatesTags: ["Broker"],
+    }),
     // Registered provider classes + their config form schemas / capabilities.
     getBrokerAPIs: build.query<
       Record<
@@ -187,6 +204,7 @@ export const {
   useSaveBrokerAlertAsSourceMutation,
   useLazyTestBrokerFilterQuery,
   useGetBrokerFiltersQuery,
+  useSaveBrokerFilterMutation,
   useGetBrokerAPIsQuery,
   useCreateBrokerMutation,
   useUpdateBrokerMutation,

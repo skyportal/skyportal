@@ -1059,6 +1059,36 @@ class BrokerFiltersHandler(BaseHandler):
                 return self.error(f"No broker with id {broker_id}")
             if not broker.active:
                 return self.error(f"Broker {broker.name} is not active")
+            # Query-kind brokers (e.g. Lasair): the "filter" is a saved SQL query
+            # (selected/tables/conditions) stored on the skyportal Filter itself,
+            # with no broker-side filter object to create.
+            if broker.broker_class.filter_kind == "query":
+                f = session.scalars(
+                    Filter.select(self.current_user, mode="update").where(
+                        Filter.id == int(filter_id)
+                    )
+                ).first()
+                if f is None:
+                    return self.error(f"Cannot find a filter with ID: {filter_id}.")
+                query = data.get("query") or {}
+                selected = (query.get("selected") or "").strip()
+                tables = (query.get("tables") or "").strip()
+                conditions = (query.get("conditions") or "").strip()
+                if not selected or not tables:
+                    return self.error(
+                        "A query filter requires 'selected' and 'tables'."
+                    )
+                ad = dict(f.altdata) if isinstance(f.altdata, dict) else {}
+                ad["broker_id"] = broker.id
+                ad["lasair"] = {
+                    "selected": selected,
+                    "tables": tables,
+                    "conditions": conditions,
+                }
+                f.altdata = ad
+                flag_modified(f, "altdata")
+                session.commit()
+                return self.success(data={"id": f.id, "altdata": f.altdata})
             if not broker.broker_class.implements()["create_filter"]:
                 return self.error(f"Broker {broker.name} does not support filters.")
             f = session.scalars(
