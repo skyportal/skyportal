@@ -350,22 +350,47 @@ class LASAIRBROKER(BrokerAPI):
 
         from baselayer.app.models import async_plain_session_factory
 
-        from ..models import User
+        from ..models import Filter, User
         from ._save import save_object_as_candidate
 
         altdata = broker.altdata or {}
         survey = _survey(broker)
         default_filter_ids = altdata.get("filter_ids") or []
-        queries = altdata.get("queries") or []
+        legacy_queries = altdata.get("queries") or []
         poll_interval = float(altdata.get("poll_interval", 86400))
         limit = int(altdata.get("limit", 1000))
 
         def _stopped():
             return stop is not None and stop.is_set()
 
+        async def _collect_queries():
+            # One query per skyportal Filter attached to this broker (its saved
+            # SQL lives in Filter.altdata["lasair"]), plus any legacy queries on
+            # the broker record. Re-read each cycle so filter edits are picked up.
+            async with async_plain_session_factory() as session:
+                rows = (await session.scalars(sa.select(Filter))).all()
+            queries = []
+            for f in rows:
+                ad = f.altdata if isinstance(f.altdata, dict) else {}
+                lasair = ad.get("lasair") if isinstance(ad, dict) else None
+                if ad.get("broker_id") != broker.id or not isinstance(lasair, dict):
+                    continue
+                if not lasair.get("tables"):
+                    continue
+                queries.append(
+                    {
+                        "name": f.name,
+                        "fields": lasair.get("selected") or lasair.get("fields"),
+                        "tables": lasair["tables"],
+                        "conditions": lasair.get("conditions", ""),
+                        "filter_ids": [f.id],
+                    }
+                )
+            return queries + legacy_queries
+
         count = 0
         while not _stopped():
-            for query in queries:
+            for query in await _collect_queries():
                 selected = (
                     query.get("fields")
                     or "objects.objectId, objects.ramean, objects.decmean"

@@ -171,14 +171,11 @@ const BrokerAlerts = () => {
     });
   };
 
-  const onPreviewTree = (tree: unknown) => {
+  const onPreview = (params: Record<string, unknown>) => {
     if (brokerId === "") return;
     setMode("preview");
     setPage(1);
-    triggerFilter({
-      brokerId,
-      params: { tree, limit: 20 } as Record<string, unknown>,
-    });
+    triggerFilter({ brokerId, params });
   };
 
   // Group alerts by object so each card is one object with a per-alert selector.
@@ -268,7 +265,7 @@ const BrokerAlerts = () => {
               <LasairFilterBuilder
                 brokerId={brokerId as number}
                 survey={survey}
-                onPreview={onPreviewTree}
+                onPreview={onPreview}
               />
             ) : (
               <div className={classes.form}>

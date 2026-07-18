@@ -158,6 +158,39 @@ def test_lasair_cone_cassette():
     assert len(rows) >= 1
 
 
+def test_lasair_test_filter_passes_raw_sql(monkeypatch):
+    """A query-kind (Lasair) filter's Select/From/Where reaches Lasair's query API
+    verbatim, so joins/aliases/functions the condition tree can't express work."""
+    import skyportal.broker_apis.lasair as lasair_mod
+
+    captured = {}
+
+    def fake_request(broker, method, data):
+        captured["method"] = method
+        captured["data"] = data
+        return []
+
+    monkeypatch.setattr(lasair_mod, "_request", fake_request)
+    broker = _MockBroker({"survey": "LSST", "token": "x"})
+    LASAIRBROKER.test_filter(
+        broker,
+        None,
+        selected='objects.diaObjectId, crossmatch_tns.tns_name AS "tns_name"',
+        tables="objects,crossmatch_tns,sherlock_classifications",
+        conditions=(
+            "objects.nDiaSources > 2 AND objects.firstDiaSourceMjdTai > (mjdnow() - 40)"
+        ),
+        limit=25,
+    )
+    assert captured["method"] == "query"
+    assert captured["data"]["selected"].startswith("objects.diaObjectId")
+    assert (
+        captured["data"]["tables"] == "objects,crossmatch_tns,sherlock_classifications"
+    )
+    assert "mjdnow() - 40" in captured["data"]["conditions"]
+    assert captured["data"]["limit"] == 25
+
+
 def test_boom_query_cassette():
     broker = _MockBroker(
         {
