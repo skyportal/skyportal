@@ -252,13 +252,13 @@ def manage_photometric_series_access_logic(cls, user_or_token):
     for objects accessible to their groups.
     """
     if user_or_token.is_admin:
-        return public.query_accessible_rows(cls, user_or_token)
+        return public.select_accessible_rows(cls, user_or_token)
     elif "Manage photometry" in user_or_token.permissions:
-        return manage_photometric_series_access.query_accessible_rows(
+        return manage_photometric_series_access.select_accessible_rows(
             cls, user_or_token
         )
     else:
-        return accessible_by_owner.query_accessible_rows(cls, user_or_token)
+        return accessible_by_owner.select_accessible_rows(cls, user_or_token)
 
 
 manage_photometric_series_access = (

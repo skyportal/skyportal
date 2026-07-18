@@ -19,6 +19,7 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
 import { useGetRecentSourcesQuery } from "../../ducks/recentSources";
+import { useActiveTeam } from "../../ducks/teams";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
 dayjs.extend(relativeTime);
@@ -419,7 +420,10 @@ const RecentSources = ({ classes }: RecentSourcesProps) => {
     | undefined;
   const { classes: styles } = useSourceListStyles({ invertThumbnails });
 
-  const { data: recentSources } = useGetRecentSourcesQuery();
+  const { activeTeam } = useActiveTeam();
+  const { data: recentSources } = useGetRecentSourcesQuery(
+    activeTeam ? { teamID: activeTeam.id } : undefined,
+  );
   const prefs =
     (profile?.preferences?.["recentSources"] as any) || defaultPrefs;
 

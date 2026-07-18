@@ -17,7 +17,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import { filterOutEmptyValues } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
+import { findCachedQueryArg, invalidateOnMessage } from "../api/wsInvalidation";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -133,9 +133,43 @@ invalidateOnMessage(REFRESH_FAVORITE_SOURCES, () =>
   window.location.pathname === "/favorites" ? ["Sources"] : null,
 );
 
-invalidateOnMessage(FETCH_GCNEVENT_SOURCES, () => ["Sources"]);
+// Only refetch when the affected event's sources are actually loaded. Map the
+// pushed gcnEvent id -> dateobs (the query key) via the cached event, then check
+// for a loaded gcn-event-sources query. Pre-RTK this was gated on the currently-
+// viewed event; unconditional invalidation refetched the heavy list every time.
+invalidateOnMessage(FETCH_GCNEVENT_SOURCES, (payload, getState) => {
+  const dateobs =
+    payload?.gcnEvent?.dateobs ??
+    (payload?.gcnEvent?.id != null
+      ? findCachedQueryArg(
+          getState,
+          "getGcnEvent",
+          (data) => data?.id === payload.gcnEvent.id,
+        )
+      : null);
+  if (dateobs == null) return null;
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  const onLoadedEvent = Object.values(queries).some(
+    (entry: any) =>
+      entry?.endpointName === "fetchGcnEventSources" &&
+      entry?.originalArgs?.dateobs === dateobs,
+  );
+  return onLoadedEvent ? ["Sources"] : null;
+});
 
-invalidateOnMessage(REFRESH_SOURCE, () => ["Sources"]);
+// Only refetch when the updated source is actually on a currently-loaded page.
+// Pre-RTK this handler was gated on the source being in the list (and merged a
+// single source); refetching the whole heavy list on every REFRESH_SOURCE
+// app-wide — these arrive at alert rates — made the sources page crawl/crash.
+invalidateOnMessage(REFRESH_SOURCE, (payload, getState) => {
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  const onLoadedPage = Object.values(queries).some((entry: any) =>
+    (entry?.data?.sources as any[] | undefined)?.some(
+      (s) => s.internal_key === payload?.obj_key,
+    ),
+  );
+  return onLoadedPage ? ["Sources"] : null;
+});
 
 export const {
   useFetchSourcesQuery,

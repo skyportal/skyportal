@@ -40,6 +40,7 @@ import Paper from "../Paper";
 import Spinner from "../Spinner";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useIsReadOnly } from "../../ducks/profile";
 
 dayjs.extend(utc);
 
@@ -81,6 +82,7 @@ interface UploadSpectrumFormProps {
 }
 
 const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
+  const isReadOnly = useIsReadOnly();
   const dispatch = useAppDispatch();
   const groups = useGetGroupsQuery().data?.all ?? null;
   const [parsed, setParsed] = useState<any>(null);
@@ -204,6 +206,10 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
     setHeader(newHeader);
     setData(newData);
   }, [parsed]);
+
+  if (isReadOnly) {
+    return null;
+  }
 
   if (
     !groups ||

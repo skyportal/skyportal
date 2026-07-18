@@ -49,11 +49,11 @@ def manage_photometry_access_logic(cls, user_or_token):
     for objects accessible to their groups.
     """
     if user_or_token.is_admin:
-        return public.query_accessible_rows(cls, user_or_token)
+        return public.select_accessible_rows(cls, user_or_token)
     elif "Manage photometry" in user_or_token.permissions:
-        return manage_photometry_access.query_accessible_rows(cls, user_or_token)
+        return manage_photometry_access.select_accessible_rows(cls, user_or_token)
     else:
-        return accessible_by_owner.query_accessible_rows(cls, user_or_token)
+        return accessible_by_owner.select_accessible_rows(cls, user_or_token)
 
 
 class Photometry(conesearch_alchemy.Point, Base):
