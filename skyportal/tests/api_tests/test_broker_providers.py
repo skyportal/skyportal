@@ -27,7 +27,11 @@ import vcr
 from skyportal.broker_apis.alerce import ALERCEBROKER, _normalize_object
 from skyportal.broker_apis.ampel import _normalize_ampel_report
 from skyportal.broker_apis.antares import ANTARESBROKER, _normalize_locus
-from skyportal.broker_apis.boom import BOOMBROKER, _normalize_boom_alert
+from skyportal.broker_apis.boom import (
+    _BOOM_SENTINEL,
+    BOOMBROKER,
+    _normalize_boom_alert,
+)
 from skyportal.broker_apis.fink import (
     FINKBROKER,
     _fink_survey,
@@ -395,6 +399,68 @@ def test_boom_normalize_skips_sentinel():
     _assert_standard_shape(d)
     assert len(d["prv_candidates"]) == 1  # the -99999 sentinel point is dropped
     assert d["prv_candidates"][0]["psfFlux"] == 500.0
+
+
+def _boom_record(photometry):
+    return {
+        "objectId": "BOOM_norm",
+        "candid": 42,
+        "survey": "ZTF",
+        "ra": 234.22,
+        "dec": -22.33,
+        "drb": 0.99,
+        "photometry": photometry,
+    }
+
+
+def test_boom_normalize_maps_detection_and_candidate():
+    """A detection maps flux -> psfFlux (nJy) with band/jd/programid preserved,
+    and candidate ra/dec/drb come off the record."""
+    d = _normalize_boom_alert(
+        _boom_record(
+            [
+                {
+                    "flux": 1.0e4,
+                    "flux_err": 1.0e2,
+                    "jd": 2459000.5,
+                    "band": "ztfg",
+                    "programid": 1,
+                }
+            ]
+        )
+    )
+    _assert_standard_shape(d)
+    assert d["candid"] == 42
+    assert d["candidate"] == {"ra": 234.22, "dec": -22.33, "drb": 0.99}
+    p = d["prv_candidates"][0]
+    assert (p["psfFlux"], p["psfFluxErr"], p["band"], p["jd"], p["programid"]) == (
+        1.0e4,
+        1.0e2,
+        "ztfg",
+        2459000.5,
+        1,
+    )
+
+
+def test_boom_normalize_sentinel_flux_is_nondetection():
+    """A point with a real flux_err but sentinel flux is kept as a non-detection
+    (psfFlux nulled) -- distinct from a sentinel flux_err, which is dropped."""
+    d = _normalize_boom_alert(
+        _boom_record(
+            [{"flux": _BOOM_SENTINEL, "flux_err": 1.0e2, "jd": 2459003.5, "band": "r"}]
+        )
+    )
+    assert len(d["prv_candidates"]) == 1
+    assert d["prv_candidates"][0]["psfFlux"] is None
+    assert d["prv_candidates"][0]["psfFluxErr"] == 1.0e2
+
+
+def test_boom_normalize_empty_photometry():
+    """A record without photometry normalizes to an empty light curve rather than
+    raising (the ingestion loop must not crash on a bare alert)."""
+    d = _normalize_boom_alert(_boom_record([]))
+    assert d["prv_candidates"] == []
+    assert d["candidate"]["drb"] == 0.99
 
 
 def test_pittgoogle_normalize_bigquery_rows():
