@@ -14,6 +14,88 @@ log = make_log("broker/save")
 # AB zeropoint per survey (psfFlux is in Jy after the 1e-9 scaling below).
 ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9}
 
+# A "detection" must clear this S/N unless a Filter's criteria override it. Broker
+# science topics/filters are often broad, so a Filter can carry an extra criteria
+# gate (see _passes_criteria) that alerts must satisfy before becoming Candidates.
+_DEFAULT_MIN_SNR = 5.0
+# sigma_mag = 2.5/ln(10) / SNR, so SNR = (2.5/ln(10)) / sigma_mag in mag space.
+_MAG_SNR_CONST = 1.0857362
+
+
+def _point_snr(p):
+    """S/N of a photometry point, handling both flux-space (psfFlux/psfFluxErr,
+    e.g. BOOM/LSST) and mag-space (magpsf/sigmapsf, e.g. Fink ZTF) normalizations.
+    Returns None for a non-detection / upper limit (no usable flux or error)."""
+    flux, flux_err = p.get("psfFlux"), p.get("psfFluxErr")
+    if flux is not None and flux_err:
+        return abs(flux) / flux_err
+    mag, mag_err = p.get("magpsf"), p.get("sigmapsf")
+    if mag is not None and mag_err:
+        return _MAG_SNR_CONST / mag_err
+    return None
+
+
+def _normalize_band(band):
+    """Collapse survey-prefixed band names to a bare filter letter so per-band
+    criteria are provider-agnostic (``ztfg`` -> ``g``, ``g`` -> ``g``)."""
+    b = str(band or "").lower()
+    for prefix in ("ztf", "lsst", "atlas"):
+        if b.startswith(prefix) and len(b) > len(prefix):
+            return b[len(prefix) :].lstrip("_")
+    return b
+
+
+def _passes_criteria(data, criteria):
+    """Whether an alert satisfies a Filter's optional ingestion ``criteria``
+    (stored in ``Filter.altdata['criteria']``). An absent/empty block passes, so
+    existing filters are unaffected. Supported keys:
+
+      * ``min_snr`` (default 5): S/N a point needs to count as a detection.
+      * ``min_detections`` (default 1): total qualifying detections.
+      * ``min_detections_per_band``: ``{band: n}`` (bands normalized, e.g. ``g``).
+      * ``min_time_baseline``: min days between first and last qualifying detection.
+    """
+    if not criteria:
+        return True
+    min_snr = float(criteria.get("min_snr", _DEFAULT_MIN_SNR))
+    detections = [
+        p
+        for p in (data.get("prv_candidates") or [])
+        if (snr := _point_snr(p)) is not None and snr >= min_snr
+    ]
+    if len(detections) < int(criteria.get("min_detections", 1)):
+        return False
+    per_band = criteria.get("min_detections_per_band") or {}
+    if per_band:
+        from collections import Counter
+
+        counts = Counter(_normalize_band(p.get("band")) for p in detections)
+        for band, need in per_band.items():
+            if counts.get(_normalize_band(band), 0) < int(need):
+                return False
+    min_baseline = criteria.get("min_time_baseline")
+    if min_baseline is not None:
+        jds = [p.get("jd") for p in detections if p.get("jd") is not None]
+        if len(jds) < 2 or (max(jds) - min(jds)) < float(min_baseline):
+            return False
+    return True
+
+
+async def _filters_passing_criteria(session, filter_ids, data):
+    """Subset of ``filter_ids`` whose Filter criteria the alert satisfies (a
+    filter with no criteria always passes)."""
+    import sqlalchemy as sa
+
+    from ..models import Filter
+
+    rows = (
+        await session.scalars(sa.select(Filter).where(Filter.id.in_(filter_ids)))
+    ).all()
+    criteria_by_id = {f.id: (f.altdata or {}).get("criteria") for f in rows}
+    return [
+        fid for fid in filter_ids if _passes_criteria(data, criteria_by_id.get(fid))
+    ]
+
 
 async def programid_to_stream_ids(session):
     """Map (survey, programid) -> [stream_id] from each Stream's altdata."""
@@ -142,6 +224,14 @@ async def _ingest_object(
 
     object_id = data["objectId"]
     cand = data.get("candidate") or {}
+
+    # Ingestion criteria gate: drop the alert against filters whose extra criteria
+    # it fails. If nothing survives and this isn't an interactive save (group_ids),
+    # skip before writing any Obj/Candidate/photometry.
+    if filter_ids:
+        filter_ids = await _filters_passing_criteria(session, filter_ids, data)
+        if not filter_ids and not group_ids:
+            return {"id": object_id}
 
     instrument_id = await session.scalar(
         sa.select(Instrument.id).where(Instrument.name == survey)
