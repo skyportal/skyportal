@@ -22,6 +22,7 @@ const DEFAULT_COLUMN_ORDER = [
   "id",
   "mjd",
   "utc",
+  "t-t0",
   "mag",
   "magerr",
   "mag_corr",
@@ -74,6 +75,7 @@ interface PhotometryDownloadProps {
   objId: string;
   usePhotometryValidation: boolean;
   onDownload: (...a: any[]) => void;
+  t0?: number | null;
 }
 
 const PhotometryDownload = ({
@@ -83,6 +85,7 @@ const PhotometryDownload = ({
   objId,
   usePhotometryValidation,
   onDownload,
+  t0 = null,
 }: PhotometryDownloadProps) => {
   const dispatch = useAppDispatch();
   const [downloadFormData, setDownloadFormData] = useState<any>({
@@ -105,7 +108,13 @@ const PhotometryDownload = ({
   let availableDownloadColumns: { key: string; label: string }[] = [];
   let availableFilters: any[] = [];
   if (data && data.length > 0) {
-    const allKeys = [...Object.keys(data[0]), "utc", "flux", "fluxerr"];
+    const allKeys = [
+      ...Object.keys(data[0]),
+      "utc",
+      ...(t0 != null ? ["t-t0"] : []),
+      "flux",
+      "fluxerr",
+    ];
     const filteredKeys = allKeys.filter(
       (key) => !["groups", "obj_id", "validations"].includes(key),
     );
@@ -289,6 +298,8 @@ const PhotometryDownload = ({
                 return phot.snr;
               case "utc":
                 return utcValue;
+              case "t-t0":
+                return t0 != null ? phot.mjd - t0 : "";
               case "extinction":
                 return phot.extinction;
               case "mag_corr":

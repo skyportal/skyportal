@@ -31,6 +31,9 @@ def team_to_dict(team, include_users=True):
     out["groups"] = [
         {"id": g.id, "name": g.name, "nickname": g.nickname} for g in team.groups
     ]
+    # Derived membership count: distinct users across the team's groups. Cheap —
+    # the group_users are already eager-loaded, so this adds no query.
+    out["num_members"] = len({gu.user_id for g in team.groups for gu in g.group_users})
     if include_users:
         users = {}
         for g in team.groups:
@@ -91,6 +94,9 @@ class TeamHandler(BaseHandler):
             .selectinload(Group.group_users)
             .selectinload(GroupUser.user)
         )
+        # The list needs only member counts, so it skips loading User objects
+        # (group_users alone carry the user_id we count).
+        count_loader = selectinload(Team.groups).selectinload(Group.group_users)
         async with self.AsyncSession() as session:
             if team_id is not None:
                 try:
@@ -108,7 +114,7 @@ class TeamHandler(BaseHandler):
 
             teams_result = await session.scalars(
                 Team.select(session.user_or_token)
-                .options(roster_loader)
+                .options(count_loader)
                 .order_by(Team.name)
             )
             teams = teams_result.unique().all()

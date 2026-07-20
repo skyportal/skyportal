@@ -44,12 +44,12 @@ def user_update_delete_logic(cls, user_or_token):
     or update any user."""
 
     if user_or_token.is_admin:
-        return public.query_accessible_rows(cls, user_or_token)
+        return public.select_accessible_rows(cls, user_or_token)
 
     # non admin users can only update or delete themselves
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
 
-    return DBSession().query(cls).filter(cls.id == user_id)
+    return sa.select(cls).where(cls.id == user_id)
 
 
 @property

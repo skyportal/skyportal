@@ -17,7 +17,6 @@ from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
-    DBSession,
     public,
 )
 from baselayer.log import make_log
@@ -37,12 +36,12 @@ cache = Cache(
 
 def manage_telescope_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
-        return DBSession().query(cls)
+        return sa.select(cls)
     elif "Manage allocations" in [acl.id for acl in user_or_token.acls]:
-        return DBSession().query(cls)
+        return sa.select(cls)
     else:
         # return an empty query
-        return DBSession().query(cls).filter(cls.id == -1)
+        return sa.select(cls).where(cls.id == -1)
 
 
 class Telescope(Base):

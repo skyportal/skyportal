@@ -12,11 +12,13 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import HoursBelowAirmassPlot from "../templates/HoursBelowAirmassPlot";
+import AcrossVisibility from "./AcrossVisibility";
 import ObservabilityPreferences from "../user/preferences/ObservabilityPreferences";
 import AirmassPlot, { Ephemeris } from "../plot/AirmassPlot";
 import withRouter from "../withRouter";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetEphemeridesQuery } from "../../ducks/ephemeris";
+import { useGetAcrossInstrumentsQuery } from "../../ducks/across";
 
 const useStyles = makeStyles()({
   inner: {
@@ -52,17 +54,32 @@ const ObservabilityPage = ({ route }: ObservabilityPageProps) => {
   const { classes } = useStyles();
   const [page, setPage] = useState(1);
 
-  const selectedTelescopes = telescopeList
-    ?.filter(
-      (telescope: any) =>
-        preferences &&
-        preferences.length > 0 &&
-        preferences.indexOf(telescope.id) !== -1,
-    )
-    .filter((telescope: any) => telescope.fixed_location === true);
+  const { data: acrossInstruments = [] } = useGetAcrossInstrumentsQuery();
 
-  const pagedTelescopeIds: number[] = selectedTelescopes
-    ? [...selectedTelescopes]
+  const selectedTelescopes = telescopeList?.filter(
+    (telescope: any) =>
+      preferences &&
+      preferences.length > 0 &&
+      preferences.indexOf(telescope.id) !== -1,
+  );
+
+  // Ground telescopes also get airmass plots below; the joint-visibility panel
+  // covers all selected telescopes (ground via astroplan, space via ACROSS).
+  const groundTelescopes = selectedTelescopes?.filter(
+    (telescope: any) => telescope.fixed_location === true,
+  );
+
+  const acrossTelescopeIds = new Set(
+    acrossInstruments.map((inst: any) => inst.telescope_id),
+  );
+  const panelTelescopes = (selectedTelescopes || [])
+    .filter(
+      (t: any) => t.fixed_location === true || acrossTelescopeIds.has(t.id),
+    )
+    .map((t: any) => ({ id: t.id, name: t.nickname || t.name }));
+
+  const pagedTelescopeIds: number[] = groundTelescopes
+    ? [...groundTelescopes]
         .splice((page - 1) * 16, page * 16)
         .map((telescope: any) => telescope.id)
     : [];
@@ -86,16 +103,18 @@ const ObservabilityPage = ({ route }: ObservabilityPageProps) => {
           <div className={classes.preferencesContent}>
             <ObservabilityPreferences />
             <Pagination
-              count={Math.ceil(selectedTelescopes?.length / 16)}
+              count={Math.ceil(groundTelescopes?.length / 16)}
               page={page}
               onChange={(_event, value) => setPage(value)}
             />
           </div>
         </Paper>
       )}
+      <AcrossVisibility objId={route.id} telescopes={panelTelescopes} />
+
       <Grid container spacing={3}>
         {!loading && ephemerides
-          ? selectedTelescopes
+          ? groundTelescopes
               ?.filter(
                 // check that the telescope id is a key in the ephemerides object
                 (telescope: any) =>

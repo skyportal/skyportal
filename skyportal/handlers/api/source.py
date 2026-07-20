@@ -651,13 +651,16 @@ async def get_source(
     )
     groups = groups_result.unique().all()
     source_info["groups"] = [g.to_dict() for g in groups]
+    # Load every Source row for this obj once and map by group, rather than
+    # re-querying (with access control) per group (N+1).
+    source_rows_result = await session.scalars(
+        source_query.options(selectinload(Source.saved_by))
+    )
+    source_rows_by_group = {
+        row.group_id: row for row in source_rows_result.unique().all()
+    }
     for group in source_info["groups"]:
-        source_table_row = await session.scalar(
-            Source.select(user)
-            .options(selectinload(Source.saved_by))
-            .where(Source.obj_id == s.id)
-            .where(Source.group_id == group["id"])
-        )
+        source_table_row = source_rows_by_group.get(group["id"])
         if source_table_row is not None:
             group["active"] = source_table_row.active
             group["requested"] = source_table_row.requested
@@ -1171,6 +1174,29 @@ def post_source(data, user_id, session, refresh_source=True):
 
     update_redshift_history_if_relevant(data, obj, user)
 
+    # Batch the per-group lookups into one query each (instead of two queries
+    # per group in the loop below) so saving to N groups stays ~constant in
+    # round-trips.
+    sources_by_group = {
+        s.group_id: s
+        for s in session.scalars(
+            Source.select(user).where(
+                Source.obj_id == obj.id, Source.group_id.in_(group_ids)
+            )
+        ).all()
+    }
+    group_users_by_group = {}
+    if not user.is_admin:
+        group_users_by_group = {
+            gu.group_id: gu
+            for gu in session.scalars(
+                GroupUser.select(user).where(
+                    GroupUser.user_id == user.id,
+                    GroupUser.group_id.in_(group_ids),
+                )
+            ).all()
+        }
+
     not_saved_to_group_ids = []
     for group in groups:
         if (
@@ -1192,18 +1218,10 @@ def post_source(data, user_id, session, refresh_source=True):
                 not_saved_to_group_ids.append(group.id)
                 continue
 
-        source = session.scalars(
-            Source.select(user)
-            .where(Source.obj_id == obj.id)
-            .where(Source.group_id == group.id)
-        ).first()
+        source = sources_by_group.get(group.id)
 
         if not user.is_admin:
-            group_user = session.scalars(
-                GroupUser.select(user)
-                .where(GroupUser.user_id == user.id)
-                .where(GroupUser.group_id == group.id)
-            ).first()
+            group_user = group_users_by_group.get(group.id)
             if group_user is None:
                 raise AttributeError(
                     f"User is not a member of the group with ID {group.id}."
@@ -1253,13 +1271,11 @@ def post_source(data, user_id, session, refresh_source=True):
 
 def apply_active_or_requested_filtering(query, include_requested, requested_only):
     if include_requested:
-        query = query.filter(or_(Source.requested.is_(True), Source.active.is_(True)))
+        query = query.where(or_(Source.requested.is_(True), Source.active.is_(True)))
     elif not requested_only:
-        query = query.filter(Source.active.is_(True))
+        query = query.where(Source.active.is_(True))
     if requested_only:
-        query = query.filter(Source.active.is_(False)).filter(
-            Source.requested.is_(True)
-        )
+        query = query.where(Source.active.is_(False)).where(Source.requested.is_(True))
     return query
 
 
@@ -2363,6 +2379,10 @@ class SourceHandler(BaseHandler):
                     query_id=query_id,
                     verbose=False,
                 )
+            except ValueError as e:
+                # Invalid query parameters (e.g. a stale/unknown localization) are
+                # client errors: return a clean 400 without a server traceback.
+                return self.error(f"Cannot retrieve sources: {str(e)}", status=400)
             except Exception as e:
                 traceback.print_exc()
                 return self.error(f"Cannot retrieve sources: {str(e)}")

@@ -69,120 +69,106 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
 
     allow_nonadmins = cfg["misc.allow_nonadmins_delete_objs"]
 
-    deletable_photometry = Photometry.query_records_accessible_by(
-        user_or_token, mode="delete"
-    ).subquery()
+    deletable_photometry = Photometry.select(user_or_token, mode="delete").subquery()
     nondeletable_photometry = (
-        DBSession()
-        .query(Photometry.obj_id)
+        sa.select(Photometry.obj_id)
         .join(
             deletable_photometry,
             deletable_photometry.c.id == Photometry.id,
             isouter=True,
         )
-        .filter(deletable_photometry.c.id.is_(None))
+        .where(deletable_photometry.c.id.is_(None))
         .distinct(Photometry.obj_id)
         .subquery()
     )
 
-    deletable_photometric_series = PhotometricSeries.query_records_accessible_by(
+    deletable_photometric_series = PhotometricSeries.select(
         user_or_token, mode="delete"
     ).subquery()
     nondeletable_photometric_series = (
-        DBSession()
-        .query(PhotometricSeries.obj_id)
+        sa.select(PhotometricSeries.obj_id)
         .join(
             deletable_photometric_series,
             deletable_photometric_series.c.id == PhotometricSeries.id,
             isouter=True,
         )
-        .filter(deletable_photometric_series.c.id.is_(None))
+        .where(deletable_photometric_series.c.id.is_(None))
         .distinct(PhotometricSeries.obj_id)
         .subquery()
     )
 
-    deletable_spectra = Spectrum.query_records_accessible_by(
-        user_or_token, mode="delete"
-    ).subquery()
+    deletable_spectra = Spectrum.select(user_or_token, mode="delete").subquery()
     nondeletable_spectra = (
-        DBSession()
-        .query(Spectrum.obj_id)
+        sa.select(Spectrum.obj_id)
         .join(
             deletable_spectra,
             deletable_spectra.c.id == Spectrum.id,
             isouter=True,
         )
-        .filter(deletable_spectra.c.id.is_(None))
+        .where(deletable_spectra.c.id.is_(None))
         .distinct(Spectrum.obj_id)
         .subquery()
     )
 
-    deletable_candidates = Candidate.query_records_accessible_by(
-        user_or_token, mode="delete"
-    ).subquery()
+    deletable_candidates = Candidate.select(user_or_token, mode="delete").subquery()
     nondeletable_candidates = (
-        DBSession()
-        .query(Candidate.obj_id)
+        sa.select(Candidate.obj_id)
         .join(
             deletable_candidates,
             deletable_candidates.c.id == Candidate.id,
             isouter=True,
         )
-        .filter(deletable_candidates.c.id.is_(None))
+        .where(deletable_candidates.c.id.is_(None))
         .distinct(Candidate.obj_id)
         .subquery()
     )
 
-    deletable_sources = Source.query_records_accessible_by(
-        user_or_token, mode="delete"
-    ).subquery()
+    deletable_sources = Source.select(user_or_token, mode="delete").subquery()
     nondeletable_sources = (
-        DBSession()
-        .query(Source.obj_id)
+        sa.select(Source.obj_id)
         .join(
             deletable_sources,
             deletable_sources.c.id == Source.id,
             isouter=True,
         )
-        .filter(deletable_sources.c.id.is_(None))
+        .where(deletable_sources.c.id.is_(None))
         .distinct(Source.obj_id)
         .subquery()
     )
 
     return (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .join(
             nondeletable_photometry,
             nondeletable_photometry.c.obj_id == cls.id,
             isouter=True,
         )
-        .filter(nondeletable_photometry.c.obj_id.is_(None))
+        .where(nondeletable_photometry.c.obj_id.is_(None))
         .join(
             nondeletable_photometric_series,
             nondeletable_photometric_series.c.obj_id == cls.id,
             isouter=True,
         )
-        .filter(nondeletable_photometric_series.c.obj_id.is_(None))
+        .where(nondeletable_photometric_series.c.obj_id.is_(None))
         .join(
             nondeletable_spectra,
             nondeletable_spectra.c.obj_id == cls.id,
             isouter=True,
         )
-        .filter(nondeletable_spectra.c.obj_id.is_(None))
+        .where(nondeletable_spectra.c.obj_id.is_(None))
         .join(
             nondeletable_candidates,
             nondeletable_candidates.c.obj_id == cls.id,
             isouter=True,
         )
-        .filter(nondeletable_candidates.c.obj_id.is_(None))
+        .where(nondeletable_candidates.c.obj_id.is_(None))
         .join(
             nondeletable_sources,
             nondeletable_sources.c.obj_id == cls.id,
             isouter=True,
         )
-        .filter(nondeletable_sources.c.obj_id.is_(None))
-        .filter(sa.literal(allow_nonadmins))
+        .where(nondeletable_sources.c.obj_id.is_(None))
+        .where(sa.literal(allow_nonadmins))
     )
 
 
