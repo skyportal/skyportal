@@ -50,6 +50,41 @@ def test_broker_crud(super_admin_token):
     assert status == 400
 
 
+def test_broker_capabilities_expose_cross_match_catalogs(super_admin_token):
+    """GET /brokers surfaces cross_match_catalogs in capabilities -- the flag the
+    source-page centroid overlay reads to pick a reference-catalog broker (so it
+    only cone_searches BOOM, never alert-only brokers)."""
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(
+            broker_classname="BOOMBROKER",
+            altdata={"host": "boom.test", "username": "x", "password": "y"},
+        ),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    boom_id = data["data"]["id"]
+
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200, data
+    generic_id = data["data"]["id"]
+
+    try:
+        status, data = api("GET", f"brokers/{boom_id}", token=super_admin_token)
+        assert status == 200, data
+        assert data["data"]["capabilities"]["cross_match_catalogs"] is True
+
+        status, data = api("GET", f"brokers/{generic_id}", token=super_admin_token)
+        assert status == 200, data
+        assert data["data"]["capabilities"]["cross_match_catalogs"] is False
+    finally:
+        api("DELETE", f"brokers/{boom_id}", token=super_admin_token)
+        api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
+
+
 def test_broker_invalid_classname(super_admin_token):
     payload = _broker_payload(broker_classname="NOTAREALBROKER")
     status, data = api("POST", "brokers", data=payload, token=super_admin_token)
@@ -183,6 +218,17 @@ def test_lasairbroker_capabilities():
     assert caps["validate_config"] is True
     with pytest.raises(ValueError):
         LASAIRBROKER.validate_config({})
+
+
+def test_cross_match_catalogs_capability():
+    """Only BOOM's cone_search returns reference catalogs, so only it advertises
+    cross_match_catalogs. The source-page centroid overlay gates on this flag so
+    it never cone_searches alert-only brokers (Lasair/Fink), which rate-limit."""
+    from skyportal.broker_apis import BOOMBROKER, LASAIRBROKER
+
+    assert BOOMBROKER.implements()["cross_match_catalogs"] is True
+    assert LASAIRBROKER.implements()["cross_match_catalogs"] is False
+    assert BrokerAPI.implements()["cross_match_catalogs"] is False
 
 
 def test_configured_surveys_per_record():

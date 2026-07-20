@@ -337,11 +337,13 @@ const CentroidPlot = ({
   const { data: photometry } = useFetchSourcePhotometryQuery({ id: sourceId });
   const { data: config } = useGetConfigQuery() as { data: any };
 
-  // Reference-catalog cross-matches come from the first active broker that
-  // supports cone_search (e.g. BOOM); the result is keyed by catalog name.
+  // Reference-catalog cross-matches (Gaia/PS1/AllWISE, keyed by catalog) come
+  // from a broker whose cone_search returns reference catalogs. Other brokers
+  // advertise cone_search too but return their own alert objects (and rate-limit),
+  // so gate on the cross_match_catalogs capability, not "first cone_search".
   const { data: brokers } = useGetBrokersQuery();
   const coneSearchBrokerId = (brokers ?? []).find(
-    (b: any) => b.active && b.capabilities?.cone_search,
+    (b: any) => b.active && b.capabilities?.cross_match_catalogs,
   )?.id;
   const [triggerConeSearch, { data: crossMatches }] =
     useLazyGetBrokerConeSearchQuery();
