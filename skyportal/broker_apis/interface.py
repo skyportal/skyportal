@@ -172,3 +172,9 @@ class BrokerAPI(_Base):
     #   "tags"     (Fink: select from a fixed menu of topics/classifications)
     #   "none"     (no custom filtering)
     filter_kind = "none"
+
+    # whether cone_search returns reference/cross-match catalogs (Gaia/PS1/AllWISE,
+    # ...) keyed by catalog name — i.e. usable for the source-page centroid
+    # cross-match overlay. Providers whose cone_search returns their own alert
+    # objects (Lasair, Fink) leave this False so the overlay doesn't query them.
+    cross_match_catalogs = False
