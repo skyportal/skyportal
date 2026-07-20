@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { Button, Box, Typography } from "@mui/material";
+import { Alert, Button, Box, Typography } from "@mui/material";
 import {
   Code as CodeIcon,
   Note as NoteIcon,
@@ -86,7 +86,16 @@ const FilterBuilderContent = ({
   const dispatch = useAppDispatch();
   const { data: filter_v } = useBoomFilterVersion();
   const [updateGroupFilter] = useUpdateBoomGroupFilterMutation();
-  const { data: store_schema } = useFilterSchema(survey);
+  const {
+    data: store_schema,
+    isError: schemaError,
+    isFetching: schemaFetching,
+    survey: resolvedSurvey,
+  } = useFilterSchema(survey);
+  // The broker has no filter schema for this survey (e.g. WINTER on BOOM): the
+  // field/operator vocabularies are empty, so the block builder can't work.
+  const schemaUnavailable =
+    !!resolvedSurvey && !schemaFetching && (schemaError || !store_schema);
 
   const [, setSchema] = useState<any>(null);
   const [fieldOptions, setFieldOptions] = useState<any[]>([]);
@@ -433,7 +442,13 @@ const FilterBuilderContent = ({
       </Box>
 
       {/* Filter Blocks */}
-      {filtersToRender && filtersToRender.length > 0 ? (
+      {schemaUnavailable ? (
+        <Alert severity="warning">
+          No filter schema is available for <strong>{resolvedSurvey}</strong>{" "}
+          from this broker, so there are no fields to build conditions with.
+          Filtering isn&apos;t supported for this survey yet.
+        </Alert>
+      ) : filtersToRender && filtersToRender.length > 0 ? (
         filtersToRender.map((block: any, index: number) => {
           return (
             <BlockComponent
