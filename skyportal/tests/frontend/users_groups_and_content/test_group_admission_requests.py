@@ -89,4 +89,6 @@ def test_group_admission_request_insufficient_stream_access(
     page.locator(
         f'//span[.//*[@data-testid="requestAdmissionButton{public_group.id}"]]'
     ).first.hover()
-    expect(page.get_by_role("tooltip")).to_contain_text(public_stream.name)
+    expect(page.locator(".MuiTooltip-tooltip").first).to_contain_text(
+        public_stream.name
+    )
