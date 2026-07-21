@@ -86,9 +86,21 @@ def test_group_admission_request_insufficient_stream_access(
         f'//*[@data-testid="requestAdmissionButton{public_group.id}"]'
     ).first
     expect(request_button).to_be_disabled()
-    page.locator(
+    tooltip_target = page.locator(
         f'//span[.//*[@data-testid="requestAdmissionButton{public_group.id}"]]'
-    ).first.hover()
-    expect(page.locator(".MuiTooltip-tooltip").first).to_contain_text(
-        public_stream.name
-    )
+    ).first
+
+    # A grid re-render can replace the cell node under a motionless cursor, and the
+    # browser won't re-fire mouseover: the tooltip would then never open. Re-hover.
+    attempts = 10
+    for attempt in range(attempts):
+        page.mouse.move(0, 0)
+        tooltip_target.hover()
+        try:
+            expect(page.locator(".MuiTooltip-tooltip").first).to_contain_text(
+                public_stream.name, timeout=3000
+            )
+            break
+        except AssertionError:
+            if attempt == attempts - 1:
+                raise
