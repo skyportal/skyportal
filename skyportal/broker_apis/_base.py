@@ -12,6 +12,7 @@ class _Base:
         "update_filter",
         "delete_filter",
         "test_filter",
+        "validate_filter",
         "filter_modules",
         "run_ingestion",
         "validate_config",

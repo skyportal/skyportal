@@ -38,6 +38,15 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
         body: { altdata, filters, name },
       }),
     }),
+    // Slow: runs the filter over a night of alerts on the broker. Records the
+    // verdict server-side (keyed on fid) so the version can then be activated.
+    validateBoomFilter: build.mutation<any, { filter_id: any; fid?: any }>({
+      query: ({ filter_id, fid }) => ({
+        url: `${brokerFilterBase()}/filters/${filter_id}/validate`,
+        method: "POST",
+        body: fid ? { fid } : {},
+      }),
+    }),
   }),
 });
 
@@ -45,6 +54,7 @@ export const {
   useGetBoomFilterVersionQuery,
   useEditBoomFilterVersionMutation,
   useUpdateBoomGroupFilterMutation,
+  useValidateBoomFilterMutation,
 } = boomFilterApi;
 
 // Shared read of the current broker filter version, keyed by the :fid route

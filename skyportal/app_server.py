@@ -25,6 +25,7 @@ from skyportal.handlers.api import (
     BrokerFilterModulesHandler,
     BrokerFiltersHandler,
     BrokerFilterTestHandler,
+    BrokerFilterValidateHandler,
     BrokerHandler,
     BrokerPhotometryHandler,
     BrokerSaveHandler,
@@ -282,6 +283,10 @@ skyportal_handlers = [
     ),
     (r"/api/assignment(/.*)?", AssignmentHandler),
     (r"/api/brokers/([0-9]+)/filter/test", BrokerFilterTestHandler),
+    (
+        r"/api/brokers/([0-9]+)/filters/([0-9]+)/validate",
+        BrokerFilterValidateHandler,
+    ),
     (r"/api/brokers/([0-9]+)/filter_modules(?:/([^/]+))?", BrokerFilterModulesHandler),
     (r"/api/brokers/([0-9]+)/filters(?:/([0-9]+))?", BrokerFiltersHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/cutouts", BrokerCutoutsHandler),

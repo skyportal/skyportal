@@ -392,3 +392,57 @@ def test_broker_cone_search_missing_params(super_admin_token):
     )
     assert status == 400
     assert "Missing required parameters" in data["message"]
+
+
+def test_boom_filter_activation_requires_validation(
+    super_admin_token, upload_data_token, public_filter
+):
+    """A BOOM-managed filter cannot be activated by a non-admin until a passing
+    validation is recorded (the slow check is now an explicit, separate step)."""
+    import sqlalchemy as sa
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from skyportal.models import DBSession, Filter
+
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(
+            broker_classname="BOOMBROKER",
+            altdata={"host": "boom.test", "username": "x", "password": "y"},
+        ),
+        token=super_admin_token,
+    )
+    assert status == 200
+    broker_id = data["data"]["id"]
+    try:
+        # Mark the filter broker-managed with no validation on record.
+        f = (
+            DBSession()
+            .scalars(sa.select(Filter).where(Filter.id == public_filter.id))
+            .first()
+        )
+        f.altdata = {"boom": {"filter_id": "boom-test-id"}}
+        flag_modified(f, "altdata")
+        DBSession().commit()
+
+        status, data = api(
+            "PATCH",
+            f"brokers/{broker_id}/filters/{public_filter.id}",
+            data={"active": True, "active_fid": "v1"},
+            token=upload_data_token,
+        )
+        assert status == 400
+        assert "validat" in data["message"].lower()
+
+        # An admin bypasses the gate: it gets past validation and only then fails
+        # at the unreachable test BOOM, so the error is not the validation one.
+        status, data = api(
+            "PATCH",
+            f"brokers/{broker_id}/filters/{public_filter.id}",
+            data={"active": True, "active_fid": "v1"},
+            token=super_admin_token,
+        )
+        assert "validat" not in (data.get("message") or "").lower()
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)

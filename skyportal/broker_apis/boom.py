@@ -469,10 +469,27 @@ class BOOMBROKER(BrokerAPI):
 
     @staticmethod
     def update_filter(broker, session, **kwargs):
-        """Activate a version (``active``/``active_fid``) on BOOM."""
-        payload = {k: kwargs[k] for k in ("active", "active_fid") if k in kwargs}
+        """Activate a version (``active``/``active_fid``) on BOOM. ``skip_validation``
+        tells BOOM to skip its inline activation check (skyportal gates instead)."""
+        payload = {
+            k: kwargs[k]
+            for k in ("active", "active_fid", "skip_validation")
+            if k in kwargs
+        }
         return _request(
             broker, "PATCH", f"filters/{kwargs['boom_filter_id']}", json=payload
+        )
+
+    @staticmethod
+    def validate_filter(broker, session, **kwargs):
+        """Run BOOM's activation validation for a version without changing state;
+        returns ``{fid, passed, message?}``."""
+        params = {"fid": kwargs["fid"]} if kwargs.get("fid") else None
+        return _request(
+            broker,
+            "POST",
+            f"filters/{kwargs['boom_filter_id']}/validate",
+            params=params,
         )
 
     @staticmethod
