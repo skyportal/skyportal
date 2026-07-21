@@ -36,6 +36,9 @@ class _Base:
         # any provider that can fetch an object, so gate both on get_alert.
         caps["save_as_source"] = cls._isimplemented("get_alert")
         caps["get_photometry"] = cls._isimplemented("get_alert")
+        # Data-semantics flag (not a method): does cone_search return reference
+        # catalogs for the centroid cross-match overlay?
+        caps["cross_match_catalogs"] = cls.cross_match_catalogs
         return caps
 
     @classmethod

@@ -27,7 +27,11 @@ import vcr
 from skyportal.broker_apis.alerce import ALERCEBROKER, _normalize_object
 from skyportal.broker_apis.ampel import _normalize_ampel_report
 from skyportal.broker_apis.antares import ANTARESBROKER, _normalize_locus
-from skyportal.broker_apis.boom import BOOMBROKER, _normalize_boom_alert
+from skyportal.broker_apis.boom import (
+    _BOOM_SENTINEL,
+    BOOMBROKER,
+    _normalize_boom_alert,
+)
 from skyportal.broker_apis.fink import (
     FINKBROKER,
     _fink_survey,
@@ -397,6 +401,68 @@ def test_boom_normalize_skips_sentinel():
     assert d["prv_candidates"][0]["psfFlux"] == 500.0
 
 
+def _boom_record(photometry):
+    return {
+        "objectId": "BOOM_norm",
+        "candid": 42,
+        "survey": "ZTF",
+        "ra": 234.22,
+        "dec": -22.33,
+        "drb": 0.99,
+        "photometry": photometry,
+    }
+
+
+def test_boom_normalize_maps_detection_and_candidate():
+    """A detection maps flux -> psfFlux (nJy) with band/jd/programid preserved,
+    and candidate ra/dec/drb come off the record."""
+    d = _normalize_boom_alert(
+        _boom_record(
+            [
+                {
+                    "flux": 1.0e4,
+                    "flux_err": 1.0e2,
+                    "jd": 2459000.5,
+                    "band": "ztfg",
+                    "programid": 1,
+                }
+            ]
+        )
+    )
+    _assert_standard_shape(d)
+    assert d["candid"] == 42
+    assert d["candidate"] == {"ra": 234.22, "dec": -22.33, "drb": 0.99}
+    p = d["prv_candidates"][0]
+    assert (p["psfFlux"], p["psfFluxErr"], p["band"], p["jd"], p["programid"]) == (
+        1.0e4,
+        1.0e2,
+        "ztfg",
+        2459000.5,
+        1,
+    )
+
+
+def test_boom_normalize_sentinel_flux_is_nondetection():
+    """A point with a real flux_err but sentinel flux is kept as a non-detection
+    (psfFlux nulled) -- distinct from a sentinel flux_err, which is dropped."""
+    d = _normalize_boom_alert(
+        _boom_record(
+            [{"flux": _BOOM_SENTINEL, "flux_err": 1.0e2, "jd": 2459003.5, "band": "r"}]
+        )
+    )
+    assert len(d["prv_candidates"]) == 1
+    assert d["prv_candidates"][0]["psfFlux"] is None
+    assert d["prv_candidates"][0]["psfFluxErr"] == 1.0e2
+
+
+def test_boom_normalize_empty_photometry():
+    """A record without photometry normalizes to an empty light curve rather than
+    raising (the ingestion loop must not crash on a bare alert)."""
+    d = _normalize_boom_alert(_boom_record([]))
+    assert d["prv_candidates"] == []
+    assert d["candidate"]["drb"] == 0.99
+
+
 def test_pittgoogle_normalize_bigquery_rows():
     rows = [
         {
@@ -511,7 +577,10 @@ from skyportal.broker_apis._photometry import (  # noqa: E402
     scope_hash,
     variant_hash,
 )
-from skyportal.broker_apis._save import build_photometry_groups  # noqa: E402
+from skyportal.broker_apis._save import (  # noqa: E402
+    _passes_criteria,
+    build_photometry_groups,
+)
 
 
 def test_build_photometry_groups_flux_and_mag_space():
@@ -623,6 +692,140 @@ def test_merge_broker_augments_db_and_dedups():
     appended = [p for p in merged if p.get("id") is None]
     assert len(appended) == 1 and appended[0]["mjd"] == 59002.5
     assert merge_photometry_points([], []) == []
+
+
+def _lc(*points):
+    return {"prv_candidates": list(points)}
+
+
+# flux-space (SNR = flux/flux_err) and mag-space (SNR = 1.0857/sigma) points.
+_HI = {"psfFlux": 1e4, "psfFluxErr": 1e2, "band": "g", "jd": 2459000.5}  # SNR 100
+_LO = {"psfFlux": 3e2, "psfFluxErr": 1e2, "band": "r", "jd": 2459002.5}  # SNR 3
+_R8 = {"psfFlux": 8e2, "psfFluxErr": 1e2, "band": "ztfr", "jd": 2459005.5}  # SNR 8
+_MAG = {"magpsf": 19.0, "sigmapsf": 0.1, "band": "ztfg", "jd": 2459003.5}  # SNR ~10.9
+
+
+def test_passes_criteria_gate_off_when_unset():
+    # No criteria (or an empty block) never filters — existing filters unaffected.
+    assert _passes_criteria(_lc(_LO), None) is True
+    assert _passes_criteria(_lc(_LO), {}) is True
+
+
+def test_passes_criteria_default_snr_is_5():
+    # A detection must clear S/N 5 by default; SNR-3 point doesn't count.
+    assert _passes_criteria(_lc(_LO), {"min_detections": 1}) is False
+    assert _passes_criteria(_lc(_HI), {"min_detections": 1}) is True
+    # ...unless min_snr is overridden.
+    assert _passes_criteria(_lc(_LO), {"min_detections": 1, "min_snr": 2}) is True
+
+
+def test_passes_criteria_min_detections_counts_only_snr_passing():
+    assert _passes_criteria(_lc(_HI, _LO), {"min_detections": 2}) is False
+    assert _passes_criteria(_lc(_HI, _R8), {"min_detections": 2}) is True
+    # mag-space points also yield a computable S/N.
+    assert _passes_criteria(_lc(_MAG), {"min_detections": 1}) is True
+
+
+def test_passes_criteria_per_band_normalizes_band_names():
+    # ztfr -> r, so {g:1, r:1} is satisfied by a g and a ztfr detection.
+    assert (
+        _passes_criteria(_lc(_HI, _R8), {"min_detections_per_band": {"g": 1, "r": 1}})
+        is True
+    )
+    assert (
+        _passes_criteria(_lc(_HI), {"min_detections_per_band": {"g": 1, "r": 1}})
+        is False
+    )
+
+
+def test_passes_criteria_time_baseline():
+    # _HI @2459000.5 and _R8 @2459005.5 -> 5-day baseline.
+    assert _passes_criteria(_lc(_HI, _R8), {"min_time_baseline": 3}) is True
+    assert _passes_criteria(_lc(_HI, _R8), {"min_time_baseline": 10}) is False
+    # A single detection has no baseline.
+    assert _passes_criteria(_lc(_HI), {"min_time_baseline": 1}) is False
+
+
+def test_filters_passing_criteria_reads_db_filter(public_filter):
+    """DB-backed: the gate loads criteria from a real Filter.altdata row and
+    returns only the filters the alert satisfies."""
+    import asyncio
+
+    import sqlalchemy as sa
+
+    from baselayer.app.models import async_plain_session_factory
+    from skyportal.broker_apis._save import _filters_passing_criteria
+    from skyportal.models import Filter
+
+    fid = public_filter.id
+
+    async def _set_criteria():
+        async with async_plain_session_factory() as session:
+            f = await session.scalar(sa.select(Filter).where(Filter.id == fid))
+            f.altdata = {"criteria": {"min_detections": 2}}
+            await session.commit()
+
+    asyncio.run(_set_criteria())
+
+    async def _passing(data):
+        async with async_plain_session_factory() as session:
+            return await _filters_passing_criteria(session, [fid], data)
+
+    assert asyncio.run(_passing(_lc(_HI, _R8))) == [fid]  # two S/N>=5 detections
+    assert asyncio.run(_passing(_lc(_HI))) == []  # only one
+
+
+def test_ingestion_gate_suppresses_failing_alert(public_filter, super_admin_user):
+    """DB-backed end-to-end: an alert that fails a Filter's criteria creates no
+    Obj/Candidate (the gate returns before any DB write)."""
+    import asyncio
+    import uuid
+
+    import sqlalchemy as sa
+
+    from baselayer.app.models import async_plain_session_factory
+    from skyportal.broker_apis._save import save_object_as_candidate
+    from skyportal.models import Candidate, Filter, Obj, User
+
+    fid = public_filter.id
+    uid = super_admin_user.id
+
+    async def _set_criteria():
+        async with async_plain_session_factory() as session:
+            f = await session.scalar(sa.select(Filter).where(Filter.id == fid))
+            f.altdata = {"criteria": {"min_detections": 5}}
+            await session.commit()
+
+    asyncio.run(_set_criteria())
+
+    obj_id = f"ZTF_gate_{uuid.uuid4().hex[:8]}"
+    # One detection, well under min_detections=5 -> suppressed.
+    data = {
+        "objectId": obj_id,
+        "candidate": {"ra": 1.0, "dec": 2.0, "drb": 0.9},
+        "prv_candidates": [_HI],
+    }
+
+    async def _ingest():
+        async with async_plain_session_factory() as session:
+            user = await session.scalar(sa.select(User).where(User.id == uid))
+            await save_object_as_candidate(
+                data, "ZTF", session, user, [fid], passing_alert_id=1
+            )
+
+    asyncio.run(_ingest())
+
+    async def _fetch():
+        async with async_plain_session_factory() as session:
+            obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            cand = await session.scalar(
+                sa.select(Candidate).where(Candidate.obj_id == obj_id)
+            )
+            return obj, cand
+
+    obj, cand = asyncio.run(_fetch())
+    assert obj is None, "suppressed alert must not create an Obj"
+    assert cand is None, "suppressed alert must not create a Candidate"
 
 
 def test_get_photometry_capability_gated_on_get_alert():

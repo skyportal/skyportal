@@ -189,6 +189,8 @@ class BOOMBROKER(BrokerAPI):
 
     surveys = ["ZTF", "LSST"]
     filter_kind = "pipeline"
+    # cone_search returns BOOM's reference catalogs (Gaia/PS1/AllWISE, ...).
+    cross_match_catalogs = True
 
     form_json_schema_config = {
         "type": "object",
