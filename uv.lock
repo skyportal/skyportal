@@ -332,21 +332,20 @@ wheels = [
 
 [[package]]
 name = "astropy-healpix"
-version = "1.1.3"
+version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "astropy" },
     { name = "numpy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ce/b1/7651302dd47b76d39c053c5a2f645b4a14a1ee1dfe1cc7491bcaa6b9fe20/astropy_healpix-1.1.3.tar.gz", hash = "sha256:f520d83abe8215d3e8e1a37b2bd91171ee36a6f55f110d5a2db863d75d81b3b7", size = 109331, upload-time = "2026-01-19T23:34:18.824Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/06/bb/fb3dcca212b1d57ed26b33eabb9e1cc18fcadbfc2f2976b20530b7d80b90/astropy_healpix-2.0.0.tar.gz", hash = "sha256:6ce7646dc5b1c09a7ed24b1f23d3e2fce8e3570387220d26a24487ab001b3b0b", size = 112064, upload-time = "2026-06-29T20:02:46.407Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/37/2f/481aaeadf28fe7d182b9d17c3101e682565a48ad80fe2af3b04a21860c25/astropy_healpix-1.1.3-cp310-abi3-macosx_10_9_x86_64.whl", hash = "sha256:182b0b6a833afa9daa0c73c8394a2a067da7f42cd27c838e1ced7592979ae934", size = 85014, upload-time = "2026-01-19T23:34:00.498Z" },
-    { url = "https://files.pythonhosted.org/packages/88/7a/3fd2ca70e37546cf6c3fd083b77b30d24578243063b95e82ae7489aef293/astropy_healpix-1.1.3-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:c518d4a8af61097be139fa825ffeb391606207fc0c40e7c60fc078ff620d13a5", size = 82245, upload-time = "2026-01-19T23:34:02.134Z" },
-    { url = "https://files.pythonhosted.org/packages/35/5b/136b7ca67e104e9df0189571e123659decb06737017c212d069785e9769b/astropy_healpix-1.1.3-cp310-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:706d2f17bbc97d5348512482ad5e49620724334163a810f23efa54187bb6176a", size = 189061, upload-time = "2026-01-19T23:34:03.564Z" },
-    { url = "https://files.pythonhosted.org/packages/9c/da/baa3dc875e05ef28e7c3c4aa2154a9a965a9814c56ff4ffe201ce52adb85/astropy_healpix-1.1.3-cp310-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:49dc32289c7fd98c8dbe6794326d9298920dd9212f99d3bcdef31a19a1cde8ea", size = 191032, upload-time = "2026-01-19T23:34:04.802Z" },
-    { url = "https://files.pythonhosted.org/packages/eb/d9/4af8bee6ae902b2cfaa87c46487b030be04b5e8e1a520d4e98d11132cf42/astropy_healpix-1.1.3-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:0c851836c9327065608c73d67fd8c00462d365c368038cd285bc60570d470e1b", size = 186453, upload-time = "2026-01-19T23:34:06.313Z" },
-    { url = "https://files.pythonhosted.org/packages/06/b5/98136f90a60c06709d41c2791bc909c341d2e49fc5ee8cdb41aea136fbef/astropy_healpix-1.1.3-cp310-abi3-win32.whl", hash = "sha256:e9c5a81d936120c8aa11e042da6529a2255708150de515364eba79a5dd094ca1", size = 52583, upload-time = "2026-01-19T23:34:07.782Z" },
-    { url = "https://files.pythonhosted.org/packages/30/cc/0f1fdfc3fc7922387ce3285c459833da502ed3ec976ad30a0bc95632b05c/astropy_healpix-1.1.3-cp310-abi3-win_amd64.whl", hash = "sha256:14133113b137821c1ea1229dc9b1eb9d187ed227ea9c8de60d3eb81296dea67b", size = 54625, upload-time = "2026-01-19T23:34:08.674Z" },
+    { url = "https://files.pythonhosted.org/packages/21/7f/01e4fde0f0dce2c157887ef1998a91d70968d99256f2bedcbd848d506aa8/astropy_healpix-2.0.0-cp310-abi3-macosx_10_9_x86_64.whl", hash = "sha256:0957f2581f9808082daebfe2c4de63c1b53dca422b685b40fa73934ee2fed287", size = 86419, upload-time = "2026-06-29T20:02:31.815Z" },
+    { url = "https://files.pythonhosted.org/packages/f9/04/7405fc509991b053c0fd069c9bf58bcbc7b1a630b6ceec81d62f40ace2d5/astropy_healpix-2.0.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:6ada84cbd02022404d64432b925c303845ada8dbeeac68103c9442714c9ba113", size = 83810, upload-time = "2026-06-29T20:02:32.943Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/d3/6055bf7486e0fc980a2c842fc757918f79b012c3181d6f03b3fe230a2f65/astropy_healpix-2.0.0-cp310-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:6bf86b2cdd9615de0031bc13b33fb72bcf085c5a2c78a6cf27c7a02b9ec05be7", size = 191108, upload-time = "2026-06-29T20:02:34.106Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/9e/0bf5fdb204527abb6ee1ae8f77ce867b1150203864a47c19d0e5bd3ae63a/astropy_healpix-2.0.0-cp310-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:bd3614d685ec2cd629f4e2bbb0e1db625fe878dde778b335ec07ab4754809d78", size = 193204, upload-time = "2026-06-29T20:02:35.261Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/1a/5b8680a2a68df29a38baebd9659c4c4b42f5885c7fcfeb03dc336afb0053/astropy_healpix-2.0.0-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:8ffc56532822414fc6ba9b5e80b7897f98c96762d4ae69f14f5797e18946c26e", size = 188492, upload-time = "2026-06-29T20:02:36.721Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/81/08209195006168e36059daa40d10f38383c1f04feea90acc89dc6a20d38d/astropy_healpix-2.0.0-cp310-abi3-win_amd64.whl", hash = "sha256:788c210b970096f26e582f5bf44a24d3943ee5d9b73b3e54f815dae0d4aeecf7", size = 55308, upload-time = "2026-06-29T20:02:37.781Z" },
 ]
 
 [[package]]
@@ -1646,17 +1645,13 @@ wheels = [
 
 [[package]]
 name = "healpix-alchemy"
-version = "1.1.0"
-source = { registry = "https://pypi.org/simple" }
+version = "1.1.2.dev1+ga8d978914"
+source = { git = "https://github.com/skyportal/healpix-alchemy.git?rev=a8d97891463c73d6e589014e2b5b1d86ca7dfc23#a8d97891463c73d6e589014e2b5b1d86ca7dfc23" }
 dependencies = [
     { name = "astropy" },
     { name = "astropy-healpix" },
     { name = "mocpy" },
     { name = "sqlalchemy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/bd/bf/1dee55e69397604df0ed5ee809d1ffb8913532d6e15c3b94e1ddd5f1ddb3/healpix_alchemy-1.1.0.tar.gz", hash = "sha256:1c578b49dbaba021f614168a00196f890df8b0c70a77415067c0d27618a318b5", size = 19505, upload-time = "2024-04-16T15:22:32.947Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f1/aa/603eca7e3647e918d694158f9512e2d5f40e8a7f74423c33924750087dc8/healpix_alchemy-1.1.0-py3-none-any.whl", hash = "sha256:d6e776930b33791612a59d65067a6d85d0d39662842c62654d765503fc377c7e", size = 11353, upload-time = "2024-04-16T15:22:30.386Z" },
 ]
 
 [[package]]
@@ -4527,7 +4522,7 @@ requires-dist = [
     { name = "google-cloud-bigquery", marker = "extra == 'pittgoogle'", specifier = ">=3.0.0,<4.0.0" },
     { name = "google-cloud-pubsub", marker = "extra == 'pittgoogle'", specifier = ">=2.0.0,<3.0.0" },
     { name = "gwemopt", specifier = "==0.4.1" },
-    { name = "healpix-alchemy", specifier = "==1.1.0" },
+    { name = "healpix-alchemy", git = "https://github.com/skyportal/healpix-alchemy.git?rev=a8d97891463c73d6e589014e2b5b1d86ca7dfc23" },
     { name = "healpy", specifier = "==1.18.1" },
     { name = "humanize", specifier = "==4.14.0" },
     { name = "iminuit", specifier = "==2.32.0" },

@@ -32,7 +32,9 @@ dependencies = [
     "pyproj==3.7.0",
     "sncosmo==2.13.0",
     "tdtax==0.1.7",
-    "healpix-alchemy==1.1.0",
+    # Pinned to the merged tiles_from_uniq commit until 1.2.0 is released to PyPI
+    # (skyportal/healpix-alchemy#152); switch to ==1.2.0 then. Pulls astropy_healpix>=2.
+    "healpix-alchemy @ git+https://github.com/skyportal/healpix-alchemy.git@a8d97891463c73d6e589014e2b5b1d86ca7dfc23",
     "mocpy==0.18.0",
     "obspy==1.5.0",
     "conesearch-alchemy==1.1.0",
