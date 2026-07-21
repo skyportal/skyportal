@@ -15,7 +15,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import { filterOutEmptyValues } from "../API";
+import { buildQueryString, filterOutEmptyValues } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { findCachedQueryArg, invalidateOnMessage } from "../api/wsInvalidation";
 
@@ -52,9 +52,7 @@ const addFilterParamDefaults = (filterParams: FilterParams): FilterParams => {
 /** Build a `/api/sources?...` URL from a filterParams object. */
 const buildSourcesUrl = (params: FilterParams, removeFalse = true): string => {
   const filtered = filterOutEmptyValues(params, true, removeFalse);
-  const queryString = new URLSearchParams(
-    filtered as Record<string, string>,
-  ).toString();
+  const queryString = buildQueryString(filtered);
   return `/api/sources?${queryString}`;
 };
 

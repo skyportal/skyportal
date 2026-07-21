@@ -16,6 +16,7 @@
  * messages are bridged to cache invalidation via `invalidateOnMessage`, so only
  * the active (currently-loaded) source's queries refetch.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -86,9 +87,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
       number | string
     >({
       query: (id) => {
-        const queryString = new URLSearchParams(
-          sourceIncludeParams as unknown as Record<string, string>,
-        ).toString();
+        const queryString = buildQueryString(sourceIncludeParams);
         return `api/sources/${id}?${queryString}`;
       },
       // Provides both the broad "Source" tag (so the existing mutations, which
