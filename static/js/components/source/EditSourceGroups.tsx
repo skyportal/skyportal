@@ -16,7 +16,7 @@ import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import * as sourceActions from "../../ducks/source";
+import { useUpdateSourceGroupsMutation } from "../../ducks/source";
 import FormValidationError from "../FormValidationError";
 
 const useStyles = makeStyles()(() => ({
@@ -47,6 +47,7 @@ const EditSourceGroups = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState("");
   const dispatch = useAppDispatch();
+  const [updateSourceGroups] = useUpdateSourceGroupsMutation();
 
   const {
     handleSubmit,
@@ -65,6 +66,7 @@ const EditSourceGroups = ({
   );
 
   useEffect(() => {
+    if (!dialogOpen) return;
     reset({
       inviteGroupIds: Array(
         groups?.filter((g) => !source.currentGroupIds.includes(g.id)).length,
@@ -73,7 +75,8 @@ const EditSourceGroups = ({
         groups?.filter((g) => source.currentGroupIds.includes(g.id)).length,
       ).fill(false),
     });
-  }, [reset, groups, source]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen]);
 
   const openDialog = () => {
     setDialogOpen(true);
@@ -109,13 +112,13 @@ const EditSourceGroups = ({
       (_ID, idx) => data.unsaveGroupIds[idx],
     );
     data.unsaveGroupIds = unsaveGroupIds;
-    const result: any = await dispatch(sourceActions.updateSourceGroups(data));
-    if (result.status === "success") {
+    try {
+      await updateSourceGroups(data).unwrap();
       dispatch(showNotification("Source groups updated successfully", "info"));
       reset();
       setIsSubmitting(false);
       setDialogOpen(false);
-    } else if (result.status === "error") {
+    } catch {
       setIsSubmitting(false);
     }
   };
@@ -160,12 +163,14 @@ const EditSourceGroups = ({
             label="Search groups"
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              },
             }}
             data-testid="searchGroupsInput"
           />

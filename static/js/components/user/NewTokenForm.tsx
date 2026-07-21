@@ -13,10 +13,9 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 */
 import { Controller, useForm } from "react-hook-form";
-import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 
-import * as ProfileActions from "../../ducks/profile";
+import { useCreateTokenMutation } from "../../ducks/profile";
 
 interface NewTokenFormProps {
   availableAcls: string[];
@@ -24,7 +23,7 @@ interface NewTokenFormProps {
 
 // const NewTokenForm = ({ acls, groups }) => {
 const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
-  const dispatch = useAppDispatch();
+  const [createToken] = useCreateTokenMutation();
 
   const {
     handleSubmit,
@@ -37,7 +36,7 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
 
   useEffect(() => {
     reset({
-      acls: Array(availableAcls.length).fill(false),
+      acls: Array(availableAcls?.length ?? 0).fill(false),
     });
   }, [reset, availableAcls]);
 
@@ -54,9 +53,11 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
     }
     */
 
-    const result: any = await dispatch(ProfileActions.createToken(data));
-    if (result.status === "success") {
+    try {
+      await createToken(data).unwrap();
       reset();
+    } catch {
+      // error notification handled by the API layer
     }
   };
 
@@ -65,7 +66,6 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
       <Typography variant="h5">
         Generate New Token for Command-Line Authentication
       </Typography>
-
       <Card>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)}>
@@ -79,7 +79,13 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
               />
             </Box>
             <Box>
-              <Box component="span" mr={1} fontWeight="bold">
+              <Box
+                component="span"
+                sx={{
+                  mr: 1,
+                  fontWeight: "bold",
+                }}
+              >
                 ACLs:
               </Box>
               {availableAcls?.map((acl, idx) => (

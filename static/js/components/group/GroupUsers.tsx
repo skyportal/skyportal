@@ -12,19 +12,19 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 
-import { useAppSelector } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
 import ManageUserButtons from "./GroupPageManageUserButtons";
 import NewGroupUserForm from "./NewGroupUserForm";
 import InviteNewGroupUserForm from "./InviteNewGroupUserForm";
 import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
 import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
+import { useGetConfigQuery } from "../../ducks/config";
 
 interface GroupUsersProps {
   group: {
     id?: number;
     name?: string;
-    nickname?: string;
+    nickname?: string | null;
     users?: any[];
   };
   classes: Record<string, any>;
@@ -50,9 +50,7 @@ const GroupUsers = ({
   const [openedPopoverId, setOpenedPopoverId] = React.useState<any>(null);
   const [panelMembersExpanded, setPanelMembersExpanded] =
     React.useState<any>("panel-members");
-  const { invitationsEnabled } = useAppSelector(
-    (state) => state["config"],
-  ) as any;
+  const { invitationsEnabled } = (useGetConfigQuery().data as any) ?? {};
 
   const handlePopoverOpen = (event: any, popoverId: any) => {
     setOpenedPopoverId(popoverId);
@@ -76,11 +74,7 @@ const GroupUsers = ({
 
   const renderUsername = (params: any) => {
     const user = params.row;
-    return (
-      <Link to={`/user/${user.id}`} className={classes["filterLink"]}>
-        {user.username}
-      </Link>
-    );
+    return <Link to={`/user/${user.id}`}>{user.username}</Link>;
   };
 
   const renderAdmin = (params: any) => {
@@ -88,8 +82,8 @@ const GroupUsers = ({
     return (
       user &&
       user.admin && (
-        <div style={{ display: "inline-block" }} id={`${user.id}-admin-chip`}>
-          <Chip label="Admin" size="small" color="secondary" />
+        <div id={`${user.id}-admin-chip`}>
+          <Chip label="Admin" size="small" color="primary" />
         </div>
       )
     );
@@ -201,6 +195,7 @@ const GroupUsers = ({
         aria-controls="panel-members-content"
         id="panel-members-header"
         className={classes["accordion_summary"]}
+        data-testid="tour-group-members"
       >
         <Typography className={classes["heading"]}>Members</Typography>
       </AccordionSummary>

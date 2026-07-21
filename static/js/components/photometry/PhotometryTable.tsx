@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import Slide from "@mui/material/Slide";
@@ -16,21 +16,21 @@ import Button from "@mui/material/Button";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import UpdatePhotometry from "./UpdatePhotometry";
 import PhotometryValidation from "./PhotometryValidation";
 import PhotometryMagsys from "./PhotometryMagsys";
 import PhotometryExtinction from "./PhotometryExtinction";
 import PhotometryDownload from "./PhotometryDownload";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import * as Actions from "../../ducks/photometry";
+import {
+  useFetchSourcePhotometryQuery,
+  useDeletePhotometryMutation,
+} from "../../ducks/photometry";
 import { mjd_to_utc } from "../../units";
+import { useGetConfigQuery } from "../../ducks/config";
+import { useGetProfileQuery } from "../../ducks/profile";
 
 const DEFAULT_HIDDEN_COLUMNS = [
   "instrument_id",
@@ -67,9 +67,17 @@ const isFloat = (x: any) =>
 // floats are fixed to 6 (or 8 for *jd* columns) decimals, and altdata objects
 // are stringified. Used as a DataGrid valueFormatter so sorting still operates
 // on the underlying numeric/object value.
+const COLUMN_PRECISION: Record<string, number> = {
+  mjd: 3,
+  mag: 4,
+  magerr: 4,
+  limiting_mag: 2,
+};
+
 const formatCell = (key: string) => (value: any) => {
   if (isFloat(value)) {
-    return value.toFixed(key.includes("jd") ? 8 : 6);
+    const precision = COLUMN_PRECISION[key] ?? 6;
+    return value.toFixed(precision);
   }
   if (key === "altdata" && typeof value === "object" && value !== null) {
     return JSON.stringify(value);
@@ -94,19 +102,43 @@ const PhotometryTable = ({
   setMagsys = null,
   t0 = null,
 }: PhotometryTableProps) => {
-  const { usePhotometryValidation } = useAppSelector(
-    (state) => state["config"],
-  ) as any;
-  const photometry = useAppSelector((state) => state["photometry"]) as any;
+  const { usePhotometryValidation } = (useGetConfigQuery().data as any) ?? {};
+
+  const { id: currentUserId, permissions = [] } =
+    (useGetProfileQuery().data as any) ?? {};
+  // Update/delete of a photometry point requires being its owner, holding the
+  // "Manage photometry" ACL, or being a System admin (see
+  // manage_photometry_access_logic in skyportal/models/photometry.py). Read
+  // access is broader, so only show the edit/delete controls when the user can
+  // actually modify the point.
+  const canManagePhotometry = (phot: any) =>
+    permissions.includes("System admin") ||
+    permissions.includes("Manage photometry") ||
+    (phot?.owner?.id != null && phot.owner.id === currentUserId);
 
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [deletePhotometry] = useDeletePhotometryMutation();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<any>(false);
   const [downloadOptionsOpen, setDownloadOptionsOpen] = useState(false);
   const [showExtinction, setShowExtinction] = useState(false);
 
-  const data = useMemo(() => photometry[obj_id] || [], [photometry, obj_id]);
+  const queryParams = useMemo<any>(() => {
+    const params: any = {};
+    if (showExtinction) {
+      params.includeExtinction = true;
+    }
+    if (magsys) {
+      params.magsys = magsys;
+    }
+    return params;
+  }, [showExtinction, magsys]);
+
+  const { data: photometryData } = useFetchSourcePhotometryQuery(
+    { id: obj_id, params: queryParams },
+    { skip: !obj_id || !open },
+  );
+  const data = useMemo(() => photometryData ?? [], [photometryData]);
 
   // DataGrid persists column visibility itself; seed it with the columns that
   // were hidden by default in the old table.
@@ -117,31 +149,15 @@ const PhotometryTable = ({
     }, {}),
   );
 
-  useEffect(() => {
-    if (obj_id && open) {
-      const params: any = {
-        includeOwnerInfo: true,
-        includeStreamInfo: true,
-        includeValidationInfo: true,
-      };
-
-      if (showExtinction) {
-        params.includeExtinction = true;
-      }
-
-      if (magsys) {
-        params.magsys = magsys;
-      }
-
-      dispatch(Actions.fetchSourcePhotometry(obj_id, params));
-    }
-  }, [showExtinction, obj_id, open, magsys, dispatch]);
-
   const handleDelete = async () => {
     if (!deleteDialogOpen) {
       return;
     }
-    await dispatch(Actions.deletePhotometry(deleteDialogOpen));
+    try {
+      await deletePhotometry(deleteDialogOpen).unwrap();
+    } catch {
+      // error notification handled by the baseQuery
+    }
     setDeleteDialogOpen(false);
   };
   const closeDeleteDialog = () => {
@@ -189,7 +205,7 @@ const PhotometryTable = ({
     }
 
     // Pick up any extra keys present in the data that we did not enumerate.
-    Object.keys(data[0]).forEach((key) => {
+    Object.keys(data[0] ?? {}).forEach((key) => {
       const extinctionColumns = ["extinction", "mag_corr", "flux_corr"];
       const excludedKeys = [
         "groups",
@@ -270,15 +286,14 @@ const PhotometryTable = ({
         sortable: false,
         renderCell: (params: any) => {
           const phot = params.row;
-          let statusIcon = null;
-          if (phot?.validations.length === 0) {
+          const validation = phot?.validations?.[0];
+          let statusIcon = <QuestionMarkIcon color="primary" />;
+          if (!validation) {
             statusIcon = <PriorityHigh color="primary" />;
-          } else if (phot?.validations[0]?.validated === true) {
+          } else if (validation.validated === true) {
             statusIcon = <CheckIcon {...({ color: "green" } as any)} />;
-          } else if (phot?.validations[0]?.validated === false) {
+          } else if (validation.validated === false) {
             statusIcon = <ClearIcon color="secondary" />;
-          } else {
-            statusIcon = <QuestionMarkIcon color="primary" />;
           }
           return (
             <div
@@ -303,7 +318,7 @@ const PhotometryTable = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) =>
-          row?.validations.length === 0 ? "" : row?.validations[0]?.explanation,
+          row?.validations?.[0]?.explanation || "",
       });
 
       cols.push({
@@ -312,7 +327,7 @@ const PhotometryTable = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) =>
-          row?.validations.length === 0 ? "" : row?.validations[0]?.notes,
+          row?.validations?.[0]?.notes || "",
       });
     }
 
@@ -325,6 +340,9 @@ const PhotometryTable = ({
       filterable: false,
       renderCell: (params: any) => {
         const phot = params.row;
+        if (!canManagePhotometry(phot)) {
+          return null;
+        }
         return (
           <div className={classes.manage}>
             <div>
@@ -340,7 +358,7 @@ const PhotometryTable = ({
                   onClick={() => setDeleteDialogOpen(phot.id)}
                   size="small"
                   type="submit"
-                  data-testid={`deleteRequest_${photometry.id}`}
+                  data-testid={`deleteRequest_${phot.id}`}
                   {...({ primary: true } as any)}
                 >
                   <DeleteIcon />
@@ -360,16 +378,16 @@ const PhotometryTable = ({
     usePhotometryValidation,
     magsys,
     deleteDialogOpen,
-    photometry.id,
     classes.manage,
+    currentUserId,
+    permissions,
   ]);
 
   const CustomToolbar = useMemo(
     () =>
       function PhotometryTableToolbar() {
         return (
-          <GridToolbarContainer>
-            <GridToolbarColumnsButton />
+          <DataGridToolbar showQuickFilter showExport>
             <Button
               size="small"
               startIcon={<DownloadIcon />}
@@ -388,14 +406,14 @@ const PhotometryTable = ({
                 <CloseIcon />
               </IconButton>
             </Tooltip>
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
     [onClose],
   );
 
   let bodyContent = null;
-  if (!Object.keys(photometry).includes(obj_id)) {
+  if (photometryData == null) {
     bodyContent = (
       <div>
         <CircularProgress color="secondary" />
@@ -453,6 +471,7 @@ const PhotometryTable = ({
           objId={obj_id}
           usePhotometryValidation={usePhotometryValidation}
           onDownload={handleDownloadClose}
+          t0={t0}
         />
       </div>
     );
@@ -463,7 +482,9 @@ const PhotometryTable = ({
       fullScreen
       open={open}
       onClose={onClose}
-      TransitionComponent={Transition}
+      slots={{
+        transition: Transition,
+      }}
     >
       <DialogContent>{bodyContent}</DialogContent>
     </Dialog>

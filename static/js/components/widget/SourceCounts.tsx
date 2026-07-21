@@ -5,9 +5,13 @@ import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 
-import { useAppSelector } from "../../types/hooks";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
-import * as profileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
+import { useGetSourceCountsQuery } from "../../ducks/sourceCounts";
+import { useActiveTeam } from "../../ducks/teams";
 
 const useStyles = makeStyles()(() => ({
   counter: {
@@ -36,12 +40,13 @@ interface SourceCountsProps {
 
 const SourceCounts = ({ classes, sinceDaysAgo }: SourceCountsProps) => {
   const { classes: styles } = useStyles();
-  const sourceCounts = useAppSelector(
-    (state) => (state as any).sourceCounts?.sourceCounts,
+  const { activeTeam } = useActiveTeam();
+  const { data: sourceCounts } = useGetSourceCountsQuery(
+    activeTeam ? { teamID: activeTeam.id } : undefined,
   );
-  const userPrefs = useAppSelector(
-    (state) => (state.profile.preferences as any).sourceCounts,
-  );
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const userPrefs = (profile?.preferences as any)?.sourceCounts;
 
   const defaultPrefs = {
     sinceDaysAgo: sinceDaysAgo ? sinceDaysAgo.toString() : "",
@@ -62,7 +67,7 @@ const SourceCounts = ({ classes, sinceDaysAgo }: SourceCountsProps) => {
               initialValues={sourceCountPrefs}
               stateBranchName="sourceCounts"
               title="Source Count Preferences"
-              onSubmit={profileActions.updateUserPreferences}
+              onSubmit={updateUserPreferences}
             />
           </div>
         </div>

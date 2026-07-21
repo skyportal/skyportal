@@ -1,67 +1,95 @@
-import messageHandler from "baselayer/MessageHandler";
-import * as API from "../API";
-import store from "../store";
+/**
+ * Object tags: the list of available tag *options* (`objtagoption`) plus the
+ * mutations that create/update/delete those options and that attach/detach a
+ * tag to a specific object (`objtag`).
+ *
+ * RTK Query conversion of the old `objectTags` duck. The list query provides
+ * the `ObjTagOption` tag; mutations on tag options invalidate it. Adding or
+ * removing a tag on an object touches per-source tag state, so those mutations
+ * invalidate `SourceTag`/`ObjTag` (consumers that read source slices still
+ * refetch those manually where needed).
+ *
+ * The websocket `FETCH_TAG_OPTIONS` message is bridged to cache invalidation of
+ * `ObjTagOption` via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-const FETCH_TAG_OPTIONS = "skyportal/FETCH_TAG_OPTIONS";
-const FETCH_TAG_OPTIONS_OK = "skyportal/FETCH_TAG_OPTIONS_OK";
-
-const CREATE_TAG_OPTION = "skyportal/CREATE_TAG_OPTION";
-const CREATE_TAG_OPTION_OK = "skyportal/CREATE_TAG_OPTION_OK";
-
-const UPDATE_TAG_OPTION = "skyportal/UPDATE_TAG_OPTION";
-const DELETE_TAG_OPTION = "skyportal/DELETE_TAG_OPTION";
-
-const ADD_OBJECT_TAG = "skyportal/ADD_OBJECT_TAG";
-
-const DELETE_OBJECT_TAG = "skyportal/DELETE_OBJECT_TAG";
-
-export function fetchTagOptions() {
-  return API.GET("/api/objtagoption", FETCH_TAG_OPTIONS);
-}
-
-export function createTagOption(data: any) {
-  return API.POST("/api/objtagoption", CREATE_TAG_OPTION, data);
-}
-
-export function updateTagOption(data: any) {
-  return API.PATCH(`/api/objtagoption/${data.id}`, UPDATE_TAG_OPTION, data);
-}
-
-export function deleteTagOption(data: any) {
-  return API.DELETE(`/api/objtagoption/${data.id}`, DELETE_TAG_OPTION, data);
-}
-
-export function addObjectTag(data: any) {
-  return API.POST("/api/objtag", ADD_OBJECT_TAG, data);
-}
-
-export function deleteObjectTag(data: any) {
-  return API.DELETE(`/api/objtag/${data.id}`, DELETE_OBJECT_TAG, data);
-}
-
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === FETCH_TAG_OPTIONS) {
-    dispatch(fetchTagOptions());
-  }
+export const objectTagsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getTagOptions: build.query<RouteData<"GET /api/objtagoption">, void>({
+      query: () => "api/objtagoption",
+      transformResponse: (data: RouteData<"GET /api/objtagoption">) =>
+        data ?? [],
+      providesTags: ["ObjTagOption"],
+    }),
+    createTagOption: build.mutation<
+      RouteData<"POST /api/objtagoption">,
+      Record<string, unknown>
+    >({
+      query: (data) => ({
+        url: "api/objtagoption",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["ObjTagOption"],
+    }),
+    updateTagOption: build.mutation<
+      unknown,
+      { id: number | string } & Record<string, unknown>
+    >({
+      query: (data) => ({
+        url: `api/objtagoption/${data.id}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: ["ObjTagOption"],
+    }),
+    deleteTagOption: build.mutation<
+      unknown,
+      { id: number | string } & Record<string, unknown>
+    >({
+      query: (data) => ({
+        url: `api/objtagoption/${data.id}`,
+        method: "DELETE",
+        body: data,
+      }),
+      invalidatesTags: ["ObjTagOption", "ObjTag", "SourceTag"],
+    }),
+    addObjectTag: build.mutation<
+      RouteData<"POST /api/objtag">,
+      Record<string, unknown>
+    >({
+      query: (data) => ({
+        url: "api/objtag",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["ObjTag", "SourceTag"],
+    }),
+    deleteObjectTag: build.mutation<
+      unknown,
+      { id: number | string } & Record<string, unknown>
+    >({
+      query: (data) => ({
+        url: `api/objtag/${data.id}`,
+        method: "DELETE",
+        body: data,
+      }),
+      invalidatesTags: ["ObjTag", "SourceTag"],
+    }),
+  }),
 });
 
-interface ObjectTagsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
+// Websocket: old handler refetched the tag options on FETCH_TAG_OPTIONS.
+invalidateOnMessage("skyportal/FETCH_TAG_OPTIONS", () => ["ObjTagOption"]);
 
-const reducer = (state: any[] = [], action: ObjectTagsAction): any[] => {
-  switch (action.type) {
-    case FETCH_TAG_OPTIONS_OK: {
-      return action.data || [];
-    }
-    case CREATE_TAG_OPTION_OK: {
-      return [...state, action.data];
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("objectTags", reducer);
+export const {
+  useGetTagOptionsQuery,
+  useCreateTagOptionMutation,
+  useUpdateTagOptionMutation,
+  useDeleteTagOptionMutation,
+  useAddObjectTagMutation,
+  useDeleteObjectTagMutation,
+} = objectTagsApi;

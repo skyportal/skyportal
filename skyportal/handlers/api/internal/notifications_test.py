@@ -24,7 +24,7 @@ if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
 
 class NotificationTestHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    async def post(self):
         """
         ---
         description: Post user test notifications
@@ -83,8 +83,8 @@ class NotificationTestHandler(BaseHandler):
         if notification_type == "SMS" and client is None:
             return self.error("SMS not enabled in application")
 
-        with self.Session() as session:
-            user = session.scalar(sa.select(User).where(User.id == user_id))
+        async with self.AsyncSession() as session:
+            user = await session.scalar(sa.select(User).where(User.id == user_id))
 
             try:
                 if notification_type == "email":

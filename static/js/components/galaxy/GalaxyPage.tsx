@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useState } from "react";
+import { useAppDispatch } from "../../types/hooks";
 import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -22,7 +23,11 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import GalaxyTable from "./GalaxyTable";
 import NewGalaxy from "./NewGalaxy";
 
-import * as galaxiesActions from "../../ducks/galaxies";
+import {
+  useGetGalaxiesQuery,
+  useGetGalaxyCatalogsQuery,
+  useDeleteCatalogMutation,
+} from "../../ducks/galaxies";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -117,18 +122,16 @@ const DialogTitle = withStyles(
   dialogTitleStyles,
 );
 
-interface GalaxyListProps {
-  catalogs?: any[] | null;
-  setCatalogs: (...a: any[]) => void;
-}
-
-const GalaxyList = ({ catalogs = null, setCatalogs }: GalaxyListProps) => {
+const GalaxyList = () => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
   const { classes: textClasses } = textStyles();
 
-  const currentUser = useAppSelector((state) => state.profile);
-  const permission = currentUser.permissions?.includes("System admin");
+  const { data: currentUser } = useGetProfileQuery();
+  const permission = currentUser?.permissions?.includes("System admin");
+
+  const { data: catalogs } = useGetGalaxyCatalogsQuery();
+  const [deleteCatalogMutation] = useDeleteCatalogMutation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [catalogToDelete, setCatalogToDelete] = useState<any>(null);
@@ -148,17 +151,16 @@ const GalaxyList = ({ catalogs = null, setCatalogs }: GalaxyListProps) => {
     setOpenNew(false);
   };
 
-  const deleteCatalog = () => {
-    dispatch(galaxiesActions.deleteCatalog(catalogToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Catalog deleting... please be patient."));
-          const cat: any = dispatch(galaxiesActions.fetchCatalogs());
-          setCatalogs(cat.data);
-          closeDialog();
-        }
-      },
-    );
+  const deleteCatalog = async () => {
+    try {
+      await deleteCatalogMutation(catalogToDelete).unwrap();
+      dispatch(showNotification("Catalog deleting... please be patient."));
+      // The mutation invalidates the Galaxies tag, which refetches the catalog
+      // list automatically.
+      closeDialog();
+    } catch {
+      // error notification handled by the baseQuery
+    }
   };
 
   if (!Array.isArray(catalogs)) {
@@ -184,7 +186,7 @@ const GalaxyList = ({ catalogs = null, setCatalogs }: GalaxyListProps) => {
         {catalogs?.map((catalog: any) => (
           <ListItem
             {...({ button: true } as any)}
-            key={catalog}
+            key={catalog.catalog_name}
             className={classes.galaxyListItem}
           >
             <ListItemText
@@ -193,11 +195,7 @@ const GalaxyList = ({ catalogs = null, setCatalogs }: GalaxyListProps) => {
               classes={textClasses}
             />
             {permission && (
-              <IconButton
-                id="delete_button"
-                onClick={() => openDialog(catalog.catalog_name)}
-                disabled={!permission}
-              >
+              <IconButton onClick={() => openDialog(catalog.catalog_name)}>
                 <DeleteIcon />
               </IconButton>
             )}
@@ -225,45 +223,33 @@ const GalaxyList = ({ catalogs = null, setCatalogs }: GalaxyListProps) => {
 const defaultNumPerPage = 10;
 
 const GalaxyPage = () => {
-  const galaxies = useAppSelector((state) => state["galaxies"]?.galaxies);
-  const dispatch = useAppDispatch();
   const { classes } = useStyles();
-  const [catalogs, setCatalogs] = useState<any[]>([]);
 
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,
     numPerPage: defaultNumPerPage,
   });
 
-  const handlePageChange = async (page: number, numPerPage: number) => {
-    const params = {
-      ...fetchParams,
+  const { data: galaxies } = useGetGalaxiesQuery(fetchParams);
+
+  const handlePageChange = (page: number, numPerPage: number) => {
+    setFetchParams((prev: any) => ({
+      ...prev,
       numPerPage,
       pageNumber: page + 1,
-    };
-    // Save state for future
-    setFetchParams(params);
-    await dispatch(galaxiesActions.fetchGalaxies(params));
+    }));
   };
 
-  useEffect(() => {
-    dispatch(galaxiesActions.fetchGalaxies());
-  }, [dispatch]);
-
-  useEffect(() => {
-    const fetchCatalogs = async () => {
-      const result: any = await dispatch(galaxiesActions.fetchCatalogs());
-      setCatalogs(result.data);
-    };
-    fetchCatalogs();
-  }, [dispatch]);
-
-  useEffect(() => {
-    handlePageChange(0, fetchParams.numPerPage);
-  }, []);
+  const handleFilterSubmit = (data: any) => {
+    setFetchParams((prev: any) => ({
+      ...prev,
+      ...data,
+      pageNumber: 1,
+    }));
+  };
 
   if (!galaxies) {
-    return <p>No galaxies available...</p>;
+    return "No galaxies available...";
   }
 
   const handleTableChange = (action: string, tableState: any) => {
@@ -277,7 +263,7 @@ const GalaxyPage = () => {
       <Grid size={{ md: 3, sm: 12 }}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
-            <GalaxyList catalogs={catalogs} setCatalogs={setCatalogs} />
+            <GalaxyList />
           </div>
         </Paper>
       </Grid>
@@ -288,6 +274,7 @@ const GalaxyPage = () => {
               galaxies={galaxies.galaxies}
               pageNumber={fetchParams.pageNumber}
               numPerPage={fetchParams.numPerPage}
+              onFilterSubmit={handleFilterSubmit}
               {...({ handleTableChange } as any)}
               totalMatches={galaxies.totalMatches}
               showTitle

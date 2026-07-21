@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Chip from "@mui/material/Chip";
@@ -7,8 +8,16 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as gcnEventActions from "../../ducks/gcnEvent";
+import { useAppDispatch } from "../../types/hooks";
+import {
+  usePutGcnTriggerMutation,
+  useDeleteGcnTriggerMutation,
+} from "../../ducks/gcnEvent";
+import {
+  useGetAllocationsQuery,
+  useGetAllocationsApiObsplanQuery,
+} from "../../ducks/allocations";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -89,20 +98,21 @@ const GcnEventAllocationTriggers = ({
 }: GcnEventAllocationTriggersProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [putGcnTrigger] = usePutGcnTriggerMutation();
+  const [deleteGcnTrigger] = useDeleteGcnTriggerMutation();
 
-  const currentUser = useAppSelector((state) => state.profile);
-  const { allocationListApiObsplan } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const { allocationList } = useAppSelector((state) => state["allocations"]);
+  const { data: currentUser } = useGetProfileQuery();
+  const { data: allocationListApiObsplan = [] } =
+    useGetAllocationsApiObsplanQuery();
+  const { data: allocationList = [] } = useGetAllocationsQuery();
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
   const [selectedInstrument, setSelectedInstrument] = useState<any>(null);
 
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage allocations");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage allocations");
 
   const instNameLookUp: Record<string, any> = {};
   instrumentList?.forEach((instrumentObj: any) => {
@@ -300,29 +310,28 @@ const GcnEventAllocationTriggers = ({
                       clickable
                       className={classes.triggered}
                       onClick={() => {
-                        dispatch(
-                          gcnEventActions.putGcnTrigger({
-                            dateobs: gcnEvent.dateobs,
-                            allocationID: allocationTrigger?.allocation?.id,
-                            triggered: true,
-                          }),
-                        ).then((response: any) => {
-                          if (response.status === "success") {
+                        putGcnTrigger({
+                          dateobs: gcnEvent.dateobs,
+                          allocationID: allocationTrigger?.allocation?.id,
+                          triggered: true,
+                        })
+                          .unwrap()
+                          .then(() => {
                             dispatch(
                               showNotification(
                                 "Trigger state updated successfully",
                               ),
                             );
                             setSelectedInstrument(null);
-                          } else {
+                          })
+                          .catch(() => {
                             dispatch(
                               showNotification(
                                 "Error updating trigger state",
                                 "error",
                               ),
                             );
-                          }
-                        });
+                          });
                       }}
                       style={{
                         display:
@@ -339,29 +348,28 @@ const GcnEventAllocationTriggers = ({
                       clickable
                       className={classes.passed}
                       onClick={() => {
-                        dispatch(
-                          gcnEventActions.putGcnTrigger({
-                            dateobs: gcnEvent.dateobs,
-                            allocationID: allocationTrigger?.allocation?.id,
-                            triggered: false,
-                          }),
-                        ).then((response: any) => {
-                          if (response.status === "success") {
+                        putGcnTrigger({
+                          dateobs: gcnEvent.dateobs,
+                          allocationID: allocationTrigger?.allocation?.id,
+                          triggered: false,
+                        })
+                          .unwrap()
+                          .then(() => {
                             dispatch(
                               showNotification(
                                 "Trigger state updated successfully",
                               ),
                             );
                             setSelectedInstrument(null);
-                          } else {
+                          })
+                          .catch(() => {
                             dispatch(
                               showNotification(
                                 "Error updating trigger state",
                                 "error",
                               ),
                             );
-                          }
-                        });
+                          });
                       }}
                       style={{
                         display:
@@ -378,28 +386,27 @@ const GcnEventAllocationTriggers = ({
                       clickable
                       className={classes.not_set}
                       onClick={() => {
-                        dispatch(
-                          gcnEventActions.deleteGcnTrigger({
-                            dateobs: gcnEvent.dateobs,
-                            allocationID: allocationTrigger?.allocation?.id,
-                          }),
-                        ).then((response: any) => {
-                          if (response.status === "success") {
+                        deleteGcnTrigger({
+                          dateobs: gcnEvent.dateobs,
+                          allocationID: allocationTrigger?.allocation?.id,
+                        })
+                          .unwrap()
+                          .then(() => {
                             dispatch(
                               showNotification(
                                 "Trigger state updated successfully",
                               ),
                             );
                             setSelectedInstrument(null);
-                          } else {
+                          })
+                          .catch(() => {
                             dispatch(
                               showNotification(
                                 "Error updating trigger state",
                                 "error",
                               ),
                             );
-                          }
-                        });
+                          });
                       }}
                       style={{
                         display:

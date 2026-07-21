@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -11,7 +12,7 @@ import MenuItem from "@mui/material/MenuItem";
 import { Controller, useForm } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
@@ -19,8 +20,18 @@ import SpatialCatalogTable from "./SpatialCatalogTable";
 import NewSpatialCatalog from "./NewSpatialCatalog";
 import SourceTable from "../source/SourceTable";
 
-import * as spatialCatalogsActions from "../../ducks/spatialCatalogs";
-import * as sourcesActions from "../../ducks/sources";
+import {
+  useGetSpatialCatalogsQuery,
+  useGetSpatialCatalogQuery,
+  useDeleteSpatialCatalogMutation,
+} from "../../ducks/spatialCatalogs";
+import { useFetchSpatialCatalogSourcesQuery } from "../../ducks/sources";
+
+interface SpatialCatalogSourcesArgs {
+  catalogName: string;
+  entryName: string;
+  filterParams?: any;
+}
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -70,67 +81,37 @@ const textStyles = makeStyles()(() => ({
 }));
 
 interface SpatialCatalogSourcesPageProps {
-  selectedSpatialCatalogId?: number | null;
-  selectedSpatialCatalogEntryId?: number | null;
-  spatialCatalogs: any[];
-  spatialCatalog?: any;
+  sourcesArgs: SpatialCatalogSourcesArgs | null;
+  setSourcesArgs: (args: SpatialCatalogSourcesArgs) => void;
 }
 
 const SpatialCatalogSourcesPage = ({
-  spatialCatalogs,
-  spatialCatalog = null,
-  selectedSpatialCatalogId = null,
-  selectedSpatialCatalogEntryId = null,
+  sourcesArgs,
+  setSourcesArgs,
 }: SpatialCatalogSourcesPageProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
-  const [spatialCatalogName, setSpatialCatalogName] = useState<any>(null);
-  const [spatialCatalogEntryName, setSpatialCatalogEntryName] =
-    useState<any>(null);
 
-  const spatialCatalogSources = useAppSelector(
-    (state) => (state as any)?.sources?.spatialCatalogSources,
+  const { data: spatialCatalogSources } = useFetchSpatialCatalogSourcesQuery(
+    sourcesArgs!,
+    { skip: sourcesArgs == null },
   );
 
-  const spatialCatalogsLookUp: Record<string, any> = {};
-
-  spatialCatalogs?.forEach((catalog: any) => {
-    spatialCatalogsLookUp[catalog.id] = catalog;
-  });
-
-  useEffect(() => {
-    if (selectedSpatialCatalogId) {
-      setSpatialCatalogName(
-        spatialCatalogsLookUp[selectedSpatialCatalogId]?.catalog_name,
-      );
-    }
-  }, [selectedSpatialCatalogId]);
-
-  useEffect(() => {
-    if (selectedSpatialCatalogEntryId) {
-      setSpatialCatalogEntryName(
-        spatialCatalog?.entries?.filter(
-          (l: any) => l.id === selectedSpatialCatalogEntryId,
-        )[0]?.entry_name,
-      );
-    }
-  }, [selectedSpatialCatalogEntryId]);
-
   const handleSourcesTableSorting = (sortData: any, filterData: any) => {
-    dispatch(
-      sourcesActions.fetchSpatialCatalogSources(
-        spatialCatalogName,
-        spatialCatalogEntryName,
-        {
-          ...filterData,
-          pageNumber: 1,
-          numPerPage: sourcesRowsPerPage,
-          sortBy: sortData.name,
-          sortOrder: sortData.direction,
-        },
-      ),
-    );
+    if (sourcesArgs == null) {
+      return;
+    }
+    setSourcesArgs({
+      catalogName: sourcesArgs.catalogName,
+      entryName: sourcesArgs.entryName,
+      filterParams: {
+        ...filterData,
+        pageNumber: 1,
+        numPerPage: sourcesRowsPerPage,
+        sortBy: sortData.name,
+        sortOrder: sortData.direction,
+      },
+    });
   };
 
   const handleSourcesTablePagination = (
@@ -139,6 +120,9 @@ const SpatialCatalogSourcesPage = ({
     sortData: any,
     filterData: any,
   ) => {
+    if (sourcesArgs == null) {
+      return;
+    }
     setSourcesRowsPerPage(numPerPage);
     const data: any = {
       ...filterData,
@@ -149,16 +133,17 @@ const SpatialCatalogSourcesPage = ({
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
-    dispatch(
-      sourcesActions.fetchSpatialCatalogSources(
-        spatialCatalogName,
-        spatialCatalogEntryName,
-        data,
-      ),
-    );
+    setSourcesArgs({
+      catalogName: sourcesArgs.catalogName,
+      entryName: sourcesArgs.entryName,
+      filterParams: data,
+    });
   };
 
-  if (!spatialCatalogSources || spatialCatalogSources?.sources?.length === 0) {
+  if (
+    !spatialCatalogSources?.sources ||
+    spatialCatalogSources.sources.length === 0
+  ) {
     return (
       <div className={(classes as any).noSources}>
         <Typography variant="h5">Entry sources</Typography>
@@ -197,6 +182,7 @@ const SpatialCatalogList = ({
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
   const { classes: textClasses } = textStyles();
+  const [deleteSpatialCatalog] = useDeleteSpatialCatalogMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [catalogToDelete, setCatalogToDelete] = useState<any>(null);
   const openDialog = (id: any) => {
@@ -208,18 +194,16 @@ const SpatialCatalogList = ({
     setCatalogToDelete(null);
   };
 
-  const deleteCatalog = () => {
-    dispatch(spatialCatalogsActions.deleteSpatialCatalog(catalogToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(
-            showNotification("Spatial catalog deleting... please be patient."),
-          );
-          dispatch(spatialCatalogsActions.fetchSpatialCatalogs());
-          closeDialog();
-        }
-      },
-    );
+  const deleteCatalog = async () => {
+    try {
+      await deleteSpatialCatalog(catalogToDelete).unwrap();
+      dispatch(
+        showNotification("Spatial catalog deleting... please be patient."),
+      );
+      closeDialog();
+    } catch {
+      // error notification is dispatched by the base query
+    }
   };
 
   if (!Array.isArray(catalogs)) {
@@ -261,34 +245,21 @@ const SpatialCatalogList = ({
 };
 
 const SpatialCatalogPage = () => {
-  const spatialCatalogs = useAppSelector((state) => state["spatialCatalogs"]);
-  const spatialCatalog = useAppSelector((state) => state["spatialCatalog"]);
+  const { data: spatialCatalogs } = useGetSpatialCatalogsQuery();
   const [selectedSpatialCatalogId, setSelectedSpatialCatalogId] =
     useState<any>(null);
-  const [selectedSpatialCatalogEntryId, setSelectedSpatialCatalogEntryId] =
-    useState<any>(null);
+  const [sourcesArgs, setSourcesArgs] =
+    useState<SpatialCatalogSourcesArgs | null>(null);
 
-  const currentUser = useAppSelector((state) => state.profile);
-  const dispatch = useAppDispatch();
+  const { data: spatialCatalog } = useGetSpatialCatalogQuery(
+    selectedSpatialCatalogId,
+    { skip: !selectedSpatialCatalogId },
+  );
+
+  const { data: currentUser } = useGetProfileQuery();
   const { classes } = useStyles();
 
   const { handleSubmit, control, reset, getValues } = useForm();
-
-  useEffect(() => {
-    if (spatialCatalogs?.length > 0 || !spatialCatalogs) {
-      dispatch(spatialCatalogsActions.fetchSpatialCatalogs());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (selectedSpatialCatalogId) {
-      dispatch(
-        spatialCatalogsActions.fetchSpatialCatalog(selectedSpatialCatalogId),
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSpatialCatalogId]);
 
   const spatialCatalogsSelect = spatialCatalogs
     ? [
@@ -304,7 +275,8 @@ const SpatialCatalogPage = () => {
     return <p>No Spatial Catalogs available...</p>;
   }
 
-  const permission = currentUser.permissions?.includes("System admin");
+  const permission =
+    currentUser?.permissions?.includes("System admin") ?? false;
 
   return (
     <Grid container spacing={3}>
@@ -366,22 +338,18 @@ const SpatialCatalogPage = () => {
             <Typography variant="h5">List of Catalog Entries</Typography>
             <SpatialCatalogTable
               catalog={spatialCatalog}
-              setSelectedSpatialCatalogEntryId={
-                setSelectedSpatialCatalogEntryId
-              }
+              setSourcesArgs={setSourcesArgs}
             />
           </div>
           <div className={classes.paperContent}>
             <SpatialCatalogSourcesPage
-              spatialCatalogs={spatialCatalogs}
-              spatialCatalog={spatialCatalog}
-              selectedSpatialCatalogId={selectedSpatialCatalogId}
-              selectedSpatialCatalogEntryId={selectedSpatialCatalogEntryId}
+              sourcesArgs={sourcesArgs}
+              setSourcesArgs={setSourcesArgs}
             />
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("System admin") && (
+      {currentUser?.permissions?.includes("System admin") && (
         <Grid size={{ md: 6, sm: 12 }}>
           <Paper>
             <div className={classes.paperContent}>

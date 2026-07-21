@@ -1,4 +1,5 @@
 import jsonschema
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 from skyportal.handlers import BaseHandler
@@ -9,7 +10,7 @@ from ...models import Allocation, FollowupRequest, Instrument
 
 class FacilityMessageHandler(BaseHandler):
     @auth_or_token  # ACLs checked in method body below
-    def post(self):
+    async def post(self):
         """Docstring rendered as format string below."""
         user = self.current_user
         data = self.get_json()
@@ -17,23 +18,30 @@ class FacilityMessageHandler(BaseHandler):
         if "followup_request_id" not in data:
             return self.error('Missing required key "followup_request_id".')
 
-        with self.Session() as session:
-            request = session.scalars(
-                FollowupRequest.select(session.user_or_token, mode="update").where(
-                    FollowupRequest.id == int(data["followup_request_id"])
-                )
-            ).first()
+        try:
+            followup_request_id = int(data["followup_request_id"])
+        except (TypeError, ValueError):
+            return self.error(
+                f"Invalid followup_request_id: {data['followup_request_id']}"
+            )
+
+        async with self.AsyncSession() as session:
+            request = await session.scalar(
+                FollowupRequest.select(session.user_or_token, mode="update")
+                .where(FollowupRequest.id == followup_request_id)
+                .options(selectinload(FollowupRequest.obj))
+            )
             if request is None:
                 return self.error(
                     f"Cannot find FollowupRequest with ID: {data['followup_request_id']}"
                 )
 
-            instrument = session.scalars(
+            instrument = await session.scalar(
                 Instrument.select(session.user_or_token)
                 .join(Allocation)
                 .join(FollowupRequest)
                 .where(FollowupRequest.id == request.id)
-            ).first()
+            )
 
             if instrument.listener_classname is None:
                 return self.error(
@@ -46,8 +54,9 @@ class FacilityMessageHandler(BaseHandler):
                 return self.error("Insufficient permissions.")
 
             jsonschema.validate(data, instrument.listener_class.complete_schema())
-            instrument.listener_class.process_message(self, session)
-            session.commit()
+
+            await instrument.listener_class.process_message(self, session)
+            await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",

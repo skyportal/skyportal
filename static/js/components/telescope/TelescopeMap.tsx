@@ -7,7 +7,6 @@ import {
   useZoomPan,
 } from "react-simple-maps";
 
-import { useAppDispatch } from "../../types/hooks";
 import world_map from "../../../images/maps/world-110m.json";
 
 const width = 700;
@@ -33,13 +32,6 @@ function CustomZoomableGroup({
     </g>
   );
 }
-function setCurrentTelescopes(dispatch: any, currentTelescopes: any) {
-  dispatch({
-    type: "skyportal/CURRENT_TELESCOPES",
-    data: { currentTelescopes },
-  });
-}
-
 function telescopeLabel(nestedTelescope: any) {
   return nestedTelescope.telescopes
     .map((telescope: any) => telescope.nickname)
@@ -56,10 +48,13 @@ function normalizeLatitudeDiff(alpha: number, beta: number) {
 
 interface TelescopeMapProps {
   telescopes: any[];
+  onSelectTelescopes?: (telescopes: any[]) => void;
 }
 
-const TelescopeMap = ({ telescopes }: TelescopeMapProps) => {
-  const dispatch = useAppDispatch();
+const TelescopeMap = ({
+  telescopes,
+  onSelectTelescopes,
+}: TelescopeMapProps) => {
   const [hoveredTelescope, setHoveredTelescope] = useState<any>(null);
 
   const filteredTelescopes = telescopes.filter(
@@ -168,7 +163,7 @@ const TelescopeMap = ({ telescopes }: TelescopeMapProps) => {
                   id="telescope_marker"
                   coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
                   onClick={() =>
-                    setCurrentTelescopes(dispatch, nestedTelescope.telescopes)
+                    onSelectTelescopes?.(nestedTelescope.telescopes)
                   }
                 >
                   <g

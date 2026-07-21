@@ -1,81 +1,64 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Survey efficiency analyses for observations.
+ *
+ * RTK Query conversion of the old `FETCH_SURVEY_EFFICIENCY_OBSERVATIONS` duck.
+ * The endpoint is injected into the central `skyportalApi`. The list query
+ * provides the `SurveyEfficiencyObservation` tag; submit and delete are
+ * mutations that invalidate it so the active list refetches.
+ *
+ * Submit issues an `simsurvey` run (the backend kicks off the analysis); the
+ * old duck used `API.GET` for it, so the mutation keeps the `GET` method with
+ * the form data as query params. The websocket
+ * `REFRESH_SURVEY_EFFICIENCY_OBSERVATIONS` message is bridged to cache
+ * invalidation via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+export const surveyEfficiencyObservationsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getSurveyEfficiencyObservations: build.query<
+      RouteData<"GET /api/survey_efficiency/observations">,
+      Record<string, any> | void
+    >({
+      query: (params) => ({
+        url: "api/survey_efficiency/observations",
+        params: params ?? {},
+      }),
+      providesTags: ["SurveyEfficiencyObservation"],
+    }),
+    submitSurveyEfficiencyObservations: build.mutation<
+      unknown,
+      { id: number | string; data?: Record<string, any> | undefined }
+    >({
+      query: ({ id, data = {} }) => ({
+        url: `api/observation/simsurvey/${id}`,
+        method: "GET",
+        params: data,
+      }),
+      invalidatesTags: ["SurveyEfficiencyObservation"],
+    }),
+    deleteSurveyEfficiencyObservations: build.mutation<
+      unknown,
+      number | string
+    >({
+      query: (id) => ({
+        url: `api/observation/simsurvey/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["SurveyEfficiencyObservation"],
+    }),
+  }),
+});
 
-const REFRESH_SURVEY_EFFICIENCY_OBSERVATIONS =
-  "skyportal/REFRESH_SURVEY_EFFICIENCY_OBSERVATIONS";
+// Websocket: old handler refetched on REFRESH_SURVEY_EFFICIENCY_OBSERVATIONS.
+invalidateOnMessage("skyportal/REFRESH_SURVEY_EFFICIENCY_OBSERVATIONS", () => [
+  "SurveyEfficiencyObservation",
+]);
 
-const FETCH_SURVEY_EFFICIENCY_OBSERVATIONS =
-  "skyportal/FETCH_SURVEY_EFFICIENCY_OBSERVATIONS";
-const FETCH_SURVEY_EFFICIENCY_OBSERVATIONS_OK =
-  "skyportal/FETCH_SURVEY_EFFICIENCY_OBSERVATIONS_OK";
-
-const SUBMIT_SURVEY_EFFICIENCY_OBSERVATIONS =
-  "skyportal/SUBMIT_SURVEY_EFFICIENCY_OBSERVATIONS";
-
-const DELETE_SURVEY_EFFICIENCY_OBSERVATIONS =
-  "skyportal/DELETE_SURVEY_EFFICIENCY_OBSERVATIONS";
-
-export const fetchSurveyEfficiencyObservations = (params = {}) =>
-  API.GET(
-    "/api/survey_efficiency/observations",
-    FETCH_SURVEY_EFFICIENCY_OBSERVATIONS,
-    params,
-  );
-
-export function submitSurveyEfficiencyObservations(
-  id: number | string,
-  data: Record<string, any> = {},
-) {
-  return API.GET(
-    `/api/observation/simsurvey/${id}`,
-    SUBMIT_SURVEY_EFFICIENCY_OBSERVATIONS,
-    data,
-  );
-}
-
-export function deleteSurveyEfficiencyObservations(id: number | string) {
-  return API.DELETE(
-    `/api/observation/simsurvey/${id}`,
-    DELETE_SURVEY_EFFICIENCY_OBSERVATIONS,
-  );
-}
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === REFRESH_SURVEY_EFFICIENCY_OBSERVATIONS) {
-      dispatch(fetchSurveyEfficiencyObservations());
-    }
-  },
-);
-
-type SurveyEfficiencyObservationsState = Record<string, any>;
-
-interface SurveyEfficiencyObservationsAction {
-  type: string;
-  data?: any;
-}
-
-const reducer = (
-  state: SurveyEfficiencyObservationsState = {
-    surveyEfficiencyObservations: [],
-  },
-  action: SurveyEfficiencyObservationsAction,
-): SurveyEfficiencyObservationsState => {
-  switch (action.type) {
-    case FETCH_SURVEY_EFFICIENCY_OBSERVATIONS_OK: {
-      const surveyEfficiencyObservations = action.data;
-      return {
-        ...state,
-        surveyEfficiencyObservations,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("surveyEfficiencyObservations", reducer);
+export const {
+  useGetSurveyEfficiencyObservationsQuery,
+  useSubmitSurveyEfficiencyObservationsMutation,
+  useDeleteSurveyEfficiencyObservationsMutation,
+} = surveyEfficiencyObservationsApi;

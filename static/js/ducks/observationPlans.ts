@@ -1,51 +1,49 @@
-import * as API from "../API";
-import store from "../store";
+/**
+ * Observation plans tied to an allocation, plus a plan-name existence check.
+ *
+ * RTK Query conversion of the old `FETCH_ALLOCATION_OBSERVATION_PLANS` duck.
+ * `getAllocationObservationPlans` returns the allocation's observation plan
+ * requests (the old `observation_plan_requests`/`totalMatches` slice), and
+ * `getPlanWithSameNameExists` checks whether a plan name is already taken.
+ */
+import { skyportalApi } from "../api/skyportalApi";
 
-const EXISTING_PLAN_WITH_NAME = "skyportal/EXISTING_PLAN_WITH_NAME";
-
-const FETCH_ALLOCATION_OBSERVATION_PLANS =
-  "skyportal/FETCH_ALLOCATION_OBSERVATION_PLANS";
-const FETCH_ALLOCATION_OBSERVATION_PLANS_OK =
-  "skyportal/FETCH_ALLOCATION_OBSERVATION_PLANS_OK";
-
-export const planWithSameNameExists = (planName: string) =>
-  API.GET(
-    `/api/observation_plan/plan_names?name=${planName}`,
-    EXISTING_PLAN_WITH_NAME,
-  );
-
-export const fetchAllocationObservationPlans = (
-  id: number | string,
-  params: Record<string, any> = {},
-) =>
-  API.GET(
-    `/api/allocation/observation_plans/${id}`,
-    FETCH_ALLOCATION_OBSERVATION_PLANS,
-    params,
-  );
-
-interface ObservationPlansAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
+export interface AllocationObservationPlans {
+  observation_plan_requests: any[];
+  totalMatches?: number | undefined;
+  [key: string]: unknown;
 }
 
-const reducer = (
-  state: Record<string, any> = { observationPlanList: [] },
-  action: ObservationPlansAction,
-) => {
-  switch (action.type) {
-    case FETCH_ALLOCATION_OBSERVATION_PLANS_OK: {
-      const { observation_plan_requests, totalMatches } = action.data;
-      return {
-        ...state,
-        observation_plan_requests,
-        totalMatches,
-      };
-    }
-    default:
-      return state;
-  }
-};
+export interface PlanNameExists {
+  exists: boolean;
+  [key: string]: unknown;
+}
 
-store.injectReducer("observation_plans", reducer);
+export interface GetAllocationObservationPlansArg {
+  id: number | string;
+  params?: Record<string, any> | undefined;
+}
+
+export const observationPlansApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getAllocationObservationPlans: build.query<
+      AllocationObservationPlans,
+      GetAllocationObservationPlansArg
+    >({
+      query: ({ id, params = {} }) => ({
+        url: `api/allocation/observation_plans/${id}`,
+        params,
+      }),
+      providesTags: ["ObservationPlan"],
+    }),
+    getPlanWithSameNameExists: build.query<PlanNameExists, string>({
+      query: (name) => `api/observation_plan/plan_names?name=${name}`,
+      providesTags: ["ObservationPlan"],
+    }),
+  }),
+});
+
+export const {
+  useGetAllocationObservationPlansQuery,
+  useLazyGetPlanWithSameNameExistsQuery,
+} = observationPlansApi;

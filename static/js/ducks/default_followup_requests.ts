@@ -1,73 +1,52 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Default followup requests.
+ *
+ * RTK Query conversion of the old `FETCH_DEFAULT_FOLLOWUP_REQUESTS` duck.
+ * Websocket-driven invalidation refetches the request list; mutations
+ * submit/delete a default followup request.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+export const defaultFollowupRequestsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getDefaultFollowupRequests: build.query<
+      RouteData<"GET /api/default_followup_request">,
+      void
+    >({
+      query: () => "api/default_followup_request",
+      providesTags: ["DefaultFollowupRequest"],
+    }),
+    submitDefaultFollowupRequest: build.mutation<
+      RouteData<"POST /api/default_followup_request">,
+      any
+    >({
+      query: (default_plan) => ({
+        url: "api/default_followup_request",
+        method: "POST",
+        body: default_plan,
+      }),
+      invalidatesTags: ["DefaultFollowupRequest"],
+    }),
+    deleteDefaultFollowupRequest: build.mutation<unknown, number | string>({
+      query: (id) => ({
+        url: `api/default_followup_request/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["DefaultFollowupRequest"],
+    }),
+  }),
+});
 
-const REFRESH_DEFAULT_FOLLOWUP_REQUESTS =
-  "skyportal/REFRESH_DEFAULT_FOLLOWUP_REQUESTS";
+// Websocket: the old handler refetched the full list on
+// REFRESH_DEFAULT_FOLLOWUP_REQUESTS.
+invalidateOnMessage("skyportal/REFRESH_DEFAULT_FOLLOWUP_REQUESTS", () => [
+  "DefaultFollowupRequest",
+]);
 
-const DELETE_DEFAULT_FOLLOWUP_REQUEST =
-  "skyportal/DELETE_DEFAULT_FOLLOWUP_REQUEST";
-
-const FETCH_DEFAULT_FOLLOWUP_REQUESTS =
-  "skyportal/FETCH_DEFAULT_FOLLOWUP_REQUESTS";
-const FETCH_DEFAULT_FOLLOWUP_REQUESTS_OK =
-  "skyportal/FETCH_DEFAULT_FOLLOWUP_REQUESTS_OK";
-
-const SUBMIT_DEFAULT_FOLLOWUP_REQUEST =
-  "skyportal/SUBMIT_DEFAULT_FOLLOWUP_REQUEST";
-
-export function deleteDefaultFollowupRequest(id: number | string) {
-  return API.DELETE(
-    `/api/default_followup_request/${id}`,
-    DELETE_DEFAULT_FOLLOWUP_REQUEST,
-  );
-}
-
-export const fetchDefaultFollowupRequests = () =>
-  API.GET("/api/default_followup_request", FETCH_DEFAULT_FOLLOWUP_REQUESTS);
-
-export const submitDefaultFollowupRequest = (default_plan: any) =>
-  API.POST(
-    `/api/default_followup_request`,
-    SUBMIT_DEFAULT_FOLLOWUP_REQUEST,
-    default_plan,
-  );
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === REFRESH_DEFAULT_FOLLOWUP_REQUESTS) {
-      dispatch(fetchDefaultFollowupRequests());
-    }
-  },
-);
-
-type DefaultFollowupRequestsState = Record<string, any>;
-
-interface DefaultFollowupRequestsAction {
-  type: string;
-  data?: any;
-}
-
-const reducer = (
-  state: DefaultFollowupRequestsState = {
-    defaultFollowupRequestList: [],
-  },
-  action: DefaultFollowupRequestsAction,
-): DefaultFollowupRequestsState => {
-  switch (action.type) {
-    case FETCH_DEFAULT_FOLLOWUP_REQUESTS_OK: {
-      const default_followup_requests = action.data;
-      return {
-        ...state,
-        defaultFollowupRequestList: default_followup_requests,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("default_followup_requests", reducer);
+export const {
+  useGetDefaultFollowupRequestsQuery,
+  useSubmitDefaultFollowupRequestMutation,
+  useDeleteDefaultFollowupRequestMutation,
+} = defaultFollowupRequestsApi;

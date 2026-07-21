@@ -1,59 +1,58 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Classification taxonomies.
+ *
+ * RTK Query conversion of the old `FETCH_TAXONOMIES` duck. The websocket
+ * `REFRESH_TAXONOMIES` message invalidates the taxonomy list; mutations
+ * submit, modify, and delete taxonomies.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
-
-const REFRESH_TAXONOMIES = "skyportal/REFRESH_TAXONOMIES";
-
-const FETCH_TAXONOMIES = "skyportal/FETCH_TAXONOMIES";
-const FETCH_TAXONOMIES_OK = "skyportal/FETCH_TAXONOMIES_OK";
-
-const SUBMIT_TAXONOMY = "skyportal/SUBMIT_TAXONOMY";
-
-const MODIFY_TAXONOMY = "skyportal/MODIFY_TAXONOMY";
-
-const DELETE_TAXONOMY = "skyportal/DELETE_TAXONOMY";
-
-export const modifyTaxonomy = (id: number | string, params: any) =>
-  API.PUT(`/api/taxonomy/${id}`, MODIFY_TAXONOMY, params);
-
-export function deleteTaxonomy(id: number | string) {
-  return API.DELETE(`/api/taxonomy/${id}`, DELETE_TAXONOMY);
+interface ModifyTaxonomyArg {
+  id: number | string;
+  params: Record<string, any>;
 }
 
-export const fetchTaxonomies = () => API.GET("/api/taxonomy", FETCH_TAXONOMIES);
-
-export const submitTaxonomy = (params: Record<string, any> = {}) =>
-  API.POST(`/api/taxonomy`, SUBMIT_TAXONOMY, params);
-
-// Websocket message handler
-messageHandler.add((actionType: string, _payload: any, dispatch: any) => {
-  if (actionType === REFRESH_TAXONOMIES) {
-    dispatch(fetchTaxonomies());
-  }
+export const taxonomiesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getTaxonomies: build.query<RouteData<"GET /api/taxonomy">, void>({
+      query: () => "api/taxonomy",
+      providesTags: ["Taxonomy"],
+    }),
+    submitTaxonomy: build.mutation<unknown, Record<string, any>>({
+      query: (params) => ({
+        url: "api/taxonomy",
+        method: "POST",
+        body: params,
+      }),
+      invalidatesTags: ["Taxonomy"],
+    }),
+    modifyTaxonomy: build.mutation<unknown, ModifyTaxonomyArg>({
+      query: ({ id, params }) => ({
+        url: `api/taxonomy/${id}`,
+        method: "PUT",
+        body: params,
+      }),
+      invalidatesTags: ["Taxonomy"],
+    }),
+    deleteTaxonomy: build.mutation<unknown, number | string>({
+      query: (id) => ({
+        url: `api/taxonomy/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Taxonomy"],
+    }),
+  }),
 });
 
-interface TaxonomiesAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
+// Websocket: the old handler refetched the full taxonomy list on
+// REFRESH_TAXONOMIES.
+invalidateOnMessage("skyportal/REFRESH_TAXONOMIES", () => ["Taxonomy"]);
 
-const reducer = (
-  state: Record<string, any> = { taxonomyList: [] },
-  action: TaxonomiesAction,
-) => {
-  switch (action.type) {
-    case FETCH_TAXONOMIES_OK: {
-      const taxonomyList = action.data;
-      return {
-        ...state,
-        taxonomyList,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("taxonomies", reducer);
+export const {
+  useGetTaxonomiesQuery,
+  useSubmitTaxonomyMutation,
+  useModifyTaxonomyMutation,
+  useDeleteTaxonomyMutation,
+} = taxonomiesApi;

@@ -1,45 +1,32 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Top savers / top scanners widget data.
+ *
+ * RTK Query conversion of the old `FETCH_TOP_SAVERS` duck. The backend reads
+ * the requesting user's widget preferences server-side, so the query takes no
+ * arguments. The old slice shape was `{ savers: [...] }`; consumers now read the
+ * array directly from the query result.
+ *
+ * The websocket `FETCH_TOP_SAVERS` message refetched the list; here it is
+ * bridged to cache invalidation of the `TopSaver` tag via `invalidateOnMessage`.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+export type TopSaver = Record<string, any>;
 
-const FETCH_TOP_SAVERS = "skyportal/FETCH_TOP_SAVERS";
-const FETCH_TOP_SAVERS_OK = "skyportal/FETCH_TOP_SAVERS_OK";
+export const topSaversApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getTopSavers: build.query<TopSaver[], { teamID?: number | null } | void>({
+      query: (arg) =>
+        arg && arg.teamID != null
+          ? `api/internal/source_savers?teamID=${arg.teamID}`
+          : "api/internal/source_savers",
+      providesTags: ["TopSaver"],
+    }),
+  }),
+});
 
-export const fetchTopSavers = () =>
-  API.GET("/api/internal/source_savers", FETCH_TOP_SAVERS);
+// Websocket: old handler refetched top savers on FETCH_TOP_SAVERS.
+invalidateOnMessage("skyportal/FETCH_TOP_SAVERS", () => ["TopSaver"]);
 
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === FETCH_TOP_SAVERS) {
-      dispatch(fetchTopSavers());
-    }
-  },
-);
-
-type TopSaversState = Record<string, any>;
-
-interface TopSaversAction {
-  type: string;
-  data?: any;
-}
-
-const reducer = (
-  state: TopSaversState = { savers: [] },
-  action: TopSaversAction,
-): TopSaversState => {
-  switch (action.type) {
-    case FETCH_TOP_SAVERS_OK: {
-      const savers = action.data;
-      return {
-        savers,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("topSavers", reducer);
+export const { useGetTopSaversQuery } = topSaversApi;

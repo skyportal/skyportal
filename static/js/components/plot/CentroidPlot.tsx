@@ -6,13 +6,19 @@ import Typography from "@mui/material/Typography";
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetSourceQuery } from "../../ducks/source";
+import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
+import {
+  useGetBrokersQuery,
+  useLazyGetBrokerConeSearchQuery,
+} from "../../ducks/brokers";
 import { PHOT_ZP, greatCircleDistance } from "../../utils";
 
 import CentroidPlotPlugins, {
   getCrossMatches,
   getCrossMatchesTraces,
 } from "./CentroidPlotPlugins";
+import { useGetConfigQuery } from "../../ducks/config";
 
 const Plot: any = createPlotlyComponent(Plotly);
 
@@ -322,16 +328,25 @@ const CentroidPlot = ({
   sourceId,
   plotStyle = { height: "50vh" },
 }: CentroidPlotProps) => {
-  const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
-  const { id, ra, dec } = useAppSelector((state) => state["source"]);
-  const photometry = useAppSelector((state) => state["photometry"][sourceId]);
-  const config = useAppSelector((state) => state["config"]);
+  const { data: source } = useGetSourceQuery(sourceId);
+  const id = source?.id ?? null;
+  const ra = source?.ra ?? null;
+  const dec = source?.dec ?? null;
+  const { data: photometry } = useFetchSourcePhotometryQuery({ id: sourceId });
+  const { data: config } = useGetConfigQuery() as { data: any };
 
-  // no crossMatches in the default SkyPortal, but can be added by SkyPortal-based
-  // apps on top of the basic SkyPortal
-  const crossMatches = useAppSelector((state) => (state as any).cross_matches);
+  // Reference-catalog cross-matches (Gaia/PS1/AllWISE, keyed by catalog) come
+  // from a broker whose cone_search returns reference catalogs. Other brokers
+  // advertise cone_search too but return their own alert objects (and rate-limit),
+  // so gate on the cross_match_catalogs capability, not "first cone_search".
+  const { data: brokers } = useGetBrokersQuery();
+  const coneSearchBrokerId = (brokers ?? []).find(
+    (b: any) => b.active && b.capabilities?.cross_match_catalogs,
+  )?.id;
+  const [triggerConeSearch, { data: crossMatches }] =
+    useLazyGetBrokerConeSearchQuery();
   const [filter2color, setFilter2Color] = useState<any>(null);
   const [data, setData] = useState<any>(null);
   const [plotData, setPlotData] = useState<any>(null);
@@ -343,22 +358,31 @@ const CentroidPlot = ({
   }, [config, filter2color]);
 
   useEffect(() => {
-    if (id === sourceId && ra && dec && typeof getCrossMatches === "function") {
-      getCrossMatches(ra, dec, dispatch);
+    if (
+      id === sourceId &&
+      ra != null &&
+      dec != null &&
+      coneSearchBrokerId != null &&
+      typeof getCrossMatches === "function"
+    ) {
+      getCrossMatches(ra, dec, (arg: any) =>
+        triggerConeSearch({ brokerId: coneSearchBrokerId, ...arg }),
+      );
     }
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, coneSearchBrokerId]);
 
   useEffect(() => {
     if (
-      photometry?.length > 0 &&
+      (photometry?.length ?? 0) > 0 &&
       !Number.isNaN(ra) &&
       !Number.isNaN(dec) &&
       filter2color
     ) {
       const { refRA, refDec, points, oneSigmaCircle, stdCircle } = prepareData(
-        photometry,
-        ra,
-        dec,
+        photometry ?? [],
+        ra as number,
+        dec as number,
       );
       setData({ refRA, refDec, oneSigmaCircle, stdCircle });
 

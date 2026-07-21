@@ -6,34 +6,32 @@ import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import { useAppDispatch, useAppSelector } from "../types/hooks";
-import {
-  fetchRecurringAPIs,
-  submitRecurringAPI,
-} from "../ducks/recurring_apis";
+import { useAppDispatch } from "../types/hooks";
+import { useSubmitRecurringAPIMutation } from "../ducks/recurring_apis";
+import { useGetConfigQuery } from "../ducks/config";
 
 dayjs.extend(utc);
 
 const NewRecurringAPI = () => {
   const dispatch = useAppDispatch();
+  const [submitRecurringAPI] = useSubmitRecurringAPIMutation();
   const defaultDate = dayjs()
     .add(1, "day")
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
-  const allowedRecurringAPIMethods = useAppSelector(
-    (state) => state["config"].allowedRecurringAPIMethods,
-  );
+  const allowedRecurringAPIMethods = (useGetConfigQuery().data as any)
+    ?.allowedRecurringAPIMethods;
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     formData.next_call = formData.next_call
       .replace("+00:00", "")
       .replace(".000Z", "");
-    dispatch(submitRecurringAPI(formData)).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification("RecurringAPI saved"));
-        dispatch(fetchRecurringAPIs());
-      }
-    });
+    try {
+      await submitRecurringAPI(formData).unwrap();
+      dispatch(showNotification("RecurringAPI saved"));
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const analysisServiceFormSchema = {
@@ -45,14 +43,14 @@ const NewRecurringAPI = () => {
       },
       method: {
         type: "string",
-        oneOf: allowedRecurringAPIMethods.map(
+        oneOf: (allowedRecurringAPIMethods ?? []).map(
           (allowedRecurringAPIMethod: string) => ({
             enum: [allowedRecurringAPIMethod],
             title: allowedRecurringAPIMethod,
           }),
         ),
         title: "HTTP Method",
-        default: allowedRecurringAPIMethods[0],
+        default: allowedRecurringAPIMethods?.[0],
       },
       next_call: {
         type: "string",

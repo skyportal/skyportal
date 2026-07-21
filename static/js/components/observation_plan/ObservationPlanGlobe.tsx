@@ -3,11 +3,11 @@ import { lazy, Suspense, useState, useEffect } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { useAppDispatch } from "../../types/hooks";
-import * as Actions from "../../ducks/gcnEvent";
+import { useDeleteObservationPlanFieldsMutation } from "../../ducks/gcnEvent";
+import { useGetLocalizationQuery } from "../../ducks/localization";
 import { GET } from "../../API";
 import Button from "../Button";
 
-// Lazy-loaded: aladin-lite is heavy and would otherwise sit in the main bundle.
 const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 
 interface ObservationPlanRequest {
@@ -37,8 +37,6 @@ interface ObservationPlanRequest {
 interface ObservationPlanGlobeProps {
   observationplanRequest: ObservationPlanRequest;
   retrieveLocalization?: boolean;
-  // Square size (px) of the embedded skymap. Defaults to 600; the requests
-  // table passes a smaller value to keep its rows compact.
   size?: number;
 }
 
@@ -48,6 +46,8 @@ const ObservationPlanGlobe = ({
   size = 600,
 }: ObservationPlanGlobeProps) => {
   const dispatch = useAppDispatch();
+  const [deleteObservationPlanFields] =
+    useDeleteObservationPlanFieldsMutation();
   const displayOptions = [
     "localization",
     "sources",
@@ -61,10 +61,25 @@ const ObservationPlanGlobe = ({
   displayOptionsDefault.localization = true;
   displayOptionsDefault.observations = true;
   const [obsList, setObsList] = useState<any>(null);
-  const [localization, setLocalization] = useState<any>(null);
+  const [fetchFailed, setFetchFailed] = useState(false);
   const [selectedObservations, setSelectedObservations] = useState<any[]>([]);
 
+  const { data: localization } = useGetLocalizationQuery(
+    {
+      dateobs: observationplanRequest.localization?.dateobs as string,
+      localization_name: observationplanRequest.localization
+        ?.localization_name as string,
+    },
+    {
+      skip:
+        !retrieveLocalization ||
+        !observationplanRequest.localization?.dateobs ||
+        !observationplanRequest.localization?.localization_name,
+    },
+  );
+
   useEffect(() => {
+    let cancelled = false;
     const fetchObsList = async () => {
       const response = (await dispatch(
         GET(
@@ -72,7 +87,12 @@ const ObservationPlanGlobe = ({
           "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON",
         ),
       )) as any;
-      setObsList(response.data);
+      if (cancelled) return;
+      if (response?.status === "success") {
+        setObsList(response.data ?? { geojson: [] });
+      } else {
+        setFetchFailed(true);
+      }
     };
     if (
       ["complete", "submitted to telescope queue"].includes(
@@ -81,32 +101,21 @@ const ObservationPlanGlobe = ({
     ) {
       fetchObsList();
     }
-  }, [dispatch, setObsList, observationplanRequest]);
-
-  useEffect(() => {
-    const fetchLocalization = async () => {
-      const response = (await dispatch(
-        GET(
-          `/api/localization/${observationplanRequest.localization?.dateobs}/name/${observationplanRequest.localization?.localization_name}`,
-          "skyportal/FETCH_LOCALIZATION_OBSPLAN",
-        ),
-      )) as any;
-      setLocalization(response.data);
+    return () => {
+      cancelled = true;
     };
-    if (retrieveLocalization) {
-      fetchLocalization();
-    }
-  }, [dispatch, setLocalization, observationplanRequest]);
+  }, [dispatch, setObsList, setFetchFailed, observationplanRequest]);
 
+  if (fetchFailed) {
+    return <p>Could not load the skymap for this plan.</p>;
+  }
   if (!obsList) return <CircularProgress />;
 
   const handleDeleteObservationPlanFields = async (selectedIds: any) => {
-    await dispatch(
-      Actions.deleteObservationPlanFields(
-        observationplanRequest.id,
-        selectedIds,
-      ),
-    );
+    await deleteObservationPlanFields({
+      id: observationplanRequest.id as number,
+      fieldIds: selectedIds,
+    });
   };
 
   return (
@@ -124,7 +133,6 @@ const ObservationPlanGlobe = ({
           options={displayOptionsDefault}
           height={size}
           width={size}
-          type="obsplan"
           projection="mollweide"
           selectedObservations={selectedObservations}
           setSelectedObservations={setSelectedObservations}

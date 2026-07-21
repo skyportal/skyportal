@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -6,8 +7,8 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import { generateScanReport } from "../../../ducks/candidate/scan_reports";
+import { useAppDispatch } from "../../../types/hooks";
+import { useGenerateScanReportMutation } from "../../../ducks/candidate/scan_reports";
 
 interface GenerateReportFormProps {
   dialogOpen: boolean;
@@ -20,7 +21,8 @@ const GenerateReportForm = ({
 }: GenerateReportFormProps) => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const [generateScanReport] = useGenerateScanReportMutation();
 
   const now = new Date();
   const oneDayAgo = new Date(now);
@@ -91,13 +93,16 @@ const GenerateReportForm = ({
 
   const generateReport = () => {
     setLoading(true);
-    dispatch(generateScanReport(saveOptions)).then((result: any) => {
-      setLoading(false);
-      if (result.status === "success") {
+    generateScanReport(saveOptions)
+      .unwrap()
+      .then(() => {
+        setLoading(false);
         dispatch(showNotification("Scanning report successfully generated"));
         setDialogOpen(false);
-      }
-    });
+      })
+      .catch(() => {
+        setLoading(false);
+      });
   };
 
   return (
@@ -105,7 +110,9 @@ const GenerateReportForm = ({
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        PaperProps={{ style: { maxWidth: "800px" } }}
+        slotProps={{
+          paper: { style: { maxWidth: "800px" } },
+        }}
       >
         <DialogTitle sx={{ textAlign: "center", fontSize: "1.5em" }}>
           Generate candidate scanning report

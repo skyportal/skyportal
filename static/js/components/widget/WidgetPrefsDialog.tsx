@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -13,7 +14,6 @@ import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
 import Autocomplete from "@mui/material/Autocomplete";
 import Button from "../Button";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -42,9 +42,8 @@ const WidgetPrefsDialog = ({
   stateBranchName,
 }: WidgetPrefsDialogProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const {
     handleSubmit,
@@ -53,13 +52,10 @@ const WidgetPrefsDialog = ({
     control,
 
     formState: { errors },
-  } = useForm(initialValues);
-
-  useEffect(() => {
-    reset(initialValues);
-  }, [initialValues, reset]);
+  } = useForm({ defaultValues: initialValues });
 
   const handleClickOpen = () => {
+    reset(initialValues);
     setOpen(true);
   };
 
@@ -69,7 +65,7 @@ const WidgetPrefsDialog = ({
 
   const formSubmit = (formData: any) => {
     const payload = { [stateBranchName]: formData };
-    dispatch(onSubmit(payload));
+    onSubmit(payload);
     setOpen(false);
   };
 
@@ -92,33 +88,8 @@ const WidgetPrefsDialog = ({
                 return (
                   <div key={key} className={classes.inputSectionDiv}>
                     <Typography variant="subtitle2">Select {key}:</Typography>
-                    {Object.keys(initialValues[key]).map((subKey) =>
-                      subKey === "includeCommentsFromBots" ? (
-                        <Tooltip
-                          key={subKey}
-                          title="Bot comments are those posted programmatically using API tokens"
-                        >
-                          <FormControlLabel
-                            control={
-                              <Controller
-                                render={({ field: { onChange, value } }) => (
-                                  <Checkbox
-                                    onChange={(event) =>
-                                      onChange(event.target.checked)
-                                    }
-                                    checked={value}
-                                    data-testid={`${key}.${subKey}`}
-                                  />
-                                )}
-                                name={`${key}.${subKey}`}
-                                control={control}
-                                defaultValue={false}
-                              />
-                            }
-                            label={subKey}
-                          />
-                        </Tooltip>
-                      ) : (
+                    {Object.keys(initialValues[key]).map((subKey) => {
+                      const checkbox = (
                         <FormControlLabel
                           key={subKey}
                           control={
@@ -139,8 +110,19 @@ const WidgetPrefsDialog = ({
                           }
                           label={subKey}
                         />
-                      ),
-                    )}
+                      );
+                      return subKey === "includeCommentsFromBots" ? (
+                        <Tooltip
+                          key={subKey}
+                          placement="right"
+                          title="Bot comments are those posted programmatically using API tokens"
+                        >
+                          {checkbox}
+                        </Tooltip>
+                      ) : (
+                        checkbox
+                      );
+                    })}
                   </div>
                 );
               }

@@ -12,20 +12,16 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ReactJson from "react-json-view";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import ModifyTaxonomy from "./ModifyTaxonomy";
-import NewTaxonomy from "./NewTaxonomy";
-import * as taxonomyActions from "../../ducks/taxonomies";
+import TaxonomyForm from "./TaxonomyForm";
+import { useDeleteTaxonomyMutation } from "../../ducks/taxonomies";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -70,19 +66,21 @@ interface TaxonomyTableProps {
   paginateCallback: (...args: any[]) => void;
   sortingCallback?: ((...args: any[]) => void) | null;
   totalMatches?: number;
-  deletePermission: boolean;
+  managePermission: boolean;
 }
 
 const TaxonomyTable = ({
   taxonomies,
   paginateCallback,
   totalMatches = 0,
-  deletePermission,
+  managePermission,
   sortingCallback = null,
 }: TaxonomyTableProps) => {
   const { classes } = useStyles();
 
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
+  const [deleteTaxonomyMutation] = useDeleteTaxonomyMutation();
 
   const [rowsPerPage, setRowsPerPage] = useState(100);
   const [sortModel, setSortModel] = useState<any[]>([]);
@@ -127,15 +125,14 @@ const TaxonomyTable = ({
     setTaxonomyToViewEditDelete(null);
   };
 
-  const deleteTaxonomy = () => {
-    dispatch(taxonomyActions.deleteTaxonomy(taxonomyToViewEditDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Taxonomy deleted"));
-          closeDeleteDialog();
-        }
-      },
-    );
+  const deleteTaxonomy = async () => {
+    try {
+      await deleteTaxonomyMutation(taxonomyToViewEditDelete).unwrap();
+      dispatch(showNotification("Taxonomy deleted"));
+      closeDeleteDialog();
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const renderName = (params: any) => {
@@ -186,7 +183,7 @@ const TaxonomyTable = ({
   };
 
   const renderManage = (params: any) => {
-    if (!deletePermission) {
+    if (!managePermission) {
       return null;
     }
     const taxonomy = params.row;
@@ -196,14 +193,14 @@ const TaxonomyTable = ({
           key={`edit_${taxonomy.id}`}
           id={`edit_button_${taxonomy.id}`}
           onClick={() => openEditDialog(taxonomy.id)}
-          disabled={!deletePermission}
+          disabled={!managePermission}
         >
           <EditIcon />
         </Button>
         <Button
           id={`delete_button_${taxonomy.id}`}
           onClick={() => openDeleteDialog(taxonomy.id)}
-          disabled={!deletePermission}
+          disabled={!managePermission}
         >
           <DeleteIcon />
         </Button>
@@ -304,17 +301,18 @@ const TaxonomyTable = ({
 
   const CustomToolbar = function TaxonomyTableToolbar() {
     return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
-        <IconButton
-          name="new_taxonomy"
-          onClick={() => {
-            openNewDialog();
-          }}
-        >
-          <AddIcon />
-        </IconButton>
-      </GridToolbarContainer>
+      <DataGridToolbar showQuickFilter={false}>
+        {managePermission && !isReadOnly && (
+          <IconButton
+            name="new_taxonomy"
+            onClick={() => {
+              openNewDialog();
+            }}
+          >
+            <AddIcon />
+          </IconButton>
+        )}
+      </DataGridToolbar>
     );
   };
 
@@ -347,7 +345,7 @@ const TaxonomyTable = ({
       <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
         <DialogTitle>New Taxonomy</DialogTitle>
         <DialogContent dividers>
-          <NewTaxonomy onClose={closeNewDialog} />
+          <TaxonomyForm onClose={closeNewDialog} />
         </DialogContent>
       </Dialog>
       <Dialog
@@ -374,8 +372,8 @@ const TaxonomyTable = ({
       >
         <DialogTitle>Edit Taxonomy</DialogTitle>
         <DialogContent dividers>
-          <ModifyTaxonomy
-            taxonomy_id={taxonomyToViewEditDelete}
+          <TaxonomyForm
+            taxonomyId={taxonomyToViewEditDelete}
             onClose={closeEditDialog}
           />
         </DialogContent>

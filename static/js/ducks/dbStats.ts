@@ -1,29 +1,19 @@
-import * as API from "../API";
-import store from "../store";
-
-const FETCH_DB_STATS = "skyportal/FETCH_DB_STATS";
-const FETCH_DB_STATS_OK = "skyportal/FETCH_DB_STATS_OK";
-
-export const fetchDBStats = () => API.GET("/api/db_stats", FETCH_DB_STATS);
+/**
+ * Database statistics (admin DB Stats page).
+ *
+ * RTK Query conversion of the old `FETCH_DB_STATS` duck.
+ */
+import { skyportalApi } from "../api/skyportalApi";
 
 export type DBStatsState = Record<string, unknown> | null;
 
-interface DBStatsAction {
-  type: string;
-  data?: Record<string, unknown>;
-}
+export const dbStatsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getDbStats: build.query<DBStatsState, void>({
+      query: () => "api/db_stats",
+      providesTags: ["DBStats"],
+    }),
+  }),
+});
 
-const reducer = (
-  state: DBStatsState = null,
-  action: DBStatsAction,
-): DBStatsState => {
-  switch (action.type) {
-    case FETCH_DB_STATS_OK: {
-      return action.data ?? null;
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("dbStats", reducer);
+export const { useGetDbStatsQuery } = dbStatsApi;

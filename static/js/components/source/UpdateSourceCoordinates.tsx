@@ -11,7 +11,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
-import * as sourceActions from "../../ducks/source";
+import { useUpdateSourceMutation } from "../../ducks/source";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -35,6 +35,7 @@ interface UpdateSourceCoordinatesProps {
 const UpdateSourceCoordinates = ({ source }: UpdateSourceCoordinatesProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [updateSource] = useUpdateSourceMutation();
   const [state, setState] = useState<{
     ra?: number | undefined;
     dec?: number | undefined;
@@ -81,16 +82,17 @@ const UpdateSourceCoordinates = ({ source }: UpdateSourceCoordinatesProps) => {
     if (!Number.isNaN(subState.dec)) {
       newState.dec = subState.dec;
     }
-    const result = (await dispatch(
-      sourceActions.updateSource(source.id!, {
-        ...newState,
-      }),
-    )) as any;
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await updateSource({
+        id: source.id!,
+        payload: { ...newState },
+      }).unwrap();
       dispatch(showNotification("Source location successfully updated."));
       setDialogOpen(false);
+    } catch {
+      // error notification handled by the baseQuery
     }
+    setIsSubmitting(false);
   };
 
   return (

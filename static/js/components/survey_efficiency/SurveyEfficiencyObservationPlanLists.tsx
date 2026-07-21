@@ -12,7 +12,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
-import * as surveyEfficiencyObservationPlansActions from "../../ducks/survey_efficiency_observation_plans";
+import { useDeleteSurveyEfficiencyObservationPlanMutation } from "../../ducks/survey_efficiency_observation_plans";
 
 const useStyles = makeStyles()(() => ({
   observationplanRequestTable: {
@@ -40,6 +40,8 @@ const SurveyEfficiencyObservationPlanLists = ({
 }: SurveyEfficiencyObservationPlanListsProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [deleteSurveyEfficiencyObservationPlan] =
+    useDeleteSurveyEfficiencyObservationPlanMutation();
   const [isDeleting, setIsDeleting] = useState<any>(null);
 
   if (!survey_efficiency_analyses || survey_efficiency_analyses.length === 0) {
@@ -48,15 +50,13 @@ const SurveyEfficiencyObservationPlanLists = ({
 
   const handleDelete = async (id: any) => {
     setIsDeleting(id);
-    const result: any = await dispatch(
-      surveyEfficiencyObservationPlansActions.deleteSurveyEfficiencyObservationPlan(
-        id,
-      ),
-    );
-    setIsDeleting(null);
-    if (result.status === "success") {
+    try {
+      await deleteSurveyEfficiencyObservationPlan(id).unwrap();
       dispatch(showNotification("Survey efficiency successfully deleted."));
+    } catch {
+      // Error notification is handled by the base query.
     }
+    setIsDeleting(null);
   };
 
   const columns: any[] = [

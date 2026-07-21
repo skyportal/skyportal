@@ -21,20 +21,22 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { skipToken } from "@reduxjs/toolkit/query";
+
+import { useAppDispatch } from "../../types/hooks";
 import {
   SelectLabelWithChips,
   SelectSingleLabelWithChips,
 } from "../SelectWithChips";
 
-import { fetchGroup } from "../../ducks/group";
-import { fetchGroups } from "../../ducks/groups";
-import { fetchInstruments } from "../../ducks/instruments";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import {
-  deleteGcnEventReport,
-  fetchGcnEventReport,
-  fetchGcnEventReports,
-  postGcnEventReport,
+  useGetGcnEventQuery,
+  useGetGcnEventReportsQuery,
+  useGetGcnEventReportQuery,
+  useDeleteGcnEventReportMutation,
+  usePostGcnEventReportMutation,
 } from "../../ducks/gcnEvent";
 import Button from "../Button";
 import GcnReportTable from "./GcnReportTable";
@@ -144,12 +146,17 @@ interface GcnReportProps {
 
 const GcnReport = ({ dateobs }: GcnReportProps) => {
   const { classes } = useStyles();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]);
+  const { data: gcnEvent } = useGetGcnEventQuery(dateobs ?? skipToken) as {
+    data: any;
+  };
+  const { data: reports } = useGetGcnEventReportsQuery(dateobs ?? skipToken);
+  const [postGcnEventReport] = usePostGcnEventReportMutation();
+  const [deleteGcnEventReport] = useDeleteGcnEventReportMutation();
   const [reportName, setReportName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -163,6 +170,12 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
   const [selectedInstruments, setSelectedInstruments] = useState<any[]>([]);
   const [selectedGcnReportId, setSelectedGcnReportId] = useState<any>(null);
 
+  const { data: report } = useGetGcnEventReportQuery(
+    selectedGcnReportId
+      ? { dateobs, reportID: selectedGcnReportId }
+      : skipToken,
+  ) as { data: any };
+
   const [loading, setLoading] = useState(false);
 
   const groups_list = groups.map((group: any) => ({
@@ -170,7 +183,7 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
     label: group?.name,
   }));
 
-  let sortedInstrumentList = [...instrumentList];
+  let sortedInstrumentList: any[] = [...instrumentList];
   sortedInstrumentList.sort((i1: any, i2: any) => {
     if (i1.name > i2.name) {
       return 1;
@@ -188,15 +201,6 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
   }));
 
   useEffect(() => {
-    if (instrumentList?.length === 0) {
-      dispatch(fetchInstruments());
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!groups && open) {
-      dispatch(fetchGroups());
-    }
     const defaultStartDate = dayjs.utc(dateobs).format("YYYY-MM-DD HH:mm:ss");
     const defaultEndDate = dayjs
       .utc(dateobs)
@@ -204,53 +208,13 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
       .format("YYYY-MM-DD HH:mm:ss");
     setStartDate(defaultStartDate);
     setEndDate(defaultEndDate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateobs, dispatch]);
-
-  useEffect(() => {
-    if (selectedGroup?.id) {
-      dispatch(fetchGroup(selectedGroup?.id));
-    }
-  }, [dispatch, selectedGroup]);
+  }, [dateobs]);
 
   useEffect(() => {
     if (gcnEvent?.localizations?.length > 0) {
       setLocalizationName(gcnEvent?.localizations[0]?.localization_name);
     }
   }, [gcnEvent]);
-
-  useEffect(() => {
-    if (
-      dateobs !== null &&
-      dateobs !== undefined &&
-      !gcnEvent?.reports &&
-      !loading
-    ) {
-      setLoading(true);
-      dispatch(fetchGcnEventReports(dateobs)).then(() => {
-        setLoading(false);
-      });
-    }
-  }, [dateobs, gcnEvent, dispatch]);
-
-  useEffect(() => {
-    const fetchReport = (reportID: any) => {
-      dispatch(fetchGcnEventReport({ dateobs, reportID })).then(
-        (response: any) => {
-          if (response.status !== "success") {
-            dispatch(showNotification("Error fetching report", "error"));
-          }
-        },
-      );
-    };
-    if (
-      gcnEvent?.reports?.length > 0 &&
-      selectedGcnReportId &&
-      selectedGcnReportId !== gcnEvent?.report?.id
-    ) {
-      fetchReport(selectedGcnReportId);
-    }
-  }, [gcnEvent, selectedGcnReportId]);
 
   const handleClose = () => {
     setOpen(false);
@@ -324,31 +288,29 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
       if (params?.instrumentIds?.length === 0) {
         delete params.instrumentIds;
       }
-      dispatch(postGcnEventReport({ dateobs, params })).then(
-        (response: any) => {
-          if (response.status === "success") {
-            dispatch(
-              showNotification("Report is being generated, please wait"),
-            );
-          } else {
-            dispatch(showNotification("Error generating report", "error"));
-          }
+      postGcnEventReport({ dateobs, params })
+        .unwrap()
+        .then(() => {
+          dispatch(showNotification("Report is being generated, please wait"));
+        })
+        .catch(() => {
+          dispatch(showNotification("Error generating report", "error"));
+        })
+        .finally(() => {
           setLoading(false);
-        },
-      );
+        });
     }
   };
 
   const handleDeleteGcnReport = (reportID: any) => {
-    dispatch(deleteGcnEventReport({ dateobs, reportID })).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Report deleted"));
-        } else {
-          dispatch(showNotification("Error deleting report", "error"));
-        }
-      },
-    );
+    deleteGcnEventReport({ dateobs, reportID })
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("Report deleted"));
+      })
+      .catch(() => {
+        dispatch(showNotification("Error deleting report", "error"));
+      });
   };
 
   return (
@@ -406,7 +368,7 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
                       onChange={(e) => setLocalizationName(e.target.value)}
                       name="gcnReportLocalizationSelect"
                     >
-                      {gcnEvent.localizations?.map((localization: any) => (
+                      {gcnEvent?.localizations?.map((localization: any) => (
                         <MenuItem
                           value={localization?.localization_name}
                           key={localization?.localization_name}
@@ -492,7 +454,7 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
                   <Paper elevation={1} className={classes.content}>
                     <div>
                       <GcnReportTable
-                        reports={gcnEvent?.reports}
+                        reports={reports}
                         setSelectedGcnReportId={setSelectedGcnReportId}
                         deleteGcnReport={handleDeleteGcnReport}
                       />
@@ -506,22 +468,18 @@ const GcnReport = ({ dateobs }: GcnReportProps) => {
                 >
                   <DialogTitle onClose={() => setSelectedGcnReportId(null)}>
                     Report {dateobs}:{" "}
-                    {gcnEvent?.report?.id && (
+                    {report?.id && (
                       <a
-                        href={`/public/reports/gcn/${gcnEvent?.report?.id}`}
+                        href={`/public/reports/gcn/${report?.id}`}
                         target="_blank"
                         rel="noreferrer"
                       >
-                        {gcnEvent?.report?.report_name}
+                        {report?.report_name}
                       </a>
                     )}
                   </DialogTitle>
                   <DialogContent dividers>
-                    {gcnEvent?.report?.data && (
-                      <GcnReportEdit
-                        {...({ report: gcnEvent?.report } as any)}
-                      />
-                    )}
+                    {report?.data && <GcnReportEdit {...({ report } as any)} />}
                   </DialogContent>
                 </Dialog>
               </Grid>

@@ -11,7 +11,7 @@ from ..base import BaseHandler
 
 class SourceExistsHandler(BaseHandler):
     @auth_or_token
-    def get(self, obj_id: str = None):
+    async def get(self, obj_id: str = None):
         """
         ---
         single:
@@ -25,6 +25,22 @@ class SourceExistsHandler(BaseHandler):
               required: false
               schema:
                 type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              source_exists:
+                                type: boolean
+                              message:
+                                type: string
         multiple:
           summary: Check if a source exists by position
           description: Check if a source exists by RA, Dec, and radius
@@ -49,6 +65,22 @@ class SourceExistsHandler(BaseHandler):
             schema:
               type: number
             description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              source_exists:
+                                type: boolean
+                              message:
+                                type: string
         """
 
         # ra/dec/radius are explicitly converted to float below, so opting
@@ -63,11 +95,12 @@ class SourceExistsHandler(BaseHandler):
                 "Provide an obj_id, or either ra, dec, and radius for spatial filtering."
             )
 
-        with self.Session() as session:
+        async with self.AsyncSession() as session:
             if obj_id:
-                s = session.scalars(
+                obj_result = await session.scalars(
                     Obj.select(session.user_or_token).where(Obj.id == obj_id)
-                ).first()
+                )
+                s = obj_result.first()
                 if s is not None:
                     return self.success(
                         {
@@ -84,11 +117,7 @@ class SourceExistsHandler(BaseHandler):
                     )
 
             source_query = Source.select(session.user_or_token)
-            try:
-                ra = float(ra)
-                dec = float(dec)
-                radius = float(radius)
-            except ValueError:
+            if ra is None or dec is None or radius is None:
                 return self.error(
                     "Invalid values for ra, dec or radius - could not convert to float"
                 )
@@ -97,15 +126,12 @@ class SourceExistsHandler(BaseHandler):
                 Obj.within(other, radius)
             )
             obj_subquery = obj_query.subquery()
-            sources = (
-                session.scalars(
-                    source_query.join(
-                        obj_subquery, Source.obj_id == obj_subquery.c.id
-                    ).distinct()
-                )
-                .unique()
-                .all()
+            sources_result = await session.scalars(
+                source_query.join(
+                    obj_subquery, Source.obj_id == obj_subquery.c.id
+                ).distinct()
             )
+            sources = sources_result.unique().all()
             source_names = list({source.obj_id for source in sources})
             if len(source_names) == 1:
                 return self.success(

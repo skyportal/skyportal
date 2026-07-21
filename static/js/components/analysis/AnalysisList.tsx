@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -18,11 +18,19 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import { makeStyles } from "tss-react/mui";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as sourceActions from "../../ducks/source";
+import { useAppDispatch } from "../../types/hooks";
+import {
+  useGetAnalysesQuery,
+  useDeleteAnalysisMutation,
+} from "../../ducks/source";
+
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
 
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
+import AnalysisCornerPlot from "./AnalysisCornerPlot";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -63,14 +71,13 @@ interface AnalysisListProps {
 const AnalysisList = ({ obj_id }: AnalysisListProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [cornerAnalysis, setCornerAnalysis] = useState<any>(null);
 
-  const analyses = useAppSelector((state) => (state as any).source.analyses);
-  useEffect(() => {
-    const fetchAnalysesList = async (objID: string) => {
-      dispatch(sourceActions.fetchAnalyses("obj", { objID }));
-    };
-    fetchAnalysesList(obj_id);
-  }, [dispatch, obj_id]);
+  const { data: analyses } = useGetAnalysesQuery({
+    analysis_resource_type: "obj",
+    params: { objID: obj_id },
+  });
+  const [deleteAnalysisMutation] = useDeleteAnalysisMutation();
 
   // filter out the results, to only show the analyses for this object
   let analysesList: any[] = [];
@@ -86,7 +93,7 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
 
   const deleteAnalysis = async (analysisID: any) => {
     dispatch(showNotification(`Deleting Analysis (${analysisID}).`));
-    dispatch(sourceActions.deleteAnalysis(analysisID));
+    deleteAnalysisMutation({ analysis_id: analysisID });
   };
 
   const renderDedicatedPage = (params: any) => {
@@ -217,12 +224,11 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
         {analysis?.status === "completed" && (
           <Button
             primary
-            href={`/api/obj/analysis/${analysis.id}/corner`}
+            onClick={() => setCornerAnalysis(analysis)}
             size="small"
-            type="submit"
             data-testid={`analysis_cornerplots_${analysis.id}`}
           >
-            Download Corner Plot
+            View Corner Plot
           </Button>
         )}
       </div>
@@ -365,6 +371,19 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
           </AccordionDetails>
         </Accordion>
       </div>
+      <Dialog
+        open={Boolean(cornerAnalysis)}
+        onClose={() => setCornerAnalysis(null)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Posterior Corner Plot</DialogTitle>
+        <DialogContent>
+          {cornerAnalysis && (
+            <AnalysisCornerPlot objId={obj_id} analysisId={cornerAnalysis.id} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,164 +1,199 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Queued observations.
+ *
+ * RTK Query conversion of the old `FETCH_QUEUED_OBSERVATIONS` /
+ * `FETCH_GCNEVENT_QUEUED_OBSERVATIONS` duck. The queued-observations list and
+ * the GCN-event queued-observations list are queries; the external-API queue
+ * interactions (list queues / delete a queue) are an imperative query and a
+ * mutation.
+ *
+ * The date-window defaulting that the old thunks applied is preserved inside
+ * the query builders so callers can pass a sparse filterParams object. The old
+ * slice shape (`{ queued_observations: data }`) is mapped back so consumers
+ * that read `queued_observations.queued_observations` keep working off the
+ * query result.
+ *
+ * Websocket-driven invalidation bridges the old `messageHandler.add(...)`
+ * callbacks: `REFRESH_QUEUED_OBSERVATIONS` refetches the queued-observations
+ * list, and `FETCH_GCNEVENT_QUEUED_OBSERVATIONS` refetches the GCN-event queued
+ * observations (the old handler gated this on the currently-loaded gcnEvent
+ * matching the pushed event id; that condition is preserved).
+ *
+ * Note: `requestAPIQueuedObservations` lives in `ducks/observations.ts`
+ * (already migrated); consumers use that hook directly.
+ */
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch, RootState } from "../types/store";
+
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { components } from "../types/api";
+import type { RouteData } from "../types/routeSchemaMap";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const FETCH_QUEUED_OBSERVATIONS = "skyportal/FETCH_QUEUED_OBSERVATIONS";
-const FETCH_QUEUED_OBSERVATIONS_OK = "skyportal/FETCH_QUEUED_OBSERVATIONS_OK";
+type FilterParams = Record<string, unknown>;
 
-const FETCH_GCNEVENT_QUEUED_OBSERVATIONS =
-  "skyportal/FETCH_GCNEVENT_QUEUED_OBSERVATIONS";
-const FETCH_GCNEVENT_QUEUED_OBSERVATIONS_OK =
-  "skyportal/FETCH_GCNEVENT_QUEUED_OBSERVATIONS_OK";
+const buildQueryString = (filterParams: FilterParams): string => {
+  const params = new URLSearchParams(
+    Object.fromEntries(
+      Object.entries(filterParams).map(([key, value]) => [key, String(value)]),
+    ),
+  ).toString();
+  return params ? `api/observation?${params}` : "api/observation";
+};
 
-const REFRESH_QUEUED_OBSERVATIONS = "skyportal/REFRESH_QUEUED_OBSERVATIONS";
-
-const REQUEST_API_QUEUED_OBSERVATIONS =
-  "skyportal/REQUEST_API_QUEUED_OBSERVATIONS";
-
-const REQUEST_API_QUEUES = "skyportal/REQUEST_API_QUEUES";
-
-const DELETE_API_QUEUE = "skyportal/DELETE_API_QUEUE";
-
-export function fetchQueuedObservations(
-  filterParams: Record<string, any> = {},
-) {
-  if (!Object.keys(filterParams).includes("startDate")) {
-    filterParams["startDate"] = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+const withQueuedObservationDefaults = (
+  filterParams: FilterParams,
+): FilterParams => {
+  const params = { ...filterParams };
+  if (!Object.keys(params).includes("startDate")) {
+    params["startDate"] = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   }
-
-  if (!Object.keys(filterParams).includes("endDate")) {
-    filterParams["endDate"] = dayjs()
+  if (!Object.keys(params).includes("endDate")) {
+    params["endDate"] = dayjs()
       .utc()
       .add(7, "day")
       .utc()
       .format("YYYY-MM-DDTHH:mm:ssZ");
   }
-  filterParams["observationStatus"] = "queued";
+  params["observationStatus"] = "queued";
+  return params;
+};
 
-  return API.GET("/api/observation", FETCH_QUEUED_OBSERVATIONS, filterParams);
-}
-
-export function requestAPIQueuedObservations(id: number | string, data = {}) {
-  return API.GET(
-    `/api/observation/external_api/${id}`,
-    REQUEST_API_QUEUED_OBSERVATIONS,
-    data,
-  );
-}
-
-export function requestAPIQueues(
-  id: number | string,
-  data = { queuesOnly: true },
-) {
-  return API.GET(
-    `/api/observation/external_api/${id}`,
-    REQUEST_API_QUEUES,
-    data,
-  );
-}
-
-export function deleteAPIQueue(id: number | string, data = {}) {
-  return API.DELETE(
-    `/api/observation/external_api/${id}`,
-    DELETE_API_QUEUE,
-    data,
-  );
-}
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === REFRESH_QUEUED_OBSERVATIONS) {
-      dispatch(fetchQueuedObservations());
-    }
-  },
-);
-
-export function fetchGcnEventQueuedObservations(
+const withGcnEventQueuedObservationDefaults = (
   dateobs: string,
-  filterParams: Record<string, any> = {},
-) {
-  filterParams["localizationDateobs"] = dateobs;
+  filterParams: FilterParams,
+): FilterParams => {
+  const params = { ...filterParams };
+  params["localizationDateobs"] = dateobs;
 
-  if (!Object.keys(filterParams).includes("startDate")) {
+  if (!Object.keys(params).includes("startDate")) {
     if (dateobs) {
-      filterParams["startDate"] = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+      params["startDate"] = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
     }
   }
-
-  if (!Object.keys(filterParams).includes("endDate")) {
+  if (!Object.keys(params).includes("endDate")) {
     if (dateobs) {
-      filterParams["endDate"] = dayjs(dateobs)
+      params["endDate"] = dayjs(dateobs)
         .add(7, "day")
         .format("YYYY-MM-DD HH:mm:ss");
     }
   }
-
-  if (!Object.keys(filterParams).includes("numPerPage")) {
-    filterParams["numPerPage"] = 10;
+  if (!Object.keys(params).includes("numPerPage")) {
+    params["numPerPage"] = 10;
   }
+  params["observationStatus"] = "queued";
+  return params;
+};
 
-  filterParams["observationStatus"] = "queued";
-
-  return API.GET(
-    "/api/observation",
-    FETCH_GCNEVENT_QUEUED_OBSERVATIONS,
-    filterParams,
-  );
+interface FetchGcnEventQueuedObservationsArg {
+  dateobs: string;
+  filterParams?: FilterParams | undefined;
 }
 
-// Websocket message handler
-messageHandler.add(
-  (
-    actionType: string,
-    payload: any,
-    dispatch: AppDispatch,
-    getState: () => RootState,
-  ) => {
-    const { gcnEvent } = getState();
-    if (actionType === FETCH_GCNEVENT_QUEUED_OBSERVATIONS) {
-      if (gcnEvent && gcnEvent.id === payload.gcnEvent.id) {
-        dispatch(fetchGcnEventQueuedObservations(gcnEvent.dateobs));
-      }
+interface RequestAPIQueuesArg {
+  id: number | string;
+  data?: Record<string, unknown> | undefined;
+}
+
+interface DeleteAPIQueueArg {
+  id: number | string;
+  data?: Record<string, unknown> | undefined;
+}
+
+export const queuedObservationsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getQueuedObservations: build.query<
+      {
+        observations: components["schemas"]["QueuedObservation"][];
+        totalMatches: number;
+        geojson?: object[] | null;
+        field_ids?: number[] | null;
+        probability?: number | null;
+        area?: number | null;
+        min_observations_per_field?: number | null;
+      },
+      FilterParams | void
+    >({
+      query: (filterParams) =>
+        buildQueryString(withQueuedObservationDefaults(filterParams ?? {})),
+      providesTags: ["QueuedObservations", "Observation"],
+    }),
+    getGcnEventQueuedObservations: build.query<
+      {
+        observations: components["schemas"]["QueuedObservation"][];
+        totalMatches: number;
+        geojson?: object[] | null;
+        field_ids?: number[] | null;
+        probability?: number | null;
+        area?: number | null;
+        min_observations_per_field?: number | null;
+      },
+      FetchGcnEventQueuedObservationsArg
+    >({
+      query: ({ dateobs, filterParams }) =>
+        buildQueryString(
+          withGcnEventQueuedObservationDefaults(dateobs, filterParams ?? {}),
+        ),
+      providesTags: ["QueuedObservations", "Observation"],
+    }),
+    requestAPIQueues: build.query<
+      RouteData<"GET /api/observation/external_api/{allocation_id}">,
+      RequestAPIQueuesArg
+    >({
+      query: ({ id, data = { queuesOnly: true } }) => {
+        const params = new URLSearchParams(
+          Object.fromEntries(
+            Object.entries(data).map(([key, value]) => [key, String(value)]),
+          ),
+        ).toString();
+        return params
+          ? `api/observation/external_api/${id}?${params}`
+          : `api/observation/external_api/${id}`;
+      },
+    }),
+    deleteAPIQueue: build.mutation<any, DeleteAPIQueueArg>({
+      query: ({ id, data = {} }) => ({
+        url: `api/observation/external_api/${id}`,
+        method: "DELETE",
+        body: data,
+      }),
+      invalidatesTags: ["QueuedObservations", "Observation"],
+    }),
+  }),
+});
+
+// Websocket: the old handler refetched the queued-observations list on
+// REFRESH_QUEUED_OBSERVATIONS.
+invalidateOnMessage("skyportal/REFRESH_QUEUED_OBSERVATIONS", () => [
+  "QueuedObservations",
+]);
+
+// Websocket: the old handler refetched the GCN-event queued observations on
+// FETCH_GCNEVENT_QUEUED_OBSERVATIONS, but only when the currently-loaded
+// gcnEvent matched the pushed event id.
+invalidateOnMessage(
+  "skyportal/FETCH_GCNEVENT_QUEUED_OBSERVATIONS",
+  (payload, getState) => {
+    const { gcnEvent } = getState() as {
+      gcnEvent?: { id?: number | string } | null;
+    };
+    if (gcnEvent && gcnEvent.id === payload?.gcnEvent?.id) {
+      return ["QueuedObservations"];
     }
+    return null;
   },
 );
 
-type QueuedObservationsState = Record<string, any> | null;
-
-interface QueuedObservationsAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-const reducer = (
-  state: QueuedObservationsState = null,
-  action: QueuedObservationsAction,
-): QueuedObservationsState => {
-  switch (action.type) {
-    case FETCH_QUEUED_OBSERVATIONS_OK: {
-      return {
-        ...state,
-        queued_observations: action.data,
-      };
-    }
-    case FETCH_GCNEVENT_QUEUED_OBSERVATIONS_OK: {
-      return {
-        ...state,
-        gcnEventQueuedObservations: action.data,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("queued_observations", reducer);
+export const {
+  useGetQueuedObservationsQuery,
+  useLazyGetQueuedObservationsQuery,
+  useGetGcnEventQueuedObservationsQuery,
+  useLazyGetGcnEventQueuedObservationsQuery,
+  useRequestAPIQueuesQuery,
+  useLazyRequestAPIQueuesQuery,
+  useDeleteAPIQueueMutation,
+} = queuedObservationsApi;

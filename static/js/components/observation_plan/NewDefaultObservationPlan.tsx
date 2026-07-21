@@ -1,5 +1,7 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -19,9 +21,12 @@ import LocalizationTagsSelect from "../localization/LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "../localization/LocalizationPropertiesSelect";
 import PlanPropertiesSelect from "./PlanPropertiesSelect";
 
-import * as defaultObservationPlansActions from "../../ducks/default_observation_plans";
-import * as allocationActions from "../../ducks/allocations";
-import * as instrumentsActions from "../../ducks/instruments";
+import { useSubmitDefaultObservationPlanMutation } from "../../ducks/default_observation_plans";
+import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
+import {
+  useGetInstrumentsQuery,
+  useGetInstrumentObsplanFormsQuery,
+} from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
 
 const conversions: Record<string, any> = {
@@ -50,6 +55,8 @@ const NewDefaultObservationPlan = ({
   onClose = null,
 }: NewDefaultObservationPlanProps) => {
   const dispatch = useAppDispatch();
+  const [submitDefaultObservationPlan] =
+    useSubmitDefaultObservationPlanMutation();
   const [selectedGcnNoticeTypes, setSelectedGcnNoticeTypes] = useState<any[]>(
     [],
   );
@@ -63,53 +70,24 @@ const NewDefaultObservationPlan = ({
   const [selectedPlanProperties, setSelectedPlanProperties] = useState<any[]>(
     [],
   );
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const { allocationListApiObsplan } = useAppSelector(
-    (state) => state["allocations"],
-  );
-  const allGroups = useAppSelector((state) => state.groups.all);
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: allocationListApiObsplan = [] } =
+    useGetAllocationsApiObsplanQuery();
+  const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
-  const [
-    fetchingInstrumentObsplanFormParams,
-    setFetchingInstrumentObsplanFormParams,
-  ] = useState(false);
 
-  const { instrumentList, instrumentObsplanFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentObsplanFormParams = {} } =
+    useGetInstrumentObsplanFormsQuery();
 
   useEffect(() => {
-    const getAllocations = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result: any = await dispatch(
-        allocationActions.fetchAllocationsApiObsplan(),
-      );
-
-      const { data } = result;
-      setSelectedAllocationId(data[0]?.id);
-      setSelectedGroupIds([data[0]?.group_id]);
-    };
-
-    getAllocations();
-
-    if (
-      Object.keys(instrumentObsplanFormParams).length === 0 &&
-      !fetchingInstrumentObsplanFormParams
-    ) {
-      setFetchingInstrumentObsplanFormParams(true);
-      dispatch(instrumentsActions.fetchInstrumentObsplanForms()).then(() => {
-        setFetchingInstrumentObsplanFormParams(false);
-      });
+    if (allocationListApiObsplan?.length > 0 && !selectedAllocationId) {
+      setSelectedAllocationId(allocationListApiObsplan[0]?.["id"]);
+      setSelectedGroupIds([allocationListApiObsplan[0]?.["group_id"]]);
     }
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedAllocationId, setSelectedGroupIds]);
+  }, [allocationListApiObsplan]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
@@ -168,18 +146,17 @@ const NewDefaultObservationPlan = ({
       auto_send,
     };
 
-    dispatch(
-      defaultObservationPlansActions.submitDefaultObservationPlan(json),
-    ).then((response: any) => {
-      if (response.status === "success") {
-        dispatch(
-          showNotification("Successfully created default observation plan"),
-        );
-        if (typeof onClose === "function") {
-          onClose();
-        }
+    try {
+      await submitDefaultObservationPlan(json).unwrap();
+      dispatch(
+        showNotification("Successfully created default observation plan"),
+      );
+      if (typeof onClose === "function") {
+        onClose();
       }
-    });
+    } catch {
+      // error notification handled by the baseQuery
+    }
   };
 
   const { formSchema, uiSchema } =

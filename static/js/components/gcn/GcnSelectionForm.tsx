@@ -1,3 +1,5 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import React, { lazy, Suspense, useEffect, useState } from "react";
 
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -23,28 +25,40 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
 
+import { skipToken } from "@reduxjs/toolkit/query";
+
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetGcnEventQuery } from "../../ducks/gcnEvent";
 
-import * as galaxiesActions from "../../ducks/galaxies";
-import * as instrumentActions from "../../ducks/instrument";
-import * as observationsActions from "../../ducks/observations";
-import * as sourcesActions from "../../ducks/sources";
-import * as sourcesingcnActions from "../../ducks/sourcesingcn";
+import {
+  useGetGalaxyCatalogsQuery,
+  useLazyGetGcnEventGalaxiesQuery,
+} from "../../ducks/galaxies";
+import { useLazyGetInstrumentSkymapQuery } from "../../ducks/instrument";
+import {
+  useLazyGetGcnEventObservationsQuery,
+  useSubmitObservationsTreasureMapMutation,
+} from "../../ducks/observations";
+import {
+  useFetchGcnEventSourcesQuery,
+  useLazyFetchSourcesQuery,
+} from "../../ducks/sources";
+import { useLazyGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
 
 import AddCatalogQueryPage from "../catalog_query/AddCatalogQueryPage";
 import AddSurveyEfficiencyObservationsPage from "../survey_efficiency/AddSurveyEfficiencyObservationsPage";
 import ExecutedObservationsTable from "../observation/ExecutedObservationsTable";
 import GalaxyTable from "../galaxy/GalaxyTable";
-// Lazy-loaded: aladin-lite is heavy and would otherwise sit in the main bundle.
 const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 import SourceTable from "../source/SourceTable";
 import ProgressIndicator from "../ProgressIndicators";
 
-import * as localizationActions from "../../ducks/localization";
+import { useGetLocalizationQuery } from "../../ducks/localization";
 import Spinner from "../Spinner";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const GcnReport = React.lazy(() => import("./GcnReport"));
 const GcnSummary = React.lazy(() => import("./GcnSummary"));
@@ -108,6 +122,7 @@ interface GcnEventSourcesPageProps {
   sources?: Record<string, any> | null;
   localizationName: string;
   sourceFilteringState: Record<string, any>;
+  setGcnSourcesArgs: (args: { dateobs: any; filterParams?: any }) => void;
 }
 
 const GcnEventSourcesPage = ({
@@ -115,12 +130,11 @@ const GcnEventSourcesPage = ({
   sources = null,
   localizationName,
   sourceFilteringState,
+  setGcnSourcesArgs,
 }: GcnEventSourcesPageProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const sourcesState = useAppSelector(
-    (state) => state["sources"].gcnEventSources,
-  ) as any;
+  const sourcesState = sources as any;
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
   const [filtering, setFiltering] = useState<Record<string, any>>({
     ...sourceFilteringState,
@@ -130,6 +144,8 @@ const GcnEventSourcesPage = ({
   });
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
+  const [fetchSourcesInGcn] = useLazyGetSourcesInGcnQuery();
+  const [fetchSourcesTrigger] = useLazyFetchSourcesQuery();
 
   const handleSourcesTableSorting = (sortData: any, filterData: any) => {
     const data = {
@@ -141,7 +157,7 @@ const GcnEventSourcesPage = ({
       sortBy: sortData.name,
       sortOrder: sortData.direction,
     };
-    dispatch(sourcesActions.fetchGcnEventSources(dateobs, data));
+    setGcnSourcesArgs({ dateobs, filterParams: data });
     setFiltering(data);
   };
 
@@ -163,13 +179,13 @@ const GcnEventSourcesPage = ({
       data["sortBy"] = sortData.name;
       data["sortOrder"] = sortData.direction;
     }
-    dispatch(sourcesActions.fetchGcnEventSources(dateobs, data));
+    setGcnSourcesArgs({ dateobs, filterParams: data });
     setFiltering(data);
   };
 
   const handleSourcesDownload = async () => {
     const sourceAll: any[] = [];
-    if (sourcesState.totalMatches === 0) {
+    if (!sourcesState || sourcesState.totalMatches === 0) {
       dispatch(showNotification("No sources to download", "warning"));
     } else {
       setDownloadProgressTotal(sourcesState.totalMatches);
@@ -184,14 +200,16 @@ const GcnEventSourcesPage = ({
           numPerPage: sourcesState.numPerPage,
         };
         /* eslint-disable no-await-in-loop */
-        const result = (await dispatch(
-          sourcesActions.fetchSources(data),
-        )) as any;
-        if (result && result.data && result?.status === "success") {
-          sourceAll.push(...result.data.sources);
+        try {
+          const result = (await fetchSourcesTrigger(data).unwrap()) as any;
+          // RTK Query returns frozen objects; copy them so we can attach the
+          // `gcn` status below without mutating read-only data.
+          sourceAll.push(
+            ...result.sources.map((source: any) => ({ ...source })),
+          );
           setDownloadProgressCurrent(sourceAll.length);
           setDownloadProgressTotal(sourcesState.totalMatches);
-        } else if (result && result?.status !== "success") {
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
@@ -216,20 +234,19 @@ const GcnEventSourcesPage = ({
     }
     setDownloadProgressCurrent(0);
     setDownloadProgressTotal(0);
-    if (sourceAll?.length === sourcesState.totalMatches?.length) {
+    if (sourceAll?.length === sourcesState.totalMatches) {
       dispatch(showNotification("Sources downloaded successfully"));
     }
 
     // for all the sources, fetch the "sourcesConfirmedInGcn" status
-    const response = (await dispatch(
-      sourcesingcnActions.fetchSourcesInGcn(dateobs, {
+    try {
+      const sourcesInGcn = await fetchSourcesInGcn({
+        dateobs,
         localizationName,
         sourcesIdList: sourceAll.map((source) => source.id),
-      }),
-    )) as any;
-    if (response?.status === "success") {
+      }).unwrap();
       sourceAll.forEach((source) => {
-        const match = response.data.find(
+        const match = sourcesInGcn.find(
           (item: any) => item.obj_id === source.id,
         );
         if (match) {
@@ -246,6 +263,8 @@ const GcnEventSourcesPage = ({
           };
         }
       });
+    } catch {
+      // notification handled by baseQuery
     }
     return sourceAll;
   };
@@ -268,6 +287,7 @@ const GcnEventSourcesPage = ({
         downloadCallback={handleSourcesDownload}
         includeGcnStatus
         sourceInGcnFilter={sourceFilteringState}
+        gcnEventDateobs={dateobs}
       />
       <Dialog open={downloadProgressTotal > 0} maxWidth="md">
         <DialogContent
@@ -278,7 +298,12 @@ const GcnEventSourcesPage = ({
             alignItems: "center",
           }}
         >
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            sx={{
+              display: "inline",
+            }}
+          >
             Downloading {downloadProgressTotal} sources
           </Typography>
           <div
@@ -314,27 +339,47 @@ const MyObjectFieldTemplate = (props: MyObjectFieldTemplateProps) => {
   return (
     <Grid
       container
-      direction="column"
-      alignItems="center"
-      spacing={2}
-      {...({ justify: "space-between" } as any)}
+      spacing={2.5}
+      sx={{ flexDirection: "column", width: "100%" }}
     >
-      {uiSchema["ui:grid"].map((row: any) => (
-        <Grid
-          container
-          direction="row"
-          alignItems="center"
-          spacing={2}
-          key={JSON.stringify(row)}
-          {...({ justify: "space-between" } as any)}
-        >
-          {Object.keys(row).map((fieldName) => (
-            <Grid size={row[fieldName]} key={fieldName}>
-              {properties.find((p) => p.name === fieldName).content}
+      {uiSchema["ui:grid"].map((row: any) => {
+        // A row can be a section header ({ __section: "Title" }) instead of fields.
+        if (row.__section) {
+          return (
+            <Grid key={`section-${row.__section}`} sx={{ width: "100%" }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontWeight: 600,
+                  color: "text.secondary",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  pb: 0.5,
+                  borderBottom: 1,
+                  borderColor: "divider",
+                }}
+              >
+                {row.__section}
+              </Typography>
             </Grid>
-          ))}
-        </Grid>
-      ))}
+          );
+        }
+        return (
+          <Grid
+            container
+            direction="row"
+            spacing={2}
+            key={JSON.stringify(row)}
+            sx={{ alignItems: "flex-start", width: "100%" }}
+          >
+            {Object.keys(row).map((fieldName) => (
+              <Grid size={row[fieldName]} key={fieldName}>
+                {properties.find((p) => p.name === fieldName)?.content}
+              </Grid>
+            ))}
+          </Grid>
+        );
+      })}
     </Grid>
   );
 };
@@ -347,7 +392,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   const theme = useTheme();
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const [fetchingLocalization, setFetchingLocalization] = useState(false);
+  const [fetchInstrumentSkymap] = useLazyGetInstrumentSkymapQuery();
   const [selectedLocalizationName, setSelectedLocalizationName] = useState<
     string | null
   >(null);
@@ -365,21 +410,31 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     displayOptions.map((x) => [x, x === "localization"]),
   );
 
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]) as any;
-  const groups = useAppSelector(
-    (state) => state.groups.userAccessible,
-  ) as any[];
-  const { analysisLoc } = useAppSelector(
-    (state) => state["localization"],
-  ) as any;
-  const galaxyCatalogs = useAppSelector(
-    (state) => (state as any).galaxies?.catalogs,
-  ) as any[];
+  const { data: gcnEvent } = useGetGcnEventQuery(dateobs ?? skipToken) as {
+    data: any;
+  };
+  const groups = (useGetGroupsQuery().data?.userAccessible ?? []) as any[];
+  const galaxyCatalogs = (useGetGalaxyCatalogsQuery().data ?? []) as any[];
   const [selectedFields, setSelectedFields] = useState<any[]>([]);
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
   const [selectedLocalizationId, setSelectedLocalizationId] =
     useState<any>(null);
+
+  const selectedLocalizationLoadName = gcnEvent?.localizations?.find(
+    (loc: any) => loc.id === selectedLocalizationId,
+  )?.localization_name;
+  const { data: analysisLoc, isFetching: fetchingLocalization } =
+    useGetLocalizationQuery(
+      {
+        dateobs: gcnEvent?.dateobs,
+        localization_name: selectedLocalizationLoadName,
+      },
+      {
+        skip: !gcnEvent?.dateobs || !selectedLocalizationLoadName,
+      },
+    );
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] =
     useState<any>(null);
@@ -415,36 +470,39 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
 
   const defaultStartDate = dayjs
     .utc(gcnEvent?.dateobs)
-    .format("YYYY-MM-DD HH:mm:ss");
+    .format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultEndDate = dayjs
     .utc(gcnEvent?.dateobs)
     .add(7, "day")
-    .format("YYYY-MM-DD HH:mm:ss");
+    .format("YYYY-MM-DDTHH:mm:ssZ");
   const [formDataState, setFormDataState] = useState<Record<string, any>>({
     startDate: defaultStartDate,
     endDate: defaultEndDate,
   });
 
-  const { telescopeList } = useAppSelector(
-    (state) => state["telescopes"],
-  ) as any;
-  const { instrumentList } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
   const sortedInstrumentList = [...instrumentList];
   sortedInstrumentList.sort((i1: any, i2: any) =>
     i1.name.localeCompare(i2.name),
   );
 
-  const gcnEventSources = useAppSelector(
-    (state) => state?.["sources"]?.gcnEventSources,
+  const [gcnSourcesArgs, setGcnSourcesArgs] = useState<{
+    dateobs: any;
+    filterParams?: any;
+  } | null>(null);
+  const { data: gcnEventSources } = useFetchGcnEventSourcesQuery(
+    gcnSourcesArgs!,
+    { skip: gcnSourcesArgs == null },
   ) as any;
-  const gcnEventGalaxies = useAppSelector(
-    (state) => (state as any)?.galaxies?.gcnEventGalaxies,
-  ) as any;
-  const gcnEventObservations = useAppSelector(
-    (state) => (state as any)?.observations?.gcnEventObservations,
-  ) as any;
+  const [fetchGcnEventGalaxies, { data: gcnEventGalaxies }] =
+    useLazyGetGcnEventGalaxiesQuery();
+  const [gcnEventObservations, setGcnEventObservations] = useState<any>(null);
+  const [fetchGcnEventObservations] = useLazyGetGcnEventObservationsQuery();
+  const [submitObservationsTreasureMap] =
+    useSubmitObservationsTreasureMapMutation();
 
   useEffect(() => {
     const setDefaults = async () => {
@@ -527,7 +585,11 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
       numberObservations: filterParams?.numberDetections || 1,
       requireDetections: filterParams?.requireDetections,
     };
-    await dispatch(observationsActions.submitObservationsTreasureMap(id, data));
+    try {
+      await submitObservationsTreasureMap({ id, data }).unwrap();
+    } catch {
+      // error notification handled by the baseQuery
+    }
     setIsSubmittingTreasureMap(null);
   };
 
@@ -542,23 +604,24 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         i <= Math.ceil(gcnEventObservations.totalMatches / 100);
         i += 1
       ) {
-        const result = (await dispatch(
-          observationsActions.fetchGcnEventObservations(gcnEvent?.dateobs, {
-            ...formDataState,
-            instrumentName: instLookUp[selectedInstrumentId]?.name,
-            telescopeName:
-              telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
-            numberObservations: formDataState?.["numberDetections"] || 1,
-            numPerPage: 100,
-            pageNumber: i,
-            includeGeoJSON: true,
-          }),
-        )) as any;
-        if (result && result.data && result?.status === "success") {
-          observationsAll.push(...result.data.observations);
+        try {
+          const result: any = await fetchGcnEventObservations({
+            dateobs: gcnEvent?.dateobs,
+            filterParams: {
+              ...formDataState,
+              instrumentName: instLookUp[selectedInstrumentId]?.name,
+              telescopeName:
+                telLookUp[instLookUp[selectedInstrumentId]?.telescope_id]?.name,
+              numberObservations: formDataState?.["numberDetections"] || 1,
+              numPerPage: 100,
+              pageNumber: i,
+              includeGeoJSON: true,
+            },
+          }).unwrap();
+          observationsAll.push(...result.observations);
           setDownloadProgressCurrent(observationsAll.length);
           setDownloadProgressTotal(gcnEventObservations.totalMatches);
-        } else if (result && result?.status !== "success") {
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
@@ -618,12 +681,13 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
 
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
-      dispatch(
-        instrumentActions.fetchInstrumentSkymap(
-          instLookUp[selectedInstrumentId]?.id,
-          locLookUp[selectedLocalizationId],
-        ),
-      ).then((response: any) => setSkymapInstrument(response.data));
+      fetchInstrumentSkymap({
+        id: instLookUp[selectedInstrumentId]?.id,
+        localization: locLookUp[selectedLocalizationId],
+      })
+        .unwrap()
+        .then((response: any) => setSkymapInstrument(response))
+        .catch(() => {});
     };
     if (
       instLookUp[selectedInstrumentId] &&
@@ -637,21 +701,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     selectedLocalizationId,
     selectedInstrumentId,
   ]);
-
-  useEffect(() => {
-    if (selectedLocalizationId && gcnEvent?.dateobs) {
-      setFetchingLocalization(true);
-      dispatch(
-        localizationActions.fetchLocalization(
-          gcnEvent?.dateobs,
-          gcnEvent?.localizations.find(
-            (loc: any) => loc.id === selectedLocalizationId,
-          )?.localization_name,
-          "analysis",
-        ),
-      ).then(() => setFetchingLocalization(false));
-    }
-  }, [dispatch, selectedLocalizationId]);
 
   if (gcnEvent?.dateobs !== dateobs) return <Spinner />;
 
@@ -671,10 +720,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   const handleSubmit = async ({ formData }: { formData: any }) => {
     const { queryList = [] } = formData;
 
-    if (queryList.includes("sources") && !formData?.group_ids?.length) {
-      showError("Please select at least one group when querying sources.");
-      return;
-    }
     setIsSubmitting(true);
 
     const cleanDate = (date: string) =>
@@ -690,9 +735,10 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     }
 
     const fetchSources = async () => {
-      await dispatch(
-        sourcesActions.fetchGcnEventSources(gcnEvent?.dateobs, formData),
-      );
+      setGcnSourcesArgs({
+        dateobs: gcnEvent?.dateobs,
+        filterParams: formData,
+      });
       setSourceFilteringState(formData);
     };
 
@@ -708,23 +754,30 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         return false;
       }
 
-      await dispatch(
-        observationsActions.fetchGcnEventObservations(gcnEvent?.dateobs, {
-          ...formData,
-          instrumentName: instrument.name,
-          telescopeName: telescope.name,
-          numberObservations: formData?.numberDetections || 1,
-        }),
-      );
+      try {
+        const result = await fetchGcnEventObservations({
+          dateobs: gcnEvent?.dateobs,
+          filterParams: {
+            ...formData,
+            instrumentName: instrument.name,
+            telescopeName: telescope.name,
+            numberObservations: formData?.numberDetections || 1,
+          },
+        }).unwrap();
+        setGcnEventObservations(result);
+      } catch {
+        // error notification handled by the baseQuery
+      }
       setHasFetchedObservations(true);
       return true;
     };
 
     const fetchGalaxies = async () => {
       formData.numPerPage = 100;
-      await dispatch(
-        galaxiesActions.fetchGcnEventGalaxies(gcnEvent?.dateobs, formData),
-      );
+      await fetchGcnEventGalaxies({
+        dateobs: gcnEvent?.dateobs,
+        filterParams: formData,
+      });
     };
 
     formData.includeGeoJSON = true;
@@ -741,15 +794,29 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   };
 
   function validate(formData: any, errors: any) {
-    if (formData.start_date > formData.end_date) {
-      errors.start_date.addError("Start Date must come before End Date");
+    if (
+      formData.startDate &&
+      formData.endDate &&
+      formData.startDate > formData.endDate
+    ) {
+      errors.startDate.addError("Start Date must come before End Date");
     }
     if (
       formData.localizationCumprob < 0 ||
       formData.localizationCumprob > 1.01
     ) {
-      errors.cumulative.addError(
-        "Value of cumulative should be between 0 and 1",
+      errors.localizationCumprob.addError(
+        "Cumulative probability should be between 0 and 1",
+      );
+    }
+    // Querying sources requires a group; surface it inline instead of a
+    // submit-time notification.
+    if (
+      formData.queryList?.includes("sources") &&
+      !formData.group_ids?.length
+    ) {
+      errors.group_ids.addError(
+        "Select at least one group when querying sources.",
       );
     }
     return errors;
@@ -760,11 +827,13 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     properties: {
       startDate: {
         type: "string",
+        format: "date-time",
         title: "Start Date",
         default: defaultStartDate,
       },
       endDate: {
         type: "string",
+        format: "date-time",
         title: "End Date",
         default: defaultEndDate,
       },
@@ -843,13 +912,16 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
       "ui:enumNames": groups.map((group) => group.name),
     },
     "ui:grid": [
+      { __section: "Time range" },
       { startDate: 6, endDate: 6 },
+      { __section: "Filters" },
       { numberDetections: 4, localizationCumprob: 4, maxDistance: 4 },
       {
         requireDetections: 4,
         excludeForcedPhotometry: 4,
         localizationRejectSources: 4,
       },
+      { __section: "Query targets" },
       galaxyCatalogs?.length > 0
         ? { queryList: 4, catalog_name: 4, group_ids: 4 }
         : { queryList: 6, group_ids: 6 },
@@ -862,7 +934,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         size={{ sm: 4 }}
         sx={{ display: { xs: "none", sm: "none", md: "block" } }}
       >
-        {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
+        {Object.keys(locLookUp).includes(analysisLoc?.id?.toString() ?? "") &&
         !fetchingLocalization ? (
           <div style={{ marginTop: "0.5rem" }}>
             <Suspense fallback={<CircularProgress />}>
@@ -960,8 +1032,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
 
         {tabIndex === 0 && (
           <Box sx={{ display: { sm: "block", md: "none" } }}>
-            {Object.keys(locLookUp).includes(analysisLoc?.id?.toString()) &&
-            !fetchingLocalization ? (
+            {Object.keys(locLookUp).includes(
+              analysisLoc?.id?.toString() ?? "",
+            ) && !fetchingLocalization ? (
               <Grid container spacing={2}>
                 <Grid
                   size={{ sm: 8, md: 12 }}
@@ -1047,7 +1120,9 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
             container
             spacing={1}
             className={classes.formContainer}
-            alignItems="center"
+            sx={{
+              alignItems: "center",
+            }}
           >
             <Grid size={{ sm: 12 }} className={classes.formContainerItem}>
               <InputLabel id="localizationSelectLabel">Localization</InputLabel>
@@ -1104,7 +1179,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                 onSubmit={handleSubmit as any}
                 customValidate={validate}
                 disabled={isSubmitting}
-                liveValidate
               >
                 <Button
                   primary
@@ -1126,8 +1200,8 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                   <Suspense fallback={<CircularProgress />}>
                     <GcnReport dateobs={dateobs} />
                   </Suspense>
-                  <AddSurveyEfficiencyObservationsPage />
-                  <AddCatalogQueryPage />
+                  <AddSurveyEfficiencyObservationsPage dateobs={dateobs} />
+                  <AddCatalogQueryPage dateobs={dateobs} />
                   {isSubmittingTreasureMap === selectedInstrumentId ? (
                     <CircularProgress />
                   ) : (
@@ -1164,6 +1238,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                     sources={gcnEventSources}
                     localizationName={selectedLocalizationName}
                     sourceFilteringState={sourceFilteringState}
+                    setGcnSourcesArgs={setGcnSourcesArgs}
                   />
                 )}
               </div>
@@ -1226,7 +1301,12 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                           alignItems: "center",
                         }}
                       >
-                        <Typography variant="h6" display="inline">
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            display: "inline",
+                          }}
+                        >
                           Downloading {downloadProgressTotal} observations
                         </Typography>
                         <div

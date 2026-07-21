@@ -20,11 +20,14 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 
-import * as ProfileActions from "../../ducks/profile";
-import * as userNotificationsActions from "../../ducks/userNotifications";
+import {
+  useGetProfileQuery,
+  useUpdateBasicUserInfoMutation,
+} from "../../ducks/profile";
+import { useTestNotificationsMutation } from "../../ducks/userNotifications";
 
 import UIPreferences from "./preferences/UIPreferences";
 import NotificationPreferences from "./preferences/NotificationPreferences";
@@ -45,12 +48,14 @@ const useStyles = makeStyles()(() => ({
 
 const UpdateProfileForm = () => {
   const { classes } = useStyles();
-  const profile = useAppSelector((state) => state.profile) as any;
+  const { data: profile } = useGetProfileQuery();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingEmailTest, setIsSubmittingEmailTest] = useState(false);
   const [isSubmittingSMSTest, setIsSubmittingSMSTest] = useState(false);
 
   const dispatch = useAppDispatch();
+  const [updateBasicUserInfo] = useUpdateBasicUserInfoMutation();
+  const [testNotifications] = useTestNotificationsMutation();
   const {
     handleSubmit,
     register,
@@ -69,14 +74,14 @@ const UpdateProfileForm = () => {
 
   useEffect(() => {
     reset({
-      username: profile.username,
-      firstName: profile.first_name,
-      lastName: profile.last_name,
-      affiliations: profile.affiliations,
-      email: profile.contact_email,
-      phone: profile.contact_phone,
-      bio: profile.bio,
-      is_bot: profile.is_bot,
+      username: profile?.username,
+      firstName: profile?.first_name,
+      lastName: profile?.last_name,
+      affiliations: profile?.affiliations,
+      email: profile?.contact_email,
+      phone: profile?.contact_phone,
+      bio: profile?.bio,
+      is_bot: profile?.is_bot,
     });
   }, [reset, profile]);
 
@@ -92,11 +97,11 @@ const UpdateProfileForm = () => {
       bio: initialValues.bio,
       is_bot: initialValues.is_bot,
     };
-    const result: any = await dispatch(
-      ProfileActions.updateBasicUserInfo(basicinfo),
-    );
-    if (result.status === "success") {
+    try {
+      await updateBasicUserInfo({ formData: basicinfo }).unwrap();
       dispatch(showNotification("Profile data saved"));
+    } catch {
+      // error notification handled by the API layer
     }
     setIsSubmitting(false);
   };
@@ -104,21 +109,21 @@ const UpdateProfileForm = () => {
   const handleEmailTest = async () => {
     setIsSubmittingEmailTest(true);
     const data = { notification_type: "email" };
-    await dispatch(userNotificationsActions.testNotifications(data));
+    await testNotifications(data);
     setIsSubmittingEmailTest(false);
   };
 
   const handleSMSTest = async () => {
     setIsSubmittingSMSTest(true);
     const data = { notification_type: "SMS" };
-    await dispatch(userNotificationsActions.testNotifications(data));
+    await testNotifications(data);
     setIsSubmittingSMSTest(false);
   };
 
   return (
     <div>
       <Card>
-        <CardContent>
+        <CardContent data-testid="tour-profile-details">
           <h2>Username</h2>
           <form onSubmit={handleSubmit(onSubmit)}>
             <InputLabel htmlFor="usernameInput">
@@ -127,9 +132,11 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justifyContent="flex-start"
-              alignItems="baseline"
               spacing={2}
+              sx={{
+                justifyContent: "flex-start",
+                alignItems: "baseline",
+              }}
             >
               <Grid size={{ xs: 12, lg: 3 }}>
                 <TextField
@@ -146,9 +153,11 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justifyContent="flex-start"
-              alignItems="baseline"
               spacing={2}
+              sx={{
+                justifyContent: "flex-start",
+                alignItems: "baseline",
+              }}
             >
               <Grid size={{ xs: 6, lg: 3 }}>
                 <InputLabel htmlFor="firstName_id">First Name</InputLabel>
@@ -175,9 +184,11 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justifyContent="flex-start"
-              alignItems="baseline"
               spacing={2}
+              sx={{
+                justifyContent: "flex-start",
+                alignItems: "baseline",
+              }}
             >
               <Grid size={{ xs: 12, lg: 6 }}>
                 <InputLabel htmlFor="bio_id">
@@ -189,7 +200,7 @@ const UpdateProfileForm = () => {
                   id="bio_id"
                   multiline
                   style={{ width: "100%" }}
-                  inputProps={{ maxLength: 1000 }}
+                  slotProps={{ htmlInput: { maxLength: 1000 } }}
                 />
               </Grid>
             </Grid>
@@ -198,9 +209,11 @@ const UpdateProfileForm = () => {
               <Grid
                 container
                 direction="row"
-                justifyContent="flex-start"
-                alignItems="baseline"
                 spacing={2}
+                sx={{
+                  justifyContent: "flex-start",
+                  alignItems: "baseline",
+                }}
               >
                 <Grid size={{ xs: 12, lg: 6 }}>
                   <InputLabel htmlFor="affiliationsInput">
@@ -213,7 +226,9 @@ const UpdateProfileForm = () => {
                         multiple
                         onChange={(_e, data) => onChange(data)}
                         value={value}
-                        options={profile?.affiliations?.map((aff: any) => aff)}
+                        options={
+                          profile?.affiliations?.map((aff: any) => aff) ?? []
+                        }
                         filterOptions={(options, params) => {
                           const filtered = filter(options, params);
 
@@ -261,9 +276,11 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justifyContent="flex-start"
-              alignItems="baseline"
               spacing={2}
+              sx={{
+                justifyContent: "flex-start",
+                alignItems: "baseline",
+              }}
             >
               <Grid size={{ xs: 12, lg: 6 }}>
                 <InputLabel htmlFor="email_id">
@@ -294,9 +311,11 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justifyContent="flex-start"
-              alignItems="baseline"
               spacing={2}
+              sx={{
+                justifyContent: "flex-start",
+                alignItems: "baseline",
+              }}
             >
               <Grid size={{ xs: 12, lg: 6 }}>
                 <InputLabel htmlFor="phone_id">
@@ -336,9 +355,11 @@ const UpdateProfileForm = () => {
                 <Grid
                   container
                   direction="row"
-                  justifyContent="flex-start"
-                  alignItems="baseline"
                   spacing={2}
+                  sx={{
+                    justifyContent: "flex-start",
+                    alignItems: "baseline",
+                  }}
                 >
                   <Grid size={{ xs: 12, lg: 6 }}>
                     <InputLabel htmlFor="is_bot_id">
@@ -351,7 +372,9 @@ const UpdateProfileForm = () => {
                           checked={value}
                           onChange={(e) => onChange(e.target.checked)}
                           color="primary"
-                          inputProps={{ "aria-label": "primary checkbox" }}
+                          slotProps={{
+                            input: { "aria-label": "primary checkbox" },
+                          }}
                         />
                       )}
                       control={control}
@@ -372,7 +395,7 @@ const UpdateProfileForm = () => {
             </Button>
           </form>
         </CardContent>
-        <CardContent>
+        <CardContent data-testid="tour-profile-notifications">
           <NotificationPreferences />
         </CardContent>
         <CardContent>
@@ -381,7 +404,7 @@ const UpdateProfileForm = () => {
         <CardContent>
           <OpenAIPreferences />
         </CardContent>
-        <CardContent>
+        <CardContent data-testid="tour-profile-appearance">
           <UIPreferences />
         </CardContent>
         <CardContent>

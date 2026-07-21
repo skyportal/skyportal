@@ -1,10 +1,12 @@
 import datetime
 import json
 
+import aiohttp
 import lxml
 import requests
 import sqlalchemy as sa
 from astropy.time import Time
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -21,7 +23,7 @@ env, cfg = load_env()
 app_url = get_app_base_url()
 
 ALERT_THUMB_TYPES = ["new", "ref", "sub"]
-ARCHIVE_THUMB_TYPES = ["sdss", "ls", "ps1"]
+ARCHIVE_THUMB_TYPES = ["sdss", "ls", "ps1", "sm", "hst", "chandra", "jwst"]
 ALLOWED_THUMBNAIL_TYPES = [
     *ALERT_THUMB_TYPES,
     *ARCHIVE_THUMB_TYPES,
@@ -490,7 +492,27 @@ def post_notification(request_body, timeout=2):
         return True
 
 
-def followup_request_notification_content(target, session):
+async def followup_request_notification_content(target, session):
+    from skyportal.models import Allocation, Comment, FollowupRequest, Instrument, Obj
+
+    # Reload with the deep lazy graph this function walks eager-loaded, since
+    # async sessions raise on implicit lazy loads.
+    target = await session.scalar(
+        sa.select(FollowupRequest)
+        .where(FollowupRequest.id == target.id)
+        .options(
+            selectinload(FollowupRequest.allocation)
+            .selectinload(Allocation.instrument)
+            .selectinload(Instrument.telescope),
+            selectinload(FollowupRequest.allocation).selectinload(Allocation.group),
+            selectinload(FollowupRequest.requester),
+            selectinload(FollowupRequest.obj).selectinload(Obj.thumbnails),
+            selectinload(FollowupRequest.obj)
+            .selectinload(Obj.comments)
+            .selectinload(Comment.author),
+        )
+    )
+
     include_comments = False
     if target.allocation.altdata.get("include_comments", False) in [
         True,
@@ -558,7 +580,7 @@ def followup_request_notification_content(target, session):
     # deduplicate by type, keeping the latest one (create_at) for each type
     # sort by date, most recent first
     thumbnails = sorted(thumbnails, key=lambda t: t.created_at, reverse=True)
-    thumbnails_by_type = {t: None for t in ALLOWED_THUMBNAIL_TYPES}
+    thumbnails_by_type = dict.fromkeys(ALLOWED_THUMBNAIL_TYPES)
     for thumbnail in thumbnails:
         if thumbnails_by_type[thumbnail.type] is None:
             thumbnails_by_type[thumbnail.type] = thumbnail
@@ -810,7 +832,7 @@ def followup_request_email_notification(data):
     )
 
 
-def request_notify_by_slack(request, session, is_update=None):
+async def request_notify_by_slack(request, session, is_update=None):
     altdata = request.allocation.altdata
 
     if not isinstance(altdata, dict):
@@ -821,7 +843,7 @@ def request_notify_by_slack(request, session, is_update=None):
     ):
         raise ValueError("Missing required keys in allocation altdata.")
 
-    content = followup_request_notification_content(request, session)
+    content = await followup_request_notification_content(request, session)
     if is_update is not None:  # if we have an explicit is_update, use that
         content["request"]["new"] = not is_update
     blocks = followup_request_slack_notification(content)
@@ -834,15 +856,17 @@ def request_notify_by_slack(request, session, is_update=None):
         }
     )
 
-    r = requests.post(
-        SLACK_MICROSERVICE_URL,
-        data=data,
-        headers={"Content-Type": "application/json"},
-    )
-    r.raise_for_status()
+    async with aiohttp.ClientSession() as http_session:
+        async with http_session.post(
+            SLACK_MICROSERVICE_URL,
+            data=data,
+            headers={"Content-Type": "application/json"},
+        ) as r:
+            if r.status >= 400:
+                raise ValueError(f"Error posting to Slack: status {r.status}")
 
 
-def request_notify_by_email(request, session, is_update=None):
+async def request_notify_by_email(request, session, is_update=None):
     # if not email_enabled:
     #     raise RuntimeError('Email notifications are not enabled.')
 
@@ -854,7 +878,7 @@ def request_notify_by_email(request, session, is_update=None):
     if "email" not in altdata:
         raise ValueError("Missing required key in allocation altdata.")
 
-    content = followup_request_notification_content(request, session)
+    content = await followup_request_notification_content(request, session)
     if is_update is not None:  # if we have an explicit is_update, use that
         content["request"]["new"] = not is_update
     subject, body = followup_request_email_notification(content)

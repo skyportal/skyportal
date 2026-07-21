@@ -1,3 +1,4 @@
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
 import Chip from "@mui/material/Chip";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -7,8 +8,11 @@ import Tooltip from "@mui/material/Tooltip";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as gcnEventsActions from "../../ducks/gcnEvents";
+import { useAppDispatch } from "../../types/hooks";
+import {
+  useAddGcnEventUserMutation,
+  useDeleteGcnEventUserMutation,
+} from "../../ducks/gcnEvents";
 import { userLabel } from "../../utils/format";
 
 const useStyles = makeStyles()(() => ({
@@ -58,17 +62,23 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }: GcnAdvocatesProps) => {
   const { classes: styles } = useStyles();
 
   const dispatch = useAppDispatch();
-  const userProfile = useAppSelector((state) => state.profile);
+  const { data: userProfile } = useGetProfileQuery();
+  const isReadOnly = useIsReadOnly();
+  const [addGcnEventUser] = useAddGcnEventUserMutation();
+  const [deleteGcnEventUser] = useDeleteGcnEventUserMutation();
 
   const addUser = async () => {
     if (!gcnEvent.dateobs) {
       return;
     }
-    const result: any = await dispatch(
-      gcnEventsActions.addGcnEventUser(userProfile.id, gcnEvent.dateobs),
-    );
-    if (result.status === "success") {
+    try {
+      await addGcnEventUser({
+        userID: userProfile!.id,
+        gcnEventDateobs: gcnEvent.dateobs,
+      }).unwrap();
       dispatch(showNotification("GCN Event User successfully added."));
+    } catch {
+      // Error notification is handled by the base query.
     }
   };
 
@@ -76,11 +86,14 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }: GcnAdvocatesProps) => {
     if (!gcnEvent.dateobs) {
       return;
     }
-    const result: any = await dispatch(
-      gcnEventsActions.deleteGcnEventUser(id, gcnEvent.dateobs),
-    );
-    if (result.status === "success") {
+    try {
+      await deleteGcnEventUser({
+        userID: id,
+        gcnEventDateobs: gcnEvent.dateobs,
+      }).unwrap();
       dispatch(showNotification("GCN Event User successfully deleted."));
+    } catch {
+      // Error notification is handled by the base query.
     }
   };
 
@@ -92,30 +105,36 @@ const GcnAdvocates = ({ gcnEvent, show_title = false }: GcnAdvocatesProps) => {
           <Tooltip
             key={userLabel(event_user, true)}
             title={
-              <>
-                <Button
-                  size="small"
-                  type="button"
-                  name={`deleteGcnEventAdvocateButton${event_user.username}`}
-                  onClick={() => deleteUser(event_user.user_id)}
-                  className={styles.gcnEventDelete}
-                >
-                  <DeleteIcon />
-                </Button>
-              </>
+              isReadOnly ? (
+                ""
+              ) : (
+                <>
+                  <Button
+                    size="small"
+                    type="button"
+                    name={`deleteGcnEventAdvocateButton${event_user.username}`}
+                    onClick={() => deleteUser(event_user.user_id)}
+                    className={styles.gcnEventDelete}
+                  >
+                    <DeleteIcon />
+                  </Button>
+                </>
+              )
             }
           >
             <Chip size="small" label={userLabel(event_user, true)} />
           </Tooltip>
         ))}
       </div>
-      <div>
-        <AddIcon
-          fontSize="small"
-          className={styles.addIcon}
-          onClick={addUser}
-        />
-      </div>
+      {!isReadOnly && (
+        <div>
+          <AddIcon
+            fontSize="small"
+            className={styles.addIcon}
+            onClick={addUser}
+          />
+        </div>
+      )}
     </div>
   );
 };

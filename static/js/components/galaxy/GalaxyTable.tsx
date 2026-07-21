@@ -9,17 +9,10 @@ import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import InfoIcon from "@mui/icons-material/Info";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
-import { useAppDispatch } from "../../types/hooks";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import GalaxyTableFilterForm from "./GalaxyTableFilterForm";
 import { filterOutEmptyValues } from "../../API";
-
-import * as galaxiesActions from "../../ducks/galaxies";
 
 const PAGE_SIZE_OPTIONS = [2, 10, 25, 50, 100];
 
@@ -27,6 +20,7 @@ interface GalaxyTableProps {
   galaxies?: any[] | null;
   totalMatches?: number;
   handleTableChange?: ((...a: any[]) => void) | false;
+  onFilterSubmit?: ((params: any) => void) | undefined;
   pageNumber?: number;
   numPerPage?: number;
   serverSide?: boolean;
@@ -36,12 +30,11 @@ const GalaxyTable = ({
   galaxies = null,
   totalMatches = 0,
   handleTableChange = false,
+  onFilterSubmit = undefined,
   pageNumber = 1,
   numPerPage = 10,
   serverSide = true,
 }: GalaxyTableProps) => {
-  const dispatch = useAppDispatch();
-
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   // The search box is intentionally uncontrolled: keeping its current value in
@@ -73,7 +66,7 @@ const GalaxyTable = ({
       delete data.position;
     }
 
-    await dispatch(galaxiesActions.fetchGalaxies(data));
+    onFilterSubmit?.(data);
     setFilterFormSubmitted(true);
   };
 
@@ -96,8 +89,7 @@ const GalaxyTable = ({
     () =>
       function GalaxyTableToolbar() {
         return (
-          <GridToolbarContainer>
-            <GridToolbarColumnsButton />
+          <DataGridToolbar showQuickFilter={false} showExport>
             <Tooltip title="Filter Table">
               <IconButton
                 size="small"
@@ -122,7 +114,7 @@ const GalaxyTable = ({
                 }
               }}
             />
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
     // The toolbar reads/writes the search value through a ref, so it never

@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { Chip, Tooltip } from "@mui/material";
 import { getContrastColor } from "../ObjectTags";
-import * as groupsActions from "../../ducks/groups";
-import * as objectTagsActions from "../../ducks/objectTags";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTagOptionsQuery } from "../../ducks/objectTags";
 
 interface DynamicTagDisplayProps {
   source: {
@@ -22,18 +21,12 @@ const DynamicTagDisplay = ({ source, styles }: DynamicTagDisplayProps) => {
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<any>(null);
   const measureRef = useRef<any>(null);
-  const dispatch = useAppDispatch();
-  const tagOptions = useAppSelector((state: any) => state.objectTags || []);
-  const userGroups = useAppSelector((state) => state.groups.userAccessible);
-
-  useEffect(() => {
-    if (!userGroups || userGroups.length === 0) {
-      dispatch(groupsActions.fetchGroups());
-    }
-    if (!tagOptions || tagOptions.length === 0) {
-      dispatch(objectTagsActions.fetchTagOptions());
-    }
-  }, [dispatch]);
+  const { data: tagOptions = [] } = useGetTagOptionsQuery();
+  const { data: groupsData } = useGetGroupsQuery();
+  const userGroups = useMemo(
+    () => groupsData?.userAccessible ?? [],
+    [groupsData],
+  );
 
   // Filter tags to only show those the user has access to (via group membership)
   const userGroupIds = useMemo(

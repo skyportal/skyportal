@@ -4,13 +4,12 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 
 import EditIcon from "@mui/icons-material/Edit";
-import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import CommentEntry from "./CommentEntry";
 
-import * as sourceActions from "../../ducks/source";
-import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftsActions from "../../ducks/shifts";
+import { useEditCommentMutation } from "../../ducks/source";
+import { useEditCommentOnGcnEventMutation } from "../../ducks/gcnEvent";
+import { useEditCommentOnShiftMutation } from "../../ducks/shifts";
 
 interface EditCommentProps {
   associatedResourceType?: string;
@@ -35,7 +34,9 @@ const EditComment = ({
   commentText = "",
   attachmentName = "",
 }: EditCommentProps) => {
-  const dispatch = useAppDispatch();
+  const [editCommentMutation] = useEditCommentMutation();
+  const [editCommentOnShiftMutation] = useEditCommentOnShiftMutation();
+  const [editCommentOnGcnEventMutation] = useEditCommentOnGcnEventMutation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const closeDialog = () => {
@@ -48,7 +49,7 @@ const EditComment = ({
     formData: any,
   ) => {
     formData.obj_id = sourceID;
-    dispatch(sourceActions.editComment(commentID, formData));
+    editCommentMutation({ commentID, formData });
   };
 
   const editCommentOnSpectrum = (
@@ -57,16 +58,20 @@ const EditComment = ({
     formData: any,
   ) => {
     formData.spectrum_id = spectrumID;
-    dispatch(sourceActions.editComment(commentID, formData));
+    editCommentMutation({ commentID, formData });
   };
 
   const editCommentOnGcnEvent = (gcnID: any, commentID: any, formData: any) => {
-    dispatch(gcnEventActions.editCommentOnGcnEvent(commentID, gcnID, formData));
+    editCommentOnGcnEventMutation({
+      commentID,
+      gcnEventID: gcnID,
+      formData,
+    });
   };
 
   const editCommentOnShift = (shift_id: any, commentID: any, formData: any) => {
     formData.shift_id = shift_id;
-    dispatch(shiftsActions.editCommentOnShift(commentID, formData));
+    editCommentOnShiftMutation({ commentID, formData });
   };
 
   const editComment = (data: any) => {

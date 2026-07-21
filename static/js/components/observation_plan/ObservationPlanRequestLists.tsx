@@ -15,16 +15,31 @@ import Chip from "@mui/material/Chip";
 import { makeStyles } from "tss-react/mui";
 import { JSONTree } from "react-json-tree";
 
+import { skipToken } from "@reduxjs/toolkit/query";
+
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
-import * as Actions from "../../ducks/gcnEvent";
+import {
+  useGetGcnEventQuery,
+  useGetObservationPlanRequestsQuery,
+  useLazyGetObservationPlanQuery,
+  useDeleteObservationPlanRequestMutation,
+  useSendObservationPlanRequestMutation,
+  useRemoveObservationPlanRequestMutation,
+  useSubmitObservationPlanRequestTreasureMapMutation,
+  useDeleteObservationPlanRequestTreasureMapMutation,
+} from "../../ducks/gcnEvent";
 import AddSurveyEfficiencyObservationPlanPage from "../survey_efficiency/AddSurveyEfficiencyObservationPlanPage";
 import AddRunFromObservationPlanPage from "./AddRunFromObservationPlanPage";
 import ObservationPlanGlobe from "./ObservationPlanGlobe";
 import ObservationPlanSummaryStatistics from "./ObservationPlanSummaryStatistics";
+import {
+  useGetInstrumentObsplanFormsQuery,
+  useGetInstrumentsQuery,
+} from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   actionButtons: {
@@ -44,11 +59,29 @@ const ObservationPlanRequestLists = ({
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const gcnEvent = useAppSelector((state) => state["gcnEvent"]) as any;
+  const { data: gcnEvent } = useGetGcnEventQuery(dateobs ?? skipToken) as {
+    data: any;
+  };
+  const { data: observationPlanRequests } = useGetObservationPlanRequestsQuery(
+    gcnEvent?.id ?? skipToken,
+  );
+  const [fetchObservationPlan, { data: fetchedObservationPlan = null }] =
+    useLazyGetObservationPlanQuery();
+  const [deleteObservationPlanRequest] =
+    useDeleteObservationPlanRequestMutation();
+  const [sendObservationPlanRequest] = useSendObservationPlanRequestMutation();
+  const [removeObservationPlanRequest] =
+    useRemoveObservationPlanRequestMutation();
+  const [submitObservationPlanRequestTreasureMap] =
+    useSubmitObservationPlanRequestTreasureMapMutation();
+  const [deleteObservationPlanRequestTreasureMap] =
+    useDeleteObservationPlanRequestTreasureMapMutation();
   const [anchorEl, setAnchorEl] = useState<any>(null);
 
-  const observationPlanRequestList = gcnEvent?.observation_plans || [];
-  const fetchedObservationPlan = gcnEvent?.observation_plan || null;
+  // `observationPlanRequests` is frozen RTK Query data, so copy before sorting.
+  const observationPlanRequestList = [
+    ...(observationPlanRequests || []),
+  ] as any[];
 
   const [
     observationPlanRequestFetchedForLocalization,
@@ -67,23 +100,18 @@ const ObservationPlanRequestLists = ({
   const [isSending, setIsSending] = useState<any>(null);
   const [isRemoving, setIsRemoving] = useState<any>(null);
 
-  const { instrumentList, instrumentObsplanFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentObsplanFormParams = {} } =
+    useGetInstrumentObsplanFormsQuery();
 
   useEffect(() => {
     if (!gcnEvent) return;
     if (
       selectedLocalizationId !== observationPlanRequestFetchedForLocalization
     ) {
-      const fetchObservationPlanRequestList = async () => {
-        setObservationPlanRequestFetchedForLocalization(selectedLocalizationId);
-        dispatch(Actions.fetchObservationPlanRequests(gcnEvent.id));
-      };
-      fetchObservationPlanRequestList();
+      setObservationPlanRequestFetchedForLocalization(selectedLocalizationId);
     }
   }, [
-    dispatch,
     selectedLocalizationId,
     gcnEvent,
     observationPlanRequestFetchedForLocalization,
@@ -92,7 +120,7 @@ const ObservationPlanRequestLists = ({
 
   useEffect(() => {
     const getLocalizations = async () => {
-      setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+      setSelectedLocalizationId(gcnEvent?.localizations?.[0]?.id);
     };
     getLocalizations();
     // Don't want to reset everytime the component rerenders and
@@ -100,38 +128,38 @@ const ObservationPlanRequestLists = ({
   }, [dispatch, setSelectedLocalizationId, gcnEvent]);
 
   function handleShowTable(id: any) {
-    dispatch(Actions.fetchObservationPlan(id));
+    fetchObservationPlan(id);
     setShowTable(id);
   }
 
   const handleDelete = async (id: any) => {
     setIsDeleting(id);
-    await dispatch(Actions.deleteObservationPlanRequest(id));
+    await deleteObservationPlanRequest(id);
     setIsDeleting(null);
   };
 
   const handleSubmitTreasureMap = async (id: any) => {
     setIsSubmittingTreasureMap(id);
-    await dispatch(Actions.submitObservationPlanRequestTreasureMap(id));
+    await submitObservationPlanRequestTreasureMap(id);
     setIsSubmittingTreasureMap(null);
   };
 
   const handleDeleteTreasureMap = async (id: any) => {
     setIsDeletingTreasureMap(id);
-    await dispatch(Actions.deleteObservationPlanRequestTreasureMap(id));
+    await deleteObservationPlanRequestTreasureMap(id);
     setIsDeletingTreasureMap(null);
   };
 
   const handleSend = async (id: any) => {
     setIsSending(id);
-    await dispatch(Actions.sendObservationPlanRequest(id));
+    await sendObservationPlanRequest(id);
     setIsSending(null);
     setShowTable(null);
   };
 
   const handleRemove = async (id: any) => {
     setIsRemoving(id);
-    await dispatch(Actions.removeObservationPlanRequest(id));
+    await removeObservationPlanRequest(id);
     setIsRemoving(null);
   };
 
@@ -352,8 +380,8 @@ const ObservationPlanRequestLists = ({
                   <StyledDataGrid
                     autoHeight
                     rows={(
-                      fetchedObservationPlan.observation_plans[0]
-                        .planned_observations || []
+                      fetchedObservationPlan.observation_plans?.[0]
+                        ?.planned_observations ?? []
                     ).map((row: any, i: number) => ({
                       ...row,
                       __rowid: row.id ?? i,
@@ -487,7 +515,7 @@ const ObservationPlanRequestLists = ({
         renderCell: (params: any) => {
           const observationplanRequest = params.row;
           if (
-            !["complete", "running", "submitted to telescope queue"].includes(
+            !["complete", "submitted to telescope queue"].includes(
               observationplanRequest?.status,
             )
           ) {
@@ -498,6 +526,7 @@ const ObservationPlanRequestLists = ({
               <ObservationPlanGlobe
                 observationplanRequest={observationplanRequest}
                 size={350}
+                retrieveLocalization
               />
             </Box>
           );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
@@ -10,12 +10,12 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
 
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import FilterPlugins from "./FilterPlugins";
 
-import * as groupActions from "../../ducks/group";
-import * as filterActions from "../../ducks/filter";
-import * as streamActions from "../../ducks/stream";
+import { useGetGroupQuery } from "../../ducks/group";
+import { useGetFilterQuery } from "../../ducks/filter";
+import { useGetStreamQuery } from "../../ducks/stream";
 
 const useStyles = makeStyles()((theme) => ({
   paper: {
@@ -70,69 +70,41 @@ const Filter = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
-  const [filterLoadError, setFilterLoadError] = useState("");
-  const [groupLoadError, setGroupLoadError] = useState("");
-  const [streamLoadError, setStreamLoadError] = useState("");
-
   const { fid } = useParams();
-  const loadedId = useAppSelector((state) => state["filter"].id);
+
+  const { data: filter, error: filterError } = useGetFilterQuery(fid ?? "", {
+    skip: !fid,
+  }) as any;
+  const filterLoadError = filterError
+    ? ((filterError as any)?.error ?? "Failed to load filter")
+    : "";
+
+  const group_id = filter?.group_id;
+  const stream_id = filter?.stream_id;
+
+  const { data: group, error: groupError } = useGetGroupQuery(group_id, {
+    skip: !group_id,
+  }) as any;
 
   useEffect(() => {
-    const fetchFilter = async () => {
-      if (!fid) {
-        return;
+    if (groupError) {
+      const message = (groupError as any)?.error ?? "Failed to load group";
+      if (message.length > 1) {
+        dispatch(showNotification(message, "error"));
       }
-      const data = (await dispatch(filterActions.fetchFilter(fid))) as any;
-      if (data.status === "error") {
-        setFilterLoadError(data.message);
-      }
-    };
-    if (loadedId !== fid) {
-      fetchFilter();
     }
-  }, [fid, loadedId, dispatch]);
+  }, [groupError, dispatch]);
 
-  const group_id = useAppSelector((state) => state["filter"].group_id);
-  const stream_id = useAppSelector((state) => state["filter"].stream_id);
-
-  useEffect(() => {
-    const fetchGroup = async () => {
-      const data = (await dispatch(groupActions.fetchGroup(group_id))) as any;
-      if (data.status === "error") {
-        setGroupLoadError(data.message);
-        if (groupLoadError.length > 1) {
-          dispatch(showNotification(groupLoadError, "error"));
-        }
-      }
-    };
-    if (group_id) fetchGroup();
-  }, [group_id, dispatch, groupLoadError]);
-
-  useEffect(() => {
-    const fetchStream = async () => {
-      const data = (await dispatch(
-        streamActions.fetchStream(stream_id),
-      )) as any;
-      if (data.status === "error") {
-        setStreamLoadError(data.message);
-        if (streamLoadError.length > 1) {
-          dispatch(showNotification(streamLoadError, "error"));
-        }
-      }
-    };
-    if (stream_id) fetchStream();
-  }, [stream_id, dispatch, streamLoadError]);
-
-  const filter = useAppSelector((state) => state["filter"]);
-  const group = useAppSelector((state) => state["group"]) as any;
-  const stream = useAppSelector((state) => state["stream"]) as any;
+  const { data: stream } = useGetStreamQuery(stream_id ?? "", {
+    skip: !stream_id,
+  });
 
   if (filterLoadError) {
     return <div>{filterLoadError}</div>;
   }
 
   // renders
-  if (!filter) {
+  if (filter == null) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -161,7 +133,7 @@ const Filter = () => {
                   <br />
                   Group id: {group.id}
                   <br />
-                  Stream: {stream.name}
+                  Stream: {stream["name"]}
                 </Typography>
               )}
             </CardContent>

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useGetProfileQuery } from "../ducks/profile";
+import { useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import Chip from "@mui/material/Chip";
@@ -19,9 +20,13 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
 import GroupShareSelect from "./group/GroupShareSelect";
 import EditTagGroups from "./EditTagGroups";
-import { useAppDispatch, useAppSelector } from "../types/hooks";
-import * as objectTagsActions from "../ducks/objectTags";
-import * as groupsActions from "../ducks/groups";
+import { useAppDispatch } from "../types/hooks";
+import {
+  useGetTagOptionsQuery,
+  useCreateTagOptionMutation,
+  useAddObjectTagMutation,
+} from "../ducks/objectTags";
+import { useGetGroupsQuery } from "../ducks/groups";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -92,23 +97,16 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
   const [editingTag, setEditingTag] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const tagOptions = useAppSelector((state) => state.objectTags || []);
-  const currentUser = useAppSelector((state) => state.profile);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const { data: tagOptions = [] } = useGetTagOptionsQuery();
+  const [createTagOption] = useCreateTagOptionMutation();
+  const [addObjectTag] = useAddObjectTagMutation();
+  const { data: currentUser } = useGetProfileQuery();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage sources");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage sources");
 
   const { control, setValue, getValues } = useForm();
-
-  useEffect(() => {
-    if (!tagOptions || tagOptions.length === 0) {
-      dispatch(objectTagsActions.fetchTagOptions());
-    }
-    if (!groups || groups.length === 0) {
-      dispatch(groupsActions.fetchGroups());
-    }
-  }, [dispatch]);
 
   const handleOpenDialog = () => {
     setOpen(true);
@@ -142,7 +140,7 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
     setTagError("");
   };
 
-  const handleCreateTag = () => {
+  const handleCreateTag = async () => {
     if (!newTagName.trim()) {
       setTagError("Tag name cannot be empty");
       return;
@@ -150,53 +148,46 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
 
     setIsCreatingTag(true);
 
-    dispatch(
-      objectTagsActions.createTagOption({
+    try {
+      const created: any = await createTagOption({
         name: newTagName,
         color: newTagColor,
-      }),
-    ).then((result: any) => {
-      setIsCreatingTag(false);
-
-      if (result.status === "success") {
-        dispatch(showNotification("Tag created successfully"));
-        dispatch(objectTagsActions.fetchTagOptions()).then(() => {
-          if (result.data) {
-            setSelectedTag(result.data);
-            setValue("tag", result.data);
-          }
-        });
-        setNewTagName("");
-        setNewTagColor("#dddfe2");
-      } else {
-        const errorMsg = result.message || "Failed to create tag";
-        setTagError(errorMsg);
-        dispatch(showNotification(errorMsg, "error"));
+      }).unwrap();
+      dispatch(showNotification("Tag created successfully"));
+      if (created) {
+        setSelectedTag(created);
+        setValue("tag", created);
       }
-    });
+      setNewTagName("");
+      setNewTagColor("#dddfe2");
+    } catch (error: any) {
+      const errorMsg = error?.message || "Failed to create tag";
+      setTagError(errorMsg);
+      dispatch(showNotification(errorMsg, "error"));
+    } finally {
+      setIsCreatingTag(false);
+    }
   };
 
-  const handleAddTag = () => {
+  const handleAddTag = async () => {
     const formValues = getValues();
     const tagToAdd = formValues["tag"];
 
     setIsAddingTag(true);
 
-    dispatch(
-      objectTagsActions.addObjectTag({
+    try {
+      await addObjectTag({
         obj_id: source.id,
         objtagoption_id: tagToAdd.id,
         group_ids: selectedGroupIds,
-      }),
-    ).then((result: any) => {
+      }).unwrap();
+      dispatch(showNotification("Tag added successfully"));
+      handleCloseDialog();
+    } catch (error) {
+      dispatch(showNotification("Failed to add tag", "error"));
+    } finally {
       setIsAddingTag(false);
-      if (result.status === "success") {
-        dispatch(showNotification("Tag added successfully"));
-        handleCloseDialog();
-      } else {
-        dispatch(showNotification("Failed to add tag", "error"));
-      }
-    });
+    }
   };
 
   const usedTagIds = (source.tags || []).map((tag: any) => tag.objtagoption_id);
@@ -376,8 +367,10 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
                     "Only letters and numbers, no spaces or special characters"
                   }
                   disabled={isCreatingTag}
-                  inputProps={{
-                    "data-testid": "new-tag-input",
+                  slotProps={{
+                    htmlInput: {
+                      "data-testid": "new-tag-input",
+                    },
                   }}
                 />
                 <div className={styles.colorPicker}>

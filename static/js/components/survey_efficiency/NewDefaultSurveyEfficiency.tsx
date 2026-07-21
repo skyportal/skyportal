@@ -7,8 +7,9 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as defaultSurveyEfficienciesActions from "../../ducks/default_survey_efficiencies";
+import { useAppDispatch } from "../../types/hooks";
+import { useSubmitDefaultSurveyEfficiencyMutation } from "../../ducks/default_survey_efficiencies";
+import { useGetDefaultObservationPlansQuery } from "../../ducks/default_observation_plans";
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -42,12 +43,13 @@ const NewDefaultSurveyEfficiency = ({
 }: NewDefaultSurveyEfficiencyProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [submitDefaultSurveyEfficiency] =
+    useSubmitDefaultSurveyEfficiencyMutation();
 
   const [selectedObservationPlanId, setSelectedObservationPlanId] =
     useState<any>(null);
-  const { defaultObservationPlanList } = useAppSelector(
-    (state) => state["default_observation_plans"],
-  );
+  const { data: defaultObservationPlanList } =
+    useGetDefaultObservationPlansQuery();
 
   const observationPlanLookUp: Record<number, any> = {};
 
@@ -83,17 +85,14 @@ const NewDefaultSurveyEfficiency = ({
       default_observationplan_request_id: selectedObservationPlanId,
       payload: formData,
     };
-    const result: any = await dispatch(
-      defaultSurveyEfficienciesActions.submitDefaultSurveyEfficiency(json),
-    );
-    if (result.status === "success") {
+    try {
+      await submitDefaultSurveyEfficiency(json).unwrap();
       dispatch(showNotification("New Default Survey Efficiency saved"));
-      dispatch(
-        defaultSurveyEfficienciesActions.fetchDefaultSurveyEfficiencies(),
-      );
       if (typeof onClose === "function") {
         onClose();
       }
+    } catch {
+      // error notification handled by the base query
     }
   };
 

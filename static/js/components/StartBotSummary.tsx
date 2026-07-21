@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../types/hooks";
+import { useGetProfileQuery } from "../ducks/profile";
+import { useGetGroupsQuery } from "../ducks/groups";
+import { useEffect, useMemo, useState } from "react";
+
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import { makeStyles } from "tss-react/mui";
 import SmartToyTwoToneIcon from "@mui/icons-material/SmartToyTwoTone";
+import IconButton from "@mui/material/IconButton";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import Tooltip from "@mui/material/Tooltip";
@@ -18,59 +20,26 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import * as analysisServicesActions from "../ducks/analysis_services";
-import * as sourceActions from "../ducks/source";
+import { useGetAnalysisServicesQuery } from "../ducks/analysis_services";
+import { useStartAnalysisMutation } from "../ducks/source";
 import GroupShareSelect from "./group/GroupShareSelect";
+import { useGetConfigQuery } from "../ducks/config";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
-
-const useStyles = makeStyles()(() => ({
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
-  },
-  editIcon: {
-    height: "1rem",
-    cursor: "pointer",
-  },
-  chips: {
-    display: "flex",
-    flexWrap: "wrap",
-  },
-  chip: {
-    margin: 2,
-  },
-  marginTop: {
-    marginTop: "1rem",
-  },
-  Select: {
-    width: "100%",
-  },
-  SelectItem: {
-    whiteSpace: "break-spaces",
-  },
-  container: {
-    width: "99%",
-    marginBottom: "1rem",
-    "& > *": {
-      marginTop: "1rem",
-      marginBottom: "1rem",
-    },
-  },
-}));
 
 interface StartBotSummaryProps {
   obj_id: string;
 }
 
 const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
-  const { classes } = useStyles();
-  const dispatch = useAppDispatch();
+  const [startAnalysis] = useStartAnalysisMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { analysisServiceList } = useAppSelector(
-    (state) => state["analysis_services"],
+  const { data: analysisServiceListData } = useGetAnalysisServicesQuery();
+  const analysisServiceList = useMemo(
+    () => analysisServiceListData ?? [],
+    [analysisServiceListData],
   );
 
   const uniqueNames = [
@@ -79,9 +48,11 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   const uniqueAnalysisServiceList = uniqueNames.map((name) =>
     analysisServiceList.find((item: any) => item.name === name),
   );
-  const allGroups = useAppSelector((state) => state.groups.all);
-  const prefs: any = useAppSelector((state) => state.profile.preferences);
-  const config = useAppSelector((state) => state["config"]);
+  // Groups the user can access (all groups for sysadmins, member groups
+  // otherwise) so users can't share a summary with a group they're not in.
+  const allGroups = useGetGroupsQuery().data?.userAccessible ?? null;
+  const prefs: any = useGetProfileQuery().data?.preferences;
+  const { data: config } = useGetConfigQuery() as { data: any };
 
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
     useState<any>(null);
@@ -101,26 +72,14 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   });
 
   useEffect(() => {
-    const getAnalysisServices = async () => {
-      let data = [];
-      if (!analysisServiceList || analysisServiceList.length === 0) {
-        const result: any = await dispatch(
-          analysisServicesActions.fetchAnalysisServices(),
-        );
-        data = result?.data || [];
-      } else {
-        data = analysisServiceList;
-      }
-      setSelectedAnalysisServiceId(data[0]?.id);
-    };
-    getAnalysisServices();
-  }, [dispatch, setSelectedAnalysisServiceId]);
+    if (selectedAnalysisServiceId == null && analysisServiceList.length > 0) {
+      setSelectedAnalysisServiceId(analysisServiceList[0]?.id);
+    }
+  }, [analysisServiceList, selectedAnalysisServiceId]);
 
   if (
-    !allGroups ||
-    allGroups.length === 0 ||
-    !analysisServiceList ||
-    analysisServiceList.length === 0 ||
+    !allGroups?.length ||
+    !analysisServiceList?.length ||
     !selectedAnalysisServiceId
   ) {
     return null;
@@ -142,9 +101,11 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
     if (selectedGroupIds.length >= 0) {
       params.group_ids = selectedGroupIds;
     }
-    await dispatch(
-      sourceActions.startAnalysis(obj_id, selectedAnalysisServiceId, params),
-    );
+    await startAnalysis({
+      id: obj_id,
+      analysis_service_id: selectedAnalysisServiceId,
+      formData: params,
+    });
     setIsSubmitting(false);
     setDialogOpen(false);
   };
@@ -154,7 +115,6 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
   };
 
   const OptionalParameters = {};
-
   const AnalysisSelectionFormSchema = {
     type: "object",
     properties: {
@@ -162,34 +122,20 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
     },
   };
 
-  const showBotIcon = () => {
-    if (
-      analysisServiceList?.filter((service: any) => service.is_summary).length >
-        0 &&
-      (prefs?.summary?.OpenAI?.active === true ||
-        config?.openai_summary_apikey_set === true)
-    ) {
-      return true;
-    }
-    return false;
-  };
+  if (
+    !analysisServiceList?.some((service: any) => service.is_summary) ||
+    (!prefs?.summary?.OpenAI?.active && !config?.openai_summary_apikey_set)
+  ) {
+    return null;
+  }
 
   return (
     <>
-      {showBotIcon() ? (
-        <Tooltip title="Start AI Summary">
-          <span>
-            <SmartToyTwoToneIcon
-              data-testid="runSummaryIconButton"
-              fontSize="small"
-              className={classes.editIcon}
-              onClick={() => {
-                setDialogOpen(true);
-              }}
-            />
-          </span>
-        </Tooltip>
-      ) : null}
+      <Tooltip title="Start AI Summary">
+        <IconButton size="small" onClick={() => setDialogOpen(true)}>
+          <SmartToyTwoToneIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
       <Dialog
         open={dialogOpen}
         maxWidth="sm"
@@ -202,13 +148,11 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
               Select AI Summary Service
             </InputLabel>
             <Select
-              inputProps={{ MenuProps: { disableScrollLock: true } }}
               labelId="analysisServiceSelectLabel"
               value={selectedAnalysisServiceId || ""}
               onChange={handleSelectedAnalysisServiceChange}
               name="analysisServiceSelect"
-              data-testid="analysisServiceSelect"
-              className={classes.Select}
+              fullWidth
             >
               {uniqueAnalysisServiceList?.map(
                 (analysisService: any) =>
@@ -216,7 +160,6 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
                     <MenuItem
                       value={analysisService.id}
                       key={analysisService.id}
-                      className={classes.SelectItem}
                     >
                       {analysisService.name}
                     </MenuItem>
@@ -229,22 +172,14 @@ const StartBotSummary = ({ obj_id }: StartBotSummaryProps) => {
             setGroupIDs={setSelectedGroupIds}
             groupIDs={selectedGroupIds}
           />
-          <div data-testid="analysis-service-request-form">
-            <div>
-              <Form
-                schema={AnalysisSelectionFormSchema as any}
-                validator={validator}
-                onSubmit={handleSubmit as any}
-                disabled={isSubmitting}
-                liveValidate
-              />
-            </div>
-            {isSubmitting && (
-              <div className={classes.marginTop}>
-                <CircularProgress />
-              </div>
-            )}
-          </div>
+          <Form
+            schema={AnalysisSelectionFormSchema as any}
+            validator={validator}
+            onSubmit={handleSubmit as any}
+            disabled={isSubmitting}
+            liveValidate
+          />
+          {isSubmitting && <CircularProgress />}
         </DialogContent>
       </Dialog>
     </>

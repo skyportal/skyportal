@@ -15,10 +15,14 @@ import DynamicTagDisplay from "./DynamicTagDisplay";
 import Button from "../Button";
 
 import { dec_to_dms, ra_to_hours } from "../../units";
-import * as profileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTopSourcesQuery } from "../../ducks/topSources";
+import { useActiveTeam } from "../../ducks/teams";
 
 interface TopSourcesListProps {
   sources?: any[];
@@ -294,19 +298,19 @@ const TopSourcesList = ({
 
 const TopSources = ({ classes }: TopSourcesProps) => {
   const { classes: styles } = useStyles();
-  const dispatch = useAppDispatch();
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
-  const invertThumbnails = useAppSelector(
-    (state) => (state.profile.preferences as any)?.invertThumbnails,
-  );
+  const invertThumbnails = (profile?.preferences as any)?.invertThumbnails;
   const { classes: sourceListStyles } = useSourceListStyles({
     invertThumbnails,
   });
 
-  const { sourceViews } = useAppSelector((state) => state["topSources"]);
-  const prefs =
-    useAppSelector((state) => (state.profile.preferences as any)?.topSources) ||
-    defaultPrefs;
+  const { activeTeam } = useActiveTeam();
+  const { data: sourceViews } = useGetTopSourcesQuery(
+    activeTeam ? { teamID: activeTeam.id } : undefined,
+  );
+  const prefs = (profile?.preferences as any)?.topSources || defaultPrefs;
 
   const topSourcesPrefs = prefs ? { ...defaultPrefs, ...prefs } : defaultPrefs;
 
@@ -329,9 +333,7 @@ const TopSources = ({ classes }: TopSourcesProps) => {
     setCurrentTimespan(newTimespan);
     topSourcesPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
 
-    dispatch(
-      profileActions.updateUserPreferences({ topSources: topSourcesPrefs }),
-    );
+    updateUserPreferences({ topSources: topSourcesPrefs });
   };
 
   return (
@@ -340,8 +342,10 @@ const TopSources = ({ classes }: TopSourcesProps) => {
         <div className={styles.header}>
           <Typography
             variant="h6"
-            display="inline"
             style={{ marginRight: "0.5rem" }}
+            sx={{
+              display: "inline",
+            }}
           >
             Top Sources
           </Typography>
@@ -365,8 +369,10 @@ const TopSources = ({ classes }: TopSourcesProps) => {
                 anchorEl={anchorEl}
                 open={open}
                 onClose={() => setAnchorEl(null)}
-                MenuListProps={{
-                  "aria-labelledby": "basic-button",
+                slotProps={{
+                  list: {
+                    "aria-labelledby": "basic-button",
+                  },
                 }}
               >
                 {timespans.map((timespan) => (
@@ -395,12 +401,12 @@ const TopSources = ({ classes }: TopSourcesProps) => {
               }}
               stateBranchName="topSources"
               title="Top Sources Preferences"
-              onSubmit={profileActions.updateUserPreferences}
+              onSubmit={updateUserPreferences}
             />
           </div>
         </div>
         <TopSourcesList
-          sources={sourceViews}
+          sources={sourceViews || []}
           styles={sourceListStyles}
           displayTNS={topSourcesPrefs?.displayTNS !== false}
         />

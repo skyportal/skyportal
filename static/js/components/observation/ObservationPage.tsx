@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import React, { useState } from "react";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
@@ -16,9 +17,15 @@ import QueueAPIDisplay from "./QueueAPIDisplay";
 import ProgressIndicator from "../ProgressIndicators";
 import SkymapTriggerAPIDisplay from "./SkymapTriggerAPIDisplay";
 
-import * as observationsActions from "../../ducks/observations";
-import * as queuedObservationsActions from "../../ducks/queued_observations";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import {
+  useGetObservationsQuery,
+  useLazyGetObservationsQuery,
+} from "../../ducks/observations";
+import {
+  useGetQueuedObservationsQuery,
+  useLazyGetQueuedObservationsQuery,
+} from "../../ducks/queued_observations";
+import { useAppDispatch } from "../../types/hooks";
 
 interface ObservationListProps {
   observations?: any;
@@ -65,7 +72,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const defaultNumPerPage = 10;
+const defaultNumPerPage = 30;
 
 const ExecutedObservationList = ({
   observations,
@@ -74,18 +81,14 @@ const ExecutedObservationList = ({
   handleFilterSubmit,
   downloadCallback,
 }: ObservationListProps) => {
-  if (!observations?.observations) {
-    return <p>No observations available...</p>;
-  }
-
   return (
     <ExecutedObservationsTable
-      observations={observations.observations}
+      observations={observations?.observations ?? []}
       pageNumber={fetchParams.pageNumber}
       numPerPage={fetchParams.numPerPage}
       handleTableChange={handleTableChange}
       handleFilterSubmit={handleFilterSubmit}
-      totalMatches={observations.totalMatches}
+      totalMatches={observations?.totalMatches ?? 0}
       downloadCallback={downloadCallback}
     />
   );
@@ -116,11 +119,7 @@ const QueuedObservationList = ({
 };
 
 const ObservationPage = () => {
-  const observations = useAppSelector((state) => state["observations"]);
-  const queued_observations = useAppSelector(
-    (state) => state["queued_observations"],
-  );
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
@@ -134,34 +133,23 @@ const ObservationPage = () => {
     numPerPage: defaultNumPerPage,
   });
 
+  const { data: observations } = useGetObservationsQuery(fetchExecutedParams);
+  const [fetchObservations] = useLazyGetObservationsQuery();
+
+  const { data: queuedObservations } =
+    useGetQueuedObservationsQuery(fetchQueuedParams);
+  const [fetchQueuedObservations] = useLazyGetQueuedObservationsQuery();
+
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
   const [tabIndex, setTabIndex] = React.useState(0);
 
-  useEffect(() => {
-    const params = {
-      ...fetchExecutedParams,
-      numPerPage: defaultNumPerPage,
-      pageNumber: 1,
-    };
-    dispatch(observationsActions.fetchObservations(params));
-  }, [dispatch]);
-
-  useEffect(() => {
-    const params = {
-      ...fetchQueuedParams,
-      numPerPage: defaultNumPerPage,
-      pageNumber: 1,
-    };
-    dispatch(queuedObservationsActions.fetchQueuedObservations(params));
-  }, [dispatch]);
-
-  if (!observations) {
+  if (observations == null) {
     return <p>No observations available...</p>;
   }
 
-  if (!queued_observations) {
+  if (queuedObservations == null) {
     return <p>No queued observations available...</p>;
   }
 
@@ -183,9 +171,8 @@ const ObservationPage = () => {
       params.sortBy = sortData.name;
       params.sortOrder = sortData.direction;
     }
-    // Save state for future
+    // Save state for future (triggers the observations query refetch)
     setFetchExecutedParams(params);
-    await dispatch(observationsActions.fetchObservations(params));
   };
 
   const handleQueuedPageChange = async (
@@ -198,9 +185,8 @@ const ObservationPage = () => {
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future
+    // Save state for future (triggers the queued observations query refetch)
     setFetchQueuedParams(params);
-    await dispatch(queuedObservationsActions.fetchQueuedObservations(params));
   };
 
   const handleExecutedTableSorting = async (sortData: any) => {
@@ -211,7 +197,6 @@ const ObservationPage = () => {
       sortOrder: sortData.direction,
     };
     setFetchExecutedParams(params);
-    await dispatch(observationsActions.fetchObservations(params));
   };
 
   const handleQueuedTableSorting = async (sortData: any) => {
@@ -222,7 +207,6 @@ const ObservationPage = () => {
       sortOrder: sortData.direction,
     };
     setFetchQueuedParams(params);
-    await dispatch(queuedObservationsActions.fetchQueuedObservations(params));
   };
 
   const handleExecutedTableChange = (action: string, tableState: any) => {
@@ -270,9 +254,8 @@ const ObservationPage = () => {
       params.endDate = filterData.endDate;
       params.instrumentName = filterData.instrumentName;
     }
-    // Save state for future
+    // Save state for future (triggers the observations query refetch)
     setFetchExecutedParams(params);
-    await dispatch(observationsActions.fetchObservations(params));
   };
 
   const handleQueuedTableFilter = async (
@@ -290,9 +273,8 @@ const ObservationPage = () => {
       params.endDate = filterData.endDate;
       params.instrumentName = filterData.instrumentName;
     }
-    // Save state for future
+    // Save state for future (triggers the queued observations query refetch)
     setFetchQueuedParams(params);
-    await dispatch(queuedObservationsActions.fetchQueuedObservations(params));
   };
 
   const handleExecutedFilterSubmit = async (formData: any) => {
@@ -307,17 +289,14 @@ const ObservationPage = () => {
 
   const handleExecutedDownload = async () => {
     const observationsAll: any[] = [];
-    if (observations.observations.totalMatches === 0) {
+    const totalMatches = observations.totalMatches ?? 0;
+    if (totalMatches === 0) {
       dispatch(showNotification("No observations to download", "warning"));
     } else {
-      setDownloadProgressTotal(observations.observations.totalMatches);
+      setDownloadProgressTotal(totalMatches);
       for (
         let i = 1;
-        i <=
-        Math.ceil(
-          observations.observations.totalMatches /
-            fetchExecutedParams.numPerPage,
-        );
+        i <= Math.ceil(totalMatches / fetchExecutedParams.numPerPage);
         i += 1
       ) {
         const data = {
@@ -325,14 +304,12 @@ const ObservationPage = () => {
           pageNumber: i,
         };
 
-        const result: any = await dispatch(
-          observationsActions.fetchObservations(data),
-        );
-        if (result && result.data && result?.status === "success") {
-          observationsAll.push(...result.data.observations);
+        try {
+          const result: any = await fetchObservations(data).unwrap();
+          observationsAll.push(...result.observations);
           setDownloadProgressCurrent(observationsAll.length);
-          setDownloadProgressTotal(observations.observations.totalMatches);
-        } else if (result && result?.status !== "success") {
+          setDownloadProgressTotal(totalMatches);
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
@@ -357,7 +334,7 @@ const ObservationPage = () => {
     }
     setDownloadProgressCurrent(0);
     setDownloadProgressTotal(0);
-    if (observationsAll?.length === observations.totalMatches?.length) {
+    if (observationsAll?.length === observations.totalMatches) {
       dispatch(showNotification("Observations downloaded successfully"));
     }
     return observationsAll;
@@ -366,18 +343,15 @@ const ObservationPage = () => {
   const handleQueuedDownload = async () => {
     const observationsAll: any[] = [];
 
-    if (queued_observations.queued_observations.totalMatches === 0) {
+    if (queuedObservations.totalMatches === 0) {
       dispatch(showNotification("No observations to download", "warning"));
     } else {
-      setDownloadProgressTotal(
-        queued_observations.queued_observations.totalMatches,
-      );
+      setDownloadProgressTotal(queuedObservations.totalMatches);
       for (
         let i = 1;
         i <=
         Math.ceil(
-          queued_observations.queued_observations.totalMatches /
-            fetchQueuedParams.numPerPage,
+          queuedObservations.totalMatches / fetchQueuedParams.numPerPage,
         );
         i += 1
       ) {
@@ -386,22 +360,16 @@ const ObservationPage = () => {
           pageNumber: i,
         };
 
-        const result: any = await dispatch(
-          queuedObservationsActions.fetchQueuedObservations(data),
-        );
-        if (result && result.data && result?.status === "success") {
-          observationsAll.push(...result.data.observations);
+        try {
+          const result: any = await fetchQueuedObservations(data).unwrap();
+          observationsAll.push(...result.observations);
           setDownloadProgressCurrent(observationsAll.length);
-          setDownloadProgressTotal(
-            queued_observations.queued_observations.totalMatches,
-          );
-        } else if (result && result?.status !== "success") {
+          setDownloadProgressTotal(queuedObservations.totalMatches);
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
-          if (
-            queued_observations.queued_observations.observations?.length === 0
-          ) {
+          if (queuedObservations.observations?.length === 0) {
             dispatch(
               showNotification(
                 "Failed to fetch some observations. Download cancelled.",
@@ -422,10 +390,7 @@ const ObservationPage = () => {
     }
     setDownloadProgressCurrent(0);
     setDownloadProgressTotal(0);
-    if (
-      observationsAll?.length ===
-      queued_observations.queued_observations.totalMatches?.length
-    ) {
+    if (observationsAll?.length === queuedObservations.totalMatches) {
       dispatch(showNotification("Observations downloaded successfully"));
     }
     return observationsAll;
@@ -437,7 +402,7 @@ const ObservationPage = () => {
         <Tabs value={tabIndex} onChange={handleChangeTab} centered>
           <Tab label="Executed Observations" />
           <Tab label="Queued Observations" />
-          {currentUser.permissions?.includes("System admin") && (
+          {currentUser?.permissions?.includes("System admin") && (
             <Tab label="Queue Interactions" />
           )}
         </Tabs>
@@ -446,7 +411,7 @@ const ObservationPage = () => {
         <Grid size={12} style={{ paddingTop: 0 }}>
           <div className={classes.Container}>
             <ExecutedObservationList
-              observations={observations.observations}
+              observations={observations}
               fetchParams={fetchExecutedParams}
               handleTableChange={handleExecutedTableChange}
               handleFilterSubmit={handleExecutedFilterSubmit}
@@ -461,7 +426,12 @@ const ObservationPage = () => {
                   alignItems: "center",
                 }}
               >
-                <Typography variant="h6" display="inline">
+                <Typography
+                  variant="h6"
+                  sx={{
+                    display: "inline",
+                  }}
+                >
                   Downloading {downloadProgressTotal} observations
                 </Typography>
                 <div
@@ -489,7 +459,7 @@ const ObservationPage = () => {
         <Grid size={12} style={{ paddingTop: 0 }}>
           <div className={classes.Container}>
             <QueuedObservationList
-              observations={queued_observations.queued_observations}
+              observations={queuedObservations}
               fetchParams={fetchQueuedParams}
               handleTableChange={handleQueuedTableChange}
               handleFilterSubmit={handleQueuedFilterSubmit}
@@ -498,7 +468,7 @@ const ObservationPage = () => {
           </div>
         </Grid>
       )}
-      {tabIndex === 2 && currentUser.permissions?.includes("System admin") && (
+      {tabIndex === 2 && currentUser?.permissions?.includes("System admin") && (
         <Grid container size={12} spacing={1} style={{ paddingTop: 0 }}>
           <Grid size={{ xs: 12, lg: 6 }}>
             <Paper style={{ padding: "1rem" }}>

@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
@@ -7,7 +8,6 @@ import FormControl from "@mui/material/FormControl";
 import { makeStyles } from "tss-react/mui";
 import { useTheme } from "@mui/material/styles";
 
-import { useAppSelector } from "../../types/hooks";
 import { Group } from "../../types";
 
 const useStyles = makeStyles()(() => ({
@@ -38,14 +38,16 @@ const GroupsSelect = (props: GroupsSelectProps) => {
 
   const { classes } = useStyles();
   const theme = useTheme();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const ITEM_HEIGHT = 48;
   const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250,
+    slotProps: {
+      paper: {
+        style: {
+          maxHeight: ITEM_HEIGHT * 4.5,
+          width: 250,
+        },
       },
     },
   };

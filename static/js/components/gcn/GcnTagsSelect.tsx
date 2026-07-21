@@ -1,9 +1,6 @@
-import { useEffect } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-
 import SelectWithChips from "../SelectWithChips";
 
-import * as gcnTagsActions from "../../ducks/gcnTags";
+import { useGetGcnTagsQuery } from "../../ducks/gcnTags";
 
 interface GcnTagsSelectProps {
   title?: string;
@@ -16,14 +13,8 @@ const GcnTagsSelect = ({
   selectedGcnTags,
   setSelectedGcnTags,
 }: GcnTagsSelectProps) => {
-  const dispatch = useAppDispatch();
-  const gcnTags = [
-    ...(useAppSelector((state) => state["gcnTags"]) || []),
-  ].sort();
-
-  useEffect(() => {
-    dispatch(gcnTagsActions.fetchGcnTags());
-  }, [dispatch]);
+  const { data: gcnTagsData } = useGetGcnTagsQuery();
+  const gcnTags = [...(gcnTagsData || [])].sort();
 
   if (!gcnTags?.length) return null;
 

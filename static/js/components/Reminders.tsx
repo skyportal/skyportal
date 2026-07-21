@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useGetProfileQuery, useIsReadOnly } from "../ducks/profile";
+import { useMemo, useState } from "react";
 import { withStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -12,20 +13,23 @@ import Close from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import { grey } from "@mui/material/colors";
-import { GridToolbarContainer } from "@mui/x-data-grid";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { skipToken } from "@reduxjs/toolkit/query";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
-import StyledDataGrid from "./StyledDataGrid";
-import QuickFilter from "./QuickFilter";
+import StyledDataGrid, { DataGridToolbar } from "./StyledDataGrid";
 
-import * as Actions from "../ducks/reminders";
+import {
+  useGetRemindersQuery,
+  useSubmitReminderMutation,
+  useDeleteReminderMutation,
+} from "../ducks/reminders";
 
 dayjs.extend(utc);
 
@@ -62,41 +66,79 @@ interface NewReminderProps {
   resourceId: string;
   resourceType: string;
   handleClose: (...a: any[]) => void;
+  resourceStartDate?: Date;
 }
+
+const LEAD_TIME_UNIT_MAP: Record<string, dayjs.ManipulateType> = {
+  minutes: "minute",
+  hours: "hour",
+  days: "day",
+  weeks: "week",
+};
 
 const NewReminder = ({
   resourceId,
   resourceType,
   handleClose,
+  resourceStartDate,
 }: NewReminderProps) => {
   const dispatch = useAppDispatch();
+  const [submitReminder] = useSubmitReminderMutation();
   const defaultDate = dayjs()
     .add(1, "day")
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
 
-  const handleSubmit = ({ formData }: { formData: any }) => {
-    formData.next_reminder = formData.next_reminder
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-    dispatch(Actions.submitReminder(resourceId, resourceType, formData)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Reminder created"));
-          handleClose();
-        } else {
-          dispatch(showNotification("Error creating reminder", "error"));
-        }
-      },
-    );
+  const handleSubmit = async ({ formData }: { formData: any }) => {
+    if (resourceStartDate) {
+      const leadUnit = formData.lead_time_unit || "hours";
+      formData.next_reminder = dayjs(resourceStartDate)
+        .subtract(formData.lead_time, LEAD_TIME_UNIT_MAP[leadUnit])
+        .utc()
+        .format("YYYY-MM-DDTHH:mm:ss");
+      delete formData.lead_time;
+      delete formData.lead_time_unit;
+    } else {
+      formData.next_reminder = formData.next_reminder
+        .replace("+00:00", "")
+        .replace(".000Z", "");
+    }
+    const unit = formData.reminder_delay_unit || "days";
+    if (unit === "minutes") {
+      formData.reminder_delay = formData.reminder_delay / 1440;
+    } else if (unit === "hours") {
+      formData.reminder_delay = formData.reminder_delay / 24;
+    } else if (unit === "weeks") {
+      formData.reminder_delay = formData.reminder_delay * 7;
+    }
+    delete formData.reminder_delay_unit;
+    try {
+      await submitReminder({
+        resourceId,
+        resourceType,
+        data: formData,
+      }).unwrap();
+      dispatch(showNotification("Reminder created"));
+      handleClose();
+    } catch {
+      dispatch(showNotification("Error creating reminder", "error"));
+    }
   };
 
   function validate(formData: any, errors: any) {
     if (formData.text === "") {
       errors.text = "Reminder text is required";
     }
-    if (dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ") > formData.next_reminder) {
-      errors.next_reminder.addError("Next reminder date can't be in the past");
+    if (!resourceStartDate) {
+      if (
+        dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ") > formData.next_reminder
+      ) {
+        errors.next_reminder.addError(
+          "Next reminder date can't be in the past",
+        );
+      }
+    } else if (formData.lead_time <= 0) {
+      errors.lead_time.addError("Lead time must be greater than 0");
     }
     if (formData.number_of_reminders <= 0) {
       errors.number_of_reminders.addError(
@@ -104,14 +146,54 @@ const NewReminder = ({
       );
     }
     if (formData.reminder_delay <= 0) {
-      errors.reminder_delay.addError(
-        "Reminder delay must be greater than 0 day",
-      );
+      errors.reminder_delay.addError("Reminder delay must be greater than 0");
     }
     return errors;
   }
 
-  const reminderFormSchema = {
+  const shiftFormSchema = {
+    type: "object",
+    properties: {
+      text: { type: "string", title: "Text" },
+      lead_time: {
+        type: "number",
+        title: "Remind me before shift starts",
+        default: 1,
+      },
+      lead_time_unit: {
+        type: "string",
+        title: "Lead time unit",
+        enum: ["minutes", "hours", "days", "weeks"],
+        default: "hours",
+      },
+      number_of_reminders: {
+        type: "integer",
+        title: "Number of reminders",
+        default: 1,
+      },
+      reminder_delay: {
+        type: "number",
+        title: "Delay between reminders",
+        default: 1,
+      },
+      reminder_delay_unit: {
+        type: "string",
+        title: "Unit",
+        enum: ["minutes", "hours", "days", "weeks"],
+        default: "hours",
+      },
+    },
+    required: [
+      "text",
+      "lead_time",
+      "lead_time_unit",
+      "number_of_reminders",
+      "reminder_delay",
+      "reminder_delay_unit",
+    ],
+  };
+
+  const genericFormSchema = {
     type: "object",
     properties: {
       text: {
@@ -130,9 +212,15 @@ const NewReminder = ({
         default: 1,
       },
       reminder_delay: {
-        type: "integer",
-        title: "Delay between reminders (in days)",
+        type: "number",
+        title: "Delay between reminders",
         default: 1,
+      },
+      reminder_delay_unit: {
+        type: "string",
+        title: "Unit",
+        enum: ["minutes", "hours", "days", "weeks"],
+        default: "days",
       },
     },
     required: [
@@ -140,11 +228,13 @@ const NewReminder = ({
       "next_reminder",
       "number_of_reminders",
       "reminder_delay",
+      "reminder_delay_unit",
     ],
   };
+
   return (
     <Form
-      schema={reminderFormSchema as any}
+      schema={(resourceStartDate ? shiftFormSchema : genericFormSchema) as any}
       validator={validator}
       id="reminder-form"
       onSubmit={handleSubmit as any}
@@ -157,32 +247,29 @@ const NewReminder = ({
 interface RemindersProps {
   resourceId?: string;
   resourceType?: string;
+  resourceStartDate?: Date;
 }
 
-const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
+const Reminders = ({
+  resourceId,
+  resourceType,
+  resourceStartDate,
+}: RemindersProps) => {
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [open, setOpen] = useState(false);
+  const [deleteReminderMutation] = useDeleteReminderMutation();
   // for now, we'll just show the reminders of the current user.
   // in the future, we'll want to show all reminders for the resource
   // show the users in the reminders list (datatable)
   // and allow to choose users to add to the reminders to in the NewReminder dialog
-  const currentUser = useAppSelector((state) => state.profile);
-  const reminders = useAppSelector((state) => (state as any).reminders);
-  const remindersList = reminders.remindersList.filter(
-    (r: any) => r.user_id === currentUser.id,
+  const { data: currentUser } = useGetProfileQuery();
+  const { data: reminders } = useGetRemindersQuery(
+    resourceId && resourceType ? { resourceId, resourceType } : skipToken,
   );
-
-  useEffect(() => {
-    if (
-      resourceId &&
-      resourceType &&
-      (!reminders?.remindersList?.length ||
-        resourceId !== reminders.resourceId ||
-        resourceType !== reminders.resourceType)
-    ) {
-      dispatch(Actions.fetchReminders(resourceId, resourceType));
-    }
-  }, [resourceType, resourceId]);
+  const remindersList = (reminders ?? []).filter(
+    (r: any) => r.user_id === currentUser?.id,
+  );
 
   // Memoized so the toolbar (the "new reminder" button and quick-filter search
   // box) keeps a stable identity across the re-render that happens when the
@@ -193,42 +280,39 @@ const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
     () =>
       function RemindersToolbar() {
         return (
-          <GridToolbarContainer>
-            <IconButton
-              name={`new_reminder_${resourceId}`}
-              onClick={() => setOpen(true)}
-            >
-              <AddIcon />
-            </IconButton>
-            <div data-testid="reminders-quick-filter">
-              <QuickFilter />
-            </div>
-          </GridToolbarContainer>
+          <DataGridToolbar
+            showColumns={false}
+            quickFilterTestId="reminders-quick-filter"
+          >
+            {!isReadOnly && (
+              <IconButton
+                name={`new_reminder_${resourceId}`}
+                onClick={() => setOpen(true)}
+              >
+                <AddIcon />
+              </IconButton>
+            )}
+          </DataGridToolbar>
         );
       },
 
-    [resourceId],
+    [resourceId, isReadOnly],
   );
 
   if (!resourceType || !resourceId) return <CircularProgress />;
-  if (
-    !reminders ||
-    reminders.resourceType !== resourceType ||
-    reminders.resourceId !== resourceId
-  )
-    return null;
+  if (reminders == null) return null;
 
-  const deleteReminder = (reminderId: any) => {
-    dispatch(Actions.deleteReminder(resourceId, resourceType, reminderId)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Reminder deleted"));
-          dispatch(Actions.fetchReminders(resourceId, resourceType));
-        } else {
-          dispatch(showNotification("Error deleting reminder", "error"));
-        }
-      },
-    );
+  const deleteReminder = async (reminderId: any) => {
+    try {
+      await deleteReminderMutation({
+        resourceId,
+        resourceType,
+        reminderID: reminderId,
+      }).unwrap();
+      dispatch(showNotification("Reminder deleted"));
+    } catch {
+      dispatch(showNotification("Error deleting reminder", "error"));
+    }
   };
 
   const columns: any[] = [
@@ -250,6 +334,20 @@ const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
       headerName: "Reminder Delay",
       flex: 1,
       minWidth: 140,
+      valueFormatter: (value: number) => {
+        if (!value) return "-";
+        const totalMinutes = Math.round(value * 1440);
+        if (totalMinutes < 60)
+          return `${totalMinutes} minute${totalMinutes !== 1 ? "s" : ""}`;
+        const totalHours = Math.round(value * 24);
+        if (totalHours < 24)
+          return `${totalHours} hour${totalHours !== 1 ? "s" : ""}`;
+        const totalDays = Math.round(value);
+        if (totalDays < 7)
+          return `${totalDays} day${totalDays !== 1 ? "s" : ""}`;
+        const totalWeeks = Math.round(value / 7);
+        return `${totalWeeks} week${totalWeeks !== 1 ? "s" : ""}`;
+      },
     },
     {
       field: "delete",
@@ -257,11 +355,12 @@ const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
       width: 70,
       sortable: false,
       filterable: false,
-      renderCell: (params: any) => (
-        <Button onClick={() => deleteReminder(params.row.id)}>
-          <DeleteIcon />
-        </Button>
-      ),
+      renderCell: (params: any) =>
+        isReadOnly ? null : (
+          <Button onClick={() => deleteReminder(params.row.id)}>
+            <DeleteIcon />
+          </Button>
+        ),
     },
   ];
 
@@ -291,6 +390,7 @@ const Reminders = ({ resourceId, resourceType }: RemindersProps) => {
             resourceId={resourceId}
             resourceType={resourceType}
             handleClose={() => setOpen(false)}
+            {...(resourceStartDate !== undefined && { resourceStartDate })}
           />
         </DialogContent>
       </Dialog>

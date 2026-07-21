@@ -12,10 +12,11 @@ import EditIcon from "@mui/icons-material/Edit";
 import IconButton from "@mui/material/IconButton";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
-import * as photActions from "../../ducks/photometry";
+import { useUpdatePhotometryMutation } from "../../ducks/photometry";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 const useStyles = makeStyles()(() => ({
   Select: {
@@ -54,10 +55,11 @@ interface UpdatePhotometryProps {
 const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
   const { classes } = useStyles() as any;
   const dispatch = useAppDispatch();
+  const [updatePhotometry] = useUpdatePhotometryMutation();
 
-  const { instrumentList } = useAppSelector(
-    (state) => state["instruments"],
-  ) as any;
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
 
   const [state, setState] = useState<any>({
     mjd: phot.mjd,
@@ -105,10 +107,18 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       }
     } else if (e.target.name === "filter") {
       newState[e.target.name] = e.target.value;
-    } else if (Number.isNaN(parseFloat(e.target.value))) {
-      newState[e.target.name] = e.target.value;
     } else {
-      newState[e.target.name] = parseFloat(e.target.value);
+      // Accept both "." and "," as the decimal separator so values copy-pasted
+      // from the table (which always uses ".") work regardless of locale.
+      const normalized =
+        typeof e.target.value === "string"
+          ? e.target.value.replace(",", ".")
+          : e.target.value;
+      if (Number.isNaN(parseFloat(normalized))) {
+        newState[e.target.name] = e.target.value;
+      } else {
+        newState[e.target.name] = parseFloat(normalized);
+      }
     }
 
     setState({
@@ -186,16 +196,17 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
       setIsSubmitting(false);
       return;
     }
-    const result: any = await dispatch(
-      photActions.updatePhotometry(phot.id, {
-        ...newState,
-      }),
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await updatePhotometry({
+        id: phot.id,
+        photometry: { ...newState },
+      }).unwrap();
       dispatch(showNotification("Photometry successfully updated."));
       setDialogOpen(false);
+    } catch {
+      // error notification handled by the baseQuery
     }
+    setIsSubmitting(false);
   };
 
   return (
@@ -224,8 +235,11 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               value={state.mjd}
               name="mjd"
               onChange={handleChange}
-              type="number"
+              type="text"
               variant="outlined"
+              slotProps={{
+                htmlInput: { inputMode: "decimal" },
+              }}
             />
           </div>
           <p />
@@ -237,8 +251,11 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               value={state.mag}
               name="mag"
               onChange={handleChange}
-              type="number"
+              type="text"
               variant="outlined"
+              slotProps={{
+                htmlInput: { inputMode: "decimal" },
+              }}
             />
           </div>
           <p />
@@ -250,8 +267,11 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               value={state.magerr}
               name="magerr"
               onChange={handleChange}
-              type="number"
+              type="text"
               variant="outlined"
+              slotProps={{
+                htmlInput: { inputMode: "decimal" },
+              }}
             />
           </div>
           <p />
@@ -263,8 +283,11 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               value={state.limiting_mag}
               name="limiting_mag"
               onChange={handleChange}
-              type="number"
+              type="text"
               variant="outlined"
+              slotProps={{
+                htmlInput: { inputMode: "decimal" },
+              }}
             />
           </div>
           <p />

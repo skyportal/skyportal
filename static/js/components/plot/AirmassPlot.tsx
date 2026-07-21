@@ -3,7 +3,7 @@ import embed from "vega-embed";
 import dayjs from "dayjs";
 import { useTheme } from "@mui/material/styles";
 
-interface Ephemeris {
+export interface Ephemeris {
   twilight_evening_astronomical_unix_ms?: number;
   twilight_morning_astronomical_unix_ms?: number;
   twilight_evening_nautical_unix_ms?: number;

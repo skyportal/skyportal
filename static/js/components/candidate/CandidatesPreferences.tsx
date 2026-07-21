@@ -1,3 +1,5 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import React, { useState } from "react";
 
 import IconButton from "@mui/material/IconButton";
@@ -10,7 +12,7 @@ import Slide from "@mui/material/Slide";
 import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useAppSelector } from "../../types/hooks";
+import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
 import Button from "../Button";
 
 import { allowedClasses } from "../classification/ClassificationForm";
@@ -47,18 +49,15 @@ const CandidatesPreferences = ({
   selectedScanningProfile = null,
   setSelectedScanningProfile,
 }: CandidatesPreferencesProps) => {
-  const availableAnnotationsInfo = useAppSelector(
-    (state) => state["candidates"].annotationsInfo,
-  );
+  const { data: availableAnnotationsInfo } =
+    useGetAnnotationsInfoQuery(undefined);
   const { classes } = useStyles();
 
-  const userAccessibleGroups = useAppSelector(
-    (state) => state.groups.userAccessible,
-  );
+  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   // Get unique classification names, in alphabetical order
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
-  const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
+  const { data: taxonomyList } = useGetTaxonomiesQuery();
+  const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest) ?? [];
   let classifications: any[] = [];
   latestTaxonomyList.forEach((taxonomy: any) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
@@ -91,9 +90,11 @@ const CandidatesPreferences = ({
         open={addDialogOpen}
         fullScreen
         onClose={() => setAddDialogOpen(false)}
-        TransitionComponent={Transition}
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
+        slots={{
+          transition: Transition,
+        }}
       >
         <Toolbar className={classes.header}>
           <IconButton

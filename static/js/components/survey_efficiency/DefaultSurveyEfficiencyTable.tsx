@@ -9,18 +9,15 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import * as defaultSurveyEfficienciesActions from "../../ducks/default_survey_efficiencies";
-import StyledDataGrid from "../StyledDataGrid";
+import { useDeleteDefaultSurveyEfficiencyMutation } from "../../ducks/default_survey_efficiencies";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultSurveyEfficiency from "./NewDefaultSurveyEfficiency";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -54,6 +51,9 @@ const DefaultSurveyEfficiencyTable = ({
   const { classes } = useStyles();
 
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
+  const [deleteDefaultSurveyEfficiencyMutation] =
+    useDeleteDefaultSurveyEfficiencyMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -78,16 +78,15 @@ const DefaultSurveyEfficiencyTable = ({
   };
 
   const deleteDefaultSurveyEfficiency = () => {
-    dispatch(
-      defaultSurveyEfficienciesActions.deleteDefaultSurveyEfficiency(
-        defaultSurveyEfficiencyToDelete,
-      ),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    deleteDefaultSurveyEfficiencyMutation(defaultSurveyEfficiencyToDelete)
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("Default survey efficiency deleted"));
         closeDeleteDialog();
-      }
-    });
+      })
+      .catch(() => {
+        // error notification handled by the base query
+      });
   };
 
   const handleSortModelChange = (model: any) => {
@@ -256,18 +255,19 @@ const DefaultSurveyEfficiencyTable = ({
   ];
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
-      <IconButton
-        name="new_default_survey_efficiency"
-        size="small"
-        onClick={() => {
-          openNewDialog();
-        }}
-      >
-        <AddIcon />
-      </IconButton>
-    </GridToolbarContainer>
+    <DataGridToolbar showQuickFilter={false} showExport>
+      {!isReadOnly && (
+        <IconButton
+          name="new_default_survey_efficiency"
+          size="small"
+          onClick={() => {
+            openNewDialog();
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
+    </DataGridToolbar>
   );
 
   return (

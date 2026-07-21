@@ -7,11 +7,7 @@ const config = (env, argv) => {
   const isProduction = argv?.mode === "production";
   return {
     entry: {
-      main: [
-        "core-js/stable",
-        "regenerator-runtime/runtime",
-        path.resolve(__dirname, "static/js/components/templates/Main.tsx"),
-      ],
+      main: path.resolve(__dirname, "static/js/components/templates/Main.tsx"),
     },
     output: {
       path: path.resolve(__dirname, "static/build"),
@@ -24,16 +20,23 @@ const config = (env, argv) => {
       splitChunks: {
         chunks: "all",
         cacheGroups: {
+          // `chunks: "initial"` keeps the big shared vendors chunk to only the
+          // libs reached on first paint. Modules used solely by lazy routes
+          // (mathjs, dygraphs, moment, react-big-calendar, @rjsf/*, etc.) stay
+          // in their own async chunks instead of being shipped on initial load.
           vendor: {
             test: /[\\/]node_modules[\\/]/,
             name: "vendors",
-            chunks: "all",
+            chunks: "initial",
             priority: 10,
           },
+          // `chunks: "initial"` so MUI modules only reached by lazy routes
+          // (e.g. @mui/x-data-grid in Sources/Candidates pages) stay async
+          // instead of being pulled into the initial mui chunk.
           mui: {
             test: /[\\/]node_modules[\\/]@mui[\\/]/,
             name: "mui",
-            chunks: "all",
+            chunks: "initial",
             priority: 20,
           },
           d3: {
@@ -60,30 +63,41 @@ const config = (env, argv) => {
     },
     module: {
       rules: [
+        // Transform JS/TS with rspack's built-in Rust/SWC loader. Type
+        // *checking* remains a separate `tsc --noEmit` step.
+        //
+        // `jsc.target: "es2020"` covers all browsers from ~2020+ natively (async/await,
+        // optional chaining, nullish coalescing, Promise, etc.), so the entry no longer
+        // needs `core-js/stable` + `regenerator-runtime/runtime` polyfills. This also
+        // restores `const`/`let` TDZ semantics — if a binding is read before init it
+        // throws `ReferenceError` instead of returning `undefined` (the ES5 lowering
+        // hid these as latent bugs).
         {
-          test: /\.(js|jsx|ts|tsx)?$/,
-          loader: "babel-loader",
+          // TypeScript / TSX
+          test: /\.tsx?$/,
+          loader: "builtin:swc-loader",
           include: /static\/js/,
           exclude: /node_modules/,
           options: {
-            presets: [
-              "@babel/preset-env",
-              // Use the automatic JSX runtime so `import React from "react"`
-              // is no longer required in every JSX file. Matches the tsconfig
-              // setting "jsx": "react-jsx".
-              ["@babel/preset-react", { runtime: "automatic" }],
-              // Strips TS types during bundling. Type *checking* is a separate
-              // `tsc --noEmit` step (npm run typecheck), so a type error fails
-              // CI without blocking local bundling.
-              "@babel/preset-typescript",
-            ],
-            plugins: [
-              "@babel/plugin-transform-async-to-generator",
-              "@babel/plugin-transform-arrow-functions",
-              "@babel/plugin-transform-class-properties",
-              "@babel/plugin-transform-object-rest-spread",
-            ],
-            compact: false,
+            jsc: {
+              parser: { syntax: "typescript", tsx: true },
+              transform: { react: { runtime: "automatic" } },
+              target: "es2020",
+            },
+          },
+        },
+        {
+          // JavaScript / JSX
+          test: /\.jsx?$/,
+          loader: "builtin:swc-loader",
+          include: /static\/js/,
+          exclude: /node_modules/,
+          options: {
+            jsc: {
+              parser: { syntax: "ecmascript", jsx: true },
+              transform: { react: { runtime: "automatic" } },
+              target: "es2020",
+            },
           },
         },
         // Enable CSS Modules for Skyportal
@@ -125,11 +139,35 @@ const config = (env, argv) => {
           include: /node_modules\/react-big-calendar\/lib\/css/,
           use: ["style-loader", "css-loader"],
         },
+        // Global (non-module) CSS for the broker filter builder's equation
+        // rendering/editing (react-latex-next -> katex, equation-editor-react
+        // -> mathquill).
+        {
+          test: /\.css$/,
+          include: [
+            /node_modules\/katex\/dist/,
+            /node_modules\/mathquill\/build/,
+          ],
+          use: ["style-loader", "css-loader"],
+        },
+        // Emit font files referenced by the above stylesheets (KaTeX/Symbola).
+        {
+          test: /\.(woff2?|ttf|eot|otf)$/,
+          type: "asset/resource",
+        },
       ],
     },
     plugins: [
       // Uncomment the following line to enable bundle size analysis
       // new BundleAnalyzerPlugin(),
+      // Drop moment's per-locale string files (es, fr, ja, ...) — SkyPortal only
+      // formats dates in English. Saves ~600 KB on pages that pull in moment
+      // (notably `ShiftCalendar` via react-big-calendar). Does NOT affect
+      // timezone math: that comes from `moment-timezone`, which is not a dep.
+      new rspack.IgnorePlugin({
+        resourceRegExp: /^\.\/locale$/,
+        contextRegExp: /moment$/,
+      }),
       new rspack.HtmlRspackPlugin({
         template: "./static/index_base.html",
         filename: "../index.html",
@@ -157,6 +195,9 @@ const config = (env, argv) => {
           __dirname,
           "node_modules/react-resizable/css",
         ),
+        // Some transitive deps still ship CJS lodash; alias to lodash-es so
+        // both versions dedupe and the ES tree-shakes properly.
+        lodash: "lodash-es",
       },
       extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
       // Needed for non-polyfilled node modules; we aim to remove this when possible

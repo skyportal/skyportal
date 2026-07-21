@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 
 import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
@@ -14,10 +13,13 @@ import Tooltip from "@mui/material/Tooltip";
 
 import ReactJson from "react-json-view";
 
-import * as sourceActions from "../../ducks/source";
-import * as gcnEventActions from "../../ducks/gcnEvent";
-import * as shiftsActions from "../../ducks/shifts";
-import * as earthquakeActions from "../../ducks/earthquake";
+import {
+  useLazyGetCommentTextAttachmentQuery,
+  useLazyGetCommentOnSpectrumTextAttachmentQuery,
+} from "../../ducks/source";
+import { useLazyGetCommentOnGcnEventTextAttachmentQuery } from "../../ducks/gcnEvent";
+import { useLazyGetCommentOnShiftAttachmentQuery } from "../../ducks/shifts";
+import { useLazyGetCommentOnEarthquakeTextAttachmentQuery } from "../../ducks/earthquake";
 
 const useStyles = makeStyles()((theme) => ({
   dialogTitle: {
@@ -189,23 +191,27 @@ const CommentAttachmentPreview = ({
   const { classes } = useStyles();
   const theme = useTheme();
   const darkTheme = theme.palette.mode === "dark";
-  const dispatch = useAppDispatch();
+  const [getShiftCommentAttachment, { data: shiftCommentAttachment }] =
+    useLazyGetCommentOnShiftAttachmentQuery();
+  const [
+    getEarthquakeCommentAttachment,
+    { data: earthquakeCommentAttachment },
+  ] = useLazyGetCommentOnEarthquakeTextAttachmentQuery();
+  const [getGcnEventCommentAttachment, { data: gcnEventCommentAttachment }] =
+    useLazyGetCommentOnGcnEventTextAttachmentQuery();
+  const [getSourceCommentAttachment, { data: sourceTextAttachment }] =
+    useLazyGetCommentTextAttachmentQuery();
+  const [getSpectrumCommentAttachment, { data: spectrumTextAttachment }] =
+    useLazyGetCommentOnSpectrumTextAttachmentQuery();
 
-  function resourceType(state: any): any {
-    let type = "";
-    if (associatedResourceType === "gcn_event") {
-      type = state.gcnEvent.commentAttachment;
-    } else if (associatedResourceType === "shift") {
-      type = state.shifts.commentAttachment;
-    } else if (associatedResourceType === "earthquake") {
-      type = state.earthquake.commentAttachment;
-    } else {
-      type = state.source.commentAttachment;
-    }
-    return type;
+  let commentAttachment: any = sourceTextAttachment ?? spectrumTextAttachment;
+  if (associatedResourceType === "gcn_event") {
+    commentAttachment = gcnEventCommentAttachment;
+  } else if (associatedResourceType === "shift") {
+    commentAttachment = shiftCommentAttachment;
+  } else if (associatedResourceType === "earthquake") {
+    commentAttachment = earthquakeCommentAttachment;
   }
-
-  const commentAttachment = useAppSelector((state) => resourceType(state));
   const [open, setOpen] = useState(false);
 
   const getURLs = () => {
@@ -236,32 +242,27 @@ const CommentAttachmentPreview = ({
       open
     ) {
       if (associatedResourceType === "sources") {
-        dispatch(sourceActions.getCommentTextAttachment(objectID!, commentId));
+        getSourceCommentAttachment({
+          sourceID: objectID!,
+          commentID: commentId,
+        });
       } else if (associatedResourceType === "spectra") {
-        dispatch(
-          sourceActions.getCommentOnSpectrumTextAttachment(
-            objectID!,
-            commentId,
-          ),
-        );
+        getSpectrumCommentAttachment({
+          spectrumID: objectID!,
+          commentID: commentId,
+        });
       } else if (associatedResourceType === "gcn_event") {
-        dispatch(
-          gcnEventActions.getCommentOnGcnEventTextAttachment(
-            gcnEventID,
-            commentId,
-          ),
-        );
+        getGcnEventCommentAttachment({
+          gcnEventID: gcnEventID!,
+          commentID: commentId,
+        });
       } else if (associatedResourceType === "earthquake") {
-        dispatch(
-          earthquakeActions.getCommentOnEarthquakeTextAttachment(
-            earthquakeID!,
-            commentId,
-          ),
-        );
+        getEarthquakeCommentAttachment({
+          earthquakeID: earthquakeID!,
+          commentID: commentId,
+        });
       } else if (associatedResourceType === "shift") {
-        dispatch(
-          shiftsActions.getCommentOnShiftTextAttachment(shiftID!, commentId),
-        );
+        getShiftCommentAttachment({ shiftID: shiftID!, commentID: commentId });
       }
     }
   }, [open]);

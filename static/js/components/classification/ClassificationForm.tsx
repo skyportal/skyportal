@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
@@ -12,8 +13,8 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as Actions from "../../ducks/source";
+import { useAppDispatch } from "../../types/hooks";
+import { useAddClassificationMutation } from "../../ducks/source";
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -79,18 +80,18 @@ const CustomProbabilityWidget = ({
     label="Probability"
     type="number"
     helperText="[0-1]"
-    InputLabelProps={{
-      shrink: true,
-    }}
-    inputProps={{
-      min: "0",
-      max: "1",
-      step: "0.0001",
+    slotProps={{
+      inputLabel: {
+        shrink: true,
+      },
+      htmlInput: {
+        min: "0",
+        max: "1",
+        step: "0.0001",
+      },
     }}
     value={value || ""}
-    onChange={(event) => {
-      onChange(event.target.value);
-    }}
+    onChange={(event) => onChange(event.target.value)}
   />
 );
 
@@ -106,7 +107,7 @@ const CustomGroupsWidget = ({
   options,
 }: CustomGroupsWidgetProps) => {
   const { classes } = useStyles();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const groupIDToName: Record<string, any> = {};
   groups?.forEach((g) => {
@@ -115,10 +116,12 @@ const CustomGroupsWidget = ({
 
   const ITEM_HEIGHT = 48;
   const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250,
+    slotProps: {
+      paper: {
+        style: {
+          maxHeight: ITEM_HEIGHT * 4.5,
+          width: 250,
+        },
       },
     },
   };
@@ -235,7 +238,8 @@ const ClassificationForm = ({
   taxonomyList,
 }: ClassificationFormProps) => {
   const dispatch = useAppDispatch();
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const [addClassification] = useAddClassificationMutation();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
 
@@ -256,11 +260,13 @@ const ClassificationForm = ({
     if (formData.groupIDs) {
       data.group_ids = formData.groupIDs?.map((id: any) => parseInt(id, 10));
     }
-    const result: any = await dispatch(Actions.addClassification(data));
-    setSubmissionRequestInProcess(false);
-    if (result.status === "success") {
+    try {
+      await addClassification(data).unwrap();
       dispatch(showNotification("Classification saved"));
+    } catch {
+      // error notification handled by the baseQuery
     }
+    setSubmissionRequestInProcess(false);
   };
 
   const widgets = {

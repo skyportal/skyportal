@@ -1,9 +1,6 @@
-import { useEffect } from "react";
-
 import SelectWithChips from "../SelectWithChips";
 
-import * as localizationTagsActions from "../../ducks/localizationTags";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetLocalizationTagsQuery } from "../../ducks/localizationTags";
 
 interface LocalizationTagsSelectProps {
   title?: string;
@@ -16,14 +13,8 @@ const LocalizationTagsSelect = ({
   selectedLocalizationTags,
   setSelectedLocalizationTags,
 }: LocalizationTagsSelectProps) => {
-  const dispatch = useAppDispatch();
-  const localizationTags = [
-    ...(useAppSelector((state) => state["localizationTags"]) || []),
-  ].sort();
-
-  useEffect(() => {
-    dispatch(localizationTagsActions.fetchLocalizationTags());
-  }, [dispatch]);
+  const { data } = useGetLocalizationTagsQuery();
+  const localizationTags = [...(data || [])].sort();
 
   if (!localizationTags?.length) return null;
 

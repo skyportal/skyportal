@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -11,21 +11,21 @@ import Tooltip from "@mui/material/Tooltip";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
-import DownloadIcon from "@mui/icons-material/Download";
 import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarFilterButton,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
-import StyledDataGrid from "./StyledDataGrid";
-import * as objectTagsActions from "../ducks/objectTags";
+import StyledDataGrid, { DataGridToolbar } from "./StyledDataGrid";
+import {
+  useGetTagOptionsQuery,
+  useCreateTagOptionMutation,
+  useUpdateTagOptionMutation,
+  useDeleteTagOptionMutation,
+} from "../ducks/objectTags";
 import { getContrastColor } from "./ObjectTags";
+import { useIsReadOnly } from "../ducks/profile";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -71,6 +71,7 @@ const useStyles = makeStyles()((theme) => ({
 const TagManagement = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<any>(null);
@@ -81,11 +82,10 @@ const TagManagement = () => {
   const [tagToDelete, setTagToDelete] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const tagOptions = useAppSelector((state) => (state as any).objectTags || []);
-
-  useEffect(() => {
-    dispatch(objectTagsActions.fetchTagOptions());
-  }, [dispatch]);
+  const { data: tagOptions = [] } = useGetTagOptionsQuery();
+  const [createTagOption] = useCreateTagOptionMutation();
+  const [updateTagOption] = useUpdateTagOptionMutation();
+  const [deleteTagOption] = useDeleteTagOptionMutation();
 
   const handleEditClick = (tag: any) => {
     setEditingTag(tag);
@@ -109,21 +109,13 @@ const TagManagement = () => {
 
     setLoading(true);
     try {
-      const result: any = await dispatch(
-        objectTagsActions.createTagOption({
-          name: createForm.name,
-          color: createForm.color,
-        }),
-      );
-
-      if (result.status === "success") {
-        dispatch(showNotification("Tag created successfully"));
-        setCreateDialogOpen(false);
-        setCreateForm({ name: "", color: "#dddfe2" });
-        dispatch(objectTagsActions.fetchTagOptions());
-      } else {
-        dispatch(showNotification("Failed to create tag", "error"));
-      }
+      await createTagOption({
+        name: createForm.name,
+        color: createForm.color,
+      }).unwrap();
+      dispatch(showNotification("Tag created successfully"));
+      setCreateDialogOpen(false);
+      setCreateForm({ name: "", color: "#dddfe2" });
     } catch (error) {
       dispatch(showNotification("Failed to create tag", "error"));
     } finally {
@@ -139,22 +131,14 @@ const TagManagement = () => {
 
     setLoading(true);
     try {
-      const result: any = await dispatch(
-        objectTagsActions.updateTagOption({
-          id: editingTag.id,
-          name: editForm.name,
-          color: editForm.color,
-        }),
-      );
-
-      if (result.status === "success") {
-        dispatch(showNotification("Tag updated successfully"));
-        setEditDialogOpen(false);
-        setEditingTag(null);
-        dispatch(objectTagsActions.fetchTagOptions());
-      } else {
-        dispatch(showNotification("Failed to update tag", "error"));
-      }
+      await updateTagOption({
+        id: editingTag.id,
+        name: editForm.name,
+        color: editForm.color,
+      }).unwrap();
+      dispatch(showNotification("Tag updated successfully"));
+      setEditDialogOpen(false);
+      setEditingTag(null);
     } catch (error) {
       dispatch(showNotification("Failed to update tag", "error"));
     } finally {
@@ -170,17 +154,9 @@ const TagManagement = () => {
   const handleDeleteConfirm = async () => {
     setLoading(true);
     try {
-      const result: any = await dispatch(
-        objectTagsActions.deleteTagOption({ id: tagToDelete.id }),
-      );
-
-      if (result.status === "success") {
-        dispatch(showNotification("Tag deleted successfully"));
-        closeDeleteDialog();
-        dispatch(objectTagsActions.fetchTagOptions());
-      } else {
-        dispatch(showNotification("Failed to delete tag", "error"));
-      }
+      await deleteTagOption({ id: tagToDelete.id }).unwrap();
+      dispatch(showNotification("Tag deleted successfully"));
+      closeDeleteDialog();
     } catch (error) {
       dispatch(showNotification("Failed to delete tag", "error"));
     } finally {
@@ -250,6 +226,7 @@ const TagManagement = () => {
       filterable: false,
       renderCell: (params: any) => {
         const tag = params.row;
+        if (isReadOnly) return null;
         return (
           <div className={classes.manage}>
             <Tooltip title="Edit tag">
@@ -279,53 +256,21 @@ const TagManagement = () => {
     },
   ];
 
-  const handleDownload = () => {
-    if (!tagOptions?.length) {
-      return;
-    }
-    const head = ["id", "name", "color", "created_at"];
-    const csvCell = (value: any) =>
-      `"${String(value ?? "").replace(/"/g, '""')}"`;
-    const rows = tagOptions.map((tag: any) =>
-      [tag.id, tag.name, tag.color, tag.created_at].map(csvCell).join(","),
-    );
-    const result = `${head.map(csvCell).join(",")}\n${rows.join("\n")}`;
-    const blob = new Blob([result], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "tags.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   function CustomToolbar() {
     return (
-      <GridToolbarContainer>
-        <GridToolbarColumnsButton />
-        <GridToolbarFilterButton />
-        <Tooltip title="Create new tag">
-          <IconButton
-            onClick={handleCreateClick}
-            disabled={loading}
-            data-testid="create-tag-button"
-          >
-            <AddIcon />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Download CSV">
-          <IconButton
-            size="small"
-            aria-label="Download CSV"
-            data-testid="download-tags-button"
-            onClick={handleDownload}
-          >
-            <DownloadIcon />
-          </IconButton>
-        </Tooltip>
-      </GridToolbarContainer>
+      <DataGridToolbar showFilter showQuickFilter={false} showExport>
+        {!isReadOnly && (
+          <Tooltip title="Create new tag">
+            <IconButton
+              onClick={handleCreateClick}
+              disabled={loading}
+              data-testid="create-tag-button"
+            >
+              <AddIcon />
+            </IconButton>
+          </Tooltip>
+        )}
+      </DataGridToolbar>
     );
   }
 
@@ -367,7 +312,9 @@ const TagManagement = () => {
             margin="normal"
             variant="outlined"
             disabled={loading}
-            inputProps={{ "data-testid": "edit-tag-name-input" }}
+            slotProps={{
+              htmlInput: { "data-testid": "edit-tag-name-input" },
+            }}
           />
 
           <div className={classes.colorPicker}>
@@ -444,7 +391,9 @@ const TagManagement = () => {
             variant="outlined"
             disabled={loading}
             helperText="Only letters and numbers, no spaces or special characters"
-            inputProps={{ "data-testid": "create-tag-name-input" }}
+            slotProps={{
+              htmlInput: { "data-testid": "create-tag-name-input" },
+            }}
           />
 
           <div className={classes.colorPicker}>

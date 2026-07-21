@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../../ducks/profile";
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import Tooltip from "@mui/material/Tooltip";
@@ -7,8 +8,7 @@ import DialogContent from "@mui/material/DialogContent";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
-import * as publicSourcePageActions from "../../../ducks/public_pages/public_source_page";
+import { useGeneratePublicSourcePageMutation } from "../../../ducks/public_pages/public_source_page";
 import Button from "../../Button";
 import SourcePublishOptions from "./SourcePublishOptions";
 import SourcePublishHistory from "./SourcePublishHistory";
@@ -43,11 +43,11 @@ interface SourcePublishProps {
 }
 
 const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
-  const dispatch = useAppDispatch();
   const { classes: styles } = useStyles();
-  const currentUser = useAppSelector((state) => state.profile);
+  const [generatePublicSourcePage] = useGeneratePublicSourcePageMutation();
+  const { data: currentUser } = useGetProfileQuery();
   const manageSourcesAccess =
-    currentUser.permissions?.includes("Manage sources");
+    currentUser?.permissions?.includes("Manage sources");
   const displayOptions =
     manageSourcesAccess &&
     (isElements.summary ||
@@ -75,26 +75,24 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
     groups: [],
     streams: [],
   });
-  const versions = useAppSelector((state) => state["publicSourceVersions"]);
-
-  const publish = () => {
+  const publish = async () => {
     if (manageSourcesAccess) {
       setPublishButton({ text: "loading", color: "" });
-      dispatch(
-        publicSourcePageActions.generatePublicSourcePage(sourceId, {
-          options,
-          release_id: sourceReleaseId,
-        }),
-      ).then((data: any) => {
-        if (data.status === "error") {
-          setPublishButton({ text: "Error", color: "red" });
-        } else {
-          setPublishButton({ text: "Done", color: "green" });
-        }
-        setTimeout(() => {
-          setPublishButton({ text: "Publish", color: "" });
-        }, 2000);
-      });
+      try {
+        await generatePublicSourcePage({
+          sourceId,
+          payload: {
+            options,
+            release_id: sourceReleaseId,
+          },
+        }).unwrap();
+        setPublishButton({ text: "Done", color: "green" });
+      } catch {
+        setPublishButton({ text: "Error", color: "red" });
+      }
+      setTimeout(() => {
+        setPublishButton({ text: "Publish", color: "" });
+      }, 2000);
     }
   };
 
@@ -112,7 +110,9 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
       <Dialog
         open={sourcePublishDialogOpen}
         onClose={() => setSourcePublishDialogOpen(false)}
-        PaperProps={{ style: { maxWidth: "800px" } }}
+        slotProps={{
+          paper: { style: { maxWidth: "800px" } },
+        }}
       >
         <DialogTitle>Public access information</DialogTitle>
         <DialogContent style={{ paddingBottom: "0.5rem" }}>
@@ -211,7 +211,7 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
               {sourcePublishHistoryOpen ? <ExpandLess /> : <ExpandMore />}
             </Button>
             {sourcePublishHistoryOpen && (
-              <SourcePublishHistory sourceId={sourceId} versions={versions} />
+              <SourcePublishHistory sourceId={sourceId} />
             )}
           </div>
         </DialogContent>

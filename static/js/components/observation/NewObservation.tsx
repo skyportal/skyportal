@@ -2,20 +2,22 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import {
-  fetchObservations,
-  uploadObservations,
-} from "../../ducks/observations";
+import { useAppDispatch } from "../../types/hooks";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useUploadObservationsMutation } from "../../ducks/observations";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 interface NewObservationProps {
   onClose?: (() => void) | null;
 }
 
 const NewObservation = ({ onClose = null }: NewObservationProps) => {
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
+    data: any[];
+  };
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
   const dispatch = useAppDispatch();
+  const [uploadObservations] = useUploadObservationsMutation();
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     const parsed = dataUriToBuffer(formData.file);
@@ -24,13 +26,14 @@ const NewObservation = ({ onClose = null }: NewObservationProps) => {
       observationData: ascii,
       instrumentID: formData.instrument_id,
     };
-    const result: any = await dispatch(uploadObservations(payload));
-    if (result.status === "success") {
+    try {
+      await uploadObservations(payload).unwrap();
       dispatch(showNotification("Observation saved"));
-      dispatch(fetchObservations());
       if (typeof onClose === "function") {
         onClose();
       }
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 
@@ -50,7 +53,7 @@ const NewObservation = ({ onClose = null }: NewObservationProps) => {
           title: `${
             telescopeList.find(
               (telescope: any) => telescope.id === instrument.telescope_id,
-            )?.name
+            )?.["name"]
           } / ${instrument.name}`,
         })),
         title: "Instrument",

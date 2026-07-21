@@ -11,6 +11,7 @@ from baselayer.app.models import (
     AccessibleIfUserMatches,
     Base,
     DBSession,
+    User,
 )
 
 from ..app_utils import get_app_base_url
@@ -62,20 +63,24 @@ def send_source_notification(mapper, connection, target):
     app_base_url = get_app_base_url()
 
     link_location = f"{app_base_url}/source/{target.source_id}"
-    if target.sent_by.first_name is not None and target.sent_by.last_name is not None:
-        sent_by_name = f"{target.sent_by.first_name} {target.sent_by.last_name}"
+    # Load the sender explicitly (matching the source/groups lookups below);
+    # the ``target.sent_by`` relationship isn't populated during an async
+    # commit's flush, where this after_insert listener runs.
+    sent_by = DBSession().get(User, target.sent_by_id)
+    if sent_by.first_name is not None and sent_by.last_name is not None:
+        sent_by_name = f"{sent_by.first_name} {sent_by.last_name}"
     else:
-        sent_by_name = target.sent_by.username
+        sent_by_name = sent_by.username
 
     group_ids = (group.id for group in target.groups)
-    groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+    groups = DBSession().scalars(sa.select(Group).where(Group.id.in_(group_ids))).all()
 
     target_users = set()
     for group in groups:
         # Use a set to get unique iterable of users
         target_users.update(group.users)
 
-    source = DBSession().query(Obj).get(target.source_id)
+    source = DBSession().get(Obj, target.source_id)
     source_info = ""
     if source.ra is not None:
         source_info += f"RA={source.ra} "

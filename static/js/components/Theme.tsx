@@ -1,3 +1,5 @@
+import { useGetProfileQuery } from "../ducks/profile";
+import { useActiveTeam } from "../ducks/teams";
 import React from "react";
 
 import {
@@ -7,7 +9,6 @@ import {
 } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { grey } from "@mui/material/colors";
-import { useAppSelector } from "../types/hooks";
 
 interface ThemeProps {
   disableTransitions?: boolean;
@@ -15,10 +16,15 @@ interface ThemeProps {
 }
 
 const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
-  const theme = useAppSelector(
-    (state) => (state.profile.preferences as any).theme,
-  );
+  const theme = (useGetProfileQuery().data?.preferences as any)?.theme;
   const dark = theme === "dark";
+
+  // When a team is active, its colors drive the whole MUI palette so every
+  // primary/secondary-colored element themes at once. No active team → the
+  // original SkyPortal palette.
+  const { activeTeam } = useActiveTeam();
+  const primaryColor = activeTeam?.primary_color || "#457b9d";
+  const secondaryColor = activeTeam?.secondary_color || "#b1dae9";
 
   const greyTheme = createTheme({
     palette: {
@@ -32,14 +38,14 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
     palette: {
       mode: theme || "light",
       primary: {
-        main: "#457b9d",
-        light: "#457b9d",
+        main: primaryColor,
+        light: primaryColor,
         dark: "#1d3557",
         contrastText: "#fff",
       },
       secondary: {
-        main: "#b1dae9",
-        light: "#b1dae9",
+        main: secondaryColor,
+        light: secondaryColor,
         dark: "#76aace",
         contrastText: "#fff",
       },

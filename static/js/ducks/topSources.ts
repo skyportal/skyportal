@@ -1,45 +1,27 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Top sources (the "Top Sources" widget).
+ *
+ * RTK Query conversion of the old `FETCH_TOP_SOURCES` duck. The endpoint is
+ * injected into the central `skyportalApi` and returns the list of source views
+ * consumers render. The old websocket handler refetched on a FETCH_TOP_SOURCES
+ * message; here we invalidate the "SourceView" tag so the active query refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-
-const FETCH_TOP_SOURCES = "skyportal/FETCH_TOP_SOURCES";
-const FETCH_TOP_SOURCES_OK = "skyportal/FETCH_TOP_SOURCES_OK";
-
-export const fetchTopSources = () =>
-  API.GET("/api/internal/source_views", FETCH_TOP_SOURCES);
-
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === FETCH_TOP_SOURCES) {
-    dispatch(fetchTopSources());
-  }
+export const topSourcesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getTopSources: build.query<any[], { teamID?: number | null } | void>({
+      query: (arg) =>
+        arg && arg.teamID != null
+          ? `api/internal/source_views?teamID=${arg.teamID}`
+          : "api/internal/source_views",
+      providesTags: ["SourceView"],
+    }),
+  }),
 });
 
-interface TopSourcesState {
-  sourceViews: any[];
-}
+// Websocket: old handler refetched top sources on FETCH_TOP_SOURCES.
+invalidateOnMessage("skyportal/FETCH_TOP_SOURCES", () => ["SourceView"]);
 
-interface TopSourcesAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-const reducer = (
-  state: TopSourcesState = { sourceViews: [] },
-  action: TopSourcesAction,
-): TopSourcesState => {
-  switch (action.type) {
-    case FETCH_TOP_SOURCES_OK: {
-      const sourceViews = action.data;
-      return {
-        sourceViews,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("topSources", reducer);
+export const { useGetTopSourcesQuery } = topSourcesApi;

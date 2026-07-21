@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { makeStyles } from "tss-react/mui";
 
-import { useAppSelector } from "../../types/hooks";
+import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import { dec_to_dms, ra_to_hours } from "../../units";
 
 dayjs.extend(utc);
@@ -95,8 +95,7 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
   const ra_hrs = ra_to_hours(ra, ":");
   const dec_hrs = dec_to_dms(dec, ":");
   // TODO: const thumbnail_timestamp = "TODO";
-  const photometry = useAppSelector((state) => state["photometry"]);
-  const objPhotometry = (photometry as any)?.[id];
+  const { data: objPhotometry } = useFetchSourcePhotometryQuery({ id });
 
   let isDetected = false;
   let magErr = Infinity;
@@ -116,8 +115,18 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
     });
   }
 
+  // ACROSS visibility calculator: default to a 7-day window starting now
+  const acrossBegin = dayjs.utc().format("YYYY-MM-DDTHH:mm:ss");
+  const acrossEnd = dayjs.utc().add(7, "day").format("YYYY-MM-DDTHH:mm:ss");
+
   return (
     <div className={styles.SurveyLinkList}>
+      <SurveyLink
+        name="ACROSS"
+        url={`https://app.across.sciencecloud.nasa.gov/visibility-calculator?ra=${ra}&dec=${dec}&date_range_begin=${encodeURIComponent(
+          acrossBegin,
+        )}&date_range_end=${encodeURIComponent(acrossEnd)}`}
+      />
       <SurveyLink
         name="ADS"
         url={`https://ui.adsabs.harvard.edu/search/q=object%22${ra}%20${
@@ -221,7 +230,7 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
       )}
       <SurveyLink
         name="NED"
-        url={`http://nedwww.ipac.caltech.edu/cgi-bin/nph-objsearch?lon=${ra}d&lat=${dec}d&radius=1.0&search_type=Near+Position+Search`}
+        url={`https://ned.ipac.caltech.edu/conesearch?search_type=Near%20Position%20Search&in_csys=Equatorial&in_equinox=J2000&ra=${ra}d&dec=${dec}d&radius=1.0&Z_CONSTRAINT=Unconstrained`}
       />
       <SurveyLink
         name="PTF"

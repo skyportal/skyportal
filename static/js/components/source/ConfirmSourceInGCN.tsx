@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useState, type ReactNode } from "react";
 import Paper from "@mui/material/Paper";
 import { makeStyles, withStyles } from "tss-react/mui";
 import { Controller, useForm } from "react-hook-form";
@@ -16,10 +17,14 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
-import * as SourceInGcnAction from "../../ducks/sourcesingcn";
+import {
+  useGetSourcesInGcnQuery,
+  useSubmitSourceInGcnMutation,
+  usePatchSourceInGcnMutation,
+  useDeleteSourceInGcnMutation,
+} from "../../ducks/sourcesingcn";
 
 dayjs.extend(utc);
 
@@ -119,6 +124,10 @@ interface ConfirmSourceInGCNProps {
   start_date: string;
   end_date: string;
   sources_id_list: string[];
+  // Optional custom trigger: a compact button and/or a different icon, so
+  // callers (e.g. the crossmatch list) can match surrounding controls.
+  compact?: boolean;
+  triggerIcon?: ReactNode;
 }
 
 const ConfirmSourceInGCN = ({
@@ -129,17 +138,23 @@ const ConfirmSourceInGCN = ({
   start_date,
   end_date,
   sources_id_list,
+  compact = false,
+  triggerIcon,
 }: ConfirmSourceInGCNProps) => {
-  const dispatch = useAppDispatch();
   const { classes } = useStyles() as any;
-  const { permissions } = useAppSelector((state) => state.profile);
+  const { permissions } = useGetProfileQuery().data ?? {};
   const [open, setOpen] = useState(false);
 
   const { control, getValues, register, reset } = useForm();
 
-  const sourcesingcn = useAppSelector(
-    (state) => state["sourcesingcn"].sourcesingcn,
-  );
+  const { data: sourcesingcn = [] } = useGetSourcesInGcnQuery({
+    dateobs,
+    localizationName: localization_name,
+    sourcesIdList: sources_id_list,
+  });
+  const [submitSourceInGcn] = useSubmitSourceInGcnMutation();
+  const [patchSourceInGcn] = usePatchSourceInGcnMutation();
+  const [deleteSourceInGcn] = useDeleteSourceInGcnMutation();
 
   const handleClose = () => {
     setOpen(false);
@@ -173,7 +188,7 @@ const ConfirmSourceInGCN = ({
       currentNotes =
         sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.notes || "";
     } else if (
-      sourcesingcn.filter((s: any) => s.obj_id === source_id)[0].confirmed ===
+      sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.confirmed ===
       false
     ) {
       currentState = "rejected";
@@ -184,154 +199,75 @@ const ConfirmSourceInGCN = ({
         sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.notes || "";
     } else {
       currentState = "ambiguous";
-      currentExplanation = sourcesingcn.filter(
-        (s: any) => s.obj_id === source_id,
-      )[0]?.explanation;
-      currentNotes = sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
-        ?.notes;
+      currentExplanation =
+        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]
+          ?.explanation || "";
+      currentNotes =
+        sourcesingcn.filter((s: any) => s.obj_id === source_id)[0]?.notes || "";
     }
   }
 
-  const handleUpdate = () => {
-    dispatch(
-      SourceInGcnAction.fetchSourcesInGcn(dateobs, {
-        localizationName: localization_name,
-        sourcesIdList: sources_id_list,
-      }),
-    ).then((response: any) => {
-      if (response.status === "success") {
-        reset();
+  const handleVet = async (confirmed: boolean | null) => {
+    const data = getValues();
+    try {
+      if (currentState === "not_vetted") {
+        await submitSourceInGcn({
+          dateobs,
+          data: {
+            source_id,
+            start_date,
+            end_date,
+            localization_name,
+            localization_cumprob,
+            confirmed,
+            explanation: data["explanation"],
+            notes: data["notes"],
+          },
+        }).unwrap();
+      } else {
+        await patchSourceInGcn({
+          dateobs,
+          source_id,
+          data: {
+            confirmed,
+            explanation: data["explanation"],
+            notes: data["notes"],
+          },
+        }).unwrap();
       }
-    });
-  };
-
-  const handleHighlight = () => {
-    const data = getValues();
-    if (currentState === "not_vetted") {
-      dispatch(
-        SourceInGcnAction.submitSourceInGcn(dateobs, {
-          source_id,
-          start_date,
-          end_date,
-          localization_name,
-          localization_cumprob,
-          confirmed: true,
-          explanation: data["explanation"],
-          notes: data["notes"],
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleUpdate();
-          handleClose();
-        }
-      });
-    } else {
-      dispatch(
-        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
-          confirmed: true,
-          explanation: data["explanation"],
-          notes: data["notes"],
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleUpdate();
-          handleClose();
-        }
-      });
+      reset();
+      handleClose();
+    } catch {
+      // notification handled by baseQuery
     }
   };
 
-  const handleReject = () => {
-    const data = getValues();
-    if (currentState === "not_vetted") {
-      dispatch(
-        SourceInGcnAction.submitSourceInGcn(dateobs, {
-          source_id,
-          start_date,
-          end_date,
-          localization_name,
-          localization_cumprob,
-          confirmed: false,
-          explanation: data["explanation"],
-          notes: data["notes"],
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleUpdate();
-          handleClose();
-        }
-      });
-    } else {
-      dispatch(
-        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
-          confirmed: false,
-          explanation: data["explanation"],
-          notes: data["notes"],
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleUpdate();
-          handleClose();
-        }
-      });
+  const handleHighlight = () => handleVet(true);
+
+  const handleReject = () => handleVet(false);
+
+  const handleAmbiguous = () => handleVet(null);
+
+  const handleNotVetted = async () => {
+    try {
+      await deleteSourceInGcn({ dateobs, source_id }).unwrap();
+      reset();
+      handleClose();
+    } catch {
+      // notification handled by baseQuery
     }
   };
 
-  const handleAmbiguous = () => {
-    const data = getValues();
-    if (currentState === "not_vetted") {
-      dispatch(
-        SourceInGcnAction.submitSourceInGcn(dateobs, {
-          source_id,
-          start_date,
-          end_date,
-          localization_name,
-          localization_cumprob,
-          confirmed: null,
-          explanation: data["explanation"],
-          notes: data["notes"],
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleUpdate();
-          handleClose();
-        }
-      });
-    } else {
-      dispatch(
-        SourceInGcnAction.patchSourceInGcn(dateobs, source_id, {
-          confirmed: null,
-          explanation: data["explanation"],
-          notes: data["notes"],
-        }),
-      ).then((response: any) => {
-        if (response.status === "success") {
-          handleUpdate();
-          handleClose();
-        }
-      });
-    }
-  };
-
-  const handleNotVetted = () => {
-    dispatch(SourceInGcnAction.deleteSourceInGcn(dateobs, source_id)).then(
-      (response: any) => {
-        if (response.status === "success") {
-          handleUpdate();
-          handleClose();
-        }
-      },
-    );
-  };
-
-  return permissions.includes("Manage GCNs") ? (
+  return permissions?.includes("Manage GCNs") ? (
     <div>
       <IconButton
         aria-label="open"
         className={classes.closeButton}
+        size={compact ? "small" : undefined}
+        sx={compact ? { p: 0 } : undefined}
         onClick={() => setOpen(true)}
       >
-        <EditIcon />
+        {triggerIcon ?? <EditIcon />}
       </IconButton>
       {open && (
         <Paper className={classes.container}>

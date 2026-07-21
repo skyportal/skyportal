@@ -13,10 +13,13 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import DynamicTagDisplay from "./DynamicTagDisplay";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import { dec_to_dms, ra_to_hours } from "../../units";
-import * as profileActions from "../../ducks/profile";
-import * as objectTagsActions from "../../ducks/objectTags";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
+import { useGetRecentSourcesQuery } from "../../ducks/recentSources";
+import { useActiveTeam } from "../../ducks/teams";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
 dayjs.extend(relativeTime);
@@ -194,7 +197,7 @@ const defaultPrefs: any = {
 };
 
 interface RecentSourcesListProps {
-  sources?: any[];
+  sources?: any[] | undefined;
   styles: any;
   search?: boolean;
   displayTNS?: boolean;
@@ -410,22 +413,19 @@ interface RecentSourcesProps {
 }
 
 const RecentSources = ({ classes }: RecentSourcesProps) => {
-  const dispatch = useAppDispatch();
-  const invertThumbnails = useAppSelector(
-    (state) => state.profile.preferences?.["invertThumbnails"],
-  ) as boolean | undefined;
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const invertThumbnails = profile?.preferences?.["invertThumbnails"] as
+    | boolean
+    | undefined;
   const { classes: styles } = useSourceListStyles({ invertThumbnails });
 
-  const { recentSources } = useAppSelector(
-    (state) => state["recentSources"],
-  ) as any;
+  const { activeTeam } = useActiveTeam();
+  const { data: recentSources } = useGetRecentSourcesQuery(
+    activeTeam ? { teamID: activeTeam.id } : undefined,
+  );
   const prefs =
-    (useAppSelector(
-      (state) => state.profile.preferences?.["recentSources"],
-    ) as any) || defaultPrefs;
-  useEffect(() => {
-    dispatch(objectTagsActions.fetchTagOptions());
-  }, [dispatch]);
+    (profile?.preferences?.["recentSources"] as any) || defaultPrefs;
 
   const recentSourcesPrefs = prefs
     ? { ...defaultPrefs, ...prefs }
@@ -435,7 +435,12 @@ const RecentSources = ({ classes }: RecentSourcesProps) => {
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <div>
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            sx={{
+              display: "inline",
+            }}
+          >
             Recently Saved Sources
           </Typography>
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
@@ -444,7 +449,7 @@ const RecentSources = ({ classes }: RecentSourcesProps) => {
               initialValues={recentSourcesPrefs}
               stateBranchName="recentSources"
               title="Recent Sources Preferences"
-              onSubmit={profileActions.updateUserPreferences}
+              onSubmit={updateUserPreferences}
             />
           </div>
         </div>

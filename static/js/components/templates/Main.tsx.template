@@ -19,11 +19,11 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 // Store
 import store from "../../store";
 import { useAppSelector } from "../../types/hooks";
+import { useIsAnonymous } from "../../ducks/profile";
 
 // Actions
 import hydrate from "../../actions";
 import * as rotateLogoActions from "../../ducks/logo";
-import * as hydrationActions from "../../ducks/hydration";
 
 // Components
 import Theme from "../Theme";
@@ -31,6 +31,7 @@ import Spinner from "../Spinner";
 import NoMatchingRoute from "../NoMatchingRoute";
 import SidebarAndHeader from "./SidebarAndHeader";
 import ErrorBoundary from "../ErrorBoundary";
+import PageTourProvider from "../PageTourProvider";
 
 {% for route in app.routes -%}
 const {{ (route.component).split('/').pop() }} = React.lazy(() => import("../{{ route.component }}"));
@@ -62,6 +63,10 @@ const LazyRoute = ({ Component }: LazyRouteProps) => (
   <Suspense fallback={<Spinner />}><Component /></Suspense>
 );
 
+const AnonymousLoginPrompt = () => (
+  <p>Please <a href="/login/google-oauth2">log in</a> to view this page.</p>
+);
+
 interface MainContentInternalProps {
   root: string;
 }
@@ -69,6 +74,7 @@ interface MainContentInternalProps {
 const MainContentInternal = ({ root }: MainContentInternalProps) => {
   const { open } = useAppSelector((state) => (state as any).sidebar);
   const { classes } = useStyles();
+  const isAnonymous = useIsAnonymous();
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down("md"));
   const marginLeft = isSmall ? "0" : open ? "170px" : "65px";
@@ -76,21 +82,9 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
   useEffect(() => {
     store.dispatch(rotateLogoActions.rotateLogo());
     setTimeout(() => {
-      store.dispatch(hydrationActions.verifyHydration());
-    }, 1400);
-    setTimeout(() => {
-      const {hydratedList, hydrated} = store.getState().hydration;
-      if (hydrated === true) {
-        // fully hydrated, do nothing except dashboard refresh
-        store.dispatch(hydrate(true) as any);
-      } else if (hydratedList?.length > 0) {
-        // not fully hydrated, hydrate only missing
-        const missing = Array.from([...hydrationActions.DUCKS_TO_HYDRATE].filter((x: any) => !hydratedList.includes(x)));
-        store.dispatch(hydrate(false, missing) as any);
-      } else {
-        // not hydrated at all, hydrate everything
-        store.dispatch(hydrate() as any);
-      }
+      // Refresh the dashboard widgets after first render; everything else is
+      // fetched on-demand by each page's RTK Query hooks.
+      store.dispatch(hydrate() as any);
       store.dispatch(rotateLogoActions.rotateLogo());
     }, 1500);
   }, []);
@@ -110,6 +104,7 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
         dispatch={store.dispatch}
       />
       <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <PageTourProvider />
         <SidebarAndHeader/>
         <div
           role="main"
@@ -120,7 +115,11 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
           <ErrorBoundary key={location.pathname}>
             <Routes>
               {%- for route in app.routes %}
+              {%- if not route.anonymous_ok %}
+              <Route path="{{ route.path }}" element={isAnonymous ? <AnonymousLoginPrompt /> : <LazyRoute Component={{ "{" + (route.component).split('/').pop() + "}" }} />} />
+              {%- else %}
               <Route path="{{ route.path }}" element={<LazyRoute Component={{ "{" + (route.component).split('/').pop() + "}" }} />} />
+              {%- endif %}
               {%- endfor %}
               <Route path="*" element={<NoMatchingRoute/>} />
             </Routes>

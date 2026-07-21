@@ -1,3 +1,7 @@
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
+import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import React, {
   useEffect,
   useState,
@@ -29,7 +33,6 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import withRouter from "../withRouter";
 
 import CopyPhotometryDialog from "./CopyPhotometryDialog";
@@ -75,9 +78,15 @@ import Button from "../Button";
 
 import SourcePlugins from "./SourcePlugins";
 import ObjectTags from "../ObjectTags";
-import * as photometryActions from "../../ducks/photometry";
-import * as spectraActions from "../../ducks/spectra";
-import * as sourceActions from "../../ducks/source";
+import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
+import {
+  useGetSourceQuery,
+  useGetAssociatedGcnsQuery,
+  useGetSourcePositionQuery,
+  useAddHostMutation,
+  useRemoveHostMutation,
+  useAddSourceViewMutation,
+} from "../../ducks/source";
 
 import PhotometryPlot from "../plot/PhotometryPlot";
 import SpectraPlot from "../plot/SpectraPlot";
@@ -86,6 +95,10 @@ import SourcePublish from "./source_publish/SourcePublish";
 import SourceCoordinates from "./SourceCoordinates";
 import SharingServicesDialog from "../sharing_service/SharingServicesForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
+import {
+  useGetInstrumentFormsQuery,
+  useGetInstrumentsQuery,
+} from "../../ducks/instruments";
 
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
@@ -215,25 +228,23 @@ interface SourceContentProps {
 }
 
 const SourceContent = ({ source }: SourceContentProps) => {
-  const dispatch = useAppDispatch();
   const { classes } = useSourceStyles() as { classes: any };
 
-  const currentUser = useAppSelector((state) => state.profile);
-  const groups = (useAppSelector((state) => state.groups.all) || []).filter(
+  const { data: currentUser } = useGetProfileQuery();
+  const isReadOnly = useIsReadOnly();
+  const groups = ((useGetGroupsQuery().data?.all ?? null) || []).filter(
     (g: any) => !g.single_user_group,
   );
-  const spectra = useAppSelector((state) => state["spectra"])[source.id];
-  const associatedGCNs = useAppSelector(
-    (state) => (state as any).source.associatedGCNs,
-  );
+  const { data: spectra } = useFetchSourceSpectraQuery({ id: source.id });
+  const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
+  const associatedGCNs = associatedGcnsData?.["gcns"];
+  const [addHost] = useAddHostMutation();
+  const [removeHostMutation] = useRemoveHostMutation();
 
-  const { instrumentList, instrumentFormParams } = useAppSelector(
-    (state) => state["instruments"],
-  );
-  const { observingRunList } = useAppSelector(
-    (state) => state["observingRuns"],
-  );
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
+  const { data: observingRunList = [] } = useGetObservingRunsQuery();
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
 
   const [copyPhotometryDialogOpen, setCopyPhotometryDialogOpen] =
     useState(false);
@@ -278,8 +289,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
   if (spectra) {
     spectra.forEach((spec: any) => {
       spec.annotations.forEach((annotation: any) => {
-        annotation.spectrum_observed_at = spec.observed_at;
-        spectrumAnnotations.push(annotation);
+        // `annotation` is frozen RTK Query cache data — build a new object with
+        // the extra field rather than mutating it (`Object is not extensible`).
+        spectrumAnnotations.push({
+          ...annotation,
+          spectrum_observed_at: spec.observed_at,
+        });
       });
     });
   }
@@ -315,22 +330,21 @@ const SourceContent = ({ source }: SourceContentProps) => {
     )
     .sort((a: any, b: any) => new Date(b).getTime() - new Date(a).getTime());
 
-  useEffect(() => {
-    dispatch(photometryActions.fetchSourcePhotometry(source.id, { magsys }));
-    dispatch(spectraActions.fetchSourceSpectra(source.id));
-    dispatch(sourceActions.fetchPosition(source.id));
-    dispatch(sourceActions.fetchAssociatedGCNs(source.id));
-  }, [source.id, magsys, dispatch]);
+  const { data: adjustedPosition } = useGetSourcePositionQuery(source.id);
+  const sourceWithPosition = useMemo(
+    () => ({ ...source, adjusted_position: adjustedPosition }),
+    [source, adjustedPosition],
+  );
 
   const getZRound = (redshift_error: any) =>
     redshift_error ? ceil(abs(log10(redshift_error))) : 4;
 
   const setHost = (galaxyName: any) => {
-    dispatch(sourceActions.addHost(source.id, { galaxyName }));
+    addHost({ id: source.id, formData: { galaxyName } });
   };
 
   const removeHost = () => {
-    dispatch(sourceActions.removeHost(source.id));
+    removeHostMutation(source.id);
   };
 
   const handleHover = (type: any) => {
@@ -351,7 +365,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
     isRightPanelVisible: boolean,
   ) => (
     <>
-      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 6, md: 4, lg: 3 }}>
+      <Grid
+        size={{ xs: 12, lg: 6 }}
+        sx={{
+          order: { xs: 6, md: 4, lg: 3 },
+        }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
@@ -377,15 +396,19 @@ const SourceContent = ({ source }: SourceContentProps) => {
               spectrumAnnotations={spectrumAnnotations}
             />
           </AccordionDetails>
-          <AccordionDetails style={{ padding: "0.5rem" }}>
-            <SourceAnnotationButtons source={source} />
-          </AccordionDetails>
+          {!isReadOnly && (
+            <AccordionDetails style={{ padding: "0.5rem" }}>
+              <SourceAnnotationButtons source={source} />
+            </AccordionDetails>
+          )}
         </Accordion>
       </Grid>
       {source?.gcn_notes?.length > 0 && (
         <Grid
           size={12}
-          order={{ xs: 7, md: 5, lg: !downLg && !rightPanelVisible ? 5 : 4 }}
+          sx={{
+            order: { xs: 7, md: 5, lg: !downLg && !rightPanelVisible ? 5 : 4 },
+          }}
         >
           <Accordion
             defaultExpanded
@@ -414,7 +437,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
       )}
       <Grid
         size={{ xs: 12, lg: 6 }}
-        order={{ xs: 3, md: 3, lg: downLg || rightPanelVisible ? 5 : 4 }}
+        sx={{
+          order: { xs: 3, md: 3, lg: downLg || rightPanelVisible ? 5 : 4 },
+        }}
       >
         <Accordion
           defaultExpanded
@@ -436,39 +461,52 @@ const SourceContent = ({ source }: SourceContentProps) => {
             }}
           >
             <Suspense fallback={<CircularProgress />}>
-              <CommentList maxHeightList={downLarge ? "28.5vh" : "350px"} />
+              <CommentList
+                objID={source.id}
+                maxHeightList={downLarge ? "28.5vh" : "350px"}
+              />
             </Suspense>
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={12} order={{ xs: 13, md: 10, lg: 8 }}>
+      <Grid
+        size={12}
+        sx={{
+          order: { xs: 13, md: 10, lg: 8 },
+        }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
           className={classes.flexColumn}
+          data-testid="source-classifications"
         >
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="classifications-content"
-            id="classifications-header"
           >
             <Typography className={classes.accordionHeading}>
               Classifications
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={classes.classifications}>
-              <ClassificationList />
+            <ClassificationList obj={source} />
+            {!isReadOnly && (
               <ClassificationForm
                 obj_id={source.id}
                 taxonomyList={taxonomyList}
                 {...({ action: "createNew" } as any)}
               />
-            </div>
+            )}
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 8, lg: 12 }}>
+      <Grid
+        size={{ xs: 12, lg: 6 }}
+        sx={{
+          order: { xs: 8, lg: 12 },
+        }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
@@ -493,12 +531,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 6 }} order={{ xs: 9, lg: 13 }}>
-        <Accordion
-          defaultExpanded
-          disableGutters
-          className={classes.classifications}
-        >
+      <Grid
+        size={{ xs: 12, lg: 6 }}
+        sx={{
+          order: { xs: 9, lg: 13 },
+        }}
+      >
+        <Accordion defaultExpanded disableGutters>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="hr-diagram-content"
@@ -523,7 +562,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 6 }} order={13}>
+      <Grid
+        size={{ xs: 12, lg: 6 }}
+        sx={{
+          order: 13,
+        }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
@@ -541,12 +585,19 @@ const SourceContent = ({ source }: SourceContentProps) => {
           <AccordionDetails>
             <AnalysisList obj_id={source.id} />
           </AccordionDetails>
-          <AccordionDetails>
-            <AnalysisForm obj_id={source.id} />
-          </AccordionDetails>
+          {!isReadOnly && (
+            <AccordionDetails>
+              <AnalysisForm obj_id={source.id} />
+            </AccordionDetails>
+          )}
         </Accordion>
       </Grid>
-      <Grid size={{ xs: 12, lg: 6 }} order={15}>
+      <Grid
+        size={{ xs: 12, lg: 6 }}
+        sx={{
+          order: 15,
+        }}
+      >
         <Accordion
           defaultExpanded
           disableGutters
@@ -561,12 +612,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
               Source Notification
             </Typography>
           </AccordionSummary>
-          <AccordionDetails>
-            <SourceNotification sourceId={source.id} />
-          </AccordionDetails>
-          <AccordionDetails>
-            <Reminders resourceId={source.id} resourceType="source" />
-          </AccordionDetails>
+          {!isReadOnly && (
+            <AccordionDetails>
+              <SourceNotification sourceId={source.id} />
+            </AccordionDetails>
+          )}
+          {!isReadOnly && (
+            <AccordionDetails>
+              <Reminders resourceId={source.id} resourceType="source" />
+            </AccordionDetails>
+          )}
         </Accordion>
       </Grid>
     </>
@@ -582,11 +637,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
           display: downLg || !rightPanelVisible ? "flex" : "block",
         }}
       >
-        <Grid size={12} order={1}>
+        <Grid
+          size={12}
+          sx={{
+            order: 1,
+          }}
+        >
           <Paper style={{ padding: "0.5rem" }}>
             <div className={classes.container}>
               <div className={classes.header}>
-                <FavoritesButton sourceID={source.id} />
+                {!isReadOnly && <FavoritesButton sourceID={source.id} />}
                 <h6 className={classes.name}>{source.id}</h6>
                 <div className={classes.sourceCandidates}>
                   <SourceCandidatesHistory
@@ -617,10 +677,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 shortened
               />
             </div>
-            <div style={{ marginBottom: "0.25rem" }}>
-              <ObjectTags source={source} />
-            </div>
-            <SourceCoordinates classes={classes} source={source} />
+            {!isReadOnly && (
+              <div style={{ marginBottom: "0.25rem" }}>
+                <ObjectTags source={source} />
+              </div>
+            )}
+            <SourceCoordinates classes={classes} source={sourceWithPosition} />
             <div
               className={classes.flexRow}
               style={{
@@ -638,7 +700,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   source.redshift_error.toFixed(
                     getZRound(source.redshift_error),
                   )}
-                <UpdateSourceRedshift source={source} />
+                {!isReadOnly && <UpdateSourceRedshift source={source} />}
                 <SourceRedshiftHistory
                   redshiftHistory={source.redshift_history}
                 />
@@ -664,7 +726,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 <div>
                   <b>T0: &nbsp;</b>
                   {source.t0}
-                  <UpdateSourceT0 source={source} />
+                  {!isReadOnly && <UpdateSourceT0 source={source} />}
                 </div>
               </div>
             </div>
@@ -681,6 +743,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 className={classes.rowInfo}
                 onMouseEnter={() => handleHover("tns")}
                 onMouseLeave={() => handleStopHover("tns")}
+                data-testid="tour-source-tns"
               >
                 <b>TNS Name: &nbsp;</b>
                 {source.tns_name && (
@@ -703,7 +766,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     display_header={false}
                   />
                 )}
-                {hovering === "tns" && <UpdateSourceTNS source={source} />}
+                {!isReadOnly && hovering === "tns" && (
+                  <UpdateSourceTNS source={source} />
+                )}
               </div>
               <div
                 className={classes.rowInfo}
@@ -712,7 +777,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
               >
                 <b>MPC Name: &nbsp;</b>
                 <div key="mpc_name"> {source.mpc_name} </div>
-                {hovering === "mpc" && <UpdateSourceMPC source={source} />}
+                {!isReadOnly && hovering === "mpc" && (
+                  <UpdateSourceMPC source={source} />
+                )}
               </div>
               <div
                 className={classes.rowInfo}
@@ -723,9 +790,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList
                     gcn_crossmatches={gcn_crossmatches}
+                    source={source}
                   />
                 )}
-                {hovering === "gcn" && (
+                {!isReadOnly && hovering === "gcn" && (
                   <UpdateSourceGCNCrossmatch source={source} />
                 )}
               </div>
@@ -745,18 +813,21 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <b className={classes.noWrapMargin}>
                     {`Distance: ${source.host_distance.toFixed(1)} [kpc]`}
                   </b>
-                  <IconButton
-                    size="small"
-                    name="removeHostGalaxyButton"
-                    onClick={() => removeHost()}
-                    className={classes.noSpace}
-                  >
-                    <RemoveIcon style={{ fontSize: "1rem" }} />
-                  </IconButton>
+                  {!isReadOnly && (
+                    <IconButton
+                      size="small"
+                      name="removeHostGalaxyButton"
+                      onClick={() => removeHost()}
+                      className={classes.noSpace}
+                    >
+                      <RemoveIcon style={{ fontSize: "1rem" }} />
+                    </IconButton>
+                  )}
                 </div>
               </div>
             )}
-            {source?.galaxies?.length > 0 &&
+            {!isReadOnly &&
+              source?.galaxies?.length > 0 &&
               !(
                 source.galaxies?.length === 1 &&
                 source.host?.name &&
@@ -823,20 +894,26 @@ const SourceContent = ({ source }: SourceContentProps) => {
                             </Button>
                           </Link>
                         </Tooltip>
-                        <IconButton
-                          size="small"
-                          name={`copySourceButton${duplicate.obj_id}`}
-                          onClick={() => setCopyPhotometryDialogOpen(true)}
-                          className={classes.noSpace}
-                        >
-                          <AddIcon style={{ fontSize: "1rem" }} />
-                        </IconButton>
-                        <CopyPhotometryDialog
-                          source={source}
-                          duplicate={duplicate}
-                          dialogOpen={copyPhotometryDialogOpen}
-                          closeDialog={() => setCopyPhotometryDialogOpen(false)}
-                        />
+                        {!isReadOnly && (
+                          <>
+                            <IconButton
+                              size="small"
+                              name={`copySourceButton${duplicate.obj_id}`}
+                              onClick={() => setCopyPhotometryDialogOpen(true)}
+                              className={classes.noSpace}
+                            >
+                              <AddIcon style={{ fontSize: "1rem" }} />
+                            </IconButton>
+                            <CopyPhotometryDialog
+                              source={source}
+                              duplicate={duplicate}
+                              dialogOpen={copyPhotometryDialogOpen}
+                              closeDialog={() =>
+                                setCopyPhotometryDialogOpen(false)
+                              }
+                            />
+                          </>
+                        )}
                       </div>
                     ),
                   )}
@@ -901,8 +978,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   anchorEl={anchorElFindingChart}
                   open={openFindingChart}
                   onClose={() => setAnchorElFindingChart(null)}
-                  MenuListProps={{
-                    "aria-labelledby": "basic-button",
+                  slotProps={{
+                    list: {
+                      "aria-labelledby": "basic-button",
+                    },
                   }}
                 >
                   <MenuItem
@@ -954,8 +1033,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   anchorEl={anchorElObservability}
                   open={openObservability}
                   onClose={() => setAnchorElObservability(null)}
-                  MenuListProps={{
-                    "aria-labelledby": "basic-button",
+                  slotProps={{
+                    list: {
+                      "aria-labelledby": "basic-button",
+                    },
                   }}
                 >
                   <MenuItem
@@ -980,20 +1061,22 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   </MenuItem>
                 </Menu>
               </div>
-              <div>
-                <Button
-                  onClick={() => setSendToDialogOpen(true)}
-                  secondary
-                  size="small"
-                >
-                  Send to
-                </Button>
-                <SharingServicesDialog
-                  obj_id={source.id}
-                  dialogOpen={sendToDialogOpen}
-                  setDialogOpen={setSendToDialogOpen}
-                />
-              </div>
+              {!isReadOnly && (
+                <div>
+                  <Button
+                    onClick={() => setSendToDialogOpen(true)}
+                    secondary
+                    size="small"
+                  >
+                    Send to
+                  </Button>
+                  <SharingServicesDialog
+                    obj_id={source.id}
+                    dialogOpen={sendToDialogOpen}
+                    setDialogOpen={setSendToDialogOpen}
+                  />
+                </div>
+              )}
               {currentUser?.preferences?.["hideSourceSummary"] === true && (
                 <ShowSummaryHistory
                   summaries={source.summary_history || []}
@@ -1001,20 +1084,22 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   button
                 />
               )}
-              <SourcePublish
-                sourceId={source.id}
-                isElements={{
-                  summary: source.summary_history?.length > 0,
-                  photometry: source.photometry_exists,
-                  spectroscopy: source.spectrum_exists,
-                  classifications: source.classifications?.length > 0,
-                }}
-              />
+              {!isReadOnly && (
+                <SourcePublish
+                  sourceId={source.id}
+                  isElements={{
+                    summary: source.summary_history?.length > 0,
+                    photometry: source.photometry_exists,
+                    spectroscopy: source.spectrum_exists,
+                    classifications: source.classifications?.length > 0,
+                  }}
+                />
+              )}
             </div>
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
-              currentUser?.preferences?.["hideSourceSummary"] !== true && (
+              !currentUser?.preferences?.["hideSourceSummary"] && (
                 <Paper
                   className={classes.flexColumn}
                   style={{
@@ -1062,23 +1147,27 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         marginTop: noSummary ? "0.25rem" : 0,
                       }}
                     >
-                      <UpdateSourceSummary
-                        source={source}
-                        showAISummaries={
-                          (currentUser?.preferences?.["showAISourceSummary"] ||
-                            false) as any
-                        }
-                      />
-                      {source.comments?.length > 0 ||
-                      source.classifications?.length > 0 ? (
-                        <StartBotSummary obj_id={source.id} />
-                      ) : null}
-                      {source.summary_history?.length > 0 ? (
+                      {!isReadOnly && (
+                        <UpdateSourceSummary
+                          source={source}
+                          showAISummaries={
+                            (currentUser?.preferences?.[
+                              "showAISourceSummary"
+                            ] || false) as any
+                          }
+                        />
+                      )}
+                      {!isReadOnly &&
+                        (source.comments?.length > 0 ||
+                          (source.classifications?.length > 0 && (
+                            <StartBotSummary obj_id={source.id} />
+                          )))}
+                      {source.summary_history?.length > 0 && (
                         <ShowSummaryHistory
                           summaries={source.summary_history}
                           obj_id={source.id}
                         />
-                      ) : null}
+                      )}
                     </div>
                   </div>
                 </Paper>
@@ -1124,52 +1213,49 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 className={classes.flexRow}
                 style={{ alignItems: "center", width: "auto" }}
               >
-                <EditSourceGroups
-                  source={{
-                    id: source.id,
-                    currentGroupIds: source.groups?.map((g: any) => g.id),
-                  }}
-                  groups={groups}
-                  icon
-                />
+                {!isReadOnly && (
+                  <EditSourceGroups
+                    source={{
+                      id: source.id,
+                      currentGroupIds: source.groups?.map((g: any) => g.id),
+                    }}
+                    groups={groups}
+                    icon
+                  />
+                )}
                 <SourceSaveHistory groups={source.groups} />
-                <QuickSaveButton
-                  sourceId={source.id}
-                  alreadySavedGroups={source.groups?.map((g: any) => g.id)}
-                />
+                {!isReadOnly && (
+                  <QuickSaveButton
+                    sourceId={source.id}
+                    alreadySavedGroups={source.groups?.map((g: any) => g.id)}
+                  />
+                )}
               </div>
             </div>
-            <div
-              style={{
-                display: "grid",
-                gap: "0.5rem",
-                gridAutoFlow: "row",
-                ...(rightPanelVisible || downLg
-                  ? {
-                      gridTemplateColumns: "1fr 1fr 1fr",
-                      alignItems: "center",
-                      maxWidth: "fit-content",
-                    }
-                  : {
-                      gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
-                    }),
-              }}
-            >
+            <div style={{ maxWidth: "fit-content" }}>
+              {/* 3 columns over 2 rows (6 at a time); cycle through the rest. */}
               <ThumbnailList
                 ra={source.ra}
                 dec={source.dec}
                 thumbnails={source.thumbnails}
+                objID={source.id}
                 size="100%"
                 minSize={rightPanelVisible || downLg ? "6rem" : "10rem"}
                 maxSize={rightPanelVisible || downLg ? "13rem" : "20rem"}
                 titleSize={downSm ? "0.55rem" : undefined}
                 useGrid={false}
+                columns={3}
                 noMargin
               />
             </div>
           </Paper>
         </Grid>
-        <Grid size={12} order={2}>
+        <Grid
+          size={12}
+          sx={{
+            order: 2,
+          }}
+        >
           <Paper>
             <Typography
               variant="h6"
@@ -1185,7 +1271,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </div>
           </Paper>
         </Grid>
-        <Grid size={12} order={{ xs: 4, md: 6 }}>
+        <Grid
+          size={12}
+          sx={{
+            order: { xs: 4, md: 6 },
+          }}
+        >
           <Accordion
             defaultExpanded
             disableGutters
@@ -1301,12 +1392,20 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   >
                     Photometry Table
                   </Button>
-                  <Link to={`/share_data/${source.id}`} role="link">
-                    <Button secondary>Share data</Button>
-                  </Link>
-                  <Link to={`/upload_photometry/${source.id}`} role="link">
-                    <Button secondary>Upload photometry</Button>
-                  </Link>
+                  {!isReadOnly && (
+                    <Link to={`/share_data/${source.id}`} role="link">
+                      <Button secondary data-testid="tour-source-share">
+                        Share data
+                      </Button>
+                    </Link>
+                  )}
+                  {!isReadOnly && (
+                    <Link to={`/upload_photometry/${source.id}`} role="link">
+                      <Button secondary data-testid="tour-source-upload">
+                        Upload photometry
+                      </Button>
+                    </Link>
+                  )}
                   {source?.photometry_exists && (
                     <Link to={`/source/${source.id}/periodogram`} role="link">
                       <Button secondary>Periodogram Analysis</Button>
@@ -1317,7 +1416,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid size={12} order={{ xs: 5, md: 7 }}>
+        <Grid
+          size={12}
+          sx={{
+            order: { xs: 5, md: 7 },
+          }}
+        >
           <Accordion
             defaultExpanded
             disableGutters
@@ -1346,7 +1450,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     (!spectra || spectra?.length === 0) && (
                       <CircularProgress color="secondary" />
                     )}
-                  {source?.spectrum_exists && spectra?.length > 0 && (
+                  {source?.spectrum_exists && (spectra?.length ?? 0) > 0 && (
                     <Suspense
                       fallback={
                         <div>
@@ -1355,7 +1459,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       }
                     >
                       <SpectraPlot
-                        spectra={spectra}
+                        spectra={spectra ?? []}
                         redshift={source.redshift || 0}
                         plotStyle={{
                           height: rightPanelVisible ? "55vh" : "70vh",
@@ -1366,22 +1470,32 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   )}
                 </div>
                 <div className={classes.buttonContainer}>
-                  <Link to={`/share_data/${source.id}`} role="link">
-                    <Button secondary>Share data</Button>
-                  </Link>
-                  <Link to={`/upload_spectrum/${source.id}`} role="link">
-                    <Button secondary>Upload spectroscopy</Button>
-                  </Link>
+                  {!isReadOnly && (
+                    <Link to={`/share_data/${source.id}`} role="link">
+                      <Button secondary>Share data</Button>
+                    </Link>
+                  )}
+                  {!isReadOnly && (
+                    <Link to={`/upload_spectrum/${source.id}`} role="link">
+                      <Button secondary>Upload spectroscopy</Button>
+                    </Link>
+                  )}
                 </div>
               </Grid>
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid size={12} order={{ xs: 10, md: 11, lg: 9 }}>
+        <Grid
+          size={12}
+          sx={{
+            order: { xs: 10, md: 11, lg: 9 },
+          }}
+        >
           <Accordion
             defaultExpanded
             disableGutters
             className={classes.flexColumn}
+            data-testid="tour-source-followup"
           >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -1397,12 +1511,14 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 className={classes.flexColumn}
                 style={{ overflow: "hidden" }}
               >
-                <FollowupRequestForm
-                  obj_id={source.id}
-                  instrumentList={instrumentList}
-                  instrumentFormParams={instrumentFormParams}
-                  {...({ action: "createNew" } as any)}
-                />
+                {!isReadOnly && (
+                  <FollowupRequestForm
+                    obj_id={source.id}
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    {...({ action: "createNew" } as any)}
+                  />
+                )}
                 <FollowupRequestLists
                   followupRequests={source.followup_requests}
                   instrumentList={instrumentList}
@@ -1413,7 +1529,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid size={12} order={{ xs: 11, md: 12, lg: 10 }}>
+        <Grid
+          size={12}
+          sx={{
+            order: { xs: 11, md: 12, lg: 10 },
+          }}
+        >
           <Accordion>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -1429,13 +1550,15 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 className={classes.flexColumn}
                 style={{ overflow: "hidden" }}
               >
-                <FollowupRequestForm
-                  obj_id={source.id}
-                  instrumentList={instrumentList}
-                  instrumentFormParams={instrumentFormParams}
-                  requestType="forced_photometry"
-                  {...({ action: "createNew" } as any)}
-                />
+                {!isReadOnly && (
+                  <FollowupRequestForm
+                    obj_id={source.id}
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                    requestType="forced_photometry"
+                    {...({ action: "createNew" } as any)}
+                  />
+                )}
                 <FollowupRequestLists
                   followupRequests={source.followup_requests}
                   instrumentList={instrumentList}
@@ -1447,7 +1570,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </AccordionDetails>
           </Accordion>
         </Grid>
-        <Grid size={12} order={{ xs: 12, md: 13, lg: 11 }}>
+        <Grid
+          size={12}
+          sx={{
+            order: { xs: 12, md: 13, lg: 11 },
+          }}
+        >
           <Accordion
             defaultExpanded
             disableGutters
@@ -1467,10 +1595,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 className={classes.flexColumn}
                 style={{ overflow: "hidden" }}
               >
-                <AssignmentForm
-                  obj_id={source.id}
-                  observingRunList={observingRunList}
-                />
+                {!isReadOnly && (
+                  <AssignmentForm
+                    obj_id={source.id}
+                    observingRunList={observingRunList}
+                  />
+                )}
                 <AssignmentList assignments={source.assignments} />
               </div>
             </AccordionDetails>
@@ -1504,28 +1634,25 @@ interface SourceProps {
 }
 
 const Source = ({ route }: SourceProps) => {
-  const dispatch = useAppDispatch();
-  const source = useAppSelector((state) => state["source"]);
-  const cachedSourceId = source ? source.id : null;
-  const isCached = route.id === cachedSourceId;
+  const {
+    data: source,
+    isError,
+    error,
+    isLoading,
+    isSuccess,
+  } = useGetSourceQuery(route.id);
+  const [addSourceView] = useAddSourceViewMutation();
 
   useEffect(() => {
-    const fetchSource = async () => {
-      const data: any = await dispatch(sourceActions.fetchSource(route.id));
-      if (data.status === "success") {
-        dispatch(sourceActions.addSourceView(route.id));
-      }
-    };
-
-    if (!isCached) {
-      fetchSource();
+    if (isSuccess && source?.id !== undefined) {
+      addSourceView(route.id);
     }
-  }, [dispatch, isCached, route.id]);
+  }, [isSuccess, source?.id, route.id, addSourceView]);
 
-  if (source.loadError) {
-    return <div>{source.loadError}</div>;
+  if (isError) {
+    return <div>{(error as any)?.error ?? "Error while loading source"}</div>;
   }
-  if (!isCached) {
+  if (isLoading || !source) {
     return (
       <div>
         <Spinner />

@@ -10,19 +10,19 @@ import DialogContent from "@mui/material/DialogContent";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import { JSONTree } from "react-json-tree";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
-import * as defaultFollowupRequestsActions from "../../ducks/default_followup_requests";
+import { useDeleteDefaultFollowupRequestMutation } from "../../ducks/default_followup_requests";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -48,13 +48,12 @@ const DefaultFollowupRequestList = ({
 }: DefaultFollowupRequestListProps) => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
-  const { instrumentList } = useAppSelector(
-    (state) => (state as any).instruments,
-  );
-  const { telescopeList } = useAppSelector(
-    (state) => (state as any).telescopes,
-  );
-  const groups = useAppSelector((state) => (state as any).groups.all);
+  const isReadOnly = useIsReadOnly();
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const groups = useGetGroupsQuery().data?.all ?? null;
+  const [deleteDefaultFollowupRequestMutation] =
+    useDeleteDefaultFollowupRequestMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -79,16 +78,13 @@ const DefaultFollowupRequestList = ({
     useState<any>(null);
 
   const deleteDefaultFollowupRequest = () => {
-    dispatch(
-      defaultFollowupRequestsActions.deleteDefaultFollowupRequest(
-        defaultFollowupRequestToDelete,
-      ),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    deleteDefaultFollowupRequestMutation(defaultFollowupRequestToDelete)
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("Default follow-up request deleted"));
         closeDeleteDialog();
-      }
-    });
+      })
+      .catch(() => {});
   };
 
   const renderInstrumentName = (params: any) => {
@@ -100,7 +96,7 @@ const DefaultFollowupRequestList = ({
     return (
       <div>
         <Link to={`/allocation/${allocation.id}`} role="link">
-          {instrument ? instrument.name : ""}
+          {instrument ? instrument["name"] : ""}
         </Link>
       </div>
     );
@@ -112,14 +108,14 @@ const DefaultFollowupRequestList = ({
     const instrument = instrumentList?.filter(
       (i: any) => i.id === instrument_id,
     )[0];
-    const telescope_id = instrument?.telescope_id;
+    const telescope_id = instrument?.["telescope_id"];
     const telescope = telescopeList?.filter(
       (t: any) => t.id === telescope_id,
     )[0];
     return (
       <div>
         <Link to={`/allocation/${allocation.id}`} role="link">
-          {telescope ? telescope.nickname : ""}
+          {telescope ? telescope["nickname"] : ""}
         </Link>
       </div>
     );
@@ -131,8 +127,10 @@ const DefaultFollowupRequestList = ({
     return <div>{group ? group.name : ""}</div>;
   };
 
+  // Let the tree wrap and grow so every key/value is visible (paired with the
+  // grid's auto row height); otherwise all but the first field is clipped.
   const renderPayload = (params: any) => {
-    const cellStyle = { whiteSpace: "nowrap" as const };
+    const cellStyle = { whiteSpace: "normal" as const, padding: "0.25rem 0" };
     return (
       <div style={cellStyle}>
         {params.row ? <JSONTree data={params.row.payload} hideRoot /> : ""}
@@ -141,7 +139,7 @@ const DefaultFollowupRequestList = ({
   };
 
   const renderSourceFilter = (params: any) => {
-    const cellStyle = { whiteSpace: "nowrap" as const };
+    const cellStyle = { whiteSpace: "normal" as const, padding: "0.25rem 0" };
     return (
       <div style={cellStyle}>
         {params.row ? (
@@ -154,17 +152,12 @@ const DefaultFollowupRequestList = ({
   };
 
   const renderManage = (params: any) => {
-    if (!deletePermission) {
-      return null;
-    }
+    if (!deletePermission) return null;
+
     const default_followup_request = params.row;
     return (
       <div className={classes.defaultFollowupRequestManage}>
-        <Button
-          id={`delete_button_${default_followup_request.id}`}
-          onClick={() => openDeleteDialog(default_followup_request.id)}
-          disabled={!deletePermission}
-        >
+        <Button onClick={() => openDeleteDialog(default_followup_request.id)}>
           <DeleteIcon />
         </Button>
       </div>
@@ -229,15 +222,16 @@ const DefaultFollowupRequestList = ({
   ];
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
-      <IconButton
-        name="new_default_followup_request"
-        onClick={() => openNewDialog()}
-      >
-        <AddIcon />
-      </IconButton>
-    </GridToolbarContainer>
+    <DataGridToolbar showQuickFilter={false} showExport>
+      {!isReadOnly && (
+        <IconButton
+          name="new_default_followup_request"
+          onClick={() => openNewDialog()}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
+    </DataGridToolbar>
   );
 
   return (
@@ -248,6 +242,7 @@ const DefaultFollowupRequestList = ({
         </Typography>
         <StyledDataGrid
           autoHeight
+          getRowHeight={() => "auto"}
           rows={default_followup_requests || []}
           columns={columns}
           getRowId={(row: any) => row.id}

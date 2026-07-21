@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-import { useAppDispatch } from "../../types/hooks";
 import { Link } from "react-router-dom";
 
 import dayjs from "dayjs";
@@ -17,8 +15,12 @@ import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
 import Button from "../Button";
 import withRouter from "../withRouter";
+import AnalysisCornerPlot from "../analysis/AnalysisCornerPlot";
 
-import * as sourceActions from "../../ducks/source";
+import {
+  useGetAnalysisQuery,
+  useGetAnalysisResultsQuery,
+} from "../../ducks/source";
 
 dayjs.extend(calendar);
 
@@ -87,27 +89,17 @@ interface SourceAnalysisPageProps {
 
 const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
 
-  const [analysis, setAnalysis] = useState<any>(null);
-  const [analysisResults, setAnalysisResults] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchAnalysis = async (objID: string, analysisId: number) => {
-      const response: any = await dispatch(
-        sourceActions.fetchAnalysis(analysisId, "obj", { objID }),
-      );
-      setAnalysis(response.data);
-    };
-    const fetchAnalysisResults = async (analysisId: number) => {
-      const response_results: any = await dispatch(
-        sourceActions.fetchAnalysisResults(analysisId, "obj"),
-      );
-      setAnalysisResults(response_results.data);
-    };
-    fetchAnalysis(route.obj_id, route.analysis_id);
-    fetchAnalysisResults(route.analysis_id);
-  }, [dispatch, setAnalysis, setAnalysisResults, route]);
+  const { data: analysisData } = useGetAnalysisQuery({
+    analysis_id: route.analysis_id,
+    analysis_resource_type: "obj",
+    params: { objID: route.obj_id },
+  });
+  const { data: analysisResults } = useGetAnalysisResultsQuery({
+    analysis_id: route.analysis_id,
+    analysis_resource_type: "obj",
+  });
+  const analysis = analysisData as any;
 
   let chip_color: any = "warning";
   if (analysis?.status === "completed") {
@@ -117,9 +109,9 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
     chip_color = "error";
   }
   const last_active_str = `${dayjs().to(
-    dayjs.utc(`${analysis?.last_activity}Z`),
+    dayjs.utc(`${analysis?.["last_activity"]}Z`),
   )}`;
-  const duration_str = `${analysis?.duration?.toFixed(2)} sec`;
+  const duration_str = `${analysis?.["duration"]?.toFixed(2)} sec`;
   const info_str = `Last activity ${last_active_str} (duration ${duration_str})`;
   return (
     <>
@@ -130,7 +122,7 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
         </Link>{" "}
         (#{route.analysis_id})
       </Typography>
-      {analysis?.last_activity ? (
+      {analysis && analysis?.["last_activity"] ? (
         <>
           <Chip
             label={analysis?.status}
@@ -163,9 +155,9 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
           {analysis?.analysis_parameters && (
             <div className={classes.div}>
               <b>Analysis Parameters</b>:
-              {Object.keys(analysis?.analysis_parameters).map((key) => (
+              {Object.keys(analysis?.analysis_parameters ?? {}).map((key) => (
                 <Chip
-                  label={`${key}: ${analysis?.analysis_parameters[key]}`}
+                  label={`${key}: ${(analysis?.["analysis_parameters"] ?? {})[key]}`}
                   key={`chip_ap_${key}`}
                   size="small"
                   className={classes.chip}
@@ -173,30 +165,31 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
               ))}
             </div>
           )}
-          {analysis?.input_filters &&
-            Object.keys(analysis?.input_filters || {}).every(
+          {analysis?.["input_filters"] &&
+            Object.keys(analysis?.["input_filters"] || {}).every(
               (input_type) =>
-                Object.keys(analysis?.input_filters[input_type]).length > 0,
+                Object.keys(analysis?.["input_filters"][input_type]).length > 0,
             ) && (
               <div className={classes.div}>
                 <b>Input Data Filters</b>:
-                {Object.keys(analysis?.input_filters).map((input_type) =>
-                  Object.keys(analysis?.input_filters[input_type]).map(
-                    (key) => (
-                      <Chip
-                        label={`${input_type}.${key}: ${JSON.stringify(
-                          analysis?.input_filters[input_type][key],
-                        )}`}
-                        key={`chip_if_${key}`}
-                        size="small"
-                        className={classes.chip}
-                      />
+                {Object.keys(analysis?.["input_filters"]).map(
+                  (input_type: string) =>
+                    Object.keys(analysis?.["input_filters"][input_type]).map(
+                      (key) => (
+                        <Chip
+                          label={`${input_type}.${key}: ${JSON.stringify(
+                            analysis?.["input_filters"][input_type][key],
+                          )}`}
+                          key={`chip_if_${key}`}
+                          size="small"
+                          className={classes.chip}
+                        />
+                      ),
                     ),
-                  ),
                 )}
               </div>
             )}
-          {analysis?.show_parameters &&
+          {analysis?.["show_parameters"] &&
             analysisResults &&
             analysis?.status === "completed" && (
               <Accordion>
@@ -212,15 +205,25 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
                 <AccordionDetails>
                   <Card className={classes.root} variant="outlined">
                     <CardContent>
-                      {Object.keys(analysisResults).map((k) => (
-                        <span
-                          className={classes.div}
-                          key={`display_results_${k}`}
-                        >
-                          <b>{k}</b>: {JSON.stringify(analysisResults[k])}
-                          <br />
+                      {typeof analysisResults === "object" &&
+                      analysisResults !== null &&
+                      !Array.isArray(analysisResults) ? (
+                        Object.keys(analysisResults).map((k) => (
+                          <span
+                            className={classes.div}
+                            key={`display_results_${k}`}
+                          >
+                            <b>{k}</b>: {JSON.stringify(analysisResults[k])}
+                            <br />
+                          </span>
+                        ))
+                      ) : (
+                        // Not a plain object (e.g. an undecodable string) — show
+                        // it verbatim rather than spreading it into characters.
+                        <span className={classes.div}>
+                          {JSON.stringify(analysisResults)}
                         </span>
-                      ))}
+                      )}
                     </CardContent>
                   </Card>
                   <Button
@@ -236,7 +239,7 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
                 </AccordionDetails>
               </Accordion>
             )}
-          {analysis?.show_corner && analysis?.status === "completed" && (
+          {analysis?.["show_corner"] && analysis?.status === "completed" && (
             <Accordion>
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
@@ -251,32 +254,19 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
                 <Card className={classes.root} variant="outlined">
                   <CardContent>
                     <div className={classes.mediaDiv}>
-                      <img
-                        src={`/api/obj/analysis/${analysis.id}/corner`}
-                        alt="corner plot"
-                        className={classes.corner}
-                        title="corner"
-                        loading="lazy"
+                      <AnalysisCornerPlot
+                        objId={route.obj_id}
+                        analysisId={analysis.id}
                       />
                     </div>
                   </CardContent>
                 </Card>
-                <Button
-                  primary
-                  href={`/api/obj/analysis/${analysis.id}/corner`}
-                  size="small"
-                  type="submit"
-                  target="_blank"
-                  data-testid={`corner_${analysis.id}`}
-                >
-                  <DownloadIcon />
-                </Button>
               </AccordionDetails>
             </Accordion>
           )}
-          {analysis?.show_plots &&
+          {analysis?.["show_plots"] &&
             analysis?.status === "completed" &&
-            analysis?.num_plots > 0 && (
+            (analysis?.["num_plots"] ?? 0) > 0 && (
               <Accordion>
                 <AccordionSummary
                   expandIcon={<ExpandMoreIcon />}

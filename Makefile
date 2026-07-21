@@ -55,6 +55,16 @@ api-docs: | doc_reqs
 	@$(PYTHON) tools/docs/patch-api-doc-template.py $(FLAGS)
 	rm -f openapi.{yml,json}
 
+typegen: ## Generate TS types from the OpenAPI spec into static/js/types/api.ts
+	@$(PYTHON) tools/docs/build-spec.py $(FLAGS)
+	bun x openapi-typescript openapi.json -o static/js/types/api.ts
+	rm -f openapi.{yml,json}
+
+routemap: ## Regenerate static/js/types/routeSchemaMap.ts from openapi.json
+	@$(PYTHON) tools/docs/build-spec.py $(FLAGS)
+	$(PYTHON) tools/docs/build-route-schema-map.py
+	rm -f openapi.{yml,json}
+
 docs: ## Build the SkyPortal docs
 docs: | doc_reqs api-docs
 	export SPHINXOPTS=-W; uv run make -C doc html
@@ -73,6 +83,10 @@ load_seed_data: | dependencies_no_js prepare_seed_data
 db_create_tables: ## Create tables in the database
 db_create_tables: | dependencies_no_js
 	@$(PYTHON) skyportal/initial_setup.py $(FLAGS)
+
+db_clear_test: ## Drop and recreate only the test database.
+db_clear_test:
+	@$(PYTHON) ./baselayer/tools/db_init.py -f --test-only $(FLAGS)
 
 db_migrate: ## Migrate database to latest schema
 db_migrate: FLAGS := $(subst --,-x ,$(FLAGS))

@@ -19,11 +19,10 @@
 // ships no TypeScript types, so the Aladin objects below are loosely typed —
 // only the public props are strictly typed, matching the d3-heavy code it
 // replaces.
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import A from "aladin-lite";
 
-import { useAppSelector } from "../../types/hooks";
 import { moonGeoJSON, sunGeoJSON } from "../../utils";
 
 // ---------------------------------------------------------------------------
@@ -37,7 +36,7 @@ const normRa = (ra: number): number => ((ra % 360) + 360) % 360;
 // an array of [ra, dec] vertices. Instrument fields arrive as LineString
 // boundaries (a single closed path), while skymap/observation contours can be
 // Polygon/MultiPolygon; handle all of them.
-const ringsOf = (feature: any): number[][][] => {
+const ringsOf = (feature: any): [number, number][][] => {
   const geom = feature?.geometry;
   if (!geom?.coordinates) return [];
   switch (geom.type) {
@@ -63,7 +62,7 @@ const featurePolygons = (geojson: any, opts: any): any[] => {
   return features.flatMap((feature: any) =>
     ringsOf(feature).map((ring) =>
       A.polygon(
-        ring.map(([ra, dec]: number[]) => [normRa(ra), dec]),
+        ring.map(([ra, dec]) => [normRa(ra), dec]),
         opts,
       ),
     ),
@@ -90,8 +89,8 @@ const filtersToColor = (filters: string[] = []): string => {
 const fovForContour = (contour: any): number => {
   const ring = ringsOf(contour?.features?.[2])[0];
   if (!ring?.length) return 60;
-  const decs = ring.map((c: number[]) => c[1]);
-  const ras = ring.map((c: number[]) => normRa(c[0]));
+  const decs = ring.map((c) => c[1]);
+  const ras = ring.map((c) => normRa(c[0]));
   const span = Math.max(
     Math.max(...decs) - Math.min(...decs),
     Math.max(...ras) - Math.min(...ras),
@@ -117,8 +116,7 @@ interface LocalizationPlotProps {
   setSelectedFields?: (...a: any[]) => void;
   selectedObservations?: number[];
   setSelectedObservations?: (...a: any[]) => void;
-  type?: string | null;
-  projection?: string;
+  projection?: string | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -139,6 +137,7 @@ interface AladinGlobeProps {
   setSelectedFields: (...a: any[]) => void;
   selectedObservations: number[];
   setSelectedObservations: (...a: any[]) => void;
+  projection?: string;
 }
 
 const AladinGlobe = ({
@@ -155,6 +154,7 @@ const AladinGlobe = ({
   setSelectedFields,
   selectedObservations,
   setSelectedObservations,
+  projection = "orthographic",
 }: AladinGlobeProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const aladinRef = useRef<any>(null);
@@ -191,7 +191,7 @@ const AladinGlobe = ({
       const center = skymap?.features?.[0]?.geometry?.coordinates;
       const aladin = A.aladin(containerRef.current, {
         survey: "P/DSS2/color",
-        projection: "SIN",
+        projection: projection === "mollweide" ? "MOL" : "SIN",
         cooFrame: "equatorial",
         fov: skymap ? fovForContour(skymap) : 180,
         target: center ? `${normRa(center[0])} ${center[1]}` : undefined,
@@ -447,11 +447,10 @@ const AladinGlobe = ({
         label: "Moon",
       },
     ].forEach(({ body, color, fill, label }) => {
-      const coords = body?.geometry?.coordinates;
+      const [lon, dec] = body?.geometry?.coordinates ?? [];
       const radius = body?.properties?.radius;
-      if (!coords) return;
-      const ra = normRa(coords[0]);
-      const dec = coords[1];
+      if (lon === undefined || dec === undefined) return;
+      const ra = normRa(lon);
       overlay.addFootprints(
         A.circle(ra, dec, Math.max(radius || 0, 0.3), {
           color,
@@ -502,20 +501,8 @@ const LocalizationPlot = ({
   setSelectedFields = () => {},
   selectedObservations = [],
   setSelectedObservations = () => {},
-  type = null,
+  projection = "orthographic",
 }: LocalizationPlotProps) => {
-  const { analysisLoc, obsplanLoc } = useAppSelector(
-    (state) => state.localization,
-  );
-
-  if (!localization) {
-    if (type === "obsplan") {
-      localization = obsplanLoc;
-    } else if (type === "analysis") {
-      localization = analysisLoc;
-    }
-  }
-
   if (
     !localization?.id ||
     !localization?.dateobs ||
@@ -540,6 +527,7 @@ const LocalizationPlot = ({
       setSelectedFields={setSelectedFields}
       selectedObservations={selectedObservations}
       setSelectedObservations={setSelectedObservations}
+      projection={projection}
     />
   );
 };

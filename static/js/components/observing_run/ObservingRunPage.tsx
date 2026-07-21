@@ -1,3 +1,5 @@
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import EditIcon from "@mui/icons-material/Edit";
@@ -19,15 +21,18 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import duration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
-import * as observingRunActions from "../../ducks/observingRun";
+import { useDeleteObservingRunMutation } from "../../ducks/observingRun";
+import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import Paper from "../Paper";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { observingRunTitle } from "./AssignmentForm";
 import NewObservingRun from "./NewObservingRun";
 import ModifyObservingRun from "./ModifyObservingRun";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 dayjs.extend(duration);
@@ -71,9 +76,10 @@ const ObservingRunList = ({
   managePermission,
 }: ObservingRunListProps) => {
   const dispatch = useAppDispatch();
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const groups = useAppSelector((state) => state.groups.all);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const groups = useGetGroupsQuery().data?.all ?? [];
+  const [deleteObservingRunMutation] = useDeleteObservingRunMutation();
   const [observingRunToEdit, setObservingRunToEdit] = useState<number | null>(
     null,
   );
@@ -104,27 +110,28 @@ const ObservingRunList = ({
     observingRunsToShow = [...observingRuns];
   }
 
-  const deleteObservingRun = () => {
+  const deleteObservingRun = async () => {
     if (observingRunToDelete === null) {
       return;
     }
-    dispatch(observingRunActions.deleteObservingRun(observingRunToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Observing run deleted"));
-          setObservingRunToDelete(null);
-        }
-      },
-    );
+    try {
+      await deleteObservingRunMutation(observingRunToDelete).unwrap();
+      dispatch(showNotification("Observing run deleted"));
+      setObservingRunToDelete(null);
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   return (
     <Paper>
       <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        flexWrap="wrap"
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
       >
         <Typography variant="h6">List of Observing Runs</Typography>
 
@@ -176,7 +183,13 @@ const ObservingRunList = ({
             </ListItem>
           ))
         ) : (
-          <Typography variant="body1" color="textSecondary" mt={2}>
+          <Typography
+            variant="body1"
+            color="textSecondary"
+            sx={{
+              mt: 2,
+            }}
+          >
             No observing runs to show.
           </Typography>
         )}
@@ -204,14 +217,13 @@ const ObservingRunList = ({
 };
 
 const ObservingRunPage = () => {
-  const { observingRunList } = useAppSelector(
-    (state) => state["observingRuns"],
-  );
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: observingRunList = [] } = useGetObservingRunsQuery();
+  const { data: currentUser } = useGetProfileQuery();
+  const isReadOnly = useIsReadOnly();
 
   const managePermission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage observing runs");
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage observing runs");
 
   return (
     <Grid container spacing={3}>
@@ -221,9 +233,11 @@ const ObservingRunPage = () => {
           managePermission={!!managePermission}
         />
       </Grid>
-      <Grid size={{ md: 6, sm: 12 }}>
-        <NewObservingRun />
-      </Grid>
+      {!isReadOnly && (
+        <Grid size={{ md: 6, sm: 12 }}>
+          <NewObservingRun />
+        </Grid>
+      )}
     </Grid>
   );
 };

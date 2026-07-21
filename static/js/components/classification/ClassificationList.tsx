@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import React, { useEffect, useState } from "react";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
@@ -17,8 +18,10 @@ import utc from "dayjs/plugin/utc";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
-import * as sourceActions from "../../ducks/source";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useDeleteClassificationMutation } from "../../ducks/source";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
+import { useGetConfigQuery } from "../../ducks/config";
+import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -70,28 +73,34 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const ClassificationList = () => {
+interface ClassificationListProps {
+  obj: any;
+}
+
+const ClassificationList = ({ obj }: ClassificationListProps) => {
   const { classes: styles } = useStyles();
 
   const dispatch = useAppDispatch();
-  const { taxonomyList } = useAppSelector((state: any) => state.taxonomies);
-  const source = useAppSelector((state: any) => state.source);
-  const obj = source;
-  const userProfile = useAppSelector((state) => state.profile);
-  const groupUsers = useAppSelector((state: any) => state.group?.group_users);
-  const classifications_classes = useAppSelector(
-    (state: any) => state.config.classificationsClasses,
-  );
-  const currentGroupUser = groupUsers?.filter(
-    (groupUser: any) => groupUser.user_id === userProfile.id,
+  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
+  const [deleteClassificationMutation] = useDeleteClassificationMutation();
+  const { data: userProfile } = useGetProfileQuery();
+  // `state.group` (the ambient single-group slice) was removed during the RTK
+  // Query migration; this component never fetched a group, so `groupUsers` was
+  // only populated incidentally. Preserve the prior (commonly empty) behaviour.
+  const groupUsers: any[] | undefined = undefined;
+  const { data: config } = useGetConfigQuery() as { data: any };
+  const classifications_classes = config?.["classificationsClasses"] as
+    | Record<string, Record<string, string>>
+    | undefined;
+  const currentGroupUser = (groupUsers as any[] | undefined)?.filter(
+    (groupUser: any) => groupUser.user_id === userProfile?.id,
   )[0];
-  // const acls = useAppSelector((state) => state.profile.acls);
+  // const acls = useGetProfileQuery().data?.acls;
   let { classifications } = obj;
   const [hideML, setHideML] = useState(false);
 
-  const { hideMLClassifications } = useAppSelector(
-    (state: any) => state.profile.preferences,
-  );
+  const hideMLClassifications =
+    useGetProfileQuery().data?.preferences?.["hideMLClassifications"];
 
   useEffect(() => {
     setHideML(hideMLClassifications);
@@ -125,21 +134,21 @@ const ClassificationList = () => {
     setClassificationToDelete(null);
   };
 
-  const deleteClassification = () => {
-    dispatch(sourceActions.deleteClassification(classificationToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Classification deleted"));
-          closeDialog();
-        }
-      },
-    );
+  const deleteClassification = async () => {
+    try {
+      await deleteClassificationMutation(classificationToDelete).unwrap();
+      dispatch(showNotification("Classification deleted"));
+      closeDialog();
+    } catch {
+      // error notification handled by the baseQuery
+    }
   };
 
   classifications = classifications || [];
 
   // newest classifications on top reverse sort the classifications by created_at
-  let sorted_classifications = classifications.sort((a: any, b: any) =>
+  // `classifications` is frozen RTK Query data, so copy before sorting in place.
+  let sorted_classifications = [...classifications].sort((a: any, b: any) =>
     a.created_at > b.created_at ? -1 : 1,
   );
 
@@ -181,10 +190,10 @@ const ClassificationList = () => {
         taxname = "Unknown taxonomy";
       }
       const permission =
-        userProfile.permissions.includes("System admin") ||
-        userProfile.permissions.includes("Manage groups") ||
+        userProfile?.permissions.includes("System admin") ||
+        userProfile?.permissions.includes("Manage groups") ||
         isGroupAdmin ||
-        userProfile.username === author_name;
+        userProfile?.username === author_name;
       return (
         <React.Fragment key={`classification_${id}`}>
           <ListItem className={styles.classification}>
@@ -233,13 +242,13 @@ const ClassificationList = () => {
                     alignItems: "center",
                   }}
                 >
-                  {origin && classifications_classes?.origin ? (
+                  {origin && classifications_classes?.["origin"] ? (
                     <span
                       style={{
                         fontWeight: "bold",
                         fontSize: "120%",
                         color:
-                          classifications_classes.origin[origin] ||
+                          classifications_classes["origin"][origin] ||
                           defaultColor(ml),
                         marginRight: "0.1em",
                       }}

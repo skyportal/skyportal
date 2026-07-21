@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useEffect, useRef, useState } from "react";
 import Card from "@mui/material/Card";
 import { makeStyles } from "tss-react/mui";
 import Skeleton from "@mui/material/Skeleton";
@@ -6,7 +7,6 @@ import CardHeader from "@mui/material/CardHeader";
 import CardMedia from "@mui/material/CardMedia";
 import CardActionArea from "@mui/material/CardActionArea";
 import Box from "@mui/material/Box";
-import { useAppSelector } from "../../types/hooks";
 
 const useStyles = makeStyles<{
   size: string;
@@ -72,6 +72,26 @@ export const getThumbnailAltAndLink = (
       link = `https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=${ra}+${dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=`;
       thumbnailName = "PANSTARRS DR2";
       break;
+    case "sm":
+      alt = "Link to SkyMapper Image Access";
+      link = `https://api.skymapper.nci.org.au/public/siap/dr4/query?POS=${ra},${dec}&SIZE=0.0167&BAND=g,r,i&FORMAT=GRAPHIC&VERB=3`;
+      thumbnailName = "SKYMAPPER DR4";
+      break;
+    case "hst":
+      alt = "Link to Hubble Legacy Archive";
+      link = `https://hla.stsci.edu/hlaview.html#/HLA/${ra},${dec}`;
+      thumbnailName = "HST";
+      break;
+    case "chandra":
+      alt = "Link to Chandra Source Catalog";
+      link = `https://cda.harvard.edu/chaser/searchGuest.do?ra=${ra}&dec=${dec}`;
+      thumbnailName = "CHANDRA";
+      break;
+    case "jwst":
+      alt = "Link to JWST data in MAST";
+      link = `https://mast.stsci.edu/search/ui/#/jwst?ra=${ra}&dec=${dec}&radius=6%20arcsec`;
+      thumbnailName = "JWST";
+      break;
     default:
       break;
   }
@@ -93,6 +113,9 @@ interface ThumbnailProps {
   titleSize: string;
   grayscale: boolean;
   noMargin?: boolean;
+  // Called when the thumbnail resolves to "no coverage" (blank), so the parent
+  // list can drop it from the display.
+  onUnavailable?: () => void;
 }
 
 const Thumbnail = ({
@@ -106,14 +129,20 @@ const Thumbnail = ({
   titleSize,
   grayscale,
   noMargin = false,
+  onUnavailable,
 }: ThumbnailProps) => {
   const isFetched = name === "ls" || name === "sdss";
+  // Keep the latest callback in a ref so the fetch effect doesn't re-run when
+  // the parent passes a new closure identity.
+  const onUnavailableRef = useRef(onUnavailable);
+  useEffect(() => {
+    onUnavailableRef.current = onUnavailable;
+  }, [onUnavailable]);
   const [status, setStatus] = useState(defaultState(src));
   const [retry, setRetry] = useState(0);
   const [imgSrc, setImgSrc] = useState<string | null>(isFetched ? null : src);
-  const invertThumbnails = useAppSelector(
-    (state: any) => state.profile.preferences.invertThumbnails,
-  );
+  const invertThumbnails =
+    useGetProfileQuery().data?.preferences?.["invertThumbnails"];
   const { classes } = useStyles({
     size,
     minSize,
@@ -148,6 +177,7 @@ const Thumbnail = ({
         }
         if (r.status === 404 && r.statusText.includes("(ra, dec) is outside")) {
           setStatus("Outside Survey Area");
+          onUnavailableRef.current?.();
           return null;
         }
         if (!r.ok) {
@@ -162,6 +192,7 @@ const Thumbnail = ({
         // It means the image is a grey placeholder for "outside survey area".
         if (name === "ls" && blob.size < 1500) {
           setStatus("Outside Survey Area");
+          onUnavailableRef.current?.();
           return;
         }
         objectUrl = URL.createObjectURL(blob);
@@ -185,16 +216,18 @@ const Thumbnail = ({
   const getThumbnailCard = (
     <>
       <CardHeader
-        titleTypographyProps={{
-          sx: {
-            fontSize: titleSize,
-            textWrap: "nowrap",
-            color: "gray",
-            fontWeight: "bold",
-          },
-        }}
         sx={{ padding: "0.4rem 0.6rem" }}
         title={thumbnailName}
+        slotProps={{
+          title: {
+            sx: {
+              fontSize: titleSize,
+              textWrap: "nowrap",
+              color: "gray",
+              fontWeight: "bold",
+            },
+          },
+        }}
       />
       <Box sx={{ position: "relative", aspectRatio: "1 / 1" }}>
         {status === "loading" || status === "loaded" ? (

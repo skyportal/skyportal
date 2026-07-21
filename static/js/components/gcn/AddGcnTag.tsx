@@ -12,7 +12,8 @@ import { useAppDispatch } from "../../types/hooks";
 import { GcnEvent } from "../../types";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
-import * as gcnTagsActions from "../../ducks/gcnTags";
+import { usePostGcnTagMutation } from "../../ducks/gcnTags";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -32,6 +33,8 @@ interface AddGcnTagProps {
 const AddGcnTag = ({ gcnEvent }: AddGcnTagProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
+  const [postGcnTag] = usePostGcnTagMutation();
   const [tag, setTag] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -48,15 +51,20 @@ const AddGcnTag = ({ gcnEvent }: AddGcnTagProps) => {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    const result: any = await dispatch(
-      gcnTagsActions.postGcnTag({ dateobs: gcnEvent.dateobs, text: tag }),
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await postGcnTag({
+        dateobs: gcnEvent.dateobs,
+        text: tag as string,
+      }).unwrap();
       dispatch(showNotification("GCN Event Tag successfully added."));
       setDialogOpen(false);
+    } catch {
+      // error notification handled centrally by the base query
     }
+    setIsSubmitting(false);
   };
+
+  if (isReadOnly) return null;
 
   return (
     <>

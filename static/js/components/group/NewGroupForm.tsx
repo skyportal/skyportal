@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 import Box from "@mui/material/Box";
 import Select from "@mui/material/Select";
@@ -6,15 +6,16 @@ import Chip from "@mui/material/Chip";
 import MenuItem from "@mui/material/MenuItem";
 import Input from "@mui/material/Input";
 import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
 import Paper from "@mui/material/Paper";
 import { useTheme } from "@mui/material/styles";
 
 import { makeStyles } from "tss-react/mui";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as groupsActions from "../../ducks/groups";
-import * as usersActions from "../../ducks/users";
+import { useAddNewGroupMutation } from "../../ducks/groups";
+import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
 
 const getStyles = (userID: number, userIDs: number[] = [], theme: any) => ({
@@ -25,26 +26,23 @@ const getStyles = (userID: number, userIDs: number[] = [], theme: any) => ({
 });
 
 const NewGroupForm = () => {
-  const dispatch = useAppDispatch();
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
+  const [addNewGroup] = useAddNewGroupMutation();
+  const { data: usersData } = useGetUsersQuery();
+  const allUsers = usersData?.users ?? [];
 
   const [formState, setState] = useState<{
     name: string;
     nickname: string;
     description: string;
     group_admins: number[];
+    auto_accept_requests: boolean;
   }>({
     name: "",
     nickname: "",
     description: "",
     group_admins: [],
+    auto_accept_requests: false,
   });
-
-  useEffect(() => {
-    if (allUsers.length === 0) {
-      dispatch(usersActions.fetchUsers());
-    }
-  }, [dispatch, allUsers]);
 
   const userIDToName: Record<number, string> = {};
   allUsers?.forEach((u: any) => {
@@ -53,15 +51,17 @@ const NewGroupForm = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const result: any = await dispatch(groupsActions.addNewGroup(formState));
-    if (result.status === "success") {
-      dispatch(groupsActions.fetchGroups(true));
+    try {
+      await addNewGroup(formState).unwrap();
       setState({
         name: "",
         nickname: "",
         description: "",
         group_admins: [],
+        auto_accept_requests: false,
       });
+    } catch {
+      // error notification handled by the API layer
     }
   };
 
@@ -102,10 +102,12 @@ const NewGroupForm = () => {
   const theme = useTheme();
   const ITEM_HEIGHT = 48;
   const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250,
+    slotProps: {
+      paper: {
+        style: {
+          maxHeight: ITEM_HEIGHT * 4.5,
+          width: 250,
+        },
       },
     },
   };
@@ -139,6 +141,24 @@ const NewGroupForm = () => {
             value={formState.description}
             onChange={handleChange}
             className={classes.customTextField}
+          />
+        </Box>
+        <Box>
+          <FormControlLabel
+            control={
+              <Checkbox
+                name="auto_accept_requests"
+                checked={formState.auto_accept_requests}
+                onChange={(event) =>
+                  setState({
+                    ...formState,
+                    auto_accept_requests: event.target.checked,
+                  })
+                }
+                data-testid="autoAcceptRequestsCheckbox"
+              />
+            }
+            label="Automatically accept requests to join this group"
           />
         </Box>
         <Box>

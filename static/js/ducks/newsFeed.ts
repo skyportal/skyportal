@@ -1,49 +1,34 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * News feed widget data.
+ *
+ * RTK Query conversion of the old `FETCH_NEWSFEED` duck. The backend returns an
+ * array of news feed items; the old slice stored them under `items`, so the
+ * query result is the array itself and consumers read it directly.
+ *
+ * The old websocket handler refetched the news feed on a FETCH_NEWSFEED
+ * message; here we invalidate the "NewsFeed" tag so the active query refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
+export type NewsFeedItem = Record<string, any>;
 
-const FETCH_NEWSFEED = "skyportal/FETCH_NEWSFEED";
-const FETCH_NEWSFEED_OK = "skyportal/FETCH_NEWSFEED_OK";
+export const newsFeedApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    // Optional `teamID` scopes the feed to a single team's groups.
+    getNewsFeed: build.query<NewsFeedItem[], { teamID?: number | null } | void>(
+      {
+        query: (arg) =>
+          arg && arg.teamID != null
+            ? `api/newsfeed?teamID=${arg.teamID}`
+            : "api/newsfeed",
+        providesTags: ["NewsFeed"],
+      },
+    ),
+  }),
+});
 
-export function fetchNewsFeed() {
-  return API.GET("/api/newsfeed", FETCH_NEWSFEED);
-}
+// Websocket: old handler refetched the news feed on FETCH_NEWSFEED.
+invalidateOnMessage("skyportal/FETCH_NEWSFEED", () => ["NewsFeed"]);
 
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === FETCH_NEWSFEED) {
-      dispatch(fetchNewsFeed());
-    }
-  },
-);
-
-const initialState: Record<string, any> = {
-  items: [],
-};
-
-interface NewsFeedAction {
-  type: string;
-  data?: any;
-}
-
-const reducer = (
-  state: Record<string, any> = initialState,
-  action: NewsFeedAction,
-): Record<string, any> => {
-  switch (action.type) {
-    case FETCH_NEWSFEED_OK: {
-      const newsFeedItems = action.data;
-      return {
-        ...state,
-        items: newsFeedItems,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("newsFeed", reducer);
+export const { useGetNewsFeedQuery } = newsFeedApi;

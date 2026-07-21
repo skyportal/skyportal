@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -12,13 +12,13 @@ import Box from "@mui/material/Box";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Button from "./Button";
-import { useAppDispatch, useAppSelector } from "../types/hooks";
 
-import * as dbStatsActions from "../ducks/dbStats";
+import { useGetDbStatsQuery } from "../ducks/dbStats";
 
 const DBStats = () => {
-  const dispatch = useAppDispatch();
-  const dbStats = useAppSelector((state) => state["dbStats"]) as any;
+  // `data` is undefined while loading and null on an empty payload; the null
+  // check below covers both, replacing the old fetch-on-mount effect.
+  const dbStats = useGetDbStatsQuery().data as any;
   const [clickedCronjobOutput, setClickedCronjobOutput] = useState<any>(null);
 
   const handleDialogClose = () => {
@@ -27,13 +27,7 @@ const DBStats = () => {
 
   const dialogOpen = Boolean(clickedCronjobOutput);
 
-  useEffect(() => {
-    if (dbStats === null) {
-      dispatch(dbStatsActions.fetchDBStats());
-    }
-  }, [dbStats, dispatch]);
-
-  if (dbStats === null) {
+  if (dbStats == null) {
     return (
       <>
         <br />
@@ -82,7 +76,11 @@ const DBStats = () => {
                       <DialogTitle>Process Output</DialogTitle>
                       <DialogContent>
                         <Typography>
-                          <Box fontFamily="Monospace">
+                          <Box
+                            sx={{
+                              fontFamily: "Monospace",
+                            }}
+                          >
                             {clickedCronjobOutput &&
                               clickedCronjobOutput
                                 .split("\n")

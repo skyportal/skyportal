@@ -63,6 +63,10 @@ jobs:
           node-version: "22.x"
           package-manager-cache: false
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
       - name: Setup Graphviz
         uses: ts-graphviz/setup-graphviz@v1
 
@@ -90,6 +94,23 @@ jobs:
         run: |
           make docs
           touch doc/_build/html/.nojekyll
+
+      - name: Regenerate frontend types from OpenAPI spec and check for drift
+        run: |
+          bun install --frozen-lockfile
+          make typegen
+          git diff --exit-code static/js/types/api.ts || (
+            echo "::error::static/js/types/api.ts is out of date — run 'make typegen' and commit."
+            exit 1
+          )
+
+      - name: Regenerate route schema map and check for drift
+        run: |
+          make routemap
+          git diff --exit-code static/js/types/routeSchemaMap.ts || (
+            echo "::error::static/js/types/routeSchemaMap.ts is out of date — run 'make routemap' and commit."
+            exit 1
+          )
 
       - name: Deploy docs
         if: github.ref == 'refs/heads/main'

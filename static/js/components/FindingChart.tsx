@@ -21,7 +21,10 @@ import { useReactToPrint } from "react-to-print";
 import { showNotification } from "baselayer/components/Notifications";
 import { Tooltip } from "@mui/material";
 import { useAppDispatch } from "../types/hooks";
-import { fetchSourceFinderChart } from "../ducks/source";
+import {
+  useLazyGetSourceFinderChartQuery,
+  useGetFinderChartFacilitiesQuery,
+} from "../ducks/source";
 import Button from "./Button";
 
 const initialFormState = {
@@ -30,6 +33,9 @@ const initialFormState = {
   positionsource: "ztfref",
   findersize: 4.0,
   numoffset: 3,
+  // Offset-star magnitude range; blank falls back to the facility default.
+  magmin: "",
+  magmax: "",
 };
 
 const useStyles = makeStyles()(() => ({
@@ -104,12 +110,14 @@ const PlaceHolder = () => {
 
 const FindingChart = () => {
   const dispatch = useAppDispatch();
+  const [getSourceFinderChart] = useLazyGetSourceFinderChartQuery();
   const { classes } = useStyles();
   const {
     handleSubmit,
     getValues,
     control,
-
+    watch,
+    setValue,
     formState: { errors },
   } = useForm();
   const { id } = useParams();
@@ -121,10 +129,24 @@ const FindingChart = () => {
 
   const componentRef = useRef<any>(null);
 
+  // Per-facility default offset-star magnitude range. Auto-fill the fields with
+  // the selected facility's values (still editable); changing the facility
+  // resets them to that facility's defaults.
+  const { data: facilities } = useGetFinderChartFacilitiesQuery();
+  const selectedFacility = watch("facility") ?? params.facility;
+  const facilityDefaults = facilities?.[selectedFacility];
+
+  useEffect(() => {
+    if (facilityDefaults) {
+      setValue("magmin", facilityDefaults.mag_min);
+      setValue("magmax", facilityDefaults.mag_limit);
+    }
+  }, [selectedFacility, facilityDefaults, setValue]);
+
   useEffect(() => {
     const fetchImage = async () => {
       if (!id) return;
-      const formData = {
+      const formData: Record<string, string> = {
         type: "png",
         image_source: `${params?.imagesource}`,
         use_ztfref: `${params?.positionsource === "ztfref"}`,
@@ -133,20 +155,29 @@ const FindingChart = () => {
         facility: `${params?.facility}`,
         as_json: "true",
       };
-      const response: any = await dispatch(
-        fetchSourceFinderChart(id, formData),
-      );
-      if (response.status === "success" && response?.data) {
-        const img_data = response?.data?.finding_chart;
-        const url = response?.data?.public_url;
+      // Only send the magnitude bounds when set; otherwise the backend uses the
+      // facility default.
+      if (params?.magmin !== "" && params?.magmin != null) {
+        formData["mag_min"] = `${params.magmin}`;
+      }
+      if (params?.magmax !== "" && params?.magmax != null) {
+        formData["mag_limit"] = `${params.magmax}`;
+      }
+      try {
+        const data: any = await getSourceFinderChart({
+          id,
+          params: formData,
+        }).unwrap();
+        const img_data = data?.finding_chart;
+        const url = data?.public_url;
         if (!img_data) {
           console.error("No image data returned from server");
           return;
         }
         setImage(`data:image/png;base64,${img_data}`);
         setPublicUrl(url);
-      } else {
-        console.error("Error fetching image:", response.statusText);
+      } catch (err) {
+        console.error("Error fetching image:", err);
       }
     };
     fetchImage();
@@ -183,9 +214,11 @@ const FindingChart = () => {
         <Grid
           container
           direction="row"
-          justifyContent="flex-start"
-          alignItems="flex-start"
           spacing={1}
+          sx={{
+            justifyContent: "flex-start",
+            alignItems: "flex-start",
+          }}
         >
           <Grid size={{ xs: 12, md: 10 }}>
             <Card>
@@ -294,12 +327,14 @@ const FindingChart = () => {
                           <Input
                             type="number"
                             margin="dense"
-                            inputProps={{
-                              step: 0.5,
-                              min: 2,
-                              max: 15,
-                              type: "number",
-                              "aria-labelledby": "SizeSelect",
+                            slotProps={{
+                              input: {
+                                step: 0.5,
+                                min: 2,
+                                max: 15,
+                                type: "number",
+                                "aria-labelledby": "SizeSelect",
+                              },
                             }}
                             style={{ minWidth: "100%" }}
                             onChange={onChange}
@@ -323,12 +358,14 @@ const FindingChart = () => {
                           <Input
                             type="number"
                             margin="dense"
-                            inputProps={{
-                              step: 1,
-                              min: 0,
-                              max: 4,
-                              type: "number",
-                              "aria-labelledby": "HowMany",
+                            slotProps={{
+                              input: {
+                                step: 1,
+                                min: 0,
+                                max: 4,
+                                type: "number",
+                                "aria-labelledby": "HowMany",
+                              },
                             }}
                             style={{ minWidth: "100%" }}
                             onChange={onChange}
@@ -342,6 +379,70 @@ const FindingChart = () => {
                       {errors["numoffset"] && (
                         <p>Enter an integer between 0 and 5</p>
                       )}
+                    </FormControl>
+                    <FormControl>
+                      <InputLabel id="MagMin">
+                        Offset Star Mag (bright)
+                      </InputLabel>
+                      <p className={classes.labels} />
+                      <Controller
+                        render={({ field: { onChange, value } }) => (
+                          <Input
+                            type="number"
+                            margin="dense"
+                            placeholder={
+                              facilityDefaults?.mag_min != null
+                                ? `${facilityDefaults.mag_min}`
+                                : "facility default"
+                            }
+                            slotProps={{
+                              input: {
+                                step: 0.5,
+                                type: "number",
+                                "aria-labelledby": "MagMin",
+                              },
+                            }}
+                            style={{ minWidth: "100%" }}
+                            onChange={onChange}
+                            value={value}
+                          />
+                        )}
+                        name="magmin"
+                        control={control}
+                        defaultValue={params.magmin}
+                      />
+                    </FormControl>
+                    <FormControl>
+                      <InputLabel id="MagMax">
+                        Offset Star Mag (faint)
+                      </InputLabel>
+                      <p className={classes.labels} />
+                      <Controller
+                        render={({ field: { onChange, value } }) => (
+                          <Input
+                            type="number"
+                            margin="dense"
+                            placeholder={
+                              facilityDefaults?.mag_limit != null
+                                ? `${facilityDefaults.mag_limit}`
+                                : "facility default"
+                            }
+                            slotProps={{
+                              input: {
+                                step: 0.5,
+                                type: "number",
+                                "aria-labelledby": "MagMax",
+                              },
+                            }}
+                            style={{ minWidth: "100%" }}
+                            onChange={onChange}
+                            value={value}
+                          />
+                        )}
+                        name="magmax"
+                        control={control}
+                        defaultValue={params.magmax}
+                      />
                     </FormControl>
                     <Button primary type="submit" name="finderButton">
                       Update

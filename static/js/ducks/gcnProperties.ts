@@ -1,42 +1,39 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * GCN event properties (list of available property names for filtering).
+ *
+ * RTK Query conversion of the old `FETCH_GCN_PROPERTIES` duck. The endpoint is
+ * injected into the central `skyportalApi`. The websocket refresh message
+ * (`skyportal/FETCH_GCN_PROPERTIES`) is bridged to cache invalidation via
+ * `invalidateOnMessage`; the old handler ignored the payload and always
+ * refreshed, so we unconditionally invalidate the `GcnProperties` tag.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
-import type { AppDispatch } from "../types/store";
-
-const FETCH_GCN_PROPERTIES = "skyportal/FETCH_GCN_PROPERTIES";
-const FETCH_GCN_PROPERTIES_OK = "skyportal/FETCH_GCN_PROPERTIES_OK";
-
-export const fetchGcnProperties = (filterParams = {}) =>
-  API.GET("/api/gcn_event/properties", FETCH_GCN_PROPERTIES, filterParams);
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: string, _payload: any, dispatch: AppDispatch) => {
-    if (actionType === FETCH_GCN_PROPERTIES) {
-      dispatch(fetchGcnProperties());
-    }
-  },
-);
-
-type GcnPropertiesState = any;
-
-interface GcnPropertiesAction {
-  type: string;
-  data?: any;
+export interface FetchGcnPropertiesArgs {
+  [key: string]: unknown;
 }
 
-const reducer = (
-  state: GcnPropertiesState = null,
-  action: GcnPropertiesAction,
-): GcnPropertiesState => {
-  switch (action.type) {
-    case FETCH_GCN_PROPERTIES_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-};
+export const gcnPropertiesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getGcnProperties: build.query<
+      RouteData<"GET /api/gcn_event/properties">,
+      FetchGcnPropertiesArgs | void
+    >({
+      query: (filterParams) => {
+        const params = new URLSearchParams(
+          (filterParams as Record<string, string>) ?? {},
+        ).toString();
+        return `api/gcn_event/properties${params ? `?${params}` : ""}`;
+      },
+      providesTags: ["GcnProperties"],
+    }),
+  }),
+});
 
-store.injectReducer("gcnProperties", reducer);
+// Bridge the websocket refresh message to cache invalidation. The old handler
+// always re-fetched on this actionType regardless of payload.
+invalidateOnMessage("skyportal/FETCH_GCN_PROPERTIES", () => ["GcnProperties"]);
+
+export const { useGetGcnPropertiesQuery } = gcnPropertiesApi;

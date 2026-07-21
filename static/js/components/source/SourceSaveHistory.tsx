@@ -32,8 +32,9 @@ const SourceSaveHistory = ({ groups }: SourceSaveHistoryProps) => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Sort history from newest to oldest
-  const sortedHistory = groups?.sort((a, b) => {
+  // Sort history from newest to oldest.
+  // `groups` is frozen RTK Query data, so copy before sorting in place.
+  const sortedHistory = [...(groups ?? [])].sort((a, b) => {
     const dateA = new Date(a.saved_at as string);
     const dateB = new Date(b.saved_at as string);
     return dateB.getTime() - dateA.getTime();

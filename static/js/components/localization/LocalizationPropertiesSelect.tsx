@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
 import InputLabel from "@mui/material/InputLabel";
@@ -7,11 +6,10 @@ import MenuItem from "@mui/material/MenuItem";
 import Box from "@mui/material/Box";
 import FormControl from "@mui/material/FormControl";
 import { Controller, useForm } from "react-hook-form";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 import SelectWithChips from "../SelectWithChips";
 
-import * as localizationPropertiesActions from "../../ducks/localizationProperties";
+import { useGetLocalizationPropertiesQuery } from "../../ducks/localizationProperties";
 
 interface LocalizationPropertiesSelectProps {
   selectedLocalizationProperties: string[];
@@ -24,15 +22,10 @@ const LocalizationPropertiesSelect = ({
   setSelectedLocalizationProperties,
   comparators,
 }: LocalizationPropertiesSelectProps) => {
-  const dispatch = useAppDispatch();
-  const localizationProperties = [
-    ...(useAppSelector((state) => state["localizationProperties"]) || []),
-  ].sort();
+  const { data: localizationPropertiesData } =
+    useGetLocalizationPropertiesQuery(undefined);
+  const localizationProperties = [...(localizationPropertiesData || [])].sort();
   const { handleSubmit, control, reset, getValues } = useForm();
-
-  useEffect(() => {
-    dispatch(localizationPropertiesActions.fetchLocalizationProperties());
-  }, [dispatch]);
 
   const handleSubmitProperties = async () => {
     const { property, propertyComparator, propertyComparatorValue } =

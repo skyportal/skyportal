@@ -1,32 +1,33 @@
-import * as API from "../API";
-import store from "../store";
+/**
+ * Frontend configuration (the `/api/config` payload).
+ *
+ * RTK Query conversion of the old `FETCH_CONFIG` duck. The endpoint is injected
+ * into the central `skyportalApi`. `version` is a sibling of `data` on the
+ * response envelope (see `skyportalApi`), so `transformResponse` merges it back
+ * onto the payload to preserve the old slice shape (`{ ...data, version }`).
+ *
+ * The config is fetched once during hydration (no websocket refresh), so there
+ * is no `invalidateOnMessage` here.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import type { SkyportalMeta } from "../api/skyportalApi";
 
-const FETCH_CONFIG = "skyportal/FETCH_CONFIG";
-const FETCH_CONFIG_OK = "skyportal/FETCH_CONFIG_OK";
-
-export function fetchConfig() {
-  return API.GET("/api/config", FETCH_CONFIG);
+export interface Config {
+  version?: string | undefined;
+  [key: string]: unknown;
 }
 
-interface ConfigAction {
-  type: string;
-  data?: any;
-  version?: any;
-  [key: string]: any;
-}
+export const configApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getConfig: build.query<Config, void>({
+      query: () => "api/config",
+      transformResponse: (data: unknown, meta: SkyportalMeta | undefined) => ({
+        ...(data as Omit<Config, "version">),
+        version: meta?.version,
+      }),
+      providesTags: ["Config"],
+    }),
+  }),
+});
 
-function reducer(state: Record<string, any> = {}, action: ConfigAction) {
-  switch (action.type) {
-    case FETCH_CONFIG_OK: {
-      const { version, data } = action;
-      return {
-        ...data,
-        version,
-      };
-    }
-    default:
-      return state;
-  }
-}
-
-store.injectReducer("config", reducer);
+export const { useGetConfigQuery } = configApi;

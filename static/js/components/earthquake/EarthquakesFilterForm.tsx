@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import ButtonGroup from "@mui/material/ButtonGroup";
@@ -9,8 +8,7 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { Controller, useForm } from "react-hook-form";
 
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as earthquakeStatusesActions from "../../ducks/earthquakeStatuses";
+import { useGetEarthquakeStatusesQuery } from "../../ducks/earthquakeStatuses";
 
 const useStyles = makeStyles()((theme) => ({
   paperDiv: {
@@ -101,17 +99,10 @@ const EarthquakesFilterForm = ({
   handleFilterSubmit,
 }: EarthquakesFilterFormProps) => {
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
 
-  let earthquakeStatuses: any[] = [];
-  earthquakeStatuses = earthquakeStatuses.concat(
-    useAppSelector((state) => state["earthquakeStatuses"]) as any,
-  );
+  const { data: earthquakeStatusesData } = useGetEarthquakeStatusesQuery();
+  const earthquakeStatuses: any[] = [...(earthquakeStatusesData ?? [])];
   earthquakeStatuses.sort();
-
-  useEffect(() => {
-    dispatch(earthquakeStatusesActions.fetchEarthquakeStatuses());
-  }, [dispatch]);
 
   const { handleSubmit, register, control, reset, getValues } = useForm();
 
@@ -135,15 +126,13 @@ const EarthquakesFilterForm = ({
           <TextField
             size="small"
             label="First Detected After"
-            name="startDate"
-            inputRef={register}
+            {...register("startDate")}
             placeholder="2012-08-30T00:00:00"
           />
           <TextField
             size="small"
             label="Last Detected Before"
-            name="endDate"
-            inputRef={register}
+            {...register("endDate")}
             placeholder="2012-08-30T00:00:00"
           />
         </div>

@@ -1,3 +1,4 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 
 import Plotly from "plotly.js-basic-dist";
@@ -9,7 +10,6 @@ import Typography from "@mui/material/Typography";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import { makeStyles } from "tss-react/mui";
-import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
 import {
@@ -113,7 +113,7 @@ const SpectraPlot = ({
   const lastKnownXRangeRef = useRef<any>(null);
   const isSyncingRef = useRef(false);
 
-  const { preferences } = useAppSelector((state) => state.profile);
+  const { preferences } = useGetProfileQuery().data ?? {};
   const spectroscopyButtons = (preferences as any)?.spectroscopyButtons;
 
   // Memoize user custom lines to avoid recreating on every render
@@ -1035,14 +1035,18 @@ const SpectraPlot = ({
             />
             <TextField
               value={vExpInput}
-              onChange={(e) => setVExpInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this
+              // state and MUI's Slider throws on a non-numeric value.
+              onChange={(e) => setVExpInput(parseFloat(e.target.value) || 0)}
               margin="dense"
               type="number"
-              inputProps={{
-                step: 1,
-                min: 0,
-                max: 30000,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 1,
+                  min: 0,
+                  max: 30000,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />
@@ -1062,14 +1066,20 @@ const SpectraPlot = ({
             />
             <TextField
               value={redshiftInput}
-              onChange={(e) => setRedshiftInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this
+              // state and MUI's Slider throws on a non-numeric value.
+              onChange={(e) =>
+                setRedshiftInput(parseFloat(e.target.value) || 0)
+              }
               margin="dense"
               type="number"
-              inputProps={{
-                step: 0.0001,
-                min: 0,
-                max: 3.0,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 0.0001,
+                  min: 0,
+                  max: 3.0,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />
@@ -1089,14 +1099,20 @@ const SpectraPlot = ({
             />
             <TextField
               value={smoothingInput}
-              onChange={(e) => setSmoothingInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this state
+              // and MUI's Slider throws on a non-numeric value.
+              onChange={(e) =>
+                setSmoothingInput(parseFloat(e.target.value) || 0)
+              }
               margin="dense"
               type="number"
-              inputProps={{
-                step: 1,
-                min: 0,
-                max: 100,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 1,
+                  min: 0,
+                  max: 100,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />
@@ -1116,14 +1132,20 @@ const SpectraPlot = ({
             />
             <TextField
               value={customWavelengthInput}
-              onChange={(e) => setCustomWavelengthInput(e.target.value)}
+              // Store a number, not the raw string: the Slider shares this
+              // state and MUI's Slider throws on a non-numeric value.
+              onChange={(e) =>
+                setCustomWavelengthInput(parseFloat(e.target.value) || 0)
+              }
               margin="dense"
               type="number"
-              inputProps={{
-                step: 1,
-                min: 0,
-                max: 50000,
-                "aria-labelledby": "input-slider",
+              slotProps={{
+                htmlInput: {
+                  step: 1,
+                  min: 0,
+                  max: 50000,
+                  "aria-labelledby": "input-slider",
+                },
               }}
               size="small"
             />

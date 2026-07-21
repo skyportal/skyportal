@@ -7,10 +7,8 @@ import {
 } from "react-simple-maps";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import { useAppDispatch } from "../../types/hooks";
 import world_map from "../../../images/maps/world-110m.json";
 
-let dispatch: any;
 const width = 700;
 const height = 475;
 
@@ -22,13 +20,6 @@ function CustomZoomableGroup({ children, ...restProps }: any) {
       <g transform={transformString}>{children(position)}</g>
     </g>
   );
-}
-function setCurrentEarthquakes(currentEarthquakes: any) {
-  const currentEarthquakeMenu = "Earthquake List";
-  dispatch({
-    type: "skyportal/CURRENT_EARTHQUAKES_AND_MENU",
-    data: { currentEarthquakes, currentEarthquakeMenu },
-  });
 }
 
 function earthquakelabel(nestedEarthquake: any) {
@@ -45,13 +36,13 @@ function earthquakeStatus(nestedEarthquake: any) {
   return color;
 }
 
-function EarthquakeMarker({ nestedEarthquake, position }: any) {
+function EarthquakeMarker({ nestedEarthquake, position, onSelect }: any) {
   return (
     <Marker
       id="earthquake_marker"
       key={`${nestedEarthquake.lon},${nestedEarthquake.lat}`}
       coordinates={[nestedEarthquake.lon, nestedEarthquake.lat]}
-      onClick={() => setCurrentEarthquakes(nestedEarthquake)}
+      onClick={() => onSelect?.(nestedEarthquake)}
     >
       <circle r={6.5 / position.k} fill={earthquakeStatus(nestedEarthquake)} />
       <text
@@ -85,12 +76,13 @@ interface Earthquake {
 
 interface EarthquakeMapProps {
   earthquakes: Earthquake[];
+  onSelectEarthquakes?: (nestedEarthquake: any) => void;
 }
 
-const EarthquakeMap = ({ earthquakes }: EarthquakeMapProps) => {
-  // eslint-disable-next-line react-hooks/globals
-  dispatch = useAppDispatch();
-
+const EarthquakeMap = ({
+  earthquakes,
+  onSelectEarthquakes,
+}: EarthquakeMapProps) => {
   if (!earthquakes) {
     return (
       <div>
@@ -168,6 +160,7 @@ const EarthquakeMap = ({ earthquakes }: EarthquakeMapProps) => {
                     key={`${nestedEarthquake.lon},${nestedEarthquake.lat}`}
                     nestedEarthquake={nestedEarthquake}
                     position={position}
+                    onSelect={onSelectEarthquakes}
                   />
                 ),
             )}

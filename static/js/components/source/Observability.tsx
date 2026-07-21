@@ -1,4 +1,5 @@
-import { Suspense, useEffect, useState } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { Suspense, useState } from "react";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
@@ -11,11 +12,13 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import HoursBelowAirmassPlot from "../templates/HoursBelowAirmassPlot";
+import AcrossVisibility from "./AcrossVisibility";
 import ObservabilityPreferences from "../user/preferences/ObservabilityPreferences";
-import AirmassPlot from "../plot/AirmassPlot";
+import AirmassPlot, { Ephemeris } from "../plot/AirmassPlot";
 import withRouter from "../withRouter";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
-import * as ephemerisActions from "../../ducks/ephemeris";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useGetEphemeridesQuery } from "../../ducks/ephemeris";
+import { useGetAcrossInstrumentsQuery } from "../../ducks/across";
 
 const useStyles = makeStyles()({
   inner: {
@@ -44,46 +47,49 @@ interface ObservabilityPageProps {
 }
 
 const ObservabilityPage = ({ route }: ObservabilityPageProps) => {
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const preferences = useAppSelector(
-    (state) => state.profile.preferences?.["observabilityTelescopes"],
-  ) as any;
-  const [ephemerides, setEphemerides] = useState<Record<string, any>>({});
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const preferences = useGetProfileQuery().data?.preferences?.[
+    "observabilityTelescopes"
+  ] as any;
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
 
-  const selectedTelescopes = telescopeList
-    ?.filter(
-      (telescope: any) =>
-        preferences &&
-        preferences.length > 0 &&
-        preferences.indexOf(telescope.id) !== -1,
+  const { data: acrossInstruments = [] } = useGetAcrossInstrumentsQuery();
+
+  const selectedTelescopes = telescopeList?.filter(
+    (telescope: any) =>
+      preferences &&
+      preferences.length > 0 &&
+      preferences.indexOf(telescope.id) !== -1,
+  );
+
+  // Ground telescopes also get airmass plots below; the joint-visibility panel
+  // covers all selected telescopes (ground via astroplan, space via ACROSS).
+  const groundTelescopes = selectedTelescopes?.filter(
+    (telescope: any) => telescope.fixed_location === true,
+  );
+
+  const acrossTelescopeIds = new Set(
+    acrossInstruments.map((inst: any) => inst.telescope_id),
+  );
+  const panelTelescopes = (selectedTelescopes || [])
+    .filter(
+      (t: any) => t.fixed_location === true || acrossTelescopeIds.has(t.id),
     )
-    .filter((telescope: any) => telescope.fixed_location === true);
+    .map((t: any) => ({ id: t.id, name: t.nickname || t.name }));
 
-  useEffect(() => {
-    const getEphem = async (selected_telescopes: any[]) => {
-      const result: any = await dispatch(
-        ephemerisActions.fetchEphemerides(
-          [...selected_telescopes]
-            .splice((page - 1) * 16, page * 16)
-            .map((telescope) => telescope.id),
-        ),
-      );
-      if (result.status === "success") {
-        setEphemerides(result.data);
-        setLoading(false);
-      }
-    };
-    if (selectedTelescopes?.length > 0) {
-      setLoading(true);
-      getEphem(selectedTelescopes);
-    } else if (selectedTelescopes?.length === 0) {
-      setEphemerides({});
-    }
-  }, [telescopeList, preferences, page, dispatch]);
+  const pagedTelescopeIds: number[] = groundTelescopes
+    ? [...groundTelescopes]
+        .splice((page - 1) * 16, page * 16)
+        .map((telescope: any) => telescope.id)
+    : [];
+
+  const { data: ephemerides = {}, isFetching } = useGetEphemeridesQuery(
+    pagedTelescopeIds,
+    { skip: pagedTelescopeIds.length === 0 },
+  );
+
+  const loading = isFetching;
 
   // ephmerides is an object where each key is the telescope id and the value is the ephemeris
 
@@ -97,16 +103,18 @@ const ObservabilityPage = ({ route }: ObservabilityPageProps) => {
           <div className={classes.preferencesContent}>
             <ObservabilityPreferences />
             <Pagination
-              count={Math.ceil(selectedTelescopes?.length / 16)}
+              count={Math.ceil(groundTelescopes?.length / 16)}
               page={page}
               onChange={(_event, value) => setPage(value)}
             />
           </div>
         </Paper>
       )}
+      <AcrossVisibility objId={route.id} telescopes={panelTelescopes} />
+
       <Grid container spacing={3}>
         {!loading && ephemerides
-          ? selectedTelescopes
+          ? groundTelescopes
               ?.filter(
                 // check that the telescope id is a key in the ephemerides object
                 (telescope: any) =>
@@ -129,7 +137,7 @@ const ObservabilityPage = ({ route }: ObservabilityPageProps) => {
                       >
                         <AirmassPlot
                           dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
-                          ephemeris={ephemerides[telescope.id]}
+                          ephemeris={ephemerides[telescope.id] as Ephemeris}
                         />
                       </Suspense>
                       <Suspense

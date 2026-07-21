@@ -10,7 +10,7 @@ import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 
-import { useAppSelector } from "../../types/hooks";
+import { useGetUsersQuery } from "../../ducks/users";
 
 const useStyles = makeStyles()(() => ({
   saveButton: {
@@ -39,13 +39,14 @@ const SourceRedshiftHistory = ({
   redshiftHistory = null,
 }: SourceRedshiftHistoryProps) => {
   const { classes } = useStyles();
-  const { users: allUsers } = useAppSelector((state) => state["users"]);
+  const allUsers = useGetUsersQuery().data?.users ?? [];
   const userIdToUsername: Record<number, string> = {};
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Sort history from newest to oldest
-  const sortedHistory = redshiftHistory?.sort((a, b) => {
+  // Sort history from newest to oldest.
+  // `redshiftHistory` is frozen RTK Query data, so copy before sorting in place.
+  const sortedHistory = [...(redshiftHistory ?? [])].sort((a, b) => {
     const dateA = new Date(a.set_at_utc);
     const dateB = new Date(b.set_at_utc);
     return dateB.getTime() - dateA.getTime();

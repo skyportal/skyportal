@@ -1,5 +1,6 @@
 import asyncio
 import json
+import sys
 import time
 import traceback
 import urllib
@@ -14,12 +15,13 @@ import tornado.ioloop
 import tornado.web
 from sqlalchemy.orm import scoped_session, sessionmaker
 
+from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import add_external_photometry
-from skyportal.handlers.api.source import post_source
+from skyportal.handlers.api.source import post_source_async
 from skyportal.handlers.api.spectrum import post_spectrum
 from skyportal.models import DBSession, Group, Obj, Source, User
 from skyportal.utils.calculations import great_circle_distance
@@ -185,7 +187,13 @@ def add_tns_photometry(tns_name, tns_source, tns_source_data, public_group_id, s
             continue
         if read_photometry:
             try:
-                add_external_photometry(data_out, user, parent_session=session)
+                # bridge to the async impl on a fresh async session (sync poller)
+                async def _add_external_photometry(d=data_out):
+                    async with models.async_plain_session_factory() as s:
+                        u = await s.scalar(sa.select(User).where(User.id == USER_ID))
+                        await add_external_photometry(d, u, s)
+
+                asyncio.run(_add_external_photometry())
             except Exception as e:
                 failed_photometry.append(phot)
                 failed_photometry_errors.append(str(e))
@@ -233,7 +241,13 @@ def add_tns_spectra(tns_name, tns_source, tns_source_data, public_group_id, sess
             continue
         data["obj_id"] = tns_source
         data["group_ids"] = [public_group_id]
-        post_spectrum(data, USER_ID, session)
+
+        # bridge to the async impl on a fresh async session (sync poller)
+        async def _post_spectrum(d=data):
+            async with models.async_plain_session_factory() as s:
+                await post_spectrum(d, USER_ID, s)
+
+        asyncio.run(_post_spectrum())
 
     if len(failed_spectra) > 0:
         log(
@@ -439,7 +453,12 @@ def process_queue(queue):
                             "tns_info": tns_source_data,
                             "group_ids": [public_group_id],
                         }
-                        post_source(new_source_data, USER_ID, session)
+
+                        async def _post_source(d=new_source_data):
+                            async with models.async_plain_session_factory() as s:
+                                await post_source_async(d, USER_ID, s)
+
+                        asyncio.run(_post_source())
 
                         add_tns_photometry(
                             tns_name,
@@ -605,6 +624,11 @@ def service(*args, **kwargs):
     while True:
         log(f"Current TNS retrieval queue length: {len(queue)}")
         time.sleep(120)
+        # Exit if any worker thread died (e.g. DB connection drop in a context
+        # manager exit, outside the loop's try/except) so supervisor restarts us.
+        if not (t.is_alive() and t2.is_alive() and t3.is_alive()):
+            log("A TNS retrieval worker thread died, exiting for supervisor restart")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

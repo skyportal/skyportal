@@ -1,3 +1,4 @@
+import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { makeStyles } from "tss-react/mui";
@@ -8,13 +9,17 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
+import { useAppDispatch } from "../../../types/hooks";
 import Button from "../../Button";
 
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import ClassificationSelect from "../../classification/ClassificationSelect";
 import NotificationSettingsSelect from "./NotificationSettingsSelect";
-import * as profileActions from "../../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
+import { useGetAllocationsApiClassnameQuery } from "../../../ducks/allocations";
 import NotificationGcnEvent from "./NotificationGcnEvent";
 import { SelectLabelWithChips } from "../../SelectWithChips";
 
@@ -69,12 +74,13 @@ const useStyles = makeStyles()((theme) => ({
 
 const NotificationPreferences = () => {
   const { classes } = useStyles();
-  const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const groups = useAppSelector((state) => state.groups.userAccessible);
-  const { allocationListApiClassname } = useAppSelector(
-    (state) => state["allocations"],
-  );
+  const { data: profileData } = useGetProfileQuery();
+  const profile = (profileData?.preferences ?? {}) as any;
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const { data: allocationListApiClassname = [] } =
+    useGetAllocationsApiClassnameQuery();
   const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const { handleSubmit } = useForm();
   const [selectedClassifications, setSelectedClassifications] = useState<any[]>(
     profile?.notifications?.sources?.classifications || [],
@@ -82,7 +88,8 @@ const NotificationPreferences = () => {
   const [selectedGroups, setSelectedGroups] = useState<any[]>([]);
   const [selectedAllocations, setSelectedAllocations] = useState<any[]>([]);
 
-  let sortedGroups: any[] = groups.sort((a: any, b: any) => {
+  // `groups` is frozen RTK Query data, so copy before sorting in place.
+  let sortedGroups: any[] = [...groups].sort((a: any, b: any) => {
     if (a.name.toLowerCase() < b.name.toLowerCase()) {
       return -1;
     }
@@ -191,21 +198,33 @@ const NotificationPreferences = () => {
     }
   }, [profile, allocationListApiClassname]);
 
+  const SIMPLE_TOGGLE_KEYS = [
+    "sources",
+    "gcn_events",
+    "mention",
+    "favorite_sources",
+    "facility_transactions",
+    "analysis_services",
+    "observation_plans",
+    "reminders",
+  ] as const;
+
   const prefToggled = (event: any) => {
     const prefs: any = {
       notifications: {},
     };
-    if (
-      event.target.name === "sources" ||
-      event.target.name === "gcn_events" ||
-      event.target.name === "mention" ||
-      event.target.name === "favorite_sources" ||
-      event.target.name === "facility_transactions" ||
-      event.target.name === "analysis_services" ||
-      event.target.name === "observation_plans"
-    ) {
+    if (SIMPLE_TOGGLE_KEYS.includes(event.target.name)) {
       prefs.notifications[event.target.name] = {
         active: event.target.checked,
+      };
+    } else if (
+      event.target.name === "reminder_on_source" ||
+      event.target.name === "reminder_on_spectra" ||
+      event.target.name === "reminder_on_gcn" ||
+      event.target.name === "reminder_on_shift"
+    ) {
+      prefs.notifications.reminders = {
+        [event.target.name]: event.target.checked,
       };
     } else if (event.target.name === "gcn_events_new_tags") {
       prefs.notifications.gcn_events = {
@@ -239,7 +258,7 @@ const NotificationPreferences = () => {
       };
     }
 
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const onSubmitSources = () => {
@@ -254,7 +273,7 @@ const NotificationPreferences = () => {
         },
       },
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
     setSelectedClassifications([...new Set(selectedClassifications)]);
     setSelectedGroups([...new Set(selectedGroups)]);
     dispatch(showNotification("Sources classifications updated"));
@@ -590,6 +609,56 @@ const NotificationPreferences = () => {
         </FormGroup>
         {profile?.notifications?.observation_plans?.active === true && (
           <NotificationSettingsSelect notificationResourceType="observation_plans" />
+        )}
+      </div>
+      <div className={classes.pref}>
+        <FormGroup row className={classes.form_group}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={profile?.notifications?.reminders?.active === true}
+                name="reminders"
+                onChange={prefToggled}
+              />
+            }
+            label="Reminders"
+          />
+          <Tooltip
+            title="Enable to receive notifications when your reminders fire. Click the settings icon to configure email, SMS, or Slack delivery."
+            placement="right"
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutlineOutlinedIcon />
+          </Tooltip>
+        </FormGroup>
+        {profile?.notifications?.reminders?.active === true && (
+          <div className={classes.form}>
+            <FormGroup row className={classes.form_group}>
+              {(
+                [
+                  { key: "reminder_on_source", label: "Sources" },
+                  { key: "reminder_on_spectra", label: "Spectra" },
+                  { key: "reminder_on_gcn", label: "GCN Events" },
+                  { key: "reminder_on_shift", label: "Shifts" },
+                ] as const
+              ).map(({ key, label }) => (
+                <FormControlLabel
+                  key={key}
+                  control={
+                    <Switch
+                      checked={
+                        profile?.notifications?.reminders?.[key] === true
+                      }
+                      name={key}
+                      onChange={prefToggled}
+                    />
+                  }
+                  label={label}
+                />
+              ))}
+            </FormGroup>
+            <NotificationSettingsSelect notificationResourceType="reminders" />
+          </div>
         )}
       </div>
     </div>

@@ -123,6 +123,28 @@ def lt_request_matcher(r1, r2):
     )
 
 
+def gemini_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the Gemini API are
+    equivalent. Match on method and the /too path only, ignoring query params so
+    a request with a blank/absent noteTitle still matches the recording.
+    """
+    from urllib.parse import urlparse
+
+    assert r1.method == r2.method and urlparse(r1.uri).path == urlparse(r2.uri).path
+
+
+def winter_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the WINTER/SPRING API
+    are equivalent. Match on method and the /too/<camera> path only, ignoring
+    query params (so the submit_trigger flag value doesn't affect matching).
+    """
+    from urllib.parse import urlparse
+
+    assert r1.method == r2.method and urlparse(r1.uri).path == urlparse(r2.uri).path
+
+
 def lco_request_matcher(r1, r2):
     """
     Helper function to help determine if two requests to the LCO API are equivalent
@@ -535,6 +557,8 @@ class TestRouteHandler(tornado.web.RequestHandler):
             ".*/node_agent2/node_agent/.*",
             ".*/forcedphot/queue/.*",
             ".*/api/v1/pointings/.*",
+            ".*/too(\\?.*)?$",
+            ".*/too/(winter|spring)(\\?.*)?$",
         ]
         is_soap_action = "Soapaction" in self.request.headers
         if any(re.match(pat, self.request.uri) for pat in cached_urls):
@@ -556,6 +580,12 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on = ["treasuremap"]
         elif "/toop/submit_json.php" in self.request.uri:
             match_on = ["swift"]
+        elif self.request.uri.startswith("/too/winter") or self.request.uri.startswith(
+            "/too/spring"
+        ):
+            match_on = ["winter"]
+        elif self.request.uri.startswith("/too?") or self.request.uri == "/too":
+            match_on = ["gemini"]
 
         with my_vcr.use_cassette(
             cache,
@@ -647,6 +677,8 @@ if __name__ == "__main__":
     my_vcr.register_matcher("atlas", atlas_request_matcher)
     my_vcr.register_matcher("lt", lt_request_matcher)
     my_vcr.register_matcher("lco", lco_request_matcher)
+    my_vcr.register_matcher("gemini", gemini_request_matcher)
+    my_vcr.register_matcher("winter", winter_request_matcher)
     my_vcr.register_matcher("ps1", ps1_request_matcher)
     my_vcr.register_matcher("ztf", ztf_request_matcher)
     my_vcr.register_matcher("kait", kait_request_matcher)

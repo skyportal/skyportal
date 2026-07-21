@@ -19,9 +19,13 @@ import { makeStyles } from "tss-react/mui";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
-import * as profileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useGetTopSaversQuery } from "../../ducks/topSavers";
+import { useActiveTeam } from "../../ducks/teams";
 
 interface TopSaversSearchProps {
   savers?: any[];
@@ -142,12 +146,14 @@ const TopSaversSearch = ({ savers, setOptions }: TopSaversSearchProps) => {
       size="small"
       onChange={handleChange}
       variant="outlined"
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <SearchIcon fontSize="small" />
-          </InputAdornment>
-        ),
+      slotProps={{
+        input: {
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" />
+            </InputAdornment>
+          ),
+        },
       }}
       style={{ width: "100%" }}
     />
@@ -223,13 +229,15 @@ const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
 };
 
 const TopSavers = ({ classes }: TopSaversProps) => {
-  const dispatch = useAppDispatch();
   const { classes: styles } = useStyles();
-  const { savers } = useAppSelector((state) => state["topSavers"]);
-
-  const storedPrefs = useAppSelector(
-    (state) => (state.profile.preferences as any)?.topSavers,
+  const { activeTeam } = useActiveTeam();
+  const { data: savers } = useGetTopSaversQuery(
+    activeTeam ? { teamID: activeTeam.id } : undefined,
   );
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+
+  const storedPrefs = (profile?.preferences as any)?.topSavers;
   const topSaversPrefs = { ...defaultPrefs, ...storedPrefs };
 
   const [currentTimespan, setCurrentTimespan] = useState(
@@ -251,9 +259,7 @@ const TopSavers = ({ classes }: TopSaversProps) => {
     setCurrentTimespan(newTimespan);
     topSaversPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
 
-    dispatch(
-      profileActions.updateUserPreferences({ topSavers: topSaversPrefs }),
-    );
+    updateUserPreferences({ topSavers: topSaversPrefs });
   };
 
   return (
@@ -262,8 +268,10 @@ const TopSavers = ({ classes }: TopSaversProps) => {
         <div className={styles.header}>
           <Typography
             variant="h6"
-            display="inline"
             style={{ marginRight: "0.5rem" }}
+            sx={{
+              display: "inline",
+            }}
           >
             {topSaversPrefs.candidatesOnly ? "Top Scanners" : "Top Savers"}
           </Typography>
@@ -287,8 +295,10 @@ const TopSavers = ({ classes }: TopSaversProps) => {
                 anchorEl={anchorEl}
                 open={open}
                 onClose={() => setAnchorEl(null)}
-                MenuListProps={{
-                  "aria-labelledby": "basic-button",
+                slotProps={{
+                  list: {
+                    "aria-labelledby": "basic-button",
+                  },
                 }}
               >
                 {timespans.map((timespan) => (
@@ -316,11 +326,11 @@ const TopSavers = ({ classes }: TopSaversProps) => {
               }}
               stateBranchName="topSavers"
               title="Top Scanners Preferences"
-              onSubmit={profileActions.updateUserPreferences}
+              onSubmit={updateUserPreferences}
             />
           </div>
         </div>
-        <TopSaversList savers={savers} styles={styles} />
+        <TopSaversList savers={savers || []} styles={styles} />
       </div>
     </Paper>
   );

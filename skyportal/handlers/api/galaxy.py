@@ -455,7 +455,7 @@ def get_galaxies(
 
 class GalaxyCatalogHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Ingest a Galaxy catalog
@@ -717,7 +717,30 @@ class GalaxyCatalogHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfGalaxys
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              galaxies:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Galaxy'
+                              totalMatches:
+                                type: integer
+                              sortBy:
+                                type: string
+                              sortOrder:
+                                type: string
+                              page:
+                                type: integer
+                              numPerPage:
+                                type: integer
+                              geojson:
+                                type: object
             400:
               content:
                 application/json:
@@ -812,7 +835,7 @@ class GalaxyCatalogHandler(BaseHandler):
                 return self.error(f"get_galaxies fails: {e}")
 
     @permissions(["System admin"])
-    def delete(self, catalog_name: str):
+    async def delete(self, catalog_name: str):
         """
         ---
         summary: Delete a galaxy catalog
@@ -836,8 +859,8 @@ class GalaxyCatalogHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            catalog = session.scalar(
+        async with self.AsyncSession() as session:
+            catalog = await session.scalar(
                 GalaxyCatalog.select(session.user_or_token).where(
                     GalaxyCatalog.name == catalog_name
                 )
@@ -958,7 +981,7 @@ def add_galaxies(catalog_metadata, catalog_data):
 
 class GalaxyASCIIFileHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self):
+    async def post(self):
         """
         ---
         summary: Upload galaxies from ASCII file
@@ -1316,9 +1339,6 @@ def add_glade(file_path=None, file_url=None):
                 quotechar="'",
             )
             output.seek(0)
-            # psycopg3 COPY API: full `COPY ... FROM STDIN` statement +
-            # context-managed copy object. Same shape as the rewrite in
-            # `photometry.save_data_using_copy`.
             connection = DBSession().connection().connection
             quoted_columns = ", ".join(f'"{c}"' for c in columns)
             copy_sql = (
@@ -1343,14 +1363,7 @@ def add_glade(file_path=None, file_url=None):
     return full_length, full_blueshift_length
 
 
-def get_galaxies_completeness(
-    galaxies,
-    dist_min=0,
-    dist_max=10000,
-    M_min=8,
-    M_max=12,
-    M_x12=10.676,
-):
+def get_galaxies_completeness(galaxies, dist_min=0, dist_max=10000, M_min=8, M_max=12):
     # standard constants
     h = 0.7
     phiStar_M1 = 10 ** (-3.31) * h**3
@@ -1470,7 +1483,7 @@ class GalaxyGladeHandler(BaseHandler):
 
 class ObjHostHandler(BaseHandler):
     @permissions(["Upload data"])
-    def post(self, obj_id: str):
+    async def post(self, obj_id: str):
         """
         ---
         summary: Set an object's host galaxy
@@ -1513,21 +1526,21 @@ class ObjHostHandler(BaseHandler):
         if name is None:
             return self.error("galaxyName required to set object host")
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token, mode="update").where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
 
-            galaxy = session.scalars(
+            galaxy = await session.scalar(
                 Galaxy.select(session.user_or_token).where(Galaxy.name == name)
-            ).first()
+            )
             if galaxy is None:
                 return self.error(f"Cannot find Galaxy with name {name}")
 
             obj.host_id = galaxy.id
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
@@ -1536,7 +1549,7 @@ class ObjHostHandler(BaseHandler):
             return self.success()
 
     @permissions(["Upload data"])
-    def delete(self, obj_id: str):
+    async def delete(self, obj_id: str):
         """
         ---
         summary: Delete an object's host galaxy
@@ -1561,15 +1574,15 @@ class ObjHostHandler(BaseHandler):
                 schema: Error
         """
 
-        with self.Session() as session:
-            obj = session.scalars(
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
                 Obj.select(session.user_or_token, mode="update").where(Obj.id == obj_id)
-            ).first()
+            )
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
 
             obj.host_id = None
-            session.commit()
+            await session.commit()
 
             self.push_all(
                 "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}

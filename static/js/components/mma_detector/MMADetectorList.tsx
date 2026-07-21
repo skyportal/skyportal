@@ -2,19 +2,17 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Typography from "@mui/material/Typography";
 
-import { useAppSelector } from "../../types/hooks";
+import { useGetMMADetectorsQuery } from "../../ducks/mmadetector";
 
 interface MMADetectorListProps {
   isMobile?: boolean;
 }
 
 const MMADetectorList = ({ isMobile = false }: MMADetectorListProps) => {
-  const { mmadetectorList } = useAppSelector(
-    (state) => state["mmadetectors"] as any,
-  );
+  const { data: mmadetectorList } = useGetMMADetectorsQuery();
   return (
     <List>
-      {mmadetectorList.map((mmadetector: any) => (
+      {(mmadetectorList ?? []).map((mmadetector: any) => (
         <ListItem
           key={`${mmadetector.id}_info`}
           sx={{ flexDirection: "column", textAlign: "center" }}
@@ -28,7 +26,9 @@ const MMADetectorList = ({ isMobile = false }: MMADetectorListProps) => {
           </Typography>
           <Typography
             variant={isMobile ? "body2" : "body1"}
-            color="text.secondary"
+            sx={{
+              color: "text.secondary",
+            }}
           >
             {!mmadetector.lat && !mmadetector.lon
               ? "..."
@@ -39,7 +39,9 @@ const MMADetectorList = ({ isMobile = false }: MMADetectorListProps) => {
           {mmadetector.elevation !== null && (
             <Typography
               variant={isMobile ? "body2" : "body1"}
-              color="text.secondary"
+              sx={{
+                color: "text.secondary",
+              }}
             >
               Elevation: {mmadetector.elevation}
             </Typography>

@@ -1,15 +1,26 @@
-import * as profileActions from "../../../ducks/profile";
-import { useAppDispatch, useAppSelector } from "../../../types/hooks";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../../ducks/profile";
+import { useGetTelescopesQuery } from "../../../ducks/telescopes";
+import { useGetAcrossInstrumentsQuery } from "../../../ducks/across";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import SelectWithChips from "../../SelectWithChips";
 
 const ObservabilityPreferences = () => {
-  const profile = useAppSelector((state) => state.profile.preferences) as any;
-  const { telescopeList } = useAppSelector(
-    (state) => state["telescopes"],
-  ) as any;
+  const { data: profileData } = useGetProfileQuery();
+  const profile = (profileData?.preferences ?? {}) as any;
+  const { data: telescopeListData = [] } = useGetTelescopesQuery();
+  const { data: acrossInstruments = [] } = useGetAcrossInstrumentsQuery();
+  const telescopeList = [...telescopeListData];
+  // Telescopes backed by an ACROSS instrument (space facilities) are selectable
+  // too, even though they have no fixed location; their visibility is computed
+  // via the ACROSS calculator rather than airmass.
+  const acrossTelescopeIds = new Set(
+    acrossInstruments.map((inst: any) => inst.telescope_id),
+  );
 
-  const dispatch = useAppDispatch();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   const telescopeNametoID: Record<string, any> = { "Clear selections": "-1" };
   const telescopeIDToName: Record<string, any> = { "-1": "Clear selections" };
@@ -22,7 +33,7 @@ const ObservabilityPreferences = () => {
             (telescopeName: string) => telescopeNametoID[telescopeName],
           ),
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   telescopeList?.sort((a: any, b: any) => (a.name < b.name ? -1 : 1));
@@ -31,7 +42,10 @@ const ObservabilityPreferences = () => {
     telescopeIDToName[telescope.id] = telescope.name;
   });
   const telescopeNameList = telescopeList
-    .filter((telescope: any) => telescope.fixed_location)
+    .filter(
+      (telescope: any) =>
+        telescope.fixed_location || acrossTelescopeIds.has(telescope.id),
+    )
     .map((telescope: any) => telescope.name);
   telescopeNameList.unshift("Clear selections");
 

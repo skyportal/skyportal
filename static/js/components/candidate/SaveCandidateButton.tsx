@@ -17,7 +17,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 
-import * as sourceActions from "../../ducks/source";
+import { useSaveSourceMutation } from "../../ducks/source";
 import FormValidationError from "../FormValidationError";
 
 interface GroupOption {
@@ -44,6 +44,7 @@ const SaveCandidateButton = ({
   // Dialog logic:
 
   const dispatch = useAppDispatch();
+  const [saveSource] = useSaveSourceMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const {
@@ -120,8 +121,8 @@ const SaveCandidateButton = ({
       if (groupName) selectedGroupNames.push(groupName);
     });
     data.refresh_source = false;
-    const result: any = await dispatch(sourceActions.saveSource(data));
-    if (result.status === "success") {
+    try {
+      await saveSource(data).unwrap();
       dispatch(
         showNotification(
           `Candidate successfully saved to groups: ${selectedGroupNames.join()}.`,
@@ -129,6 +130,8 @@ const SaveCandidateButton = ({
       );
       reset();
       setDialogOpen(false);
+    } catch {
+      // error notification handled by the baseQuery
     }
     setIsSubmitting(false);
   };
@@ -163,8 +166,8 @@ const SaveCandidateButton = ({
         const groupName = groupLookUp[id]?.name;
         if (groupName) selectedGroupNames.push(groupName);
       });
-      const result: any = await dispatch(sourceActions.saveSource(data));
-      if (result.status === "success") {
+      try {
+        await saveSource(data).unwrap();
         dispatch(
           showNotification(
             `Candidate successfully saved to group${
@@ -172,6 +175,8 @@ const SaveCandidateButton = ({
             }: ${selectedGroupNames.join()}.`,
           ),
         );
+      } catch {
+        // error notification handled by the baseQuery
       }
       setIsSubmitting(false);
     } else if (index === 1) {

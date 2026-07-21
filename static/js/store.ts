@@ -1,6 +1,6 @@
 import { createStore, combineReducers, applyMiddleware, compose } from "redux";
 import type { AnyAction, Middleware, Reducer } from "redux";
-import thunk from "redux-thunk";
+import { thunk } from "redux-thunk";
 
 import { reducer as notificationsReducer } from "baselayer/components/Notifications";
 
@@ -10,6 +10,7 @@ import {
   withReduxStateSync,
 } from "redux-state-sync";
 
+import { skyportalApi } from "./api/skyportalApi";
 import type { AppStore } from "./types/store";
 
 declare global {
@@ -17,6 +18,12 @@ declare global {
     __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: typeof compose;
   }
 }
+
+// rspack replaces the literal `process.env.NODE_ENV` at build time. Declare a
+// minimal `process` locally so the guard typechecks without depending on
+// @types/node's global being picked up by the frontend tsconfig — which it
+// isn't in CI (tsc's default @types discovery doesn't find node types there).
+declare const process: { env: { NODE_ENV?: string } };
 
 const syncConfig = {
   whitelist: [
@@ -56,7 +63,15 @@ const composeWithDevTools =
 function configureStore(): AppStore {
   const nullReducer: Reducer = (state = null) => state;
 
-  const middlewares = [thunk, logger, createStateSyncMiddleware(syncConfig)];
+  const middlewares = [
+    thunk,
+    skyportalApi.middleware,
+    // Dev-only: logs prev/action/next state on every dispatch. Guarded so it's
+    // stripped from production builds (rspack --mode=production defines
+    // process.env.NODE_ENV), avoiding per-action console cost for every user.
+    ...(process.env.NODE_ENV === "development" ? [logger] : []),
+    createStateSyncMiddleware(syncConfig),
+  ];
 
   const store = createStore(
     nullReducer,
@@ -81,5 +96,10 @@ const store = configureStore();
 
 // Add the notifications reducer from baselayer
 store.injectReducer("notifications", notificationsReducer);
+
+// Add the RTK Query cache reducer. Endpoints injected by individual ducks all
+// live under this single `skyportalApi` reducer. Its actions are not in the
+// `syncConfig` whitelist, so the cache is intentionally not synced across tabs.
+store.injectReducer(skyportalApi.reducerPath, skyportalApi.reducer);
 
 export default store;

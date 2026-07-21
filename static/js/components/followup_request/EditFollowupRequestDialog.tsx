@@ -4,9 +4,8 @@ import DialogContent from "@mui/material/DialogContent";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import * as Actions from "../../ducks/source";
+import { useEditFollowupRequestMutation } from "../../ducks/source";
 
 interface EditFollowupRequestDialogProps {
   followupRequest: {
@@ -40,7 +39,7 @@ const EditFollowupRequestDialog = ({
   requestType = "triggered",
   serverSide = false,
 }: EditFollowupRequestDialogProps) => {
-  const dispatch = useAppDispatch();
+  const [editFollowupRequestMutation] = useEditFollowupRequestMutation();
   const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {
@@ -63,7 +62,10 @@ const EditFollowupRequestDialog = ({
     if (serverSide) {
       json.refreshRequests = true;
     }
-    dispatch(Actions.editFollowupRequest(json, followupRequest.id));
+    editFollowupRequestMutation({
+      params: json,
+      requestID: followupRequest.id,
+    });
     handleClose();
   };
 

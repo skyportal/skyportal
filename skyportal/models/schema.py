@@ -30,6 +30,9 @@ from marshmallow_sqlalchemy import (
     SQLAlchemyAutoSchema as _SQLAlchemyAutoSchema,
 )
 from marshmallow_sqlalchemy.fields import Related, RelatedList
+from sqlalchemy import JSON as _JSON
+from sqlalchemy.dialects.postgresql import ARRAY as _ARRAY
+from sqlalchemy.dialects.postgresql import JSONB as _JSONB
 
 from baselayer.app.env import load_env
 from baselayer.app.models import Base as _Base
@@ -116,6 +119,32 @@ def success(schema_name, base_schema=None):
     return type(schema_name, (_Schema,), schema_fields)
 
 
+# Populated by setup_schema() as it walks each SQLAlchemy model.
+# Maps model class name -> {relationship name: (related class name, is_list)}.
+# Consumed by register_components() to rewrite the generated OpenAPI spec
+# so SQLAlchemy relationships render as proper $refs instead of unknowns.
+_relationship_map: dict[str, dict[str, tuple[str, bool]]] = {}
+
+# Column-level metadata gathered alongside `_relationship_map`. The spec
+# post-processor in register_components() uses it to give the right JSON
+# Schema type to columns apispec couldn't resolve on its own:
+#   * `_jsonb_columns`:  free-form JSON column → object/additionalProperties
+#   * `_array_item_types`: postgres ARRAY column → array of typed items
+_jsonb_columns: dict[str, set[str]] = {}
+_array_item_types: dict[str, dict[str, str]] = {}
+
+
+# Map a SQLAlchemy primitive Python type to an OpenAPI/JSON Schema type. Used
+# to fill in the item type of postgres ARRAY columns whose elements apispec
+# defaults to untyped.
+_PYTHON_TO_OPENAPI_TYPE: dict[type, str] = {
+    int: "integer",
+    float: "number",
+    bool: "boolean",
+    str: "string",
+}
+
+
 def setup_schema():
     """For each model, install a marshmallow schema generator as
     `model.__schema__()`, and add an entry to the `schema`
@@ -173,7 +202,13 @@ def setup_schema():
                 # marshmallow-sqlalchemy 1.5+ marks Related fields as required
                 # on load. Our API contract is "send FK IDs, return nested
                 # objects", so make relationships dump-only — they appear in
-                # GET responses but are not demanded on POST/PUT.
+                # GET responses but are not demanded on POST/PUT. The runtime
+                # dumped value of a Related field is just the related row's
+                # primary key; handlers that want the nested object overlay
+                # `**model.to_dict()` with their own nested data. The OpenAPI
+                # spec is rewritten by register_components() below to claim a
+                # proper $ref for these fields, matching what handlers
+                # actually return.
                 for _field in schema_class._declared_fields.values():
                     if isinstance(_field, Related | RelatedList):
                         _field.dump_only = True
@@ -181,6 +216,41 @@ def setup_schema():
 
                 if add_to_model:
                     setattr(class_, "__schema__", schema_class)
+
+                # Cache the model -> {relationship_name: (related_model_name,
+                # is_list)} map so register_components() can rewrite the
+                # generated spec without re-introspecting SQLAlchemy.
+                _relationship_map[schema_class_name] = {
+                    rel.key: (rel.mapper.class_.__name__, rel.uselist)
+                    for rel in mapper.relationships
+                    if hasattr(rel.mapper.class_, "__tablename__")
+                }
+                # Cache postgres JSONB and ARRAY columns so the spec
+                # post-processor can render them as `{type: object,
+                # additionalProperties: true}` and typed array items
+                # respectively. apispec maps both column types to an empty
+                # schema, which becomes a bare `unknown` in generated TS.
+                jsonb = set()
+                arr: dict[str, str] = {}
+                for col in mapper.columns:
+                    # Native JSONB/JSON columns, plus baselayer's PSA
+                    # ``JSONType`` (TypeDecorator over PickleType used for
+                    # social-auth ``UserSocialAuth.extra_data`` and
+                    # ``Partial.data``). Pattern-match on the type's name so
+                    # we don't have to drag in the psa module here.
+                    if (
+                        isinstance(col.type, _JSONB | _JSON)
+                        or type(col.type).__name__ == "JSONType"
+                    ):
+                        jsonb.add(col.name)
+                    elif isinstance(col.type, _ARRAY):
+                        item_py = getattr(col.type.item_type, "python_type", None)
+                        if item_py and item_py in _PYTHON_TO_OPENAPI_TYPE:
+                            arr[col.name] = _PYTHON_TO_OPENAPI_TYPE[item_py]
+                if jsonb:
+                    _jsonb_columns[schema_class_name] = jsonb
+                if arr:
+                    _array_item_types[schema_class_name] = arr
 
                 setattr(sys.modules[__name__], schema_class_name, schema_class())
 
@@ -639,6 +709,9 @@ class PhotBase:
         load_default=None,
     )
 
+    # Kept as Raw so the PhotometryFlux/Mag load path (called from
+    # photometry.py:2098) accepts whatever the caller sends; spec gets
+    # `type: string` via metadata.
     origin = fields.Raw(
         metadata={
             "description": (
@@ -646,7 +719,8 @@ class PhotBase:
                 "already present with identical origin, only the "
                 "groups or streams list will be updated (other data assumed "
                 "identical). Defaults to None."
-            )
+            ),
+            "type": "string",
         },
         load_default=None,
     )
@@ -813,12 +887,14 @@ class PhotometryFlux(_Schema, PhotBase):
         from skyportal.models import PHOT_SYS, PHOT_ZP, Instrument, Obj, Photometry
 
         # get the instrument
-        instrument = Instrument.query.get(data["instrument_id"])
+        instrument = _DBSession().get(Instrument, data["instrument_id"])
         if not instrument:
             raise ValidationError(f"Invalid instrument ID: {data['instrument_id']}")
 
         # get the object
-        obj = Obj.query.get(data["obj_id"])  # TODO : implement permissions checking
+        obj = _DBSession().get(
+            Obj, data["obj_id"]
+        )  # TODO : implement permissions checking
         if not obj:
             raise ValidationError(f"Invalid object ID: {data['obj_id']}")
 
@@ -837,8 +913,9 @@ class PhotometryFlux(_Schema, PhotBase):
         # conversion happens here
         photdata = PhotometricData(table).normalized(zp=PHOT_ZP, zpsys=PHOT_SYS)
 
-        # replace with null if needed
-        final_flux = None if data["flux"] is None else photdata.flux[0]
+        # A non-detection has no flux; store it as NaN (the flux column is
+        # NOT NULL), matching how the bulk upload path persists non-detections.
+        final_flux = np.nan if data["flux"] is None else photdata.flux[0]
 
         if data.get("ref_flux") is not None and data.get("ref_fluxerr") is not None:
             ref_flux = data["ref_flux"]
@@ -988,12 +1065,14 @@ class PhotometryMag(_Schema, PhotBase):
             )
 
         # get the instrument
-        instrument = Instrument.query.get(data["instrument_id"])
+        instrument = _DBSession().get(Instrument, data["instrument_id"])
         if not instrument:
             raise ValidationError(f"Invalid instrument ID: {data['instrument_id']}")
 
         # get the object
-        obj = Obj.query.get(data["obj_id"])  # TODO: implement permissions checking
+        obj = _DBSession().get(
+            Obj, data["obj_id"]
+        )  # TODO: implement permissions checking
         if not obj:
             raise ValidationError(f"Invalid object ID: {data['obj_id']}")
 
@@ -1062,8 +1141,9 @@ class PhotometryMag(_Schema, PhotBase):
             ref_flux = None
             ref_fluxerr = None
 
-        # replace with null if needed
-        final_flux = None if flux is None else photdata.flux[0]
+        # A non-detection has no flux; store it as NaN (the flux column is
+        # NOT NULL), matching how the bulk upload path persists non-detections.
+        final_flux = np.nan if flux is None else photdata.flux[0]
 
         p = Photometry(
             obj_id=data["obj_id"],
@@ -1122,12 +1202,17 @@ class ObservationHandlerPost(_Schema):
 
 
 class ObservationExternalAPIHandlerPost(_Schema):
+    # The handler pre-processes both to `astropy.time.Time` or `datetime` and
+    # then calls `.load()` on this schema, so Raw is needed to pass them
+    # through; the spec gets its type via the metadata override.
     start_date = fields.Raw(
-        required=True, metadata={"description": "start date of the request."}
+        required=True,
+        metadata={"description": "start date of the request.", "type": "string"},
     )
 
     end_date = fields.Raw(
-        required=True, metadata={"description": "end date of the request."}
+        required=True,
+        metadata={"description": "end date of the request.", "type": "string"},
     )
 
     allocation_id = fields.Integer(
@@ -1184,23 +1269,25 @@ class ObservingRunPost(_Schema):
 
 
 class GcnHandlerPut(_Schema):
-    dateobs = fields.Raw(metadata={"description": "UTC event timestamp"})
+    dateobs = fields.String(metadata={"description": "UTC event timestamp"})
     xml = fields.String(metadata={"description": "VOEvent XML content."})
     json = fields.String(metadata={"description": "JSON notice content."})
 
 
 class GcnEventHandlerGet(_Schema):
-    tags = fields.List(fields.Raw(), metadata={"description": "Event tags"})
-    dateobs = fields.Raw(metadata={"description": "UTC event timestamp"})
+    tags = fields.List(fields.String(), metadata={"description": "Event tags"})
+    dateobs = fields.String(metadata={"description": "UTC event timestamp"})
     localizations = fields.List(
-        fields.Raw(), metadata={"description": "Healpix localizations"}
+        fields.Dict(), metadata={"description": "Healpix localizations"}
     )
-    notices = fields.List(fields.Raw(), metadata={"description": "VOEvent XML notices"})
+    notices = fields.List(
+        fields.String(), metadata={"description": "VOEvent XML notices"}
+    )
     lightcurve = fields.String(metadata={"description": "URL for light curve"})
 
 
 class GcnEventTagPost(_Schema):
-    dateobs = fields.Raw(metadata={"description": "UTC event timestamp"})
+    dateobs = fields.String(metadata={"description": "UTC event timestamp"})
     text = fields.String(metadata={"description": "GCN Event tag"})
 
 
@@ -1210,11 +1297,11 @@ class LocalizationHandlerGet(_Schema):
     flat_2d = fields.List(
         fields.Float, metadata={"description": "Flattened 2D healpix map"}
     )
-    contour = fields.Raw(metadata={"description": "GeoJSON contours of healpix map"})
+    contour = fields.Dict(metadata={"description": "GeoJSON contours of healpix map"})
 
 
 class GcnEventViewsHandlerGet(_Schema):
-    tags = fields.List(fields.Raw(), metadata={"description": "Event list"})
+    tags = fields.List(fields.String(), metadata={"description": "Event list"})
 
 
 class FollowupRequestPost(_Schema):
@@ -1447,7 +1534,7 @@ class CatalogQueryPost(_Schema):
 
 
 class DefaultGcnTagPost(_Schema):
-    filters = fields.Raw(
+    filters = fields.Dict(
         required=True,
         metadata={
             "description": "Filters to determine which of the default gcn tags get executed for which events"
@@ -1508,7 +1595,7 @@ class DefaultFollowupRequestPost(_Schema):
         metadata={"description": "Unique name of the default follow-up request."},
     )
 
-    source_filter = fields.Raw(
+    source_filter = fields.Dict(
         required=True,
         metadata={
             "description": (
@@ -1670,7 +1757,14 @@ class ObservingRunGet(ObservingRunPost):
     owner_id = fields.Integer(
         metadata={"description": "The User ID of the owner of this run."}
     )
-    ephemeris = fields.Raw(metadata={"description": "Observing run ephemeris data."})
+    # Raw so the @pre_dump injected ephemeris pass-through stays unchanged;
+    # `type: object` in metadata gives apispec a real type for the spec.
+    ephemeris = fields.Raw(
+        metadata={
+            "description": "Observing run ephemeris data.",
+            "type": "object",
+        }
+    )
     id = fields.Integer(metadata={"description": "Unique identifier for the run."})
 
     @pre_dump
@@ -1680,8 +1774,14 @@ class ObservingRunGet(ObservingRunPost):
 
 
 class ObservingRunGetWithAssignments(ObservingRunGet):
-    assignments = fields.List(fields.Raw())
-    instrument = fields.Raw()
+    # SQLAlchemy ORM instances flow through these fields verbatim; Raw keeps
+    # the runtime behaviour (the call site in observingrun.py does its own
+    # post-processing) and the metadata supplies the OpenAPI type.
+    assignments = fields.List(
+        fields.Raw(metadata={"type": "object"}),
+        metadata={"type": "array"},
+    )
+    instrument = fields.Raw(metadata={"type": "object"})
 
 
 class PhotometryRangeQuery(_Schema):
@@ -2098,7 +2198,11 @@ class SpectrumPost(_Schema):
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
-            " to make this spectrum visible to all users."
+            " to make this spectrum visible to all users.",
+            "oneOf": [
+                {"type": "array", "items": {"type": "integer"}},
+                {"type": "string", "enum": ["all"]},
+            ],
         },
     )
 
@@ -2211,7 +2315,11 @@ class SpectrumHead(_Schema):
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
-            " to make this spectrum visible to all users."
+            " to make this spectrum visible to all users.",
+            "oneOf": [
+                {"type": "array", "items": {"type": "integer"}},
+                {"type": "string", "enum": ["all"]},
+            ],
         },
     )
 
@@ -2268,7 +2376,11 @@ class MMADetectorSpectrumPost(_Schema):
         load_default=[],
         metadata={
             "description": 'IDs of the Groups to share this spectrum with. Set to "all"'
-            " to make this spectrum visible to all users."
+            " to make this spectrum visible to all users.",
+            "oneOf": [
+                {"type": "array", "items": {"type": "integer"}},
+                {"type": "string", "enum": ["all"]},
+            ],
         },
     )
 
@@ -2328,6 +2440,277 @@ class SpatialCatalogASCIIFileHandlerPost(_Schema):
     catalogData = fields.Dict(metadata={"description": "Catalog data Ascii string"})
 
 
+class ObjAnalysisDetail(_Schema):
+    """Response shape of ``AnalysisHandler.get`` for ``analysis_resource_type='obj'``.
+
+    Mirrors the runtime dict produced by ``recursive_to_dict(ObjAnalysis)`` plus
+    the handler-injected service/plot/groups/filename/data fields. The base
+    ``ObjAnalysis`` fields flow through as ``additionalProperties``; this schema
+    types only what callers in the SPA consume directly.
+    """
+
+    id = fields.Integer(metadata={"description": "Unique identifier for the analysis."})
+    obj_id = fields.String(
+        metadata={"description": "ID of the Obj this analysis was run on."}
+    )
+    analysis_service_id = fields.Integer(
+        metadata={
+            "description": "ID of the AnalysisService used to produce this analysis."
+        }
+    )
+    analysis_service_name = fields.String(
+        metadata={
+            "description": "Display name of the AnalysisService, injected by the handler."
+        }
+    )
+    analysis_service_description = fields.String(
+        metadata={
+            "description": "Description of the AnalysisService, injected by the handler."
+        }
+    )
+    num_plots = fields.Integer(
+        metadata={
+            "description": (
+                "Number of plots in this analysis's data. Single-analysis "
+                "responses only."
+            )
+        }
+    )
+    groups = fields.List(
+        fields.Raw(metadata={"type": "object"}),
+        metadata={
+            "description": "Groups with access to this analysis.",
+            "type": "array",
+        },
+    )
+    filename = fields.String(
+        metadata={
+            "description": (
+                "Server-side filename for the analysis payload. Present only "
+                "when ``includeFilename=true``."
+            )
+        }
+    )
+    data = fields.Raw(
+        metadata={
+            "description": (
+                "Raw analysis payload (results/plots/inference_data). Present "
+                "only when ``includeAnalysisData=true`` on single-analysis "
+                "requests."
+            ),
+            "type": "object",
+        }
+    )
+    analysis_parameters = fields.Raw(
+        metadata={
+            "description": (
+                "Parameters passed to the analysis service (sensitive keys stripped)."
+            ),
+            "type": "object",
+        }
+    )
+    status = fields.String(
+        metadata={"description": "Current status of the analysis run."}
+    )
+    status_message = fields.String(
+        metadata={"description": "Human-readable status detail."}
+    )
+
+    class Meta:
+        # Base ObjAnalysis fields (created_at, last_activity, ...) flow through
+        # untyped; declared keys above are the contract callers rely on.
+        additional = ()
+
+
+def _is_typeless(node) -> bool:
+    """True if a schema dict is missing the basic shape hints — neither type
+    nor $ref nor composition keyword — and therefore renders as `unknown` in
+    generated TS."""
+    if not isinstance(node, dict):
+        return False
+    return not any(k in node for k in ("type", "$ref", "allOf", "oneOf", "anyOf"))
+
+
+# Field-name → JSON Schema scalar type for the PhotMag/PhotFlux/Flex schemas.
+# Those schemas declare every "scalar or 1D list" field as a `fields.Raw` for
+# runtime flexibility, which gives apispec no type to infer. The rewrite
+# below replaces each such field with `oneOf: [scalar, array<scalar>]`.
+_FLEX_SCALAR_TYPES: dict[str, str] = {
+    "mjd": "number",
+    "ra": "number",
+    "dec": "number",
+    "ra_unc": "number",
+    "dec_unc": "number",
+    "flux": "number",
+    "fluxerr": "number",
+    "zp": "number",
+    "ref_flux": "number",
+    "ref_fluxerr": "number",
+    "ref_zp": "number",
+    "mag": "number",
+    "magerr": "number",
+    "limiting_mag": "number",
+    "limiting_mag_nsigma": "number",
+    "magref": "number",
+    "e_magref": "number",
+    "obj_id": "string",
+    "origin": "string",
+    "magsys": "string",
+    "filter": "string",
+    "instrument_id": "integer",
+}
+
+
+def _flex_field_schema(field_name: str) -> dict | None:
+    """JSON Schema for a `PhotBaseFlexible`-style "scalar or 1D list" field.
+    `group_ids`/`stream_ids` are list-only; everything else is a oneOf."""
+    if field_name in ("group_ids", "stream_ids"):
+        return {"type": "array", "items": {"type": "integer"}}
+    scalar = _FLEX_SCALAR_TYPES.get(field_name)
+    if scalar is None:
+        return None
+    return {
+        "oneOf": [
+            {"type": scalar},
+            {"type": "array", "items": {"type": scalar}},
+        ]
+    }
+
+
+# Schemas whose typeless fields should be filled in via `_flex_field_schema`.
+# Includes the *Flexible* subclasses used directly for input docs and the
+# per-record *PhotometryFlux/Mag* schemas — both accept scalar-or-list values
+# in their ``fields.Raw`` declarations.
+_FLEX_SCHEMAS = (
+    "PhotFluxFlexible",
+    "PhotMagFlexible",
+    "PhotMagFluxFlexible",
+    "PhotometryFlux",
+    "PhotometryMag",
+)
+
+
+def _rewrite_model_props(spec):
+    """Fill in JSON Schema types for properties apispec couldn't resolve.
+
+    Walks every variant of each registered SQLAlchemy-backed schema and
+    applies, in order of specificity:
+
+      1. SQLAlchemy relationships → ``allOf: [$ref Related]`` (or
+         ``{type: array, items: {$ref ...}}`` for one-to-many). Catches the
+         ``Related``/``RelatedList`` fields marshmallow-sqlalchemy generates,
+         which otherwise come through as empty objects.
+      2. JSONB columns → ``{type: object, additionalProperties: true}`` so
+         downstream TS gets ``{[key: string]: unknown}`` rather than bare
+         ``unknown``.
+      3. postgres ARRAY columns → ``{type: array, items: {type: ...}}`` with
+         the item type inferred from the SQLAlchemy column's element type.
+      4. Generic heuristics that fix common apispec misses:
+         ``enum`` ⇒ ``type: string``; ``maxLength`` ⇒ ``type: string``.
+
+    Rewrite is purely spec-level — runtime serialization is unchanged.
+    """
+    rels = _relationship_map
+    # Pre-sort known model names by length descending so the prefix lookup
+    # below picks the most specific match (e.g. "LocalizationProperty" over
+    # "Localization" for the spec name "LocalizationPropertyNoID").
+    known_models = sorted(rels.keys(), key=len, reverse=True)
+    for spec_name, spec_schema in spec.components.schemas.items():
+        # The schema may be registered under several variants (Foo, FooNoID,
+        # FooPost, …); strip suffixes to find the underlying model.
+        model_name = next(
+            (
+                n
+                for n in known_models
+                if spec_name.startswith(n)
+                and (
+                    spec_name == n
+                    or spec_name[len(n)].isupper()
+                    or spec_name[len(n) :] in ("NoID", "Post")
+                )
+            ),
+            None,
+        )
+        props = spec_schema.get("properties") if isinstance(spec_schema, dict) else None
+        if not props:
+            continue
+
+        model_rels = rels.get(model_name, {}) if model_name else {}
+        model_jsonb = _jsonb_columns.get(model_name, set()) if model_name else set()
+        model_arrays = _array_item_types.get(model_name, {}) if model_name else {}
+        is_flex = any(spec_name.startswith(s) for s in _FLEX_SCHEMAS)
+
+        for field_name, field_schema in props.items():
+            if not isinstance(field_schema, dict):
+                continue
+
+            # 0. PhotMag/PhotFlux "scalar or list" Raw fields → oneOf
+            if is_flex and _is_typeless(field_schema):
+                flex = _flex_field_schema(field_name)
+                if flex is not None:
+                    description = field_schema.get("description")
+                    field_schema.clear()
+                    field_schema.update(flex)
+                    if description:
+                        field_schema["description"] = description
+                    continue
+
+            # 1. relationship → $ref
+            if field_name in model_rels:
+                related_name, is_list = model_rels[field_name]
+                ref = {"$ref": f"#/components/schemas/{related_name}"}
+                if is_list:
+                    items = field_schema.get("items")
+                    if isinstance(items, dict) and _is_typeless(items):
+                        items.clear()
+                        items.update(ref)
+                elif _is_typeless(field_schema):
+                    description = field_schema.get("description")
+                    readonly = field_schema.get("readOnly")
+                    field_schema.clear()
+                    field_schema["allOf"] = [ref]
+                    if description:
+                        field_schema["description"] = description
+                    if readonly:
+                        field_schema["readOnly"] = readonly
+                continue
+
+            # 2. JSONB column → free-form object
+            if field_name in model_jsonb and _is_typeless(field_schema):
+                field_schema["type"] = "object"
+                field_schema["additionalProperties"] = True
+                continue
+
+            # 3. ARRAY column → typed items
+            if field_name in model_arrays:
+                if field_schema.get("type") == "array":
+                    items = field_schema.get("items")
+                    if isinstance(items, dict) and _is_typeless(items):
+                        items["type"] = model_arrays[field_name]
+                elif _is_typeless(field_schema):
+                    field_schema["type"] = "array"
+                    field_schema["items"] = {"type": model_arrays[field_name]}
+                continue
+
+            # 4. Generic heuristics
+            if _is_typeless(field_schema):
+                if "enum" in field_schema:
+                    enum_vals = [v for v in field_schema["enum"] if v is not None]
+                    if enum_vals and all(isinstance(v, str) for v in enum_vals):
+                        field_schema["type"] = "string"
+                    elif enum_vals and all(
+                        isinstance(v, int) and not isinstance(v, bool)
+                        for v in enum_vals
+                    ):
+                        field_schema["type"] = "integer"
+                elif (
+                    "maxLength" in field_schema
+                    or "minLength" in field_schema
+                    or "pattern" in field_schema
+                ):
+                    field_schema["type"] = "string"
+
+
 def register_components(spec):
     print("Registering schemas with APISpec")
 
@@ -2342,6 +2725,8 @@ def register_components(spec):
         arrayOf = "ArrayOf" + name + "s"
         spec.components.schema(single, schema=success(single, schema))
         spec.components.schema(arrayOf, schema=success(arrayOf, [schema]))
+
+    _rewrite_model_props(spec)
 
 
 # Replace schemas by instantiated versions
@@ -2370,3 +2755,4 @@ SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
 SpectrumHead = SpectrumHead()
 GroupIDList = GroupIDList()
+ObjAnalysisDetail = ObjAnalysisDetail()

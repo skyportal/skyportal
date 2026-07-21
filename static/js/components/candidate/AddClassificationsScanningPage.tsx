@@ -9,10 +9,12 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import ClassificationSelect from "../classification/ClassificationSelect";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as Actions from "../../ducks/source";
+import { useAppDispatch } from "../../types/hooks";
+import { useAddClassificationMutation } from "../../ducks/source";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { allowedClasses } from "../classification/ClassificationForm";
 import Button from "../Button";
+import { useIsReadOnly } from "../../ducks/profile";
 
 interface AddClassificationsScanningPageProps {
   obj_id: string;
@@ -21,15 +23,15 @@ interface AddClassificationsScanningPageProps {
 const AddClassificationsScanningPage = ({
   obj_id,
 }: AddClassificationsScanningPageProps) => {
+  const isReadOnly = useIsReadOnly();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedClassifications, setSelectedClassifications] = useState<
     string[]
   >([]);
   const dispatch = useAppDispatch();
+  const [addClassification] = useAddClassificationMutation();
 
-  const { taxonomyList } = useAppSelector(
-    (state) => state["taxonomies"],
-  ) as any;
+  const { data: taxonomyList } = useGetTaxonomiesQuery();
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   const classificationsAndTaxonomyIds: Record<string, number> = {};
   latestTaxonomyList?.forEach((taxonomy: any) => {
@@ -40,6 +42,10 @@ const AddClassificationsScanningPage = ({
   });
 
   const { handleSubmit } = useForm();
+
+  if (isReadOnly) {
+    return null;
+  }
 
   const openDialog = () => {
     setDialogOpen(true);
@@ -57,9 +63,11 @@ const AddClassificationsScanningPage = ({
         classification,
         probability: 1,
       };
-      const result: any = await dispatch(Actions.addClassification(data));
-      if (result.status === "success") {
+      try {
+        await addClassification(data).unwrap();
         dispatch(showNotification(`Classification ${classification} saved`));
+      } catch {
+        // error notification handled by the baseQuery
       }
     });
     setSelectedClassifications([]);

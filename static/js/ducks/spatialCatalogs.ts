@@ -1,82 +1,83 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Spatial catalogs.
+ *
+ * RTK Query conversion of the old `FETCH_SPATIAL_CATALOGS` /
+ * `FETCH_SPATIAL_CATALOG` ducks. The list query is injected into the central
+ * `skyportalApi`; the single-catalog query fetches one catalog by id. Upload and
+ * delete are mutations that invalidate the relevant tags so the list/detail
+ * refetch.
+ *
+ * Websocket-driven invalidation bridges `REFRESH_SPATIAL_CATALOGS` (refetch the
+ * full list) and `REFRESH_SPATIAL_CATALOG` (refetch a single catalog, but only
+ * when the pushed id matches a catalog that is currently cached) to cache
+ * invalidation.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
+export const spatialCatalogsApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getSpatialCatalogs: build.query<
+      RouteData<"GET /api/spatial_catalog">,
+      Record<string, unknown> | void
+    >({
+      query: (filterParams) => {
+        const params = new URLSearchParams(
+          (filterParams as Record<string, string>) ?? {},
+        ).toString();
+        return params ? `api/spatial_catalog?${params}` : "api/spatial_catalog";
+      },
+      providesTags: ["SpatialCatalogs"],
+    }),
+    getSpatialCatalog: build.query<
+      RouteData<"GET /api/spatial_catalog/{catalog_id}">,
+      number | string
+    >({
+      query: (id) => `api/spatial_catalog/${id}`,
+      providesTags: ["SpatialCatalog"],
+    }),
+    uploadSpatialCatalogs: build.mutation<unknown, Record<string, unknown>>({
+      query: (data) => ({
+        url: "api/spatial_catalog/ascii",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["SpatialCatalogs"],
+    }),
+    deleteSpatialCatalog: build.mutation<unknown, number | string>({
+      query: (id) => ({
+        url: `api/spatial_catalog/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["SpatialCatalogs", "SpatialCatalog"],
+    }),
+  }),
+});
 
-export const REFRESH_SPATIAL_CATALOG = "skyportal/REFRESH_SPATIAL_CATALOG";
+// Websocket: refresh the full list on REFRESH_SPATIAL_CATALOGS.
+invalidateOnMessage("skyportal/REFRESH_SPATIAL_CATALOGS", () => [
+  "SpatialCatalogs",
+]);
 
-export const DELETE_SPATIAL_CATALOG = "skyportal/DELETE_SPATIAL_CATALOG";
-
-export const FETCH_SPATIAL_CATALOG = "skyportal/FETCH_SPATIAL_CATALOG";
-export const FETCH_SPATIAL_CATALOG_OK = "skyportal/FETCH_SPATIAL_CATALOG_OK";
-
-const REFRESH_SPATIAL_CATALOGS = "skyportal/REFRESH_SPATIAL_CATALOGS";
-
-const FETCH_SPATIAL_CATALOGS = "skyportal/FETCH_SPATIAL_CATALOGS";
-const FETCH_SPATIAL_CATALOGS_OK = "skyportal/FETCH_SPATIAL_CATALOGS_OK";
-
-const UPLOAD_SPATIAL_CATALOGS = "skyportal/UPLOAD_SPATIAL_CATALOGS";
-
-export const fetchSpatialCatalog = (id: number | string) =>
-  API.GET(`/api/spatial_catalog/${id}`, FETCH_SPATIAL_CATALOG);
-
-export const fetchSpatialCatalogs = (filterParams: Record<string, any> = {}) =>
-  API.GET("/api/spatial_catalog", FETCH_SPATIAL_CATALOGS, filterParams);
-
-export function uploadSpatialCatalogs(data: Record<string, any>) {
-  return API.POST(`/api/spatial_catalog/ascii`, UPLOAD_SPATIAL_CATALOGS, data);
-}
-
-export function deleteSpatialCatalog(id: number | string) {
-  return API.DELETE(`/api/spatial_catalog/${id}`, DELETE_SPATIAL_CATALOG);
-}
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: any, payload: any, dispatch: any, getState: any) => {
-    if (actionType === REFRESH_SPATIAL_CATALOGS) {
-      dispatch(fetchSpatialCatalogs());
-    }
-    const { spatialCatalog } = getState();
-    if (actionType === FETCH_SPATIAL_CATALOG) {
-      dispatch(fetchSpatialCatalog(spatialCatalog.id));
-    }
-    if (actionType === REFRESH_SPATIAL_CATALOG) {
-      const loaded_spatial_catalog = spatialCatalog?.id;
-
-      if (loaded_spatial_catalog === payload.spatialCatalog_id) {
-        dispatch(fetchSpatialCatalog(spatialCatalog.id));
-      }
-    }
+// Websocket: refresh a single catalog on REFRESH_SPATIAL_CATALOG, but only when
+// the pushed id matches a catalog currently held in the cache (preserving the
+// old handler's "only refresh if the loaded catalog matches" gating).
+invalidateOnMessage(
+  "skyportal/REFRESH_SPATIAL_CATALOG",
+  (payload, getState) => {
+    const selectCatalog = spatialCatalogsApi.endpoints.getSpatialCatalog.select(
+      payload?.spatialCatalog_id,
+    );
+    const state = getState() as Parameters<typeof selectCatalog>[0];
+    const cached = selectCatalog(state)?.data;
+    return cached ? ["SpatialCatalog"] : null;
   },
 );
 
-const reducer_spatialCatalogs = (
-  state: any = null,
-  action: { type: string; data?: any },
-): any => {
-  switch (action.type) {
-    case FETCH_SPATIAL_CATALOGS_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("spatialCatalogs", reducer_spatialCatalogs);
-
-const reducer_spatialCatalog = (
-  state: any = null,
-  action: { type: string; data?: any },
-): any => {
-  switch (action.type) {
-    case FETCH_SPATIAL_CATALOG_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("spatialCatalog", reducer_spatialCatalog);
+export const {
+  useGetSpatialCatalogsQuery,
+  useGetSpatialCatalogQuery,
+  useUploadSpatialCatalogsMutation,
+  useDeleteSpatialCatalogMutation,
+} = spatialCatalogsApi;

@@ -1,34 +1,33 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
+import Alert from "@mui/material/Alert";
+import AlertTitle from "@mui/material/AlertTitle";
 
 import { showNotification } from "baselayer/components/Notifications";
-import UninitializedDBMessage from "../UninitializedDBMessage";
 import SourceTable from "./SourceTable";
 import Spinner from "../Spinner";
 import ProgressIndicator from "../ProgressIndicators";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as sourcesActions from "../../ducks/sources";
+import { useAppDispatch } from "../../types/hooks";
+import {
+  useFetchSourcesQuery,
+  useLazyFetchSourcesQuery,
+} from "../../ducks/sources";
+import { useGetDbInfoQuery } from "../../ducks/dbInfo";
 
 const SourceList = () => {
   const dispatch = useAppDispatch();
 
-  const sourcesState = useAppSelector((state) => (state as any).sources.latest);
-  const sourceTableEmpty = useAppSelector(
-    (state) => (state as any).dbInfo.source_table_empty,
-  );
+  const [queryParams, setQueryParams] = useState<any>({});
+  const { data: sourcesState } = useFetchSourcesQuery(queryParams);
+  const [fetchSourcesTrigger] = useLazyFetchSourcesQuery();
+  const sourceTableEmpty = (useGetDbInfoQuery().data as any)
+    ?.source_table_empty;
 
-  const [rowsPerPage, setRowsPerPage] = useState(100);
-  const [sorting, setSorting] = useState<any>(null);
-  const [filtering, setFiltering] = useState<any>(null);
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
-
-  useEffect(() => {
-    dispatch(sourcesActions.fetchSources());
-  }, [dispatch]);
 
   const handleSourceTablePagination = (
     pageNumber: number,
@@ -36,7 +35,6 @@ const SourceList = () => {
     sortData: any,
     filterData: any,
   ) => {
-    setRowsPerPage(numPerPage);
     const data: any = {
       ...filterData,
       pageNumber,
@@ -46,32 +44,29 @@ const SourceList = () => {
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
-    dispatch(sourcesActions.fetchSources(data)).then((response: any) => {
-      if (response.status === "success") {
-        setSorting(sortData);
-        setFiltering(filterData);
-      } else {
+    setQueryParams(data);
+    fetchSourcesTrigger(data)
+      .unwrap()
+      .catch(() => {
         handleSourceTablePagination(pageNumber, numPerPage, null, null);
-      }
-    });
+      });
   };
 
   const handleSourceTableSorting = (sortData: any, filterData: any) => {
     const data = {
       ...filterData,
       pageNumber: 1,
-      rowsPerPage,
+      numPerPage: queryParams.numPerPage,
       sortBy: sortData.name,
       sortOrder: sortData.direction,
     };
-    dispatch(sourcesActions.fetchSources(data));
-    setSorting(sortData);
-    setFiltering(filterData);
+    setQueryParams(data);
+    fetchSourcesTrigger(data);
   };
 
   const handleSourcesDownload = async () => {
     const sourceAll: any[] = [];
-    if (sourcesState.totalMatches === 0) {
+    if (!sourcesState || sourcesState.totalMatches === 0) {
       dispatch(showNotification("No sources to download", "warning"));
     } else {
       setDownloadProgressTotal(sourcesState.totalMatches);
@@ -81,21 +76,17 @@ const SourceList = () => {
         i += 1
       ) {
         const data: any = {
-          ...filtering,
+          ...queryParams,
           pageNumber: i,
           numPerPage: sourcesState.numPerPage,
         };
-        if (sorting) {
-          data.sortBy = sorting.name;
-          data.sortOrder = sorting.direction;
-        }
         /* eslint-disable no-await-in-loop */
-        const result: any = await dispatch(sourcesActions.fetchSources(data));
-        if (result && result.data && result?.status === "success") {
-          sourceAll.push(...result.data.sources);
+        try {
+          const result: any = await fetchSourcesTrigger(data).unwrap();
+          sourceAll.push(...result.sources);
           setDownloadProgressCurrent(sourceAll.length);
           setDownloadProgressTotal(sourcesState.totalMatches);
-        } else if (result && result?.status !== "success") {
+        } catch {
           // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
@@ -120,38 +111,37 @@ const SourceList = () => {
     }
     setDownloadProgressCurrent(0);
     setDownloadProgressTotal(0);
-    if (sourceAll?.length === sourcesState.totalMatches?.length) {
+    if (sourceAll?.length === sourcesState?.totalMatches) {
       dispatch(showNotification("Sources downloaded successfully"));
     }
     return sourceAll;
   };
 
-  if (!sourceTableEmpty && !sourcesState.sources) {
-    return <Spinner />;
-  }
+  if (!sourcesState?.sources) return <Spinner />;
 
   return (
     <>
       {sourceTableEmpty && (
-        <div>
-          <UninitializedDBMessage />
-          <br />
-        </div>
+        <Alert severity="warning">
+          <AlertTitle>The Sources table is currently empty</AlertTitle>
+          For help with initializing the database, see the{" "}
+          <a href="https://skyportal.io/docs/setup.html">
+            getting started documentation
+          </a>
+          . Or click the <b>+</b> icon in the upper right corner of the table to
+          add a source.
+        </Alert>
       )}
-      {sourcesState?.sources ? (
-        <SourceTable
-          sources={sourcesState.sources}
-          paginateCallback={handleSourceTablePagination}
-          totalMatches={sourcesState.totalMatches}
-          pageNumber={sourcesState.pageNumber}
-          numPerPage={sourcesState.numPerPage}
-          sortingCallback={handleSourceTableSorting}
-          downloadCallback={handleSourcesDownload}
-          fixedHeader={true}
-        />
-      ) : (
-        <Spinner />
-      )}
+      <SourceTable
+        sources={sourcesState.sources}
+        paginateCallback={handleSourceTablePagination}
+        totalMatches={sourcesState.totalMatches}
+        pageNumber={sourcesState.pageNumber}
+        numPerPage={sourcesState.numPerPage}
+        sortingCallback={handleSourceTableSorting}
+        downloadCallback={handleSourcesDownload}
+        fixedHeader={true}
+      />
       <Dialog open={downloadProgressTotal > 0} maxWidth="md">
         <DialogContent
           style={{
@@ -161,7 +151,12 @@ const SourceList = () => {
             alignItems: "center",
           }}
         >
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            sx={{
+              display: "inline",
+            }}
+          >
             Downloading {downloadProgressTotal} sources
           </Typography>
           <div

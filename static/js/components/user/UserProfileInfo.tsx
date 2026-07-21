@@ -1,10 +1,10 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 
-import { useAppSelector } from "../../types/hooks";
 import UserAvatar, { isAllKoreanCharacters } from "./UserAvatar";
 
 interface UserContactInfoProps {
@@ -54,7 +54,13 @@ const getUserAffiliations = (affiliations: string[]) => (
 );
 
 const UserProfileInfo = () => {
-  const profile = useAppSelector((state) => state.profile) as any;
+  const profile = useGetProfileQuery().data as any;
+
+  // `data` is undefined until the profile loads; the JSX below reads profile
+  // fields unguarded, so render nothing until it's available.
+  if (!profile) {
+    return null;
+  }
 
   return (
     <Card>
@@ -110,20 +116,46 @@ const UserProfileInfo = () => {
             component="div"
             style={{ width: "100%", display: "flex", flexWrap: "wrap" }}
           >
-            <Box fontStyle="italic">{profile.bio}</Box>
+            <Box
+              sx={{
+                fontStyle: "italic",
+              }}
+            >
+              {profile.bio}
+            </Box>
           </Typography>
         )}
         <br />
         <Typography component="div">
-          <Box pb={1}>
-            <Box fontWeight="fontWeightBold" component="span" mr={1}>
+          <Box
+            sx={{
+              pb: 1,
+            }}
+          >
+            <Box
+              component="span"
+              sx={{
+                fontWeight: "fontWeightBold",
+                mr: 1,
+              }}
+            >
               User roles:
             </Box>
-            {profile.roles.join(", ")}
+            {profile.roles?.join(", ")}
           </Box>
           {!!profile.acls?.length && (
-            <Box pb={1}>
-              <Box fontWeight="fontWeightBold" component="span" mr={1}>
+            <Box
+              sx={{
+                pb: 1,
+              }}
+            >
+              <Box
+                component="span"
+                sx={{
+                  fontWeight: "fontWeightBold",
+                  mr: 1,
+                }}
+              >
                 Additional user ACLs (separate from role-level ACLs):
               </Box>
               {profile.acls.join(", ")}
@@ -142,8 +174,18 @@ const UserProfileInfo = () => {
             }
           >
             <Typography component="div">
-              <Box pb={1}>
-                <Box fontWeight="fontWeightBold" component="span" mr={1}>
+              <Box
+                sx={{
+                  pb: 1,
+                }}
+              >
+                <Box
+                  component="span"
+                  sx={{
+                    fontWeight: "fontWeightBold",
+                    mr: 1,
+                  }}
+                >
                   Authentication email:
                 </Box>
                 {profile.oauth_uid}

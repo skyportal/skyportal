@@ -18,9 +18,9 @@ import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
 import {
-  deleteGcnEventSummary,
-  fetchGcnEventSummary,
-  patchGcnEventSummary,
+  useDeleteGcnEventSummaryMutation,
+  useLazyGetGcnEventSummaryQuery,
+  usePatchGcnEventSummaryMutation,
 } from "../../ducks/gcnEvent";
 
 const useStyles = makeStyles()(() => ({
@@ -178,50 +178,50 @@ const GcnSummaryTable = ({
 }: GcnSummaryTableProps) => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
+  const [deleteGcnEventSummary] = useDeleteGcnEventSummaryMutation();
+  const [patchGcnEventSummary] = usePatchGcnEventSummaryMutation();
+  const [fetchGcnEventSummary] = useLazyGetGcnEventSummaryQuery();
 
   const [selectedGcnSummaryId, setSelectedGcnSummaryId] = useState<any>(null);
   const [text, setText] = useState<any>(null);
 
   const deleteSummary = (summaryID: number) => {
-    dispatch(deleteGcnEventSummary({ dateobs, summaryID })).then(
-      (response: any) => {
-        if (response.status === "success") {
-          dispatch(showNotification("Summary deleted"));
-        } else {
-          dispatch(showNotification("Error deleting summary", "error"));
-        }
-      },
-    );
+    deleteGcnEventSummary({ dateobs, summaryID })
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification("Summary deleted"));
+      })
+      .catch(() => {
+        dispatch(showNotification("Error deleting summary", "error"));
+      });
   };
 
   const saveSummary = (summaryID: number, newText: string) => {
-    dispatch(
-      patchGcnEventSummary({
-        dateobs,
-        summaryID,
-        formData: { body: newText },
-      }),
-    ).then((response: any) => {
-      if (response.status === "success") {
+    patchGcnEventSummary({
+      dateobs,
+      summaryID,
+      formData: { body: newText },
+    })
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("Summary saved"));
-      } else {
+      })
+      .catch(() => {
         dispatch(showNotification("Error saving summary", "error"));
-      }
-    });
+      });
   };
 
   useEffect(() => {
     const fetchSummary = (summaryID: number) => {
-      dispatch(fetchGcnEventSummary({ dateobs, summaryID })).then(
-        (response: any) => {
-          if (response.status === "success") {
-            setText(response.data.text);
-          } else {
-            setText(null);
-            dispatch(showNotification("Error fetching summary", "error"));
-          }
-        },
-      );
+      fetchGcnEventSummary({ dateobs, summaryID })
+        .unwrap()
+        .then((data: any) => {
+          setText(data.text);
+        })
+        .catch(() => {
+          setText(null);
+          dispatch(showNotification("Error fetching summary", "error"));
+        });
     };
     if ((summaries?.length ?? 0) > 0 && selectedGcnSummaryId) {
       setText(null);

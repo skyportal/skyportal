@@ -1,75 +1,94 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Single observing run (the run currently being viewed).
+ *
+ * RTK Query conversion of the old `FETCH_OBSERVING_RUN` duck. The endpoint is
+ * injected into the central `skyportalApi`. `getObservingRun` fetches one run by
+ * id; the create/modify/delete/not-observed actions are mutations that
+ * invalidate the `ObservingRun` tag so the active run query refetches.
+ *
+ * The websocket `REFRESH_OBSERVING_RUN` message is bridged to cache
+ * invalidation via `invalidateOnMessage`, preserving the old conditional
+ * behaviour: only invalidate the run that was actually pushed (the per-id tag),
+ * so an unrelated run's view does not refetch.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
+export const observingRunApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getObservingRun: build.query<
+      RouteData<"GET /api/observing_run/{run_id}">,
+      number | string
+    >({
+      query: (id) => `api/observing_run/${id}`,
+      providesTags: (_result, _error, id) => [
+        { type: "ObservingRun", id },
+        "ObservingRun",
+      ],
+    }),
+    submitObservingRun: build.mutation<
+      RouteData<"POST /api/observing_run">,
+      Record<string, any>
+    >({
+      query: (run) => ({
+        url: "api/observing_run",
+        method: "POST",
+        body: run,
+      }),
+      invalidatesTags: ["ObservingRun"],
+    }),
+    modifyObservingRun: build.mutation<
+      RouteData<"PUT /api/observing_run/{run_id}">,
+      { id: number | string; run: Record<string, any> }
+    >({
+      query: ({ id, run }) => ({
+        url: `api/observing_run/${id}`,
+        method: "PUT",
+        body: run,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "ObservingRun", id },
+        "ObservingRun",
+      ],
+    }),
+    deleteObservingRun: build.mutation<unknown, number | string>({
+      query: (id) => ({
+        url: `api/observing_run/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        { type: "ObservingRun", id },
+        "ObservingRun",
+      ],
+    }),
+    putObservingRunNotObserved: build.mutation<unknown, number | string>({
+      query: (id) => ({
+        url: `api/observing_run/${id}/not_observed`,
+        method: "PUT",
+        body: { current_status: "pending", new_status: "not observed" },
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        { type: "ObservingRun", id },
+        "ObservingRun",
+      ],
+    }),
+  }),
+});
 
-const REFRESH_OBSERVING_RUN = "skyportal/REFRESH_OBSERVING_RUN";
-
-const FETCH_OBSERVING_RUN = "skyportal/FETCH_OBSERVING_RUN";
-const FETCH_OBSERVING_RUN_OK = "skyportal/FETCH_OBSERVING_RUN_OK";
-
-const SUBMIT_OBSERVING_RUN = "skyportal/SUBMIT_OBSERVING_RUN";
-
-const MODIFY_OBSERVING_RUN = "skyportal/MODIFY_OBSERVING_RUN";
-
-const DELETE_OBSERVING_RUN = "skyportal/DELETE_OBSERVING_RUN";
-
-const PUT_OBSERVING_RUN_NOT_OBSERVED =
-  "skyportal/PUT_OBSERVING_RUN_NOT_OBSERVED";
-
-export const putObservingRunNotObserved = (id: number | string) =>
-  API.PUT(
-    `/api/observing_run/${id}/not_observed`,
-    PUT_OBSERVING_RUN_NOT_OBSERVED,
-    { current_status: "pending", new_status: "not observed" },
-  );
-
-export const fetchObservingRun = (id: number | string) =>
-  API.GET(`/api/observing_run/${id}`, FETCH_OBSERVING_RUN);
-
-export const modifyObservingRun = (
-  id: number | string,
-  run: Record<string, any>,
-) => API.PUT(`/api/observing_run/${id}`, MODIFY_OBSERVING_RUN, run);
-
-export const submitObservingRun = (run: Record<string, any>) =>
-  API.POST(`/api/observing_run`, SUBMIT_OBSERVING_RUN, run);
-
-export function deleteObservingRun(observingRunID: number | string) {
-  return API.DELETE(
-    `/api/observing_run/${observingRunID}`,
-    DELETE_OBSERVING_RUN,
-  );
-}
-
-// Websocket message handler
-messageHandler.add(
-  (actionType: any, payload: any, dispatch: any, getState: any) => {
-    const { observingRun } = getState();
-    if (actionType === REFRESH_OBSERVING_RUN) {
-      const { run_id } = payload;
-      if (run_id === observingRun?.id) {
-        dispatch(fetchObservingRun(run_id));
-      }
-    }
-  },
+// Websocket: old handler refetched the run only when the pushed run_id matched
+// the currently-loaded run. Invalidating the per-id tag achieves the same: only
+// an active query for that run refetches.
+invalidateOnMessage("skyportal/REFRESH_OBSERVING_RUN", (payload) =>
+  payload?.run_id != null
+    ? [{ type: "ObservingRun", id: payload.run_id }]
+    : null,
 );
 
-const reducer = (
-  state: Record<string, any> = {},
-  action: { type: string; data?: any },
-): Record<string, any> => {
-  switch (action.type) {
-    case FETCH_OBSERVING_RUN_OK: {
-      const observingrun = action.data;
-      return {
-        ...state,
-        ...observingrun,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("observingRun", reducer);
+export const {
+  useGetObservingRunQuery,
+  useSubmitObservingRunMutation,
+  useModifyObservingRunMutation,
+  useDeleteObservingRunMutation,
+  usePutObservingRunNotObservedMutation,
+} = observingRunApi;

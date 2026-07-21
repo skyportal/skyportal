@@ -1,5 +1,5 @@
 import Box from "@mui/material/Box";
-import { useAppSelector } from "../../types/hooks";
+import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { allowedClasses } from "./ClassificationForm";
 import ClassificationShortcutButtons from "./ClassificationShortcutButtons";
 import SelectWithChips from "../SelectWithChips";
@@ -17,7 +17,7 @@ const ClassificationSelect = ({
   showShortcuts = false,
   inDialog = false,
 }: ClassificationSelectProps) => {
-  const { taxonomyList } = useAppSelector((state) => state["taxonomies"]);
+  const { data: taxonomyList } = useGetTaxonomiesQuery();
   const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
   let classifications: string[] = [];
   latestTaxonomyList?.forEach((taxonomy: any) => {
@@ -36,6 +36,7 @@ const ClassificationSelect = ({
         initValue={selectedClassifications}
         onChange={(e: any) => setSelectedClassifications(e.target.value)}
         options={classifications}
+        searchable
       />
       {showShortcuts && (
         <Box sx={{ mt: "0.4rem" }}>

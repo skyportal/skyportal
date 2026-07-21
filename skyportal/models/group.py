@@ -28,9 +28,9 @@ _, cfg = load_env()
 def groupuser_update_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = DBSession().query(cls).join(aliased, cls.group_id == aliased.group_id)
+    query = sa.select(cls).join(aliased, cls.group_id == aliased.group_id)
     if not user_or_token.is_system_admin:
-        query = query.filter(aliased.user_id == user_id, aliased.admin.is_(True))
+        query = query.where(aliased.user_id == user_id, aliased.admin.is_(True))
     return query
 
 
@@ -226,6 +226,38 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
             )
         return query
 
+    def select_accessible_rows(self, cls, user_or_token, columns=None):
+        """SA 2.0 `Select` equivalent of `query_accessible_rows`. Without this
+        override, the `.select()` API would only enforce the relationship
+        chain (parent class's behavior) and silently let non-admin group
+        members through — see `query_accessible_rows` above for the
+        original admin filter.
+
+        The parallelism between the two paths matters now that
+        `async_bulk_verify` runs on the 2.0 Select API; the sync
+        `bulk_verify` runs on the legacy Query API but uses the same
+        chain, so keeping them in lockstep avoids divergence.
+        """
+        # AccessibleIfUserMatches builds the columns select as
+        # select(*columns).select_from(cls) (Group/User stay in the FROM scope
+        # for the admin join below), so pass columns straight through. The
+        # ComposedAccessControl path aliases cls and requests columns=[alias.id];
+        # projecting via select_from keeps that single FROM (vs select(entity) +
+        # with_only_columns, which left a duplicate group_users FROM).
+        stmt = super().select_accessible_rows(cls, user_or_token, columns=columns)
+        if not user_or_token.is_admin:
+            group_user_subq = (
+                sa.select(GroupUser).where(GroupUser.admin.is_(True)).subquery()
+            )
+            stmt = stmt.join(
+                group_user_subq,
+                sa.and_(
+                    Group.id == group_user_subq.c.group_id,
+                    User.id == group_user_subq.c.user_id,
+                ),
+            )
+        return stmt
+
 
 accessible_by_group_admins = AccessibleIfGroupUserIsAdminAndUserMatches(
     "group.group_users.user"
@@ -246,14 +278,13 @@ def delete_group_access_logic(cls, user_or_token):
     a single user group, and that they are an admin member of."""
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .join(GroupUser)
-        .filter(cls.name != cfg["misc"]["public_group_name"])
-        .filter(cls.single_user_group.is_(False))
+        .where(cls.name != cfg["misc"]["public_group_name"])
+        .where(cls.single_user_group.is_(False))
     )
     if not user_or_token.is_system_admin:
-        query = query.filter(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
+        query = query.where(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
     return query
 
 
@@ -288,6 +319,14 @@ class Group(Base):
         index=True,
         doc="Boolean indicating whether group is invisible to non-members.",
     )
+    auto_accept_requests = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        default=False,
+        doc="Boolean indicating whether requests to join the group are "
+        "automatically accepted.",
+    )
     streams = relationship(
         "Stream",
         secondary="group_streams",
@@ -300,6 +339,14 @@ class Group(Base):
         back_populates="group",
         passive_deletes=True,
         doc="All filters (not just active) associated with a group.",
+    )
+
+    teams = relationship(
+        "Team",
+        secondary="group_teams",
+        back_populates="groups",
+        passive_deletes=True,
+        doc="Teams this group belongs to.",
     )
 
     shifts = relationship(
@@ -448,10 +495,9 @@ GroupUser.delete = (
     (accessible_by_group_admins | AccessibleIfUserMatches("user"))
     & GroupUser.read
     & CustomUserAccessControl(
-        lambda cls, user_or_token: DBSession()
-        .query(cls)
-        .join(Group)
-        .filter(Group.single_user_group.is_(False))
+        lambda cls, user_or_token: (
+            sa.select(cls).join(Group).where(Group.single_user_group.is_(False))
+        )
     )
 )
 
@@ -466,8 +512,7 @@ def group_create_logic(cls, user_or_token):
     from .stream import Stream, StreamUser
 
     return (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .join(Group)
         .outerjoin(Stream, Group.streams)
         .outerjoin(
@@ -477,7 +522,7 @@ def group_create_logic(cls, user_or_token):
                 StreamUser.stream_id == Stream.id,
             ),
         )
-        .filter(Group.single_user_group.is_(False))
+        .where(Group.single_user_group.is_(False))
         .group_by(cls.id)
         .having(
             sa.or_(

@@ -18,21 +18,21 @@ import Grow from "@mui/material/Grow";
 import Popper from "@mui/material/Popper";
 import MenuList from "@mui/material/MenuList";
 import MenuItem from "@mui/material/MenuItem";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ObservationFilterForm from "./ObservationFilterForm";
 import NewObservation from "./NewObservation";
 import NewAPIObservation from "./NewAPIObservation";
 
-import { checkSource, saveSource } from "../../ducks/source";
+import {
+  useCheckSourceMutation,
+  useSaveSourceMutation,
+} from "../../ducks/source";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -88,8 +88,11 @@ const ExecutedObservationsTable = ({
   const { classes } = useStyles();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
+  const [checkSource] = useCheckSourceMutation();
+  const [saveSource] = useSaveSourceMutation();
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
   const [open, setOpen] = useState(false);
   const [newDialogFromFileOpen, setNewDialogFromFileOpen] = useState(false);
@@ -128,17 +131,20 @@ const ExecutedObservationsTable = ({
 
   const handleSave = async (formData: any) => {
     setIsSaving(formData.id);
-    const data: any = await dispatch(checkSource(formData.id, formData));
-    if (data.status === "success") {
-      if (data.data?.source_exists === true) {
-        dispatch(showNotification(data.data.message, "error"));
+    try {
+      const data: any = await checkSource({
+        id: formData.id,
+        params: formData,
+      }).unwrap();
+      if (data?.source_exists === true) {
+        dispatch(showNotification(data.message, "error"));
       } else {
-        const result: any = await dispatch(saveSource(formData));
-        if (result.status === "success") {
-          dispatch(showNotification("Source saved"));
-          navigate(`/source/${formData.id}`);
-        }
+        await saveSource(formData).unwrap();
+        dispatch(showNotification("Source saved"));
+        navigate(`/source/${formData.id}`);
       }
+    } catch {
+      // error notification handled by the baseQuery
     }
     setIsSaving(null);
   };
@@ -188,7 +194,7 @@ const ExecutedObservationsTable = ({
       ra: observation.field.ra,
       dec: observation.field.dec,
     };
-    if (!observation.target_name) {
+    if (!observation.target_name || isReadOnly) {
       return <div />;
     }
     return (
@@ -422,8 +428,7 @@ const ExecutedObservationsTable = ({
   };
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
+    <DataGridToolbar>
       <Tooltip title="Filter Table">
         <IconButton
           size="small"
@@ -433,16 +438,18 @@ const ExecutedObservationsTable = ({
           <FilterListIcon />
         </IconButton>
       </Tooltip>
-      <IconButton
-        name="new_executed_observation"
-        size="small"
-        ref={anchorRef}
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        <AddIcon />
-      </IconButton>
+      {!isReadOnly && (
+        <IconButton
+          name="new_executed_observation"
+          size="small"
+          ref={anchorRef}
+          onClick={() => {
+            setOpen(true);
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
       <Tooltip title="Download CSV">
         <IconButton
           size="small"
@@ -453,8 +460,7 @@ const ExecutedObservationsTable = ({
           <DownloadIcon />
         </IconButton>
       </Tooltip>
-      <GridToolbarQuickFilter />
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

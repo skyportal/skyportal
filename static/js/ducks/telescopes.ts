@@ -1,75 +1,69 @@
-import messageHandler from "baselayer/MessageHandler";
+/**
+ * Telescopes.
+ *
+ * RTK Query conversion of the old `FETCH_TELESCOPES` duck. The list endpoint is
+ * injected into the central `skyportalApi`; submit/delete are mutations that
+ * invalidate the `Telescope` tag so the list refetches. The single-telescope
+ * fetch is kept as a query keyed on id.
+ *
+ * The old websocket handlers refreshed the currently-loaded telescope on
+ * `REFRESH_TELESCOPE` and the whole list on `REFRESH_TELESCOPES`; both are
+ * bridged to invalidation of the `Telescope` tag.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-import * as API from "../API";
-import store from "../store";
+export const telescopesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getTelescopes: build.query<RouteData<"GET /api/telescope">, void>({
+      query: () => "api/telescope",
+      providesTags: ["Telescope"],
+    }),
+    getTelescope: build.query<
+      RouteData<"GET /api/telescope/{telescope_id}">,
+      number | string
+    >({
+      query: (id) => `api/telescope/${id}`,
+      providesTags: ["Telescope"],
+    }),
+    submitTelescope: build.mutation<unknown, Record<string, any>>({
+      query: (tele) => ({
+        url: "api/telescope",
+        method: "POST",
+        body: tele,
+      }),
+      invalidatesTags: ["Telescope"],
+    }),
+    updateTelescope: build.mutation<
+      unknown,
+      { id: number | string; data: Record<string, any> }
+    >({
+      query: ({ id, data }) => ({
+        url: `api/telescope/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["Telescope"],
+    }),
+    deleteTelescope: build.mutation<unknown, number | string>({
+      query: (id) => ({
+        url: `api/telescope/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Telescope"],
+    }),
+  }),
+});
 
-const FETCH_TELESCOPE = "skyportal/FETCH_TELESCOPE";
-const FETCH_TELESCOPES = "skyportal/FETCH_TELESCOPES";
-const FETCH_TELESCOPES_OK = "skyportal/FETCH_TELESCOPES_OK";
+// Websocket: old handlers refetched on REFRESH_TELESCOPE / REFRESH_TELESCOPES.
+invalidateOnMessage("skyportal/REFRESH_TELESCOPE", () => ["Telescope"]);
+invalidateOnMessage("skyportal/REFRESH_TELESCOPES", () => ["Telescope"]);
 
-const SUBMIT_TELESCOPE = "skyportal/SUBMIT_TELESCOPE";
-const DELETE_TELESCOPE = "skyportal/DELETE_TELESCOPE";
-
-const CURRENT_TELESCOPES = "skyportal/CURRENT_TELESCOPES";
-
-const REFRESH_TELESCOPE = "skyportal/REFRESH_TELESCOPE";
-const REFRESH_TELESCOPES = "skyportal/REFRESH_TELESCOPES";
-
-export const fetchTelescope = (id: number | string) =>
-  API.GET(`/api/telescope/${id}`, FETCH_TELESCOPE);
-
-export const fetchTelescopes = () =>
-  API.GET("/api/telescope", FETCH_TELESCOPES);
-
-export const submitTelescope = (tele: Record<string, any>) =>
-  API.POST(`/api/telescope`, SUBMIT_TELESCOPE, tele);
-
-export function deleteTelescope(id: number | string) {
-  return API.DELETE(`/api/telescope/${id}`, DELETE_TELESCOPE);
-}
-
-messageHandler.add(
-  (actionType: any, payload: any, dispatch: any, getState: any) => {
-    if (actionType === REFRESH_TELESCOPE) {
-      const { telescope } = getState();
-      const { telescope_id } = payload;
-      if (telescope_id === telescope?.id) {
-        dispatch(fetchTelescope(telescope_id));
-      }
-    }
-    if (actionType === REFRESH_TELESCOPES) {
-      dispatch(fetchTelescopes());
-    }
-  },
-);
-
-const reducer = (
-  state: Record<string, any> = {
-    telescopeList: [],
-    currentTelescopes: [],
-    loading: true,
-  },
-  action: { type: string; data?: any },
-): Record<string, any> => {
-  switch (action.type) {
-    case FETCH_TELESCOPES_OK: {
-      const telescopeList = action.data;
-      return {
-        ...state,
-        telescopeList,
-        loading: false,
-      };
-    }
-    case CURRENT_TELESCOPES: {
-      const { currentTelescopes } = action.data;
-      return {
-        ...state,
-        currentTelescopes,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("telescopes", reducer);
+export const {
+  useGetTelescopesQuery,
+  useGetTelescopeQuery,
+  useSubmitTelescopeMutation,
+  useUpdateTelescopeMutation,
+  useDeleteTelescopeMutation,
+} = telescopesApi;

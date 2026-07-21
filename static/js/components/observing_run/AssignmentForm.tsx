@@ -1,3 +1,5 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { Controller, useForm } from "react-hook-form";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
@@ -9,10 +11,11 @@ import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import * as Actions from "../../ducks/source";
+
+import { useSubmitAssignmentMutation } from "../../ducks/source";
 
 import Button from "../Button";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 
@@ -72,12 +75,12 @@ interface AssignmentFormProps {
 }
 
 const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
-  const dispatch = useAppDispatch();
+  const [submitAssignment] = useSubmitAssignmentMutation();
   const { classes } = useStyles();
 
-  const { instrumentList } = useAppSelector((state) => state["instruments"]);
-  const { telescopeList } = useAppSelector((state) => state["telescopes"]);
-  const groups = useAppSelector((state) => state.groups.all);
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
+  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const groups = useGetGroupsQuery().data?.all ?? [];
 
   const { handleSubmit, getValues, reset, register, control } = useForm();
 
@@ -109,7 +112,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
       ...initialFormState,
       ...getValues(),
     };
-    dispatch(Actions.submitAssignment(formData));
+    submitAssignment(formData);
     reset(initialFormState);
   };
 
@@ -118,11 +121,10 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className={classes.formContainer}>
           <FormControl className={classes.formControl}>
-            <InputLabel id="assignmentSelectLabel">Choose Run</InputLabel>
+            <InputLabel id="assignmentSelect">Choose Run</InputLabel>
             <Controller
               {...({
                 inputProps: { MenuProps: { disableScrollLock: true } },
-                labelId: "assignmentSelect",
                 "data-testid": "assignmentSelect",
               } as any)}
               name="run_id"
@@ -136,6 +138,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
               render={({ field: { onChange, value } }) => (
                 <Select
                   labelId="assignmentSelect"
+                  label="Choose Run"
                   onChange={onChange}
                   value={value}
                   size="small"
@@ -159,11 +162,10 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
             />
           </FormControl>
           <FormControl className={classes.formControl}>
-            <InputLabel id="prioritySelectLabel">Priority</InputLabel>
+            <InputLabel id="prioritySelect">Priority</InputLabel>
             <Controller
               {...({
                 inputProps: { MenuProps: { disableScrollLock: true } },
-                labelId: "prioritySelect",
               } as any)}
               defaultValue="1"
               name="priority"
@@ -172,6 +174,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
               render={({ field: { onChange, value } }) => (
                 <Select
                   labelId="prioritySelect"
+                  label="Priority"
                   onChange={onChange}
                   value={value}
                   size="small"

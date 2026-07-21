@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useGetProfileQuery } from "../../ducks/profile";
+import { useMemo, useState } from "react";
 
 import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
@@ -10,22 +11,23 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
 import CircularProgress from "@mui/material/CircularProgress";
 import ReactJson from "react-json-view";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
+import AutoModeIcon from "@mui/icons-material/AutoMode";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewAnalysisService from "./NewAnalysisService";
+import DefaultAnalysisList from "./DefaultAnalysisList";
 
-import * as analysisServicesActions from "../../ducks/analysis_services";
+import {
+  useGetAnalysisServicesQuery,
+  useDeleteAnalysisServiceMutation,
+} from "../../ducks/analysis_services";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -101,6 +103,7 @@ const AnalysisServiceList = ({
   deletePermission,
 }: AnalysisServiceListProps) => {
   const dispatch = useAppDispatch();
+  const [deleteAnalysisServiceMutation] = useDeleteAnalysisServiceMutation();
   const { classes } = useStyles();
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -132,17 +135,19 @@ const AnalysisServiceList = ({
     setAnalysisServiceToViewDelete(null);
   };
 
+  // Default-analysis (auto-trigger) config, per service.
+  const [defaultsServiceId, setDefaultsServiceId] = useState<any>(null);
+
   const deleteAnalysisService = () => {
-    dispatch(
-      analysisServicesActions.deleteAnalysisService(
-        analysisServiceToViewDelete,
-      ),
-    ).then((result: any) => {
-      if (result.status === "success") {
+    deleteAnalysisServiceMutation(analysisServiceToViewDelete)
+      .unwrap()
+      .then(() => {
         dispatch(showNotification("AnalysisService deleted"));
         closeDeleteDialog();
-      }
-    });
+      })
+      .catch(() => {
+        // error notification is handled by the base query
+      });
   };
 
   const renderContact = (params: any) => {
@@ -174,12 +179,22 @@ const AnalysisServiceList = ({
   const renderDetails = (params: any) => {
     const analysis_service = params.row;
     return (
-      <IconButton
-        key={`details_${analysis_service.id}`}
-        id={`details_button_${analysis_service.id}`}
-        onClick={() => openDetailsDialog(analysis_service.id)}
-      >
+      <IconButton onClick={() => openDetailsDialog(analysis_service.id)}>
         <HistoryEduIcon />
+      </IconButton>
+    );
+  };
+
+  const renderDefaults = (params: any) => {
+    const analysis_service = params.row;
+    return (
+      <IconButton
+        key={`defaults_${analysis_service.id}`}
+        id={`defaults_button_${analysis_service.id}`}
+        title="Auto-trigger (default analyses)"
+        onClick={() => setDefaultsServiceId(analysis_service.id)}
+      >
+        <AutoModeIcon />
       </IconButton>
     );
   };
@@ -192,7 +207,6 @@ const AnalysisServiceList = ({
     return (
       <div className={classes.analysisServiceManage}>
         <Button
-          id={`delete_button_${analysis_service.id}`}
           onClick={() => openDeleteDialog(analysis_service.id)}
           disabled={!deletePermission}
         >
@@ -261,6 +275,15 @@ const AnalysisServiceList = ({
       sortable: false,
       renderCell: renderDetails,
     },
+    {
+      field: "defaults",
+      headerName: "Auto-trigger",
+      flex: 1,
+      minWidth: 110,
+      filterable: false,
+      sortable: false,
+      renderCell: renderDefaults,
+    },
   ];
 
   if (deletePermission) {
@@ -283,19 +306,16 @@ const AnalysisServiceList = ({
     () =>
       function AnalysisServiceToolbar() {
         return (
-          <GridToolbarContainer>
-            <GridToolbarColumnsButton />
+          <DataGridToolbar showExport>
             {deletePermission && (
               <IconButton
                 name="new_analysis_service"
-                onClick={() => {
-                  openNewDialog();
-                }}
+                onClick={() => openNewDialog()}
               >
                 <AddIcon />
               </IconButton>
             )}
-          </GridToolbarContainer>
+          </DataGridToolbar>
         );
       },
 
@@ -346,6 +366,27 @@ const AnalysisServiceList = ({
             />
           </DialogContent>
         </Dialog>
+        <Dialog
+          open={Boolean(defaultsServiceId)}
+          onClose={() => setDefaultsServiceId(null)}
+          maxWidth="md"
+        >
+          <DialogTitle>Default analyses (auto-trigger)</DialogTitle>
+          <DialogContent dividers>
+            {defaultsServiceId &&
+              (() => {
+                const svc = (analysisServices || []).find(
+                  (s: any) => s?.id === defaultsServiceId,
+                );
+                return svc ? (
+                  <DefaultAnalysisList
+                    analysisService={svc}
+                    deletePermission={deletePermission}
+                  />
+                ) : null;
+              })()}
+          </DialogContent>
+        </Dialog>
         <ConfirmDeletionDialog
           deleteFunction={deleteAnalysisService}
           dialogOpen={Boolean(deleteDialogOpen && analysisServiceToViewDelete)}
@@ -358,24 +399,14 @@ const AnalysisServiceList = ({
 };
 
 const AnalysisServicePage = () => {
-  const { analysisServiceList } = useAppSelector(
-    (state) => (state as any).analysis_services,
-  );
+  const { data: analysisServiceList } = useGetAnalysisServicesQuery();
 
-  const currentUser = useAppSelector((state) => state.profile);
-  const dispatch = useAppDispatch();
+  const { data: currentUser } = useGetProfileQuery();
 
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage Analysis Services");
-
-  useEffect(() => {
-    const getAnalysisServices = async () => {
-      await dispatch(analysisServicesActions.fetchAnalysisServices());
-    };
-
-    getAnalysisServices();
-  }, []);
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage Analysis Services") ||
+    false;
 
   return (
     <Grid container spacing={3}>

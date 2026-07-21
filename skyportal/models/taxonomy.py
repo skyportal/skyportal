@@ -8,7 +8,6 @@ from baselayer.app.models import (
     AccessibleIfRelatedRowsAreAccessible,
     Base,
     CustomUserAccessControl,
-    DBSession,
     restricted,
 )
 
@@ -22,9 +21,9 @@ def taxonomy_update_logic(cls, user_or_token):
     """
     if len({"Delete taxonomy", "System admin"} & set(user_or_token.permissions)) == 0:
         # nothing accessible
-        return restricted.query_accessible_rows(cls, user_or_token)
+        return restricted.select_accessible_rows(cls, user_or_token)
 
-    return DBSession().query(cls)
+    return sa.select(cls)
 
 
 def taxonomy_delete_logic(cls, user_or_token):
@@ -39,19 +38,18 @@ def taxonomy_delete_logic(cls, user_or_token):
 
     if len({"Delete taxonomy", "System admin"} & set(user_or_token.permissions)) == 0:
         # nothing accessible
-        return restricted.query_accessible_rows(cls, user_or_token)
+        return restricted.select_accessible_rows(cls, user_or_token)
 
     # dont allow deletion of any taxonomies that have classifications attached
     return (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .outerjoin(Classification)
         .group_by(cls.id)
         .having(sa.func.bool_and(Classification.id.is_(None)))
     )
 
 
-def get_taxonomy_usable_by_user(taxonomy_id, user_or_token, session):
+async def get_taxonomy_usable_by_user(taxonomy_id, user_or_token, session):
     """Query the database and return the requested Taxonomy if it is accessible
     to the requesting User or Token owner. If the Taxonomy is not accessible or
     if it does not exist, return an empty list.
@@ -62,8 +60,8 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token, session):
        The ID of the requested Taxonomy.
     user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
        The requesting `User` or `Token` object.
-    session: sqlalchemy.Session
-        Database session for this transaction
+    session: sqlalchemy.ext.asyncio.AsyncSession
+        Async database session for this transaction.
 
     Returns
     -------
@@ -71,7 +69,7 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token, session):
        The requested Taxonomy.
     """
 
-    return session.scalars(
+    result = await session.scalars(
         Taxonomy.select(session.user_or_token)
         .where(Taxonomy.id == taxonomy_id)
         .where(
@@ -79,7 +77,8 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token, session):
                 Group.id.in_([g.id for g in user_or_token.accessible_groups])
             )
         )
-    ).all()
+    )
+    return result.all()
 
 
 # To create or read a classification, you must have read access to the

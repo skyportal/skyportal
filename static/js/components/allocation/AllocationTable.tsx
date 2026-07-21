@@ -14,19 +14,15 @@ import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import StyledDataGrid from "../StyledDataGrid";
-import * as allocationActions from "../../ducks/allocation";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import { useDeleteAllocationMutation } from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import AllocationForm from "./AllocationForm";
 import { userLabel } from "../../utils/format";
+import { useIsReadOnly } from "../../ducks/profile";
 
 export const isSomeActiveRangeOrNoRange = (
   ranges: any,
@@ -97,6 +93,7 @@ const AllocationTable = ({
   const theme = useTheme();
 
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
 
   const [rowsPerPage] = useState(numPerPage);
   const [sortModel, setSortModel] = useState<any[]>([]);
@@ -105,15 +102,16 @@ const AllocationTable = ({
   const [allocationToEdit, setAllocationToEdit] = useState<any>(null);
   const [allocationToDelete, setAllocationToDelete] = useState<any>(null);
 
-  const deleteAllocation = () => {
-    dispatch(allocationActions.deleteAllocation(allocationToDelete)).then(
-      (result: any) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Allocation deleted"));
-          setAllocationToDelete(null);
-        }
-      },
-    );
+  const [deleteAllocationMutation] = useDeleteAllocationMutation();
+
+  const deleteAllocation = async () => {
+    try {
+      await deleteAllocationMutation(allocationToDelete).unwrap();
+      dispatch(showNotification("Allocation deleted"));
+      setAllocationToDelete(null);
+    } catch {
+      // error notification handled by the baseQuery
+    }
   };
 
   const getInstrument = (allocation: any) =>
@@ -123,20 +121,21 @@ const AllocationTable = ({
     const allocation = params.row;
     const instrument = getInstrument(allocation);
     return (
-      <Link to={`/allocation/${allocation.id}`} role="link">
-        {instrument ? instrument.name : ""}
+      <Link to={`/instrument/${allocation.instrument_id}`}>
+        {instrument?.name || ""}
       </Link>
     );
   };
 
-  const renderTelescopeName = (params: any) => {
+  const renderTelescopeNickname = (params: any) => {
     const allocation = params.row;
     const instrument = getInstrument(allocation);
-    const telescope_id = instrument?.telescope_id;
-    const telescope = telescopes?.filter((t) => t.id === telescope_id)[0];
+    const telescope = telescopes?.filter(
+      (t) => t.id === instrument?.telescope_id,
+    )[0];
     return (
-      <Link to={`/allocation/${allocation.id}`} role="link">
-        {telescope ? telescope.nickname : ""}
+      <Link to={`/telescope/${telescope?.id}`}>
+        {telescope?.nickname || ""}
       </Link>
     );
   };
@@ -281,7 +280,7 @@ const AllocationTable = ({
     },
     telescopeInfo && {
       field: "telescope_name",
-      headerName: "Telescope Name",
+      headerName: "Telescope Nickname",
       flex: 1,
       minWidth: 150,
       filterable: false,
@@ -292,7 +291,7 @@ const AllocationTable = ({
         )[0];
         return telescope ? telescope.nickname : "";
       },
-      renderCell: renderTelescopeName,
+      renderCell: renderTelescopeNickname,
     },
     {
       field: "PI",
@@ -355,17 +354,17 @@ const AllocationTable = ({
   ].filter(Boolean);
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
-      <IconButton
-        name="new_allocation"
-        size="small"
-        onClick={() => setNewAllocationDialog(true)}
-      >
-        <AddIcon />
-      </IconButton>
-      <GridToolbarQuickFilter />
-    </GridToolbarContainer>
+    <DataGridToolbar showExport>
+      {!isReadOnly && (
+        <IconButton
+          name="new_allocation"
+          size="small"
+          onClick={() => setNewAllocationDialog(true)}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
+    </DataGridToolbar>
   );
 
   // mui-datatables ran with pagination:false (show-all). DataGrid mirrors that

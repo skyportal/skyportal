@@ -1,18 +1,23 @@
+import { useGetProfileQuery } from "../../ducks/profile";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid from "../StyledDataGrid";
 
-import * as groupAdmissionRequestsActions from "../../ducks/groupAdmissionRequests";
+import {
+  useRequestGroupAdmissionMutation,
+  useDeleteAdmissionRequestMutation,
+} from "../../ducks/groupAdmissionRequests";
 
 interface NonMemberGroup {
   name?: string;
   nickname?: string | null;
   id?: number;
+  auto_accept_requests?: boolean;
 }
 
 interface NonMemberGroupListProps {
@@ -21,10 +26,11 @@ interface NonMemberGroupListProps {
 
 const NonMemberGroupList = ({ groups }: NonMemberGroupListProps) => {
   const dispatch = useAppDispatch();
-  const { id: currentUserID, groupAdmissionRequests } = useAppSelector(
-    (state) => state.profile,
-  ) as any;
-  if (currentUserID === null) {
+  const [requestGroupAdmission] = useRequestGroupAdmissionMutation();
+  const [deleteAdmissionRequest] = useDeleteAdmissionRequestMutation();
+  const { id: currentUserID, groupAdmissionRequests } =
+    (useGetProfileQuery().data as any) ?? {};
+  if (currentUserID === null || currentUserID === undefined) {
     return <CircularProgress color="secondary" />;
   }
   const pendingRequestGroupIDs = groupAdmissionRequests
@@ -34,22 +40,26 @@ const NonMemberGroupList = ({ groups }: NonMemberGroupListProps) => {
     ?.filter((request: any) => request.status === "declined")
     ?.map((request: any) => request.group_id);
 
-  const handleRequestAdmission = async (groupID: number) => {
-    const result = (await dispatch(
-      groupAdmissionRequestsActions.requestGroupAdmission(
-        currentUserID,
-        groupID,
-      ),
-    )) as any;
-    if (result.status === "success") {
-      dispatch(showNotification("Successfully requested admission to group."));
+  const handleRequestAdmission = async (group: NonMemberGroup) => {
+    try {
+      await requestGroupAdmission({
+        userID: currentUserID,
+        groupID: group.id as number,
+      }).unwrap();
+      dispatch(
+        showNotification(
+          group.auto_accept_requests
+            ? "Successfully joined group."
+            : "Successfully requested admission to group.",
+        ),
+      );
+    } catch {
+      // error notification handled by the base query
     }
   };
 
   const handleDeleteAdmissionRequest = (admissionRequestID: number) => {
-    dispatch(
-      groupAdmissionRequestsActions.deleteAdmissionRequest(admissionRequestID),
-    );
+    deleteAdmissionRequest(admissionRequestID);
   };
 
   const renderActions = (params: any) => {
@@ -80,10 +90,10 @@ const NonMemberGroupList = ({ groups }: NonMemberGroupListProps) => {
       <Button
         secondary
         size="small"
-        onClick={() => handleRequestAdmission(group.id as number)}
+        onClick={() => handleRequestAdmission(group)}
         data-testid={`requestAdmissionButton${group.id}`}
       >
-        Request admission
+        {group.auto_accept_requests ? "Join group" : "Request admission"}
       </Button>
     );
   };

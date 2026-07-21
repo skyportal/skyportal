@@ -14,10 +14,12 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 
 import { makeStyles } from "tss-react/mui";
-import { GridToolbarContainer } from "@mui/x-data-grid";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
-import StyledDataGrid from "../StyledDataGrid";
-import * as profileActions from "../../ducks/profile";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+  useIsReadOnly,
+} from "../../ducks/profile";
 
 import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
 
@@ -78,15 +80,14 @@ const ScanningProfilesList = ({
   classifications = [],
 }: ScanningProfilesListProps) => {
   const { classes } = useStyles();
-  const profiles = useAppSelector(
-    (state) => (state as any).profile.preferences.scanningProfiles,
-  );
+  const isReadOnly = useIsReadOnly();
+  const { data: userProfile } = useGetProfileQuery();
+  const profiles = (userProfile?.preferences as any)?.scanningProfiles;
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [profileToEdit, setProfileToEdit] = useState<any>();
-
-  const dispatch = useAppDispatch();
 
   // Memoized so the toolbar (and its "new scanning profile" button) keeps a
   // stable identity across the re-render that happens when the profiles list
@@ -96,17 +97,19 @@ const ScanningProfilesList = ({
     () =>
       function ScanningProfilesToolbar() {
         return (
-          <GridToolbarContainer>
-            <IconButton
-              name="new_scanning_profile"
-              onClick={() => setNewDialogOpen(true)}
-            >
-              <AddIcon />
-            </IconButton>
-          </GridToolbarContainer>
+          <DataGridToolbar showColumns={false} showQuickFilter={false}>
+            {!isReadOnly && (
+              <IconButton
+                name="new_scanning_profile"
+                onClick={() => setNewDialogOpen(true)}
+              >
+                <AddIcon />
+              </IconButton>
+            )}
+          </DataGridToolbar>
         );
       },
-    [],
+    [isReadOnly],
   );
 
   const handleLoadedChange = (checked: boolean, dataIndex: number) => {
@@ -132,7 +135,7 @@ const ScanningProfilesList = ({
           onChange={(event) =>
             handleLoadedChange(event.target.checked, dataIndex)
           }
-          inputProps={{ "aria-label": "primary checkbox" }}
+          slotProps={{ input: { "aria-label": "primary checkbox" } }}
         />
       </div>
     ) : (
@@ -141,11 +144,15 @@ const ScanningProfilesList = ({
   };
 
   const deleteProfile = (dataIndex: number) => {
-    profiles.splice(dataIndex, 1);
+    // `profiles` is frozen RTK Query data, so build a new array without the
+    // deleted entry rather than splicing in place.
+    const updatedProfiles = profiles.filter(
+      (_profile: any, i: number) => i !== dataIndex,
+    );
     const prefs = {
-      scanningProfiles: profiles,
+      scanningProfiles: updatedProfiles,
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
   };
 
   const editProfile = (profile: any) => {
@@ -154,15 +161,13 @@ const ScanningProfilesList = ({
   };
 
   const handleDefaultChange = (checked: boolean, dataIndex: number) => {
-    const updatedProfiles = profiles.map((profile: any, i: number) => ({
+    const updatedProfiles = profiles.map((profile: any, index: number) => ({
       ...profile,
-      default: checked && i === dataIndex,
+      default: checked && index === dataIndex,
     }));
-    dispatch(
-      profileActions.updateUserPreferences({
-        scanningProfiles: updatedProfiles,
-      }),
-    );
+    updateUserPreferences({
+      scanningProfiles: updatedProfiles,
+    });
   };
 
   const renderDefault = (params: any) => {
@@ -176,7 +181,7 @@ const ScanningProfilesList = ({
           onChange={(event) =>
             handleDefaultChange(event.target.checked, dataIndex)
           }
-          inputProps={{ "aria-label": "primary checkbox" }}
+          slotProps={{ input: { "aria-label": "primary checkbox" } }}
         />
       </div>
     ) : (
@@ -274,19 +279,23 @@ const ScanningProfilesList = ({
     const dataIndex = params.row.__rowid;
     return (
       <div className={classes.actionButtons}>
-        <IconButton
-          key={`edit_${dataIndex}`}
-          id={`edit_button_${dataIndex}`}
-          onClick={() => editProfile(profiles[dataIndex])}
-        >
-          <EditIcon />
-        </IconButton>
-        <IconButton
-          id={`delete_button_${dataIndex}`}
-          onClick={() => deleteProfile(dataIndex)}
-        >
-          <DeleteIcon />
-        </IconButton>
+        {!isReadOnly && (
+          <>
+            <IconButton
+              key={`edit_${dataIndex}`}
+              id={`edit_button_${dataIndex}`}
+              onClick={() => editProfile(profiles[dataIndex])}
+            >
+              <EditIcon />
+            </IconButton>
+            <IconButton
+              id={`delete_button_${dataIndex}`}
+              onClick={() => deleteProfile(dataIndex)}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </>
+        )}
       </div>
     );
   };

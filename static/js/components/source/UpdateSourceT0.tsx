@@ -13,7 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
-import * as sourceActions from "../../ducks/source";
+import { useUpdateSourceMutation } from "../../ducks/source";
 import type { Source } from "../../types";
 
 const useStyles = makeStyles()(() => ({
@@ -37,6 +37,7 @@ interface UpdateSourceT0Props {
 const UpdateSourceT0 = ({ source }: UpdateSourceT0Props) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
+  const [updateSource] = useUpdateSourceMutation();
   const [t0, setT0] = useState(source.t0 ? String(source.t0) : "");
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -48,16 +49,17 @@ const UpdateSourceT0 = ({ source }: UpdateSourceT0Props) => {
 
   const handleSubmit = async (clear: boolean) => {
     setIsSubmitting(true);
-    const result: any = await dispatch(
-      sourceActions.updateSource(source.id, {
-        t0: clear ? null : t0,
-      }),
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
+    try {
+      await updateSource({
+        id: source.id,
+        payload: { t0: clear ? null : t0 },
+      }).unwrap();
       dispatch(showNotification("Source t0 successfully updated."));
       setDialogOpen(false);
+    } catch {
+      // error notification handled by the baseQuery
     }
+    setIsSubmitting(false);
   };
 
   return (

@@ -1,63 +1,56 @@
-import messageHandler from "baselayer/MessageHandler";
-import * as API from "../API";
-import store from "../store";
+/**
+ * Rejected candidates (user listing "rejected_candidates").
+ *
+ * RTK Query conversion of the old `FETCH_REJECTED_CANDIDATES` duck. The list of
+ * rejected obj_ids is fetched from `/api/listing`, and add/remove are mutations
+ * against the same endpoint. The old reducer mapped the listing entries down to
+ * their `obj_id`, so `transformResponse` preserves that shape (a `string[]`).
+ *
+ * The websocket `REFRESH_REJECTED_CANDIDATES` message invalidates the
+ * `RejectedCandidates` tag so any active query refetches.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
 
-const FETCH_REJECTED_CANDIDATES = "skyportal/FETCH_REJECTED_CANDIDATES";
-const FETCH_REJECTED_CANDIDATES_OK = "skyportal/FETCH_REJECTED_CANDIDATES_OK";
-const ADD_TO_REJECTED_CANDIDATES = "skyportal/ADD_TO_REJECTED_CANDIDATES";
-const REMOVE_FROM_REJECTED_CANDIDATES =
-  "skyportal/REMOVE_FROM_REJECTED_CANDIDATES";
-const REFRESH_REJECTED_CANDIDATES = "skyportal/REFRESH_REJECTED_CANDIDATES";
+interface ListingEntry {
+  obj_id: string;
+  [key: string]: unknown;
+}
 
-export const fetchRejected = () =>
-  API.GET("/api/listing", FETCH_REJECTED_CANDIDATES, {
-    listName: "rejected_candidates",
-  });
-
-export const addToRejected = (obj_id: string) =>
-  API.POST("/api/listing", ADD_TO_REJECTED_CANDIDATES, {
-    list_name: "rejected_candidates",
-    obj_id,
-  });
-
-export const removeFromRejected = (obj_id: string) =>
-  API.DELETE("/api/listing", REMOVE_FROM_REJECTED_CANDIDATES, {
-    list_name: "rejected_candidates",
-    obj_id,
-  });
-
-// Websocket message handler
-messageHandler.add((actionType: any, _payload: any, dispatch: any) => {
-  if (actionType === REFRESH_REJECTED_CANDIDATES) {
-    dispatch(fetchRejected());
-  }
+export const rejectedCandidatesApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getRejectedCandidates: build.query<string[], void>({
+      query: () => "api/listing?listName=rejected_candidates",
+      transformResponse: (data: ListingEntry[]) =>
+        (data ?? []).map((rej) => rej.obj_id),
+      providesTags: ["RejectedCandidates"],
+    }),
+    addToRejected: build.mutation<unknown, string>({
+      query: (obj_id) => ({
+        url: "api/listing",
+        method: "POST",
+        body: { list_name: "rejected_candidates", obj_id },
+      }),
+      invalidatesTags: ["RejectedCandidates"],
+    }),
+    removeFromRejected: build.mutation<unknown, string>({
+      query: (obj_id) => ({
+        url: "api/listing",
+        method: "DELETE",
+        body: { list_name: "rejected_candidates", obj_id },
+      }),
+      invalidatesTags: ["RejectedCandidates"],
+    }),
+  }),
 });
 
-interface RejectedCandidatesState {
-  rejected_candidates: any[];
-}
+// Websocket message handler -> cache invalidation.
+invalidateOnMessage("skyportal/REFRESH_REJECTED_CANDIDATES", () => [
+  "RejectedCandidates",
+]);
 
-interface RejectedCandidatesAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
-
-const reducer = (
-  state: RejectedCandidatesState = { rejected_candidates: [] },
-  action: RejectedCandidatesAction,
-): RejectedCandidatesState => {
-  switch (action.type) {
-    case FETCH_REJECTED_CANDIDATES_OK: {
-      const rejected_candidates = action.data?.map((rej: any) => rej.obj_id);
-      return {
-        ...state,
-        rejected_candidates,
-      };
-    }
-    default:
-      return state;
-  }
-};
-
-store.injectReducer("rejected_candidates", reducer);
+export const {
+  useGetRejectedCandidatesQuery,
+  useAddToRejectedMutation,
+  useRemoveFromRejectedMutation,
+} = rejectedCandidatesApi;

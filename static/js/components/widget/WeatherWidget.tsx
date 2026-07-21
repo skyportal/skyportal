@@ -14,16 +14,15 @@ import IconButton from "@mui/material/IconButton";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Button from "../Button";
 
-import * as profileActions from "../../ducks/profile";
-import * as weatherActions from "../../ducks/weather";
-import { useAppSelector, useAppDispatch } from "../../types/hooks";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
+import { useGetWeatherQuery } from "../../ducks/weather";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
-
-const defaultPrefs = {
-  telescopeID: 1,
-};
 
 const useStyles = makeStyles()(() => ({
   weatherInfo: {
@@ -42,11 +41,6 @@ const useStyles = makeStyles()(() => ({
   weatherLinks: {
     padding: 0,
   },
-  widgetsBar: {
-    position: "fixed",
-    right: "1rem",
-    zIndex: 1,
-  },
   media: {
     height: "4rem",
     width: "4rem",
@@ -61,12 +55,6 @@ const useStyles = makeStyles()(() => ({
   description: {
     position: "relative",
     left: "0.5rem",
-  },
-  telescopeName: {
-    display: "inline-block",
-    maxHeight: "1.75rem",
-    maxWidth: "calc(100% - 5.5rem)",
-    overflowY: "hidden",
   },
 }));
 
@@ -89,7 +77,7 @@ const WeatherView = ({ weather = {} }: WeatherViewProps) => {
     <>
       <div className={styles.weatherBar}>
         <div className={styles.weatherInfo}>
-          {weather.weather && (
+          {weather.weather ? (
             <>
               <div>
                 <img
@@ -121,8 +109,11 @@ const WeatherView = ({ weather = {} }: WeatherViewProps) => {
                 </Typography>
               </div>
             </>
+          ) : (
+            <Typography variant="body2" color="textSecondary">
+              No weather information available
+            </Typography>
           )}
-          {!weather.weather && <p>No weather information available</p>}
         </div>
         <CardActions className={styles.weatherLinks}>
           {weather?.weather_link && (
@@ -152,15 +143,11 @@ interface WeatherWidgetProps {
 const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
   const { classes: styles } = useStyles();
 
-  const dispatch = useAppDispatch();
-  const weather = useAppSelector((state: any) => state.weather);
-  const userPrefs = useAppSelector(
-    (state: any) => state.profile.preferences.weather,
-  );
-  const telescopeList = useAppSelector(
-    (state: any) => state.telescopes.telescopeList,
-  );
-  telescopeList.sort((a: any, b: any) => {
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const userPrefs = (profile?.preferences as any)?.weather;
+  const { data: telescopeListData = [] } = useGetTelescopesQuery();
+  const telescopeList = [...telescopeListData].sort((a: any, b: any) => {
     const nameA = a.name.toUpperCase();
     const nameB = b.name.toUpperCase();
     if (nameA < nameB) {
@@ -171,44 +158,43 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
     }
     return 0;
   });
-  const weatherPrefs = userPrefs?.telescopeID ? userPrefs : defaultPrefs;
+  const weatherPrefs = userPrefs?.telescopeID
+    ? userPrefs
+    : { telescopeID: telescopeList[0]?.["id"] };
   const [anchorEl, setAnchorEl] = useState<any>(null);
 
+  const {
+    data: weather,
+    error: weatherError,
+    refetch: refetchWeather,
+  } = useGetWeatherQuery(weatherPrefs?.telescopeID ?? null, {
+    skip: !weatherPrefs?.telescopeID,
+  });
+
   useEffect(() => {
-    if (!telescopeList?.length) return;
+    if (!telescopeList?.length || !weather) return;
 
     const isStale = (utcTime: any) => {
       if (!utcTime) return true;
       return dayjs().diff(`${utcTime}Z`, "hour") > 1;
     };
 
-    const isWrongTelescope =
-      weatherPrefs?.telescopeID !== weather?.telescope_id;
-
     // Check if the weather data is stale (older than 1 hour)
-    const isWeatherStale = weather?.weather_retrieved_at
-      ? isStale(weather?.weather_retrieved_at)
-      : isStale(weather?.weather_fetch_at);
+    const isWeatherStale = weather?.["weather_retrieved_at"]
+      ? isStale(weather?.["weather_retrieved_at"])
+      : isStale(weather?.["weather_fetch_at"]);
 
-    if (!weather || isWrongTelescope || isWeatherStale) {
-      dispatch(weatherActions.fetchWeather());
+    if (isWeatherStale) {
+      refetchWeather();
     }
-  }, [weatherPrefs, weather, telescopeList, dispatch]);
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
+  }, [weather, telescopeList, refetchWeather]);
 
   const handleMenuItemClick = (_event: any, telescopeID: any) => {
     const prefs = {
       weather: { telescopeID },
     };
-    dispatch(profileActions.updateUserPreferences(prefs));
+    updateUserPreferences(prefs);
     setAnchorEl(null);
-  };
-
-  const handleClickDropdownIcon = (event: any) => {
-    setAnchorEl(event.currentTarget);
   };
 
   return (
@@ -217,19 +203,20 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
         <div>
           <Typography
             variant="h6"
-            display="inline"
-            className={styles.telescopeName}
+            sx={{
+              display: "inline",
+            }}
           >
-            {weather?.telescope_name}
+            {weather?.["telescope_name"]}
           </Typography>
           <DragHandleIcon className={`${classes["widgetIcon"]} dragHandle`} />
-          {telescopeList && (
+          {telescopeList?.length > 1 && (
             <div className={`${classes["widgetIcon"]} ${styles.selector}`}>
               <IconButton
                 aria-controls="tel-list"
                 data-testid="tel-list-button"
                 aria-haspopup="true"
-                onClick={handleClickDropdownIcon}
+                onClick={(event) => setAnchorEl(event.currentTarget)}
                 size="large"
               >
                 <MoreVertIcon />
@@ -240,7 +227,7 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
                 anchorEl={anchorEl}
                 keepMounted
                 open={Boolean(anchorEl)}
-                onClose={handleClose}
+                onClose={() => setAnchorEl(null)}
               >
                 {telescopeList?.map((telescope: any) => (
                   <MenuItem
@@ -260,7 +247,18 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
             </div>
           )}
         </div>
-        <WeatherView weather={weather} />
+        {!telescopeList?.length ? (
+          <Typography variant="body2" color="textSecondary">
+            No telescopes available to retrieve weather data.
+          </Typography>
+        ) : weatherError ? (
+          <Typography variant="body2" color="textSecondary">
+            {(weatherError as any)?.data?.message ??
+              "Error loading weather data."}
+          </Typography>
+        ) : (
+          <WeatherView weather={weather} />
+        )}
       </div>
     </Paper>
   );

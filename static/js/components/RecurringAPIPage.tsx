@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useGetProfileQuery } from "../ducks/profile";
+import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -10,17 +11,16 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import {
-  GridToolbarContainer,
-  GridToolbarColumnsButton,
-} from "@mui/x-data-grid";
-import { useAppSelector, useAppDispatch } from "../types/hooks";
+import { useAppDispatch } from "../types/hooks";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
-import StyledDataGrid from "./StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "./StyledDataGrid";
 
 import NewRecurringAPI from "./NewRecurringAPI";
 
-import * as recurringAPIsActions from "../ducks/recurring_apis";
+import {
+  useGetRecurringAPIsQuery,
+  useDeleteRecurringAPIMutation,
+} from "../ducks/recurring_apis";
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -35,12 +35,11 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const RecurringAPIPage = () => {
-  const { recurringAPIList } = useAppSelector(
-    (state) => (state as any).recurring_apis,
-  );
+  const { data: recurringAPIList } = useGetRecurringAPIsQuery();
+  const [deleteRecurringAPIMutation] = useDeleteRecurringAPIMutation();
   const [openNewForm, setOpenNewForm] = useState(false);
 
-  const currentUser = useAppSelector((state) => state.profile);
+  const { data: currentUser } = useGetProfileQuery();
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
 
@@ -49,16 +48,8 @@ const RecurringAPIPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const permission =
-    currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage Recurring APIs");
-
-  useEffect(() => {
-    const getRecurringAPIs = async () => {
-      await dispatch(recurringAPIsActions.fetchRecurringAPIs());
-    };
-
-    getRecurringAPIs();
-  }, [dispatch]);
+    currentUser?.permissions?.includes("System admin") ||
+    currentUser?.permissions?.includes("Manage Recurring APIs");
 
   const openDialog = (id: any) => {
     setDialogOpen(true);
@@ -69,15 +60,14 @@ const RecurringAPIPage = () => {
     setRecurringAPIToDelete(null);
   };
 
-  const deleteRecurringAPI = () => {
-    dispatch(
-      recurringAPIsActions.deleteRecurringAPI(recurringAPIToDelete),
-    ).then((result: any) => {
-      if (result.status === "success") {
-        dispatch(showNotification("RecurringAPI deleted"));
-        closeDialog();
-      }
-    });
+  const deleteRecurringAPI = async () => {
+    try {
+      await deleteRecurringAPIMutation(recurringAPIToDelete).unwrap();
+      dispatch(showNotification("RecurringAPI deleted"));
+      closeDialog();
+    } catch {
+      // error notification handled by the base query
+    }
   };
 
   const renderDelete = (params: any) => {
@@ -156,15 +146,14 @@ const RecurringAPIPage = () => {
   }
 
   const CustomToolbar = () => (
-    <GridToolbarContainer>
-      <GridToolbarColumnsButton />
+    <DataGridToolbar showQuickFilter={false} showExport>
       <IconButton
         name="new_recurring_api_form"
         onClick={() => setOpenNewForm(true)}
       >
         <AddIcon />
       </IconButton>
-    </GridToolbarContainer>
+    </DataGridToolbar>
   );
 
   return (

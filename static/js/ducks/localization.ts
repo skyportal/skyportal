@@ -1,85 +1,65 @@
-import * as API from "../API";
-import store from "../store";
+/**
+ * Localization (GCN skymap localizations).
+ *
+ * RTK Query conversion of the old `FETCH_LOCALIZATION` duck. The old duck kept
+ * two slices (`analysisLoc`, `obsplanLoc`) keyed by a `type` argument; both
+ * hit the same `GET /api/localization/{dateobs}/name/{name}` endpoint and only
+ * differed in where the result was stored. RTK Query caches by argument, so a
+ * single `getLocalization` query subsumes both: consumers pass the
+ * `dateobs`/`localization_name` they need and get an independently cached
+ * result.
+ *
+ * `deleteLocalization` and `postLocalizationFromNotice` are mutations that
+ * invalidate the `Localization` tag.
+ */
+import { skyportalApi } from "../api/skyportalApi";
+import { invalidateOnMessage } from "../api/wsInvalidation";
+import type { RouteData } from "../types/routeSchemaMap";
 
-const DELETE_LOCALIZATION = "skyportal/DELETE_LOCALIZATION ";
-
-export const FETCH_LOCALIZATION = "skyportal/FETCH_LOCALIZATION";
-export const FETCH_LOCALIZATION_OK = "skyportal/FETCH_LOCALIZATION_OK";
-
-export const FETCH_LOCALIZATION_ANALYSIS =
-  "skyportal/FETCH_LOCALIZATION_ANALYSIS";
-export const FETCH_LOCALIZATION_ANALYSIS_OK =
-  "skyportal/FETCH_LOCALIZATION_ANALYSIS_OK";
-
-export const FETCH_LOCALIZATION_OBSPLAN =
-  "skyportal/FETCH_LOCALIZATION_OBSPLAN";
-export const FETCH_LOCALIZATION_OBSPLAN_OK =
-  "skyportal/FETCH_LOCALIZATION_OBSPLAN_OK";
-
-export const POST_LOCALIZATION_FROM_NOTICE =
-  "skyportal/POST_LOCALIZATION_FROM_NOTICE";
-
-const typeEnum: Record<string, string> = {
-  analysis: FETCH_LOCALIZATION_ANALYSIS,
-  obsplan: FETCH_LOCALIZATION_OBSPLAN,
-};
-
-export const fetchLocalization = (
-  dateobs: string,
-  localization_name: string,
-  type = "analysis",
-) =>
-  API.GET(
-    `/api/localization/${dateobs}/name/${localization_name}`,
-    typeEnum[type],
-  );
-
-export function deleteLocalization(dateobs: string, localization_name: string) {
-  return API.DELETE(
-    `/api/localization/${dateobs}/name/${localization_name}`,
-    DELETE_LOCALIZATION,
-  );
-}
-
-export function postLocalizationFromNotice({
-  dateobs,
-  noticeID,
-}: {
+interface GetLocalizationArg {
   dateobs: string;
-  noticeID: number | string;
-}) {
-  return API.POST(
-    `/api/localization/${dateobs}/notice/${noticeID}`,
-    POST_LOCALIZATION_FROM_NOTICE,
-  );
+  localization_name: string;
 }
 
-interface LocalizationAction {
-  type: string;
-  data?: any;
-  [key: string]: any;
-}
+export const localizationApi = skyportalApi.injectEndpoints({
+  endpoints: (build) => ({
+    getLocalization: build.query<
+      RouteData<"GET /api/localization/{dateobs}/name/{localization_name}">,
+      GetLocalizationArg
+    >({
+      query: ({ dateobs, localization_name }) =>
+        `api/localization/${dateobs}/name/${localization_name}`,
+      providesTags: ["Localization"],
+    }),
+    deleteLocalization: build.mutation<unknown, GetLocalizationArg>({
+      query: ({ dateobs, localization_name }) => ({
+        url: `api/localization/${dateobs}/name/${localization_name}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Localization"],
+    }),
+    postLocalizationFromNotice: build.mutation<
+      unknown,
+      { dateobs: string; noticeID: number | string }
+    >({
+      query: ({ dateobs, noticeID }) => ({
+        url: `api/localization/${dateobs}/notice/${noticeID}`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Localization"],
+    }),
+  }),
+});
 
-const reducer = (
-  state: Record<string, any> = { analysisLoc: null, obsplanLoc: null },
-  action: LocalizationAction,
-) => {
-  switch (action.type) {
-    case FETCH_LOCALIZATION_ANALYSIS_OK: {
-      return {
-        ...state,
-        analysisLoc: action.data,
-      };
-    }
-    case FETCH_LOCALIZATION_OBSPLAN_OK: {
-      return {
-        ...state,
-        obsplanLoc: action.data,
-      };
-    }
-    default:
-      return state;
-  }
-};
+export const {
+  useGetLocalizationQuery,
+  useLazyGetLocalizationQuery,
+  useDeleteLocalizationMutation,
+  usePostLocalizationFromNoticeMutation,
+} = localizationApi;
 
-store.injectReducer("localization", reducer);
+// The contour/tiles are generated in a background task after a GCN event is
+// ingested, so the localization is first fetched with a null contour (skymap
+// spinner). The backend emits REFRESH_GCN_EVENT once the contour is committed;
+// re-fetch the localization on it so the skymap renders without a manual reload.
+invalidateOnMessage("skyportal/REFRESH_GCN_EVENT", () => ["Localization"]);

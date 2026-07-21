@@ -1,25 +1,32 @@
 import sqlalchemy as sa
+from sqlalchemy.orm import selectinload
 
+from baselayer.app.models import RoleACL, UserACL, UserRole
 from baselayer.log import make_log
-from .asynchronous import run_async
-from ..utils.tns import TNS_INSTRUMENT_IDS
+
 from ..models import (
-    Obj,
-    Source,
-    Instrument,
+    Filter,
+    Group,
     GroupUser,
-    Stream,
+    Instrument,
+    InstrumentSharingService,
+    Obj,
     Photometry,
-    StreamPhotometry,
     PublicRelease,
+    SharingService,
+    SharingServiceGroup,
     SharingServiceGroupAutoPublisher,
     SharingServiceSubmission,
-    SharingServiceGroup,
-    SharingService,
-    Thumbnail,
-    InstrumentSharingService,
+    Source,
+    Stream,
+    StreamPhotometry,
     StreamSharingService,
+    Team,
+    Thumbnail,
+    Token,
 )
+from ..utils.tns import TNS_INSTRUMENT_IDS
+from .asynchronous import run_async
 from .parse import get_list_typed, is_null
 
 log = make_log("publishable_access")
@@ -668,3 +675,409 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
                     release=release,
                     user_id=saver.id,
                 )
+
+
+# --- Async variants of selected data_access helpers ------------------------
+# These mirror the sync helpers above; sync callers (source.py,
+# sharing_service/*) continue to use the originals. Add more parallel
+# *_async versions as additional handlers are migrated to async.
+
+
+async def check_access_to_sharing_service_async(session, user, sharing_service_id):
+    """Async equivalent of `check_access_to_sharing_service`."""
+    sharing_service = await session.scalar(
+        SharingService.select(user).where(SharingService.id == sharing_service_id)
+    )
+    if sharing_service is None:
+        raise ValueError(
+            f"No sharing service with ID {sharing_service_id}, or inaccessible"
+        )
+    return sharing_service
+
+
+async def process_instrument_ids_async(
+    session, user, instrument_ids, accessible_instrument_ids=None
+):
+    """Async equivalent of `process_instrument_ids`."""
+    if instrument_ids:
+        instrument_ids = get_list_typed(
+            instrument_ids,
+            int,
+            "instrument_ids must be a comma-separated list of integers",
+        )
+        if accessible_instrument_ids:
+            instrument_ids = list(set(instrument_ids) & set(accessible_instrument_ids))
+        else:
+            instrument_ids = list(set(instrument_ids))
+        result = await session.scalars(
+            Instrument.select(user).where(Instrument.id.in_(instrument_ids))
+        )
+        instruments = result.all()
+        if len(instruments) != len(instrument_ids):
+            raise ValueError(f"One or more instruments not found: {instrument_ids}")
+        for instrument in instruments:
+            if instrument.name.lower() not in SHARING_INSTRUMENT_IDS:
+                raise ValueError(
+                    f"Instrument {instrument.name} not supported for sharing"
+                )
+        return instruments
+    return None
+
+
+async def filter_accessible_instrument_ids_async(
+    session, user, instrument_ids, sharing_service
+):
+    """Async equivalent of `filter_accessible_instrument_ids`."""
+    result = await session.scalars(
+        sa.select(InstrumentSharingService.instrument_id).where(
+            InstrumentSharingService.sharing_service_id == sharing_service.id
+        )
+    )
+    accessible_instrument_ids = result.all()
+    if not accessible_instrument_ids:
+        raise ValueError(
+            f"Must specify instruments on the sharing service '{sharing_service.id}' before submitting source."
+        )
+    if not instrument_ids:
+        instrument_ids = accessible_instrument_ids
+
+    instruments = await process_instrument_ids_async(
+        session, user, instrument_ids, accessible_instrument_ids
+    )
+    if not instruments:
+        raise ValueError(
+            f"None of the instruments specified for the submission request are accessible to sharing service '{sharing_service.id}'."
+        )
+    return [instrument.id for instrument in instruments]
+
+
+async def process_stream_ids_async(
+    session, user, stream_ids, accessible_stream_ids=None
+):
+    """Async equivalent of `process_stream_ids`."""
+    if stream_ids:
+        stream_ids = get_list_typed(
+            stream_ids, int, "stream_ids must be a comma-separated list of integers"
+        )
+        if accessible_stream_ids is not None:
+            stream_ids = list(set(stream_ids) & set(accessible_stream_ids))
+        else:
+            stream_ids = list(set(stream_ids))
+        result = await session.scalars(
+            Stream.select(user).where(Stream.id.in_(stream_ids))
+        )
+        streams = result.all()
+        if len(streams) != len(stream_ids):
+            raise ValueError(f"One or more streams not found: {stream_ids}")
+        return streams
+    return None
+
+
+async def filter_accessible_stream_ids_async(
+    session, user, stream_ids, sharing_service, auto_submission=False
+):
+    """Async equivalent of `filter_accessible_stream_ids`."""
+    if not auto_submission and not stream_ids:
+        return None
+
+    result = await session.scalars(
+        sa.select(StreamSharingService.stream_id).where(
+            StreamSharingService.sharing_service_id == sharing_service.id
+        )
+    )
+    accessible_stream_ids = result.all()
+    if auto_submission:
+        if not accessible_stream_ids:
+            raise ValueError(
+                f"Must specify streams for sharing service {sharing_service.id} when auto-submitting source."
+            )
+        stream_ids = accessible_stream_ids
+
+    streams = await process_stream_ids_async(
+        session, user, stream_ids, accessible_stream_ids
+    )
+    return [stream.id for stream in streams]
+
+
+async def is_existing_submission_request_async(
+    session, obj, sharing_service_id, service, is_bot=False
+):
+    """Async equivalent of `is_existing_submission_request`."""
+    if service not in ["TNS", "Hermes"]:
+        raise ValueError("Invalid service name. Must be 'TNS' or 'Hermes'.")
+    if service == "TNS":
+        service_status = SharingServiceSubmission.tns_status
+    else:
+        service_status = SharingServiceSubmission.hermes_status
+
+    stmt = SharingServiceSubmission.select(session.user_or_token).where(
+        SharingServiceSubmission.obj_id == obj.id,
+        SharingServiceSubmission.sharing_service_id == sharing_service_id,
+        sa.or_(
+            service_status == "pending",
+            service_status == "processing",
+            service_status.like("submitted%"),
+            service_status.like("complete%"),
+        ),
+    )
+    if is_bot:
+        stmt = stmt.where(SharingServiceGroup.auto_sharing_allow_bots.is_(True))
+    return await session.scalar(stmt)
+
+
+async def any_group_auto_publishes(session, group_ids):
+    """Cheap pre-check: could `auto_source_publishing_async` publish anything
+    for any of these groups?
+
+    Most instances have no auto-publishing configured, yet
+    `auto_source_publishing_async` issues two queries *per group* to find out.
+    This collapses that to a single EXISTS round-trip so callers can skip the
+    per-group loop entirely when nothing is configured. The conditions here are
+    a deliberate superset of the loop's (they ignore the saver/auto-publisher
+    and bot checks), so a True result never wrongly skips a real publish.
+    """
+    if not group_ids:
+        return False
+    return bool(
+        await session.scalar(
+            sa.select(
+                sa.or_(
+                    sa.exists().where(
+                        SharingServiceGroup.group_id.in_(group_ids),
+                        sa.or_(
+                            SharingServiceGroup.auto_share_to_tns,
+                            SharingServiceGroup.auto_share_to_hermes,
+                        ),
+                    ),
+                    sa.exists().where(
+                        PublicRelease.auto_publish_enabled,
+                        PublicRelease.groups.any(Group.id.in_(group_ids)),
+                    ),
+                )
+            )
+        )
+    )
+
+
+async def auto_source_publishing_async(session, saver, group_id, obj, publish_to):
+    """Async equivalent of `auto_source_publishing`."""
+    tns, hermes = "TNS", "Hermes"
+    if tns in publish_to or hermes in publish_to:
+        stmt = (
+            SharingServiceGroup.select(saver)
+            .options(selectinload(SharingServiceGroup.sharing_service))
+            .join(
+                SharingServiceGroupAutoPublisher,
+                SharingServiceGroup.id
+                == SharingServiceGroupAutoPublisher.sharing_service_group_id,
+            )
+            .where(
+                SharingServiceGroup.group_id == group_id,
+                sa.or_(
+                    SharingServiceGroup.auto_share_to_tns,
+                    SharingServiceGroup.auto_share_to_hermes,
+                ),
+                SharingServiceGroupAutoPublisher.group_user_id.in_(
+                    sa.select(GroupUser.id).where(
+                        GroupUser.user_id == saver.id,
+                        GroupUser.group_id == group_id,
+                    )
+                ),
+            )
+        )
+        if saver.is_bot:
+            stmt = stmt.where(SharingServiceGroup.auto_sharing_allow_bots.is_(True))
+        result = await session.scalars(stmt)
+        groups_with_auto_publisher = result.all()
+        if groups_with_auto_publisher:
+            external_services = {}
+            for group in groups_with_auto_publisher:
+                sharing_service = group.sharing_service
+                if (
+                    not external_services.get(tns)
+                    and tns in publish_to
+                    and sharing_service.enable_sharing_with_tns
+                    and group.auto_share_to_tns
+                    and not await is_existing_submission_request_async(
+                        session, obj, sharing_service.id, tns
+                    )
+                ):
+                    external_services[tns] = sharing_service.id
+                    publish_to.remove(tns)
+
+                if (
+                    not external_services.get(hermes)
+                    and hermes in publish_to
+                    and sharing_service.enable_sharing_with_hermes
+                    and group.auto_share_to_hermes
+                    and not await is_existing_submission_request_async(
+                        session, obj, sharing_service.id, hermes
+                    )
+                ):
+                    external_services[hermes] = sharing_service.id
+                    publish_to.remove(hermes)
+                if len(external_services) == 2:
+                    break
+
+            if external_services:
+                if external_services.get(tns) == external_services.get(hermes):
+                    external_services = {f"{tns}/{hermes}": external_services[tns]}
+
+                for service_name, sharing_service_id in external_services.items():
+                    submission_request = SharingServiceSubmission(
+                        sharing_service_id=sharing_service_id,
+                        obj_id=obj.id,
+                        user_id=saver.id,
+                        auto_submission=True,
+                        publish_to_tns=tns in service_name,
+                        tns_status="pending" if tns in service_name else None,
+                        publish_to_hermes=hermes in service_name,
+                        hermes_status="pending" if hermes in service_name else None,
+                    )
+                    session.add(submission_request)
+                    await session.commit()
+                    log(
+                        f"Added SharingServiceSubmission for obj_id {obj.id}, group {group_id}, sharing_service_id {sharing_service_id}, user_id {saver.id}, services {service_name}"
+                    )
+            else:
+                log(
+                    "No auto-sharing services associated with this group are selected to auto publish to TNS or Hermes."
+                )
+
+    if "Public page" in publish_to:
+        releases_result = await session.scalars(
+            sa.select(PublicRelease).where(
+                PublicRelease.groups.any(id=group_id),
+                PublicRelease.auto_publish_enabled,
+            )
+        )
+        releases = releases_result.all()
+        if releases:
+            from ..handlers.api.public_pages.public_source_page import (
+                async_post_public_source_page,
+            )
+
+            dict_obj = obj.to_dict()
+            thumbnails_result = await session.scalars(
+                sa.select(Thumbnail).where(Thumbnail.obj_id == obj.id)
+            )
+            dict_obj["thumbnails"] = [
+                thumbnail.to_dict() for thumbnail in thumbnails_result.all()
+            ]
+            for release in releases:
+                run_async(
+                    async_post_public_source_page,
+                    options=release.options,
+                    source=dict_obj,
+                    release=release,
+                    user_id=saver.id,
+                )
+
+
+async def team_scoped_group_ids(session, user_or_token, team_id, accessible_group_ids):
+    """Resolve a home-page ``teamID`` view filter to a list of group ids.
+
+    A view filter, never a permission: the team's groups are intersected with
+    ``accessible_group_ids`` so it can only narrow what a widget shows. Returns
+    None when ``team_id`` is None (no scoping). Raises ValueError on a missing or
+    inaccessible team id (handlers should surface it via ``self.error``).
+    """
+    if team_id is None:
+        return None
+    try:
+        team_id = int(team_id)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid teamID: {team_id}")
+    team = await session.scalar(
+        Team.select(user_or_token)
+        .options(selectinload(Team.groups))
+        .where(Team.id == team_id)
+    )
+    if team is None:
+        raise ValueError(f"Cannot find Team with id {team_id}")
+    accessible = set(accessible_group_ids)
+    return [g.id for g in team.groups if g.id in accessible]
+
+
+async def accessible_group_ids_async(user_or_token, session):
+    """Async equivalent of the ``User.accessible_groups`` / ``Token.accessible_groups``
+    lazy property. For system admins, returns every group ID; otherwise returns
+    the group IDs the user is a direct member of. Works against an async
+    session and does not touch lazy ORM relationships.
+
+    Parameters
+    ----------
+    user_or_token : ``User`` or ``Token``
+        The request's auth principal (handler ``self.current_user``).
+    session : ``sqlalchemy.ext.asyncio.AsyncSession``
+    """
+    # Token-auth requests should see the token owner's groups.
+    target_user_id = (
+        user_or_token.created_by_id
+        if isinstance(user_or_token, Token)
+        else user_or_token.id
+    )
+
+    direct = sa.select(UserACL.acl_id).where(UserACL.user_id == target_user_id)
+    via_role = (
+        sa.select(RoleACL.acl_id)
+        .join(UserRole, UserRole.role_id == RoleACL.role_id)
+        .where(UserRole.user_id == target_user_id)
+    )
+    combined = sa.union(direct, via_role).subquery()
+    is_sysadmin = await session.scalar(
+        sa.select(sa.func.count())
+        .select_from(combined)
+        .where(combined.c.acl_id == "System admin")
+    )
+    if is_sysadmin:
+        result = await session.scalars(sa.select(Group.id))
+    else:
+        result = await session.scalars(
+            sa.select(Group.id)
+            .join(GroupUser, GroupUser.group_id == Group.id)
+            .where(GroupUser.user_id == target_user_id)
+        )
+    return list(result.all())
+
+
+async def accessible_group_and_filter_ids(session, user, group_ids, filter_ids):
+    """Async equivalent of ``accessible_group_and_filter_ids``. Resolves the
+    user's accessible group IDs without touching the lazy
+    ``user.accessible_groups`` property.
+    """
+    from .parse import get_list_typed
+
+    user_accessible_group_ids = await accessible_group_ids_async(user, session)
+
+    if isinstance(group_ids, str):
+        group_ids = get_list_typed(
+            group_ids,
+            int,
+            error_msg="Invalid groupIDs value -- select at least one group",
+        )
+        filters_result = await session.scalars(
+            Filter.select(user).where(Filter.group_id.in_(group_ids))
+        )
+        filter_ids = [f.id for f in filters_result.all()]
+    elif isinstance(filter_ids, str):
+        filter_ids = get_list_typed(
+            filter_ids,
+            int,
+            error_msg="Invalid filterIDs value -- select at least one filter",
+        )
+        filters_result = await session.scalars(
+            Filter.select(user).where(Filter.id.in_(filter_ids))
+        )
+        filters = filters_result.all()
+        filter_ids = [f.id for f in filters]
+        group_ids = [f.group_id for f in filters]
+    else:
+        group_ids = user_accessible_group_ids
+        filters_result = await session.scalars(
+            Filter.select(user, columns=[Filter.id]).where(
+                Filter.group_id.in_(user_accessible_group_ids)
+            )
+        )
+        filter_ids = list(filters_result.all())
+    return group_ids, filter_ids

@@ -9,10 +9,13 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 import Tooltip from "@mui/material/Tooltip";
-import { useAppSelector } from "../../types/hooks";
 import Button from "../Button";
 
-import * as profileActions from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
+import { useGetRecentGcnEventsQuery } from "../../ducks/recentGcnEvents";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import GcnTags from "../gcn/GcnTags";
 import GcnEventAllocationTriggers from "../gcn/GcnEventAllocationTriggers";
@@ -92,17 +95,22 @@ interface RecentGcnEventsProps {
 const RecentGcnEvents = ({ classes }: RecentGcnEventsProps) => {
   const { classes: styles } = useStyles();
 
-  const gcnEvents = useAppSelector((state) => state["recentGcnEvents"]);
+  const { data: gcnEvents } = useGetRecentGcnEventsQuery();
+  const { data: profile } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const recentEventsPrefs: any =
-    useAppSelector(
-      (state) => (state.profile.preferences as any)?.recentGcnEvents,
-    ) || defaultPrefs;
+    (profile?.preferences as any)?.recentGcnEvents || defaultPrefs;
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <div className={styles.header}>
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            sx={{
+              display: "inline",
+            }}
+          >
             Recent GCN Events
           </Typography>
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
@@ -114,7 +122,7 @@ const RecentGcnEvents = ({ classes }: RecentGcnEventsProps) => {
               }}
               stateBranchName="recentGcnEvents"
               title="Recent Events Preferences"
-              onSubmit={profileActions.updateUserPreferences}
+              onSubmit={updateUserPreferences}
             />
           </div>
         </div>

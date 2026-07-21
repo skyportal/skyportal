@@ -4,10 +4,10 @@ import json
 import urllib
 from datetime import UTC, timedelta
 
+import aiohttp
 import arrow
-import requests
 import sqlalchemy as sa
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
@@ -501,12 +501,19 @@ class FLOYDSRequest:
         return requestgroup
 
 
-def download_observations(request_id, ar):
+def download_observations(request_id, results, count):
     """Fetch data from the LCO API.
+
+    Runs in a background thread executor with its own sync session, so it
+    stays sync (blocking urllib download); the async caller passes the
+    already-parsed archive results/count.
+
     request_id : int
         SkyPortal ID for request
-    ar : requests.Response
-        LCO archive response query
+    results : list
+        LCO archive frame results
+    count : int
+        Number of frames returned by the archive query
     """
 
     from ..models import Comment, DBSession, FollowupRequest, Group
@@ -526,7 +533,7 @@ def download_observations(request_id, ar):
         groups = session.scalars(
             Group.select(req.requester).where(Group.id.in_(group_ids))
         ).all()
-        for image in ar.json()["results"]:
+        for image in results:
             attachment_name = image["filename"]
             with urllib.request.urlopen(image["url"]) as f:
                 attachment_bytes = base64.b64encode(f.read())
@@ -540,7 +547,7 @@ def download_observations(request_id, ar):
                 bot=True,
             )
             session.add(comment)
-        req.status = f"{ar.json()['count']} images posted as comment"
+        req.status = f"{count} images posted as comment"
         session.commit()
     except Exception as e:
         session.rollback()
@@ -554,7 +561,7 @@ class LCOAPI(FollowUpAPI):
     """An interface to LCO operations."""
 
     @staticmethod
-    def delete(request, session, **kwargs):
+    async def delete(request, session, **kwargs):
         """Delete a follow-up request from LCO queue (all instruments).
 
         Parameters
@@ -565,16 +572,31 @@ class LCOAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, FollowupRequest
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads. Returns the same
+        # identity-mapped object, so later request.status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
 
         last_modified_by_id = request.last_modified_by_id
         obj_internal_key = request.obj.internal_key
 
         if len(request.transactions) == 0:
-            session.query(FollowupRequest).filter(
-                FollowupRequest.id == request.id
-            ).delete()
-            session.commit()
+            await session.execute(
+                sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+            )
+            await session.commit()
         else:
             altdata = request.allocation.altdata
 
@@ -587,27 +609,32 @@ class LCOAPI(FollowUpAPI):
             if "id" in content:
                 uid = content["id"]
 
-                r = requests.post(
-                    f"{requestpath}{uid}/cancel/",
-                    headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-                )
+                url = f"{requestpath}{uid}/cancel/"
+                headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
+                async with aiohttp.ClientSession() as http_session:
+                    async with http_session.post(url, headers=headers) as r:
+                        content = await r.text()
+                        status = r.status
 
-                r.raise_for_status()
+                if status >= 400:
+                    raise ValueError(
+                        f"Error cancelling request: status {status}: {content}"
+                    )
                 request.status = "deleted"
 
                 transaction = FacilityTransaction(
-                    request=http.serialize_requests_request(r.request),
-                    response=http.serialize_requests_response(r),
+                    request=http.serialize_aiohttp_request("POST", url, headers),
+                    response=await http.serialize_aiohttp_response(r, content),
                     followup_request=request,
                     initiator_id=request.last_modified_by_id,
                 )
 
                 session.add(transaction)
             else:
-                session.query(FollowupRequest).filter(
-                    FollowupRequest.id == request.id
-                ).delete()
-                session.commit()
+                await session.execute(
+                    sa.delete(FollowupRequest).where(FollowupRequest.id == request.id)
+                )
+                await session.commit()
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
@@ -624,7 +651,7 @@ class LCOAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def get(request, session, **kwargs):
+    async def get(request, session, **kwargs):
         """Get a follow-up request from LCO queue (all instruments).
 
         Parameters
@@ -635,7 +662,22 @@ class LCOAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method walks eager-loaded, since
+        # async sessions raise on implicit lazy loads. Returns the same
+        # identity-mapped object, so later request.status mutations persist.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.transactions),
+            )
+        )
 
         if len(request.transactions) == 0:
             raise ValueError("No transaction information.")
@@ -649,12 +691,15 @@ class LCOAPI(FollowUpAPI):
         uid = content["id"]
         request_id = content["requests"][0]["id"]
 
-        r = requests.get(
-            f"{requestpath}{request_id}/",
-            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-        )
+        url = f"{requestpath}{request_id}/"
+        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.get(url, headers=headers) as r:
+                r_content = await r.text()
+                status = r.status
 
-        r.raise_for_status()
+        if status >= 400:
+            raise ValueError(f"Error getting request: status {status}: {r_content}")
 
         content = request.transactions[0].response["content"]
         content = json.loads(content)
@@ -664,31 +709,34 @@ class LCOAPI(FollowUpAPI):
             request.status = "complete"
 
             archive_headers = {"Authorization": f"Token {altdata['API_ARCHIVE_TOKEN']}"}
-            ar = requests.get(
-                f"{archivepath}?REQNUM={uid}&start=2014-01-01&RLEVEL=91",
-                headers=archive_headers,
-            )
-            if ar.status_code == 200:
+            archive_url = f"{archivepath}?REQNUM={uid}&start=2014-01-01&RLEVEL=91"
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.get(archive_url, headers=archive_headers) as ar:
+                    ar_content = await ar.text()
+                    ar_status = ar.status
+            if ar_status == 200:
+                ar_json = json.loads(ar_content)
                 download_obs = functools.partial(
                     download_observations,
                     request.id,
-                    ar,
+                    ar_json["results"],
+                    ar_json["count"],
                 )
                 IOLoop.current().run_in_executor(None, download_obs)
             else:
-                request.status = r.content.decode()
+                request.status = r_content
         elif content["state"] == "PENDING":
             request.status = "pending"
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request("GET", url, headers),
+            response=await http.serialize_aiohttp_response(r, r_content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
 
         session.add(transaction)
-        session.commit()
+        await session.commit()
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
@@ -728,7 +776,7 @@ class SINISTROAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to LCO's SINISTRO.
 
         Parameters
@@ -739,7 +787,20 @@ class SINISTROAPI(LCOAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method (and SINISTRORequest) walks
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -748,20 +809,24 @@ class SINISTROAPI(LCOAPI):
         lcoreq = SINISTRORequest(request)
         requestgroup = lcoreq.requestgroup
 
-        r = requests.post(
-            requestpath,
-            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-            json=requestgroup,  # Make sure you use json!
-        )
+        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(
+                requestpath, headers=headers, json=requestgroup
+            ) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code == 201:
+        if status == 201:
             request.status = "submitted"
         else:
-            request.status = r.content.decode()
+            request.status = content
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request(
+                "POST", requestpath, headers, requestgroup
+            ),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -858,7 +923,7 @@ class SPECTRALAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to LCO's SPECTRAL.
 
         Parameters
@@ -869,7 +934,20 @@ class SPECTRALAPI(LCOAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method (and SPECTRALRequest) walks
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
 
@@ -879,20 +957,24 @@ class SPECTRALAPI(LCOAPI):
         lcoreq = SPECTRALRequest(request)
         requestgroup = lcoreq.requestgroup
 
-        r = requests.post(
-            requestpath,
-            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-            json=requestgroup,  # Make sure you use json!
-        )
+        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(
+                requestpath, headers=headers, json=requestgroup
+            ) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code == 201:
+        if status == 201:
             request.status = "submitted"
         else:
-            request.status = r.content.decode()
+            request.status = content
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request(
+                "POST", requestpath, headers, requestgroup
+            ),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -989,7 +1071,7 @@ class MUSCATAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to LCO's MUSCAT.
 
         Parameters
@@ -1000,7 +1082,20 @@ class MUSCATAPI(LCOAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method (and MUSCATRequest) walks
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -1009,20 +1104,24 @@ class MUSCATAPI(LCOAPI):
         lcoreq = MUSCATRequest(request)
         requestgroup = lcoreq.requestgroup
 
-        r = requests.post(
-            requestpath,
-            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-            json=requestgroup,  # Make sure you use json!
-        )
+        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(
+                requestpath, headers=headers, json=requestgroup
+            ) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code == 201:
+        if status == 201:
             request.status = "submitted"
         else:
-            request.status = r.content.decode()
+            request.status = content
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request(
+                "POST", requestpath, headers, requestgroup
+            ),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )
@@ -1112,7 +1211,7 @@ class FLOYDSAPI(LCOAPI):
 
     # subclasses *must* implement the method below
     @staticmethod
-    def submit(request, session, **kwargs):
+    async def submit(request, session, **kwargs):
         """Submit a follow-up request to LCO's FLOYDS.
 
         Parameters
@@ -1123,7 +1222,20 @@ class FLOYDSAPI(LCOAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method (and FLOYDSRequest) walks
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
 
         altdata = request.allocation.altdata
         if not altdata:
@@ -1132,21 +1244,24 @@ class FLOYDSAPI(LCOAPI):
         lcoreq = FLOYDSRequest(request)
         requestgroup = lcoreq.requestgroup
 
-        r = requests.post(
-            requestpath,
-            headers={"Authorization": f"Token {altdata['API_TOKEN']}"},
-            json=requestgroup,  # Make sure you use json!
-        )
+        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(
+                requestpath, headers=headers, json=requestgroup
+            ) as r:
+                content = await r.text()
+                status = r.status
 
-        if r.status_code == 201:
+        if status == 201:
             request.status = "submitted"
         else:
-            error_message = r.content.decode()
-            request.status = error_message
+            request.status = content
 
         transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
+            request=http.serialize_aiohttp_request(
+                "POST", requestpath, headers, requestgroup
+            ),
+            response=await http.serialize_aiohttp_response(r, content),
             followup_request=request,
             initiator_id=request.last_modified_by_id,
         )

@@ -1,12 +1,14 @@
+import { useGetGroupsQuery } from "../../ducks/groups";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+
 import { sourcePublishOptionsSchema } from "../source/source_publish/SourcePublishOptions";
 import {
-  submitPublicRelease,
-  updatePublicRelease,
+  useSubmitPublicReleaseMutation,
+  useUpdatePublicReleaseMutation,
 } from "../../ducks/public_pages/public_release";
 import Button from "../Button";
+import { useGetStreamsQuery } from "../../ducks/streams";
 
 interface ReleaseFormProps {
   release: any;
@@ -19,9 +21,10 @@ const ReleaseForm = ({
   setRelease,
   setOpenReleaseForm,
 }: ReleaseFormProps) => {
-  const dispatch = useAppDispatch();
-  const streams = useAppSelector((state) => state["streams"]);
-  const groups = useAppSelector((state) => state.groups.userAccessible);
+  const [submitPublicRelease] = useSubmitPublicReleaseMutation();
+  const [updatePublicRelease] = useUpdatePublicReleaseMutation();
+  const { data: streams = [] } = useGetStreamsQuery();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const sourceOptionsSchema = sourcePublishOptionsSchema(
     streams as any,
     groups as any,
@@ -70,16 +73,21 @@ const ReleaseForm = ({
     required: ["name", "link_name"],
   };
 
-  const submitRelease = () => {
-    const action = release.id
-      ? updatePublicRelease(release.id, release)
-      : submitPublicRelease(release);
-    dispatch(action).then((response: any) => {
-      if (response.status === "success") {
-        setOpenReleaseForm(false);
-        setRelease({});
+  const submitRelease = async () => {
+    try {
+      if (release.id) {
+        await updatePublicRelease({
+          releaseId: release.id,
+          payload: release,
+        }).unwrap();
+      } else {
+        await submitPublicRelease(release).unwrap();
       }
-    });
+      setOpenReleaseForm(false);
+      setRelease({});
+    } catch {
+      // error notification is handled by the base query
+    }
   };
 
   return (

@@ -4,8 +4,8 @@ import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 
-import { useAppSelector } from "../types/hooks";
 import AboutPlugins from "./AboutPlugins";
+import { useGetConfigQuery } from "../ducks/config";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -45,8 +45,11 @@ const useStyles = makeStyles()(() => ({
 
 const About = () => {
   const { classes } = useStyles();
-  const cosmology = useAppSelector((state) => state["sysInfo"].cosmology);
-  const cosmoref = useAppSelector((state) => state["sysInfo"].cosmoref);
+  // cosmology/cosmoref are served by `/api/config` and live in the `config`
+  // slice; this previously read them from `sysInfo` (where they never existed),
+  // so the block below never rendered. Sourced correctly now.
+  const cosmology = (useGetConfigQuery().data as any)?.cosmology;
+  const cosmoref = (useGetConfigQuery().data as any)?.cosmoref;
 
   const developers = [
     {
@@ -54,32 +57,48 @@ const About = () => {
       src: "/static/images/developers/antier.jpeg",
     },
     {
+      name: "Pete Bachant",
+      src: "/static/images/developers/bachant.jpg",
+    },
+    {
       name: "Joshua Bloom",
       src: "/static/images/developers/bloom.jpeg",
+    },
+    {
+      name: "Leo Conforti",
+      src: "/static/images/developers/conforti.jpg",
     },
     {
       name: "Michael Coughlin",
       src: "/static/images/developers/coughlin.jpg",
     },
     {
-      name: "Matthew Graham",
-      src: "/static/images/developers/graham.jpg",
+      name: "Thomas Culino",
+      src: "/static/images/developers/culino.jpg",
     },
     {
-      name: "Theophile Jegou du Laz",
-      src: "/static/images/developers/laz.jpeg",
+      name: "Camille Douzet",
+      src: "/static/images/developers/douzet.jpg",
+    },
+    {
+      name: "Matthew Graham",
+      src: "/static/images/developers/graham.jpg",
     },
     {
       name: "Mansi Kasliwal",
       src: "/static/images/developers/kasliwal.jpg",
     },
     {
-      name: "Don Neill",
-      src: "/static/images/developers/neill.jpg",
+      name: "Antoine Le Calloch",
+      src: "/static/images/developers/lecalloch.jpg",
     },
     {
-      name: "Guy Nir",
-      src: "/static/images/developers/nir.jpg",
+      name: "Sneha Maharjan",
+      src: "/static/images/developers/maharjan.jpg",
+    },
+    {
+      name: "Sushant Sharma Chaudhary",
+      src: "/static/images/developers/sharmachaudhary.jpg",
     },
     {
       name: "Leo Singer",
@@ -97,10 +116,6 @@ const About = () => {
       src: "/static/images/developers/crellinquick.jpg",
     },
     {
-      name: "Thomas Culino",
-      src: "/static/images/developers/culino.jpg",
-    },
-    {
       name: "Dmitry Duev",
       src: "/static/images/developers/duev.jpg",
     },
@@ -109,8 +124,20 @@ const About = () => {
       src: "/static/images/developers/goldstein.jpg",
     },
     {
+      name: "Theophile Jegou du Laz",
+      src: "/static/images/developers/laz.jpeg",
+    },
+    {
       name: "Jada Lilleboe",
       src: "/static/images/developers/lilleboe.jpg",
+    },
+    {
+      name: "Don Neill",
+      src: "/static/images/developers/neill.jpg",
+    },
+    {
+      name: "Guy Nir",
+      src: "/static/images/developers/nir.jpg",
     },
     {
       name: "Kyung Min Shin",

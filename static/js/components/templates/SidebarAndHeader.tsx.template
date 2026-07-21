@@ -30,6 +30,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as Actions from "../../ducks/sidebar";
+import { useGetProfileQuery } from "../../ducks/profile";
 
 import HeaderContent from "./HeaderContent";
 import hydrate from "../../actions";
@@ -144,7 +145,7 @@ const SidebarAndHeader = () => {
   const { classes } = useStyles() as any;
   const dispatch = useAppDispatch();
   const open = useAppSelector((state) => (state as any).sidebar.open);
-  const currentUser = useAppSelector((state) => (state as any).profile);
+  const { data: currentUser } = useGetProfileQuery();
   const isSmall = useMediaQuery((theme: any) => theme.breakpoints.down("md"));
   {% for group in app.sidebar -%}
     {% if not group.name.startswith('main') %}
@@ -197,25 +198,45 @@ const SidebarAndHeader = () => {
   const hydrateIfDashboardClicked = (url: string) => {
     clearTimeout(timerRef.current);
     if (url === "/") {
-      dispatch(hydrate(true));
+      dispatch(hydrate());
     }
   };
 
   {% macro add_items_to_menu(group) -%}
     {% for item in group.subitems -%}
-    {% if item.permissions %}
+    {% if item.permissions or not item.anonymous_ok %}
       {(
+      {% if item.permissions %}
+      (
       {% for permission in item.permissions %}
-        currentUser.permissions?.includes("{{ permission }}") ||
+        currentUser?.permissions?.includes("{{ permission }}") ||
       {% endfor %}
-      false) && (
+      false) &&
+      {% endif %}
+      {% if not item.anonymous_ok %}
+      !currentUser?.is_anonymous &&
+      {% endif %}
+      true) && (
     {% endif %}
     {% if item.url.startswith('http') -%}
     <a href="{{ item.url }}" className={classes.link}>
     {% else %}
     <Link to="{{ item.url }}" onClick={() => hydrateIfDashboardClicked("{{ item.url }}")} className={classes.link}>
     {%- endif %}
-      <ListItem {...({ name: "sidebar{{ item.name }}Button" } as any)} disablePadding sx={{ "{{ display: 'block' }}" }}>
+      <ListItem
+        {...({ name: "sidebar{{ item.name }}Button" } as any)}
+        {%- if item.url == '/sources' %}
+        data-testid="tour-nav-sources"
+        {%- elif item.url == '/candidates' %}
+        data-testid="tour-nav-candidates"
+        {%- elif item.url == '/groups' %}
+        data-testid="tour-nav-groups"
+        {%- elif item.url == '/gcn_events' %}
+        data-testid="tour-nav-gcn"
+        {%- endif %}
+        disablePadding
+        sx={{ "{{ display: 'block' }}" }}
+      >
         <ListItemButton
             sx={{"{{
               minHeight: 48,
@@ -244,7 +265,7 @@ const SidebarAndHeader = () => {
     {% else %}
     </Link>
     {%- endif %}
-    {% if item.permissions %}
+    {% if item.permissions or not item.anonymous_ok %}
     )}
     {% endif %}
     {%- endfor %}
@@ -254,7 +275,7 @@ const SidebarAndHeader = () => {
     {% if group.permissions %}
       {(
       {% for permission in group.permissions %}
-        currentUser.permissions?.includes("{{ permission }}") ||
+        currentUser?.permissions?.includes("{{ permission }}") ||
       {% endfor %}
       false) && (
     {% endif %}
@@ -318,12 +339,13 @@ const SidebarAndHeader = () => {
       </AppBar>
       <Drawer
         className={classes.drawer}
+        data-testid="tour-sidebar"
         variant={drawerType}
         anchor="left"
         open={open || temporaryOpen}
         onClose={isSmall ? handleToggleSidebarOpen : undefined}
         classes={{ "{{ paper: drawerType === 'temporary' ? classes.drawerPaperTemporary : classes.drawerPaper }}" }}
-        PaperProps={{ "{{ onMouseEnter: mouseEnter, onMouseLeave: mouseLeave }}" }}
+        slotProps={{ "{{ paper: { onMouseEnter: mouseEnter, onMouseLeave: mouseLeave } }}" }}
       >
         {!isSmall && <div className={classes.drawerHeader} />}
         <List>
