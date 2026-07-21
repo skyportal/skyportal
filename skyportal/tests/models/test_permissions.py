@@ -1,3493 +1,2913 @@
-def test_user_create_public_group(  # noqa
-    user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_create_public_groupuser(
-    user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(user, mode="create")
-    assert not accessible  # needs GroupAdmin
-
-
-def test_user_create_public_stream(
-    user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(user, mode="create")
-    assert not accessible  # needs system admin
-
-
-def test_user_create_public_groupstream(
-    user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(user, mode="create")
-    assert not accessible  # needs system admin
-
-
-def test_user_create_public_streamuser(
-    user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(user, mode="create")
-    assert not accessible  # needs system admin
-
-
-def test_user_create_public_filter(
-    user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_create_public_candidate_object(
-    user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_create_public_source_object(
-    user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_create_keck1_telescope(
-    user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(user, mode="create")
-
-    # need system admin to create telescopes
-    assert not accessible
-
-
-def test_user_create_sedm(
-    user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(user, mode="create")
-
-    # need system admin to create instruments
-    assert not accessible
-
-
-def test_user_create_public_group_sedm_allocation(
-    user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_public_group(
-    user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_groupuser(
-    user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_stream(
-    user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_groupstream(
-    user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_streamuser(
-    user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_filter(
-    user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_candidate_object(
-    user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_source_object(
-    user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_keck1_telescope(
-    user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_sedm(
-    user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_group_sedm_allocation(
-    user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_public_group(
-    user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(user, mode="update")
-    assert not accessible  # needs groupadmin
-
-
-def test_user_update_public_groupuser(
-    user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(user, mode="update")
-    assert not accessible  # needs groupadmin
-
-
-def test_user_update_public_stream(
-    user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(user, mode="update")
-    assert not accessible  # needs systemadmin
-
-
-def test_user_update_public_groupstream(
-    user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(user, mode="update")
-    assert not accessible  # needs systemadmin
-
-
-def test_user_update_public_streamuser(
-    user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(user, mode="update")
-    assert not accessible  # needs systemadmin
-
-
-def test_user_update_public_filter(
-    user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(user, mode="update")
-    assert accessible
-
-
-def test_user_update_public_candidate_object(
-    user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(user, mode="update")
-    assert accessible
-
-
-def test_user_update_public_source_object(
-    user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(user, mode="update")
-    assert accessible
-
-
-def test_user_update_keck1_telescope(
-    user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(user, mode="update")
-    assert not accessible  # needs system admin
-
-
-def test_user_update_sedm(
-    user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(user, mode="update")
-    assert not accessible  # needs system admin
-
-
-def test_user_update_public_group_sedm_allocation(
-    user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(user, mode="update")
-    assert accessible
-
-
-def test_user_delete_public_group(
-    user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(user, mode="delete")
-    assert not accessible  # needs group admin
-
-
-def test_user_delete_public_groupuser(
-    user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(user, mode="delete")
-    assert accessible  # Any user can remove themself from group
-
-
-def test_user_delete_public_stream(
-    user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(user, mode="delete")
-    assert not accessible  # needs system admin
-
-
-def test_user_delete_public_groupstream(
-    user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(user, mode="delete")
-    assert not accessible  # needs system admin
-
-
-def test_user_delete_public_streamuser(
-    user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(user, mode="delete")
-    assert not accessible  # needs system admin
-
-
-def test_user_delete_public_filter(
-    user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(user, mode="delete")
-    assert accessible  # any group member can delete a group filter for now
-
-
-def test_user_delete_public_candidate_object(
-    user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(user, mode="delete")
-    assert accessible
-
-
-def test_user_delete_public_source_object(
-    user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(user, mode="delete")
-    assert accessible
-
-
-def test_user_delete_keck1_telescope(
-    user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(user, mode="delete")
-    assert not accessible  # needs sysadmin
-
-
-def test_user_delete_sedm(
-    user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(user, mode="delete")
-    assert not accessible  # needs sysadmin
-
-
-def test_user_delete_public_group_sedm_allocation(
-    user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(user, mode="delete")
-    assert accessible
-
-
-def test_user_group2_create_public_group(
-    user_group2,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(user_group2, mode="create")
-    assert accessible
-
-
-def test_user_group2_create_public_groupuser(
-    user_group2,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # must be in the group and be a group admin
-
-
-def test_user_group2_create_public_stream(
-    user_group2,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # needs sys admin
-
-
-def test_user_group2_create_public_groupstream(
-    user_group2,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # needs sys admin
-
-
-def test_user_group2_create_public_streamuser(
-    user_group2,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # needs system admin
-
-
-def test_user_group2_create_public_filter(
-    user_group2,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # must be in the filter's group
-
-
-def test_user_group2_create_public_candidate_object(
-    user_group2,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # must be in the filter's group
-
-
-def test_user_group2_create_public_source_object(
-    user_group2,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # must be in the source's group
-
-
-def test_user_group2_create_keck1_telescope(
-    user_group2,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(user_group2, mode="create")
-
-    # need system admin to create telescopes
-    assert not accessible
-
-
-def test_user_group2_create_sedm(
-    user_group2,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(user_group2, mode="create")
-
-    # need system admin to create instruments
-    assert not accessible
-
-
-def test_user_group2_create_public_group_sedm_allocation(
-    user_group2,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(
-        user_group2, mode="create"
-    )
-    assert not accessible  # must be in the allocation's group
-
-
-def test_user_group2_read_public_group(
-    user_group2,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(user_group2, mode="read")
-    assert accessible
-
-
-def test_user_group2_read_public_groupuser(
-    user_group2,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(user_group2, mode="read")
-    assert accessible
-
-
-def test_user_group2_read_public_stream(
-    user_group2,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(user_group2, mode="read")
-    assert accessible
-
-
-def test_user_group2_read_public_groupstream(
-    user_group2,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(user_group2, mode="read")
-    assert accessible
-
-
-def test_user_group2_read_public_streamuser(
-    user_group2,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(user_group2, mode="read")
-    assert accessible == public_streamuser.user.is_accessible_by(
-        user_group2, mode="read"
-    ) and public_streamuser.stream.is_accessible_by(user_group2, mode="read")
-
-
-def test_user_group2_read_public_filter(
-    user_group2,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be a member of the group
-
-
-def test_user_group2_read_public_candidate_object(
-    user_group2,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be a member of the filter's group
-
-
-def test_user_group2_read_public_source_object(
-    user_group2,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be a member of the source's group
-
-
-def test_user_group2_read_keck1_telescope(
-    user_group2,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(user_group2, mode="read")
-    assert accessible
-
-
-def test_user_group2_read_sedm(
-    user_group2,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(user_group2, mode="read")
-    assert accessible
-
-
-def test_user_group2_read_public_group_sedm_allocation(
-    user_group2,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be a member of the allocation's group
-
-
-def test_user_group2_update_public_group(
-    user_group2,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be an admin of the group
-
-
-def test_user_group2_update_public_groupuser(
-    user_group2,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be an admin of the group
-
-
-def test_user_group2_update_public_stream(
-    user_group2,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be a system admin
-
-
-def test_user_group2_update_public_groupstream(
-    user_group2,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be a system admin
-
-
-def test_user_group2_update_public_streamuser(
-    user_group2,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be a system admin
-
-
-def test_user_group2_update_public_filter(
-    user_group2,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be an admin of the filter's group
-
-
-def test_user_group2_update_public_candidate_object(
-    user_group2,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be a member of the candidate's filter's group
-
-
-def test_user_group2_update_public_source_object(
-    user_group2,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be a member of the source's group
-
-
-def test_user_group2_update_keck1_telescope(
-    user_group2,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be system admin
-
-
-def test_user_group2_update_sedm(
-    user_group2,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be system admin
-
-
-def test_user_group2_update_public_group_sedm_allocation(
-    user_group2,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(
-        user_group2, mode="update"
-    )
-    assert not accessible  # must be a member of the group
-
-
-def test_user_group2_delete_public_group(
-    user_group2,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be a group admin
-
-
-def test_user_group2_delete_public_groupuser(
-    user_group2,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be a group admin of the target group
-
-
-def test_user_group2_delete_public_stream(
-    user_group2,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be a system admin
-
-
-def test_user_group2_delete_public_groupstream(
-    user_group2,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be a system admin
-
-
-def test_user_group2_delete_public_streamuser(
-    user_group2,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be a system admin
-
-
-def test_user_group2_delete_public_filter(
-    user_group2,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be a group member of target group
-
-
-def test_user_group2_delete_public_candidate_object(
-    user_group2,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be a member of target group
-
-
-def test_user_group2_delete_public_source_object(
-    user_group2,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be a member of target group
-
-
-def test_user_group2_delete_keck1_telescope(
-    user_group2,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be a system admin
-
-
-def test_user_group2_delete_sedm(
-    user_group2,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be a system admin
-
-
-def test_user_group2_delete_public_group_sedm_allocation(
-    user_group2,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(
-        user_group2, mode="delete"
-    )
-    assert not accessible  # must be a member of target group
-
-
-def test_super_admin_user_create_public_group(
-    super_admin_user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_create_public_groupuser(
-    super_admin_user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_create_public_stream(
-    super_admin_user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_create_public_groupstream(
-    super_admin_user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_create_public_streamuser(
-    super_admin_user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_create_public_filter(
-    super_admin_user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_create_public_candidate_object(
-    super_admin_user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(
-        super_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_super_admin_user_create_public_source_object(
-    super_admin_user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_create_keck1_telescope(
-    super_admin_user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_create_sedm(
-    super_admin_user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_create_public_group_sedm_allocation(
-    super_admin_user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(
-        super_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_super_admin_user_read_public_group(
-    super_admin_user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_public_groupuser(
-    super_admin_user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_public_stream(
-    super_admin_user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_public_groupstream(
-    super_admin_user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_public_streamuser(
-    super_admin_user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_public_filter(
-    super_admin_user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_public_candidate_object(
-    super_admin_user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_public_source_object(
-    super_admin_user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_keck1_telescope(
-    super_admin_user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_sedm(
-    super_admin_user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_public_group_sedm_allocation(
-    super_admin_user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(
-        super_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_super_admin_user_update_public_group(
-    super_admin_user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_update_public_groupuser(
-    super_admin_user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_update_public_stream(
-    super_admin_user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_update_public_groupstream(
-    super_admin_user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_update_public_streamuser(
-    super_admin_user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_update_public_filter(
-    super_admin_user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_update_public_candidate_object(
-    super_admin_user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(
-        super_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_super_admin_user_update_public_source_object(
-    super_admin_user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_update_keck1_telescope(
-    super_admin_user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_update_sedm(
-    super_admin_user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_update_public_group_sedm_allocation(
-    super_admin_user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(
-        super_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_super_admin_user_delete_public_group(
-    super_admin_user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_groupuser(
-    super_admin_user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_stream(
-    super_admin_user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_groupstream(
-    super_admin_user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_streamuser_no_access(
-    super_admin_user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(super_admin_user, mode="delete")
-    assert not accessible  # User belongs to groups that filter on stream
-
-
-def test_super_admin_user_delete_public_streamuser(
-    super_admin_user,
-    public_streamuser_no_groups,
-):
-    accessible = public_streamuser_no_groups.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_super_admin_user_delete_public_filter(
-    super_admin_user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_candidate_object(
-    super_admin_user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_super_admin_user_delete_public_source_object(
-    super_admin_user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_super_admin_user_delete_keck1_telescope(
-    super_admin_user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_super_admin_user_delete_sedm(
-    super_admin_user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_group_sedm_allocation(
-    super_admin_user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_group_admin_user_create_public_group(
-    group_admin_user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_create_public_groupuser(
-    group_admin_user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_create_public_stream(
-    group_admin_user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(group_admin_user, mode="create")
-    assert not accessible  # must be system admin
-
-
-def test_group_admin_user_create_public_groupstream(
-    group_admin_user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_create_public_streamuser(
-    group_admin_user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(group_admin_user, mode="create")
-    assert not accessible  # must be system admin
-
-
-def test_group_admin_user_create_public_filter(
-    group_admin_user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_create_public_candidate_object(
-    group_admin_user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(
-        group_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_group_admin_user_create_public_source_object(
-    group_admin_user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_create_keck1_telescope(
-    group_admin_user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(group_admin_user, mode="create")
-
-    # need system admin to create telescopes
-    assert not accessible
-
-
-def test_group_admin_user_create_sedm(
-    group_admin_user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(group_admin_user, mode="create")
-
-    # need system admin
-    assert not accessible
-
-
-def test_group_admin_user_create_public_group_sedm_allocation(
-    group_admin_user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(
-        group_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_group_admin_user_read_public_group(
-    group_admin_user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_public_groupuser(
-    group_admin_user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_public_stream(
-    group_admin_user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_public_groupstream(
-    group_admin_user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_public_streamuser(
-    group_admin_user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_public_filter(
-    group_admin_user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_public_candidate_object(
-    group_admin_user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_public_source_object(
-    group_admin_user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_keck1_telescope(
-    group_admin_user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_sedm(
-    group_admin_user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_public_group_sedm_allocation(
-    group_admin_user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(
-        group_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_group_admin_user_update_public_group(
-    group_admin_user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(group_admin_user, mode="update")
-    assert accessible
-
-
-def test_group_admin_user_update_public_groupuser(
-    group_admin_user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(group_admin_user, mode="update")
-    assert accessible
-
-
-def test_group_admin_user_update_public_stream(
-    group_admin_user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # needs system admin
-
-
-def test_group_admin_user_update_public_groupstream(
-    group_admin_user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # needs system admin
-
-
-def test_group_admin_user_update_public_streamuser(
-    group_admin_user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # needs system admin
-
-
-def test_group_admin_user_update_public_filter(
-    group_admin_user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(group_admin_user, mode="update")
-    assert accessible
-
-
-def test_group_admin_user_update_public_candidate_object(
-    group_admin_user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(
-        group_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_group_admin_user_update_public_source_object(
-    group_admin_user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(group_admin_user, mode="update")
-    assert accessible
-
-
-def test_group_admin_user_update_keck1_telescope(
-    group_admin_user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # system admin
-
-
-def test_group_admin_user_update_sedm(
-    group_admin_user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # sysadmin
-
-
-def test_group_admin_user_update_public_group_sedm_allocation(
-    group_admin_user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(
-        group_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_group_admin_user_delete_public_group(
-    group_admin_user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(group_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_member_user_cannot_delete_group(
-    user,
-    public_group,
-):
-    accessible = public_group.is_accessible_by(user, mode="delete")
-    assert not accessible
-
-
-def test_group_admin_user_delete_public_groupuser(
-    group_admin_user,
-    public_groupuser,
-):
-    accessible = public_groupuser.is_accessible_by(group_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_delete_public_stream(
-    group_admin_user,
-    public_stream,
-):
-    accessible = public_stream.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # sys admin
-
-
-def test_group_admin_user_delete_public_groupstream(
-    group_admin_user,
-    public_groupstream,
-):
-    accessible = public_groupstream.is_accessible_by(group_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_delete_public_streamuser(
-    group_admin_user,
-    public_streamuser,
-):
-    accessible = public_streamuser.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # sysadmin
-
-
-def test_group_admin_user_delete_public_filter(
-    group_admin_user,
-    public_filter,
-):
-    accessible = public_filter.is_accessible_by(group_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_delete_public_candidate_object(
-    group_admin_user,
-    public_candidate_object,
-):
-    accessible = public_candidate_object.is_accessible_by(
-        group_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_group_admin_user_delete_public_source_object(
-    group_admin_user,
-    public_source_object,
-):
-    accessible = public_source_object.is_accessible_by(group_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_delete_keck1_telescope(
-    group_admin_user,
-    keck1_telescope,
-):
-    accessible = keck1_telescope.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # sysadmin
-
-
-def test_group_admin_user_delete_sedm(
-    group_admin_user,
-    sedm,
-):
-    accessible = sedm.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # sysadmin
-
-
-def test_group_admin_user_delete_public_group_sedm_allocation(
-    group_admin_user,
-    public_group_sedm_allocation,
-):
-    accessible = public_group_sedm_allocation.is_accessible_by(
-        group_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_user_create_public_group_taxonomy(user, public_group_taxonomy):
-    accessible = public_group_taxonomy.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_create_public_taxonomy(user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_public_group_taxonomy(user, public_group_taxonomy):
-    accessible = public_group_taxonomy.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_taxonomy(user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_public_group_taxonomy(user, public_group_taxonomy):
-    accessible = public_group_taxonomy.is_accessible_by(user, mode="update")
-    assert not accessible  # must be super admin
-
-
-def test_user_update_public_taxonomy(user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(user, mode="update")
-    assert not accessible  # must be super admin
-
-
-def test_user_delete_public_group_taxonomy(user, public_group_taxonomy):
-    accessible = public_group_taxonomy.is_accessible_by(user, mode="delete")
-    assert not accessible  # must be group admin
-
-
-def test_user_delete_public_taxonomy(user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(user, mode="delete")
-    assert not accessible  # must be super admin
-
-
-def test_user_group2_create_public_group_taxonomy(user_group2, public_group_taxonomy):
-    accessible = public_group_taxonomy.is_accessible_by(user_group2, mode="create")
-    assert (
-        not accessible
-    )  # need read access on taxonomy, which is only visible to group 1
-
-
-def test_user_group2_create_public_taxonomy(user_group2, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(user_group2, mode="create")
-    assert accessible
-
-
-def test_user_group2_read_public_group_taxonomy(user_group2, public_group_taxonomy):
-    accessible = public_group_taxonomy.is_accessible_by(user_group2, mode="read")
-    assert (
-        not accessible
-    )  # need read access on taxonomy, which is only visible to group 1
-
-
-def test_user_group2_read_public_taxonomy(user_group2, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # need to be in group 1
-
-
-def test_user_group2_update_public_group_taxonomy(user_group2, public_group_taxonomy):
-    accessible = public_group_taxonomy.is_accessible_by(user_group2, mode="update")
-    assert (
-        not accessible
-    )  # user must be in one of public_taxonomy's groups and must be a group admin
-
-
-def test_user_group2_update_public_taxonomy(user_group2, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be a group admin of one of taxonomy's groups
-
-
-def test_user_group2_delete_public_group_taxonomy(user_group2, public_group_taxonomy):
-    accessible = public_group_taxonomy.is_accessible_by(user_group2, mode="delete")
-    assert (
-        not accessible
-    )  # need read access to taxonomy and must be a group admin of target group
-
-
-def test_user_group2_delete_public_taxonomy(user_group2, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be sysadmin
-
-
-def test_super_admin_user_create_public_group_taxonomy(
-    super_admin_user, public_group_taxonomy
-):
-    accessible = public_group_taxonomy.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_create_public_taxonomy(super_admin_user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_read_public_group_taxonomy(
-    super_admin_user, public_group_taxonomy
-):
-    accessible = public_group_taxonomy.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_public_taxonomy(super_admin_user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_update_public_group_taxonomy(
-    super_admin_user, public_group_taxonomy
-):
-    accessible = public_group_taxonomy.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_update_public_taxonomy(super_admin_user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_group_taxonomy(
-    super_admin_user, public_group_taxonomy
-):
-    accessible = public_group_taxonomy.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_taxonomy(super_admin_user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_create_public_group_taxonomy(
-    group_admin_user, public_group_taxonomy
-):
-    accessible = public_group_taxonomy.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_create_public_taxonomy(group_admin_user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_read_public_group_taxonomy(
-    group_admin_user, public_group_taxonomy
-):
-    accessible = public_group_taxonomy.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_public_taxonomy(group_admin_user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_update_public_group_taxonomy(
-    group_admin_user, public_group_taxonomy
-):
-    accessible = public_group_taxonomy.is_accessible_by(group_admin_user, mode="update")
-    assert accessible
-
-
-def test_group_admin_user_update_public_taxonomy(group_admin_user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # need sysadmin
-
-
-def test_group_admin_user_delete_public_group_taxonomy(
-    group_admin_user, public_group_taxonomy
-):
-    accessible = public_group_taxonomy.is_accessible_by(group_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_delete_public_taxonomy(group_admin_user, public_taxonomy):
-    accessible = public_taxonomy.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # need sysadmin
-
-
-def test_user_create_public_comment(user, public_comment):
-    accessible = public_comment.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_public_comment(user, public_comment):
-    accessible = public_comment.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_public_comment(user, public_comment):
-    accessible = public_comment.is_accessible_by(user, mode="update")
-    assert not accessible  # must be comment author
-
-
-def test_user_delete_public_comment(user, public_comment):
-    accessible = public_comment.is_accessible_by(user, mode="delete")
-    assert not accessible  # must be comment author
-
-
-def test_user_group2_create_public_comment(user_group2, public_comment):
-    accessible = public_comment.is_accessible_by(user_group2, mode="create")
-    assert accessible
-
-
-def test_user_group2_read_public_comment(user_group2, public_comment):
-    accessible = public_comment.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be a member of the comment's target groups
-
-
-def test_user_group2_update_public_comment(user_group2, public_comment):
-    accessible = public_comment.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be comment author
-
-
-def test_user_group2_delete_public_comment(user_group2, public_comment):
-    accessible = public_comment.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be comment author
-
-
-def test_super_admin_user_create_public_comment(super_admin_user, public_comment):
-    accessible = public_comment.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_read_public_comment(super_admin_user, public_comment):
-    accessible = public_comment.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_update_public_comment(super_admin_user, public_comment):
-    accessible = public_comment.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_comment(super_admin_user, public_comment):
-    accessible = public_comment.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_create_public_comment(group_admin_user, public_comment):
-    accessible = public_comment.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_read_public_comment(group_admin_user, public_comment):
-    accessible = public_comment.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_update_public_comment(group_admin_user, public_comment):
-    accessible = public_comment.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # must be comment author
-
-
-def test_group_admin_user_delete_public_comment(group_admin_user, public_comment):
-    accessible = public_comment.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # must be comment author
-
-
-def test_user_create_public_groupcomment(user, public_groupcomment):
-    accessible = public_groupcomment.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_public_groupcomment(user, public_groupcomment):
-    accessible = public_groupcomment.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_public_groupcomment(user, public_groupcomment):
-    accessible = public_groupcomment.is_accessible_by(user, mode="update")
-    assert not accessible  # must be group admin
-
-
-def test_user_delete_public_groupcomment(user, public_groupcomment):
-    accessible = public_groupcomment.is_accessible_by(user, mode="delete")
-    assert not accessible  # must be group admin
-
-
-def test_user_group2_create_public_groupcomment(user_group2, public_groupcomment):
-    accessible = public_groupcomment.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # must be able ot read the comment
-
-
-def test_user_group2_read_public_groupcomment(user_group2, public_groupcomment):
-    accessible = public_groupcomment.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be able to read the comment
-
-
-def test_user_group2_update_public_groupcomment(user_group2, public_groupcomment):
-    accessible = public_groupcomment.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be able to read the comment and be a group admin
-
-
-def test_user_group2_delete_public_groupcomment(user_group2, public_groupcomment):
-    accessible = public_groupcomment.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be able ot read the comment and be a group admin
-
-
-def test_super_admin_user_create_public_groupcomment(
-    super_admin_user, public_groupcomment
-):
-    accessible = public_groupcomment.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_read_public_groupcomment(
-    super_admin_user, public_groupcomment
-):
-    accessible = public_groupcomment.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_update_public_groupcomment(
-    super_admin_user, public_groupcomment
-):
-    accessible = public_groupcomment.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_groupcomment(
-    super_admin_user, public_groupcomment
-):
-    accessible = public_groupcomment.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_create_public_groupcomment(
-    group_admin_user, public_groupcomment
-):
-    accessible = public_groupcomment.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_read_public_groupcomment(
-    group_admin_user, public_groupcomment
-):
-    accessible = public_groupcomment.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_update_public_groupcomment(
-    group_admin_user, public_groupcomment
-):
-    accessible = public_groupcomment.is_accessible_by(group_admin_user, mode="update")
-    assert accessible
-
-
-def test_group_admin_user_delete_public_groupcomment(
-    group_admin_user, public_groupcomment
-):
-    accessible = public_groupcomment.is_accessible_by(group_admin_user, mode="delete")
-    assert accessible
-
-
-def test_user_create_public_annotation(user, public_annotation):
-    accessible = public_annotation.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_public_annotation(user, public_annotation):
-    accessible = public_annotation.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_public_annotation(user, public_annotation):
-    accessible = public_annotation.is_accessible_by(user, mode="update")
-    assert not accessible  # must be annotation author
-
-
-def test_user_delete_public_annotation(user, public_annotation):
-    accessible = public_annotation.is_accessible_by(user, mode="delete")
-    assert not accessible  # must be annotation author
-
-
-def test_user_group2_create_public_annotation(user_group2, public_annotation):
-    accessible = public_annotation.is_accessible_by(user_group2, mode="create")
-    assert accessible
-
-
-def test_user_group2_read_public_annotation(user_group2, public_annotation):
-    accessible = public_annotation.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be a member of the annotation's target groups
-
-
-def test_user_group2_update_public_annotation(user_group2, public_annotation):
-    accessible = public_annotation.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be annotation author
-
-
-def test_user_group2_delete_public_annotation(user_group2, public_annotation):
-    accessible = public_annotation.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be annotation author
-
-
-def test_super_admin_user_create_public_annotation(super_admin_user, public_annotation):
-    accessible = public_annotation.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_read_public_annotation(super_admin_user, public_annotation):
-    accessible = public_annotation.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_update_public_annotation(super_admin_user, public_annotation):
-    accessible = public_annotation.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_annotation(super_admin_user, public_annotation):
-    accessible = public_annotation.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_create_public_annotation(group_admin_user, public_annotation):
-    accessible = public_annotation.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_read_public_annotation(group_admin_user, public_annotation):
-    accessible = public_annotation.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_update_public_annotation(group_admin_user, public_annotation):
-    accessible = public_annotation.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # must be annotation author
-
-
-def test_group_admin_user_delete_public_annotation(group_admin_user, public_annotation):
-    accessible = public_annotation.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # must be annotation author
-
-
-def test_user_create_public_groupannotation(user, public_groupannotation):
-    accessible = public_groupannotation.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_public_groupannotation(user, public_groupannotation):
-    accessible = public_groupannotation.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_public_groupannotation(user, public_groupannotation):
-    accessible = public_groupannotation.is_accessible_by(user, mode="update")
-    assert not accessible  # must be group admin
-
-
-def test_user_delete_public_groupannotation(user, public_groupannotation):
-    accessible = public_groupannotation.is_accessible_by(user, mode="delete")
-    assert not accessible  # must be group admin
-
-
-def test_user_group2_create_public_groupannotation(user_group2, public_groupannotation):
-    accessible = public_groupannotation.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # must be able ot read the annotation
-
-
-def test_user_group2_read_public_groupannotation(user_group2, public_groupannotation):
-    accessible = public_groupannotation.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be able to read the annotation
-
-
-def test_user_group2_update_public_groupannotation(user_group2, public_groupannotation):
-    accessible = public_groupannotation.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be able to read the annotation and be a group admin
-
-
-def test_user_group2_delete_public_groupannotation(user_group2, public_groupannotation):
-    accessible = public_groupannotation.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be able ot read the annotation and be a group admin
-
-
-def test_super_admin_user_create_public_groupannotation(
-    super_admin_user, public_groupannotation
-):
-    accessible = public_groupannotation.is_accessible_by(
-        super_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_super_admin_user_read_public_groupannotation(
-    super_admin_user, public_groupannotation
-):
-    accessible = public_groupannotation.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_update_public_groupannotation(
-    super_admin_user, public_groupannotation
-):
-    accessible = public_groupannotation.is_accessible_by(
-        super_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_super_admin_user_delete_public_groupannotation(
-    super_admin_user, public_groupannotation
-):
-    accessible = public_groupannotation.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_group_admin_user_create_public_groupannotation(
-    group_admin_user, public_groupannotation
-):
-    accessible = public_groupannotation.is_accessible_by(
-        group_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_group_admin_user_read_public_groupannotation(
-    group_admin_user, public_groupannotation
-):
-    accessible = public_groupannotation.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_update_public_groupannotation(
-    group_admin_user, public_groupannotation
-):
-    accessible = public_groupannotation.is_accessible_by(
-        group_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_group_admin_user_delete_public_groupannotation(
-    group_admin_user, public_groupannotation
-):
-    accessible = public_groupannotation.is_accessible_by(
-        group_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_user_create_public_classification(user, public_classification):
-    accessible = public_classification.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_public_classification(user, public_classification):
-    accessible = public_classification.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_public_classification(user, public_classification):
-    accessible = public_classification.is_accessible_by(user, mode="update")
-    assert not accessible  # must be classification author
-
-
-def test_user_delete_public_classification(user, public_classification):
-    accessible = public_classification.is_accessible_by(user, mode="delete")
-    assert not accessible  # must be classification author
-
-
-def test_user_group2_create_public_classification(user_group2, public_classification):
-    accessible = public_classification.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # need read access to underlying taxonomy
-
-
-def test_user_group2_read_public_classification(user_group2, public_classification):
-    accessible = public_classification.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be a member of the classification's target groups
-
-
-def test_user_group2_update_public_classification(user_group2, public_classification):
-    accessible = public_classification.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be classification author
-
-
-def test_user_group2_delete_public_classification(user_group2, public_classification):
-    accessible = public_classification.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be classification author
-
-
-def test_super_admin_user_create_public_classification(
-    super_admin_user, public_classification
-):
-    accessible = public_classification.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_read_public_classification(
-    super_admin_user, public_classification
-):
-    accessible = public_classification.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_update_public_classification(
-    super_admin_user, public_classification
-):
-    accessible = public_classification.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_classification(
-    super_admin_user, public_classification
-):
-    accessible = public_classification.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_create_public_classification(
-    group_admin_user, public_classification
-):
-    accessible = public_classification.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_read_public_classification(
-    group_admin_user, public_classification
-):
-    accessible = public_classification.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_update_public_classification(
-    group_admin_user, public_classification
-):
-    accessible = public_classification.is_accessible_by(group_admin_user, mode="update")
-    assert accessible  # must be classification author or super/group admin
-
-
-def test_group_admin_user_delete_public_classification(
-    group_admin_user, public_classification
-):
-    accessible = public_classification.is_accessible_by(group_admin_user, mode="delete")
-    assert accessible  # must be classification author or super/group admin
-
-
-def test_user_create_public_groupclassification(user, public_groupclassification):
-    accessible = public_groupclassification.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_public_groupclassification(user, public_groupclassification):
-    accessible = public_groupclassification.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_public_groupclassification(user, public_groupclassification):
-    accessible = public_groupclassification.is_accessible_by(user, mode="update")
-    assert not accessible  # must be group admin
-
-
-def test_user_delete_public_groupclassification(user, public_groupclassification):
-    accessible = public_groupclassification.is_accessible_by(user, mode="delete")
-    assert not accessible  # must be group admin
-
-
-def test_user_group2_create_public_groupclassification(
-    user_group2, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # must be able ot read the classification
-
-
-def test_user_group2_read_public_groupclassification(
-    user_group2, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be able to read the classification
-
-
-def test_user_group2_update_public_groupclassification(
-    user_group2, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(user_group2, mode="update")
-    assert (
-        not accessible
-    )  # must be able to read the classification and be a group admin
-
-
-def test_user_group2_delete_public_groupclassification(
-    user_group2, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(user_group2, mode="delete")
-    assert (
-        not accessible
-    )  # must be able ot read the classification and be a group admin
-
-
-def test_super_admin_user_create_public_groupclassification(
-    super_admin_user, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(
-        super_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_super_admin_user_read_public_groupclassification(
-    super_admin_user, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(
-        super_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_super_admin_user_update_public_groupclassification(
-    super_admin_user, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(
-        super_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_super_admin_user_delete_public_groupclassification(
-    super_admin_user, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_group_admin_user_create_public_groupclassification(
-    group_admin_user, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(
-        group_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_group_admin_user_read_public_groupclassification(
-    group_admin_user, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(
-        group_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_group_admin_user_update_public_groupclassification(
-    group_admin_user, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(
-        group_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_group_admin_user_delete_public_groupclassification(
-    group_admin_user, public_groupclassification
-):
-    accessible = public_groupclassification.is_accessible_by(
-        group_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_user_create_public_source_photometry_point(
-    user, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_create_public_source_groupphotometry(user, public_source_groupphotometry):
-    accessible = public_source_groupphotometry.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_public_source_photometry_point(user, public_source_photometry_point):
-    accessible = public_source_photometry_point.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_source_groupphotometry(user, public_source_groupphotometry):
-    accessible = public_source_groupphotometry.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_public_source_photometry_point(
-    user, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(user, mode="update")
-    assert not accessible  # only owner can update
-
-
-def test_user_update_public_source_groupphotometry(user, public_source_groupphotometry):
-    accessible = public_source_groupphotometry.is_accessible_by(user, mode="update")
-    assert not accessible  # only accessible by group admin
-
-
-def test_user_delete_public_source_photometry_point(
-    user, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(user, mode="delete")
-    assert not accessible  # only accessible by owner
-
-
-def test_user_delete_public_source_groupphotometry(user, public_source_groupphotometry):
-    accessible = public_source_groupphotometry.is_accessible_by(user, mode="delete")
-    assert not accessible  # only accessible by group admin
-
-
-def test_user_group2_create_public_source_photometry_point(
-    user_group2, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        user_group2, mode="create"
-    )
-    assert accessible
-
-
-def test_user_group2_create_public_source_groupphotometry(
-    user_group2, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        user_group2, mode="create"
-    )
-    assert not accessible  # need read access to the underlying photometry
-
-
-def test_user_group2_read_public_source_photometry_point(
-    user_group2, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        user_group2, mode="read"
-    )
-    assert not accessible  # must be a member of one of the photometry's groups
-
-
-def test_user_group2_read_public_source_groupphotometry(
-    user_group2, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        user_group2, mode="read"
-    )
-    assert not accessible  # must be a member of one of the photometry's groups
-
-
-def test_user_group2_update_public_source_photometry_point(
-    user_group2, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        user_group2, mode="update"
-    )
-    assert not accessible  # must be photometry owner
-
-
-def test_user_group2_update_public_source_groupphotometry(
-    user_group2, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        user_group2, mode="update"
-    )
-    assert not accessible  # must be group admin
-
-
-def test_user_group2_delete_public_source_photometry_point(
-    user_group2, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        user_group2, mode="delete"
-    )
-    assert not accessible  # must be photometry owner
-
-
-def test_user_group2_delete_public_source_groupphotometry(
-    user_group2, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        user_group2, mode="delete"
-    )
-    assert not accessible  # must be group admin
-
-
-def test_super_admin_user_create_public_source_photometry_point(
-    super_admin_user, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        super_admin_user, mode="create"
-    )
-
-    assert accessible
-
-
-def test_super_admin_user_create_public_source_groupphotometry(
-    super_admin_user, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        super_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_super_admin_user_read_public_source_photometry_point(
-    super_admin_user, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        super_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_super_admin_user_read_public_source_groupphotometry(
-    super_admin_user, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        super_admin_user, mode="read"
-    )
-
-    assert accessible
-
-
-def test_super_admin_user_update_public_source_photometry_point(
-    super_admin_user, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        super_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_super_admin_user_update_public_source_groupphotometry(
-    super_admin_user, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        super_admin_user, mode="update"
-    )
-
-    assert accessible
-
-
-def test_super_admin_user_delete_public_source_photometry_point(
-    super_admin_user, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_super_admin_user_delete_public_source_groupphotometry(
-    super_admin_user, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-
-    assert accessible
-
-
-def test_group_admin_user_create_public_source_photometry_point(
-    group_admin_user, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        group_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_group_admin_user_create_public_source_groupphotometry(
-    group_admin_user, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        group_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_group_admin_user_read_public_source_photometry_point(
-    group_admin_user, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        group_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_group_admin_user_read_public_source_groupphotometry(
-    group_admin_user, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        group_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_group_admin_user_update_public_source_photometry_point(
-    group_admin_user, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        group_admin_user, mode="update"
-    )
-    assert not accessible  # must be photometry owner
-
-
-def test_group_admin_user_update_public_source_groupphotometry(
-    group_admin_user, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        group_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_group_admin_user_delete_public_source_photometry_point(
-    group_admin_user, public_source_photometry_point
-):
-    accessible = public_source_photometry_point.is_accessible_by(
-        group_admin_user, mode="delete"
-    )
-    assert not accessible  # must be photometry owner
-
-
-def test_group_admin_user_delete_public_source_groupphotometry(
-    group_admin_user, public_source_groupphotometry
-):
-    accessible = public_source_groupphotometry.is_accessible_by(
-        group_admin_user, mode="delete"
-    )
-
-    assert accessible
-
-
-def test_user_create_public_source_spectrum(user, public_source_spectrum):
-    accessible = public_source_spectrum.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_create_public_source_groupspectrum(user, public_source_groupspectrum):
-    accessible = public_source_groupspectrum.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_public_source_spectrum(user, public_source_spectrum):
-    accessible = public_source_spectrum.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_source_groupspectrum(user, public_source_groupspectrum):
-    accessible = public_source_groupspectrum.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_public_source_spectrum(user, public_source_spectrum):
-    accessible = public_source_spectrum.is_accessible_by(user, mode="update")
-    assert not accessible  # only owner can update
-
-
-def test_user_update_public_source_groupspectrum(user, public_source_groupspectrum):
-    accessible = public_source_groupspectrum.is_accessible_by(user, mode="update")
-    assert not accessible  # only accessible by group admin
-
-
-def test_user_delete_public_source_spectrum(user, public_source_spectrum):
-    accessible = public_source_spectrum.is_accessible_by(user, mode="delete")
-    assert not accessible  # only accessible by owner
-
-
-def test_user_delete_public_source_groupspectrum(user, public_source_groupspectrum):
-    accessible = public_source_groupspectrum.is_accessible_by(user, mode="delete")
-    assert not accessible  # only accessible by group admin
-
-
-def test_user_group2_create_public_source_spectrum(user_group2, public_source_spectrum):
-    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="create")
-    assert accessible
-
-
-def test_user_group2_create_public_source_groupspectrum(
-    user_group2, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(
-        user_group2, mode="create"
-    )
-    assert not accessible  # need read access to the underlying spectrum
-
-
-def test_user_group2_read_public_source_spectrum(user_group2, public_source_spectrum):
-    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be a member of one of the spectrum's groups
-
-
-def test_user_group2_read_public_source_groupspectrum(
-    user_group2, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be a member of one of the spectrum's groups
-
-
-def test_user_group2_update_public_source_spectrum(user_group2, public_source_spectrum):
-    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be spectrum owner
-
-
-def test_user_group2_update_public_source_groupspectrum(
-    user_group2, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(
-        user_group2, mode="update"
-    )
-    assert not accessible  # must be group admin
-
-
-def test_user_group2_delete_public_source_spectrum(user_group2, public_source_spectrum):
-    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be spectrum owner
-
-
-def test_user_group2_delete_public_source_groupspectrum(
-    user_group2, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(
-        user_group2, mode="delete"
-    )
-    assert not accessible  # must be group admin
-
-
-def test_super_admin_user_create_public_source_spectrum(
-    super_admin_user, public_source_spectrum
-):
-    accessible = public_source_spectrum.is_accessible_by(
-        super_admin_user, mode="create"
-    )
-
-    assert accessible
-
-
-def test_super_admin_user_create_public_source_groupspectrum(
-    super_admin_user, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(
-        super_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_super_admin_user_read_public_source_spectrum(
-    super_admin_user, public_source_spectrum
-):
-    accessible = public_source_spectrum.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_read_public_source_groupspectrum(
-    super_admin_user, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(
-        super_admin_user, mode="read"
-    )
-
-    assert accessible
-
-
-def test_super_admin_user_update_public_source_spectrum(
-    super_admin_user, public_source_spectrum
-):
-    accessible = public_source_spectrum.is_accessible_by(
-        super_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_super_admin_user_update_public_source_groupspectrum(
-    super_admin_user, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(
-        super_admin_user, mode="update"
-    )
-
-    assert accessible
-
-
-def test_super_admin_user_delete_public_source_spectrum(
-    super_admin_user, public_source_spectrum
-):
-    accessible = public_source_spectrum.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_super_admin_user_delete_public_source_groupspectrum(
-    super_admin_user, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-
-    assert accessible
-
-
-def test_group_admin_user_create_public_source_spectrum(
-    group_admin_user, public_source_spectrum
-):
-    accessible = public_source_spectrum.is_accessible_by(
-        group_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_group_admin_user_create_public_source_groupspectrum(
-    group_admin_user, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(
-        group_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_group_admin_user_read_public_source_spectrum(
-    group_admin_user, public_source_spectrum
-):
-    accessible = public_source_spectrum.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_read_public_source_groupspectrum(
-    group_admin_user, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(
-        group_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_group_admin_user_update_public_source_spectrum(
-    group_admin_user, public_source_spectrum
-):
-    accessible = public_source_spectrum.is_accessible_by(
-        group_admin_user, mode="update"
-    )
-    assert not accessible  # must be spectrum owner
-
-
-def test_group_admin_user_update_public_source_groupspectrum(
-    group_admin_user, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(
-        group_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_group_admin_user_delete_public_source_spectrum(
-    group_admin_user, public_source_spectrum
-):
-    accessible = public_source_spectrum.is_accessible_by(
-        group_admin_user, mode="delete"
-    )
-    assert not accessible  # must be spectrum owner
-
-
-def test_group_admin_user_delete_public_source_groupspectrum(
-    group_admin_user, public_source_groupspectrum
-):
-    accessible = public_source_groupspectrum.is_accessible_by(
-        group_admin_user, mode="delete"
-    )
-
-    assert accessible
-
-
-def test_user_create_public_source_followup_request(
-    user, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_create_public_source_followup_request_target_group(
-    user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        user, mode="create"
-    )
-    assert accessible
-
-
-def test_user_read_public_source_followup_request(user, public_source_followup_request):
-    accessible = public_source_followup_request.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_read_public_source_followup_request_target_group(
-    user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        user, mode="read"
-    )
-    assert accessible
-
-
-def test_user_update_public_source_followup_request(
-    user, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(user, mode="update")
-    assert accessible
-
-
-def test_user_update_public_source_followup_request_target_group(
-    user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        user, mode="update"
-    )
-    assert (
-        accessible
-        # since this is the user that authored the request, otherwise false
-    )
-
-
-def test_user_delete_public_source_followup_request(
-    user, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(user, mode="delete")
-    assert accessible
-
-
-def test_user_delete_public_source_followup_request_target_group(
-    user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        user, mode="delete"
-    )
-
-    assert accessible
-
-
-def test_user_group2_create_public_source_followup_request(
-    user_group2, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        user_group2, mode="create"
-    )
-    assert not accessible  # need access to the allocation
-
-
-def test_user_group2_create_public_source_followup_request_target_group(
-    user_group2, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        user_group2, mode="create"
-    )
-    assert not accessible  # need read access to target group
-
-
-def test_user_group2_read_public_source_followup_request(
-    user_group2, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        user_group2, mode="read"
-    )
-    assert not accessible  # not in the allocation's group
-
-
-def test_user_group2_read_public_source_followup_request_target_group(
-    user_group2, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        user_group2, mode="read"
-    )
-    assert not accessible  # need to be able to read the followup request
-
-
-def test_user_group2_update_public_source_followup_request(
-    user_group2, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        user_group2, mode="update"
-    )
-    assert not accessible  # must be in allocation group
-
-
-def test_user_group2_update_public_source_followup_request_target_group(
-    user_group2, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        user_group2, mode="update"
-    )
-    assert not accessible  # must be followup request requester
-
-
-def test_user_group2_delete_public_source_followup_request(
-    user_group2, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        user_group2, mode="delete"
-    )
-    assert not accessible  # must be in allocation group
-
-
-def test_user_group2_delete_public_source_followup_request_target_group(
-    user_group2, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        user_group2, mode="delete"
-    )
-    assert not accessible  # must be followup request requester
-
-
-def test_super_admin_user_create_public_source_followup_request(
-    super_admin_user, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        super_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_super_admin_user_create_public_source_followup_request_target_group(
-    super_admin_user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        super_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_super_admin_user_read_public_source_followup_request(
-    super_admin_user, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        super_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_super_admin_user_read_public_source_followup_request_target_group(
-    super_admin_user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        super_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_super_admin_user_update_public_source_followup_request(
-    super_admin_user, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        super_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_super_admin_user_update_public_source_followup_request_target_group(
-    super_admin_user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        super_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_super_admin_user_delete_public_source_followup_request(
-    super_admin_user, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_super_admin_user_delete_public_source_followup_request_target_group(
-    super_admin_user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_group_admin_user_create_public_source_followup_request(
-    group_admin_user, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        group_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_group_admin_user_create_public_source_followup_request_target_group(
-    group_admin_user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        group_admin_user, mode="create"
-    )
-    assert not accessible  # must be followup request requester
-
-
-def test_group_admin_user_read_public_source_followup_request(
-    group_admin_user, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        group_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_group_admin_user_read_public_source_followup_request_target_group(
-    group_admin_user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        group_admin_user, mode="read"
-    )
-    assert accessible
-
-
-def test_group_admin_user_update_public_source_followup_request(
-    group_admin_user, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        group_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_group_admin_user_update_public_source_followup_request_target_group(
-    group_admin_user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        group_admin_user, mode="update"
-    )
-    assert not accessible  # must be requester
-
-
-def test_group_admin_user_delete_public_source_followup_request(
-    group_admin_user, public_source_followup_request
-):
-    accessible = public_source_followup_request.is_accessible_by(
-        group_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_group_admin_user_delete_public_source_followup_request_target_group(
-    group_admin_user, public_source_followup_request_target_group
-):
-    accessible = public_source_followup_request_target_group.is_accessible_by(
-        group_admin_user, mode="delete"
-    )
-    assert not accessible  # must be requester
-
-
-def test_user_create_public_thumbnail(user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_public_thumbnail(user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_public_thumbnail(user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(user, mode="update")
-    assert not accessible  # restricted
-
-
-def test_user_delete_public_thumbnail(user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(user, mode="delete")
-    assert not accessible  # restricted
-
-
-def test_user_group2_create_public_thumbnail(user_group2, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(user_group2, mode="create")
-    assert accessible
-
-
-def test_user_group2_read_public_thumbnail(user_group2, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(user_group2, mode="read")
-    assert accessible
-
-
-def test_user_group2_update_public_thumbnail(user_group2, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # restricted
-
-
-def test_user_group2_delete_public_thumbnail(user_group2, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(user_group2, mode="delete")
-    assert not accessible
-
-
-def test_super_admin_user_create_public_thumbnail(super_admin_user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_read_public_thumbnail(super_admin_user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_update_public_thumbnail(super_admin_user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_delete_public_thumbnail(super_admin_user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_create_public_thumbnail(group_admin_user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_read_public_thumbnail(group_admin_user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_update_public_thumbnail(group_admin_user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # need sysadmin
-
-
-def test_group_admin_user_delete_public_thumbnail(group_admin_user, public_thumbnail):
-    accessible = public_thumbnail.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # need sysadmin
-
-
-def test_user_create_red_transients_run(user, red_transients_run):
-    accessible = red_transients_run.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_red_transients_run(user, red_transients_run):
-    accessible = red_transients_run.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_red_transients_run(user, red_transients_run):
-    accessible = red_transients_run.is_accessible_by(user, mode="update")
-    assert accessible
-
-
-def test_user_delete_red_transients_run(user, red_transients_run):
-    accessible = red_transients_run.is_accessible_by(user, mode="delete")
-    assert accessible
-
-
-def test_user_group2_create_red_transients_run(user_group2, red_transients_run):
-    accessible = red_transients_run.is_accessible_by(user_group2, mode="create")
-    assert accessible
-
-
-def test_user_group2_read_red_transients_run(user_group2, red_transients_run):
-    accessible = red_transients_run.is_accessible_by(user_group2, mode="read")
-    assert accessible
-
-
-def test_user_group2_update_red_transients_run(user_group2, red_transients_run):
-    accessible = red_transients_run.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be owner
-
-
-def test_user_group2_delete_red_transients_run(user_group2, red_transients_run):
-    accessible = red_transients_run.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be owner
-
-
-def test_super_admin_user_create_red_transients_run(
-    super_admin_user, red_transients_run
-):
-    accessible = red_transients_run.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-
-
-def test_super_admin_user_read_red_transients_run(super_admin_user, red_transients_run):
-    accessible = red_transients_run.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_update_red_transients_run(
-    super_admin_user, red_transients_run
-):
-    accessible = red_transients_run.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-
-
-def test_super_admin_user_delete_red_transients_run(
-    super_admin_user, red_transients_run
-):
-    accessible = red_transients_run.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-
-def test_group_admin_user_create_red_transients_run(
-    group_admin_user, red_transients_run
-):
-    accessible = red_transients_run.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-
-
-def test_group_admin_user_read_red_transients_run(group_admin_user, red_transients_run):
-    accessible = red_transients_run.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_update_red_transients_run(
-    group_admin_user, red_transients_run
-):
-    accessible = red_transients_run.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # must be owner
-
-
-def test_group_admin_user_delete_red_transients_run(
-    group_admin_user, red_transients_run
-):
-    accessible = red_transients_run.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # must be owner
-
-
-def test_user_create_problematic_assignment(user, problematic_assignment):
-    accessible = problematic_assignment.is_accessible_by(user, mode="create")
-    assert accessible
-
-
-def test_user_read_problematic_assignment(user, problematic_assignment):
-    accessible = problematic_assignment.is_accessible_by(user, mode="read")
-    assert accessible
-
-
-def test_user_update_problematic_assignment(user, problematic_assignment):
-    accessible = problematic_assignment.is_accessible_by(user, mode="update")
-    assert accessible
-
-
-def test_user_delete_problematic_assignment(user, problematic_assignment):
-    accessible = problematic_assignment.is_accessible_by(user, mode="delete")
-    assert accessible
-
-
-def test_user_group2_create_problematic_assignment(user_group2, problematic_assignment):
-    accessible = problematic_assignment.is_accessible_by(user_group2, mode="create")
-    assert accessible
-
-
-def test_user_group2_read_problematic_assignment(user_group2, problematic_assignment):
-    accessible = problematic_assignment.is_accessible_by(user_group2, mode="read")
-    assert accessible
-
-
-def test_user_group2_update_problematic_assignment(user_group2, problematic_assignment):
-    accessible = problematic_assignment.is_accessible_by(user_group2, mode="update")
-    assert accessible
-
-
-def test_user_group2_delete_problematic_assignment(user_group2, problematic_assignment):
-    accessible = problematic_assignment.is_accessible_by(user_group2, mode="delete")
-    assert accessible
-
-
-def test_super_admin_user_create_problematic_assignment(
-    super_admin_user, problematic_assignment
-):
-    accessible = problematic_assignment.is_accessible_by(
-        super_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_super_admin_user_read_problematic_assignment(
-    super_admin_user, problematic_assignment
-):
-    accessible = problematic_assignment.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-
-
-def test_super_admin_user_update_problematic_assignment(
-    super_admin_user, problematic_assignment
-):
-    accessible = problematic_assignment.is_accessible_by(
-        super_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_super_admin_user_delete_problematic_assignment(
-    super_admin_user, problematic_assignment
-):
-    accessible = problematic_assignment.is_accessible_by(
-        super_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-def test_group_admin_user_create_problematic_assignment(
-    group_admin_user, problematic_assignment
-):
-    accessible = problematic_assignment.is_accessible_by(
-        group_admin_user, mode="create"
-    )
-    assert accessible
-
-
-def test_group_admin_user_read_problematic_assignment(
-    group_admin_user, problematic_assignment
-):
-    accessible = problematic_assignment.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-
-
-def test_group_admin_user_update_problematic_assignment(
-    group_admin_user, problematic_assignment
-):
-    accessible = problematic_assignment.is_accessible_by(
-        group_admin_user, mode="update"
-    )
-    assert accessible
-
-
-def test_group_admin_user_delete_problematic_assignment(
-    group_admin_user, problematic_assignment
-):
-    accessible = problematic_assignment.is_accessible_by(
-        group_admin_user, mode="delete"
-    )
-    assert accessible
-
-
-# These tests are commented out because they require email / twilio clients
-# to be set up, which is not done by default.
-"""
-def test_user_create_invitation(user, invitation):
-    accessible = invitation.is_accessible_by(user, mode="create")
-    assert accessible
-def test_user_read_invitation(user, invitation):
-    accessible = invitation.is_accessible_by(user, mode="read")
-    assert accessible
-def test_user_update_invitation(user, invitation):
-    accessible = invitation.is_accessible_by(user, mode="update")
-    assert accessible
-def test_user_delete_invitation(user, invitation):
-    accessible = invitation.is_accessible_by(user, mode="delete")
-    assert accessible
-def test_user_group2_create_invitation(user_group2, invitation):
-    accessible = invitation.is_accessible_by(user_group2, mode="create")
-    assert accessible
-def test_user_group2_read_invitation(user_group2, invitation):
-    accessible = invitation.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be the inviter
-def test_user_group2_update_invitation(user_group2, invitation):
-    accessible = invitation.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be the inviter
-def test_user_group2_delete_invitation(user_group2, invitation):
-    accessible = invitation.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be the inviter
-def test_super_admin_user_create_invitation(super_admin_user, invitation):
-    accessible = invitation.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-def test_super_admin_user_read_invitation(super_admin_user, invitation):
-    accessible = invitation.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-def test_super_admin_user_update_invitation(super_admin_user, invitation):
-    accessible = invitation.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-def test_super_admin_user_delete_invitation(super_admin_user, invitation):
-    accessible = invitation.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-
-def test_group_admin_user_create_invitation(group_admin_user, invitation):
-    accessible = invitation.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-def test_group_admin_user_read_invitation(group_admin_user, invitation):
-    accessible = invitation.is_accessible_by(group_admin_user, mode="read")
-    assert not accessible  # must be the inviter
-def test_group_admin_user_update_invitation(group_admin_user, invitation):
-    accessible = invitation.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # must be the inviter
-def test_group_admin_user_delete_invitation(group_admin_user, invitation):
-    accessible = invitation.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # must be the inviter
-
-
-def test_user_create_public_source_notification(user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(user, mode="create")
-    assert accessible
-def test_user_read_public_source_notification(user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(user, mode="read")
-    assert accessible
-def test_user_update_public_source_notification(user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(user, mode="update")
-    assert not accessible  # must be sender
-def test_user_delete_public_source_notification(user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(user, mode="delete")
-    assert not accessible  # must be sender
-def test_user_group2_create_public_source_notification(user_group2, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(user_group2, mode="create")
-    assert not accessible  # must be member of all target groups
-def test_user_group2_read_public_source_notification(user_group2, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be a member of at least one target group
-def test_user_group2_update_public_source_notification(user_group2, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be notification sender
-def test_user_group2_delete_public_source_notification(user_group2, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be notification sender
-def test_super_admin_user_create_public_source_notification(super_admin_user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
-def test_super_admin_user_read_public_source_notification(super_admin_user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
-def test_super_admin_user_update_public_source_notification(super_admin_user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
-def test_super_admin_user_delete_public_source_notification(super_admin_user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
-def test_group_admin_user_create_public_source_notification(group_admin_user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
-def test_group_admin_user_read_public_source_notification(group_admin_user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(group_admin_user, mode="read")
-    assert accessible
-def test_group_admin_user_update_public_source_notification(group_admin_user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(group_admin_user, mode="update")
-    assert accessible  # must be notification sender
-def test_group_admin_user_delete_public_source_notification(group_admin_user, public_source_notification):
-    accessible = public_source_notification.is_accessible_by(group_admin_user, mode="delete")
-    assert accessible  # must be notification sender
+"""Model-level access-control (permission) tests.
+
+Each row of ``CASES`` is one assertion: a role fixture, an object fixture, an
+access mode, and the expected ``is_accessible_by`` result. Fixtures are resolved
+lazily via ``request.getfixturevalue`` so the table can range over DB-backed
+fixtures (which ``pytest.mark.parametrize`` cannot do directly) -- this is what
+lets the whole role x mode x model matrix live as data instead of one function
+per cell.
+
+``test_all_models_have_permission_coverage`` is a ratchet: every access-controlled
+model must either appear in the matrix (via ``FIXTURE_MODEL``) or be waived in
+``KNOWN_UNCOVERED``. Adding a new model without doing one of those fails the
+test, so coverage can no longer silently drift as the schema grows. The waiver
+set is the backlog; the goal is to shrink it toward empty.
+
+This replaces the former hand-expanded test_permissions.py (one function per
+cell). Access expectations below are ported verbatim from that file.
 """
 
+import os
+import re
 
-def test_user_create_user_notification(user, user_notification):
-    accessible = user_notification.is_accessible_by(user, mode="create")
-    assert accessible
+import pytest
 
-
-def test_user_read_user_notification(user, user_notification):
-    accessible = user_notification.is_accessible_by(user, mode="read")
-    assert accessible
+from skyportal import models
 
 
-def test_user_update_user_notification(user, user_notification):
-    accessible = user_notification.is_accessible_by(user, mode="update")
-    assert accessible
+@pytest.fixture(autouse=True)
+def _disable_external_sends(monkeypatch):
+    """Neutralize the email/SMS side effects of Invitation and SourceNotification.
+
+    Both models fire an ``after_insert`` event listener that sends a real email
+    (and, for notifications, an SMS via Twilio) the moment the row is flushed.
+    Those services aren't available in tests, so creating these rows in-process
+    would raise. We force invitation emailing off and stub the Twilio client so
+    the rows can be created and their access logic exercised.
+    """
+    import skyportal.models.invitation as invitation_model
+    import skyportal.models.source_notification as source_notification_model
+
+    monkeypatch.setitem(invitation_model.cfg["invitations"], "disable_emailing", True)
+
+    class _NoopTwilioClient:
+        def __init__(self, *args, **kwargs):
+            self.messages = self
+
+        def create(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr(source_notification_model, "TwilioClient", _NoopTwilioClient)
 
 
-def test_user_delete_user_notification(user, user_notification):
-    accessible = user_notification.is_accessible_by(user, mode="delete")
-    assert accessible
+@pytest.fixture(autouse=True)
+def _recover_session_after_test():
+    """Roll back the shared session after every permission test.
+
+    SkyPortal's tests share one module-level DBSession with no per-test
+    rollback, so a single fixture teardown that errors (e.g. an FK/StaleData
+    failure while deleting a row) poisons the session and cascades
+    PendingRollbackError into every following test. This finalizer runs last in
+    the teardown stack and rolls the session back, so a broken fixture errors
+    only its own test instead of taking down the whole shard -- giving clean,
+    per-fixture CI signal.
+    """
+    yield
+    try:
+        models.DBSession().rollback()
+    except Exception:
+        pass
 
 
-def test_user_group2_create_user_notification(user_group2, user_notification):
-    accessible = user_notification.is_accessible_by(user_group2, mode="create")
-    assert accessible
+# Object fixture -> the model class it instantiates, verified at runtime rather
+# than guessed (e.g. ``public_source_object`` is a GroupObj and
+# ``public_candidate_object`` is a Candidate). Drives the coverage ratchet.
+FIXTURE_MODEL = {
+    "broker": "Broker",
+    "invitation": "Invitation",
+    "keck1_telescope": "Telescope",
+    "problematic_assignment": "ClassicalAssignment",
+    "public_annotation": "Annotation",
+    "public_candidate_object": "Candidate",
+    "public_classification": "Classification",
+    "public_comment": "Comment",
+    "public_filter": "Filter",
+    "public_group": "Group",
+    "public_group_sedm_allocation": "Allocation",
+    "public_group_taxonomy": "GroupTaxonomy",
+    "public_groupannotation": "GroupAnnotation",
+    "public_groupclassification": "GroupClassification",
+    "public_groupcomment": "GroupComment",
+    "public_groupstream": "GroupStream",
+    "public_groupuser": "GroupUser",
+    "public_obj_tag": "ObjTag",
+    "public_release": "PublicRelease",
+    "public_source_followup_request": "FollowupRequest",
+    "public_source_followup_request_target_group": "FollowupRequestGroup",
+    "public_source_groupphotometry": "GroupPhotometry",
+    "public_source_groupspectrum": "GroupSpectrum",
+    "public_source_notification": "SourceNotification",
+    "public_source_object": "GroupObj",
+    "public_source_page": "PublicSourcePage",
+    "public_source_photometry_point": "Photometry",
+    "public_source_spectrum": "Spectrum",
+    "public_stream": "Stream",
+    "public_streamuser": "StreamUser",
+    "public_streamuser_no_groups": "StreamUser",
+    "public_super_obj": "SuperObj",
+    "public_taxonomy": "Taxonomy",
+    "public_team": "Team",
+    "public_group_team": "GroupTeam",
+    "public_thumbnail": "Thumbnail",
+    "red_transients_run": "ObservingRun",
+    "sedm": "Instrument",
+    "user_notification": "UserNotification",
+    "public_analysis_service": "AnalysisService",
+    "public_annotation_on_photometry": "AnnotationOnPhotometry",
+    "public_annotation_on_spectrum": "AnnotationOnSpectrum",
+    "public_catalog_query": "CatalogQuery",
+    "public_classificationvote": "ClassificationVote",
+    "public_comment_on_earthquake": "CommentOnEarthquake",
+    "public_comment_on_gcn_perm": "CommentOnGCN",
+    "public_comment_on_spectrum": "CommentOnSpectrum",
+    "public_default_analysis": "DefaultAnalysis",
+    "public_default_followup_request": "DefaultFollowupRequest",
+    "public_default_gcn_tag": "DefaultGcnTag",
+    "public_default_observation_plan_request": "DefaultObservationPlanRequest",
+    "public_default_observation_plan_request_target_group": "DefaultObservationPlanRequestTargetGroup",
+    "public_earthquake_event": "EarthquakeEvent",
+    "public_earthquake_measured": "EarthquakeMeasured",
+    "public_earthquake_notice": "EarthquakeNotice",
+    "public_earthquake_prediction": "EarthquakePrediction",
+    "public_event_observation_plan_statistics": "EventObservationPlanStatistics",
+    "public_facility_transaction_request": "FacilityTransactionRequest",
+    "public_followup_request_user": "FollowupRequestUser",
+    "public_galaxy_catalog": "GalaxyCatalog",
+    "public_gcn_event_mmadetector": "GcnEventMMADetector",
+    "public_gcn_property": "GcnProperty",
+    "public_gcn_report": "GcnReport",
+    "public_gcn_summary": "GcnSummary",
+    "public_gcn_tag": "GcnTag",
+    "public_gcnevent": "GcnEvent",
+    "public_gcnevent_user": "GcnEventUser",
+    "public_group_admission_request": "GroupAdmissionRequest",
+    "public_group_analysis_service": "GroupAnalysisService",
+    "public_default_survey_efficiency_request": "DefaultSurveyEfficiencyRequest",
+    "public_galaxy": "Galaxy",
+    "public_gcn_notice": "GcnNotice",
+    "public_group_obj_tag": "GroupObjTag",
+    "public_group_reminder": "GroupReminder",
+    "public_group_scan_report": "GroupScanReport",
+    "public_instrument_field": "InstrumentField",
+    "public_instrument_log": "InstrumentLog",
+    "public_listing": "Listing",
+    "public_localization": "Localization",
+    "public_mmadetector": "MMADetector",
+    "public_mmadetector_spectrum": "MMADetectorSpectrum",
+    "public_obj_analysis": "ObjAnalysis",
+    "public_obj_tag_option": "ObjTagOption",
+    "public_observation_plan_request": "ObservationPlanRequest",
+    "public_observation_plan_request_target_group": "ObservationPlanRequestTargetGroup",
+    "public_photometric_series": "PhotometricSeries",
+    "public_photometry_validation": "PhotometryValidation",
+    "public_reminder_on_earthquake": "ReminderOnEarthquake",
+    "public_reminder_on_gcn": "ReminderOnGCN",
+    "public_reminder_on_shift": "ReminderOnShift",
+    "public_reminder_on_spectrum": "ReminderOnSpectrum",
+    "public_scan_report": "ScanReport",
+    "public_scan_report_item": "ScanReportItem",
+    "public_sharing_service": "SharingService",
+    "public_sharing_service_coauthor": "SharingServiceCoauthor",
+    "public_sharing_service_group": "SharingServiceGroup",
+    "public_sharing_service_group_auto_publisher": "SharingServiceGroupAutoPublisher",
+    "public_sharing_service_submission": "SharingServiceSubmission",
+    "public_shift": "Shift",
+    "public_source_label": "SourceLabel",
+    "public_source_view": "SourceView",
+    "public_sources_confirmed_in_gcn": "SourcesConfirmedInGCN",
+    "public_spatial_catalog": "SpatialCatalog",
+    "public_stream_invitation": "StreamInvitation",
+    "public_stream_sharing_service": "StreamSharingService",
+    "public_survey_efficiency_for_observation_plan": "SurveyEfficiencyForObservationPlan",
+    "public_user_invitation": "UserInvitation",
+    "public_comment_on_shift": "CommentOnShift",
+    "public_facility_transaction": "FacilityTransaction",
+    "public_group_annotation_on_photometry": "GroupAnnotationOnPhotometry",
+    "public_group_default_analysis": "GroupDefaultAnalysis",
+    "public_group_mmadetector_spectrum": "GroupMMADetectorSpectrum",
+    "public_group_public_release": "GroupPublicRelease",
+    "public_group_reminder_on_gcn": "GroupReminderOnGCN",
+    "public_group_source_notification": "GroupSourceNotification",
+    "public_instrument_sharing_service": "InstrumentSharingService",
+    "public_recurring_api": "RecurringAPI",
+    "public_reminder": "Reminder",
+    "public_shift_user": "ShiftUser",
+    "public_spectrum_observer": "SpectrumObserver",
+    "public_spectrum_pi": "SpectrumPI",
+    "public_spectrum_reducer": "SpectrumReducer",
+    "public_stream_photometric_series": "StreamPhotometricSeries",
+    "public_weather": "Weather",
+    "public_group_annotation_on_spectrum": "GroupAnnotationOnSpectrum",
+    "public_group_comment_on_earthquake": "GroupCommentOnEarthquake",
+    "public_group_comment_on_gcn": "GroupCommentOnGCN",
+    "public_group_invitation": "GroupInvitation",
+    "public_group_obj_analysis": "GroupObjAnalysis",
+    "public_group_photometric_series": "GroupPhotometricSeries",
+    "public_phot_stat": "PhotStat",
+    "public_stream_photometry": "StreamPhotometry",
+    "public_gcn_trigger": "GcnTrigger",
+    "public_mmadetector_time_interval": "MMADetectorTimeInterval",
+    "public_survey_efficiency_for_observations": "SurveyEfficiencyForObservations",
+    "public_group_comment_on_shift": "GroupCommentOnShift",
+    "public_group_comment_on_spectrum": "GroupCommentOnSpectrum",
+    "public_group_mmadetector_time_interval": "GroupMMADetectorTimeInterval",
+    "public_group_reminder_on_earthquake": "GroupReminderOnEarthquake",
+    "public_group_reminder_on_shift": "GroupReminderOnShift",
+    "public_group_reminder_on_spectrum": "GroupReminderOnSpectrum",
+    "public_allocation_user": "AllocationUser",
+    "public_event_observation_plan": "EventObservationPlan",
+}
+
+# (role_fixture, object_fixture, mode, expected_is_accessible)
+CASES = [
+    # --- Broker  (broker): read public, create/update/delete sysadmin-only ---
+    ("user", "broker", "create", False),
+    ("user", "broker", "read", True),
+    ("user", "broker", "update", False),
+    ("user", "broker", "delete", False),
+    ("user_group2", "broker", "create", False),
+    ("user_group2", "broker", "read", True),
+    ("user_group2", "broker", "update", False),
+    ("user_group2", "broker", "delete", False),
+    ("group_admin_user", "broker", "create", False),
+    ("group_admin_user", "broker", "read", True),
+    ("group_admin_user", "broker", "update", False),
+    ("group_admin_user", "broker", "delete", False),
+    ("super_admin_user", "broker", "create", True),
+    ("super_admin_user", "broker", "read", True),
+    ("super_admin_user", "broker", "update", True),
+    ("super_admin_user", "broker", "delete", True),
+    # --- Allocation  (public_group_sedm_allocation) ---
+    ("user", "public_group_sedm_allocation", "create", True),
+    ("user", "public_group_sedm_allocation", "read", True),
+    ("user", "public_group_sedm_allocation", "update", True),
+    ("user", "public_group_sedm_allocation", "delete", True),
+    ("user_group2", "public_group_sedm_allocation", "create", False),
+    ("user_group2", "public_group_sedm_allocation", "read", False),
+    ("user_group2", "public_group_sedm_allocation", "update", False),
+    ("user_group2", "public_group_sedm_allocation", "delete", False),
+    ("group_admin_user", "public_group_sedm_allocation", "create", True),
+    ("group_admin_user", "public_group_sedm_allocation", "read", True),
+    ("group_admin_user", "public_group_sedm_allocation", "update", True),
+    ("group_admin_user", "public_group_sedm_allocation", "delete", True),
+    ("super_admin_user", "public_group_sedm_allocation", "create", True),
+    ("super_admin_user", "public_group_sedm_allocation", "read", True),
+    ("super_admin_user", "public_group_sedm_allocation", "update", True),
+    ("super_admin_user", "public_group_sedm_allocation", "delete", True),
+    # --- Annotation  (public_annotation) ---
+    ("user", "public_annotation", "create", True),
+    ("user", "public_annotation", "read", True),
+    ("user", "public_annotation", "update", False),
+    ("user", "public_annotation", "delete", False),
+    ("user_group2", "public_annotation", "create", True),
+    ("user_group2", "public_annotation", "read", False),
+    ("user_group2", "public_annotation", "update", False),
+    ("user_group2", "public_annotation", "delete", False),
+    ("group_admin_user", "public_annotation", "create", True),
+    ("group_admin_user", "public_annotation", "read", True),
+    ("group_admin_user", "public_annotation", "update", False),
+    ("group_admin_user", "public_annotation", "delete", False),
+    ("super_admin_user", "public_annotation", "create", True),
+    ("super_admin_user", "public_annotation", "read", True),
+    ("super_admin_user", "public_annotation", "update", True),
+    ("super_admin_user", "public_annotation", "delete", True),
+    # --- Candidate  (public_candidate_object) ---
+    ("user", "public_candidate_object", "create", True),
+    ("user", "public_candidate_object", "read", True),
+    ("user", "public_candidate_object", "update", True),
+    ("user", "public_candidate_object", "delete", True),
+    ("user_group2", "public_candidate_object", "create", False),
+    ("user_group2", "public_candidate_object", "read", False),
+    ("user_group2", "public_candidate_object", "update", False),
+    ("user_group2", "public_candidate_object", "delete", False),
+    ("group_admin_user", "public_candidate_object", "create", True),
+    ("group_admin_user", "public_candidate_object", "read", True),
+    ("group_admin_user", "public_candidate_object", "update", True),
+    ("group_admin_user", "public_candidate_object", "delete", True),
+    ("super_admin_user", "public_candidate_object", "create", True),
+    ("super_admin_user", "public_candidate_object", "read", True),
+    ("super_admin_user", "public_candidate_object", "update", True),
+    ("super_admin_user", "public_candidate_object", "delete", True),
+    # --- ClassicalAssignment  (problematic_assignment) ---
+    ("user", "problematic_assignment", "create", True),
+    ("user", "problematic_assignment", "read", True),
+    ("user", "problematic_assignment", "update", True),
+    ("user", "problematic_assignment", "delete", True),
+    ("user_group2", "problematic_assignment", "create", True),
+    ("user_group2", "problematic_assignment", "read", True),
+    ("user_group2", "problematic_assignment", "update", True),
+    ("user_group2", "problematic_assignment", "delete", True),
+    ("group_admin_user", "problematic_assignment", "create", True),
+    ("group_admin_user", "problematic_assignment", "read", True),
+    ("group_admin_user", "problematic_assignment", "update", True),
+    ("group_admin_user", "problematic_assignment", "delete", True),
+    ("super_admin_user", "problematic_assignment", "create", True),
+    ("super_admin_user", "problematic_assignment", "read", True),
+    ("super_admin_user", "problematic_assignment", "update", True),
+    ("super_admin_user", "problematic_assignment", "delete", True),
+    # --- Classification  (public_classification) ---
+    ("user", "public_classification", "create", True),
+    ("user", "public_classification", "read", True),
+    ("user", "public_classification", "update", False),
+    ("user", "public_classification", "delete", False),
+    ("user_group2", "public_classification", "create", False),
+    ("user_group2", "public_classification", "read", False),
+    ("user_group2", "public_classification", "update", False),
+    ("user_group2", "public_classification", "delete", False),
+    ("group_admin_user", "public_classification", "create", True),
+    ("group_admin_user", "public_classification", "read", True),
+    ("group_admin_user", "public_classification", "update", True),
+    ("group_admin_user", "public_classification", "delete", True),
+    ("super_admin_user", "public_classification", "create", True),
+    ("super_admin_user", "public_classification", "read", True),
+    ("super_admin_user", "public_classification", "update", True),
+    ("super_admin_user", "public_classification", "delete", True),
+    # --- Comment  (public_comment) ---
+    ("user", "public_comment", "create", True),
+    ("user", "public_comment", "read", True),
+    ("user", "public_comment", "update", False),
+    ("user", "public_comment", "delete", False),
+    ("user_group2", "public_comment", "create", True),
+    ("user_group2", "public_comment", "read", False),
+    ("user_group2", "public_comment", "update", False),
+    ("user_group2", "public_comment", "delete", False),
+    ("group_admin_user", "public_comment", "create", True),
+    ("group_admin_user", "public_comment", "read", True),
+    ("group_admin_user", "public_comment", "update", False),
+    ("group_admin_user", "public_comment", "delete", False),
+    ("super_admin_user", "public_comment", "create", True),
+    ("super_admin_user", "public_comment", "read", True),
+    ("super_admin_user", "public_comment", "update", True),
+    ("super_admin_user", "public_comment", "delete", True),
+    # --- Filter  (public_filter) ---
+    ("user", "public_filter", "create", True),
+    ("user", "public_filter", "read", True),
+    ("user", "public_filter", "update", True),
+    ("user", "public_filter", "delete", True),
+    ("user_group2", "public_filter", "create", False),
+    ("user_group2", "public_filter", "read", False),
+    ("user_group2", "public_filter", "update", False),
+    ("user_group2", "public_filter", "delete", False),
+    ("group_admin_user", "public_filter", "create", True),
+    ("group_admin_user", "public_filter", "read", True),
+    ("group_admin_user", "public_filter", "update", True),
+    ("group_admin_user", "public_filter", "delete", True),
+    ("super_admin_user", "public_filter", "create", True),
+    ("super_admin_user", "public_filter", "read", True),
+    ("super_admin_user", "public_filter", "update", True),
+    ("super_admin_user", "public_filter", "delete", True),
+    # --- FollowupRequest  (public_source_followup_request) ---
+    ("user", "public_source_followup_request", "create", True),
+    ("user", "public_source_followup_request", "read", True),
+    ("user", "public_source_followup_request", "update", True),
+    ("user", "public_source_followup_request", "delete", True),
+    ("user_group2", "public_source_followup_request", "create", False),
+    ("user_group2", "public_source_followup_request", "read", False),
+    ("user_group2", "public_source_followup_request", "update", False),
+    ("user_group2", "public_source_followup_request", "delete", False),
+    ("group_admin_user", "public_source_followup_request", "create", True),
+    ("group_admin_user", "public_source_followup_request", "read", True),
+    ("group_admin_user", "public_source_followup_request", "update", True),
+    ("group_admin_user", "public_source_followup_request", "delete", True),
+    ("super_admin_user", "public_source_followup_request", "create", True),
+    ("super_admin_user", "public_source_followup_request", "read", True),
+    ("super_admin_user", "public_source_followup_request", "update", True),
+    ("super_admin_user", "public_source_followup_request", "delete", True),
+    # --- FollowupRequestGroup  (public_source_followup_request_target_group) ---
+    ("user", "public_source_followup_request_target_group", "create", True),
+    ("user", "public_source_followup_request_target_group", "read", True),
+    ("user", "public_source_followup_request_target_group", "update", True),
+    ("user", "public_source_followup_request_target_group", "delete", True),
+    ("user_group2", "public_source_followup_request_target_group", "create", False),
+    ("user_group2", "public_source_followup_request_target_group", "read", False),
+    ("user_group2", "public_source_followup_request_target_group", "update", False),
+    ("user_group2", "public_source_followup_request_target_group", "delete", False),
+    (
+        "group_admin_user",
+        "public_source_followup_request_target_group",
+        "create",
+        False,
+    ),
+    ("group_admin_user", "public_source_followup_request_target_group", "read", True),
+    (
+        "group_admin_user",
+        "public_source_followup_request_target_group",
+        "update",
+        False,
+    ),
+    (
+        "group_admin_user",
+        "public_source_followup_request_target_group",
+        "delete",
+        False,
+    ),
+    ("super_admin_user", "public_source_followup_request_target_group", "create", True),
+    ("super_admin_user", "public_source_followup_request_target_group", "read", True),
+    ("super_admin_user", "public_source_followup_request_target_group", "update", True),
+    ("super_admin_user", "public_source_followup_request_target_group", "delete", True),
+    # --- Group  (public_group) ---
+    ("user", "public_group", "create", True),
+    ("user", "public_group", "read", True),
+    ("user", "public_group", "update", False),
+    ("user", "public_group", "delete", False),
+    ("user_group2", "public_group", "create", True),
+    ("user_group2", "public_group", "read", True),
+    ("user_group2", "public_group", "update", False),
+    ("user_group2", "public_group", "delete", False),
+    ("group_admin_user", "public_group", "create", True),
+    ("group_admin_user", "public_group", "read", True),
+    ("group_admin_user", "public_group", "update", True),
+    ("group_admin_user", "public_group", "delete", True),
+    ("super_admin_user", "public_group", "create", True),
+    ("super_admin_user", "public_group", "read", True),
+    ("super_admin_user", "public_group", "update", True),
+    ("super_admin_user", "public_group", "delete", True),
+    # --- GroupAnnotation  (public_groupannotation) ---
+    ("user", "public_groupannotation", "create", True),
+    ("user", "public_groupannotation", "read", True),
+    ("user", "public_groupannotation", "update", False),
+    ("user", "public_groupannotation", "delete", False),
+    ("user_group2", "public_groupannotation", "create", False),
+    ("user_group2", "public_groupannotation", "read", False),
+    ("user_group2", "public_groupannotation", "update", False),
+    ("user_group2", "public_groupannotation", "delete", False),
+    ("group_admin_user", "public_groupannotation", "create", True),
+    ("group_admin_user", "public_groupannotation", "read", True),
+    ("group_admin_user", "public_groupannotation", "update", True),
+    ("group_admin_user", "public_groupannotation", "delete", True),
+    ("super_admin_user", "public_groupannotation", "create", True),
+    ("super_admin_user", "public_groupannotation", "read", True),
+    ("super_admin_user", "public_groupannotation", "update", True),
+    ("super_admin_user", "public_groupannotation", "delete", True),
+    # --- GroupClassification  (public_groupclassification) ---
+    ("user", "public_groupclassification", "create", True),
+    ("user", "public_groupclassification", "read", True),
+    ("user", "public_groupclassification", "update", False),
+    ("user", "public_groupclassification", "delete", False),
+    ("user_group2", "public_groupclassification", "create", False),
+    ("user_group2", "public_groupclassification", "read", False),
+    ("user_group2", "public_groupclassification", "update", False),
+    ("user_group2", "public_groupclassification", "delete", False),
+    ("group_admin_user", "public_groupclassification", "create", True),
+    ("group_admin_user", "public_groupclassification", "read", True),
+    ("group_admin_user", "public_groupclassification", "update", True),
+    ("group_admin_user", "public_groupclassification", "delete", True),
+    ("super_admin_user", "public_groupclassification", "create", True),
+    ("super_admin_user", "public_groupclassification", "read", True),
+    ("super_admin_user", "public_groupclassification", "update", True),
+    ("super_admin_user", "public_groupclassification", "delete", True),
+    # --- GroupComment  (public_groupcomment) ---
+    ("user", "public_groupcomment", "create", True),
+    ("user", "public_groupcomment", "read", True),
+    ("user", "public_groupcomment", "update", False),
+    ("user", "public_groupcomment", "delete", False),
+    ("user_group2", "public_groupcomment", "create", False),
+    ("user_group2", "public_groupcomment", "read", False),
+    ("user_group2", "public_groupcomment", "update", False),
+    ("user_group2", "public_groupcomment", "delete", False),
+    ("group_admin_user", "public_groupcomment", "create", True),
+    ("group_admin_user", "public_groupcomment", "read", True),
+    ("group_admin_user", "public_groupcomment", "update", True),
+    ("group_admin_user", "public_groupcomment", "delete", True),
+    ("super_admin_user", "public_groupcomment", "create", True),
+    ("super_admin_user", "public_groupcomment", "read", True),
+    ("super_admin_user", "public_groupcomment", "update", True),
+    ("super_admin_user", "public_groupcomment", "delete", True),
+    # --- GroupObj  (public_source_object) ---
+    ("user", "public_source_object", "create", True),
+    ("user", "public_source_object", "read", True),
+    ("user", "public_source_object", "update", True),
+    ("user", "public_source_object", "delete", True),
+    ("user_group2", "public_source_object", "create", False),
+    ("user_group2", "public_source_object", "read", False),
+    ("user_group2", "public_source_object", "update", False),
+    ("user_group2", "public_source_object", "delete", False),
+    ("group_admin_user", "public_source_object", "create", True),
+    ("group_admin_user", "public_source_object", "read", True),
+    ("group_admin_user", "public_source_object", "update", True),
+    ("group_admin_user", "public_source_object", "delete", True),
+    ("super_admin_user", "public_source_object", "create", True),
+    ("super_admin_user", "public_source_object", "read", True),
+    ("super_admin_user", "public_source_object", "update", True),
+    ("super_admin_user", "public_source_object", "delete", True),
+    # --- GroupPhotometry  (public_source_groupphotometry) ---
+    ("user", "public_source_groupphotometry", "create", True),
+    ("user", "public_source_groupphotometry", "read", True),
+    ("user", "public_source_groupphotometry", "update", False),
+    ("user", "public_source_groupphotometry", "delete", False),
+    ("user_group2", "public_source_groupphotometry", "create", False),
+    ("user_group2", "public_source_groupphotometry", "read", False),
+    ("user_group2", "public_source_groupphotometry", "update", False),
+    ("user_group2", "public_source_groupphotometry", "delete", False),
+    ("group_admin_user", "public_source_groupphotometry", "create", True),
+    ("group_admin_user", "public_source_groupphotometry", "read", True),
+    ("group_admin_user", "public_source_groupphotometry", "update", True),
+    ("group_admin_user", "public_source_groupphotometry", "delete", True),
+    ("super_admin_user", "public_source_groupphotometry", "create", True),
+    ("super_admin_user", "public_source_groupphotometry", "read", True),
+    ("super_admin_user", "public_source_groupphotometry", "update", True),
+    ("super_admin_user", "public_source_groupphotometry", "delete", True),
+    # --- GroupSpectrum  (public_source_groupspectrum) ---
+    ("user", "public_source_groupspectrum", "create", True),
+    ("user", "public_source_groupspectrum", "read", True),
+    ("user", "public_source_groupspectrum", "update", False),
+    ("user", "public_source_groupspectrum", "delete", False),
+    ("user_group2", "public_source_groupspectrum", "create", False),
+    ("user_group2", "public_source_groupspectrum", "read", False),
+    ("user_group2", "public_source_groupspectrum", "update", False),
+    ("user_group2", "public_source_groupspectrum", "delete", False),
+    ("group_admin_user", "public_source_groupspectrum", "create", True),
+    ("group_admin_user", "public_source_groupspectrum", "read", True),
+    ("group_admin_user", "public_source_groupspectrum", "update", True),
+    ("group_admin_user", "public_source_groupspectrum", "delete", True),
+    ("super_admin_user", "public_source_groupspectrum", "create", True),
+    ("super_admin_user", "public_source_groupspectrum", "read", True),
+    ("super_admin_user", "public_source_groupspectrum", "update", True),
+    ("super_admin_user", "public_source_groupspectrum", "delete", True),
+    # --- GroupStream  (public_groupstream) ---
+    ("user", "public_groupstream", "create", False),
+    ("user", "public_groupstream", "read", True),
+    ("user", "public_groupstream", "update", False),
+    ("user", "public_groupstream", "delete", False),
+    ("user_group2", "public_groupstream", "create", False),
+    ("user_group2", "public_groupstream", "read", True),
+    ("user_group2", "public_groupstream", "update", False),
+    ("user_group2", "public_groupstream", "delete", False),
+    ("group_admin_user", "public_groupstream", "create", True),
+    ("group_admin_user", "public_groupstream", "read", True),
+    ("group_admin_user", "public_groupstream", "update", False),
+    ("group_admin_user", "public_groupstream", "delete", True),
+    ("super_admin_user", "public_groupstream", "create", True),
+    ("super_admin_user", "public_groupstream", "read", True),
+    ("super_admin_user", "public_groupstream", "update", True),
+    ("super_admin_user", "public_groupstream", "delete", True),
+    # --- GroupTaxonomy  (public_group_taxonomy) ---
+    ("user", "public_group_taxonomy", "create", True),
+    ("user", "public_group_taxonomy", "read", True),
+    ("user", "public_group_taxonomy", "update", False),
+    ("user", "public_group_taxonomy", "delete", False),
+    ("user_group2", "public_group_taxonomy", "create", False),
+    ("user_group2", "public_group_taxonomy", "read", False),
+    ("user_group2", "public_group_taxonomy", "update", False),
+    ("user_group2", "public_group_taxonomy", "delete", False),
+    ("group_admin_user", "public_group_taxonomy", "create", True),
+    ("group_admin_user", "public_group_taxonomy", "read", True),
+    ("group_admin_user", "public_group_taxonomy", "update", True),
+    ("group_admin_user", "public_group_taxonomy", "delete", True),
+    ("super_admin_user", "public_group_taxonomy", "create", True),
+    ("super_admin_user", "public_group_taxonomy", "read", True),
+    ("super_admin_user", "public_group_taxonomy", "update", True),
+    ("super_admin_user", "public_group_taxonomy", "delete", True),
+    # --- Team  (public_team): read = member of a team group; manage = admin ---
+    ("user", "public_team", "create", False),
+    ("user", "public_team", "read", True),
+    ("user", "public_team", "update", False),
+    ("user", "public_team", "delete", False),
+    ("user_group2", "public_team", "create", False),
+    ("user_group2", "public_team", "read", False),
+    ("user_group2", "public_team", "update", False),
+    ("user_group2", "public_team", "delete", False),
+    ("group_admin_user", "public_team", "create", True),
+    ("group_admin_user", "public_team", "read", True),
+    ("group_admin_user", "public_team", "update", True),
+    ("group_admin_user", "public_team", "delete", True),
+    ("super_admin_user", "public_team", "create", True),
+    ("super_admin_user", "public_team", "read", True),
+    ("super_admin_user", "public_team", "update", True),
+    ("super_admin_user", "public_team", "delete", True),
+    # --- GroupTeam  (public_group_team): manage requires group admin ---
+    ("user", "public_group_team", "create", False),
+    ("user", "public_group_team", "read", True),
+    ("user", "public_group_team", "update", False),
+    ("user", "public_group_team", "delete", False),
+    ("user_group2", "public_group_team", "create", False),
+    ("user_group2", "public_group_team", "read", False),
+    ("user_group2", "public_group_team", "update", False),
+    ("user_group2", "public_group_team", "delete", False),
+    ("group_admin_user", "public_group_team", "create", True),
+    ("group_admin_user", "public_group_team", "read", True),
+    ("group_admin_user", "public_group_team", "update", True),
+    ("group_admin_user", "public_group_team", "delete", True),
+    ("super_admin_user", "public_group_team", "create", True),
+    ("super_admin_user", "public_group_team", "read", True),
+    ("super_admin_user", "public_group_team", "update", True),
+    ("super_admin_user", "public_group_team", "delete", True),
+    # --- GroupUser  (public_groupuser) ---
+    ("user", "public_groupuser", "create", False),
+    ("user", "public_groupuser", "read", True),
+    ("user", "public_groupuser", "update", False),
+    ("user", "public_groupuser", "delete", True),
+    ("user_group2", "public_groupuser", "create", False),
+    ("user_group2", "public_groupuser", "read", True),
+    ("user_group2", "public_groupuser", "update", False),
+    ("user_group2", "public_groupuser", "delete", False),
+    ("group_admin_user", "public_groupuser", "create", True),
+    ("group_admin_user", "public_groupuser", "read", True),
+    ("group_admin_user", "public_groupuser", "update", True),
+    ("group_admin_user", "public_groupuser", "delete", True),
+    ("super_admin_user", "public_groupuser", "create", True),
+    ("super_admin_user", "public_groupuser", "read", True),
+    ("super_admin_user", "public_groupuser", "update", True),
+    ("super_admin_user", "public_groupuser", "delete", True),
+    # --- Instrument  (sedm) ---
+    ("user", "sedm", "create", False),
+    ("user", "sedm", "read", True),
+    ("user", "sedm", "update", False),
+    ("user", "sedm", "delete", False),
+    ("user_group2", "sedm", "create", False),
+    ("user_group2", "sedm", "read", True),
+    ("user_group2", "sedm", "update", False),
+    ("user_group2", "sedm", "delete", False),
+    ("group_admin_user", "sedm", "create", False),
+    ("group_admin_user", "sedm", "read", True),
+    ("group_admin_user", "sedm", "update", False),
+    ("group_admin_user", "sedm", "delete", False),
+    ("super_admin_user", "sedm", "create", True),
+    ("super_admin_user", "sedm", "read", True),
+    ("super_admin_user", "sedm", "update", True),
+    ("super_admin_user", "sedm", "delete", True),
+    # --- Invitation  (invitation) ---
+    ("user", "invitation", "create", True),
+    ("user", "invitation", "read", True),
+    ("user", "invitation", "update", True),
+    ("user", "invitation", "delete", True),
+    ("user_group2", "invitation", "create", True),
+    ("user_group2", "invitation", "read", False),
+    ("user_group2", "invitation", "update", False),
+    ("user_group2", "invitation", "delete", False),
+    ("group_admin_user", "invitation", "create", True),
+    ("group_admin_user", "invitation", "read", False),
+    ("group_admin_user", "invitation", "update", False),
+    ("group_admin_user", "invitation", "delete", False),
+    ("super_admin_user", "invitation", "create", True),
+    ("super_admin_user", "invitation", "read", True),
+    ("super_admin_user", "invitation", "update", True),
+    ("super_admin_user", "invitation", "delete", True),
+    # --- ObservingRun  (red_transients_run) ---
+    ("user", "red_transients_run", "create", True),
+    ("user", "red_transients_run", "read", True),
+    ("user", "red_transients_run", "update", True),
+    ("user", "red_transients_run", "delete", True),
+    ("user_group2", "red_transients_run", "create", True),
+    ("user_group2", "red_transients_run", "read", True),
+    ("user_group2", "red_transients_run", "update", False),
+    ("user_group2", "red_transients_run", "delete", False),
+    ("group_admin_user", "red_transients_run", "create", True),
+    ("group_admin_user", "red_transients_run", "read", True),
+    ("group_admin_user", "red_transients_run", "update", False),
+    ("group_admin_user", "red_transients_run", "delete", False),
+    ("super_admin_user", "red_transients_run", "create", True),
+    ("super_admin_user", "red_transients_run", "read", True),
+    ("super_admin_user", "red_transients_run", "update", True),
+    ("super_admin_user", "red_transients_run", "delete", True),
+    # --- ObjTag  (public_obj_tag) ---
+    # create/read = accessible_by_groups_members; update/delete additionally
+    # require system admin, "Manage sources", or being the tag's author. The
+    # author here is `user`, and group admins hold "Manage sources". New
+    # coverage (was a gap).
+    ("user", "public_obj_tag", "create", True),
+    ("user", "public_obj_tag", "read", True),
+    ("user", "public_obj_tag", "update", True),
+    ("user", "public_obj_tag", "delete", True),
+    ("user_group2", "public_obj_tag", "create", False),
+    ("user_group2", "public_obj_tag", "read", False),
+    ("user_group2", "public_obj_tag", "update", False),
+    ("user_group2", "public_obj_tag", "delete", False),
+    ("group_admin_user", "public_obj_tag", "create", True),
+    ("group_admin_user", "public_obj_tag", "read", True),
+    ("group_admin_user", "public_obj_tag", "update", True),
+    ("group_admin_user", "public_obj_tag", "delete", True),
+    ("super_admin_user", "public_obj_tag", "create", True),
+    ("super_admin_user", "public_obj_tag", "read", True),
+    ("super_admin_user", "public_obj_tag", "update", True),
+    ("super_admin_user", "public_obj_tag", "delete", True),
+    # --- Photometry  (public_source_photometry_point) ---
+    ("user", "public_source_photometry_point", "create", True),
+    ("user", "public_source_photometry_point", "read", True),
+    ("user", "public_source_photometry_point", "update", False),
+    ("user", "public_source_photometry_point", "delete", False),
+    ("user_group2", "public_source_photometry_point", "create", True),
+    ("user_group2", "public_source_photometry_point", "read", False),
+    ("user_group2", "public_source_photometry_point", "update", False),
+    ("user_group2", "public_source_photometry_point", "delete", False),
+    ("group_admin_user", "public_source_photometry_point", "create", True),
+    ("group_admin_user", "public_source_photometry_point", "read", True),
+    ("group_admin_user", "public_source_photometry_point", "update", False),
+    ("group_admin_user", "public_source_photometry_point", "delete", False),
+    ("super_admin_user", "public_source_photometry_point", "create", True),
+    ("super_admin_user", "public_source_photometry_point", "read", True),
+    ("super_admin_user", "public_source_photometry_point", "update", True),
+    ("super_admin_user", "public_source_photometry_point", "delete", True),
+    # --- PublicRelease  (public_release) ---
+    # create/read = public; update/delete = accessible_by_groups_members of the
+    # release's groups (public_group). New coverage (was a gap).
+    ("user", "public_release", "create", True),
+    ("user", "public_release", "read", True),
+    ("user", "public_release", "update", True),
+    ("user", "public_release", "delete", True),
+    ("user_group2", "public_release", "create", True),
+    ("user_group2", "public_release", "read", True),
+    ("user_group2", "public_release", "update", False),
+    ("user_group2", "public_release", "delete", False),
+    ("group_admin_user", "public_release", "create", True),
+    ("group_admin_user", "public_release", "read", True),
+    ("group_admin_user", "public_release", "update", True),
+    ("group_admin_user", "public_release", "delete", True),
+    ("super_admin_user", "public_release", "create", True),
+    ("super_admin_user", "public_release", "read", True),
+    ("super_admin_user", "public_release", "update", True),
+    ("super_admin_user", "public_release", "delete", True),
+    # --- PublicSourcePage  (public_source_page) ---
+    # create/read = public; update = restricted (system admin only); delete =
+    # members of the source's group (published_source_access_logic). New
+    # coverage (was a gap).
+    ("user", "public_source_page", "create", True),
+    ("user", "public_source_page", "read", True),
+    ("user", "public_source_page", "update", False),
+    ("user", "public_source_page", "delete", True),
+    ("user_group2", "public_source_page", "create", True),
+    ("user_group2", "public_source_page", "read", True),
+    ("user_group2", "public_source_page", "update", False),
+    ("user_group2", "public_source_page", "delete", False),
+    ("group_admin_user", "public_source_page", "create", True),
+    ("group_admin_user", "public_source_page", "read", True),
+    ("group_admin_user", "public_source_page", "update", False),
+    ("group_admin_user", "public_source_page", "delete", True),
+    ("super_admin_user", "public_source_page", "create", True),
+    ("super_admin_user", "public_source_page", "read", True),
+    ("super_admin_user", "public_source_page", "update", True),
+    ("super_admin_user", "public_source_page", "delete", True),
+    # --- SourceNotification  (public_source_notification) ---
+    # create/read = AccessibleIfRelatedRowsAreAccessible(source="read");
+    # update/delete = AccessibleIfUserMatches("sent_by"). The four corrected
+    # values below were wrong in the original (commented-out, never-run) tests:
+    # user_group2 can read the publicly-readable source, and a group admin who
+    # is not the sender cannot update/delete the notification.
+    ("user", "public_source_notification", "create", True),
+    ("user", "public_source_notification", "read", True),
+    ("user", "public_source_notification", "update", False),
+    ("user", "public_source_notification", "delete", False),
+    ("user_group2", "public_source_notification", "create", True),
+    ("user_group2", "public_source_notification", "read", True),
+    ("user_group2", "public_source_notification", "update", False),
+    ("user_group2", "public_source_notification", "delete", False),
+    ("group_admin_user", "public_source_notification", "create", True),
+    ("group_admin_user", "public_source_notification", "read", True),
+    ("group_admin_user", "public_source_notification", "update", False),
+    ("group_admin_user", "public_source_notification", "delete", False),
+    ("super_admin_user", "public_source_notification", "create", True),
+    ("super_admin_user", "public_source_notification", "read", True),
+    ("super_admin_user", "public_source_notification", "update", True),
+    ("super_admin_user", "public_source_notification", "delete", True),
+    # --- Spectrum  (public_source_spectrum) ---
+    ("user", "public_source_spectrum", "create", True),
+    ("user", "public_source_spectrum", "read", True),
+    ("user", "public_source_spectrum", "update", False),
+    ("user", "public_source_spectrum", "delete", False),
+    ("user_group2", "public_source_spectrum", "create", True),
+    ("user_group2", "public_source_spectrum", "read", False),
+    ("user_group2", "public_source_spectrum", "update", False),
+    ("user_group2", "public_source_spectrum", "delete", False),
+    ("group_admin_user", "public_source_spectrum", "create", True),
+    ("group_admin_user", "public_source_spectrum", "read", True),
+    ("group_admin_user", "public_source_spectrum", "update", False),
+    ("group_admin_user", "public_source_spectrum", "delete", False),
+    ("super_admin_user", "public_source_spectrum", "create", True),
+    ("super_admin_user", "public_source_spectrum", "read", True),
+    ("super_admin_user", "public_source_spectrum", "update", True),
+    ("super_admin_user", "public_source_spectrum", "delete", True),
+    # --- Stream  (public_stream) ---
+    ("user", "public_stream", "create", False),
+    ("user", "public_stream", "read", True),
+    ("user", "public_stream", "update", False),
+    ("user", "public_stream", "delete", False),
+    ("user_group2", "public_stream", "create", False),
+    ("user_group2", "public_stream", "read", True),
+    ("user_group2", "public_stream", "update", False),
+    ("user_group2", "public_stream", "delete", False),
+    ("group_admin_user", "public_stream", "create", False),
+    ("group_admin_user", "public_stream", "read", True),
+    ("group_admin_user", "public_stream", "update", False),
+    ("group_admin_user", "public_stream", "delete", False),
+    ("super_admin_user", "public_stream", "create", True),
+    ("super_admin_user", "public_stream", "read", True),
+    ("super_admin_user", "public_stream", "update", True),
+    ("super_admin_user", "public_stream", "delete", True),
+    # --- StreamUser  (public_streamuser) ---
+    ("user", "public_streamuser", "create", False),
+    ("user", "public_streamuser", "read", True),
+    ("user", "public_streamuser", "update", False),
+    ("user", "public_streamuser", "delete", False),
+    ("user_group2", "public_streamuser", "create", False),
+    ("user_group2", "public_streamuser", "read", True),
+    ("user_group2", "public_streamuser", "update", False),
+    ("user_group2", "public_streamuser", "delete", False),
+    ("group_admin_user", "public_streamuser", "create", False),
+    ("group_admin_user", "public_streamuser", "read", True),
+    ("group_admin_user", "public_streamuser", "update", False),
+    ("group_admin_user", "public_streamuser", "delete", False),
+    ("super_admin_user", "public_streamuser", "create", True),
+    ("super_admin_user", "public_streamuser", "read", True),
+    ("super_admin_user", "public_streamuser", "update", True),
+    ("super_admin_user", "public_streamuser", "delete", False),
+    # --- StreamUser  (public_streamuser_no_groups) ---
+    ("super_admin_user", "public_streamuser_no_groups", "delete", True),
+    # --- SuperObj  (public_super_obj) ---
+    # No ACL override -> BaseMixin defaults: create=read=public,
+    # update=delete=restricted (system-admin only). New coverage (was a gap).
+    ("user", "public_super_obj", "create", True),
+    ("user", "public_super_obj", "read", True),
+    ("user", "public_super_obj", "update", False),
+    ("user", "public_super_obj", "delete", False),
+    ("user_group2", "public_super_obj", "create", True),
+    ("user_group2", "public_super_obj", "read", True),
+    ("user_group2", "public_super_obj", "update", False),
+    ("user_group2", "public_super_obj", "delete", False),
+    ("group_admin_user", "public_super_obj", "create", True),
+    ("group_admin_user", "public_super_obj", "read", True),
+    ("group_admin_user", "public_super_obj", "update", False),
+    ("group_admin_user", "public_super_obj", "delete", False),
+    ("super_admin_user", "public_super_obj", "create", True),
+    ("super_admin_user", "public_super_obj", "read", True),
+    ("super_admin_user", "public_super_obj", "update", True),
+    ("super_admin_user", "public_super_obj", "delete", True),
+    # --- Taxonomy  (public_taxonomy) ---
+    ("user", "public_taxonomy", "create", True),
+    ("user", "public_taxonomy", "read", True),
+    ("user", "public_taxonomy", "update", False),
+    ("user", "public_taxonomy", "delete", False),
+    ("user_group2", "public_taxonomy", "create", True),
+    ("user_group2", "public_taxonomy", "read", False),
+    ("user_group2", "public_taxonomy", "update", False),
+    ("user_group2", "public_taxonomy", "delete", False),
+    ("group_admin_user", "public_taxonomy", "create", True),
+    ("group_admin_user", "public_taxonomy", "read", True),
+    ("group_admin_user", "public_taxonomy", "update", False),
+    ("group_admin_user", "public_taxonomy", "delete", False),
+    ("super_admin_user", "public_taxonomy", "create", True),
+    ("super_admin_user", "public_taxonomy", "read", True),
+    ("super_admin_user", "public_taxonomy", "update", True),
+    ("super_admin_user", "public_taxonomy", "delete", True),
+    # --- Telescope  (keck1_telescope) ---
+    ("user", "keck1_telescope", "create", False),
+    ("user", "keck1_telescope", "read", True),
+    ("user", "keck1_telescope", "update", False),
+    ("user", "keck1_telescope", "delete", False),
+    ("user_group2", "keck1_telescope", "create", False),
+    ("user_group2", "keck1_telescope", "read", True),
+    ("user_group2", "keck1_telescope", "update", False),
+    ("user_group2", "keck1_telescope", "delete", False),
+    ("group_admin_user", "keck1_telescope", "create", False),
+    ("group_admin_user", "keck1_telescope", "read", True),
+    ("group_admin_user", "keck1_telescope", "update", False),
+    ("group_admin_user", "keck1_telescope", "delete", False),
+    ("super_admin_user", "keck1_telescope", "create", True),
+    ("super_admin_user", "keck1_telescope", "read", True),
+    ("super_admin_user", "keck1_telescope", "update", True),
+    ("super_admin_user", "keck1_telescope", "delete", True),
+    # --- Thumbnail  (public_thumbnail) ---
+    ("user", "public_thumbnail", "create", True),
+    ("user", "public_thumbnail", "read", True),
+    ("user", "public_thumbnail", "update", False),
+    ("user", "public_thumbnail", "delete", False),
+    ("user_group2", "public_thumbnail", "create", True),
+    ("user_group2", "public_thumbnail", "read", True),
+    ("user_group2", "public_thumbnail", "update", False),
+    ("user_group2", "public_thumbnail", "delete", False),
+    ("group_admin_user", "public_thumbnail", "create", True),
+    ("group_admin_user", "public_thumbnail", "read", True),
+    ("group_admin_user", "public_thumbnail", "update", False),
+    ("group_admin_user", "public_thumbnail", "delete", False),
+    ("super_admin_user", "public_thumbnail", "create", True),
+    ("super_admin_user", "public_thumbnail", "read", True),
+    ("super_admin_user", "public_thumbnail", "update", True),
+    ("super_admin_user", "public_thumbnail", "delete", True),
+    # --- UserNotification  (user_notification) ---
+    ("user", "user_notification", "create", True),
+    ("user", "user_notification", "read", True),
+    ("user", "user_notification", "update", True),
+    ("user", "user_notification", "delete", True),
+    ("user_group2", "user_notification", "create", True),
+    ("user_group2", "user_notification", "read", False),
+    ("user_group2", "user_notification", "update", False),
+    ("user_group2", "user_notification", "delete", False),
+    ("group_admin_user", "user_notification", "create", True),
+    ("group_admin_user", "user_notification", "read", False),
+    ("group_admin_user", "user_notification", "update", False),
+    ("group_admin_user", "user_notification", "delete", False),
+    ("super_admin_user", "user_notification", "create", True),
+    ("super_admin_user", "user_notification", "read", True),
+    ("super_admin_user", "user_notification", "update", True),
+    ("super_admin_user", "user_notification", "delete", True),
+    # --- AnalysisService  (public_analysis_service)  [probed] ---
+    ("user", "public_analysis_service", "create", True),
+    ("user", "public_analysis_service", "read", True),
+    ("user", "public_analysis_service", "update", True),
+    ("user", "public_analysis_service", "delete", True),
+    ("user_group2", "public_analysis_service", "create", False),
+    ("user_group2", "public_analysis_service", "read", False),
+    ("user_group2", "public_analysis_service", "update", False),
+    ("user_group2", "public_analysis_service", "delete", False),
+    ("group_admin_user", "public_analysis_service", "create", True),
+    ("group_admin_user", "public_analysis_service", "read", True),
+    ("group_admin_user", "public_analysis_service", "update", True),
+    ("group_admin_user", "public_analysis_service", "delete", True),
+    ("super_admin_user", "public_analysis_service", "create", True),
+    ("super_admin_user", "public_analysis_service", "read", True),
+    ("super_admin_user", "public_analysis_service", "update", True),
+    ("super_admin_user", "public_analysis_service", "delete", True),
+    # --- AnnotationOnPhotometry  (public_annotation_on_photometry)  [probed] ---
+    ("user", "public_annotation_on_photometry", "create", True),
+    ("user", "public_annotation_on_photometry", "read", True),
+    ("user", "public_annotation_on_photometry", "update", True),
+    ("user", "public_annotation_on_photometry", "delete", True),
+    ("user_group2", "public_annotation_on_photometry", "create", False),
+    ("user_group2", "public_annotation_on_photometry", "read", False),
+    ("user_group2", "public_annotation_on_photometry", "update", False),
+    ("user_group2", "public_annotation_on_photometry", "delete", False),
+    ("group_admin_user", "public_annotation_on_photometry", "create", True),
+    ("group_admin_user", "public_annotation_on_photometry", "read", True),
+    ("group_admin_user", "public_annotation_on_photometry", "update", False),
+    ("group_admin_user", "public_annotation_on_photometry", "delete", False),
+    ("super_admin_user", "public_annotation_on_photometry", "create", True),
+    ("super_admin_user", "public_annotation_on_photometry", "read", True),
+    ("super_admin_user", "public_annotation_on_photometry", "update", True),
+    ("super_admin_user", "public_annotation_on_photometry", "delete", True),
+    # --- AnnotationOnSpectrum  (public_annotation_on_spectrum)  [probed] ---
+    ("user", "public_annotation_on_spectrum", "create", True),
+    ("user", "public_annotation_on_spectrum", "read", True),
+    ("user", "public_annotation_on_spectrum", "update", True),
+    ("user", "public_annotation_on_spectrum", "delete", True),
+    ("user_group2", "public_annotation_on_spectrum", "create", False),
+    ("user_group2", "public_annotation_on_spectrum", "read", False),
+    ("user_group2", "public_annotation_on_spectrum", "update", False),
+    ("user_group2", "public_annotation_on_spectrum", "delete", False),
+    ("group_admin_user", "public_annotation_on_spectrum", "create", True),
+    ("group_admin_user", "public_annotation_on_spectrum", "read", True),
+    ("group_admin_user", "public_annotation_on_spectrum", "update", False),
+    ("group_admin_user", "public_annotation_on_spectrum", "delete", False),
+    ("super_admin_user", "public_annotation_on_spectrum", "create", True),
+    ("super_admin_user", "public_annotation_on_spectrum", "read", True),
+    ("super_admin_user", "public_annotation_on_spectrum", "update", True),
+    ("super_admin_user", "public_annotation_on_spectrum", "delete", True),
+    # --- CatalogQuery  (public_catalog_query)  [probed] ---
+    ("user", "public_catalog_query", "create", True),
+    ("user", "public_catalog_query", "read", True),
+    ("user", "public_catalog_query", "update", True),
+    ("user", "public_catalog_query", "delete", True),
+    ("user_group2", "public_catalog_query", "create", False),
+    ("user_group2", "public_catalog_query", "read", False),
+    ("user_group2", "public_catalog_query", "update", False),
+    ("user_group2", "public_catalog_query", "delete", False),
+    ("group_admin_user", "public_catalog_query", "create", True),
+    ("group_admin_user", "public_catalog_query", "read", True),
+    ("group_admin_user", "public_catalog_query", "update", True),
+    ("group_admin_user", "public_catalog_query", "delete", True),
+    ("super_admin_user", "public_catalog_query", "create", True),
+    ("super_admin_user", "public_catalog_query", "read", True),
+    ("super_admin_user", "public_catalog_query", "update", True),
+    ("super_admin_user", "public_catalog_query", "delete", True),
+    # --- ClassificationVote  (public_classificationvote)  [probed] ---
+    ("user", "public_classificationvote", "create", True),
+    ("user", "public_classificationvote", "read", True),
+    ("user", "public_classificationvote", "update", True),
+    ("user", "public_classificationvote", "delete", True),
+    ("user_group2", "public_classificationvote", "create", False),
+    ("user_group2", "public_classificationvote", "read", False),
+    ("user_group2", "public_classificationvote", "update", False),
+    ("user_group2", "public_classificationvote", "delete", False),
+    ("group_admin_user", "public_classificationvote", "create", True),
+    ("group_admin_user", "public_classificationvote", "read", True),
+    ("group_admin_user", "public_classificationvote", "update", True),
+    ("group_admin_user", "public_classificationvote", "delete", True),
+    ("super_admin_user", "public_classificationvote", "create", True),
+    ("super_admin_user", "public_classificationvote", "read", True),
+    ("super_admin_user", "public_classificationvote", "update", True),
+    ("super_admin_user", "public_classificationvote", "delete", True),
+    # --- CommentOnEarthquake  (public_comment_on_earthquake)  [probed] ---
+    ("user", "public_comment_on_earthquake", "create", True),
+    ("user", "public_comment_on_earthquake", "read", True),
+    ("user", "public_comment_on_earthquake", "update", True),
+    ("user", "public_comment_on_earthquake", "delete", True),
+    ("user_group2", "public_comment_on_earthquake", "create", True),
+    ("user_group2", "public_comment_on_earthquake", "read", False),
+    ("user_group2", "public_comment_on_earthquake", "update", False),
+    ("user_group2", "public_comment_on_earthquake", "delete", False),
+    ("group_admin_user", "public_comment_on_earthquake", "create", True),
+    ("group_admin_user", "public_comment_on_earthquake", "read", True),
+    ("group_admin_user", "public_comment_on_earthquake", "update", False),
+    ("group_admin_user", "public_comment_on_earthquake", "delete", False),
+    ("super_admin_user", "public_comment_on_earthquake", "create", True),
+    ("super_admin_user", "public_comment_on_earthquake", "read", True),
+    ("super_admin_user", "public_comment_on_earthquake", "update", True),
+    ("super_admin_user", "public_comment_on_earthquake", "delete", True),
+    # --- CommentOnGCN  (public_comment_on_gcn)  [probed] ---
+    ("user", "public_comment_on_gcn_perm", "create", True),
+    ("user", "public_comment_on_gcn_perm", "read", True),
+    ("user", "public_comment_on_gcn_perm", "update", True),
+    ("user", "public_comment_on_gcn_perm", "delete", True),
+    ("user_group2", "public_comment_on_gcn_perm", "create", True),
+    ("user_group2", "public_comment_on_gcn_perm", "read", False),
+    ("user_group2", "public_comment_on_gcn_perm", "update", False),
+    ("user_group2", "public_comment_on_gcn_perm", "delete", False),
+    ("group_admin_user", "public_comment_on_gcn_perm", "create", True),
+    ("group_admin_user", "public_comment_on_gcn_perm", "read", True),
+    ("group_admin_user", "public_comment_on_gcn_perm", "update", False),
+    ("group_admin_user", "public_comment_on_gcn_perm", "delete", False),
+    ("super_admin_user", "public_comment_on_gcn_perm", "create", True),
+    ("super_admin_user", "public_comment_on_gcn_perm", "read", True),
+    ("super_admin_user", "public_comment_on_gcn_perm", "update", True),
+    ("super_admin_user", "public_comment_on_gcn_perm", "delete", True),
+    # --- CommentOnSpectrum  (public_comment_on_spectrum)  [probed] ---
+    ("user", "public_comment_on_spectrum", "create", True),
+    ("user", "public_comment_on_spectrum", "read", True),
+    ("user", "public_comment_on_spectrum", "update", True),
+    ("user", "public_comment_on_spectrum", "delete", True),
+    ("user_group2", "public_comment_on_spectrum", "create", False),
+    ("user_group2", "public_comment_on_spectrum", "read", False),
+    ("user_group2", "public_comment_on_spectrum", "update", False),
+    ("user_group2", "public_comment_on_spectrum", "delete", False),
+    ("group_admin_user", "public_comment_on_spectrum", "create", True),
+    ("group_admin_user", "public_comment_on_spectrum", "read", True),
+    ("group_admin_user", "public_comment_on_spectrum", "update", False),
+    ("group_admin_user", "public_comment_on_spectrum", "delete", False),
+    ("super_admin_user", "public_comment_on_spectrum", "create", True),
+    ("super_admin_user", "public_comment_on_spectrum", "read", True),
+    ("super_admin_user", "public_comment_on_spectrum", "update", True),
+    ("super_admin_user", "public_comment_on_spectrum", "delete", True),
+    # --- DefaultAnalysis  (public_default_analysis)  [probed] ---
+    ("user", "public_default_analysis", "create", True),
+    ("user", "public_default_analysis", "read", True),
+    ("user", "public_default_analysis", "update", True),
+    ("user", "public_default_analysis", "delete", True),
+    ("user_group2", "public_default_analysis", "create", False),
+    ("user_group2", "public_default_analysis", "read", False),
+    ("user_group2", "public_default_analysis", "update", False),
+    ("user_group2", "public_default_analysis", "delete", False),
+    ("group_admin_user", "public_default_analysis", "create", True),
+    ("group_admin_user", "public_default_analysis", "read", True),
+    ("group_admin_user", "public_default_analysis", "update", True),
+    ("group_admin_user", "public_default_analysis", "delete", True),
+    ("super_admin_user", "public_default_analysis", "create", True),
+    ("super_admin_user", "public_default_analysis", "read", True),
+    ("super_admin_user", "public_default_analysis", "update", True),
+    ("super_admin_user", "public_default_analysis", "delete", True),
+    # --- DefaultFollowupRequest  (public_default_followup_request)  [probed] ---
+    ("user", "public_default_followup_request", "create", True),
+    ("user", "public_default_followup_request", "read", True),
+    ("user", "public_default_followup_request", "update", True),
+    ("user", "public_default_followup_request", "delete", True),
+    ("user_group2", "public_default_followup_request", "create", False),
+    ("user_group2", "public_default_followup_request", "read", False),
+    ("user_group2", "public_default_followup_request", "update", False),
+    ("user_group2", "public_default_followup_request", "delete", False),
+    ("group_admin_user", "public_default_followup_request", "create", True),
+    ("group_admin_user", "public_default_followup_request", "read", True),
+    ("group_admin_user", "public_default_followup_request", "update", True),
+    ("group_admin_user", "public_default_followup_request", "delete", True),
+    ("super_admin_user", "public_default_followup_request", "create", True),
+    ("super_admin_user", "public_default_followup_request", "read", True),
+    ("super_admin_user", "public_default_followup_request", "update", True),
+    ("super_admin_user", "public_default_followup_request", "delete", True),
+    # --- DefaultGcnTag  (public_default_gcn_tag)  [probed] ---
+    ("user", "public_default_gcn_tag", "create", True),
+    ("user", "public_default_gcn_tag", "read", True),
+    ("user", "public_default_gcn_tag", "update", True),
+    ("user", "public_default_gcn_tag", "delete", True),
+    ("user_group2", "public_default_gcn_tag", "create", True),
+    ("user_group2", "public_default_gcn_tag", "read", True),
+    ("user_group2", "public_default_gcn_tag", "update", False),
+    ("user_group2", "public_default_gcn_tag", "delete", False),
+    ("group_admin_user", "public_default_gcn_tag", "create", True),
+    ("group_admin_user", "public_default_gcn_tag", "read", True),
+    ("group_admin_user", "public_default_gcn_tag", "update", False),
+    ("group_admin_user", "public_default_gcn_tag", "delete", False),
+    ("super_admin_user", "public_default_gcn_tag", "create", True),
+    ("super_admin_user", "public_default_gcn_tag", "read", True),
+    ("super_admin_user", "public_default_gcn_tag", "update", True),
+    ("super_admin_user", "public_default_gcn_tag", "delete", True),
+    # --- DefaultObservationPlanRequest  (public_default_observation_plan_request)  [probed] ---
+    ("user", "public_default_observation_plan_request", "create", True),
+    ("user", "public_default_observation_plan_request", "read", True),
+    ("user", "public_default_observation_plan_request", "update", True),
+    ("user", "public_default_observation_plan_request", "delete", True),
+    ("user_group2", "public_default_observation_plan_request", "create", False),
+    ("user_group2", "public_default_observation_plan_request", "read", False),
+    ("user_group2", "public_default_observation_plan_request", "update", False),
+    ("user_group2", "public_default_observation_plan_request", "delete", False),
+    ("group_admin_user", "public_default_observation_plan_request", "create", True),
+    ("group_admin_user", "public_default_observation_plan_request", "read", True),
+    ("group_admin_user", "public_default_observation_plan_request", "update", True),
+    ("group_admin_user", "public_default_observation_plan_request", "delete", True),
+    ("super_admin_user", "public_default_observation_plan_request", "create", True),
+    ("super_admin_user", "public_default_observation_plan_request", "read", True),
+    ("super_admin_user", "public_default_observation_plan_request", "update", True),
+    ("super_admin_user", "public_default_observation_plan_request", "delete", True),
+    # --- DefaultObservationPlanRequestTargetGroup  (public_default_observation_plan_request_target_group)  [probed] ---
+    ("user", "public_default_observation_plan_request_target_group", "create", True),
+    ("user", "public_default_observation_plan_request_target_group", "read", True),
+    ("user", "public_default_observation_plan_request_target_group", "update", True),
+    ("user", "public_default_observation_plan_request_target_group", "delete", True),
+    (
+        "user_group2",
+        "public_default_observation_plan_request_target_group",
+        "create",
+        False,
+    ),
+    (
+        "user_group2",
+        "public_default_observation_plan_request_target_group",
+        "read",
+        False,
+    ),
+    (
+        "user_group2",
+        "public_default_observation_plan_request_target_group",
+        "update",
+        False,
+    ),
+    (
+        "user_group2",
+        "public_default_observation_plan_request_target_group",
+        "delete",
+        False,
+    ),
+    (
+        "group_admin_user",
+        "public_default_observation_plan_request_target_group",
+        "create",
+        False,
+    ),
+    (
+        "group_admin_user",
+        "public_default_observation_plan_request_target_group",
+        "read",
+        True,
+    ),
+    (
+        "group_admin_user",
+        "public_default_observation_plan_request_target_group",
+        "update",
+        False,
+    ),
+    (
+        "group_admin_user",
+        "public_default_observation_plan_request_target_group",
+        "delete",
+        False,
+    ),
+    (
+        "super_admin_user",
+        "public_default_observation_plan_request_target_group",
+        "create",
+        True,
+    ),
+    (
+        "super_admin_user",
+        "public_default_observation_plan_request_target_group",
+        "read",
+        True,
+    ),
+    (
+        "super_admin_user",
+        "public_default_observation_plan_request_target_group",
+        "update",
+        True,
+    ),
+    (
+        "super_admin_user",
+        "public_default_observation_plan_request_target_group",
+        "delete",
+        True,
+    ),
+    # --- EarthquakeEvent  (public_earthquake_event)  [probed] ---
+    ("user", "public_earthquake_event", "create", True),
+    ("user", "public_earthquake_event", "read", True),
+    ("user", "public_earthquake_event", "update", True),
+    ("user", "public_earthquake_event", "delete", True),
+    ("user_group2", "public_earthquake_event", "create", True),
+    ("user_group2", "public_earthquake_event", "read", True),
+    ("user_group2", "public_earthquake_event", "update", False),
+    ("user_group2", "public_earthquake_event", "delete", False),
+    ("group_admin_user", "public_earthquake_event", "create", True),
+    ("group_admin_user", "public_earthquake_event", "read", True),
+    ("group_admin_user", "public_earthquake_event", "update", False),
+    ("group_admin_user", "public_earthquake_event", "delete", False),
+    ("super_admin_user", "public_earthquake_event", "create", True),
+    ("super_admin_user", "public_earthquake_event", "read", True),
+    ("super_admin_user", "public_earthquake_event", "update", True),
+    ("super_admin_user", "public_earthquake_event", "delete", True),
+    # --- EarthquakeMeasured  (public_earthquake_measured)  [probed] ---
+    ("user", "public_earthquake_measured", "create", True),
+    ("user", "public_earthquake_measured", "read", True),
+    ("user", "public_earthquake_measured", "update", False),
+    ("user", "public_earthquake_measured", "delete", False),
+    ("user_group2", "public_earthquake_measured", "create", True),
+    ("user_group2", "public_earthquake_measured", "read", True),
+    ("user_group2", "public_earthquake_measured", "update", False),
+    ("user_group2", "public_earthquake_measured", "delete", False),
+    ("group_admin_user", "public_earthquake_measured", "create", True),
+    ("group_admin_user", "public_earthquake_measured", "read", True),
+    ("group_admin_user", "public_earthquake_measured", "update", False),
+    ("group_admin_user", "public_earthquake_measured", "delete", False),
+    ("super_admin_user", "public_earthquake_measured", "create", True),
+    ("super_admin_user", "public_earthquake_measured", "read", True),
+    ("super_admin_user", "public_earthquake_measured", "update", True),
+    ("super_admin_user", "public_earthquake_measured", "delete", True),
+    # --- EarthquakeNotice  (public_earthquake_notice)  [probed] ---
+    ("user", "public_earthquake_notice", "create", True),
+    ("user", "public_earthquake_notice", "read", True),
+    ("user", "public_earthquake_notice", "update", True),
+    ("user", "public_earthquake_notice", "delete", True),
+    ("user_group2", "public_earthquake_notice", "create", True),
+    ("user_group2", "public_earthquake_notice", "read", True),
+    ("user_group2", "public_earthquake_notice", "update", False),
+    ("user_group2", "public_earthquake_notice", "delete", False),
+    ("group_admin_user", "public_earthquake_notice", "create", True),
+    ("group_admin_user", "public_earthquake_notice", "read", True),
+    ("group_admin_user", "public_earthquake_notice", "update", False),
+    ("group_admin_user", "public_earthquake_notice", "delete", False),
+    ("super_admin_user", "public_earthquake_notice", "create", True),
+    ("super_admin_user", "public_earthquake_notice", "read", True),
+    ("super_admin_user", "public_earthquake_notice", "update", True),
+    ("super_admin_user", "public_earthquake_notice", "delete", True),
+    # --- EarthquakePrediction  (public_earthquake_prediction)  [probed] ---
+    ("user", "public_earthquake_prediction", "create", True),
+    ("user", "public_earthquake_prediction", "read", True),
+    ("user", "public_earthquake_prediction", "update", False),
+    ("user", "public_earthquake_prediction", "delete", False),
+    ("user_group2", "public_earthquake_prediction", "create", True),
+    ("user_group2", "public_earthquake_prediction", "read", True),
+    ("user_group2", "public_earthquake_prediction", "update", False),
+    ("user_group2", "public_earthquake_prediction", "delete", False),
+    ("group_admin_user", "public_earthquake_prediction", "create", True),
+    ("group_admin_user", "public_earthquake_prediction", "read", True),
+    ("group_admin_user", "public_earthquake_prediction", "update", False),
+    ("group_admin_user", "public_earthquake_prediction", "delete", False),
+    ("super_admin_user", "public_earthquake_prediction", "create", True),
+    ("super_admin_user", "public_earthquake_prediction", "read", True),
+    ("super_admin_user", "public_earthquake_prediction", "update", True),
+    ("super_admin_user", "public_earthquake_prediction", "delete", True),
+    # --- EventObservationPlanStatistics  (public_event_observation_plan_statistics)  [probed] ---
+    ("user", "public_event_observation_plan_statistics", "create", True),
+    ("user", "public_event_observation_plan_statistics", "read", True),
+    ("user", "public_event_observation_plan_statistics", "update", False),
+    ("user", "public_event_observation_plan_statistics", "delete", False),
+    ("user_group2", "public_event_observation_plan_statistics", "create", True),
+    ("user_group2", "public_event_observation_plan_statistics", "read", True),
+    ("user_group2", "public_event_observation_plan_statistics", "update", False),
+    ("user_group2", "public_event_observation_plan_statistics", "delete", False),
+    ("group_admin_user", "public_event_observation_plan_statistics", "create", True),
+    ("group_admin_user", "public_event_observation_plan_statistics", "read", True),
+    ("group_admin_user", "public_event_observation_plan_statistics", "update", False),
+    ("group_admin_user", "public_event_observation_plan_statistics", "delete", False),
+    ("super_admin_user", "public_event_observation_plan_statistics", "create", True),
+    ("super_admin_user", "public_event_observation_plan_statistics", "read", True),
+    ("super_admin_user", "public_event_observation_plan_statistics", "update", True),
+    ("super_admin_user", "public_event_observation_plan_statistics", "delete", True),
+    # --- FacilityTransactionRequest  (public_facility_transaction_request)  [probed] ---
+    ("user", "public_facility_transaction_request", "create", True),
+    ("user", "public_facility_transaction_request", "read", True),
+    ("user", "public_facility_transaction_request", "update", False),
+    ("user", "public_facility_transaction_request", "delete", False),
+    ("user_group2", "public_facility_transaction_request", "create", True),
+    ("user_group2", "public_facility_transaction_request", "read", True),
+    ("user_group2", "public_facility_transaction_request", "update", False),
+    ("user_group2", "public_facility_transaction_request", "delete", False),
+    ("group_admin_user", "public_facility_transaction_request", "create", True),
+    ("group_admin_user", "public_facility_transaction_request", "read", True),
+    ("group_admin_user", "public_facility_transaction_request", "update", False),
+    ("group_admin_user", "public_facility_transaction_request", "delete", False),
+    ("super_admin_user", "public_facility_transaction_request", "create", True),
+    ("super_admin_user", "public_facility_transaction_request", "read", True),
+    ("super_admin_user", "public_facility_transaction_request", "update", True),
+    ("super_admin_user", "public_facility_transaction_request", "delete", True),
+    # --- FollowupRequestUser  (public_followup_request_user)  [probed] ---
+    ("user", "public_followup_request_user", "create", True),
+    ("user", "public_followup_request_user", "read", True),
+    ("user", "public_followup_request_user", "update", True),
+    ("user", "public_followup_request_user", "delete", True),
+    ("user_group2", "public_followup_request_user", "create", False),
+    ("user_group2", "public_followup_request_user", "read", False),
+    ("user_group2", "public_followup_request_user", "update", False),
+    ("user_group2", "public_followup_request_user", "delete", False),
+    ("group_admin_user", "public_followup_request_user", "create", True),
+    ("group_admin_user", "public_followup_request_user", "read", True),
+    ("group_admin_user", "public_followup_request_user", "update", False),
+    ("group_admin_user", "public_followup_request_user", "delete", False),
+    ("super_admin_user", "public_followup_request_user", "create", True),
+    ("super_admin_user", "public_followup_request_user", "read", True),
+    ("super_admin_user", "public_followup_request_user", "update", True),
+    ("super_admin_user", "public_followup_request_user", "delete", True),
+    # --- GalaxyCatalog  (public_galaxy_catalog)  [probed] ---
+    ("user", "public_galaxy_catalog", "create", True),
+    ("user", "public_galaxy_catalog", "read", True),
+    ("user", "public_galaxy_catalog", "update", False),
+    ("user", "public_galaxy_catalog", "delete", False),
+    ("user_group2", "public_galaxy_catalog", "create", True),
+    ("user_group2", "public_galaxy_catalog", "read", True),
+    ("user_group2", "public_galaxy_catalog", "update", False),
+    ("user_group2", "public_galaxy_catalog", "delete", False),
+    ("group_admin_user", "public_galaxy_catalog", "create", True),
+    ("group_admin_user", "public_galaxy_catalog", "read", True),
+    ("group_admin_user", "public_galaxy_catalog", "update", False),
+    ("group_admin_user", "public_galaxy_catalog", "delete", False),
+    ("super_admin_user", "public_galaxy_catalog", "create", True),
+    ("super_admin_user", "public_galaxy_catalog", "read", True),
+    ("super_admin_user", "public_galaxy_catalog", "update", True),
+    ("super_admin_user", "public_galaxy_catalog", "delete", True),
+    # --- GcnEventMMADetector  (public_gcn_event_mmadetector)  [probed] ---
+    ("user", "public_gcn_event_mmadetector", "create", True),
+    ("user", "public_gcn_event_mmadetector", "read", True),
+    ("user", "public_gcn_event_mmadetector", "update", False),
+    ("user", "public_gcn_event_mmadetector", "delete", False),
+    ("user_group2", "public_gcn_event_mmadetector", "create", True),
+    ("user_group2", "public_gcn_event_mmadetector", "read", True),
+    ("user_group2", "public_gcn_event_mmadetector", "update", False),
+    ("user_group2", "public_gcn_event_mmadetector", "delete", False),
+    ("group_admin_user", "public_gcn_event_mmadetector", "create", True),
+    ("group_admin_user", "public_gcn_event_mmadetector", "read", True),
+    ("group_admin_user", "public_gcn_event_mmadetector", "update", False),
+    ("group_admin_user", "public_gcn_event_mmadetector", "delete", False),
+    ("super_admin_user", "public_gcn_event_mmadetector", "create", True),
+    ("super_admin_user", "public_gcn_event_mmadetector", "read", True),
+    ("super_admin_user", "public_gcn_event_mmadetector", "update", True),
+    ("super_admin_user", "public_gcn_event_mmadetector", "delete", True),
+    # --- GcnProperty  (public_gcn_property)  [probed] ---
+    ("user", "public_gcn_property", "create", True),
+    ("user", "public_gcn_property", "read", True),
+    ("user", "public_gcn_property", "update", True),
+    ("user", "public_gcn_property", "delete", True),
+    ("user_group2", "public_gcn_property", "create", True),
+    ("user_group2", "public_gcn_property", "read", True),
+    ("user_group2", "public_gcn_property", "update", False),
+    ("user_group2", "public_gcn_property", "delete", False),
+    ("group_admin_user", "public_gcn_property", "create", True),
+    ("group_admin_user", "public_gcn_property", "read", True),
+    ("group_admin_user", "public_gcn_property", "update", True),
+    ("group_admin_user", "public_gcn_property", "delete", True),
+    ("super_admin_user", "public_gcn_property", "create", True),
+    ("super_admin_user", "public_gcn_property", "read", True),
+    ("super_admin_user", "public_gcn_property", "update", True),
+    ("super_admin_user", "public_gcn_property", "delete", True),
+    # --- GcnReport  (public_gcn_report)  [probed] ---
+    ("user", "public_gcn_report", "create", True),
+    ("user", "public_gcn_report", "read", True),
+    ("user", "public_gcn_report", "update", True),
+    ("user", "public_gcn_report", "delete", True),
+    ("user_group2", "public_gcn_report", "create", False),
+    ("user_group2", "public_gcn_report", "read", False),
+    ("user_group2", "public_gcn_report", "update", False),
+    ("user_group2", "public_gcn_report", "delete", False),
+    ("group_admin_user", "public_gcn_report", "create", True),
+    ("group_admin_user", "public_gcn_report", "read", True),
+    ("group_admin_user", "public_gcn_report", "update", True),
+    ("group_admin_user", "public_gcn_report", "delete", True),
+    ("super_admin_user", "public_gcn_report", "create", True),
+    ("super_admin_user", "public_gcn_report", "read", True),
+    ("super_admin_user", "public_gcn_report", "update", True),
+    ("super_admin_user", "public_gcn_report", "delete", True),
+    # --- GcnSummary  (public_gcn_summary)  [probed] ---
+    ("user", "public_gcn_summary", "create", True),
+    ("user", "public_gcn_summary", "read", True),
+    ("user", "public_gcn_summary", "update", True),
+    ("user", "public_gcn_summary", "delete", True),
+    ("user_group2", "public_gcn_summary", "create", False),
+    ("user_group2", "public_gcn_summary", "read", False),
+    ("user_group2", "public_gcn_summary", "update", False),
+    ("user_group2", "public_gcn_summary", "delete", False),
+    ("group_admin_user", "public_gcn_summary", "create", True),
+    ("group_admin_user", "public_gcn_summary", "read", True),
+    ("group_admin_user", "public_gcn_summary", "update", True),
+    ("group_admin_user", "public_gcn_summary", "delete", True),
+    ("super_admin_user", "public_gcn_summary", "create", True),
+    ("super_admin_user", "public_gcn_summary", "read", True),
+    ("super_admin_user", "public_gcn_summary", "update", True),
+    ("super_admin_user", "public_gcn_summary", "delete", True),
+    # --- GcnTag  (public_gcn_tag)  [probed] ---
+    ("user", "public_gcn_tag", "create", True),
+    ("user", "public_gcn_tag", "read", True),
+    ("user", "public_gcn_tag", "update", True),
+    ("user", "public_gcn_tag", "delete", True),
+    ("user_group2", "public_gcn_tag", "create", True),
+    ("user_group2", "public_gcn_tag", "read", True),
+    ("user_group2", "public_gcn_tag", "update", False),
+    ("user_group2", "public_gcn_tag", "delete", False),
+    ("group_admin_user", "public_gcn_tag", "create", True),
+    ("group_admin_user", "public_gcn_tag", "read", True),
+    ("group_admin_user", "public_gcn_tag", "update", True),
+    ("group_admin_user", "public_gcn_tag", "delete", True),
+    ("super_admin_user", "public_gcn_tag", "create", True),
+    ("super_admin_user", "public_gcn_tag", "read", True),
+    ("super_admin_user", "public_gcn_tag", "update", True),
+    ("super_admin_user", "public_gcn_tag", "delete", True),
+    # --- GcnEvent  (public_gcnevent)  [probed] ---
+    ("user", "public_gcnevent", "create", True),
+    ("user", "public_gcnevent", "read", True),
+    ("user", "public_gcnevent", "update", True),
+    ("user", "public_gcnevent", "delete", True),
+    ("user_group2", "public_gcnevent", "create", True),
+    ("user_group2", "public_gcnevent", "read", True),
+    ("user_group2", "public_gcnevent", "update", False),
+    ("user_group2", "public_gcnevent", "delete", False),
+    ("group_admin_user", "public_gcnevent", "create", True),
+    ("group_admin_user", "public_gcnevent", "read", True),
+    ("group_admin_user", "public_gcnevent", "update", True),
+    ("group_admin_user", "public_gcnevent", "delete", True),
+    ("super_admin_user", "public_gcnevent", "create", True),
+    ("super_admin_user", "public_gcnevent", "read", True),
+    ("super_admin_user", "public_gcnevent", "update", True),
+    ("super_admin_user", "public_gcnevent", "delete", True),
+    # --- GcnEventUser  (public_gcnevent_user)  [probed] ---
+    ("user", "public_gcnevent_user", "create", True),
+    ("user", "public_gcnevent_user", "read", True),
+    ("user", "public_gcnevent_user", "update", True),
+    ("user", "public_gcnevent_user", "delete", True),
+    ("user_group2", "public_gcnevent_user", "create", True),
+    ("user_group2", "public_gcnevent_user", "read", True),
+    ("user_group2", "public_gcnevent_user", "update", False),
+    ("user_group2", "public_gcnevent_user", "delete", False),
+    ("group_admin_user", "public_gcnevent_user", "create", True),
+    ("group_admin_user", "public_gcnevent_user", "read", True),
+    ("group_admin_user", "public_gcnevent_user", "update", False),
+    ("group_admin_user", "public_gcnevent_user", "delete", False),
+    ("super_admin_user", "public_gcnevent_user", "create", True),
+    ("super_admin_user", "public_gcnevent_user", "read", True),
+    ("super_admin_user", "public_gcnevent_user", "update", True),
+    ("super_admin_user", "public_gcnevent_user", "delete", True),
+    # --- GroupAdmissionRequest  (public_group_admission_request)  [probed] ---
+    ("user", "public_group_admission_request", "create", True),
+    ("user", "public_group_admission_request", "read", True),
+    ("user", "public_group_admission_request", "update", False),
+    ("user", "public_group_admission_request", "delete", True),
+    ("user_group2", "public_group_admission_request", "create", False),
+    ("user_group2", "public_group_admission_request", "read", False),
+    ("user_group2", "public_group_admission_request", "update", False),
+    ("user_group2", "public_group_admission_request", "delete", False),
+    ("group_admin_user", "public_group_admission_request", "create", False),
+    ("group_admin_user", "public_group_admission_request", "read", True),
+    ("group_admin_user", "public_group_admission_request", "update", True),
+    ("group_admin_user", "public_group_admission_request", "delete", False),
+    ("super_admin_user", "public_group_admission_request", "create", True),
+    ("super_admin_user", "public_group_admission_request", "read", True),
+    ("super_admin_user", "public_group_admission_request", "update", True),
+    ("super_admin_user", "public_group_admission_request", "delete", True),
+    # --- GroupAnalysisService  (public_group_analysis_service)  [probed] ---
+    ("user", "public_group_analysis_service", "create", True),
+    ("user", "public_group_analysis_service", "read", True),
+    ("user", "public_group_analysis_service", "update", False),
+    ("user", "public_group_analysis_service", "delete", False),
+    ("user_group2", "public_group_analysis_service", "create", False),
+    ("user_group2", "public_group_analysis_service", "read", False),
+    ("user_group2", "public_group_analysis_service", "update", False),
+    ("user_group2", "public_group_analysis_service", "delete", False),
+    ("group_admin_user", "public_group_analysis_service", "create", True),
+    ("group_admin_user", "public_group_analysis_service", "read", True),
+    ("group_admin_user", "public_group_analysis_service", "update", True),
+    ("group_admin_user", "public_group_analysis_service", "delete", True),
+    ("super_admin_user", "public_group_analysis_service", "create", True),
+    ("super_admin_user", "public_group_analysis_service", "read", True),
+    ("super_admin_user", "public_group_analysis_service", "update", True),
+    ("super_admin_user", "public_group_analysis_service", "delete", True),
+    # --- DefaultSurveyEfficiencyRequest  (public_default_survey_efficiency_request)  [PREDICTED - verify in CI] ---
+    ("user", "public_default_survey_efficiency_request", "create", True),
+    ("user", "public_default_survey_efficiency_request", "read", True),
+    ("user", "public_default_survey_efficiency_request", "update", True),
+    ("user", "public_default_survey_efficiency_request", "delete", True),
+    ("user_group2", "public_default_survey_efficiency_request", "create", False),
+    ("user_group2", "public_default_survey_efficiency_request", "read", False),
+    ("user_group2", "public_default_survey_efficiency_request", "update", False),
+    ("user_group2", "public_default_survey_efficiency_request", "delete", False),
+    ("group_admin_user", "public_default_survey_efficiency_request", "create", True),
+    ("group_admin_user", "public_default_survey_efficiency_request", "read", True),
+    ("group_admin_user", "public_default_survey_efficiency_request", "update", True),
+    ("group_admin_user", "public_default_survey_efficiency_request", "delete", True),
+    ("super_admin_user", "public_default_survey_efficiency_request", "create", True),
+    ("super_admin_user", "public_default_survey_efficiency_request", "read", True),
+    ("super_admin_user", "public_default_survey_efficiency_request", "update", True),
+    ("super_admin_user", "public_default_survey_efficiency_request", "delete", True),
+    # --- Galaxy  (public_galaxy)  [PREDICTED - verify in CI] ---
+    ("user", "public_galaxy", "create", True),
+    ("user", "public_galaxy", "read", True),
+    ("user", "public_galaxy", "update", False),
+    ("user", "public_galaxy", "delete", False),
+    ("user_group2", "public_galaxy", "create", True),
+    ("user_group2", "public_galaxy", "read", True),
+    ("user_group2", "public_galaxy", "update", False),
+    ("user_group2", "public_galaxy", "delete", False),
+    ("group_admin_user", "public_galaxy", "create", True),
+    ("group_admin_user", "public_galaxy", "read", True),
+    ("group_admin_user", "public_galaxy", "update", False),
+    ("group_admin_user", "public_galaxy", "delete", False),
+    ("super_admin_user", "public_galaxy", "create", True),
+    ("super_admin_user", "public_galaxy", "read", True),
+    ("super_admin_user", "public_galaxy", "update", True),
+    ("super_admin_user", "public_galaxy", "delete", True),
+    # --- GcnNotice  (public_gcn_notice)  [PREDICTED - verify in CI] ---
+    ("user", "public_gcn_notice", "create", True),
+    ("user", "public_gcn_notice", "read", True),
+    ("user", "public_gcn_notice", "update", True),
+    ("user", "public_gcn_notice", "delete", True),
+    ("user_group2", "public_gcn_notice", "create", True),
+    ("user_group2", "public_gcn_notice", "read", True),
+    ("user_group2", "public_gcn_notice", "update", False),
+    ("user_group2", "public_gcn_notice", "delete", False),
+    ("group_admin_user", "public_gcn_notice", "create", True),
+    ("group_admin_user", "public_gcn_notice", "read", True),
+    ("group_admin_user", "public_gcn_notice", "update", True),
+    ("group_admin_user", "public_gcn_notice", "delete", True),
+    ("super_admin_user", "public_gcn_notice", "create", True),
+    ("super_admin_user", "public_gcn_notice", "read", True),
+    ("super_admin_user", "public_gcn_notice", "update", True),
+    ("super_admin_user", "public_gcn_notice", "delete", True),
+    # --- GroupObjTag  (public_group_obj_tag)  [PREDICTED - verify in CI] ---
+    ("user", "public_group_obj_tag", "create", True),
+    ("user", "public_group_obj_tag", "read", True),
+    ("user", "public_group_obj_tag", "update", True),
+    ("user", "public_group_obj_tag", "delete", True),
+    ("user_group2", "public_group_obj_tag", "create", False),
+    ("user_group2", "public_group_obj_tag", "read", False),
+    ("user_group2", "public_group_obj_tag", "update", False),
+    ("user_group2", "public_group_obj_tag", "delete", False),
+    ("group_admin_user", "public_group_obj_tag", "create", True),
+    ("group_admin_user", "public_group_obj_tag", "read", True),
+    ("group_admin_user", "public_group_obj_tag", "update", True),
+    ("group_admin_user", "public_group_obj_tag", "delete", True),
+    ("super_admin_user", "public_group_obj_tag", "create", True),
+    ("super_admin_user", "public_group_obj_tag", "read", True),
+    ("super_admin_user", "public_group_obj_tag", "update", True),
+    ("super_admin_user", "public_group_obj_tag", "delete", True),
+    # --- GroupReminder  (public_group_reminder)  [PREDICTED - verify in CI] ---
+    ("user", "public_group_reminder", "create", True),
+    ("user", "public_group_reminder", "read", True),
+    ("user", "public_group_reminder", "update", False),
+    ("user", "public_group_reminder", "delete", False),
+    ("user_group2", "public_group_reminder", "create", False),
+    ("user_group2", "public_group_reminder", "read", False),
+    ("user_group2", "public_group_reminder", "update", False),
+    ("user_group2", "public_group_reminder", "delete", False),
+    ("group_admin_user", "public_group_reminder", "create", True),
+    ("group_admin_user", "public_group_reminder", "read", True),
+    ("group_admin_user", "public_group_reminder", "update", True),
+    ("group_admin_user", "public_group_reminder", "delete", True),
+    ("super_admin_user", "public_group_reminder", "create", True),
+    ("super_admin_user", "public_group_reminder", "read", True),
+    ("super_admin_user", "public_group_reminder", "update", True),
+    ("super_admin_user", "public_group_reminder", "delete", True),
+    # --- GroupScanReport  (public_group_scan_report)  [PREDICTED - verify in CI] ---
+    ("user", "public_group_scan_report", "create", True),
+    ("user", "public_group_scan_report", "read", True),
+    ("user", "public_group_scan_report", "update", False),
+    ("user", "public_group_scan_report", "delete", False),
+    ("user_group2", "public_group_scan_report", "create", False),
+    ("user_group2", "public_group_scan_report", "read", False),
+    ("user_group2", "public_group_scan_report", "update", False),
+    ("user_group2", "public_group_scan_report", "delete", False),
+    ("group_admin_user", "public_group_scan_report", "create", True),
+    ("group_admin_user", "public_group_scan_report", "read", True),
+    ("group_admin_user", "public_group_scan_report", "update", False),
+    ("group_admin_user", "public_group_scan_report", "delete", False),
+    ("super_admin_user", "public_group_scan_report", "create", True),
+    ("super_admin_user", "public_group_scan_report", "read", True),
+    ("super_admin_user", "public_group_scan_report", "update", True),
+    ("super_admin_user", "public_group_scan_report", "delete", True),
+    # --- InstrumentField  (public_instrument_field)  [PREDICTED - verify in CI] ---
+    ("user", "public_instrument_field", "create", True),
+    ("user", "public_instrument_field", "read", True),
+    ("user", "public_instrument_field", "update", False),
+    ("user", "public_instrument_field", "delete", False),
+    ("user_group2", "public_instrument_field", "create", True),
+    ("user_group2", "public_instrument_field", "read", True),
+    ("user_group2", "public_instrument_field", "update", False),
+    ("user_group2", "public_instrument_field", "delete", False),
+    ("group_admin_user", "public_instrument_field", "create", True),
+    ("group_admin_user", "public_instrument_field", "read", True),
+    ("group_admin_user", "public_instrument_field", "update", False),
+    ("group_admin_user", "public_instrument_field", "delete", False),
+    ("super_admin_user", "public_instrument_field", "create", True),
+    ("super_admin_user", "public_instrument_field", "read", True),
+    ("super_admin_user", "public_instrument_field", "update", True),
+    ("super_admin_user", "public_instrument_field", "delete", True),
+    # --- InstrumentLog  (public_instrument_log)  [PREDICTED - verify in CI] ---
+    ("user", "public_instrument_log", "create", True),
+    ("user", "public_instrument_log", "read", True),
+    ("user", "public_instrument_log", "update", False),
+    ("user", "public_instrument_log", "delete", False),
+    ("user_group2", "public_instrument_log", "create", True),
+    ("user_group2", "public_instrument_log", "read", True),
+    ("user_group2", "public_instrument_log", "update", False),
+    ("user_group2", "public_instrument_log", "delete", False),
+    ("group_admin_user", "public_instrument_log", "create", True),
+    ("group_admin_user", "public_instrument_log", "read", True),
+    ("group_admin_user", "public_instrument_log", "update", False),
+    ("group_admin_user", "public_instrument_log", "delete", False),
+    ("super_admin_user", "public_instrument_log", "create", True),
+    ("super_admin_user", "public_instrument_log", "read", True),
+    ("super_admin_user", "public_instrument_log", "update", True),
+    ("super_admin_user", "public_instrument_log", "delete", True),
+    # --- Listing  (public_listing)  [PREDICTED - verify in CI] ---
+    ("user", "public_listing", "create", True),
+    ("user", "public_listing", "read", True),
+    ("user", "public_listing", "update", True),
+    ("user", "public_listing", "delete", True),
+    ("user_group2", "public_listing", "create", False),
+    ("user_group2", "public_listing", "read", False),
+    ("user_group2", "public_listing", "update", False),
+    ("user_group2", "public_listing", "delete", False),
+    ("group_admin_user", "public_listing", "create", False),
+    ("group_admin_user", "public_listing", "read", False),
+    ("group_admin_user", "public_listing", "update", False),
+    ("group_admin_user", "public_listing", "delete", False),
+    ("super_admin_user", "public_listing", "create", True),
+    ("super_admin_user", "public_listing", "read", True),
+    ("super_admin_user", "public_listing", "update", True),
+    ("super_admin_user", "public_listing", "delete", True),
+    # --- Localization  (public_localization)  [PREDICTED - verify in CI] ---
+    ("user", "public_localization", "create", True),
+    ("user", "public_localization", "read", True),
+    ("user", "public_localization", "update", True),
+    ("user", "public_localization", "delete", True),
+    ("user_group2", "public_localization", "create", True),
+    ("user_group2", "public_localization", "read", True),
+    ("user_group2", "public_localization", "update", False),
+    ("user_group2", "public_localization", "delete", False),
+    ("group_admin_user", "public_localization", "create", True),
+    ("group_admin_user", "public_localization", "read", True),
+    ("group_admin_user", "public_localization", "update", False),
+    ("group_admin_user", "public_localization", "delete", False),
+    ("super_admin_user", "public_localization", "create", True),
+    ("super_admin_user", "public_localization", "read", True),
+    ("super_admin_user", "public_localization", "update", True),
+    ("super_admin_user", "public_localization", "delete", True),
+    # --- MMADetector  (public_mmadetector)  [PREDICTED - verify in CI] ---
+    ("user", "public_mmadetector", "create", False),
+    ("user", "public_mmadetector", "read", True),
+    ("user", "public_mmadetector", "update", False),
+    ("user", "public_mmadetector", "delete", False),
+    ("user_group2", "public_mmadetector", "create", False),
+    ("user_group2", "public_mmadetector", "read", True),
+    ("user_group2", "public_mmadetector", "update", False),
+    ("user_group2", "public_mmadetector", "delete", False),
+    ("group_admin_user", "public_mmadetector", "create", False),
+    ("group_admin_user", "public_mmadetector", "read", True),
+    ("group_admin_user", "public_mmadetector", "update", False),
+    ("group_admin_user", "public_mmadetector", "delete", False),
+    ("super_admin_user", "public_mmadetector", "create", True),
+    ("super_admin_user", "public_mmadetector", "read", True),
+    ("super_admin_user", "public_mmadetector", "update", True),
+    ("super_admin_user", "public_mmadetector", "delete", True),
+    # --- MMADetectorSpectrum  (public_mmadetector_spectrum)  [PREDICTED - verify in CI] ---
+    ("user", "public_mmadetector_spectrum", "create", True),
+    ("user", "public_mmadetector_spectrum", "read", True),
+    ("user", "public_mmadetector_spectrum", "update", True),
+    ("user", "public_mmadetector_spectrum", "delete", True),
+    ("user_group2", "public_mmadetector_spectrum", "create", True),
+    ("user_group2", "public_mmadetector_spectrum", "read", True),
+    ("user_group2", "public_mmadetector_spectrum", "update", False),
+    ("user_group2", "public_mmadetector_spectrum", "delete", False),
+    ("group_admin_user", "public_mmadetector_spectrum", "create", True),
+    ("group_admin_user", "public_mmadetector_spectrum", "read", True),
+    ("group_admin_user", "public_mmadetector_spectrum", "update", False),
+    ("group_admin_user", "public_mmadetector_spectrum", "delete", False),
+    ("super_admin_user", "public_mmadetector_spectrum", "create", True),
+    ("super_admin_user", "public_mmadetector_spectrum", "read", True),
+    ("super_admin_user", "public_mmadetector_spectrum", "update", True),
+    ("super_admin_user", "public_mmadetector_spectrum", "delete", True),
+    # --- ObjAnalysis  (public_obj_analysis)  [PREDICTED - verify in CI] ---
+    ("user", "public_obj_analysis", "create", True),
+    ("user", "public_obj_analysis", "read", True),
+    ("user", "public_obj_analysis", "update", True),
+    ("user", "public_obj_analysis", "delete", True),
+    ("user_group2", "public_obj_analysis", "create", True),
+    ("user_group2", "public_obj_analysis", "read", False),
+    ("user_group2", "public_obj_analysis", "update", False),
+    ("user_group2", "public_obj_analysis", "delete", False),
+    ("group_admin_user", "public_obj_analysis", "create", True),
+    ("group_admin_user", "public_obj_analysis", "read", True),
+    ("group_admin_user", "public_obj_analysis", "update", False),
+    ("group_admin_user", "public_obj_analysis", "delete", False),
+    ("super_admin_user", "public_obj_analysis", "create", True),
+    ("super_admin_user", "public_obj_analysis", "read", True),
+    ("super_admin_user", "public_obj_analysis", "update", True),
+    ("super_admin_user", "public_obj_analysis", "delete", True),
+    # --- ObjTagOption  (public_obj_tag_option)  [PREDICTED - verify in CI] ---
+    ("user", "public_obj_tag_option", "create", True),
+    ("user", "public_obj_tag_option", "read", True),
+    ("user", "public_obj_tag_option", "update", False),
+    ("user", "public_obj_tag_option", "delete", False),
+    ("user_group2", "public_obj_tag_option", "create", True),
+    ("user_group2", "public_obj_tag_option", "read", True),
+    ("user_group2", "public_obj_tag_option", "update", False),
+    ("user_group2", "public_obj_tag_option", "delete", False),
+    ("group_admin_user", "public_obj_tag_option", "create", True),
+    ("group_admin_user", "public_obj_tag_option", "read", True),
+    ("group_admin_user", "public_obj_tag_option", "update", False),
+    ("group_admin_user", "public_obj_tag_option", "delete", False),
+    ("super_admin_user", "public_obj_tag_option", "create", True),
+    ("super_admin_user", "public_obj_tag_option", "read", True),
+    ("super_admin_user", "public_obj_tag_option", "update", True),
+    ("super_admin_user", "public_obj_tag_option", "delete", True),
+    # --- ObservationPlanRequest  (public_observation_plan_request)  [PREDICTED - verify in CI] ---
+    ("user", "public_observation_plan_request", "create", True),
+    ("user", "public_observation_plan_request", "read", True),
+    ("user", "public_observation_plan_request", "update", True),
+    ("user", "public_observation_plan_request", "delete", True),
+    ("user_group2", "public_observation_plan_request", "create", False),
+    ("user_group2", "public_observation_plan_request", "read", False),
+    ("user_group2", "public_observation_plan_request", "update", False),
+    ("user_group2", "public_observation_plan_request", "delete", False),
+    ("group_admin_user", "public_observation_plan_request", "create", True),
+    ("group_admin_user", "public_observation_plan_request", "read", True),
+    ("group_admin_user", "public_observation_plan_request", "update", True),
+    ("group_admin_user", "public_observation_plan_request", "delete", True),
+    ("super_admin_user", "public_observation_plan_request", "create", True),
+    ("super_admin_user", "public_observation_plan_request", "read", True),
+    ("super_admin_user", "public_observation_plan_request", "update", True),
+    ("super_admin_user", "public_observation_plan_request", "delete", True),
+    # --- ObservationPlanRequestTargetGroup  (public_observation_plan_request_target_group)  [PREDICTED - verify in CI] ---
+    ("user", "public_observation_plan_request_target_group", "create", True),
+    ("user", "public_observation_plan_request_target_group", "read", True),
+    ("user", "public_observation_plan_request_target_group", "update", True),
+    ("user", "public_observation_plan_request_target_group", "delete", True),
+    ("user_group2", "public_observation_plan_request_target_group", "create", False),
+    ("user_group2", "public_observation_plan_request_target_group", "read", False),
+    ("user_group2", "public_observation_plan_request_target_group", "update", False),
+    ("user_group2", "public_observation_plan_request_target_group", "delete", False),
+    (
+        "group_admin_user",
+        "public_observation_plan_request_target_group",
+        "create",
+        False,
+    ),
+    ("group_admin_user", "public_observation_plan_request_target_group", "read", True),
+    (
+        "group_admin_user",
+        "public_observation_plan_request_target_group",
+        "update",
+        False,
+    ),
+    (
+        "group_admin_user",
+        "public_observation_plan_request_target_group",
+        "delete",
+        False,
+    ),
+    (
+        "super_admin_user",
+        "public_observation_plan_request_target_group",
+        "create",
+        True,
+    ),
+    ("super_admin_user", "public_observation_plan_request_target_group", "read", True),
+    (
+        "super_admin_user",
+        "public_observation_plan_request_target_group",
+        "update",
+        True,
+    ),
+    (
+        "super_admin_user",
+        "public_observation_plan_request_target_group",
+        "delete",
+        True,
+    ),
+    # --- PhotometricSeries  (public_photometric_series)  [PREDICTED - verify in CI] ---
+    ("user", "public_photometric_series", "create", True),
+    ("user", "public_photometric_series", "read", True),
+    ("user", "public_photometric_series", "update", True),
+    ("user", "public_photometric_series", "delete", True),
+    ("user_group2", "public_photometric_series", "create", True),
+    ("user_group2", "public_photometric_series", "read", False),
+    ("user_group2", "public_photometric_series", "update", False),
+    ("user_group2", "public_photometric_series", "delete", False),
+    ("group_admin_user", "public_photometric_series", "create", True),
+    ("group_admin_user", "public_photometric_series", "read", False),
+    ("group_admin_user", "public_photometric_series", "update", False),
+    ("group_admin_user", "public_photometric_series", "delete", False),
+    ("super_admin_user", "public_photometric_series", "create", True),
+    ("super_admin_user", "public_photometric_series", "read", True),
+    ("super_admin_user", "public_photometric_series", "update", True),
+    ("super_admin_user", "public_photometric_series", "delete", True),
+    # --- PhotometryValidation  (public_photometry_validation)  [PREDICTED - verify in CI] ---
+    ("user", "public_photometry_validation", "create", False),
+    ("user", "public_photometry_validation", "read", True),
+    ("user", "public_photometry_validation", "update", False),
+    ("user", "public_photometry_validation", "delete", False),
+    ("user_group2", "public_photometry_validation", "create", False),
+    ("user_group2", "public_photometry_validation", "read", True),
+    ("user_group2", "public_photometry_validation", "update", False),
+    ("user_group2", "public_photometry_validation", "delete", False),
+    ("group_admin_user", "public_photometry_validation", "create", True),
+    ("group_admin_user", "public_photometry_validation", "read", True),
+    ("group_admin_user", "public_photometry_validation", "update", True),
+    ("group_admin_user", "public_photometry_validation", "delete", True),
+    ("super_admin_user", "public_photometry_validation", "create", True),
+    ("super_admin_user", "public_photometry_validation", "read", True),
+    ("super_admin_user", "public_photometry_validation", "update", True),
+    ("super_admin_user", "public_photometry_validation", "delete", True),
+    # --- ReminderOnEarthquake  (public_reminder_on_earthquake)  [PREDICTED - verify in CI] ---
+    ("user", "public_reminder_on_earthquake", "create", True),
+    ("user", "public_reminder_on_earthquake", "read", True),
+    ("user", "public_reminder_on_earthquake", "update", True),
+    ("user", "public_reminder_on_earthquake", "delete", True),
+    ("user_group2", "public_reminder_on_earthquake", "create", True),
+    ("user_group2", "public_reminder_on_earthquake", "read", False),
+    ("user_group2", "public_reminder_on_earthquake", "update", False),
+    ("user_group2", "public_reminder_on_earthquake", "delete", False),
+    ("group_admin_user", "public_reminder_on_earthquake", "create", True),
+    ("group_admin_user", "public_reminder_on_earthquake", "read", True),
+    ("group_admin_user", "public_reminder_on_earthquake", "update", False),
+    ("group_admin_user", "public_reminder_on_earthquake", "delete", False),
+    ("super_admin_user", "public_reminder_on_earthquake", "create", True),
+    ("super_admin_user", "public_reminder_on_earthquake", "read", True),
+    ("super_admin_user", "public_reminder_on_earthquake", "update", True),
+    ("super_admin_user", "public_reminder_on_earthquake", "delete", True),
+    # --- ReminderOnGCN  (public_reminder_on_gcn)  [PREDICTED - verify in CI] ---
+    ("user", "public_reminder_on_gcn", "create", True),
+    ("user", "public_reminder_on_gcn", "read", True),
+    ("user", "public_reminder_on_gcn", "update", True),
+    ("user", "public_reminder_on_gcn", "delete", True),
+    ("user_group2", "public_reminder_on_gcn", "create", True),
+    ("user_group2", "public_reminder_on_gcn", "read", False),
+    ("user_group2", "public_reminder_on_gcn", "update", False),
+    ("user_group2", "public_reminder_on_gcn", "delete", False),
+    ("group_admin_user", "public_reminder_on_gcn", "create", True),
+    ("group_admin_user", "public_reminder_on_gcn", "read", True),
+    ("group_admin_user", "public_reminder_on_gcn", "update", False),
+    ("group_admin_user", "public_reminder_on_gcn", "delete", False),
+    ("super_admin_user", "public_reminder_on_gcn", "create", True),
+    ("super_admin_user", "public_reminder_on_gcn", "read", True),
+    ("super_admin_user", "public_reminder_on_gcn", "update", True),
+    ("super_admin_user", "public_reminder_on_gcn", "delete", True),
+    # --- ReminderOnShift  (public_reminder_on_shift)  [PREDICTED - verify in CI] ---
+    ("user", "public_reminder_on_shift", "create", True),
+    ("user", "public_reminder_on_shift", "read", True),
+    ("user", "public_reminder_on_shift", "update", True),
+    ("user", "public_reminder_on_shift", "delete", True),
+    ("user_group2", "public_reminder_on_shift", "create", False),
+    ("user_group2", "public_reminder_on_shift", "read", False),
+    ("user_group2", "public_reminder_on_shift", "update", False),
+    ("user_group2", "public_reminder_on_shift", "delete", False),
+    ("group_admin_user", "public_reminder_on_shift", "create", True),
+    ("group_admin_user", "public_reminder_on_shift", "read", True),
+    ("group_admin_user", "public_reminder_on_shift", "update", False),
+    ("group_admin_user", "public_reminder_on_shift", "delete", False),
+    ("super_admin_user", "public_reminder_on_shift", "create", True),
+    ("super_admin_user", "public_reminder_on_shift", "read", True),
+    ("super_admin_user", "public_reminder_on_shift", "update", True),
+    ("super_admin_user", "public_reminder_on_shift", "delete", True),
+    # --- ReminderOnSpectrum  (public_reminder_on_spectrum)  [PREDICTED - verify in CI] ---
+    ("user", "public_reminder_on_spectrum", "create", True),
+    ("user", "public_reminder_on_spectrum", "read", True),
+    ("user", "public_reminder_on_spectrum", "update", True),
+    ("user", "public_reminder_on_spectrum", "delete", True),
+    ("user_group2", "public_reminder_on_spectrum", "create", False),
+    ("user_group2", "public_reminder_on_spectrum", "read", False),
+    ("user_group2", "public_reminder_on_spectrum", "update", False),
+    ("user_group2", "public_reminder_on_spectrum", "delete", False),
+    ("group_admin_user", "public_reminder_on_spectrum", "create", True),
+    ("group_admin_user", "public_reminder_on_spectrum", "read", True),
+    ("group_admin_user", "public_reminder_on_spectrum", "update", False),
+    ("group_admin_user", "public_reminder_on_spectrum", "delete", False),
+    ("super_admin_user", "public_reminder_on_spectrum", "create", True),
+    ("super_admin_user", "public_reminder_on_spectrum", "read", True),
+    ("super_admin_user", "public_reminder_on_spectrum", "update", True),
+    ("super_admin_user", "public_reminder_on_spectrum", "delete", True),
+    # --- ScanReport  (public_scan_report)  [PREDICTED - verify in CI] ---
+    ("user", "public_scan_report", "create", True),
+    ("user", "public_scan_report", "read", True),
+    ("user", "public_scan_report", "update", True),
+    ("user", "public_scan_report", "delete", True),
+    ("user_group2", "public_scan_report", "create", False),
+    ("user_group2", "public_scan_report", "read", False),
+    ("user_group2", "public_scan_report", "update", False),
+    ("user_group2", "public_scan_report", "delete", False),
+    ("group_admin_user", "public_scan_report", "create", True),
+    ("group_admin_user", "public_scan_report", "read", True),
+    ("group_admin_user", "public_scan_report", "update", True),
+    ("group_admin_user", "public_scan_report", "delete", True),
+    ("super_admin_user", "public_scan_report", "create", True),
+    ("super_admin_user", "public_scan_report", "read", True),
+    ("super_admin_user", "public_scan_report", "update", True),
+    ("super_admin_user", "public_scan_report", "delete", True),
+    # --- ScanReportItem  (public_scan_report_item)  [PREDICTED - verify in CI] ---
+    ("user", "public_scan_report_item", "create", True),
+    ("user", "public_scan_report_item", "read", True),
+    ("user", "public_scan_report_item", "update", False),
+    ("user", "public_scan_report_item", "delete", False),
+    ("user_group2", "public_scan_report_item", "create", True),
+    ("user_group2", "public_scan_report_item", "read", True),
+    ("user_group2", "public_scan_report_item", "update", False),
+    ("user_group2", "public_scan_report_item", "delete", False),
+    ("group_admin_user", "public_scan_report_item", "create", True),
+    ("group_admin_user", "public_scan_report_item", "read", True),
+    ("group_admin_user", "public_scan_report_item", "update", False),
+    ("group_admin_user", "public_scan_report_item", "delete", False),
+    ("super_admin_user", "public_scan_report_item", "create", True),
+    ("super_admin_user", "public_scan_report_item", "read", True),
+    ("super_admin_user", "public_scan_report_item", "update", True),
+    ("super_admin_user", "public_scan_report_item", "delete", True),
+    # --- SharingService  (public_sharing_service)  [PREDICTED - verify in CI] ---
+    ("user", "public_sharing_service", "create", True),
+    ("user", "public_sharing_service", "read", True),
+    ("user", "public_sharing_service", "update", True),
+    ("user", "public_sharing_service", "delete", True),
+    ("user_group2", "public_sharing_service", "create", True),
+    ("user_group2", "public_sharing_service", "read", False),
+    ("user_group2", "public_sharing_service", "update", False),
+    ("user_group2", "public_sharing_service", "delete", False),
+    ("group_admin_user", "public_sharing_service", "create", True),
+    ("group_admin_user", "public_sharing_service", "read", True),
+    ("group_admin_user", "public_sharing_service", "update", True),
+    ("group_admin_user", "public_sharing_service", "delete", True),
+    ("super_admin_user", "public_sharing_service", "create", True),
+    ("super_admin_user", "public_sharing_service", "read", True),
+    ("super_admin_user", "public_sharing_service", "update", True),
+    ("super_admin_user", "public_sharing_service", "delete", True),
+    # --- SharingServiceCoauthor  (public_sharing_service_coauthor)  [PREDICTED - verify in CI] ---
+    ("user", "public_sharing_service_coauthor", "create", True),
+    ("user", "public_sharing_service_coauthor", "read", True),
+    ("user", "public_sharing_service_coauthor", "update", True),
+    ("user", "public_sharing_service_coauthor", "delete", True),
+    ("user_group2", "public_sharing_service_coauthor", "create", False),
+    ("user_group2", "public_sharing_service_coauthor", "read", False),
+    ("user_group2", "public_sharing_service_coauthor", "update", False),
+    ("user_group2", "public_sharing_service_coauthor", "delete", False),
+    ("group_admin_user", "public_sharing_service_coauthor", "create", True),
+    ("group_admin_user", "public_sharing_service_coauthor", "read", True),
+    ("group_admin_user", "public_sharing_service_coauthor", "update", True),
+    ("group_admin_user", "public_sharing_service_coauthor", "delete", True),
+    ("super_admin_user", "public_sharing_service_coauthor", "create", True),
+    ("super_admin_user", "public_sharing_service_coauthor", "read", True),
+    ("super_admin_user", "public_sharing_service_coauthor", "update", True),
+    ("super_admin_user", "public_sharing_service_coauthor", "delete", True),
+    # --- SharingServiceGroup  (public_sharing_service_group)  [PREDICTED - verify in CI] ---
+    ("user", "public_sharing_service_group", "create", True),
+    ("user", "public_sharing_service_group", "read", True),
+    ("user", "public_sharing_service_group", "update", True),
+    ("user", "public_sharing_service_group", "delete", True),
+    ("user_group2", "public_sharing_service_group", "create", False),
+    ("user_group2", "public_sharing_service_group", "read", False),
+    ("user_group2", "public_sharing_service_group", "update", False),
+    ("user_group2", "public_sharing_service_group", "delete", False),
+    ("group_admin_user", "public_sharing_service_group", "create", True),
+    ("group_admin_user", "public_sharing_service_group", "read", True),
+    ("group_admin_user", "public_sharing_service_group", "update", True),
+    ("group_admin_user", "public_sharing_service_group", "delete", True),
+    ("super_admin_user", "public_sharing_service_group", "create", True),
+    ("super_admin_user", "public_sharing_service_group", "read", True),
+    ("super_admin_user", "public_sharing_service_group", "update", True),
+    ("super_admin_user", "public_sharing_service_group", "delete", True),
+    # --- SharingServiceGroupAutoPublisher  (public_sharing_service_group_auto_publisher)  [PREDICTED - verify in CI] ---
+    ("user", "public_sharing_service_group_auto_publisher", "create", True),
+    ("user", "public_sharing_service_group_auto_publisher", "read", True),
+    ("user", "public_sharing_service_group_auto_publisher", "update", True),
+    ("user", "public_sharing_service_group_auto_publisher", "delete", True),
+    ("user_group2", "public_sharing_service_group_auto_publisher", "create", False),
+    ("user_group2", "public_sharing_service_group_auto_publisher", "read", False),
+    ("user_group2", "public_sharing_service_group_auto_publisher", "update", False),
+    ("user_group2", "public_sharing_service_group_auto_publisher", "delete", False),
+    ("group_admin_user", "public_sharing_service_group_auto_publisher", "create", True),
+    ("group_admin_user", "public_sharing_service_group_auto_publisher", "read", True),
+    ("group_admin_user", "public_sharing_service_group_auto_publisher", "update", True),
+    ("group_admin_user", "public_sharing_service_group_auto_publisher", "delete", True),
+    ("super_admin_user", "public_sharing_service_group_auto_publisher", "create", True),
+    ("super_admin_user", "public_sharing_service_group_auto_publisher", "read", True),
+    ("super_admin_user", "public_sharing_service_group_auto_publisher", "update", True),
+    ("super_admin_user", "public_sharing_service_group_auto_publisher", "delete", True),
+    # --- SharingServiceSubmission  (public_sharing_service_submission)  [PREDICTED - verify in CI] ---
+    ("user", "public_sharing_service_submission", "create", True),
+    ("user", "public_sharing_service_submission", "read", True),
+    ("user", "public_sharing_service_submission", "update", True),
+    ("user", "public_sharing_service_submission", "delete", True),
+    ("user_group2", "public_sharing_service_submission", "create", False),
+    ("user_group2", "public_sharing_service_submission", "read", False),
+    ("user_group2", "public_sharing_service_submission", "update", False),
+    ("user_group2", "public_sharing_service_submission", "delete", False),
+    ("group_admin_user", "public_sharing_service_submission", "create", True),
+    ("group_admin_user", "public_sharing_service_submission", "read", True),
+    ("group_admin_user", "public_sharing_service_submission", "update", True),
+    ("group_admin_user", "public_sharing_service_submission", "delete", True),
+    ("super_admin_user", "public_sharing_service_submission", "create", True),
+    ("super_admin_user", "public_sharing_service_submission", "read", True),
+    ("super_admin_user", "public_sharing_service_submission", "update", True),
+    ("super_admin_user", "public_sharing_service_submission", "delete", True),
+    # --- Shift  (public_shift)  [PREDICTED - verify in CI] ---
+    ("user", "public_shift", "create", True),
+    ("user", "public_shift", "read", True),
+    ("user", "public_shift", "update", False),
+    ("user", "public_shift", "delete", False),
+    ("user_group2", "public_shift", "create", False),
+    ("user_group2", "public_shift", "read", False),
+    ("user_group2", "public_shift", "update", False),
+    ("user_group2", "public_shift", "delete", False),
+    ("group_admin_user", "public_shift", "create", True),
+    ("group_admin_user", "public_shift", "read", True),
+    ("group_admin_user", "public_shift", "update", True),
+    ("group_admin_user", "public_shift", "delete", True),
+    ("super_admin_user", "public_shift", "create", True),
+    ("super_admin_user", "public_shift", "read", True),
+    ("super_admin_user", "public_shift", "update", True),
+    ("super_admin_user", "public_shift", "delete", True),
+    # --- SourceLabel  (public_source_label)  [PREDICTED - verify in CI] ---
+    ("user", "public_source_label", "create", True),
+    ("user", "public_source_label", "read", True),
+    ("user", "public_source_label", "update", True),
+    ("user", "public_source_label", "delete", True),
+    ("user_group2", "public_source_label", "create", False),
+    ("user_group2", "public_source_label", "read", False),
+    ("user_group2", "public_source_label", "update", False),
+    ("user_group2", "public_source_label", "delete", False),
+    ("group_admin_user", "public_source_label", "create", True),
+    ("group_admin_user", "public_source_label", "read", True),
+    ("group_admin_user", "public_source_label", "update", True),
+    ("group_admin_user", "public_source_label", "delete", True),
+    ("super_admin_user", "public_source_label", "create", True),
+    ("super_admin_user", "public_source_label", "read", True),
+    ("super_admin_user", "public_source_label", "update", True),
+    ("super_admin_user", "public_source_label", "delete", True),
+    # --- SourceView  (public_source_view)  [PREDICTED - verify in CI] ---
+    ("user", "public_source_view", "create", True),
+    ("user", "public_source_view", "read", True),
+    ("user", "public_source_view", "update", False),
+    ("user", "public_source_view", "delete", False),
+    ("user_group2", "public_source_view", "create", True),
+    ("user_group2", "public_source_view", "read", True),
+    ("user_group2", "public_source_view", "update", False),
+    ("user_group2", "public_source_view", "delete", False),
+    ("group_admin_user", "public_source_view", "create", True),
+    ("group_admin_user", "public_source_view", "read", True),
+    ("group_admin_user", "public_source_view", "update", False),
+    ("group_admin_user", "public_source_view", "delete", False),
+    ("super_admin_user", "public_source_view", "create", True),
+    ("super_admin_user", "public_source_view", "read", True),
+    ("super_admin_user", "public_source_view", "update", True),
+    ("super_admin_user", "public_source_view", "delete", True),
+    # --- SourcesConfirmedInGCN  (public_sources_confirmed_in_gcn)  [PREDICTED - verify in CI] ---
+    ("user", "public_sources_confirmed_in_gcn", "create", False),
+    ("user", "public_sources_confirmed_in_gcn", "read", True),
+    ("user", "public_sources_confirmed_in_gcn", "update", False),
+    ("user", "public_sources_confirmed_in_gcn", "delete", False),
+    ("user_group2", "public_sources_confirmed_in_gcn", "create", False),
+    ("user_group2", "public_sources_confirmed_in_gcn", "read", True),
+    ("user_group2", "public_sources_confirmed_in_gcn", "update", False),
+    ("user_group2", "public_sources_confirmed_in_gcn", "delete", False),
+    ("group_admin_user", "public_sources_confirmed_in_gcn", "create", True),
+    ("group_admin_user", "public_sources_confirmed_in_gcn", "read", True),
+    ("group_admin_user", "public_sources_confirmed_in_gcn", "update", True),
+    ("group_admin_user", "public_sources_confirmed_in_gcn", "delete", True),
+    ("super_admin_user", "public_sources_confirmed_in_gcn", "create", True),
+    ("super_admin_user", "public_sources_confirmed_in_gcn", "read", True),
+    ("super_admin_user", "public_sources_confirmed_in_gcn", "update", True),
+    ("super_admin_user", "public_sources_confirmed_in_gcn", "delete", True),
+    # --- SpatialCatalog  (public_spatial_catalog)  [PREDICTED - verify in CI] ---
+    ("user", "public_spatial_catalog", "create", True),
+    ("user", "public_spatial_catalog", "read", True),
+    ("user", "public_spatial_catalog", "update", False),
+    ("user", "public_spatial_catalog", "delete", False),
+    ("user_group2", "public_spatial_catalog", "create", True),
+    ("user_group2", "public_spatial_catalog", "read", True),
+    ("user_group2", "public_spatial_catalog", "update", False),
+    ("user_group2", "public_spatial_catalog", "delete", False),
+    ("group_admin_user", "public_spatial_catalog", "create", True),
+    ("group_admin_user", "public_spatial_catalog", "read", True),
+    ("group_admin_user", "public_spatial_catalog", "update", False),
+    ("group_admin_user", "public_spatial_catalog", "delete", False),
+    ("super_admin_user", "public_spatial_catalog", "create", True),
+    ("super_admin_user", "public_spatial_catalog", "read", True),
+    ("super_admin_user", "public_spatial_catalog", "update", True),
+    ("super_admin_user", "public_spatial_catalog", "delete", True),
+    # --- StreamInvitation  (public_stream_invitation)  [PREDICTED - verify in CI] ---
+    ("user", "public_stream_invitation", "create", True),
+    ("user", "public_stream_invitation", "read", True),
+    ("user", "public_stream_invitation", "update", False),
+    ("user", "public_stream_invitation", "delete", False),
+    ("user_group2", "public_stream_invitation", "create", False),
+    ("user_group2", "public_stream_invitation", "read", False),
+    ("user_group2", "public_stream_invitation", "update", False),
+    ("user_group2", "public_stream_invitation", "delete", False),
+    ("group_admin_user", "public_stream_invitation", "create", False),
+    ("group_admin_user", "public_stream_invitation", "read", False),
+    ("group_admin_user", "public_stream_invitation", "update", False),
+    ("group_admin_user", "public_stream_invitation", "delete", False),
+    ("super_admin_user", "public_stream_invitation", "create", True),
+    ("super_admin_user", "public_stream_invitation", "read", True),
+    ("super_admin_user", "public_stream_invitation", "update", True),
+    ("super_admin_user", "public_stream_invitation", "delete", True),
+    # --- StreamSharingService  (public_stream_sharing_service)  [PREDICTED - verify in CI] ---
+    ("user", "public_stream_sharing_service", "create", True),
+    ("user", "public_stream_sharing_service", "read", True),
+    ("user", "public_stream_sharing_service", "update", False),
+    ("user", "public_stream_sharing_service", "delete", False),
+    ("user_group2", "public_stream_sharing_service", "create", True),
+    ("user_group2", "public_stream_sharing_service", "read", False),
+    ("user_group2", "public_stream_sharing_service", "update", False),
+    ("user_group2", "public_stream_sharing_service", "delete", False),
+    ("group_admin_user", "public_stream_sharing_service", "create", True),
+    ("group_admin_user", "public_stream_sharing_service", "read", True),
+    ("group_admin_user", "public_stream_sharing_service", "update", False),
+    ("group_admin_user", "public_stream_sharing_service", "delete", False),
+    ("super_admin_user", "public_stream_sharing_service", "create", True),
+    ("super_admin_user", "public_stream_sharing_service", "read", True),
+    ("super_admin_user", "public_stream_sharing_service", "update", True),
+    ("super_admin_user", "public_stream_sharing_service", "delete", True),
+    # --- SurveyEfficiencyForObservationPlan  (public_survey_efficiency_for_observation_plan)  [PREDICTED - verify in CI] ---
+    ("user", "public_survey_efficiency_for_observation_plan", "create", True),
+    ("user", "public_survey_efficiency_for_observation_plan", "read", True),
+    ("user", "public_survey_efficiency_for_observation_plan", "update", False),
+    ("user", "public_survey_efficiency_for_observation_plan", "delete", False),
+    ("user_group2", "public_survey_efficiency_for_observation_plan", "create", True),
+    ("user_group2", "public_survey_efficiency_for_observation_plan", "read", False),
+    ("user_group2", "public_survey_efficiency_for_observation_plan", "update", False),
+    ("user_group2", "public_survey_efficiency_for_observation_plan", "delete", False),
+    (
+        "group_admin_user",
+        "public_survey_efficiency_for_observation_plan",
+        "create",
+        True,
+    ),
+    ("group_admin_user", "public_survey_efficiency_for_observation_plan", "read", True),
+    (
+        "group_admin_user",
+        "public_survey_efficiency_for_observation_plan",
+        "update",
+        False,
+    ),
+    (
+        "group_admin_user",
+        "public_survey_efficiency_for_observation_plan",
+        "delete",
+        False,
+    ),
+    (
+        "super_admin_user",
+        "public_survey_efficiency_for_observation_plan",
+        "create",
+        True,
+    ),
+    ("super_admin_user", "public_survey_efficiency_for_observation_plan", "read", True),
+    (
+        "super_admin_user",
+        "public_survey_efficiency_for_observation_plan",
+        "update",
+        True,
+    ),
+    (
+        "super_admin_user",
+        "public_survey_efficiency_for_observation_plan",
+        "delete",
+        True,
+    ),
+    # --- UserInvitation  (public_user_invitation)  [PREDICTED - verify in CI] ---
+    ("user", "public_user_invitation", "create", True),
+    ("user", "public_user_invitation", "read", True),
+    ("user", "public_user_invitation", "update", False),
+    ("user", "public_user_invitation", "delete", False),
+    ("user_group2", "public_user_invitation", "create", False),
+    ("user_group2", "public_user_invitation", "read", False),
+    ("user_group2", "public_user_invitation", "update", False),
+    ("user_group2", "public_user_invitation", "delete", False),
+    ("group_admin_user", "public_user_invitation", "create", False),
+    ("group_admin_user", "public_user_invitation", "read", False),
+    ("group_admin_user", "public_user_invitation", "update", False),
+    ("group_admin_user", "public_user_invitation", "delete", False),
+    ("super_admin_user", "public_user_invitation", "create", True),
+    ("super_admin_user", "public_user_invitation", "read", True),
+    ("super_admin_user", "public_user_invitation", "update", True),
+    ("super_admin_user", "public_user_invitation", "delete", True),
+    # --- CommentOnShift  (public_comment_on_shift)  [recovered, probed] ---
+    ("user", "public_comment_on_shift", "create", True),
+    ("user", "public_comment_on_shift", "read", True),
+    ("user", "public_comment_on_shift", "update", True),
+    ("user", "public_comment_on_shift", "delete", True),
+    ("user_group2", "public_comment_on_shift", "create", False),
+    ("user_group2", "public_comment_on_shift", "read", False),
+    ("user_group2", "public_comment_on_shift", "update", False),
+    ("user_group2", "public_comment_on_shift", "delete", False),
+    ("group_admin_user", "public_comment_on_shift", "create", True),
+    ("group_admin_user", "public_comment_on_shift", "read", True),
+    ("group_admin_user", "public_comment_on_shift", "update", False),
+    ("group_admin_user", "public_comment_on_shift", "delete", False),
+    ("super_admin_user", "public_comment_on_shift", "create", True),
+    ("super_admin_user", "public_comment_on_shift", "read", True),
+    ("super_admin_user", "public_comment_on_shift", "update", True),
+    ("super_admin_user", "public_comment_on_shift", "delete", True),
+    # --- FacilityTransaction  (public_facility_transaction)  [recovered, probed] ---
+    ("user", "public_facility_transaction", "create", True),
+    ("user", "public_facility_transaction", "read", True),
+    ("user", "public_facility_transaction", "update", False),
+    ("user", "public_facility_transaction", "delete", False),
+    ("user_group2", "public_facility_transaction", "create", True),
+    ("user_group2", "public_facility_transaction", "read", True),
+    ("user_group2", "public_facility_transaction", "update", False),
+    ("user_group2", "public_facility_transaction", "delete", False),
+    ("group_admin_user", "public_facility_transaction", "create", True),
+    ("group_admin_user", "public_facility_transaction", "read", True),
+    ("group_admin_user", "public_facility_transaction", "update", False),
+    ("group_admin_user", "public_facility_transaction", "delete", False),
+    ("super_admin_user", "public_facility_transaction", "create", True),
+    ("super_admin_user", "public_facility_transaction", "read", True),
+    ("super_admin_user", "public_facility_transaction", "update", True),
+    ("super_admin_user", "public_facility_transaction", "delete", True),
+    # --- GroupAnnotationOnPhotometry  (public_group_annotation_on_photometry)  [recovered, probed] ---
+    ("user", "public_group_annotation_on_photometry", "create", True),
+    ("user", "public_group_annotation_on_photometry", "read", True),
+    ("user", "public_group_annotation_on_photometry", "update", False),
+    ("user", "public_group_annotation_on_photometry", "delete", False),
+    ("user_group2", "public_group_annotation_on_photometry", "create", False),
+    ("user_group2", "public_group_annotation_on_photometry", "read", False),
+    ("user_group2", "public_group_annotation_on_photometry", "update", False),
+    ("user_group2", "public_group_annotation_on_photometry", "delete", False),
+    ("group_admin_user", "public_group_annotation_on_photometry", "create", True),
+    ("group_admin_user", "public_group_annotation_on_photometry", "read", True),
+    ("group_admin_user", "public_group_annotation_on_photometry", "update", True),
+    ("group_admin_user", "public_group_annotation_on_photometry", "delete", True),
+    ("super_admin_user", "public_group_annotation_on_photometry", "create", True),
+    ("super_admin_user", "public_group_annotation_on_photometry", "read", True),
+    ("super_admin_user", "public_group_annotation_on_photometry", "update", True),
+    ("super_admin_user", "public_group_annotation_on_photometry", "delete", True),
+    # --- GroupDefaultAnalysis  (public_group_default_analysis)  [recovered, probed] ---
+    ("user", "public_group_default_analysis", "create", True),
+    ("user", "public_group_default_analysis", "read", True),
+    ("user", "public_group_default_analysis", "update", False),
+    ("user", "public_group_default_analysis", "delete", False),
+    ("user_group2", "public_group_default_analysis", "create", False),
+    ("user_group2", "public_group_default_analysis", "read", False),
+    ("user_group2", "public_group_default_analysis", "update", False),
+    ("user_group2", "public_group_default_analysis", "delete", False),
+    ("group_admin_user", "public_group_default_analysis", "create", True),
+    ("group_admin_user", "public_group_default_analysis", "read", True),
+    ("group_admin_user", "public_group_default_analysis", "update", True),
+    ("group_admin_user", "public_group_default_analysis", "delete", True),
+    ("super_admin_user", "public_group_default_analysis", "create", True),
+    ("super_admin_user", "public_group_default_analysis", "read", True),
+    ("super_admin_user", "public_group_default_analysis", "update", True),
+    ("super_admin_user", "public_group_default_analysis", "delete", True),
+    # --- GroupMMADetectorSpectrum  (public_group_mmadetector_spectrum)  [recovered, probed] ---
+    ("user", "public_group_mmadetector_spectrum", "create", True),
+    ("user", "public_group_mmadetector_spectrum", "read", True),
+    ("user", "public_group_mmadetector_spectrum", "update", False),
+    ("user", "public_group_mmadetector_spectrum", "delete", False),
+    ("user_group2", "public_group_mmadetector_spectrum", "create", True),
+    ("user_group2", "public_group_mmadetector_spectrum", "read", True),
+    ("user_group2", "public_group_mmadetector_spectrum", "update", False),
+    ("user_group2", "public_group_mmadetector_spectrum", "delete", False),
+    ("group_admin_user", "public_group_mmadetector_spectrum", "create", True),
+    ("group_admin_user", "public_group_mmadetector_spectrum", "read", True),
+    ("group_admin_user", "public_group_mmadetector_spectrum", "update", True),
+    ("group_admin_user", "public_group_mmadetector_spectrum", "delete", True),
+    ("super_admin_user", "public_group_mmadetector_spectrum", "create", True),
+    ("super_admin_user", "public_group_mmadetector_spectrum", "read", True),
+    ("super_admin_user", "public_group_mmadetector_spectrum", "update", True),
+    ("super_admin_user", "public_group_mmadetector_spectrum", "delete", True),
+    # --- GroupPublicRelease  (public_group_public_release)  [recovered, probed] ---
+    ("user", "public_group_public_release", "create", True),
+    ("user", "public_group_public_release", "read", True),
+    ("user", "public_group_public_release", "update", False),
+    ("user", "public_group_public_release", "delete", False),
+    ("user_group2", "public_group_public_release", "create", True),
+    ("user_group2", "public_group_public_release", "read", True),
+    ("user_group2", "public_group_public_release", "update", False),
+    ("user_group2", "public_group_public_release", "delete", False),
+    ("group_admin_user", "public_group_public_release", "create", True),
+    ("group_admin_user", "public_group_public_release", "read", True),
+    ("group_admin_user", "public_group_public_release", "update", True),
+    ("group_admin_user", "public_group_public_release", "delete", True),
+    ("super_admin_user", "public_group_public_release", "create", True),
+    ("super_admin_user", "public_group_public_release", "read", True),
+    ("super_admin_user", "public_group_public_release", "update", True),
+    ("super_admin_user", "public_group_public_release", "delete", True),
+    # --- GroupReminderOnGCN  (public_group_reminder_on_gcn)  [recovered, probed] ---
+    ("user", "public_group_reminder_on_gcn", "create", True),
+    ("user", "public_group_reminder_on_gcn", "read", True),
+    ("user", "public_group_reminder_on_gcn", "update", False),
+    ("user", "public_group_reminder_on_gcn", "delete", False),
+    ("user_group2", "public_group_reminder_on_gcn", "create", False),
+    ("user_group2", "public_group_reminder_on_gcn", "read", False),
+    ("user_group2", "public_group_reminder_on_gcn", "update", False),
+    ("user_group2", "public_group_reminder_on_gcn", "delete", False),
+    ("group_admin_user", "public_group_reminder_on_gcn", "create", True),
+    ("group_admin_user", "public_group_reminder_on_gcn", "read", True),
+    ("group_admin_user", "public_group_reminder_on_gcn", "update", True),
+    ("group_admin_user", "public_group_reminder_on_gcn", "delete", True),
+    ("super_admin_user", "public_group_reminder_on_gcn", "create", True),
+    ("super_admin_user", "public_group_reminder_on_gcn", "read", True),
+    ("super_admin_user", "public_group_reminder_on_gcn", "update", True),
+    ("super_admin_user", "public_group_reminder_on_gcn", "delete", True),
+    # --- GroupSourceNotification  (public_group_source_notification)  [recovered, probed] ---
+    ("user", "public_group_source_notification", "create", True),
+    ("user", "public_group_source_notification", "read", True),
+    ("user", "public_group_source_notification", "update", True),
+    ("user", "public_group_source_notification", "delete", True),
+    ("user_group2", "public_group_source_notification", "create", False),
+    ("user_group2", "public_group_source_notification", "read", False),
+    ("user_group2", "public_group_source_notification", "update", False),
+    ("user_group2", "public_group_source_notification", "delete", False),
+    ("group_admin_user", "public_group_source_notification", "create", True),
+    ("group_admin_user", "public_group_source_notification", "read", True),
+    ("group_admin_user", "public_group_source_notification", "update", True),
+    ("group_admin_user", "public_group_source_notification", "delete", True),
+    ("super_admin_user", "public_group_source_notification", "create", True),
+    ("super_admin_user", "public_group_source_notification", "read", True),
+    ("super_admin_user", "public_group_source_notification", "update", True),
+    ("super_admin_user", "public_group_source_notification", "delete", True),
+    # --- InstrumentSharingService  (public_instrument_sharing_service)  [recovered, probed] ---
+    ("user", "public_instrument_sharing_service", "create", True),
+    ("user", "public_instrument_sharing_service", "read", True),
+    ("user", "public_instrument_sharing_service", "update", False),
+    ("user", "public_instrument_sharing_service", "delete", False),
+    ("user_group2", "public_instrument_sharing_service", "create", False),
+    ("user_group2", "public_instrument_sharing_service", "read", False),
+    ("user_group2", "public_instrument_sharing_service", "update", False),
+    ("user_group2", "public_instrument_sharing_service", "delete", False),
+    ("group_admin_user", "public_instrument_sharing_service", "create", True),
+    ("group_admin_user", "public_instrument_sharing_service", "read", True),
+    ("group_admin_user", "public_instrument_sharing_service", "update", False),
+    ("group_admin_user", "public_instrument_sharing_service", "delete", False),
+    ("super_admin_user", "public_instrument_sharing_service", "create", True),
+    ("super_admin_user", "public_instrument_sharing_service", "read", True),
+    ("super_admin_user", "public_instrument_sharing_service", "update", True),
+    ("super_admin_user", "public_instrument_sharing_service", "delete", True),
+    # --- RecurringAPI  (public_recurring_api)  [recovered, probed] ---
+    ("user", "public_recurring_api", "create", True),
+    ("user", "public_recurring_api", "read", True),
+    ("user", "public_recurring_api", "update", True),
+    ("user", "public_recurring_api", "delete", True),
+    ("user_group2", "public_recurring_api", "create", False),
+    ("user_group2", "public_recurring_api", "read", False),
+    ("user_group2", "public_recurring_api", "update", False),
+    ("user_group2", "public_recurring_api", "delete", False),
+    ("group_admin_user", "public_recurring_api", "create", False),
+    ("group_admin_user", "public_recurring_api", "read", False),
+    ("group_admin_user", "public_recurring_api", "update", False),
+    ("group_admin_user", "public_recurring_api", "delete", False),
+    ("super_admin_user", "public_recurring_api", "create", True),
+    ("super_admin_user", "public_recurring_api", "read", True),
+    ("super_admin_user", "public_recurring_api", "update", True),
+    ("super_admin_user", "public_recurring_api", "delete", True),
+    # --- Reminder  (public_reminder)  [recovered, probed] ---
+    ("user", "public_reminder", "create", True),
+    ("user", "public_reminder", "read", True),
+    ("user", "public_reminder", "update", True),
+    ("user", "public_reminder", "delete", True),
+    ("user_group2", "public_reminder", "create", True),
+    ("user_group2", "public_reminder", "read", False),
+    ("user_group2", "public_reminder", "update", False),
+    ("user_group2", "public_reminder", "delete", False),
+    ("group_admin_user", "public_reminder", "create", True),
+    ("group_admin_user", "public_reminder", "read", True),
+    ("group_admin_user", "public_reminder", "update", False),
+    ("group_admin_user", "public_reminder", "delete", False),
+    ("super_admin_user", "public_reminder", "create", True),
+    ("super_admin_user", "public_reminder", "read", True),
+    ("super_admin_user", "public_reminder", "update", True),
+    ("super_admin_user", "public_reminder", "delete", True),
+    # --- ShiftUser  (public_shift_user)  [recovered, probed] ---
+    ("user", "public_shift_user", "create", True),
+    ("user", "public_shift_user", "read", True),
+    ("user", "public_shift_user", "update", True),
+    ("user", "public_shift_user", "delete", True),
+    ("user_group2", "public_shift_user", "create", False),
+    ("user_group2", "public_shift_user", "read", False),
+    ("user_group2", "public_shift_user", "update", False),
+    ("user_group2", "public_shift_user", "delete", False),
+    ("group_admin_user", "public_shift_user", "create", True),
+    ("group_admin_user", "public_shift_user", "read", True),
+    ("group_admin_user", "public_shift_user", "update", True),
+    ("group_admin_user", "public_shift_user", "delete", True),
+    ("super_admin_user", "public_shift_user", "create", True),
+    ("super_admin_user", "public_shift_user", "read", True),
+    ("super_admin_user", "public_shift_user", "update", True),
+    ("super_admin_user", "public_shift_user", "delete", True),
+    # --- SpectrumObserver  (public_spectrum_observer)  [recovered, probed] ---
+    ("user", "public_spectrum_observer", "create", True),
+    ("user", "public_spectrum_observer", "read", True),
+    ("user", "public_spectrum_observer", "update", True),
+    ("user", "public_spectrum_observer", "delete", True),
+    ("user_group2", "public_spectrum_observer", "create", False),
+    ("user_group2", "public_spectrum_observer", "read", False),
+    ("user_group2", "public_spectrum_observer", "update", False),
+    ("user_group2", "public_spectrum_observer", "delete", False),
+    ("group_admin_user", "public_spectrum_observer", "create", False),
+    ("group_admin_user", "public_spectrum_observer", "read", True),
+    ("group_admin_user", "public_spectrum_observer", "update", False),
+    ("group_admin_user", "public_spectrum_observer", "delete", False),
+    ("super_admin_user", "public_spectrum_observer", "create", True),
+    ("super_admin_user", "public_spectrum_observer", "read", True),
+    ("super_admin_user", "public_spectrum_observer", "update", True),
+    ("super_admin_user", "public_spectrum_observer", "delete", True),
+    # --- SpectrumPI  (public_spectrum_pi)  [recovered, probed] ---
+    ("user", "public_spectrum_pi", "create", True),
+    ("user", "public_spectrum_pi", "read", True),
+    ("user", "public_spectrum_pi", "update", True),
+    ("user", "public_spectrum_pi", "delete", True),
+    ("user_group2", "public_spectrum_pi", "create", False),
+    ("user_group2", "public_spectrum_pi", "read", False),
+    ("user_group2", "public_spectrum_pi", "update", False),
+    ("user_group2", "public_spectrum_pi", "delete", False),
+    ("group_admin_user", "public_spectrum_pi", "create", False),
+    ("group_admin_user", "public_spectrum_pi", "read", True),
+    ("group_admin_user", "public_spectrum_pi", "update", False),
+    ("group_admin_user", "public_spectrum_pi", "delete", False),
+    ("super_admin_user", "public_spectrum_pi", "create", True),
+    ("super_admin_user", "public_spectrum_pi", "read", True),
+    ("super_admin_user", "public_spectrum_pi", "update", True),
+    ("super_admin_user", "public_spectrum_pi", "delete", True),
+    # --- SpectrumReducer  (public_spectrum_reducer)  [recovered, probed] ---
+    ("user", "public_spectrum_reducer", "create", True),
+    ("user", "public_spectrum_reducer", "read", True),
+    ("user", "public_spectrum_reducer", "update", True),
+    ("user", "public_spectrum_reducer", "delete", True),
+    ("user_group2", "public_spectrum_reducer", "create", False),
+    ("user_group2", "public_spectrum_reducer", "read", False),
+    ("user_group2", "public_spectrum_reducer", "update", False),
+    ("user_group2", "public_spectrum_reducer", "delete", False),
+    ("group_admin_user", "public_spectrum_reducer", "create", False),
+    ("group_admin_user", "public_spectrum_reducer", "read", True),
+    ("group_admin_user", "public_spectrum_reducer", "update", False),
+    ("group_admin_user", "public_spectrum_reducer", "delete", False),
+    ("super_admin_user", "public_spectrum_reducer", "create", True),
+    ("super_admin_user", "public_spectrum_reducer", "read", True),
+    ("super_admin_user", "public_spectrum_reducer", "update", True),
+    ("super_admin_user", "public_spectrum_reducer", "delete", True),
+    # --- StreamPhotometricSeries  (public_stream_photometric_series)  [recovered, probed] ---
+    ("user", "public_stream_photometric_series", "create", True),
+    ("user", "public_stream_photometric_series", "read", True),
+    ("user", "public_stream_photometric_series", "update", False),
+    ("user", "public_stream_photometric_series", "delete", False),
+    ("user_group2", "public_stream_photometric_series", "create", True),
+    ("user_group2", "public_stream_photometric_series", "read", True),
+    ("user_group2", "public_stream_photometric_series", "update", False),
+    ("user_group2", "public_stream_photometric_series", "delete", False),
+    ("group_admin_user", "public_stream_photometric_series", "create", True),
+    ("group_admin_user", "public_stream_photometric_series", "read", True),
+    ("group_admin_user", "public_stream_photometric_series", "update", False),
+    ("group_admin_user", "public_stream_photometric_series", "delete", False),
+    ("super_admin_user", "public_stream_photometric_series", "create", True),
+    ("super_admin_user", "public_stream_photometric_series", "read", True),
+    ("super_admin_user", "public_stream_photometric_series", "update", True),
+    ("super_admin_user", "public_stream_photometric_series", "delete", True),
+    # --- Weather  (public_weather)  [recovered, probed] ---
+    ("user", "public_weather", "create", True),
+    ("user", "public_weather", "read", True),
+    ("user", "public_weather", "update", True),
+    ("user", "public_weather", "delete", False),
+    ("user_group2", "public_weather", "create", True),
+    ("user_group2", "public_weather", "read", True),
+    ("user_group2", "public_weather", "update", True),
+    ("user_group2", "public_weather", "delete", False),
+    ("group_admin_user", "public_weather", "create", True),
+    ("group_admin_user", "public_weather", "read", True),
+    ("group_admin_user", "public_weather", "update", True),
+    ("group_admin_user", "public_weather", "delete", False),
+    ("super_admin_user", "public_weather", "create", True),
+    ("super_admin_user", "public_weather", "read", True),
+    ("super_admin_user", "public_weather", "update", True),
+    ("super_admin_user", "public_weather", "delete", True),
+    # --- GroupAnnotationOnSpectrum  (public_group_annotation_on_spectrum)  [recovered, probed] ---
+    ("user", "public_group_annotation_on_spectrum", "create", False),
+    ("user", "public_group_annotation_on_spectrum", "read", False),
+    ("user", "public_group_annotation_on_spectrum", "update", False),
+    ("user", "public_group_annotation_on_spectrum", "delete", False),
+    ("user_group2", "public_group_annotation_on_spectrum", "create", False),
+    ("user_group2", "public_group_annotation_on_spectrum", "read", False),
+    ("user_group2", "public_group_annotation_on_spectrum", "update", False),
+    ("user_group2", "public_group_annotation_on_spectrum", "delete", False),
+    ("group_admin_user", "public_group_annotation_on_spectrum", "create", False),
+    ("group_admin_user", "public_group_annotation_on_spectrum", "read", False),
+    ("group_admin_user", "public_group_annotation_on_spectrum", "update", False),
+    ("group_admin_user", "public_group_annotation_on_spectrum", "delete", False),
+    ("super_admin_user", "public_group_annotation_on_spectrum", "create", True),
+    ("super_admin_user", "public_group_annotation_on_spectrum", "read", True),
+    ("super_admin_user", "public_group_annotation_on_spectrum", "update", True),
+    ("super_admin_user", "public_group_annotation_on_spectrum", "delete", True),
+    # --- GroupCommentOnEarthquake  (public_group_comment_on_earthquake)  [recovered, probed] ---
+    ("user", "public_group_comment_on_earthquake", "create", True),
+    ("user", "public_group_comment_on_earthquake", "read", True),
+    ("user", "public_group_comment_on_earthquake", "update", False),
+    ("user", "public_group_comment_on_earthquake", "delete", False),
+    ("user_group2", "public_group_comment_on_earthquake", "create", False),
+    ("user_group2", "public_group_comment_on_earthquake", "read", False),
+    ("user_group2", "public_group_comment_on_earthquake", "update", False),
+    ("user_group2", "public_group_comment_on_earthquake", "delete", False),
+    ("group_admin_user", "public_group_comment_on_earthquake", "create", True),
+    ("group_admin_user", "public_group_comment_on_earthquake", "read", True),
+    ("group_admin_user", "public_group_comment_on_earthquake", "update", True),
+    ("group_admin_user", "public_group_comment_on_earthquake", "delete", True),
+    ("super_admin_user", "public_group_comment_on_earthquake", "create", True),
+    ("super_admin_user", "public_group_comment_on_earthquake", "read", True),
+    ("super_admin_user", "public_group_comment_on_earthquake", "update", True),
+    ("super_admin_user", "public_group_comment_on_earthquake", "delete", True),
+    # --- GroupCommentOnGCN  (public_group_comment_on_gcn)  [recovered, probed] ---
+    ("user", "public_group_comment_on_gcn", "create", True),
+    ("user", "public_group_comment_on_gcn", "read", True),
+    ("user", "public_group_comment_on_gcn", "update", False),
+    ("user", "public_group_comment_on_gcn", "delete", False),
+    ("user_group2", "public_group_comment_on_gcn", "create", False),
+    ("user_group2", "public_group_comment_on_gcn", "read", False),
+    ("user_group2", "public_group_comment_on_gcn", "update", False),
+    ("user_group2", "public_group_comment_on_gcn", "delete", False),
+    ("group_admin_user", "public_group_comment_on_gcn", "create", True),
+    ("group_admin_user", "public_group_comment_on_gcn", "read", True),
+    ("group_admin_user", "public_group_comment_on_gcn", "update", True),
+    ("group_admin_user", "public_group_comment_on_gcn", "delete", True),
+    ("super_admin_user", "public_group_comment_on_gcn", "create", True),
+    ("super_admin_user", "public_group_comment_on_gcn", "read", True),
+    ("super_admin_user", "public_group_comment_on_gcn", "update", True),
+    ("super_admin_user", "public_group_comment_on_gcn", "delete", True),
+    # --- GroupInvitation  (public_group_invitation)  [recovered, probed] ---
+    ("user", "public_group_invitation", "create", True),
+    ("user", "public_group_invitation", "read", True),
+    ("user", "public_group_invitation", "update", False),
+    ("user", "public_group_invitation", "delete", False),
+    ("user_group2", "public_group_invitation", "create", False),
+    ("user_group2", "public_group_invitation", "read", False),
+    ("user_group2", "public_group_invitation", "update", False),
+    ("user_group2", "public_group_invitation", "delete", False),
+    ("group_admin_user", "public_group_invitation", "create", False),
+    ("group_admin_user", "public_group_invitation", "read", False),
+    ("group_admin_user", "public_group_invitation", "update", False),
+    ("group_admin_user", "public_group_invitation", "delete", False),
+    ("super_admin_user", "public_group_invitation", "create", True),
+    ("super_admin_user", "public_group_invitation", "read", True),
+    ("super_admin_user", "public_group_invitation", "update", True),
+    ("super_admin_user", "public_group_invitation", "delete", True),
+    # --- GroupObjAnalysis  (public_group_obj_analysis)  [recovered, probed] ---
+    ("user", "public_group_obj_analysis", "create", True),
+    ("user", "public_group_obj_analysis", "read", True),
+    ("user", "public_group_obj_analysis", "update", False),
+    ("user", "public_group_obj_analysis", "delete", False),
+    ("user_group2", "public_group_obj_analysis", "create", False),
+    ("user_group2", "public_group_obj_analysis", "read", False),
+    ("user_group2", "public_group_obj_analysis", "update", False),
+    ("user_group2", "public_group_obj_analysis", "delete", False),
+    ("group_admin_user", "public_group_obj_analysis", "create", True),
+    ("group_admin_user", "public_group_obj_analysis", "read", True),
+    ("group_admin_user", "public_group_obj_analysis", "update", True),
+    ("group_admin_user", "public_group_obj_analysis", "delete", True),
+    ("super_admin_user", "public_group_obj_analysis", "create", True),
+    ("super_admin_user", "public_group_obj_analysis", "read", True),
+    ("super_admin_user", "public_group_obj_analysis", "update", True),
+    ("super_admin_user", "public_group_obj_analysis", "delete", True),
+    # --- GroupPhotometricSeries  (public_group_photometric_series)  [recovered, probed] ---
+    ("user", "public_group_photometric_series", "create", True),
+    ("user", "public_group_photometric_series", "read", True),
+    ("user", "public_group_photometric_series", "update", False),
+    ("user", "public_group_photometric_series", "delete", False),
+    ("user_group2", "public_group_photometric_series", "create", False),
+    ("user_group2", "public_group_photometric_series", "read", False),
+    ("user_group2", "public_group_photometric_series", "update", False),
+    ("user_group2", "public_group_photometric_series", "delete", False),
+    ("group_admin_user", "public_group_photometric_series", "create", True),
+    ("group_admin_user", "public_group_photometric_series", "read", True),
+    ("group_admin_user", "public_group_photometric_series", "update", True),
+    ("group_admin_user", "public_group_photometric_series", "delete", True),
+    ("super_admin_user", "public_group_photometric_series", "create", True),
+    ("super_admin_user", "public_group_photometric_series", "read", True),
+    ("super_admin_user", "public_group_photometric_series", "update", True),
+    ("super_admin_user", "public_group_photometric_series", "delete", True),
+    # --- PhotStat  (public_phot_stat)  [recovered, probed] ---
+    ("user", "public_phot_stat", "create", True),
+    ("user", "public_phot_stat", "read", True),
+    ("user", "public_phot_stat", "update", True),
+    ("user", "public_phot_stat", "delete", False),
+    ("user_group2", "public_phot_stat", "create", True),
+    ("user_group2", "public_phot_stat", "read", True),
+    ("user_group2", "public_phot_stat", "update", True),
+    ("user_group2", "public_phot_stat", "delete", False),
+    ("group_admin_user", "public_phot_stat", "create", True),
+    ("group_admin_user", "public_phot_stat", "read", True),
+    ("group_admin_user", "public_phot_stat", "update", True),
+    ("group_admin_user", "public_phot_stat", "delete", False),
+    ("super_admin_user", "public_phot_stat", "create", True),
+    ("super_admin_user", "public_phot_stat", "read", True),
+    ("super_admin_user", "public_phot_stat", "update", True),
+    ("super_admin_user", "public_phot_stat", "delete", True),
+    # --- StreamPhotometry  (public_stream_photometry)  [recovered, probed] ---
+    ("user", "public_stream_photometry", "create", True),
+    ("user", "public_stream_photometry", "read", True),
+    ("user", "public_stream_photometry", "update", False),
+    ("user", "public_stream_photometry", "delete", False),
+    ("user_group2", "public_stream_photometry", "create", True),
+    ("user_group2", "public_stream_photometry", "read", True),
+    ("user_group2", "public_stream_photometry", "update", False),
+    ("user_group2", "public_stream_photometry", "delete", False),
+    ("group_admin_user", "public_stream_photometry", "create", True),
+    ("group_admin_user", "public_stream_photometry", "read", True),
+    ("group_admin_user", "public_stream_photometry", "update", False),
+    ("group_admin_user", "public_stream_photometry", "delete", False),
+    ("super_admin_user", "public_stream_photometry", "create", True),
+    ("super_admin_user", "public_stream_photometry", "read", True),
+    ("super_admin_user", "public_stream_photometry", "update", True),
+    ("super_admin_user", "public_stream_photometry", "delete", True),
+    # --- GcnTrigger  (public_gcn_trigger)  [recovered, probed] ---
+    ("user", "public_gcn_trigger", "create", True),
+    ("user", "public_gcn_trigger", "read", True),
+    ("user", "public_gcn_trigger", "update", True),
+    ("user", "public_gcn_trigger", "delete", True),
+    ("user_group2", "public_gcn_trigger", "create", False),
+    ("user_group2", "public_gcn_trigger", "read", False),
+    ("user_group2", "public_gcn_trigger", "update", False),
+    ("user_group2", "public_gcn_trigger", "delete", False),
+    ("group_admin_user", "public_gcn_trigger", "create", False),
+    ("group_admin_user", "public_gcn_trigger", "read", True),
+    ("group_admin_user", "public_gcn_trigger", "update", False),
+    ("group_admin_user", "public_gcn_trigger", "delete", False),
+    ("super_admin_user", "public_gcn_trigger", "create", True),
+    ("super_admin_user", "public_gcn_trigger", "read", True),
+    ("super_admin_user", "public_gcn_trigger", "update", True),
+    ("super_admin_user", "public_gcn_trigger", "delete", True),
+    # --- MMADetectorTimeInterval  (public_mmadetector_time_interval)  [recovered, probed] ---
+    ("user", "public_mmadetector_time_interval", "create", True),
+    ("user", "public_mmadetector_time_interval", "read", True),
+    ("user", "public_mmadetector_time_interval", "update", True),
+    ("user", "public_mmadetector_time_interval", "delete", True),
+    ("user_group2", "public_mmadetector_time_interval", "create", True),
+    ("user_group2", "public_mmadetector_time_interval", "read", True),
+    ("user_group2", "public_mmadetector_time_interval", "update", False),
+    ("user_group2", "public_mmadetector_time_interval", "delete", False),
+    ("group_admin_user", "public_mmadetector_time_interval", "create", True),
+    ("group_admin_user", "public_mmadetector_time_interval", "read", True),
+    ("group_admin_user", "public_mmadetector_time_interval", "update", False),
+    ("group_admin_user", "public_mmadetector_time_interval", "delete", False),
+    ("super_admin_user", "public_mmadetector_time_interval", "create", True),
+    ("super_admin_user", "public_mmadetector_time_interval", "read", True),
+    ("super_admin_user", "public_mmadetector_time_interval", "update", True),
+    ("super_admin_user", "public_mmadetector_time_interval", "delete", True),
+    # --- SurveyEfficiencyForObservations  (public_survey_efficiency_for_observations)  [recovered, probed] ---
+    ("user", "public_survey_efficiency_for_observations", "create", True),
+    ("user", "public_survey_efficiency_for_observations", "read", True),
+    ("user", "public_survey_efficiency_for_observations", "update", False),
+    ("user", "public_survey_efficiency_for_observations", "delete", False),
+    ("user_group2", "public_survey_efficiency_for_observations", "create", True),
+    ("user_group2", "public_survey_efficiency_for_observations", "read", False),
+    ("user_group2", "public_survey_efficiency_for_observations", "update", False),
+    ("user_group2", "public_survey_efficiency_for_observations", "delete", False),
+    ("group_admin_user", "public_survey_efficiency_for_observations", "create", True),
+    ("group_admin_user", "public_survey_efficiency_for_observations", "read", True),
+    ("group_admin_user", "public_survey_efficiency_for_observations", "update", False),
+    ("group_admin_user", "public_survey_efficiency_for_observations", "delete", False),
+    ("super_admin_user", "public_survey_efficiency_for_observations", "create", True),
+    ("super_admin_user", "public_survey_efficiency_for_observations", "read", True),
+    ("super_admin_user", "public_survey_efficiency_for_observations", "update", True),
+    ("super_admin_user", "public_survey_efficiency_for_observations", "delete", True),
+    # --- GroupCommentOnShift  (public_group_comment_on_shift)  [recovered, probed] ---
+    ("user", "public_group_comment_on_shift", "create", True),
+    ("user", "public_group_comment_on_shift", "read", True),
+    ("user", "public_group_comment_on_shift", "update", False),
+    ("user", "public_group_comment_on_shift", "delete", False),
+    ("user_group2", "public_group_comment_on_shift", "create", False),
+    ("user_group2", "public_group_comment_on_shift", "read", False),
+    ("user_group2", "public_group_comment_on_shift", "update", False),
+    ("user_group2", "public_group_comment_on_shift", "delete", False),
+    ("group_admin_user", "public_group_comment_on_shift", "create", True),
+    ("group_admin_user", "public_group_comment_on_shift", "read", True),
+    ("group_admin_user", "public_group_comment_on_shift", "update", True),
+    ("group_admin_user", "public_group_comment_on_shift", "delete", True),
+    ("super_admin_user", "public_group_comment_on_shift", "create", True),
+    ("super_admin_user", "public_group_comment_on_shift", "read", True),
+    ("super_admin_user", "public_group_comment_on_shift", "update", True),
+    ("super_admin_user", "public_group_comment_on_shift", "delete", True),
+    # --- GroupCommentOnSpectrum  (public_group_comment_on_spectrum)  [recovered, probed] ---
+    ("user", "public_group_comment_on_spectrum", "create", True),
+    ("user", "public_group_comment_on_spectrum", "read", True),
+    ("user", "public_group_comment_on_spectrum", "update", False),
+    ("user", "public_group_comment_on_spectrum", "delete", False),
+    ("user_group2", "public_group_comment_on_spectrum", "create", False),
+    ("user_group2", "public_group_comment_on_spectrum", "read", False),
+    ("user_group2", "public_group_comment_on_spectrum", "update", False),
+    ("user_group2", "public_group_comment_on_spectrum", "delete", False),
+    ("group_admin_user", "public_group_comment_on_spectrum", "create", True),
+    ("group_admin_user", "public_group_comment_on_spectrum", "read", True),
+    ("group_admin_user", "public_group_comment_on_spectrum", "update", True),
+    ("group_admin_user", "public_group_comment_on_spectrum", "delete", True),
+    ("super_admin_user", "public_group_comment_on_spectrum", "create", True),
+    ("super_admin_user", "public_group_comment_on_spectrum", "read", True),
+    ("super_admin_user", "public_group_comment_on_spectrum", "update", True),
+    ("super_admin_user", "public_group_comment_on_spectrum", "delete", True),
+    # --- GroupMMADetectorTimeInterval  (public_group_mmadetector_time_interval)  [recovered, probed] ---
+    ("user", "public_group_mmadetector_time_interval", "create", True),
+    ("user", "public_group_mmadetector_time_interval", "read", True),
+    ("user", "public_group_mmadetector_time_interval", "update", False),
+    ("user", "public_group_mmadetector_time_interval", "delete", False),
+    ("user_group2", "public_group_mmadetector_time_interval", "create", True),
+    ("user_group2", "public_group_mmadetector_time_interval", "read", True),
+    ("user_group2", "public_group_mmadetector_time_interval", "update", False),
+    ("user_group2", "public_group_mmadetector_time_interval", "delete", False),
+    ("group_admin_user", "public_group_mmadetector_time_interval", "create", True),
+    ("group_admin_user", "public_group_mmadetector_time_interval", "read", True),
+    ("group_admin_user", "public_group_mmadetector_time_interval", "update", True),
+    ("group_admin_user", "public_group_mmadetector_time_interval", "delete", True),
+    ("super_admin_user", "public_group_mmadetector_time_interval", "create", True),
+    ("super_admin_user", "public_group_mmadetector_time_interval", "read", True),
+    ("super_admin_user", "public_group_mmadetector_time_interval", "update", True),
+    ("super_admin_user", "public_group_mmadetector_time_interval", "delete", True),
+    # --- GroupReminderOnEarthquake  (public_group_reminder_on_earthquake)  [recovered, probed] ---
+    ("user", "public_group_reminder_on_earthquake", "create", True),
+    ("user", "public_group_reminder_on_earthquake", "read", True),
+    ("user", "public_group_reminder_on_earthquake", "update", False),
+    ("user", "public_group_reminder_on_earthquake", "delete", False),
+    ("user_group2", "public_group_reminder_on_earthquake", "create", False),
+    ("user_group2", "public_group_reminder_on_earthquake", "read", False),
+    ("user_group2", "public_group_reminder_on_earthquake", "update", False),
+    ("user_group2", "public_group_reminder_on_earthquake", "delete", False),
+    ("group_admin_user", "public_group_reminder_on_earthquake", "create", True),
+    ("group_admin_user", "public_group_reminder_on_earthquake", "read", True),
+    ("group_admin_user", "public_group_reminder_on_earthquake", "update", True),
+    ("group_admin_user", "public_group_reminder_on_earthquake", "delete", True),
+    ("super_admin_user", "public_group_reminder_on_earthquake", "create", True),
+    ("super_admin_user", "public_group_reminder_on_earthquake", "read", True),
+    ("super_admin_user", "public_group_reminder_on_earthquake", "update", True),
+    ("super_admin_user", "public_group_reminder_on_earthquake", "delete", True),
+    # --- GroupReminderOnShift  (public_group_reminder_on_shift)  [recovered, probed] ---
+    ("user", "public_group_reminder_on_shift", "create", True),
+    ("user", "public_group_reminder_on_shift", "read", True),
+    ("user", "public_group_reminder_on_shift", "update", False),
+    ("user", "public_group_reminder_on_shift", "delete", False),
+    ("user_group2", "public_group_reminder_on_shift", "create", False),
+    ("user_group2", "public_group_reminder_on_shift", "read", False),
+    ("user_group2", "public_group_reminder_on_shift", "update", False),
+    ("user_group2", "public_group_reminder_on_shift", "delete", False),
+    ("group_admin_user", "public_group_reminder_on_shift", "create", True),
+    ("group_admin_user", "public_group_reminder_on_shift", "read", True),
+    ("group_admin_user", "public_group_reminder_on_shift", "update", True),
+    ("group_admin_user", "public_group_reminder_on_shift", "delete", True),
+    ("super_admin_user", "public_group_reminder_on_shift", "create", True),
+    ("super_admin_user", "public_group_reminder_on_shift", "read", True),
+    ("super_admin_user", "public_group_reminder_on_shift", "update", True),
+    ("super_admin_user", "public_group_reminder_on_shift", "delete", True),
+    # --- GroupReminderOnSpectrum  (public_group_reminder_on_spectrum)  [recovered, probed] ---
+    ("user", "public_group_reminder_on_spectrum", "create", True),
+    ("user", "public_group_reminder_on_spectrum", "read", True),
+    ("user", "public_group_reminder_on_spectrum", "update", False),
+    ("user", "public_group_reminder_on_spectrum", "delete", False),
+    ("user_group2", "public_group_reminder_on_spectrum", "create", False),
+    ("user_group2", "public_group_reminder_on_spectrum", "read", False),
+    ("user_group2", "public_group_reminder_on_spectrum", "update", False),
+    ("user_group2", "public_group_reminder_on_spectrum", "delete", False),
+    ("group_admin_user", "public_group_reminder_on_spectrum", "create", True),
+    ("group_admin_user", "public_group_reminder_on_spectrum", "read", True),
+    ("group_admin_user", "public_group_reminder_on_spectrum", "update", True),
+    ("group_admin_user", "public_group_reminder_on_spectrum", "delete", True),
+    ("super_admin_user", "public_group_reminder_on_spectrum", "create", True),
+    ("super_admin_user", "public_group_reminder_on_spectrum", "read", True),
+    ("super_admin_user", "public_group_reminder_on_spectrum", "update", True),
+    ("super_admin_user", "public_group_reminder_on_spectrum", "delete", True),
+    # --- AllocationUser  (public_allocation_user)  [recovered, probed] ---
+    ("user", "public_allocation_user", "create", True),
+    ("user", "public_allocation_user", "read", True),
+    ("user", "public_allocation_user", "update", True),
+    ("user", "public_allocation_user", "delete", True),
+    ("user_group2", "public_allocation_user", "create", False),
+    ("user_group2", "public_allocation_user", "read", False),
+    ("user_group2", "public_allocation_user", "update", False),
+    ("user_group2", "public_allocation_user", "delete", False),
+    ("group_admin_user", "public_allocation_user", "create", True),
+    ("group_admin_user", "public_allocation_user", "read", True),
+    ("group_admin_user", "public_allocation_user", "update", True),
+    ("group_admin_user", "public_allocation_user", "delete", True),
+    ("super_admin_user", "public_allocation_user", "create", True),
+    ("super_admin_user", "public_allocation_user", "read", True),
+    ("super_admin_user", "public_allocation_user", "update", True),
+    ("super_admin_user", "public_allocation_user", "delete", True),
+    # --- EventObservationPlan  (public_event_observation_plan)  [recovered, probed] ---
+    ("user", "public_event_observation_plan", "create", True),
+    ("user", "public_event_observation_plan", "read", True),
+    ("user", "public_event_observation_plan", "update", False),
+    ("user", "public_event_observation_plan", "delete", False),
+    ("user_group2", "public_event_observation_plan", "create", True),
+    ("user_group2", "public_event_observation_plan", "read", True),
+    ("user_group2", "public_event_observation_plan", "update", False),
+    ("user_group2", "public_event_observation_plan", "delete", False),
+    ("group_admin_user", "public_event_observation_plan", "create", True),
+    ("group_admin_user", "public_event_observation_plan", "read", True),
+    ("group_admin_user", "public_event_observation_plan", "update", False),
+    ("group_admin_user", "public_event_observation_plan", "delete", False),
+    ("super_admin_user", "public_event_observation_plan", "create", True),
+    ("super_admin_user", "public_event_observation_plan", "read", True),
+    ("super_admin_user", "public_event_observation_plan", "update", True),
+    ("super_admin_user", "public_event_observation_plan", "delete", True),
+]
 
 
-def test_user_group2_read_user_notification(user_group2, user_notification):
-    accessible = user_notification.is_accessible_by(user_group2, mode="read")
-    assert not accessible  # must be target user
+# Optional CI sharding: set PERM_SHARD="k/n" (e.g. "0/4") to run only every nth
+# case, so the matrix can split this suite across n parallel jobs and stay well
+# under the ~15 min budget. Unset -> run everything. Only the parametrized test
+# is sharded; the full CASES list is kept intact so the map-consistency and
+# coverage tests (which iterate it) behave the same in every shard.
+_shard = os.environ.get("PERM_SHARD")
+_PARAM_CASES = CASES
+if _shard:
+    _k, _n = (int(x) for x in _shard.split("/"))
+    _PARAM_CASES = CASES[_k::_n]
 
 
-def test_user_group2_update_user_notification(user_group2, user_notification):
-    accessible = user_notification.is_accessible_by(user_group2, mode="update")
-    assert not accessible  # must be target user
+def _case_id(case):
+    role, obj, mode, expected = case
+    return f"{obj}-{mode}-{role}-{'allow' if expected else 'deny'}"
 
 
-def test_user_group2_delete_user_notification(user_group2, user_notification):
-    accessible = user_notification.is_accessible_by(user_group2, mode="delete")
-    assert not accessible  # must be target user
+@pytest.mark.parametrize(
+    "role_fixture, obj_fixture, mode, expected",
+    _PARAM_CASES,
+    ids=[_case_id(c) for c in _PARAM_CASES],
+)
+def test_model_access(role_fixture, obj_fixture, mode, expected, request):
+    actor = request.getfixturevalue(role_fixture)
+    target = request.getfixturevalue(obj_fixture)
+    assert target.is_accessible_by(actor, mode=mode) is expected
 
 
-def test_super_admin_user_create_user_notification(super_admin_user, user_notification):
-    accessible = user_notification.is_accessible_by(super_admin_user, mode="create")
-    assert accessible
+def test_fixture_model_map_matches_cases():
+    """FIXTURE_MODEL must describe exactly the object fixtures used in CASES."""
+    in_cases = {obj for _, obj, _, _ in CASES}
+    mapped = set(FIXTURE_MODEL)
+    assert in_cases == mapped, (
+        f"CASES uses object fixtures not in FIXTURE_MODEL: {sorted(in_cases - mapped)}; "
+        f"FIXTURE_MODEL has unused entries: {sorted(mapped - in_cases)}"
+    )
 
 
-def test_super_admin_user_read_user_notification(super_admin_user, user_notification):
-    accessible = user_notification.is_accessible_by(super_admin_user, mode="read")
-    assert accessible
+# ---------------------------------------------------------------------------
+# Coverage ratchet
+# ---------------------------------------------------------------------------
+
+# Access-controlled models not yet exercised by CASES. Every name is a known
+# gap to burn down; the target is an empty set. A new model added to the schema
+# must be either covered above or waived here, or
+# test_all_models_have_permission_coverage fails.
+KNOWN_UNCOVERED = frozenset(
+    {
+        "ACL",
+        "Association",
+        "CatalogQueryTargetGroup",
+        "Code",
+        "CronJobRun",
+        "DefaultFollowupRequestTargetGroup",
+        "ExecutedObservation",
+        "GroupSurveyEfficiencyForObservationPlan",
+        "GroupSurveyEfficiencyForObservations",
+        "InstrumentFieldTile",
+        "LocalizationProperty",
+        "LocalizationTag",
+        "LocalizationTile",
+        "Nonce",
+        "Obj",
+        "ObjToSuperObj",
+        "Partial",
+        "PlannedObservation",
+        "QueuedObservation",
+        "Role",
+        "RoleACL",
+        "SpatialCatalogEntry",
+        "SpatialCatalogEntryTile",
+        "Token",
+        "TokenACL",
+        "User",
+        "UserACL",
+        "UserRole",
+        "UserSocialAuth",
+    }
+)
+
+# Localization tile tables are monthly partitions (LocalizationTile_2024_03, ...)
+# sharing Localization's access policy; collapse them to the base model.
+_PARTITION_RE = re.compile(r"LocalizationTile_(\d{4}_\d{2}|def)$")
 
 
-def test_super_admin_user_update_user_notification(super_admin_user, user_notification):
-    accessible = user_notification.is_accessible_by(super_admin_user, mode="update")
-    assert accessible
+def _all_accessible_models():
+    names = set()
+    for mapper in models.Base.registry.mappers:
+        cls = mapper.class_
+        if not getattr(cls, "__tablename__", None):
+            continue
+        if not hasattr(cls, "is_accessible_by"):
+            continue
+        if _PARTITION_RE.match(cls.__name__):
+            continue
+        names.add(cls.__name__)
+    return names
 
 
-def test_super_admin_user_delete_user_notification(super_admin_user, user_notification):
-    accessible = user_notification.is_accessible_by(super_admin_user, mode="delete")
-    assert accessible
+def test_all_models_have_permission_coverage():
+    covered = set(FIXTURE_MODEL.values())
+    all_models = _all_accessible_models()
 
+    stale = sorted(KNOWN_UNCOVERED - all_models)
+    assert not stale, (
+        "KNOWN_UNCOVERED lists names that are not access-controlled models "
+        "(typo, renamed, or now covered); remove them:\n  " + "\n  ".join(stale)
+    )
 
-def test_group_admin_user_create_user_notification(group_admin_user, user_notification):
-    accessible = user_notification.is_accessible_by(group_admin_user, mode="create")
-    assert accessible
+    redundant = sorted(KNOWN_UNCOVERED & covered)
+    assert not redundant, (
+        "These models are both covered by CASES and waived in KNOWN_UNCOVERED; "
+        "drop the waiver:\n  " + "\n  ".join(redundant)
+    )
 
-
-def test_group_admin_user_read_user_notification(group_admin_user, user_notification):
-    accessible = user_notification.is_accessible_by(group_admin_user, mode="read")
-    assert not accessible  # must be target user
-
-
-def test_group_admin_user_update_user_notification(group_admin_user, user_notification):
-    accessible = user_notification.is_accessible_by(group_admin_user, mode="update")
-    assert not accessible  # must be target user
-
-
-def test_group_admin_user_delete_user_notification(group_admin_user, user_notification):
-    accessible = user_notification.is_accessible_by(group_admin_user, mode="delete")
-    assert not accessible  # must be target user
+    uncovered = sorted(all_models - covered - KNOWN_UNCOVERED)
+    assert not uncovered, (
+        f"{len(uncovered)} access-controlled model(s) have no permission "
+        "coverage and are not waived in KNOWN_UNCOVERED. Add CASES rows (with a "
+        "FIXTURE_MODEL entry) or waive explicitly:\n  " + "\n  ".join(uncovered)
+    )

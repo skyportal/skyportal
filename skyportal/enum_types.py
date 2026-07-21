@@ -11,6 +11,7 @@ from sncosmo.magsystems import _MAGSYSTEMS
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from .broker_apis import BROKERS
 from .facility_apis import APIS, LISTENERS
 
 log = make_log("enum_types")
@@ -69,6 +70,10 @@ THUMBNAIL_TYPES = (
     "dr8",
     "ls",
     "ps1",
+    "sm",
+    "hst",
+    "chandra",
+    "jwst",
     "new_gz",
     "ref_gz",
     "sub_gz",
@@ -92,6 +97,9 @@ ANALYSIS_INPUT_TYPES = (
     "classifications",
 )
 DEFAULT_ANALYSIS_FILTER_TYPES = {"classifications": ["name", "probability"]}
+# Scalar (non list-of-dicts) source-filter keys. group_id triggers a default
+# analysis when a source is saved to that group (see create_default_analysis_on_save).
+DEFAULT_ANALYSIS_SCALAR_FILTERS = {"group_id": int}
 AUTHENTICATION_TYPES = (
     "none",
     "header_token",
@@ -174,6 +182,14 @@ listener_classnames = sa.Enum(
     validate_strings=True,
 )
 
+ALLOWED_BROKER_CLASSNAMES = [c.__name__ for c in BROKERS]
+
+broker_classnames = sa.Enum(
+    *ALLOWED_BROKER_CLASSNAMES,
+    name="broker_apis",
+    validate_strings=True,
+)
+
 py_allowed_spectrum_types = Enum("spectrumtypes", ALLOWED_SPECTRUM_TYPES)
 py_allowed_magsystems = Enum("magsystems", ALLOWED_MAGSYSTEMS)
 py_allowed_bandpasses = Enum("bandpasses", ALLOWED_BANDPASSES)
@@ -196,6 +212,7 @@ sqla_enum_types = [
     followup_priorities,
     api_classnames,
     listener_classnames,
+    broker_classnames,
     allowed_analysis_types,
     allowed_analysis_input_types,
     allowed_external_authentication_types,

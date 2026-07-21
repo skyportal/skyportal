@@ -1,6 +1,6 @@
 import { createStore, combineReducers, applyMiddleware, compose } from "redux";
 import type { AnyAction, Middleware, Reducer } from "redux";
-import thunk from "redux-thunk";
+import { thunk } from "redux-thunk";
 
 import { reducer as notificationsReducer } from "baselayer/components/Notifications";
 
@@ -18,6 +18,12 @@ declare global {
     __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: typeof compose;
   }
 }
+
+// rspack replaces the literal `process.env.NODE_ENV` at build time. Declare a
+// minimal `process` locally so the guard typechecks without depending on
+// @types/node's global being picked up by the frontend tsconfig — which it
+// isn't in CI (tsc's default @types discovery doesn't find node types there).
+declare const process: { env: { NODE_ENV?: string } };
 
 const syncConfig = {
   whitelist: [
@@ -60,7 +66,10 @@ function configureStore(): AppStore {
   const middlewares = [
     thunk,
     skyportalApi.middleware,
-    logger,
+    // Dev-only: logs prev/action/next state on every dispatch. Guarded so it's
+    // stripped from production builds (rspack --mode=production defines
+    // process.env.NODE_ENV), avoiding per-action console cost for every user.
+    ...(process.env.NODE_ENV === "development" ? [logger] : []),
     createStateSyncMiddleware(syncConfig),
   ];
 

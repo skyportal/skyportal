@@ -67,7 +67,10 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   const uniqueAnalysisServiceList = uniqueNames.map((name) =>
     analysisServiceList.find((item: any) => item.name === name),
   );
-  const allGroups = useGetGroupsQuery().data?.all ?? null;
+  // Only groups the user can access (all groups for sysadmins, member groups
+  // otherwise); the shareable list is the intersection of these with the
+  // selected service's groups, so users can't share with a group they're not in.
+  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? null;
   const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
     useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
@@ -77,7 +80,7 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
 
   const groupLookUp: Record<string, any> = {};
 
-  allGroups?.forEach((group: any) => {
+  userAccessibleGroups?.forEach((group: any) => {
     groupLookUp[group.id] = group;
   });
 
@@ -219,14 +222,23 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   }, [analysisServiceList, selectedAnalysisServiceId]);
 
   if (
-    !allGroups ||
-    allGroups.length === 0 ||
+    !userAccessibleGroups ||
+    userAccessibleGroups.length === 0 ||
     !analysisServiceList ||
     analysisServiceList.length === 0 ||
     !selectedAnalysisServiceId
   ) {
     return null;
   }
+
+  // Groups the results can be shared with: the selected service's groups that
+  // the user can access (intersection).
+  const accessibleGroupIds = new Set(
+    userAccessibleGroups.map((g: any) => g.id),
+  );
+  const shareableGroups = (
+    analysisServiceLookUp[selectedAnalysisServiceId]?.groups ?? []
+  ).filter((g: any) => accessibleGroupIds.has(g.id));
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     setIsSubmitting(true);
@@ -332,7 +344,7 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
         </Select>
       </div>
       <GroupShareSelect
-        groupList={allGroups}
+        groupList={shareableGroups}
         setGroupIDs={setSelectedGroupIds}
         groupIDs={selectedGroupIds}
       />

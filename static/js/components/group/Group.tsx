@@ -20,6 +20,7 @@ import Button from "../Button";
 
 import GroupUsers from "./GroupUsers";
 import GroupFiltersStreams from "./GroupFiltersStreams";
+import GroupSettingsForm from "./GroupSettingsForm";
 
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupQuery } from "../../ducks/group";
@@ -55,9 +56,6 @@ const useStyles = makeStyles()((theme) => ({
   selectEmpty: {
     width: "100%",
     marginTop: theme.spacing(2),
-  },
-  filterLink: {
-    marginRight: theme.spacing(1),
   },
   manageUserPopover: {
     display: "flex",
@@ -188,6 +186,7 @@ const Group = () => {
         isAdmin={isAdmin}
         theme={theme}
       />
+      {isAdmin(currentUser) && <GroupSettingsForm group={group} />}
       {isAdmin(currentUser) && (
         <Button secondary onClick={() => setConfirmDeleteOpen(true)}>
           Delete Group

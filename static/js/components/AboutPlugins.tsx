@@ -163,12 +163,101 @@ const AboutPlugins = () => {
           </a>
           .
         </BibLink>
+        <BibLink
+          bibtex={`@article{duev2019real,
+  title={Real-bogus classification for the Zwicky Transient Facility using deep learning},
+  author={Duev, Dmitry A and Mahabal, Ashish and Masci, Frank J and Graham, Matthew J and Rusholme, Ben and Walters, Richard and Karmarkar, Ishani and Frederick, Sara and Kasliwal, Mansi M and Rebbapragada, Umaa and others},
+  journal={Monthly Notices of the Royal Astronomical Society},
+  volume={489},
+  number={3},
+  pages={3582--3590},
+  year={2019},
+  publisher={Oxford University Press}
+  url={https://ui.adsabs.harvard.edu/abs/2019MNRAS.489.3582D/abstract}
+}`}
+        >
+          Duev, Dmitry A., et al.,{" "}
+          <em>
+            Real-bogus classification for the Zwicky Transient Facility using
+            deep learning.
+          </em>{" "}
+          Monthly Notices of the Royal Astronomical Society, 489(3) 3582-3590,
+          2019.{" "}
+          <a href="https://doi.org/10.1093/mnras/stz2357">
+            https://doi.org/10.1093/mnras/stz2357
+          </a>
+          .
+        </BibLink>
+        <BibLink
+          bibtex={`@article{Kasliwal_2019,
+    doi = {10.1088/1538-3873/aafbc2},
+    url = {https://doi.org/10.1088%2F1538-3873%2Faafbc2},
+    year = 2019,
+    month = {feb},
+    publisher = {{IOP} Publishing},
+    volume = {131},
+    number = {997},
+    pages = {038003},
+    author = {M. M. Kasliwal and C. Cannella and A. Bagdasaryan and T. Hung and U. Feindt and L. P. Singer and M. Coughlin and C. Fremling and R. Walters and D. Duev and R. Itoh and R. M. Quimby},
+    title = {The {GROWTH} Marshal: A Dynamic Science Portal for Time-domain Astronomy},
+    journal = {Publications of the Astronomical Society of the Pacific},
+}`}
+        >
+          Kasliwal, M., et al.,{" "}
+          <em>
+            The GROWTH marshal: a dynamic science portal for time-domain
+            astronomy.
+          </em>{" "}
+          Publications of the Astronomical Society of the Pacific, 131(997)
+          038003, Feb 2019.{" "}
+          <a href="https://doi.org/10.1088%2F1538-3873%2Faafbc2">
+            https://doi.org/10.1088%2F1538-3873%2Faafbc2
+          </a>
+          .
+        </BibLink>
       </div>
+      <div>
+        If you found the ACAI machine learning classifiers useful, please
+        consider citing:
+        <BibLink
+          bibtex={`@ARTICLE{2021arXiv211112142D,
+       author = {{Duev}, Dmitry A. and {van der Walt}, St{\\'e}fan J.},
+        title = "{Phenomenological classification of the Zwicky Transient Facility astronomical event alerts}",
+      journal = {arXiv e-prints},
+     keywords = {Astrophysics - Instrumentation and Methods for Astrophysics},
+         year = 2021,
+        month = nov,
+          eid = {arXiv:2111.12142},
+        pages = {arXiv:2111.12142},
+archivePrefix = {arXiv},
+       eprint = {2111.12142},
+ primaryClass = {astro-ph.IM},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2021arXiv211112142D},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}`}
+        >
+          Dmitry A. Duev & Stéfan J. van der Walt,{" "}
+          <em>
+            Phenomenological classification of the Zwicky Transient Facility
+            astronomical event alerts.{" "}
+          </em>
+          <a href="https://arxiv.org/abs/2111.12142">arXiv:2111.12142</a>.
+        </BibLink>
+      </div>
+      <Typography variant="body1">
+        SkyPortal development is funded by the Moore Foundation, Heising Simons
+        Foundation, National Science Foundation, NASA and the Packard
+        Foundation.
+      </Typography>
       {gitlog && (
         <>
           <Typography variant="h5">Recent Changelog</Typography>
           <Paper className={classes.gitlogPaper}>
-            <Box p={1}>
+            <Box
+              sx={{
+                p: 1,
+              }}
+            >
               <div>
                 See all pull requests at{" "}
                 <a href="https://github.com/skyportal/skyportal/pulls?q=is%3Apr+">

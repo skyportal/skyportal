@@ -75,18 +75,27 @@ const skyportalBaseQuery: BaseQueryFn<
 > = async (args, api, extraOptions) => {
   const result = await rawBaseQuery(args, api, extraOptions);
 
+  // Endpoints that expect misses (e.g. "is this object already a source?") can
+  // opt out of the automatic error notification.
+  const quiet = (extraOptions as { suppressErrorNotification?: boolean })
+    ?.suppressErrorNotification;
+
   if (result.error) {
-    const message =
-      (result.error.data as ApiEnvelope | undefined)?.message ??
-      `Request failed (${result.error.status})`;
-    api.dispatch(showNotification(`${message}`, "error"));
+    if (!quiet) {
+      const message =
+        (result.error.data as ApiEnvelope | undefined)?.message ??
+        `Request failed (${result.error.status})`;
+      api.dispatch(showNotification(`${message}`, "error"));
+    }
     return result;
   }
 
   const envelope = result.data as ApiEnvelope;
   if (envelope?.status !== "success") {
     const message = envelope?.message ?? "Unknown API error";
-    api.dispatch(showNotification(`${message}`, "error"));
+    if (!quiet) {
+      api.dispatch(showNotification(`${message}`, "error"));
+    }
     return {
       error: {
         status: "CUSTOM_ERROR",
@@ -109,24 +118,22 @@ const skyportalBaseQuery: BaseQueryFn<
  */
 export const TAG_TYPES = [
   "SysInfo",
+  "Broker",
   "DBStats",
   "DBInfo",
   "Acls",
   "Earthquake",
   "Earthquakes",
-  "FollowupApis",
   "GcnTags",
   "Instruments",
   "MMADetectors",
   "ObservingRun",
   "Profile",
-  "Reminders",
   "Source",
   "SourcePosition",
   "Stream",
   "Telescopes",
   "Weather",
-  "ScanReports",
   "Allocation",
   "Config",
   "EarthquakeStatus",
@@ -139,7 +146,7 @@ export const TAG_TYPES = [
   "TopSaver",
   "PublicSourcePage",
   "DefaultFollowupRequest",
-  "EnumType",
+  "DefaultAnalysis",
   "Galaxy",
   "GroupAdmissionRequest",
   "Localization",
@@ -148,16 +155,12 @@ export const TAG_TYPES = [
   "RecentGcnEvent",
   "SharingService",
   "SharingServiceSubmission",
-  "Summary",
-  "TopSource",
   "PublicRelease",
   "AnalysisService",
   "DefaultGcnTag",
   "Ephemeris",
   "GcnEvent",
   "LocalizationProperties",
-  "ObjectTag",
-  "PhotometryMinimal",
   "RecentSource",
   "Shift",
   "SourceInGcn",
@@ -178,66 +181,30 @@ export const TAG_TYPES = [
   "CatalogQuery",
   "DefaultSurveyEfficiency",
   "Filter",
-  "GcnProperties",
-  "InstrumentLogExternal",
   "Observations",
-  "GcnEventObservations",
   "RejectedCandidates",
-  "SkymapTrigger",
-  "Spectra",
   "Taxonomies",
-  "UsersManagement",
   "ScanReport",
   "FollowupApi",
   "SpatialCatalogs",
   "Taxonomy",
-  "UserManagement",
   "AnalysisServices",
   "Galaxies",
   "MMADetector",
   "Telescope",
   "AnnotationsInfo",
+  "AltdataInfo",
   "EnumTypes",
   "InstrumentLog",
-  "MovingObject",
-  "ObservingRuns",
-  "PublicReleases",
   "Streams",
   "TopSavers",
   "Candidates",
-  "DefaultGcnTags",
-  "Invitations",
-  "TagOption",
-  "SourcePhotometryMinimal",
   "QueuedObservations",
-  "SharingServices",
   "Sources",
   "UserNotifications",
   "Observation",
-  "GcnEventObservation",
-  "DefaultFollowupRequests",
-  "FollowupRequests",
-  "Releases",
-  "Notifications",
   "FetchDefaultGcnTags",
-  "SubmitDefaultGcnTag",
-  "DeleteDefaultGcnTag",
-  "InviteUser",
-  "FetchInvitations",
-  "UpdateInvitation",
-  "DeleteInvitation",
-  "GeneratePublicSourcePage",
   "FetchPublicSourcePages",
-  "DeletePublicSourcePage",
-  "FetchStreams",
-  "AddStream",
-  "DeleteStream",
-  "AddGroupStream",
-  "DeleteGroupStream",
-  "AddStreamUser",
-  "DeleteStreamUser",
-  "SummaryQuery",
-  "ObjectTags",
   "RecurringAPIs",
   "Reminder",
   "ObjTagOption",
@@ -245,10 +212,16 @@ export const TAG_TYPES = [
   "SourceTag",
   "SourceView",
   "Filters",
-  "Localizations",
   "InstrumentForms",
   "InstrumentObsplanForms",
   "GcnEventInstruments",
+  "Team",
+  "GcnEventObservation",
+  "GcnProperties",
+  "Invitations",
+  "Localizations",
+  "Spectra",
+  "UserManagement",
 ] as const;
 
 export const skyportalApi = createApi({

@@ -236,8 +236,10 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               name="mjd"
               onChange={handleChange}
               type="text"
-              inputProps={{ inputMode: "decimal" }}
               variant="outlined"
+              slotProps={{
+                htmlInput: { inputMode: "decimal" },
+              }}
             />
           </div>
           <p />
@@ -250,8 +252,10 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               name="mag"
               onChange={handleChange}
               type="text"
-              inputProps={{ inputMode: "decimal" }}
               variant="outlined"
+              slotProps={{
+                htmlInput: { inputMode: "decimal" },
+              }}
             />
           </div>
           <p />
@@ -264,8 +268,10 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               name="magerr"
               onChange={handleChange}
               type="text"
-              inputProps={{ inputMode: "decimal" }}
               variant="outlined"
+              slotProps={{
+                htmlInput: { inputMode: "decimal" },
+              }}
             />
           </div>
           <p />
@@ -278,8 +284,10 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               name="limiting_mag"
               onChange={handleChange}
               type="text"
-              inputProps={{ inputMode: "decimal" }}
               variant="outlined"
+              slotProps={{
+                htmlInput: { inputMode: "decimal" },
+              }}
             />
           </div>
           <p />

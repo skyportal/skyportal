@@ -81,6 +81,7 @@ from ...models import (
     MMADetector,
     Obj,
     ObservationPlanRequest,
+    PhotStat,
     Source,
     SourcesConfirmedInGCN,
     SurveyEfficiencyForObservations,
@@ -91,6 +92,7 @@ from ...utils.gcn import (
     from_bytes,
     from_cone,
     from_ellipse,
+    from_igwn_gwalert,
     from_polygon,
     from_url,
     get_contour,
@@ -293,6 +295,13 @@ async def post_gcnevent_from_xml(
         dateobs = event.dateobs
     else:
         dateobs = event.dateobs
+        update_check = await session.scalar(
+            GcnEvent.select(user, mode="update").where(GcnEvent.id == event.id)
+        )
+        if update_check is None:
+            raise ValueError(
+                "Insufficient permissions: GCN event can only be updated by original poster"
+            )
 
     event_id = event.id
 
@@ -502,10 +511,19 @@ async def post_gcnevent_from_json(
             f"Unsupported JSON payload dtype, must be one of string, bytes, or dict, not {type(payload)}"
         )
 
+    # Raw IGWN/LVK gwalert alerts are normalized to the canonical notice shape.
+    # from_igwn_gwalert is idempotent, so this is safe if already normalized.
+    if payload.get("superevent_id") is not None and payload.get("alert_type"):
+        payload = from_igwn_gwalert(payload)
+
     user = await session.get(User, user_id)
 
-    dateobs = Time(payload["trigger_time"], format="isot", precision=0)
-    dateobs = Time(dateobs.iso).datetime
+    # A retraction (e.g. an IGWN gwalert) carries no trigger_time; its dateobs is
+    # resolved from the existing event matched below via ref_ID/aliases.
+    dateobs = None
+    if payload.get("trigger_time"):
+        dateobs = Time(payload["trigger_time"], format="isot", precision=0)
+        dateobs = Time(dateobs.iso).datetime
 
     event = None
     ref_ID = payload.get("ref_ID", None)
@@ -518,14 +536,21 @@ async def post_gcnevent_from_json(
             )
         )
 
-    if event is None:
+    if event is None and dateobs is not None:
         event = await session.scalar(
             GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
         )
 
+    aliases = payload.get("aliases") or []
     if event is None:
+        if dateobs is None:
+            raise ValueError(
+                "Cannot ingest GCN notice: no trigger_time and no existing event "
+                "to update (e.g. retraction of an unknown event)."
+            )
         event = GcnEvent(
             dateobs=dateobs,
+            aliases=aliases or None,
             sent_by_id=user.id,
         )
         session.add(event)
@@ -541,10 +566,26 @@ async def post_gcnevent_from_json(
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
+        # add any new aliases (e.g. LVC#superevent) not already present
+        new_aliases = [a for a in aliases if a not in (event.aliases or [])]
+        if new_aliases:
+            event.aliases = (event.aliases or []) + new_aliases
+            session.add(event)
+            await session.commit()
 
     event_id = event.id
 
-    tags = get_json_tags(payload)
+    tag_texts = get_json_tags(payload)
+
+    # A later notice for the same event (e.g. an IGWN update/retraction) re-emits
+    # tags already stored; skip those to avoid a unique-constraint violation.
+    existing_tags = set(
+        (
+            await session.scalars(
+                sa.select(GcnTag.text).where(GcnTag.dateobs == event.dateobs)
+            )
+        ).all()
+    )
 
     tags = [
         GcnTag(
@@ -552,7 +593,8 @@ async def post_gcnevent_from_json(
             text=text,
             sent_by_id=user.id,
         )
-        for text in tags
+        for text in tag_texts
+        if text not in existing_tags
     ]
 
     detectors = []
@@ -572,6 +614,16 @@ async def post_gcnevent_from_json(
             .options(selectinload(GcnEvent.detectors))
         )
         event_loaded.detectors = detectors
+
+    # Store classification/astro/FAR properties (e.g. from an IGWN gwalert).
+    if payload.get("properties"):
+        session.add(
+            GcnProperty(
+                dateobs=event.dateobs,
+                sent_by_id=user.id,
+                data=payload["properties"],
+            )
+        )
     await session.commit()
 
     date = dateobs
@@ -1573,9 +1625,12 @@ class GcnEventHandler(BaseHandler):
 
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 10)
-        page_number, n_per_page = get_page_and_n_per_page(
-            page_number, n_per_page, MAX_GCNEVENTS
-        )
+        try:
+            page_number, n_per_page = get_page_and_n_per_page(
+                page_number, n_per_page, MAX_GCNEVENTS
+            )
+        except ValueError as e:
+            return self.error(str(e))
 
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
@@ -1830,140 +1885,19 @@ class GcnEventHandler(BaseHandler):
             if end_date:
                 end_date = arrow.get(end_date.strip()).datetime
                 query = query.where(GcnEvent.dateobs <= end_date)
-            if gcn_tag_keep:
-                gcn_tag_subquery = (
-                    GcnTag.select(session.user_or_token)
-                    .where(GcnTag.text.in_(gcn_tag_keep))
-                    .subquery()
+            try:
+                query = apply_gcn_event_filters(
+                    query,
+                    session.user_or_token,
+                    gcn_tag_keep=gcn_tag_keep,
+                    gcn_tag_remove=gcn_tag_remove,
+                    localization_tag_keep=localization_tag_keep,
+                    localization_tag_remove=localization_tag_remove,
+                    gcn_properties_filter=gcn_properties_filter,
+                    localization_properties_filter=localization_properties_filter,
                 )
-                query = query.join(
-                    gcn_tag_subquery, GcnEvent.dateobs == gcn_tag_subquery.c.dateobs
-                )
-            if gcn_tag_remove:
-                gcn_tag_subquery = (
-                    GcnTag.select(session.user_or_token)
-                    .where(GcnTag.text.in_(gcn_tag_remove))
-                    .subquery()
-                )
-                gcn_dateobs_query = GcnEvent.select(
-                    session.user_or_token, columns=[GcnEvent.dateobs]
-                ).where(GcnEvent.dateobs == gcn_tag_subquery.c.dateobs)
-
-                query = query.where(GcnEvent.dateobs.notin_(gcn_dateobs_query))
-            if localization_tag_keep:
-                tag_subquery = (
-                    LocalizationTag.select(session.user_or_token)
-                    .where(LocalizationTag.text.in_(localization_tag_keep))
-                    .subquery()
-                )
-                localization_id_query = (
-                    Localization.select(
-                        session.user_or_token, columns=[Localization.dateobs]
-                    )
-                    .where(Localization.id == tag_subquery.c.localization_id)
-                    .subquery()
-                )
-                query = query.where(GcnEvent.dateobs.in_(localization_id_query))
-            if localization_tag_remove:
-                tag_subquery = (
-                    LocalizationTag.select(session.user_or_token)
-                    .where(LocalizationTag.text.in_(localization_tag_remove))
-                    .subquery()
-                )
-                localization_id_query = (
-                    Localization.select(
-                        session.user_or_token, columns=[Localization.dateobs]
-                    )
-                    .where(Localization.id == tag_subquery.c.localization_id)
-                    .subquery()
-                )
-                query = query.where(GcnEvent.dateobs.notin_(localization_id_query))
-            if gcn_properties_filter is not None:
-                for prop_filt in gcn_properties_filter:
-                    prop_split = prop_filt.split(":")
-                    if not (len(prop_split) == 1 or len(prop_split) == 3):
-                        return self.error(
-                            "Invalid gcnPropertiesFilter value -- property filter must have 1 or 3 values"
-                        )
-                    name = prop_split[0].strip()
-
-                    properties_query = GcnProperty.select(session.user_or_token)
-                    if len(prop_split) == 3:
-                        value = prop_split[1].strip()
-                        try:
-                            value = float(value)
-                        except ValueError as e:
-                            return self.error(
-                                f"Invalid GCN properties filter value: {e}"
-                            )
-                        op = prop_split[2].strip()
-                        op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
-                        if op not in op_options:
-                            return self.error(f"Invalid operator: {op}")
-                        comp_function = getattr(operator, op)
-
-                        properties_query = properties_query.where(
-                            comp_function(GcnProperty.data[name], cast(value, JSONB))
-                        )
-                    else:
-                        properties_query = properties_query.where(
-                            GcnProperty.data[name].astext.is_not(None)
-                        )
-
-                    properties_subquery = properties_query.subquery()
-                    query = query.join(
-                        properties_subquery,
-                        GcnEvent.dateobs == properties_subquery.c.dateobs,
-                    )
-
-            if localization_properties_filter is not None:
-                for prop_filt in localization_properties_filter:
-                    prop_split = prop_filt.split(":")
-                    if not (len(prop_split) == 1 or len(prop_split) == 3):
-                        return self.error(
-                            "Invalid localizationPropertiesFilter value -- property filter must have 1 or 3 values"
-                        )
-                    name = prop_split[0].strip()
-
-                    properties_query = LocalizationProperty.select(
-                        session.user_or_token
-                    )
-                    if len(prop_split) == 3:
-                        value = prop_split[1].strip()
-                        try:
-                            value = float(value)
-                        except ValueError as e:
-                            return self.error(
-                                f"Invalid localization properties filter value: {e}"
-                            )
-                        op = prop_split[2].strip()
-                        op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
-                        if op not in op_options:
-                            return self.error(f"Invalid operator: {op}")
-                        comp_function = getattr(operator, op)
-
-                        properties_query = properties_query.where(
-                            comp_function(
-                                LocalizationProperty.data[name], cast(value, JSONB)
-                            )
-                        )
-                    else:
-                        properties_query = properties_query.where(
-                            LocalizationProperty.data[name].astext.is_not(None)
-                        )
-
-                    properties_subquery = properties_query.subquery()
-                    localizations_query = Localization.select(session.user_or_token)
-                    localizations_query = localizations_query.join(
-                        properties_subquery,
-                        Localization.id == properties_subquery.c.localization_id,
-                    )
-                    localizations_subquery = localizations_query.subquery()
-
-                    query = query.join(
-                        localizations_subquery,
-                        GcnEvent.dateobs == localizations_subquery.c.dateobs,
-                    )
+            except ValueError as e:
+                return self.error(str(e))
 
             total_matches = await session.scalar(
                 sa.select(sa.func.count()).select_from(query.distinct())
@@ -2499,13 +2433,19 @@ async def add_default_gcn_tags_async(user, session, dateobs=None, localization=N
             event = await session.scalar(
                 GcnEvent.select(user)
                 .where(GcnEvent.dateobs == localization.dateobs)
-                .options(selectinload(GcnEvent.gcn_notices))
+                .options(
+                    selectinload(GcnEvent.gcn_notices),
+                    selectinload(GcnEvent._tags),
+                )
             )
         else:
             event = await session.scalar(
                 GcnEvent.select(user)
                 .where(GcnEvent.dateobs == dateobs)
-                .options(selectinload(GcnEvent.gcn_notices))
+                .options(
+                    selectinload(GcnEvent.gcn_notices),
+                    selectinload(GcnEvent._tags),
+                )
             )
         event_notice_types = [notice.notice_type for notice in event.gcn_notices]
         event_tags = event.tags
@@ -2629,9 +2569,9 @@ def add_observation_plans(localization_id, user_id, parent_session=None):
                 "payload": plan.payload,
                 "default": plan.id,
                 "auto_send": plan.auto_send,
-                "requester_id": user.id
-                if plan.requester_id is None
-                else plan.requester_id,
+                "requester_id": (
+                    user.id if plan.requester_id is None else plan.requester_id
+                ),
             }
             gcn_observation_plans.append(gcn_observation_plan)
 
@@ -3218,23 +3158,23 @@ def add_gcn_summary(
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
-        user = session.query(User).get(user_id)
+        user = session.get(User, user_id)
         session.user_or_token = user
 
         if isinstance(dateobs, str):
             dateobs = arrow.get(dateobs).naive
 
-        gcn_summary = session.query(GcnSummary).get(summary_id)
-        group = session.query(Group).get(group_id)
-        event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
-        localization = (
-            session.query(Localization)
-            .filter(
+        gcn_summary = session.get(GcnSummary, summary_id)
+        group = session.get(Group, group_id)
+        event = session.scalars(
+            sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
+        ).first()
+        localization = session.scalars(
+            sa.select(Localization).where(
                 Localization.dateobs == dateobs,
                 Localization.localization_name == localization_name,
             )
-            .first()
-        )
+        ).first()
 
         start_date_mjd = Time(arrow.get(start_date).datetime).mjd
         end_date_mjd = Time(arrow.get(end_date).datetime).mjd
@@ -3271,7 +3211,7 @@ def add_gcn_summary(
 
             users = []
             for mentioned_user_id in user_ids:
-                mentioned_user = session.query(User).get(mentioned_user_id)
+                mentioned_user = session.get(User, mentioned_user_id)
                 if mentioned_user is not None:
                     users.append(mentioned_user)
 
@@ -3419,9 +3359,13 @@ def add_gcn_summary(
                 df_rejected = df_rejected.drop(columns=["status"])
                 df = df.fillna("--")
 
-                sources_text.append(
-                    f"\nFound **{len(sources)} {'sources' if len(sources) > 1 else 'source'}** in the event's localization, {df_rejected.shape[0]} of which {'have' if df_rejected.shape[0] > 1 else 'has'} been rejected after characterization:\n"
-                ) if not no_text else None
+                (
+                    sources_text.append(
+                        f"\nFound **{len(sources)} {'sources' if len(sources) > 1 else 'source'}** in the event's localization, {df_rejected.shape[0]} of which {'have' if df_rejected.shape[0] > 1 else 'has'} been rejected after characterization:\n"
+                    )
+                    if not no_text
+                    else None
+                )
 
                 if df_confirmed_or_unknown.shape[0] > 0:
                     if not no_text:
@@ -3461,9 +3405,13 @@ def add_gcn_summary(
                         )
                     photometry = session.scalars(stmt).all()
                     if len(photometry) > 0:
-                        sources_text.append(
-                            f"""\nPhotometry of **{source["id"]}**:\n"""
-                        ) if not no_text else None
+                        (
+                            sources_text.append(
+                                f"""\nPhotometry of **{source["id"]}**:\n"""
+                            )
+                            if not no_text
+                            else None
+                        )
                         mjds, mags, filters, origins, instruments = (
                             [],
                             [],
@@ -3553,9 +3501,13 @@ def add_gcn_summary(
                 if len(galaxies_data["galaxies"]) < MAX_GALAXIES:
                     break
             if len(galaxies) > 0:
-                galaxies_text.append(
-                    f"""\nFound **{len(galaxies)} {"galaxies" if len(galaxies) > 1 else "galaxy"}** in the event's localization:\n"""
-                ) if not no_text else None
+                (
+                    galaxies_text.append(
+                        f"""\nFound **{len(galaxies)} {"galaxies" if len(galaxies) > 1 else "galaxy"}** in the event's localization:\n"""
+                    )
+                    if not no_text
+                    else None
+                )
                 names, ras, decs, distmpcs, magks, mag_nuvs, mag_w1s, probabilities = (
                     [],
                     [],
@@ -3694,9 +3646,13 @@ def add_gcn_summary(
 
                         dt = start_observation.datetime - event.dateobs
                         before_after = "after" if dt.total_seconds() > 0 else "before"
-                        observations_text.append(
-                            f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format="datetime").isot} UTC.  We obtained a total of **{num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)} times**, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the trigger time). Using the {localization_name} skymap, this corresponds to **~{int(100 * probability)}% of the probability enclosed in the localization region**.\n"""
-                        ) if not no_text else None
+                        (
+                            observations_text.append(
+                                f"""\n\n{instrument.telescope.name} - {instrument.name}:\n\nWe observed the localization region of {event.gcn_notices[0].stream} trigger {astropy.time.Time(event.dateobs, format="datetime").isot} UTC.  We obtained a total of **{num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees of the localization at least {nb_obs_to_word(number_of_observations)} times**, beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} {before_after} the trigger time). Using the {localization_name} skymap, this corresponds to **~{int(100 * probability)}% of the probability enclosed in the localization region**.\n"""
+                            )
+                            if not no_text
+                            else None
+                        )
                         t0s, mjds, ras, decs, filters, exposures, limmags = (
                             [],
                             [],
@@ -3795,7 +3751,7 @@ def add_gcn_summary(
 
     except Exception as e:
         try:
-            gcn_summary = session.query(GcnSummary).get(summary_id)
+            gcn_summary = session.get(GcnSummary, summary_id)
             gcn_summary.text = "Failed to generate summary."
             session.commit()
         except Exception:
@@ -4346,26 +4302,26 @@ def add_gcn_report(
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
     try:
-        user = session.query(User).get(user_id)
+        user = session.get(User, user_id)
         user_accessible_group_ids = [group.id for group in user.accessible_groups]
         session.user_or_token = user
 
         if isinstance(dateobs, str):
             dateobs = arrow.get(dateobs).naive
 
-        gcn_report = session.query(GcnReport).get(report_id)
+        gcn_report = session.get(GcnReport, report_id)
 
         try:
-            group = session.query(Group).get(group_id)
-            event = session.query(GcnEvent).filter(GcnEvent.dateobs == dateobs).first()
-            localization = (
-                session.query(Localization)
-                .filter(
+            group = session.get(Group, group_id)
+            event = session.scalars(
+                sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
+            ).first()
+            localization = session.scalars(
+                sa.select(Localization).where(
                     Localization.dateobs == dateobs,
                     Localization.localization_name == localization_name,
                 )
-                .first()
-            )
+            ).first()
             start_date_mjd = Time(arrow.get(start_date).datetime).mjd
             end_date_mjd = Time(arrow.get(end_date).datetime).mjd
 
@@ -4580,7 +4536,7 @@ def add_gcn_report(
         except Exception as e:
             try:
                 session.rollback()
-                gcn_report = session.query(GcnReport).get(report_id)
+                gcn_report = session.get(GcnReport, report_id)
                 gcn_report.data = to_json({"status": "error", "message": str(e)})
                 session.commit()
             except Exception:
@@ -5616,6 +5572,157 @@ class GcnEventTriggerHandler(BaseHandler):
                 return self.error(f"Failed to delete triggered status: str({e})")
 
 
+def apply_gcn_event_filters(
+    query,
+    user_or_token,
+    gcn_tag_keep=None,
+    gcn_tag_remove=None,
+    localization_tag_keep=None,
+    localization_tag_remove=None,
+    gcn_properties_filter=None,
+    localization_properties_filter=None,
+):
+    """Apply GCN/localization tag and property filters to a GcnEvent select query.
+
+    Shared by the events list handler and the object crossmatch handler. Raises
+    ValueError on a malformed property filter (callers translate to self.error).
+    """
+    if gcn_tag_keep:
+        gcn_tag_subquery = (
+            GcnTag.select(user_or_token).where(GcnTag.text.in_(gcn_tag_keep)).subquery()
+        )
+        query = query.join(
+            gcn_tag_subquery, GcnEvent.dateobs == gcn_tag_subquery.c.dateobs
+        )
+    if gcn_tag_remove:
+        gcn_tag_subquery = (
+            GcnTag.select(user_or_token)
+            .where(GcnTag.text.in_(gcn_tag_remove))
+            .subquery()
+        )
+        gcn_dateobs_query = GcnEvent.select(
+            user_or_token, columns=[GcnEvent.dateobs]
+        ).where(GcnEvent.dateobs == gcn_tag_subquery.c.dateobs)
+        query = query.where(GcnEvent.dateobs.notin_(gcn_dateobs_query))
+    if localization_tag_keep:
+        tag_subquery = (
+            LocalizationTag.select(user_or_token)
+            .where(LocalizationTag.text.in_(localization_tag_keep))
+            .subquery()
+        )
+        localization_id_query = (
+            Localization.select(user_or_token, columns=[Localization.dateobs])
+            .where(Localization.id == tag_subquery.c.localization_id)
+            .subquery()
+        )
+        query = query.where(GcnEvent.dateobs.in_(localization_id_query))
+    if localization_tag_remove:
+        tag_subquery = (
+            LocalizationTag.select(user_or_token)
+            .where(LocalizationTag.text.in_(localization_tag_remove))
+            .subquery()
+        )
+        localization_id_query = (
+            Localization.select(user_or_token, columns=[Localization.dateobs])
+            .where(Localization.id == tag_subquery.c.localization_id)
+            .subquery()
+        )
+        query = query.where(GcnEvent.dateobs.notin_(localization_id_query))
+    if gcn_properties_filter is not None:
+        for prop_filt in gcn_properties_filter:
+            prop_split = prop_filt.split(":")
+            if not (len(prop_split) == 1 or len(prop_split) == 3):
+                raise ValueError(
+                    "Invalid gcnPropertiesFilter value -- property filter must have 1 or 3 values"
+                )
+            name = prop_split[0].strip()
+
+            properties_query = GcnProperty.select(user_or_token)
+            if len(prop_split) == 3:
+                value = prop_split[1].strip()
+                try:
+                    value = float(value)
+                except ValueError as e:
+                    raise ValueError(f"Invalid GCN properties filter value: {e}")
+                op = prop_split[2].strip()
+                op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                if op not in op_options:
+                    raise ValueError(f"Invalid operator: {op}")
+                comp_function = getattr(operator, op)
+
+                properties_query = properties_query.where(
+                    comp_function(GcnProperty.data[name], cast(value, JSONB))
+                )
+            else:
+                properties_query = properties_query.where(
+                    GcnProperty.data[name].astext.is_not(None)
+                )
+
+            properties_subquery = properties_query.subquery()
+            query = query.join(
+                properties_subquery,
+                GcnEvent.dateobs == properties_subquery.c.dateobs,
+            )
+
+    if localization_properties_filter is not None:
+        for prop_filt in localization_properties_filter:
+            prop_split = prop_filt.split(":")
+            if not (len(prop_split) == 1 or len(prop_split) == 3):
+                raise ValueError(
+                    "Invalid localizationPropertiesFilter value -- property filter must have 1 or 3 values"
+                )
+            name = prop_split[0].strip()
+
+            properties_query = LocalizationProperty.select(user_or_token)
+            if len(prop_split) == 3:
+                value = prop_split[1].strip()
+                try:
+                    value = float(value)
+                except ValueError as e:
+                    raise ValueError(
+                        f"Invalid localization properties filter value: {e}"
+                    )
+                op = prop_split[2].strip()
+                op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                if op not in op_options:
+                    raise ValueError(f"Invalid operator: {op}")
+                comp_function = getattr(operator, op)
+
+                properties_query = properties_query.where(
+                    comp_function(LocalizationProperty.data[name], cast(value, JSONB))
+                )
+            else:
+                properties_query = properties_query.where(
+                    LocalizationProperty.data[name].astext.is_not(None)
+                )
+
+            properties_subquery = properties_query.subquery()
+            localizations_query = Localization.select(user_or_token)
+            localizations_query = localizations_query.join(
+                properties_subquery,
+                Localization.id == properties_subquery.c.localization_id,
+            )
+            localizations_subquery = localizations_query.subquery()
+
+            query = query.join(
+                localizations_subquery,
+                GcnEvent.dateobs == localizations_subquery.c.dateobs,
+            )
+
+    return query
+
+
+def parse_gcn_filter_list(value, name):
+    """Parse a filter argument (JSON array or comma-separated string) into a list."""
+    if value in (None, "", []):
+        return None
+    if isinstance(value, list):
+        return [str(c).strip() for c in value]
+    if isinstance(value, str):
+        return [c.strip() for c in value.split(",")]
+    raise ValueError(f"Invalid {name} value -- must provide at least one string value")
+
+
 class ObjGcnEventHandler(BaseHandler):
     @auth_or_token
     async def post(self, obj_id: str):
@@ -5649,6 +5756,46 @@ class ObjGcnEventHandler(BaseHandler):
                     description: |
                       Arrow-parseable date string (e.g. 2020-01-01).
                       If provided, filter by GcnEvent.dateobs <= startDate.
+                  probability:
+                    type: number
+                    description: Integrated probability contour to crossmatch within (default 0.95).
+                  beforeFirstDetection:
+                    type: boolean
+                    description: |
+                      If true, only crossmatch GCN events at or before the source's
+                      first detection.
+                  gcnTagKeep:
+                    type: array
+                    items:
+                      type: string
+                    description: Only crossmatch events having any of these GCN tags.
+                  gcnTagRemove:
+                    type: array
+                    items:
+                      type: string
+                    description: Exclude events having any of these GCN tags.
+                  localizationTagKeep:
+                    type: array
+                    items:
+                      type: string
+                    description: Only crossmatch events with a localization having any of these tags.
+                  localizationTagRemove:
+                    type: array
+                    items:
+                      type: string
+                    description: Exclude events with a localization having any of these tags.
+                  gcnPropertiesFilter:
+                    type: array
+                    items:
+                      type: string
+                    description: |
+                      GCN property filters, each "name" or "name:value:op"
+                      (op in lt,le,eq,ne,ge,gt).
+                  localizationPropertiesFilter:
+                    type: array
+                    items:
+                      type: string
+                    description: Localization property filters, same format as gcnPropertiesFilter.
         responses:
           200:
             content:
@@ -5664,6 +5811,27 @@ class ObjGcnEventHandler(BaseHandler):
         start_date = data.get("startDate", None)
         end_date = data.get("endDate", None)
         integrated_probability = data.get("probability", None)
+        before_first_detection = data.get("beforeFirstDetection", False)
+
+        try:
+            gcn_tag_keep = parse_gcn_filter_list(data.get("gcnTagKeep"), "gcnTagKeep")
+            gcn_tag_remove = parse_gcn_filter_list(
+                data.get("gcnTagRemove"), "gcnTagRemove"
+            )
+            localization_tag_keep = parse_gcn_filter_list(
+                data.get("localizationTagKeep"), "localizationTagKeep"
+            )
+            localization_tag_remove = parse_gcn_filter_list(
+                data.get("localizationTagRemove"), "localizationTagRemove"
+            )
+            gcn_properties_filter = parse_gcn_filter_list(
+                data.get("gcnPropertiesFilter"), "gcnPropertiesFilter"
+            )
+            localization_properties_filter = parse_gcn_filter_list(
+                data.get("localizationPropertiesFilter"), "localizationPropertiesFilter"
+            )
+        except ValueError as e:
+            return self.error(str(e))
 
         if start_date is None or end_date is None:
             return self.error("Must provide startDate and endDate query arguments.")
@@ -5697,10 +5865,42 @@ class ObjGcnEventHandler(BaseHandler):
                 GcnEvent.dateobs <= end_date,
             )
 
+            # Optionally restrict to events at/before the source's first detection.
+            if before_first_detection:
+                photstat = await session.scalar(
+                    sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+                )
+                first_detected_mjd = getattr(photstat, "first_detected_mjd", None)
+                if first_detected_mjd is None:
+                    return self.error(
+                        f"Cannot restrict to events before first detection: {obj_id} "
+                        "has no detection statistics."
+                    )
+                query = query.where(
+                    GcnEvent.dateobs <= Time(first_detected_mjd, format="mjd").datetime
+                )
+
+            try:
+                query = apply_gcn_event_filters(
+                    query,
+                    session.user_or_token,
+                    gcn_tag_keep=gcn_tag_keep,
+                    gcn_tag_remove=gcn_tag_remove,
+                    localization_tag_keep=localization_tag_keep,
+                    localization_tag_remove=localization_tag_remove,
+                    gcn_properties_filter=gcn_properties_filter,
+                    localization_properties_filter=localization_properties_filter,
+                )
+            except ValueError as e:
+                return self.error(str(e))
+
             result = await session.scalars(query)
             event_ids = [event.id for event in result.unique().all()]
             if len(event_ids) == 0:
-                return self.error("Cannot find GcnEvents in those bounds.")
+                return self.error(
+                    f"Cannot find GcnEvents between {start_date} and {end_date} "
+                    "matching the selected filters."
+                )
 
             try:
                 loop = asyncio.get_event_loop()

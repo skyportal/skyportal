@@ -1,4 +1,8 @@
-import { useGetProfileQuery } from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useIsReadOnly,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 import React, {
   Suspense,
   useEffect,
@@ -74,12 +78,14 @@ import {
 import {
   useLazyFetchPendingGroupSourcesQuery,
   useLazyFetchSavedGroupSourcesQuery,
+  useGetAltdataInfoQuery,
 } from "../../ducks/sources";
 import { photometryApi } from "../../ducks/photometry";
 import { useGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
 import { useGetGcnEventQuery } from "../../ducks/gcnEvent";
 import { useGetTagOptionsQuery } from "../../ducks/objectTags";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
+import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
 import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
@@ -451,8 +457,10 @@ const SourceDetailPanel = React.memo(
           container
           direction="row"
           spacing={3}
-          justifyContent="center"
-          alignItems="center"
+          sx={{
+            justifyContent: "center",
+            alignItems: "center",
+          }}
         >
           <ThumbnailList
             thumbnails={source.thumbnails}
@@ -636,6 +644,7 @@ const SourceTable = ({
 
   const { classes } = useStyles() as { classes: any };
 
+  const isReadOnly = useIsReadOnly();
   const [searchBy, setSearchBy] = useState("name");
   const [searchText, setSearchText] = useState("");
   const [openNew, setOpenNew] = useState(false);
@@ -663,6 +672,20 @@ const SourceTable = ({
     { skip: !includeGcnStatus || !gcnEvent?.dateobs || !sources },
   );
   const { data: tagOptions = [] } = useGetTagOptionsQuery();
+  // Available annotation origin/key pairs, keyed by origin: { origin: [{ key: type }] }
+  const { data: annotationsInfo } = useGetAnnotationsInfoQuery(undefined);
+  // Distinct top-level altdata keys: { keys: [{ key: type }] }
+  const { data: altdataInfo } = useGetAltdataInfoQuery();
+  const { data: currentUser } = useGetProfileQuery();
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const savedAnnotationColumns: string[] = useMemo(
+    () => (currentUser?.preferences as any)?.sourceTableAnnotationColumns || [],
+    [currentUser],
+  );
+  const savedAltdataColumns: string[] = useMemo(
+    () => (currentUser?.preferences as any)?.sourceTableAltdataColumns || [],
+    [currentUser],
+  );
 
   // Columns hidden by default, keyed by DataGrid field. Mirrors the previous
   // defaultDisplayedColumns list (which only enumerated visible labels).
@@ -696,6 +719,83 @@ const SourceTable = ({
       setLoading(false);
     }
   }, [sources]);
+
+  const allAnnotationColumnFields = useMemo(
+    () =>
+      Object.entries(annotationsInfo || {}).flatMap(([origin, keys]) =>
+        (keys as any[]).map(
+          (keyObj) => `annotation.${origin}.${Object.keys(keyObj)[0]}`,
+        ),
+      ),
+    [annotationsInfo],
+  );
+
+  const allAltdataColumnFields = useMemo(
+    () =>
+      (altdataInfo?.keys || []).map(
+        (keyObj) => `altdata.${Object.keys(keyObj)[0]}`,
+      ),
+    [altdataInfo],
+  );
+
+  // Annotation and altdata columns are opt-in: default each newly discovered one
+  // to hidden unless the user saved it as visible, preserving in-session choices.
+  useEffect(() => {
+    if (!allAnnotationColumnFields.length && !allAltdataColumnFields.length) {
+      return;
+    }
+    setColumnVisibilityModel((prev) => {
+      const next = { ...prev };
+      allAnnotationColumnFields.forEach((field) => {
+        if (!(field in next)) {
+          next[field] = savedAnnotationColumns.includes(field);
+        }
+      });
+      allAltdataColumnFields.forEach((field) => {
+        if (!(field in next)) {
+          next[field] = savedAltdataColumns.includes(field);
+        }
+      });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allAnnotationColumnFields, allAltdataColumnFields, currentUser]);
+
+  // Persist the sets of visible annotation / altdata columns to the user's profile.
+  const handleColumnVisibilityModelChange = useCallback(
+    (model: Record<string, boolean>) => {
+      setColumnVisibilityModel(model);
+      const prefs: Record<string, string[]> = {};
+      const visibleAnnotation = allAnnotationColumnFields.filter(
+        (f) => model[f] !== false,
+      );
+      if (
+        visibleAnnotation.length !== savedAnnotationColumns.length ||
+        visibleAnnotation.some((f) => !savedAnnotationColumns.includes(f))
+      ) {
+        prefs["sourceTableAnnotationColumns"] = visibleAnnotation;
+      }
+      const visibleAltdata = allAltdataColumnFields.filter(
+        (f) => model[f] !== false,
+      );
+      if (
+        visibleAltdata.length !== savedAltdataColumns.length ||
+        visibleAltdata.some((f) => !savedAltdataColumns.includes(f))
+      ) {
+        prefs["sourceTableAltdataColumns"] = visibleAltdata;
+      }
+      if (Object.keys(prefs).length > 0) {
+        updateUserPreferences(prefs);
+      }
+    },
+    [
+      allAnnotationColumnFields,
+      allAltdataColumnFields,
+      savedAnnotationColumns,
+      savedAltdataColumns,
+      updateUserPreferences,
+    ],
+  );
 
   useEffect(() => {
     const data = {
@@ -1454,8 +1554,55 @@ const SourceTable = ({
       });
     }
 
+    // One opt-in column per annotation origin/key pair. The field encodes the
+    // server sort string ("annotation.<origin>.<key>"), so server-side sorting
+    // works through the existing SERVER_SORT_FIELD fallback.
+    Object.entries(annotationsInfo || {}).forEach(([origin, keys]) => {
+      (keys as any[]).forEach((keyObj) => {
+        const key = Object.keys(keyObj)[0];
+        if (!key) {
+          return;
+        }
+        cols.push({
+          field: `annotation.${origin}.${key}`,
+          headerName: `${key} (${origin})`,
+          flex: 1,
+          minWidth: 120,
+          valueGetter: (_value: any, row: any) => {
+            const ann = (row.annotations || []).find(
+              (a: any) => a.origin === origin,
+            );
+            const value = ann?.data?.[key];
+            return value === undefined ? null : getAnnotationValueString(value);
+          },
+        });
+      });
+    });
+
+    // One opt-in column per top-level altdata key (field = server sort string).
+    (altdataInfo?.keys || []).forEach((keyObj) => {
+      const key = Object.keys(keyObj)[0];
+      if (!key) {
+        return;
+      }
+      cols.push({
+        field: `altdata.${key}`,
+        headerName: `${key} (altdata)`,
+        flex: 1,
+        minWidth: 120,
+        valueGetter: (_value: any, row: any) => {
+          const value = row.altdata?.[key];
+          return value === undefined || value === null
+            ? null
+            : getAnnotationValueString(value);
+        },
+      });
+    });
+
     return cols;
   }, [
+    annotationsInfo,
+    altdataInfo,
     classes,
     navigate,
     taxonomyList,
@@ -1727,13 +1874,15 @@ const SourceTable = ({
                 handleSearchChange(event.target.value);
               }}
             />
-            <IconButton
-              name="new_source"
-              size="small"
-              onClick={() => setOpenNew(true)}
-            >
-              <AddIcon />
-            </IconButton>
+            {!isReadOnly && (
+              <IconButton
+                name="new_source"
+                size="small"
+                onClick={() => setOpenNew(true)}
+              >
+                <AddIcon />
+              </IconButton>
+            )}
             {showDownload && (
               <Tooltip title="Download CSV">
                 <IconButton
@@ -1758,10 +1907,12 @@ const SourceTable = ({
       <div>
         <Grid
           container
-          direction="column"
-          alignItems="flex-start"
-          justifyContent="flex-start"
           spacing={3}
+          sx={{
+            flexDirection: "column",
+            alignItems: "flex-start",
+            justifyContent: "flex-start",
+          }}
         >
           <Grid className={classes.tableGrid}>
             {title && (
@@ -1793,7 +1944,9 @@ const SourceTable = ({
                 loading={loading}
                 getRowHeight={getRowHeight}
                 columnVisibilityModel={columnVisibilityModel}
-                onColumnVisibilityModelChange={setColumnVisibilityModel}
+                onColumnVisibilityModelChange={
+                  handleColumnVisibilityModelChange
+                }
                 paginationMode="server"
                 sortingMode="server"
                 rowCount={totalMatches}
@@ -1831,7 +1984,7 @@ const SourceTable = ({
         {openNew && (
           <Dialog open={openNew} onClose={handleClose} maxWidth="md">
             <DialogContent dividers>
-              <NewSource classes={classes} />
+              <NewSource onClose={handleClose} />
             </DialogContent>
           </Dialog>
         )}

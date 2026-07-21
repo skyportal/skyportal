@@ -1,5 +1,6 @@
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
+import JoinableStreamsList from "./JoinableStreamsList";
 import NewTokenForm from "./NewTokenForm";
 import TokenList from "./TokenList";
 import UpdateProfileForm from "./UpdateProfileForm";
@@ -9,9 +10,16 @@ const Profile = () => {
   const { data: profile } = useGetProfileQuery();
   const { data: groupsData } = useGetGroupsQuery();
   const groups = groupsData?.user ?? [];
+  if (profile?.is_anonymous) {
+    return (
+      <div>
+        Please <a href="/login/google-oauth2">log in</a> to view your profile.
+      </div>
+    );
+  }
   return (
     <div>
-      <div>
+      <div data-testid="tour-profile-info">
         <UserProfileInfo />
       </div>
       &nbsp;
@@ -22,6 +30,11 @@ const Profile = () => {
       &nbsp;
       <br />
       <div>
+        <JoinableStreamsList />
+      </div>
+      &nbsp;
+      <br />
+      <div data-testid="tour-profile-token">
         <NewTokenForm
           availableAcls={profile?.permissions}
           {...({ groups } as any)}

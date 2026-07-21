@@ -88,10 +88,8 @@ const ProfileDropdown = () => {
           gravatarUrl={profile.gravatar_url}
         />
       </IconButton>
-
       {/* this is to make baselayer.app.test_util.login happy */}
       <span className={classes.invisible}>{profile.username}</span>
-
       <Popover
         id={id}
         open={open}
@@ -108,10 +106,12 @@ const ProfileDropdown = () => {
         disableScrollLock
       >
         <Box
-          display="flex"
-          justifyContent="center"
           className={classes.avatar}
-          bgcolor="background.paper"
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            bgcolor: "background.paper",
+          }}
         >
           <UserAvatar
             size={60}
@@ -121,7 +121,13 @@ const ProfileDropdown = () => {
             gravatarUrl={profile.gravatar_url}
           />
         </Box>
-        <Box display="flex" justifyContent="center" bgcolor="background.paper">
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            bgcolor: "background.paper",
+          }}
+        >
           {(profile?.first_name?.length > 0 ||
             profile?.last_name?.length > 0) && (
             <Typography
@@ -133,10 +139,12 @@ const ProfileDropdown = () => {
           )}
         </Box>
         <Box
-          display="flex"
-          justifyContent="center"
-          bgcolor="background.paper"
           className={classes.paddingSides}
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            bgcolor: "background.paper",
+          }}
         >
           <Typography className={classes.typography} data-testid="username">
             {profile.username.substring(0, 15) +
@@ -145,31 +153,51 @@ const ProfileDropdown = () => {
         </Box>
         <Divider />
 
-        <MenuList className={classes.popoverMenu}>
-          <Link
-            to="/profile"
-            role="link"
-            className={classes.nodecor}
-            onClick={handleClose}
+        {profile.is_anonymous ? (
+          // read-only anonymous visitor: no account UI, just a way to sign in
+          <Box
+            className={classes.signOutMargin}
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              bgcolor: "background.paper",
+            }}
           >
-            <MenuItem className={classes.centerContent}>Profile</MenuItem>
-          </Link>
-        </MenuList>
+            <a href="/login/google-oauth2" className={classes.nodecor}>
+              <Button>Log in</Button>
+            </a>
+          </Box>
+        ) : (
+          <>
+            <MenuList className={classes.popoverMenu}>
+              <Link
+                to="/profile"
+                role="link"
+                className={classes.nodecor}
+                onClick={handleClose}
+              >
+                <MenuItem className={classes.centerContent}>Profile</MenuItem>
+              </Link>
+            </MenuList>
 
-        <Box
-          display="flex"
-          justifyContent="center"
-          bgcolor="background.paper"
-          className={classes.signOutMargin}
-        >
-          <a
-            href="/logout"
-            className={classes.nodecor}
-            data-testid="signOutButton"
-          >
-            <Button>Sign out</Button>
-          </a>
-        </Box>
+            <Box
+              className={classes.signOutMargin}
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                bgcolor: "background.paper",
+              }}
+            >
+              <a
+                href="/logout"
+                className={classes.nodecor}
+                data-testid="signOutButton"
+              >
+                <Button>Sign out</Button>
+              </a>
+            </Box>
+          </>
+        )}
       </Popover>
     </>
   );

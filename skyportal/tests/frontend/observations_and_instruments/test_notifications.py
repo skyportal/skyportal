@@ -357,7 +357,9 @@ def test_new_gcn_event_triggers_notification(page, user):
 
     page.locator('//*[@id="GcnNotificationNameInput"]').first.fill("test")
 
-    page.locator('//*[@aria-labelledby="selectGcns"]').first.click()
+    page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="selectGcns" or @id="selectGcns")]'
+    ).first.click()
     page.locator('//li[@data-value="FERMI_GBM_GND_POS"]').first.click()
     page.keyboard.press("Escape")
 

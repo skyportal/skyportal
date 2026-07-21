@@ -69,3 +69,16 @@ dists/
 
 # postgres persistent volume
 data/dbdata/
+
+# Generated pgbouncer config (from services/pgbouncer/*.template)
+services/pgbouncer/pgbouncer.ini
+services/pgbouncer/supervisor.conf
+services/pgbouncer/userlist.txt
+
+# GCN Kafka credential (local only)
+credential
+
+# local broker credentials for testing (never commit)
+.secrets
+.fink
+key.json

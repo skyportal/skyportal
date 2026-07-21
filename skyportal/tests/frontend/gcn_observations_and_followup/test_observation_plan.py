@@ -162,7 +162,7 @@ def test_observationplan_request(
     page.locator("//*[@id='observationplan-header']").first.click()
 
     page.locator(
-        '//*[contains(@aria-labelledby, "allocationSelectLabel")]'
+        '//*[@role="combobox" and (contains(@aria-labelledby, "allocationSelectLabel") or contains(@id, "allocationSelectLabel"))]'
     ).first.click()
     page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
@@ -299,13 +299,17 @@ def test_gcn_request(page, user, super_admin_token, public_group):
     expect(page.locator('//*[text()="LVC"]').first).to_be_visible()
     expect(page.locator('//*[text()="BNS"]').first).to_be_visible()
 
-    page.locator('//*[@aria-labelledby="localizationSelectLabel"]').first.click()
+    page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="localizationSelectLabel" or @id="localizationSelectLabel")]'
+    ).first.click()
     page.locator('//li[contains(text(), "bayestar.fits.gz")]').first.click()
     page.locator('//*[@id="root_localizationCumprob"]').first.fill("1.00")
 
     page.locator('//button[@type="submit"]').first.click()
 
-    page.locator('//*[@aria-labelledby="instrumentSelectLabel"]').first.click()
+    page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="instrumentSelectLabel" or @id="instrumentSelectLabel")]'
+    ).first.click()
     page.locator(f'//li[contains(text(), "{instrument_name}")]').first.click()
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)

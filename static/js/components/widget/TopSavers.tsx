@@ -25,6 +25,7 @@ import {
 } from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useGetTopSaversQuery } from "../../ducks/topSavers";
+import { useActiveTeam } from "../../ducks/teams";
 
 interface TopSaversSearchProps {
   savers?: any[];
@@ -229,7 +230,10 @@ const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
 
 const TopSavers = ({ classes }: TopSaversProps) => {
   const { classes: styles } = useStyles();
-  const { data: savers } = useGetTopSaversQuery();
+  const { activeTeam } = useActiveTeam();
+  const { data: savers } = useGetTopSaversQuery(
+    activeTeam ? { teamID: activeTeam.id } : undefined,
+  );
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
@@ -264,8 +268,10 @@ const TopSavers = ({ classes }: TopSaversProps) => {
         <div className={styles.header}>
           <Typography
             variant="h6"
-            display="inline"
             style={{ marginRight: "0.5rem" }}
+            sx={{
+              display: "inline",
+            }}
           >
             {topSaversPrefs.candidatesOnly ? "Top Scanners" : "Top Savers"}
           </Typography>
@@ -289,8 +295,10 @@ const TopSavers = ({ classes }: TopSaversProps) => {
                 anchorEl={anchorEl}
                 open={open}
                 onClose={() => setAnchorEl(null)}
-                MenuListProps={{
-                  "aria-labelledby": "basic-button",
+                slotProps={{
+                  list: {
+                    "aria-labelledby": "basic-button",
+                  },
                 }}
               >
                 {timespans.map((timespan) => (

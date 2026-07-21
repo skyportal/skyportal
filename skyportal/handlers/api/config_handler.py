@@ -1,6 +1,6 @@
 import copy
 
-from matplotlib.cm import get_cmap
+from matplotlib import colormaps
 from matplotlib.colors import rgb2hex
 
 from baselayer.app.access import auth_or_token
@@ -28,7 +28,7 @@ TNS_INSTRUMENTS = list(TNS_INSTRUMENT_IDS.keys())
 
 ALLOWED_INSTRUMENTS_FOR_SHARING = list(TNS_INSTRUMENT_IDS.keys())
 
-cmap = get_cmap(cfg.get("misc.color_palette", "turbo"))
+cmap = colormaps[cfg.get("misc.color_palette", "turbo")]
 
 # we convert it to a list of hex colors
 cmap = [rgb2hex(cmap(i)) for i in range(cmap.N)]
@@ -93,6 +93,7 @@ class ConfigHandler(BaseHandler):
             data={
                 "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
+                "photometryDisplayEndpoint": cfg["photometry_display_endpoint"],
                 "cosmology": str(cosmo),
                 "openai_summary_apikey_set": openai_summary_apikey_set,
                 "openai_summary_parameters": openai_summary_parameters,

@@ -179,7 +179,7 @@ def query_mpc(obj_id, user_id, url):
     log(f"Querying MPC for {obj_id}: {url}")
 
     try:
-        user = session.query(User).get(user_id)
+        user = session.get(User, user_id)
 
         obj = session.scalars(Obj.select(user).where(Obj.id == obj_id)).first()
 

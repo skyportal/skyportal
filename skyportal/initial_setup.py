@@ -71,7 +71,8 @@ if __name__ == "__main__":
         print("Note: user is not a valid email address")
 
     with status(f"Connecting to database {cfg['database.database']}"):
-        init_db(**cfg["database"])
+        # Setup runs before the pooler is up; connect to Postgres directly.
+        init_db(**{**cfg["database"], "pooler": None})
 
     with status(
         f"Creating tables in database {cfg['database.database']} if they do not exist"
