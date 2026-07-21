@@ -92,5 +92,10 @@ export const {
 export const useFilterSchema = (surveyOverride?: string) => {
   const { data: filterVersion } = useBoomFilterVersion();
   const survey = surveyOverride ?? filterVersion?.stream?.name?.split(" ")[0];
-  return useGetFilterSchemaQuery(survey ?? "", { skip: !survey });
+  // Expose the resolved survey alongside the query state so callers can show a
+  // clear "no schema for this survey" message when the broker has none.
+  return {
+    ...useGetFilterSchemaQuery(survey ?? "", { skip: !survey }),
+    survey,
+  };
 };
