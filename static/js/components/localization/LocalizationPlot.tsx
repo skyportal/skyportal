@@ -21,9 +21,21 @@
 // replaces.
 import { useEffect, useRef, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
 import A from "aladin-lite";
 
 import { moonGeoJSON, sunGeoJSON } from "../../utils";
+
+// Aladin v3 renders through WebGL2 and throws if it is unavailable (headless
+// browsers, software-rendering setups). Detect it up front so we can show a
+// message instead of letting the renderer raise.
+const hasWebGL2 = (): boolean => {
+  try {
+    return !!document.createElement("canvas").getContext("webgl2");
+  } catch {
+    return false;
+  }
+};
 
 // ---------------------------------------------------------------------------
 // Geometry helpers
@@ -164,6 +176,7 @@ const AladinGlobe = ({
   // Flips true once Aladin's async init resolves; gates the layer effects and
   // re-triggers them (it is in their dependency arrays).
   const [ready, setReady] = useState(false);
+  const [supported] = useState(hasWebGL2);
 
   // The footprint-click handler is registered once but needs to see the latest
   // selection state and setters; keep them in a ref that updates every render.
@@ -184,6 +197,7 @@ const AladinGlobe = ({
 
   // --- init once -----------------------------------------------------------
   useEffect(() => {
+    if (!supported) return undefined;
     let cancelled = false;
     A.init.then(() => {
       if (cancelled || !containerRef.current || aladinRef.current) return;
@@ -460,6 +474,14 @@ const AladinGlobe = ({
       markers.addSources([A.source(ra, dec, { name: label })]);
     });
   }, [ready]);
+
+  if (!supported) {
+    return (
+      <Typography variant="body2" color="textSecondary">
+        This sky view requires WebGL2, which is not available in this browser.
+      </Typography>
+    );
+  }
 
   // Fill the parent column (consumers embed this in a narrow grid cell) as a
   // square, capped at the requested size — mirroring the old SVG's responsive
