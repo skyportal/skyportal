@@ -139,6 +139,22 @@ const config = (env, argv) => {
           include: /node_modules\/react-big-calendar\/lib\/css/,
           use: ["style-loader", "css-loader"],
         },
+        // Global (non-module) CSS for the broker filter builder's equation
+        // rendering/editing (react-latex-next -> katex, equation-editor-react
+        // -> mathquill).
+        {
+          test: /\.css$/,
+          include: [
+            /node_modules\/katex\/dist/,
+            /node_modules\/mathquill\/build/,
+          ],
+          use: ["style-loader", "css-loader"],
+        },
+        // Emit font files referenced by the above stylesheets (KaTeX/Symbola).
+        {
+          test: /\.(woff2?|ttf|eot|otf)$/,
+          type: "asset/resource",
+        },
       ],
     },
     plugins: [

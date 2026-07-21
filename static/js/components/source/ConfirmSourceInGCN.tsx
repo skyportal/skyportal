@@ -1,5 +1,5 @@
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Paper from "@mui/material/Paper";
 import { makeStyles, withStyles } from "tss-react/mui";
 import { Controller, useForm } from "react-hook-form";
@@ -124,6 +124,10 @@ interface ConfirmSourceInGCNProps {
   start_date: string;
   end_date: string;
   sources_id_list: string[];
+  // Optional custom trigger: a compact button and/or a different icon, so
+  // callers (e.g. the crossmatch list) can match surrounding controls.
+  compact?: boolean;
+  triggerIcon?: ReactNode;
 }
 
 const ConfirmSourceInGCN = ({
@@ -134,6 +138,8 @@ const ConfirmSourceInGCN = ({
   start_date,
   end_date,
   sources_id_list,
+  compact = false,
+  triggerIcon,
 }: ConfirmSourceInGCNProps) => {
   const { classes } = useStyles() as any;
   const { permissions } = useGetProfileQuery().data ?? {};
@@ -257,9 +263,11 @@ const ConfirmSourceInGCN = ({
       <IconButton
         aria-label="open"
         className={classes.closeButton}
+        size={compact ? "small" : undefined}
+        sx={compact ? { p: 0 } : undefined}
         onClick={() => setOpen(true)}
       >
-        <EditIcon />
+        {triggerIcon ?? <EditIcon />}
       </IconButton>
       {open && (
         <Paper className={classes.container}>

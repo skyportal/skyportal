@@ -49,17 +49,26 @@ def manage_photometry_access_logic(cls, user_or_token):
     for objects accessible to their groups.
     """
     if user_or_token.is_admin:
-        return public.query_accessible_rows(cls, user_or_token)
+        return public.select_accessible_rows(cls, user_or_token)
     elif "Manage photometry" in user_or_token.permissions:
-        return manage_photometry_access.query_accessible_rows(cls, user_or_token)
+        return manage_photometry_access.select_accessible_rows(cls, user_or_token)
     else:
-        return accessible_by_owner.query_accessible_rows(cls, user_or_token)
+        return accessible_by_owner.select_accessible_rows(cls, user_or_token)
 
 
 class Photometry(conesearch_alchemy.Point, Base):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = "photometry"
+
+    # bigint PK. Inbound FKs use bare ForeignKey("photometry.id") so they infer
+    # bigint too.
+    id = sa.Column(
+        sa.BigInteger,
+        primary_key=True,
+        autoincrement=True,
+        doc="Unique object identifier.",
+    )
 
     # created_at is never queried on this 1B-row table; skip the dead index.
     index_created_at = False

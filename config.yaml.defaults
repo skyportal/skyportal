@@ -9,6 +9,13 @@ app:
       https://github.com/skyportal/skyportal
     </a>
 
+  # Anonymous read-only access. When true, visitors who are not signed in are
+  # served as `anonymous_user` (a "View only" account) so pages render without a
+  # login. Write endpoints still 401 because that account holds no write ACLs.
+  # The account is auto-provisioned (in the public group) when this is enabled.
+  anonymous_access: false
+  anonymous_user: anonymous
+
   secret_key: abc01234  # This secret key can be any random string of
                         # characters.
                         #
@@ -138,16 +145,22 @@ app:
     - path: "/"
       component: templates/HomePage
       exact: True
+      anonymous_ok: true
     - path: "/sources"
       component: source/SourceList
+      anonymous_ok: true
     - path: "/source/:id"
       component: source/Source
+      anonymous_ok: true
     - path: "/source/:id/finder"
       component: FindingChart
+      anonymous_ok: true
     - path: "/source/:id/periodogram"
       component: Periodogram
+      anonymous_ok: true
     - path: "/source/:obj_id/analysis/:analysis_id"
       component: source/SourceAnalysisPage
+      anonymous_ok: true
     - path: "/favorites"
       component: listing/FavoritesPage
     - path: "/groups"
@@ -164,6 +177,12 @@ app:
       component: candidate/scan_reports/ReportsList
     - path: "/profile"
       component: user/Profile
+    - path: "/brokers"
+      component: broker/BrokerAlerts
+    - path: "/brokers/:brokerId/filter/:fid"
+      component: broker/BrokerFilterPage
+    - path: "/broker_admin"
+      component: broker/BrokerAdmin
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
@@ -174,6 +193,7 @@ app:
       component: filter/Filter
     - path: "/about"
       component: About
+      anonymous_ok: true
     - path: "/runs"
       component: observing_run/ObservingRunPage
     - path: "/run/:id"
@@ -184,18 +204,24 @@ app:
       component: allocation/Allocation
     - path: "/instruments"
       component: instrument/InstrumentList
+      anonymous_ok: true
     - path: "/instrument/:id"
       component: instrument/Instrument
+      anonymous_ok: true
     - path: "/telescopes"
       component: telescope/TelescopeList
+      anonymous_ok: true
     - path: "/telescope/:id"
       component: telescope/Telescope
+      anonymous_ok: true
     - path: "/observations"
       component: observation/ObservationPage
     - path: "/galaxies"
       component: galaxy/GalaxyPage
+      anonymous_ok: true
     - path: "/spatial_catalogs"
       component: spatial_catalog/SpatialCatalogPage
+      anonymous_ok: true
     - path: "/followup_requests"
       component: followup_request/FollowupRequestPage
     - path: "/user_management"
@@ -204,20 +230,25 @@ app:
       component: spectrum/UploadSpectrum
     - path: "/observability/:id"
       component: source/Observability
+      anonymous_ok: true
     - path: "/db_stats"
       component: DBStats
     - path: "/source_statistics"
       component: SourceStatistics
     - path: "/gcn_events"
       component: gcn/GcnEvents
+      anonymous_ok: true
     - path: "/gcn_events/:dateobs"
       component: gcn/GcnEventPage
+      anonymous_ok: true
     - path: "/mmadetectors"
       component: mma_detector/MMADetectorPage
     - path: "/earthquakes"
       component: earthquake/EarthquakesPage
+      anonymous_ok: true
     - path: "/earthquakes/:event_id"
       component: earthquake/EarthquakePage
+      anonymous_ok: true
     - path: "/services"
       component: analysis/AnalysisServicePage
     - path: "/analysis_requests"
@@ -248,14 +279,20 @@ app:
         - name: Dashboard
           icon: Home
           url: /
+          anonymous_ok: true
 
         - name: Sources
           icon: Storage
           url: /sources
+          anonymous_ok: true
 
         - name: Candidates
           icon: Search
           url: /candidates
+
+        - name: Alerts
+          icon: NotificationsActive
+          url: /brokers
 
         - name: Favorites
           icon: Star
@@ -276,6 +313,7 @@ app:
         - name: GCN Events
           icon: SettingsInputAntenna
           url: /gcn_events
+          anonymous_ok: true
 
         - name: Followup Requests
           icon: WorkOutlined
@@ -300,6 +338,7 @@ app:
         - name: About
           icon: Info
           url: /about
+          anonymous_ok: true
 
     - name: Other
       icon: MoreHoriz
@@ -307,10 +346,12 @@ app:
         - name: Telescopes
           icon: MyLocation
           url: /telescopes
+          anonymous_ok: true
 
         - name: Instruments
           icon: Wifi
           url: /instruments
+          anonymous_ok: true
 
         - name: MMADetectors
           icon: Abc
@@ -335,14 +376,17 @@ app:
         - name: Earthquakes
           icon: PieChart
           url: /earthquakes
+          anonymous_ok: true
 
         - name: Galaxies
           icon: TornadoOutlined
           url: /galaxies
+          anonymous_ok: true
 
         - name: Spatial Catalogs
           icon: PhotoSizeSelectLargeOutlined
           url: /spatial_catalogs
+          anonymous_ok: true
 
         - name: Analysis Services
           icon: SentimentSatisfied
@@ -377,6 +421,10 @@ app:
           icon: Group
           permissions: ["Manage users", "System admin"]
           url: /user_management
+        - name: Brokers
+          icon: Hub
+          permissions: ["System admin"]
+          url: /broker_admin
 
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package
@@ -566,6 +614,32 @@ database:
     # transaction; guards the pool against leaked transactions (0 = disabled).
     idle_transaction_timeout: 0
 
+# Valkey connection. Valkey speaks the redis protocol, so a standard redis
+# client talks to it directly; these keys are the redis client's host/port/db.
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+
+cache:
+  # When false (default), `get_cache()` returns a no-op cache and nothing uses
+  # Valkey — behavior is unchanged until caching is explicitly enabled.
+  enabled: false
+  ttl:
+    # Default time-to-live (seconds) for cached entries when a caller does not
+    # specify one.
+    default: 300
+
+# Optional: route the source page's photometry fetch through a custom endpoint
+# (e.g. a broker passthrough that merges saved DB photometry with on-demand
+# broker photometry). "{id}" is substituted with the object id; the endpoint
+# must return the same response shape as /api/sources/{id}/photometry (a bare
+# list of serialized points). Null (default) uses the standard endpoint.
+# To display broker-augmented photometry, point this at the survey-addressed
+# broker passthrough, e.g.:
+#   photometry_display_endpoint: "/api/brokers/photometry/{id}?survey=ZTF"
+photometry_display_endpoint:
+
 server:
   # From https://console.developers.google.com/
   #
@@ -624,6 +698,17 @@ server:
 
 services:
   dask: False
+
+# Alert brokers (BOOM, Kowalski, Fink, Lasair, ...) are configured at runtime as
+# `Broker` database records (name + provider class + encrypted credentials), not
+# here; see doc/broker_plugins.md. Providers are registered in
+# skyportal/broker_apis/.
+brokers:
+  # Run the in-core ingestion service (services/broker_ingest): for each active
+  # broker whose provider implements run_ingestion, consume its stream and ingest
+  # alerts via the shared save transform. Off by default; interactive access
+  # (the /brokers alerts page) works regardless of this setting.
+  ingest_enabled: False
 
 misc:
   days_to_keep_unsaved_candidates: 7

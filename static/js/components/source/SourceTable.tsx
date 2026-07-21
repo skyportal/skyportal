@@ -1,5 +1,6 @@
 import {
   useGetProfileQuery,
+  useIsReadOnly,
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
 import React, {
@@ -643,6 +644,7 @@ const SourceTable = ({
 
   const { classes } = useStyles() as { classes: any };
 
+  const isReadOnly = useIsReadOnly();
   const [searchBy, setSearchBy] = useState("name");
   const [searchText, setSearchText] = useState("");
   const [openNew, setOpenNew] = useState(false);
@@ -1872,13 +1874,15 @@ const SourceTable = ({
                 handleSearchChange(event.target.value);
               }}
             />
-            <IconButton
-              name="new_source"
-              size="small"
-              onClick={() => setOpenNew(true)}
-            >
-              <AddIcon />
-            </IconButton>
+            {!isReadOnly && (
+              <IconButton
+                name="new_source"
+                size="small"
+                onClick={() => setOpenNew(true)}
+              >
+                <AddIcon />
+              </IconButton>
+            )}
             {showDownload && (
               <Tooltip title="Download CSV">
                 <IconButton

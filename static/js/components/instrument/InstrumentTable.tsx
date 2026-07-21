@@ -21,6 +21,7 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
 import Button from "../Button";
 import Paper from "../Paper";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -42,6 +43,7 @@ const InstrumentTable = ({
   fixedHeader = false,
 }: InstrumentTableProps) => {
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [deleteInstrumentMutation] = useDeleteInstrumentMutation();
 
   const [newDialogOpen, setNewDialogOpen] = useState(false);
@@ -231,13 +233,15 @@ const InstrumentTable = ({
   const CustomToolbar = function InstrumentTableToolbar() {
     return (
       <DataGridToolbar>
-        <IconButton
-          name="new_instrument"
-          data-testid="tour-instruments-new"
-          onClick={() => setNewDialogOpen(true)}
-        >
-          <AddIcon />
-        </IconButton>
+        {!isReadOnly && (
+          <IconButton
+            name="new_instrument"
+            data-testid="tour-instruments-new"
+            onClick={() => setNewDialogOpen(true)}
+          >
+            <AddIcon />
+          </IconButton>
+        )}
       </DataGridToolbar>
     );
   };

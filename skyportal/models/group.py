@@ -28,9 +28,9 @@ _, cfg = load_env()
 def groupuser_update_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = DBSession().query(cls).join(aliased, cls.group_id == aliased.group_id)
+    query = sa.select(cls).join(aliased, cls.group_id == aliased.group_id)
     if not user_or_token.is_system_admin:
-        query = query.filter(aliased.user_id == user_id, aliased.admin.is_(True))
+        query = query.where(aliased.user_id == user_id, aliased.admin.is_(True))
     return query
 
 
@@ -278,14 +278,13 @@ def delete_group_access_logic(cls, user_or_token):
     a single user group, and that they are an admin member of."""
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .join(GroupUser)
-        .filter(cls.name != cfg["misc"]["public_group_name"])
-        .filter(cls.single_user_group.is_(False))
+        .where(cls.name != cfg["misc"]["public_group_name"])
+        .where(cls.single_user_group.is_(False))
     )
     if not user_or_token.is_system_admin:
-        query = query.filter(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
+        query = query.where(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
     return query
 
 
@@ -497,10 +496,7 @@ GroupUser.delete = (
     & GroupUser.read
     & CustomUserAccessControl(
         lambda cls, user_or_token: (
-            DBSession()
-            .query(cls)
-            .join(Group)
-            .filter(Group.single_user_group.is_(False))
+            sa.select(cls).join(Group).where(Group.single_user_group.is_(False))
         )
     )
 )
@@ -516,8 +512,7 @@ def group_create_logic(cls, user_or_token):
     from .stream import Stream, StreamUser
 
     return (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .join(Group)
         .outerjoin(Stream, Group.streams)
         .outerjoin(
@@ -527,7 +522,7 @@ def group_create_logic(cls, user_or_token):
                 StreamUser.stream_id == Stream.id,
             ),
         )
-        .filter(Group.single_user_group.is_(False))
+        .where(Group.single_user_group.is_(False))
         .group_by(cls.id)
         .having(
             sa.or_(
