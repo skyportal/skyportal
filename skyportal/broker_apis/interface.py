@@ -1,6 +1,39 @@
 from ._base import _Base
 
 
+def normalize_module_streams(payload):
+    """Store the bare survey token in a custom module's ``streams``.
+
+    The builder posts full stream names ("ZTF Alerts", "ZTF (1, 2)") but filters
+    saved modules on the survey token alone, so a module saved verbatim would be
+    invisible in the builder that wrote it.
+    """
+    streams = payload.get("streams")
+    if not isinstance(streams, list):
+        return payload
+    tokens = []
+    for stream in streams:
+        token = (
+            stream.split()[0] if isinstance(stream, str) and stream.split() else stream
+        )
+        if token not in tokens:
+            tokens.append(token)
+    return {**payload, "streams": tokens}
+
+
+def altdata_filter_modules(broker, elements, name=None):
+    """Read custom filter modules from a broker's ``altdata`` (the default store).
+
+    Returns the list for ``elements``, or — when ``name`` is given — the single
+    matching module, or ``None`` if there is no such module.
+    """
+    modules = (broker.altdata or {}).get("filter_modules") or {}
+    items = modules.get(elements, [])
+    if name is None:
+        return items
+    return next((i for i in items if i.get("name") == name), None)
+
+
 class BrokerAPI(_Base):
     """An interface that broker providers must implement.
 
@@ -132,6 +165,38 @@ class BrokerAPI(_Base):
     def filter_modules(broker, session, **kwargs):
         """Return the pipeline stages/modules the broker's filters support."""
         raise NotImplementedError
+
+    @staticmethod
+    def write_filter_module(broker, session, name, elements, payload, insert):
+        """Persist one custom filter module (variable/listVariable/switchCase/block).
+
+        Concrete default — not a stub — storing modules broker-scoped in
+        ``altdata``; providers owning a separate module store override it. It is
+        deliberately left out of ``_base._methods`` so capability gating stays on
+        ``filter_modules`` (same pattern as ``save_as_source``).
+
+        Raises ``ValueError`` when updating (``insert=False``) a name that does
+        not exist.
+        """
+        payload = normalize_module_streams(payload)
+        altdata = broker.altdata or {}
+        modules = altdata.setdefault("filter_modules", {})
+        items = modules.setdefault(elements, [])
+        existing = next((i for i in items if i.get("name") == name), None)
+        if insert:
+            item = {"name": name, **payload}
+            if existing is not None:
+                items[items.index(existing)] = item
+            else:
+                items.append(item)
+        elif existing is None:
+            raise ValueError(f"No {elements} named '{name}'.")
+        else:
+            existing.update(payload)
+        # Round-trip the whole altdata (credentials preserved, never exposed);
+        # only the filter_modules sub-key is mutated.
+        broker.altdata = altdata
+        session.commit()
 
     # ------------------------------------------------------------------ #
     # Ingestion (broker -> skyportal). Implemented in a later stage on    #

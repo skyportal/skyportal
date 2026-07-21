@@ -84,6 +84,9 @@ dependencies = [
     "black==26.5.1",
     "click==8.1.7",
     "penquins==2.4.2",
+    # BOOM's filter-module store; already pulled in by penquins, declared here
+    # because skyportal/broker_apis/boom.py imports it directly.
+    "pymongo>=4.6, <5.0",
     "afterglowpy==0.8.1",
     "gcn-kafka==0.3.3",
     "confluent_kafka==2.15.0",

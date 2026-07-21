@@ -54,6 +54,15 @@ export const boomFilterModulesApi = skyportalApi.injectEndpoints({
           survey ? `&survey=${survey}` : ""
         }`,
     }),
+    // Single module by name, for name-availability checks. Returns null when
+    // there is no such module.
+    getFilterElementByName: build.query<
+      any,
+      { name: string; elements: string }
+    >({
+      query: ({ name, elements }) =>
+        `${brokerFilterBase()}/filter_modules/${name}?elements=${elements}`,
+    }),
     postFilterElement: build.mutation<
       any,
       { name: string; data: any; elements: string }
@@ -80,6 +89,7 @@ export const boomFilterModulesApi = skyportalApi.injectEndpoints({
 export const {
   useGetFilterSchemaQuery,
   useLazyGetFilterElementsQuery,
+  useLazyGetFilterElementByNameQuery,
   usePostFilterElementMutation,
   usePutFilterElementMutation,
 } = boomFilterModulesApi;

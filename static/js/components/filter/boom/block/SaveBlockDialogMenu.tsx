@@ -7,7 +7,7 @@ import {
   Button,
 } from "@mui/material";
 import {
-  useLazyGetFilterElementsQuery,
+  useLazyGetFilterElementByNameQuery,
   usePostFilterElementMutation,
 } from "../../../../ducks/boom_filter_modules";
 import { useCurrentBuilder } from "../../../../hooks/useContexts";
@@ -27,7 +27,7 @@ const SaveBlockDialogMenu = () => {
     localFiltersUpdater,
   } = useCurrentBuilder();
 
-  const [fetchElement] = useLazyGetFilterElementsQuery();
+  const [fetchElement] = useLazyGetFilterElementByNameQuery();
   const [postElement] = usePostFilterElementMutation();
   const { data: boomFilterVersion } = useBoomFilterVersion();
   const stream = boomFilterVersion?.stream?.name;
@@ -42,7 +42,7 @@ const SaveBlockDialogMenu = () => {
     const streamName = stream?.split(" ")[0];
 
     const notAvailable: any = await fetchElement({
-      survey: nameValue,
+      name: nameValue,
       elements: "blocks",
     });
     if (notAvailable?.data?.blocks != null) {
