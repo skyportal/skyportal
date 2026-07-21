@@ -80,13 +80,6 @@ def page():
             firefox_user_prefs={
                 "ui.primaryPointerCapabilities": 6,
                 "ui.allPointerCapabilities": 6,
-                # Aladin Lite (localization sky views) is WebGL2-only; allow the
-                # software renderer so those plots work on GPU-less CI runners.
-                "webgl.disabled": False,
-                "webgl.force-enabled": True,
-                "webgl.forbid-software": False,
-                "webgl.out-of-process": False,
-                "gfx.webrender.software": True,
             },
         )
         context = browser.new_context(

@@ -26,6 +26,11 @@ import A from "aladin-lite";
 
 import { moonGeoJSON, sunGeoJSON } from "../../utils";
 
+// `A.init` is a promise the library kicks off at import time, and it rejects
+// when WebGL2 is missing. Mark it handled here or the rejection surfaces as an
+// uncaught page error on every page that pulls in this module, mounted or not.
+A.init.catch(() => {});
+
 // Aladin v3 renders through WebGL2 and throws if it is unavailable (headless
 // browsers, software-rendering setups). Detect it up front so we can show a
 // message instead of letting the renderer raise.
@@ -199,108 +204,115 @@ const AladinGlobe = ({
   useEffect(() => {
     if (!supported) return undefined;
     let cancelled = false;
-    A.init.then(() => {
-      if (cancelled || !containerRef.current || aladinRef.current) return;
+    A.init
+      .then(() => {
+        if (cancelled || !containerRef.current || aladinRef.current) return;
 
-      const center = skymap?.features?.[0]?.geometry?.coordinates;
-      const aladin = A.aladin(containerRef.current, {
-        survey: "P/DSS2/color",
-        projection: projection === "mollweide" ? "MOL" : "SIN",
-        cooFrame: "equatorial",
-        fov: skymap ? fovForContour(skymap) : 180,
-        target: center ? `${normRa(center[0])} ${center[1]}` : undefined,
-        showReticle: false,
-        // Minimal chrome: this is embedded in a narrow form column. Keep zoom +
-        // fullscreen (so the operator can pop out to a detailed view) and drop
-        // the controls that crowd a small inset.
-        showZoomControl: true,
-        showFullscreenControl: true,
-        showLayersControl: false,
-        showCooGridControl: false,
-        showProjectionControl: false,
-        showStatusBar: false,
-      });
-      aladinRef.current = aladin;
+        const center = skymap?.features?.[0]?.geometry?.coordinates;
+        const aladin = A.aladin(containerRef.current, {
+          survey: "P/DSS2/color",
+          projection: projection === "mollweide" ? "MOL" : "SIN",
+          cooFrame: "equatorial",
+          fov: skymap ? fovForContour(skymap) : 180,
+          target: center ? `${normRa(center[0])} ${center[1]}` : undefined,
+          showReticle: false,
+          // Minimal chrome: this is embedded in a narrow form column. Keep zoom +
+          // fullscreen (so the operator can pop out to a detailed view) and drop
+          // the controls that crowd a small inset.
+          showZoomControl: true,
+          showFullscreenControl: true,
+          showLayersControl: false,
+          showCooGridControl: false,
+          showProjectionControl: false,
+          showStatusBar: false,
+        });
+        aladinRef.current = aladin;
 
-      // Create the persistent layers up front.
-      layers.current.contour = A.graphicOverlay({
-        name: "skymap",
-        color: "black",
-      });
-      layers.current.fields = A.graphicOverlay({
-        name: "fields",
-        color: "blue",
-      });
-      layers.current.observations = A.graphicOverlay({
-        name: "observations",
-        color: "blue",
-      });
-      layers.current.sunMoon = A.graphicOverlay({ name: "sun/moon" });
-      aladin.addOverlay(layers.current.contour);
-      aladin.addOverlay(layers.current.fields);
-      aladin.addOverlay(layers.current.observations);
-      aladin.addOverlay(layers.current.sunMoon);
+        // Create the persistent layers up front.
+        layers.current.contour = A.graphicOverlay({
+          name: "skymap",
+          color: "black",
+        });
+        layers.current.fields = A.graphicOverlay({
+          name: "fields",
+          color: "blue",
+        });
+        layers.current.observations = A.graphicOverlay({
+          name: "observations",
+          color: "blue",
+        });
+        layers.current.sunMoon = A.graphicOverlay({ name: "sun/moon" });
+        aladin.addOverlay(layers.current.contour);
+        aladin.addOverlay(layers.current.fields);
+        aladin.addOverlay(layers.current.observations);
+        aladin.addOverlay(layers.current.sunMoon);
 
-      layers.current.markers = A.catalog({
-        name: "labels",
-        shape: "cross",
-        color: "cyan",
-        sourceSize: 10,
-        labelColumn: "name",
-        labelColor: "white",
-      });
-      layers.current.sources = A.catalog({
-        name: "sources",
-        shape: "circle",
-        color: "red",
-        sourceSize: 8,
-        onClick: "showPopup",
-        labelColumn: "name",
-        labelColor: "white",
-      });
-      layers.current.galaxies = A.catalog({
-        name: "galaxies",
-        shape: "circle",
-        color: "lime",
-        sourceSize: 8,
-        onClick: "showPopup",
-        labelColumn: "name",
-        labelColor: "white",
-      });
-      aladin.addCatalog(layers.current.markers);
-      aladin.addCatalog(layers.current.sources);
-      aladin.addCatalog(layers.current.galaxies);
+        layers.current.markers = A.catalog({
+          name: "labels",
+          shape: "cross",
+          color: "cyan",
+          sourceSize: 10,
+          labelColumn: "name",
+          labelColor: "white",
+        });
+        layers.current.sources = A.catalog({
+          name: "sources",
+          shape: "circle",
+          color: "red",
+          sourceSize: 8,
+          onClick: "showPopup",
+          labelColumn: "name",
+          labelColor: "white",
+        });
+        layers.current.galaxies = A.catalog({
+          name: "galaxies",
+          shape: "circle",
+          color: "lime",
+          sourceSize: 8,
+          onClick: "showPopup",
+          labelColumn: "name",
+          labelColor: "white",
+        });
+        aladin.addCatalog(layers.current.markers);
+        aladin.addCatalog(layers.current.sources);
+        aladin.addCatalog(layers.current.galaxies);
 
-      // Clicking a footprint toggles the corresponding selection set. The
-      // footprint id encodes which set it belongs to ("field:<id>" /
-      // "obs:<id>"); React state changes then re-render the layer.
-      aladin.on("footprintClicked", (arg: any) => {
-        const fp = arg && arg.id !== undefined ? arg : (arg?.footprint ?? arg);
-        const id: string | undefined = fp?.id;
-        if (!id) return;
-        const {
-          selectedFields: sf,
-          setSelectedFields: setSf,
-          selectedObservations: so,
-          setSelectedObservations: setSo,
-        } = live.current;
-        if (id.startsWith("field:")) {
-          const fid = Number(id.slice(6));
-          setSf(sf.includes(fid) ? sf.filter((x) => x !== fid) : [...sf, fid]);
-        } else if (id.startsWith("obs:")) {
-          const fid = Number(id.slice(4));
-          setSo(so.includes(fid) ? so.filter((x) => x !== fid) : [...so, fid]);
-        }
-      });
+        // Clicking a footprint toggles the corresponding selection set. The
+        // footprint id encodes which set it belongs to ("field:<id>" /
+        // "obs:<id>"); React state changes then re-render the layer.
+        aladin.on("footprintClicked", (arg: any) => {
+          const fp =
+            arg && arg.id !== undefined ? arg : (arg?.footprint ?? arg);
+          const id: string | undefined = fp?.id;
+          if (!id) return;
+          const {
+            selectedFields: sf,
+            setSelectedFields: setSf,
+            selectedObservations: so,
+            setSelectedObservations: setSo,
+          } = live.current;
+          if (id.startsWith("field:")) {
+            const fid = Number(id.slice(6));
+            setSf(
+              sf.includes(fid) ? sf.filter((x) => x !== fid) : [...sf, fid],
+            );
+          } else if (id.startsWith("obs:")) {
+            const fid = Number(id.slice(4));
+            setSo(
+              so.includes(fid) ? so.filter((x) => x !== fid) : [...so, fid],
+            );
+          }
+        });
 
-      // Clicking a source/galaxy opens its SkyPortal page.
-      aladin.on("objectClicked", (obj: any) => {
-        const url = obj?.data?.url;
-        if (url) window.open(url, "_blank", "noopener");
-      });
+        // Clicking a source/galaxy opens its SkyPortal page.
+        aladin.on("objectClicked", (obj: any) => {
+          const url = obj?.data?.url;
+          if (url) window.open(url, "_blank", "noopener");
+        });
 
-      setReady(true);
-    });
+        setReady(true);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
