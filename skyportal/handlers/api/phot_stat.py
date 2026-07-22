@@ -827,6 +827,20 @@ class PhotStatAggregateHandler(BaseHandler):
               type: number
             description: Only count classifications at or above this probability.
           - in: query
+            name: group_id
+            schema:
+              type: integer
+            description: |
+              Restrict to sources saved to this group (an alternative to
+              classification-based selection).
+          - in: query
+            name: obj_ids
+            schema:
+              type: string
+            description: |
+              Comma-separated object IDs to restrict to (an alternative to
+              classification-based selection).
+          - in: query
             name: maxMatches
             schema:
               type: integer
@@ -878,6 +892,18 @@ class PhotStatAggregateHandler(BaseHandler):
             except ValueError:
                 return self.error("classificationProbThreshold must be a number")
 
+        # Alternative source selections (used instead of classification): a group
+        # or an explicit object list.
+        group_id = self.get_query_argument("group_id", None)
+        if group_id is not None:
+            try:
+                group_id = int(group_id)
+            except ValueError:
+                return self.error("group_id must be an integer")
+        obj_ids = self.get_query_argument("obj_ids", None)
+        if obj_ids:
+            obj_ids = [o.strip() for o in obj_ids.split(",") if o.strip()]
+
         try:
             max_matches = int(
                 self.get_query_argument("maxMatches", DEFAULT_AGGREGATE_POINTS)
@@ -889,9 +915,13 @@ class PhotStatAggregateHandler(BaseHandler):
         async with self.AsyncSession() as session:
             # Restrict to sources the user can access, and to classifications
             # they can see (non-ML), then color by the highest-probability one.
-            accessible_source_obj_ids = sa.select(
-                Source.select(self.current_user).subquery().c.obj_id
-            )
+            # A group or explicit object list narrows the accessible source set.
+            src = Source.select(self.current_user)
+            if group_id is not None:
+                src = src.where(Source.group_id == group_id)
+            if obj_ids:
+                src = src.where(Source.obj_id.in_(obj_ids))
+            accessible_source_obj_ids = sa.select(src.subquery().c.obj_id)
             accessible_cls = (
                 Classification.select(self.current_user)
                 .where(Classification.ml.is_(False))
@@ -917,6 +947,9 @@ class PhotStatAggregateHandler(BaseHandler):
                 Obj.ra.label("ra"),
                 Obj.dec.label("dec"),
                 Obj.redshift.label("redshift"),
+                Obj.tns_info.label("tns_info"),
+                PhotStat.first_detected_mjd.label("first_detected_mjd"),
+                PhotStat.peak_mjd_global.label("peak_mjd"),
                 x_col.label("x"),
                 y_col.label("y"),
                 primary_cls.c.classification.label("classification"),
@@ -961,6 +994,14 @@ class PhotStatAggregateHandler(BaseHandler):
                     "dec": row.dec,
                     "redshift": row.redshift,
                     "classification": row.classification,
+                    # t0 candidates for phase-stacking spectra (SpectraAggregation).
+                    "first_detected_mjd": row.first_detected_mjd,
+                    "peak_mjd": row.peak_mjd,
+                    "tns_discovery_date": (
+                        (row.tns_info or {}).get("discoverydate")
+                        if isinstance(row.tns_info, dict)
+                        else None
+                    ),
                     "x": row.x,
                     "y": row.y,
                 }

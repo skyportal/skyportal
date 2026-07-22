@@ -20,6 +20,9 @@ import createPlotlyComponent from "react-plotly.js/factory";
 import Plotly from "./plot/plotlyScatter3d";
 import ClassificationSelect from "./classification/ClassificationSelect";
 import VegaPhotometry from "./plot/VegaPhotometry";
+import SpectraAggregation from "./SpectraAggregation";
+import SourceIdAutocomplete from "./SourceIdAutocomplete";
+import { useGetGroupsQuery } from "../ducks/groups";
 import { useGetSourcePhotometryOverlayQuery } from "../ducks/photometry_minimal";
 import { smoothing_func } from "../utils";
 import {
@@ -349,6 +352,12 @@ const SourceStatistics = () => {
   const [selectedClassifications, setSelectedClassifications] = useState<
     string[]
   >([]);
+  const [sourceMode, setSourceMode] = useState<
+    "classification" | "group" | "objects"
+  >("classification");
+  const [selectGroupId, setSelectGroupId] = useState<number | "">("");
+  const [objIds, setObjIds] = useState<string[]>([]);
+  const { data: groupsData } = useGetGroupsQuery();
   const [xField, setXField] = useState("rise_rate");
   const [yField, setYField] = useState("peak_mag_global");
   const [zField, setZField] = useState("");
@@ -360,7 +369,7 @@ const SourceStatistics = () => {
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<
-    "stats" | "lightcurves" | "overlay" | "color"
+    "stats" | "lightcurves" | "overlay" | "color" | "spectra"
   >("stats");
   const [lcPage, setLcPage] = useState(0);
   const [alignMode, setAlignMode] = useState<AlignMode>("none");
@@ -419,6 +428,15 @@ const SourceStatistics = () => {
   );
   const lcSourceIds = selectedIds.length > 0 ? selectedIds : plottedIds;
 
+  // Full source points (with redshift + t0 candidates) for the spectra view.
+  const specPoints = useMemo(
+    () =>
+      selectedIds.length > 0
+        ? (data?.points ?? []).filter((p) => selectedIds.includes(p.id))
+        : (data?.points ?? []),
+    [data, selectedIds],
+  );
+
   // Distance modulus per source (from redshift) for the absolute-mag overlay.
   const dmMap = useMemo(() => {
     const m: Record<string, number> = {};
@@ -436,11 +454,19 @@ const SourceStatistics = () => {
       xField,
       yField,
       ...(zField ? { zField } : {}),
-      ...(selectedClassifications.length
-        ? { classifications: selectedClassifications.join(",") }
+      ...(sourceMode === "classification" && selectedClassifications.length
+        ? {
+            classifications: selectedClassifications.join(","),
+            ...(probThreshold > 0
+              ? { classificationProbThreshold: probThreshold }
+              : {}),
+          }
         : {}),
-      ...(probThreshold > 0
-        ? { classificationProbThreshold: probThreshold }
+      ...(sourceMode === "group" && selectGroupId !== ""
+        ? { group_id: selectGroupId }
+        : {}),
+      ...(sourceMode === "objects" && objIds.length
+        ? { obj_ids: objIds.join(",") }
         : {}),
     });
   };
@@ -591,36 +617,74 @@ const SourceStatistics = () => {
       <Typography variant="h4">Source Statistics</Typography>
       <Typography variant="body2" color="textSecondary">
         Plot photometry statistics across many sources at once to spot outliers.
-        Optionally down-select by classification; points are colored by each
-        source&apos;s highest-probability classification. Click any point to
-        open that source. In 2D, drag a box (or use the lasso/box tools in the
-        plot toolbar) to list a group of outliers below; the 3D view supports
-        rotate and zoom only.
+        Down-select by classification, a group&apos;s sources, or an explicit
+        object list; points are colored by each source&apos;s
+        highest-probability classification. Click any point to open that source.
+        In 2D, drag a box (or use the lasso/box tools in the plot toolbar) to
+        list a group of outliers below; the 3D view supports rotate and zoom
+        only.
       </Typography>
 
       <Paper className={classes.controls}>
-        <Box className={classes.control}>
-          <ClassificationSelect
-            selectedClassifications={selectedClassifications}
-            setSelectedClassifications={setSelectedClassifications}
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={sourceMode}
+          onChange={(_e, v) => v && setSourceMode(v)}
+        >
+          <ToggleButton value="classification">Classification</ToggleButton>
+          <ToggleButton value="group">Group</ToggleButton>
+          <ToggleButton value="objects">Object list</ToggleButton>
+        </ToggleButtonGroup>
+        {sourceMode === "classification" && (
+          <Box className={classes.control}>
+            <ClassificationSelect
+              selectedClassifications={selectedClassifications}
+              setSelectedClassifications={setSelectedClassifications}
+            />
+          </Box>
+        )}
+        {sourceMode === "group" && (
+          <FormControl size="small" sx={{ minWidth: "12rem" }}>
+            <InputLabel>Group</InputLabel>
+            <Select
+              label="Group"
+              value={selectGroupId}
+              onChange={(e) => setSelectGroupId(e.target.value as number)}
+            >
+              {(groupsData?.userAccessible || []).map((g) => (
+                <MenuItem key={g.id} value={g.id}>
+                  {g.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+        {sourceMode === "objects" && (
+          <SourceIdAutocomplete
+            value={objIds}
+            onChange={setObjIds}
+            sx={{ minWidth: "22rem" }}
           />
-        </Box>
+        )}
         {axisSelect("X axis", xField, setXField)}
         {axisSelect("Y axis", yField, setYField)}
         {axisSelect("Z axis", zField, setZField, true)}
-        <Box className={classes.slider}>
-          <Typography variant="caption">
-            Min. classification probability: {probThreshold.toFixed(2)}
-          </Typography>
-          <Slider
-            value={probThreshold}
-            onChange={(_e, v) => setProbThreshold(v as number)}
-            min={0}
-            max={1}
-            step={0.05}
-            valueLabelDisplay="auto"
-          />
-        </Box>
+        {sourceMode === "classification" && (
+          <Box className={classes.slider}>
+            <Typography variant="caption">
+              Min. classification probability: {probThreshold.toFixed(2)}
+            </Typography>
+            <Slider
+              value={probThreshold}
+              onChange={(_e, v) => setProbThreshold(v as number)}
+              min={0}
+              max={1}
+              step={0.05}
+              valueLabelDisplay="auto"
+            />
+          </Box>
+        )}
         {!is3d && (
           <Box>
             <FormControlLabel
@@ -688,6 +752,7 @@ const SourceStatistics = () => {
                 <ToggleButton value="lightcurves">Light curves</ToggleButton>
                 <ToggleButton value="overlay">Overlay</ToggleButton>
                 <ToggleButton value="color">Color</ToggleButton>
+                <ToggleButton value="spectra">Spectra</ToggleButton>
               </ToggleButtonGroup>
             )}
           </Box>
@@ -843,6 +908,8 @@ const SourceStatistics = () => {
                 onAvailableBands={handleAvailableBands}
               />
             </Paper>
+          ) : viewMode === "spectra" ? (
+            <SpectraAggregation points={specPoints} />
           ) : (
             <Paper className={classes.selected}>
               <Box
