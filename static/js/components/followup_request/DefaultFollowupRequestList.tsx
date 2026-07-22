@@ -156,7 +156,8 @@ const DefaultFollowupRequestList = ({
   const renderGroup = (params: any) => {
     const { allocation } = params.row;
     const group = groups?.find((g: any) => g.id === allocation.group_id);
-    return group?.name !== undefined && <Chip label={group.name} />;
+    if (!group?.name) return null;
+    return <Chip label={group.name} />;
   };
 
   const renderPayload = (params: any) =>
