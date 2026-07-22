@@ -248,7 +248,7 @@ const DefaultFollowupRequestList = ({
   ].filter(Boolean);
 
   const CustomToolbar = () => (
-    <DataGridToolbar showQuickFilter={false} showExport>
+    <DataGridToolbar showQuickFilter={false} title="Default Follow-up Requests">
       {!isReadOnly && (
         <IconButton
           name="new_default_followup_request"
