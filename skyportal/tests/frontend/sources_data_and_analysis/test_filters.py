@@ -13,8 +13,9 @@ _, cfg = load_env()
 def test_add_filter(page, super_admin_user, user, public_group, public_stream):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    expect(page.locator('//h6[text()="All Groups"]').first).to_be_visible()
-    page.locator(f'//a[contains(.,"{public_group.name}")]').first.click()
+    page.get_by_role("tab", name="All Groups").click()
+    page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
+    page.get_by_role("tab", name="Streams and filters").click()
 
     # add stream
     page.locator('//button[contains(.,"Add stream")]').first.click()

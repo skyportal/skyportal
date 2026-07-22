@@ -710,6 +710,16 @@ brokers:
   # (the /brokers alerts page) works regardless of this setting.
   ingest_enabled: False
 
+# BOOM-specific settings. The filter builder's user-created modules (variables,
+# list variables, switch cases, blocks) live in BOOM's own MongoDB store, not in
+# skyportal's database. Point this at that store, or set the equivalent
+# `filter_modules_mongodb_uri`/`filter_modules_database` keys on the broker
+# record's altdata; left unset, the builder shows no saved modules.
+boom:
+  filter_modules:
+    mongodb_uri: null
+    database: null
+
 misc:
   days_to_keep_unsaved_candidates: 7
   days_to_keep_finding_charts_cache: 30

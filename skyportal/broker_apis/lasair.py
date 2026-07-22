@@ -4,7 +4,7 @@ import requests
 
 from baselayer.log import make_log
 
-from .interface import BrokerAPI
+from .interface import BrokerAPI, altdata_filter_modules
 
 log = make_log("broker/lasair")
 
@@ -270,8 +270,7 @@ class LASAIRBROKER(BrokerAPI):
         elements = kwargs.get("elements", "schema")
         if elements == "schema":
             return {"schema": _lasair_schema(_survey(broker, kwargs))}
-        modules = (broker.altdata or {}).get("filter_modules") or {}
-        return {elements: modules.get(elements, [])}
+        return {elements: altdata_filter_modules(broker, elements, kwargs.get("name"))}
 
     @staticmethod
     def test_filter(broker, session, **kwargs):

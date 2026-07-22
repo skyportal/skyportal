@@ -362,6 +362,262 @@ def test_boombroker_cone_search():
     assert json.loads(cone_call.request.body)["unit"] == "Arcseconds"
 
 
+# --- custom filter modules (the altdata-backed default store, via Lasair) ---
+
+
+@pytest.fixture
+def lasair_broker_id(super_admin_token):
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(
+            broker_classname="LASAIRBROKER",
+            altdata={"token": "t", "endpoint": "https://x/api"},
+        ),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    broker_id = data["data"]["id"]
+    yield broker_id
+    api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_filter_module_round_trip_normalizes_streams(
+    lasair_broker_id, super_admin_token
+):
+    """A module saved with a full stream name is stored under the bare survey
+    token -- the builder filters saved modules on the token, so anything else is
+    invisible in the builder that wrote it."""
+    status, data = api(
+        "POST",
+        f"brokers/{lasair_broker_id}/filter_modules/myvar",
+        data={"elements": "variables", "data": {"streams": ["ZTF (1, 2)"], "x": 1}},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET",
+        f"brokers/{lasair_broker_id}/filter_modules",
+        params={"elements": "variables"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["data"]["variables"] == [
+        {"name": "myvar", "streams": ["ZTF"], "x": 1},
+    ]
+
+
+def test_filter_module_lookup_by_name(lasair_broker_id, super_admin_token):
+    """The by-name read backs the builder's name-availability check: a real doc
+    for a hit, null for a miss (never an empty list, which reads as a hit)."""
+    status, _ = api(
+        "POST",
+        f"brokers/{lasair_broker_id}/filter_modules/known",
+        data={"elements": "blocks", "data": {"streams": ["ZTF Alerts"]}},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"brokers/{lasair_broker_id}/filter_modules/known",
+        params={"elements": "blocks"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["data"]["blocks"]["name"] == "known"
+    assert data["data"]["blocks"]["streams"] == ["ZTF"]
+
+    status, data = api(
+        "GET",
+        f"brokers/{lasair_broker_id}/filter_modules/nope",
+        params={"elements": "blocks"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["data"]["blocks"] is None
+
+
+def test_filter_module_update(lasair_broker_id, super_admin_token):
+    status, _ = api(
+        "POST",
+        f"brokers/{lasair_broker_id}/filter_modules/v",
+        data={"elements": "variables", "data": {"streams": ["ZTF"], "x": 1}},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "PUT",
+        f"brokers/{lasair_broker_id}/filter_modules/v",
+        data={"elements": "variables", "data": {"x": 2}},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET",
+        f"brokers/{lasair_broker_id}/filter_modules/v",
+        params={"elements": "variables"},
+        token=super_admin_token,
+    )
+    assert data["data"]["variables"]["x"] == 2
+
+    # updating a module that does not exist is an error, not an insert
+    status, data = api(
+        "PUT",
+        f"brokers/{lasair_broker_id}/filter_modules/ghost",
+        data={"elements": "variables", "data": {"x": 1}},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "No variables named 'ghost'" in data["message"]
+
+
+def test_filter_module_invalid_elements(lasair_broker_id, super_admin_token):
+    """'elements' is validated on read too -- it used to reach the store as an
+    arbitrary collection name."""
+    status, data = api(
+        "GET",
+        f"brokers/{lasair_broker_id}/filter_modules",
+        params={"elements": "; drop"},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "must be 'schema' or one of" in data["message"]
+
+    status, data = api(
+        "POST",
+        f"brokers/{lasair_broker_id}/filter_modules/x",
+        data={"elements": "bogus", "data": {}},
+        token=super_admin_token,
+    )
+    assert status == 400
+
+
+def test_normalize_module_streams():
+    """Full stream names collapse to the survey token, deduped; payloads without
+    a streams list pass through untouched."""
+    from skyportal.broker_apis.interface import normalize_module_streams
+
+    assert normalize_module_streams({"streams": ["ZTF (1, 2)", "ZTF Alerts"]}) == {
+        "streams": ["ZTF"]
+    }
+    assert normalize_module_streams({"x": 1}) == {"x": 1}
+
+
+def test_boom_ingestion_survey_is_uppercased():
+    """BOOM emits title-case survey names ("Ztf"), but instruments, zeropoints and
+    streams are all keyed on the uppercase form, so a verbatim name drops every
+    alert (`Instrument 'Ztf' not found`)."""
+    from skyportal.broker_apis.boom import _record_survey
+
+    assert _record_survey({"survey": "Ztf"}) == "ZTF"
+    assert _record_survey({"survey": "Lsst"}) == "LSST"
+    assert _record_survey({"survey": "ZTF"}) == "ZTF"
+    # BOOM leaving the field unset (or null) is why this went unnoticed for so
+    # long: DEFAULT_SURVEY is already correctly cased.
+    assert _record_survey({"survey": None}) == "ZTF"
+    assert _record_survey({}) == "ZTF"
+
+
+# --- BOOM's own module store (Mongo), against a recording fake ---
+
+
+class _FakeCollection:
+    """Just enough of a pymongo collection to record how the provider calls it."""
+
+    def __init__(self, docs=None):
+        self.docs = list(docs or [])
+        self.updates = []
+
+    def find_one(self, query, projection=None):
+        self.last_projection = projection
+        return next((d for d in self.docs if d["name"] == query["name"]), None)
+
+    def find(self, query, projection=None):
+        self.last_projection = projection
+        return iter(self.docs)
+
+    def update_one(self, query, update, upsert=False):
+        self.updates.append((query, update, upsert))
+
+
+class _FakeDB(dict):
+    def __missing__(self, key):
+        self[key] = _FakeCollection()
+        return self[key]
+
+
+def _boom_with_store(monkeypatch, docs=None):
+    from skyportal.broker_apis import boom
+
+    db = _FakeDB()
+    db["blocks"] = _FakeCollection(docs)
+    monkeypatch.setattr(boom, "_modules_db", lambda broker: db)
+    return db
+
+
+def test_boom_filter_modules_read(monkeypatch):
+    from skyportal.broker_apis import BOOMBROKER
+
+    db = _boom_with_store(monkeypatch, [{"name": "b1", "streams": ["ZTF"]}])
+
+    assert BOOMBROKER.filter_modules(None, None, elements="blocks") == {
+        "blocks": [{"name": "b1", "streams": ["ZTF"]}]
+    }
+    # raw ObjectIds are not JSON-serializable, so they must be projected away
+    assert db["blocks"].last_projection == {"_id": 0}
+
+    # by name: the doc on a hit, None on a miss (an empty list would read as a hit)
+    assert (
+        BOOMBROKER.filter_modules(None, None, elements="blocks", name="b1")["blocks"][
+            "name"
+        ]
+        == "b1"
+    )
+    assert BOOMBROKER.filter_modules(None, None, elements="blocks", name="x") == {
+        "blocks": None
+    }
+
+
+def test_boom_filter_modules_unconfigured_store(monkeypatch):
+    """With no store configured, reads degrade to empty rather than raising."""
+    from skyportal.broker_apis import BOOMBROKER, boom
+
+    monkeypatch.setattr(boom, "_modules_db", lambda broker: None)
+    assert BOOMBROKER.filter_modules(None, None, elements="blocks") == {"blocks": []}
+    assert BOOMBROKER.filter_modules(None, None, elements="blocks", name="b") == {
+        "blocks": None
+    }
+
+
+def test_boom_write_filter_module(monkeypatch):
+    from skyportal.broker_apis import BOOMBROKER
+
+    db = _boom_with_store(monkeypatch, [{"name": "b1", "streams": ["ZTF"]}])
+
+    BOOMBROKER.write_filter_module(
+        None, None, "b2", "blocks", {"streams": ["ZTF Alerts"]}, insert=True
+    )
+    query, update, upsert = db["blocks"].updates[-1]
+    assert (query, upsert) == ({"name": "b2"}, True)
+    assert update["$set"]["streams"] == ["ZTF"]  # normalized to the survey token
+    assert "created_at" in update["$setOnInsert"]
+    assert "updated_at" in update["$set"]
+
+    # update of an existing module touches updated_at only
+    BOOMBROKER.write_filter_module(None, None, "b1", "blocks", {"x": 1}, insert=False)
+    query, update, upsert = db["blocks"].updates[-1]
+    assert (query, upsert) == ({"name": "b1"}, False)
+    assert update["$set"]["x"] == 1
+    assert "$setOnInsert" not in update
+
+    with pytest.raises(ValueError, match="No blocks named 'ghost'"):
+        BOOMBROKER.write_filter_module(None, None, "ghost", "blocks", {}, insert=False)
+
+
 def test_broker_cone_search_unsupported(super_admin_token):
     """A broker whose provider does not implement cone_search is rejected."""
     status, data = api(

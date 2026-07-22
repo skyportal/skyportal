@@ -2,12 +2,16 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta, timezone
 
 import requests
+from pymongo import MongoClient
 
+from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from .interface import BrokerAPI
+from .interface import BrokerAPI, normalize_module_streams
 
 log = make_log("broker/boom")
+
+_, cfg = load_env()
 
 DEFAULT_SURVEY = "ZTF"
 DEFAULT_TIMEOUT = 30  # seconds
@@ -17,6 +21,9 @@ NO_CUTOUT_PROJECTION = {"cutoutScience": 0, "cutoutTemplate": 0, "cutoutDifferen
 # token cache keyed by (base_url, username): (token, expiry). Providers are
 # stateless, so the short-lived bearer token is cached at module scope.
 _TOKENS: dict = {}
+
+# One MongoClient per store URI (the client pools connections internally).
+_MONGO_CLIENTS: dict = {}
 
 
 def _base_url(altdata):
@@ -77,6 +84,36 @@ def _request(broker, method, path, *, params=None, json=None):
 
 def _survey(broker, kwargs):
     return kwargs.get("survey") or (broker.altdata or {}).get("survey", DEFAULT_SURVEY)
+
+
+def _record_survey(record):
+    """The survey of a BOOM Kafka record, uppercased: BOOM emits title-case names
+    ("Ztf") but skyportal keys instruments/zeropoints/streams on the upper form,
+    so a verbatim name drops every alert (`Instrument 'Ztf' not found`)."""
+    return (record.get("survey") or DEFAULT_SURVEY).upper()
+
+
+def _modules_db(broker):
+    """The MongoDB database holding BOOM's user-created filter modules.
+
+    Resolved from the broker's altdata, falling back to the global
+    ``boom.filter_modules`` config. Returns ``None`` when unconfigured so reads
+    degrade to empty lists rather than raising.
+    """
+    altdata = broker.altdata or {}
+    conf = cfg.get("boom.filter_modules") or {}
+    uri = altdata.get("filter_modules_mongodb_uri") or conf.get("mongodb_uri")
+    database = altdata.get("filter_modules_database") or conf.get("database")
+    if not uri or not database:
+        log(
+            f"BOOM broker {broker.id}: no filter-module store configured "
+            "(boom.filter_modules.mongodb_uri/database)."
+        )
+        return None
+    client = _MONGO_CLIENTS.get(uri)
+    if client is None:
+        client = _MONGO_CLIENTS[uri] = MongoClient(uri)
+    return client[database]
 
 
 # BOOM's Kafka alert sentinel for "no value" in flux fields.
@@ -379,7 +416,7 @@ class BOOMBROKER(BrokerAPI):
                 if record is None:
                     continue
 
-                survey = record.get("survey", DEFAULT_SURVEY)
+                survey = _record_survey(record)
                 data = _normalize_boom_alert(record)
                 # Route to the skyportal Filters mapped to the passing BOOM filters.
                 passed = [
@@ -424,17 +461,46 @@ class BOOMBROKER(BrokerAPI):
     @staticmethod
     def filter_modules(broker, session, **kwargs):
         """Filter-building vocabulary for a survey. ``elements`` selects what to
-        fetch: "schema" (default) returns BOOM's alert schema (fields/types);
-        others (variables/listVariables/switchCases/blocks) are fetched from BOOM
-        over REST if the instance exposes them, else returned empty."""
-        survey = _survey(broker, kwargs)
+        fetch: "schema" (default) returns BOOM's alert schema (fields/types) over
+        REST; the user-created modules (variables/listVariables/switchCases/
+        blocks) come from BOOM's own MongoDB store. With ``name``, returns the
+        single matching module (or ``None``) instead of the list."""
         elements = kwargs.get("elements", "schema")
         if elements == "schema":
+            survey = _survey(broker, kwargs)
             return {"schema": _request(broker, "GET", f"filters/schemas/{survey}")}
-        # Custom modules (variables/listVariables/switchCases/blocks) are broker-
-        # scoped, stored in altdata by the filter_modules write handler.
-        modules = (broker.altdata or {}).get("filter_modules") or {}
-        return {elements: modules.get(elements, [])}
+        name = kwargs.get("name")
+        db = _modules_db(broker)
+        if db is None:
+            return {elements: None if name else []}
+        # Strip the raw ObjectId: it is not JSON-serializable.
+        if name:
+            return {elements: db[elements].find_one({"name": name}, {"_id": 0})}
+        return {elements: list(db[elements].find({}, {"_id": 0}))}
+
+    @staticmethod
+    def write_filter_module(broker, session, name, elements, payload, insert):
+        """Upsert a custom filter module into BOOM's MongoDB store."""
+        db = _modules_db(broker)
+        if db is None:
+            raise ValueError("No filter-module store is configured for this broker.")
+        payload = normalize_module_streams(payload)
+        now = datetime.now(UTC)
+        if insert:
+            db[elements].update_one(
+                {"name": name},
+                {
+                    "$set": {"name": name, **payload, "updated_at": now},
+                    "$setOnInsert": {"created_at": now},
+                },
+                upsert=True,
+            )
+        elif db[elements].find_one({"name": name}, {"_id": 0}) is None:
+            raise ValueError(f"No {elements} named '{name}'.")
+        else:
+            db[elements].update_one(
+                {"name": name}, {"$set": {**payload, "updated_at": now}}
+            )
 
     @staticmethod
     def get_filters(broker, session, **kwargs):

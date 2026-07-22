@@ -110,8 +110,8 @@ const HomePage = () => {
           {%- if widgetName == "GroupList" %}
         <div key="{{ widgetName }}">
           <{{ widgetName }}
+            variant="widget"
             groups={groups}
-            classes={classes}
             {%- for key, value in widgetProps.props.items() -%}
             {%- if value is string %}
             {{ key }}={"{{ value }}"}

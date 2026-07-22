@@ -9,13 +9,15 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
 import InputLabel from "@mui/material/InputLabel";
-import IconButton from "@mui/material/IconButton";
+import FormControl from "@mui/material/FormControl";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
-import Popover from "@mui/material/Popover";
+import Box from "@mui/material/Box";
+import Tooltip from "@mui/material/Tooltip";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -26,23 +28,6 @@ import { useInviteUserMutation } from "../../ducks/invitations";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles()((theme) => ({
-  heading: {
-    fontSize: "1.0625rem",
-    fontWeight: 500,
-  },
-  userExpirationDate: {
-    display: "flex",
-    alignItems: "flex-end",
-    "& > div": {
-      minWidth: "12rem",
-    },
-  },
-  typography: {
-    padding: theme.spacing(1),
-  },
-}));
-
 const defaultState: any = {
   newUserEmail: "",
   role: "Full user",
@@ -51,26 +36,15 @@ const defaultState: any = {
   userExpirationDate: null,
 };
 
-interface InviteNewGroupUserFormProps {
+interface InviteNewUserFormProps {
   group_id: number;
 }
 
-const InviteNewGroupUserForm = ({ group_id }: InviteNewGroupUserFormProps) => {
+const InviteNewUserForm = ({ group_id }: InviteNewUserFormProps) => {
   const dispatch = useAppDispatch();
   const [inviteUser] = useInviteUserMutation();
   const [formState, setFormState] = useState<any>(defaultState);
   const [confirmDialogOpen, setConfirmDialogOpen] = React.useState(false);
-  const { classes } = useStyles();
-
-  const [anchorEl, setAnchorEl] = useState<any>(null);
-  const handleClickExpirationDateHelp = (event: any) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleCloseExpirationDateHelp = () => {
-    setAnchorEl(null);
-  };
-  const open = Boolean(anchorEl);
-  const id = open ? "expiration-date-popover" : undefined;
 
   const handleClickSubmit = async () => {
     // Admin should always be false for view-only users
@@ -138,11 +112,18 @@ const InviteNewGroupUserForm = ({ group_id }: InviteNewGroupUserFormProps) => {
   };
 
   return (
-    <div>
-      <Typography className={classes.heading}>
-        Invite a new user to the site and add them to this group
+    <Box sx={{ width: "100%" }}>
+      <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+        Invite a new user to this website and add them to this group
       </Typography>
-      <div style={{ paddingBottom: "1rem" }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 2,
+        }}
+      >
         <TextField
           id="newUserEmail"
           data-testid="newUserEmail"
@@ -152,22 +133,21 @@ const InviteNewGroupUserForm = ({ group_id }: InviteNewGroupUserFormProps) => {
           }
           label="Enter user email"
         />
-      </div>
-      <div style={{ paddingBottom: "0.5rem" }}>
-        <InputLabel id="roleSelectLabel">Site-wide user role</InputLabel>
-        <Select
-          defaultValue="Full user"
-          onChange={handleRoleChange}
-          labelId="roleSelectLabel"
-        >
-          {["Full user", "View only"].map((role) => (
-            <MenuItem key={role} value={role}>
-              {role}
-            </MenuItem>
-          ))}
-        </Select>
-      </div>
-      <div className={classes.userExpirationDate}>
+        <FormControl>
+          <InputLabel id="roleSelectLabel">User role</InputLabel>
+          <Select
+            defaultValue="Full user"
+            onChange={handleRoleChange}
+            labelId="roleSelectLabel"
+            label="User role"
+          >
+            {["Full user", "View only"].map((role) => (
+              <MenuItem key={role} value={role}>
+                {role}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <DatePicker
             value={formState.userExpirationDate}
@@ -177,65 +157,43 @@ const InviteNewGroupUserForm = ({ group_id }: InviteNewGroupUserFormProps) => {
             {...({ showTodayButton: false } as any)}
           />
         </LocalizationProvider>
-        <IconButton
-          aria-label="help"
-          size="small"
-          onClick={handleClickExpirationDateHelp}
+        <Tooltip
+          title="This is the expiration date assigned to the new user account. After
+          this date, the user account will be deactivated and will be unable
+          to access the application."
         >
           <HelpOutlineIcon />
-        </IconButton>
-        <Popover
-          id={id}
-          open={open}
-          anchorEl={anchorEl}
-          onClose={handleCloseExpirationDateHelp}
-          anchorOrigin={
-            {
-              vertical: "middle",
-              horizontal: "right",
-            } as any
-          }
-          transformOrigin={
-            {
-              vertical: "middle",
-              horizontal: "left",
-            } as any
-          }
-        >
-          <Typography className={classes.typography}>
-            This is the expiration date assigned to the new user account. After
-            this date, the user account will be deactivated and will be unable
-            to access the application.
-          </Typography>
-        </Popover>
-      </div>
-      {formState.role === "Full user" && (
-        <>
-          <input
-            type="checkbox"
-            checked={formState.canSave}
-            onChange={toggleCheckbox}
-            name="canSave"
+        </Tooltip>
+        {formState.role === "Full user" && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={formState.canSave}
+                onChange={toggleCheckbox}
+                name="canSave"
+              />
+            }
+            label="Can save to this group?"
           />
-          Can save to this group &nbsp;&nbsp;
-        </>
-      )}
-      {formState.role === "Full user" && formState.canSave && (
-        <>
-          <input
-            type="checkbox"
-            checked={formState.admin}
-            onChange={toggleCheckbox}
-            name="admin"
+        )}
+        {formState.role === "Full user" && formState.canSave && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={formState.admin}
+                onChange={toggleCheckbox}
+                name="admin"
+              />
+            }
+            label="Group Admin?"
           />
-          Group Admin &nbsp;&nbsp;
-        </>
-      )}
+        )}
+      </Box>
       <Button
         secondary
         data-testid="inviteNewUserButton"
         onClick={() => setConfirmDialogOpen(true)}
-        size="small"
+        sx={{ mt: 2 }}
       >
         Invite new user
       </Button>
@@ -255,13 +213,7 @@ const InviteNewGroupUserForm = ({ group_id }: InviteNewGroupUserFormProps) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={() => {
-              setConfirmDialogOpen(false);
-            }}
-          >
-            Cancel
-          </Button>
+          <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
           <Button
             primary
             data-testid="confirmNewUserButton"
@@ -275,8 +227,8 @@ const InviteNewGroupUserForm = ({ group_id }: InviteNewGroupUserFormProps) => {
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </Box>
   );
 };
 
-export default InviteNewGroupUserForm;
+export default InviteNewUserForm;

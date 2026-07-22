@@ -1747,7 +1747,7 @@ export interface paths {
         };
         /**
          * Broker filter-building vocabulary
-         * @description Return the filter modules/schema (fields, operators, and any broker-scoped custom variables) for a broker's survey, dispatched to the broker's provider. Drives the filter builder UI.
+         * @description Return the filter modules/schema (fields, operators, and any broker-scoped custom variables) for a broker's survey, dispatched to the broker's provider. Drives the filter builder UI. With a ``name`` path segment, returns just that module (or null when there is no such module).
          */
         get: {
             parameters: {
@@ -1755,6 +1755,7 @@ export interface paths {
                 header?: never;
                 path: {
                     broker_id: number;
+                    name: string;
                 };
                 cookie?: never;
             };
@@ -1818,7 +1819,7 @@ export interface paths {
         };
         /**
          * Create a broker custom filter module
-         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Store a broker-scoped custom filter-building element (a variable/listVariable/switchCase/block) named ``name`` in the broker's altdata, for reuse by the filter builder.
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Store a broker-scoped custom filter-building element (a variable/listVariable/switchCase/block) named ``name``, for reuse by the filter builder. Where it is stored is up to the broker's provider.
          */
         post: {
             parameters: {
@@ -33177,7 +33178,7 @@ export interface components {
             dec_unc?: number | number[];
             /** @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None. */
             origin?: string | string[];
-            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with site-wide public group (visible to all users who can view associated source). */
+            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with sitewide public group (visible to all users who can view associated source). */
             group_ids?: number[];
             /** @description List of stream IDs to which photometry points will be visible. */
             stream_ids?: number[];
@@ -33239,7 +33240,7 @@ export interface components {
             dec_unc?: number | number[];
             /** @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None. */
             origin?: string | string[];
-            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with site-wide public group (visible to all users who can view associated source). */
+            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with sitewide public group (visible to all users who can view associated source). */
             group_ids?: number[];
             /** @description List of stream IDs to which photometry points will be visible. */
             stream_ids?: number[];

@@ -755,7 +755,7 @@ def _get_broker(handler, session, broker_id):
     ).first()
 
 
-# Custom filter-module element types stored broker-scoped in altdata.
+# Custom filter-module element types; the store is provider-owned.
 _FILTER_MODULE_ELEMENTS = ("variables", "listVariables", "switchCases", "blocks")
 
 
@@ -767,7 +767,8 @@ class BrokerFilterModulesHandler(BaseHandler):
         summary: Broker filter-building vocabulary
         description: Return the filter modules/schema (fields, operators, and any
           broker-scoped custom variables) for a broker's survey, dispatched to the
-          broker's provider. Drives the filter builder UI.
+          broker's provider. Drives the filter builder UI. With a ``name`` path
+          segment, returns just that module (or null when there is no such module).
         tags:
           - brokers
         parameters:
@@ -776,6 +777,11 @@ class BrokerFilterModulesHandler(BaseHandler):
             required: true
             schema:
               type: integer
+          - in: path
+            name: name
+            required: false
+            schema:
+              type: string
         responses:
           200:
             content:
@@ -788,6 +794,10 @@ class BrokerFilterModulesHandler(BaseHandler):
         """
         survey = self.get_query_argument("survey", None)
         elements = self.get_query_argument("elements", "schema")
+        if elements != "schema" and elements not in _FILTER_MODULE_ELEMENTS:
+            return self.error(
+                f"'elements' must be 'schema' or one of {list(_FILTER_MODULE_ELEMENTS)}."
+            )
         with self.Session() as session:
             broker = _get_broker(self, session, broker_id)
             if broker is None:
@@ -801,6 +811,8 @@ class BrokerFilterModulesHandler(BaseHandler):
             kwargs = {"elements": elements}
             if survey:
                 kwargs["survey"] = survey
+            if name:
+                kwargs["name"] = name
             try:
                 data = broker.broker_class.filter_modules(broker, session, **kwargs)
             except Exception as e:
@@ -815,8 +827,8 @@ class BrokerFilterModulesHandler(BaseHandler):
         ---
         summary: Create a broker custom filter module
         description: Store a broker-scoped custom filter-building element (a
-          variable/listVariable/switchCase/block) named ``name`` in the broker's
-          altdata, for reuse by the filter builder.
+          variable/listVariable/switchCase/block) named ``name``, for reuse by the
+          filter builder. Where it is stored is up to the broker's provider.
         tags:
           - brokers
         parameters:
@@ -902,24 +914,16 @@ class BrokerFilterModulesHandler(BaseHandler):
                 return self.error(f"No broker with id {broker_id}")
             if not broker.active:
                 return self.error(f"Broker {broker.name} is not active")
-            # Round-trip the whole altdata (credentials preserved, never exposed);
-            # only the filter_modules sub-key is mutated.
-            altdata = broker.altdata or {}
-            modules = altdata.setdefault("filter_modules", {})
-            items = modules.setdefault(elements, [])
-            existing = next((i for i in items if i.get("name") == name), None)
-            if insert:
-                item = {"name": name, **payload}
-                if existing is not None:
-                    items[items.index(existing)] = item
-                else:
-                    items.append(item)
-            else:
-                if existing is None:
-                    return self.error(f"No {elements} named '{name}'.")
-                existing.update(payload)
-            broker.altdata = altdata
-            session.commit()
+            if not broker.broker_class.implements()["filter_modules"]:
+                return self.error(
+                    f"Broker {broker.name} does not support filter modules."
+                )
+            try:
+                broker.broker_class.write_filter_module(
+                    broker, session, name, elements, payload, insert
+                )
+            except ValueError as e:
+                return self.error(str(e))
             return self.success()
 
 

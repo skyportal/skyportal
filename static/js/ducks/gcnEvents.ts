@@ -10,6 +10,7 @@
  * The websocket `REFRESH_GCN_EVENTS` message is bridged to cache invalidation
  * via `invalidateOnMessage`.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
@@ -24,19 +25,7 @@ export interface GcnEventsResult {
  * values to mirror the old `API.GET` `filterOutEmptyValues` behaviour.
  */
 const buildGcnEventsQuery = (filterParams: Record<string, any>): string => {
-  const search = new URLSearchParams();
-  Object.entries(filterParams).forEach(([key, value]) => {
-    if (
-      value === null ||
-      value === undefined ||
-      value === "" ||
-      (Array.isArray(value) && value.length === 0)
-    ) {
-      return;
-    }
-    search.append(key, String(value));
-  });
-  const queryString = search.toString();
+  const queryString = buildQueryString(filterParams);
   return `api/gcn_event${queryString ? `?${queryString}` : ""}`;
 };
 
