@@ -33178,7 +33178,7 @@ export interface components {
             dec_unc?: number | number[];
             /** @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None. */
             origin?: string | string[];
-            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with site-wide public group (visible to all users who can view associated source). */
+            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with sitewide public group (visible to all users who can view associated source). */
             group_ids?: number[];
             /** @description List of stream IDs to which photometry points will be visible. */
             stream_ids?: number[];
@@ -33240,7 +33240,7 @@ export interface components {
             dec_unc?: number | number[];
             /** @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None. */
             origin?: string | string[];
-            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with site-wide public group (visible to all users who can view associated source). */
+            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with sitewide public group (visible to all users who can view associated source). */
             group_ids?: number[];
             /** @description List of stream IDs to which photometry points will be visible. */
             stream_ids?: number[];
