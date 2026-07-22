@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -8,6 +9,7 @@ import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
 import CircularProgress from "@mui/material/CircularProgress";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
+import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -46,6 +48,14 @@ const GroupList = ({
     permissions,
     groupAdmissionRequests,
   } = (useGetProfileQuery().data as any) ?? {};
+
+  const CustomToolbar = useMemo(
+    () =>
+      function GroupListToolbar() {
+        return <DataGridToolbar title={title} />;
+      },
+    [title],
+  );
 
   if (!groups?.length) return null;
   const multiUserGroups = groups.filter((group) => !group.single_user_group);
@@ -159,14 +169,14 @@ const GroupList = ({
           >
             {label}
           </Button>
-          {requestToDelete !== null && (
+          {requestToDelete != null && (
             <IconButton
               color="error"
               size="small"
               onClick={() => deleteAdmissionRequest(requestToDelete)}
               data-testid={`deleteAdmissionRequestButton${group.id}`}
             >
-              X
+              <CloseIcon />
             </IconButton>
           )}
         </Box>
@@ -203,7 +213,7 @@ const GroupList = ({
       onRowClick={
         admission ? undefined : (params: any) => navigate(getLink(params.row))
       }
-      slots={{ toolbar: () => <DataGridToolbar title={title} /> }}
+      slots={{ toolbar: CustomToolbar }}
       sx={admission ? {} : { "& .MuiDataGrid-row": { cursor: "pointer" } }}
     />
   );
