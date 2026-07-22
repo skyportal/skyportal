@@ -10,18 +10,9 @@
  * invalidation, preserving the old guard that only refetched when the
  * currently-loaded GCN event matched the pushed event.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-
-const buildQueryString = (params: Record<string, unknown>): string =>
-  new URLSearchParams(
-    Object.entries(params).reduce<Record<string, string>>((acc, [k, v]) => {
-      if (v !== undefined && v !== null) {
-        acc[k] = String(v);
-      }
-      return acc;
-    }, {}),
-  ).toString();
 
 interface GcnEventGalaxiesArg {
   dateobs: string;

@@ -148,6 +148,27 @@ export const filterOutEmptyValues = (
   return filteredParams;
 };
 
+/**
+ * Encode an object as a URL query string (no leading "?"), skipping null,
+ * undefined, "" and empty arrays. Use this everywhere query params are built so
+ * the encoding/skipping rules stay consistent across ducks.
+ */
+export const buildQueryString = (params: Record<string, unknown>): string => {
+  const search = new URLSearchParams();
+  Object.entries(params ?? {}).forEach(([key, value]) => {
+    if (
+      value === null ||
+      value === undefined ||
+      value === "" ||
+      (Array.isArray(value) && value.length === 0)
+    ) {
+      return;
+    }
+    search.append(key, String(value));
+  });
+  return search.toString();
+};
+
 function GET<T = unknown>(
   endpoint: string,
   actionType?: string,
@@ -156,14 +177,9 @@ function GET<T = unknown>(
 ): ApiThunk<T> {
   let url = endpoint;
   if (queryParams) {
-    const filteredQueryParams = filterOutEmptyValues(
-      queryParams,
-      true,
-      removeFalse,
+    const queryString = buildQueryString(
+      filterOutEmptyValues(queryParams, true, removeFalse),
     );
-    const queryString = new URLSearchParams(
-      filteredQueryParams as Record<string, string>,
-    ).toString();
     url += `?${queryString}`;
   }
   return API<T>(url, actionType, "GET");

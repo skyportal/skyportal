@@ -2,6 +2,7 @@
  * Alert brokers: list configured brokers and query their alerts through the
  * generic `/api/brokers` API (dispatched server-side to the broker's provider).
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 
 export interface Broker {
@@ -21,13 +22,7 @@ export interface BrokerAlertQuery {
 }
 
 const buildQuery = (params: BrokerAlertQuery["params"]) => {
-  const search = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== "") {
-      search.append(k, String(v));
-    }
-  });
-  const qs = search.toString();
+  const qs = buildQueryString(params);
   return qs ? `?${qs}` : "";
 };
 
