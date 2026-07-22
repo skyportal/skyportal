@@ -204,6 +204,9 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 80,
       valueGetter: (_value: any, row: any) => row.id ?? "",
+      renderCell: (params: any) => (
+        <Link to={`/allocation/${params.row.id}`}>{params.row.id}</Link>
+      ),
     },
     {
       field: "instrument_name",
