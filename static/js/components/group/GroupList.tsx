@@ -137,7 +137,7 @@ const GroupList = ({
       )[0]?.id;
     } else {
       const missingStreamNames = isSystemAdmin
-        ? []
+        ? ""
         : (group.streams ?? [])
             .filter((stream: any) => !userStreamIDs.has(stream.id))
             .map((stream: any) => stream.name)

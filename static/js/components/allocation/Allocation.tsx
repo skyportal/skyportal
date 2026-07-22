@@ -332,7 +332,7 @@ const AllocationSummaryTable = ({
   const [editFollowupRequestComment] = useEditFollowupRequestCommentMutation();
   const { requests } = allocation;
 
-  const [dialogOpen, setDialogOpen] = useState<any>(null);
+  const [editCommentRequestId, setEditCommentRequestId] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [commentContent, setCommentContent] = useState("");
 
@@ -359,7 +359,7 @@ const AllocationSummaryTable = ({
 
   const handleOpenDialog = (id: any, comment: any) => {
     setCommentContent(comment);
-    setDialogOpen(id);
+    setEditCommentRequestId(id);
   };
 
   const handleChange = (e: any) => {
@@ -373,13 +373,13 @@ const AllocationSummaryTable = ({
     };
     try {
       await editFollowupRequestComment({
-        id: dialogOpen,
+        id: editCommentRequestId,
         params: json,
       }).unwrap();
     } catch {
       // error notification handled by the baseQuery
     }
-    setDialogOpen(null);
+    setEditCommentRequestId(null);
     setIsSubmitting(false);
   };
 
@@ -649,8 +649,8 @@ const AllocationSummaryTable = ({
         pageSizeOptions={[25, 50, 100]}
       />
       <Dialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(null)}
+        open={editCommentRequestId !== null}
+        onClose={() => setEditCommentRequestId(null)}
         fullWidth
         maxWidth="md"
       >
