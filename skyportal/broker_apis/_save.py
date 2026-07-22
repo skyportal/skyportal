@@ -177,7 +177,10 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                 }
             pd = photometry_data[key]
             pd["mjd"].append(jd - 2400000.5)
-            pd["filter"].append(f"{survey.lower()}{str(band).lower()}")
+            # Normalize the band first: BOOM emits survey-prefixed bands ("ztfg"),
+            # so a bare prefix would double it ("ztfztfg"). _normalize_band also
+            # handles bare bands ("g" -> "g"), giving "ztfg" either way.
+            pd["filter"].append(f"{survey.lower()}{_normalize_band(band)}")
             pd["magsys"].append("ab")
             pd["ra"].append(phot.get("ra"))
             pd["dec"].append(phot.get("dec"))
