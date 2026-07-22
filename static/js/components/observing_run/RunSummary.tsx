@@ -428,12 +428,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       sortable: false,
       renderCell: (params: any) => {
         const assignment = params.row;
-        const test = [
-          assignment.accessible_group_names[0],
-          assignment.accessible_group_names[0],
-          assignment.accessible_group_names[0],
-        ];
-        return test?.map((name: string) => (
+        return assignment.accessible_group_names?.map((name: string) => (
           <Chip
             sx={{ m: 0.5 }}
             label={name.substring(0, 15)}
