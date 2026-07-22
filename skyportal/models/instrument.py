@@ -62,12 +62,12 @@ class ArrayOfEnum(ARRAY):
 
 def manage_instrument_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
-        return DBSession().query(cls)
+        return sa.select(cls)
     elif "Manage allocations" in [acl.id for acl in user_or_token.acls]:
-        return DBSession().query(cls)
+        return sa.select(cls)
     else:
         # return an empty query
-        return DBSession().query(cls).filter(cls.id == -1)
+        return sa.select(cls).where(cls.id == -1)
 
 
 class InstrumentField(Base):
@@ -397,6 +397,14 @@ class Instrument(Base):
         sa.Integer,
         nullable=True,
         doc="TNS API ID for this instrument",
+    )
+
+    across_id = sa.Column(
+        sa.String,
+        nullable=True,
+        index=True,
+        doc="NASA ACROSS instrument UUID, used to route visibility queries to "
+        "the ACROSS calculator. See https://across.sciencecloud.nasa.gov",
     )
 
     region = deferred(

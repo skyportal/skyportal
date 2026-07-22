@@ -1,6 +1,6 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
-import React, { Suspense, useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 
 import useMediaQuery from "@mui/material/useMediaQuery";
 import Box from "@mui/material/Box";
@@ -52,7 +52,7 @@ import AddCatalogQueryPage from "../catalog_query/AddCatalogQueryPage";
 import AddSurveyEfficiencyObservationsPage from "../survey_efficiency/AddSurveyEfficiencyObservationsPage";
 import ExecutedObservationsTable from "../observation/ExecutedObservationsTable";
 import GalaxyTable from "../galaxy/GalaxyTable";
-import LocalizationPlot from "../localization/LocalizationPlot";
+const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 import SourceTable from "../source/SourceTable";
 import ProgressIndicator from "../ProgressIndicators";
 
@@ -339,31 +339,47 @@ const MyObjectFieldTemplate = (props: MyObjectFieldTemplateProps) => {
   return (
     <Grid
       container
-      spacing={2}
-      {...({ justify: "space-between" } as any)}
-      sx={{
-        flexDirection: "column",
-        alignItems: "center",
-      }}
+      spacing={2.5}
+      sx={{ flexDirection: "column", width: "100%" }}
     >
-      {uiSchema["ui:grid"].map((row: any) => (
-        <Grid
-          container
-          direction="row"
-          spacing={2}
-          key={JSON.stringify(row)}
-          {...({ justify: "space-between" } as any)}
-          sx={{
-            alignItems: "center",
-          }}
-        >
-          {Object.keys(row).map((fieldName) => (
-            <Grid size={row[fieldName]} key={fieldName}>
-              {properties.find((p) => p.name === fieldName).content}
+      {uiSchema["ui:grid"].map((row: any) => {
+        // A row can be a section header ({ __section: "Title" }) instead of fields.
+        if (row.__section) {
+          return (
+            <Grid key={`section-${row.__section}`} sx={{ width: "100%" }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontWeight: 600,
+                  color: "text.secondary",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  pb: 0.5,
+                  borderBottom: 1,
+                  borderColor: "divider",
+                }}
+              >
+                {row.__section}
+              </Typography>
             </Grid>
-          ))}
-        </Grid>
-      ))}
+          );
+        }
+        return (
+          <Grid
+            container
+            direction="row"
+            spacing={2}
+            key={JSON.stringify(row)}
+            sx={{ alignItems: "flex-start", width: "100%" }}
+          >
+            {Object.keys(row).map((fieldName) => (
+              <Grid size={row[fieldName]} key={fieldName}>
+                {properties.find((p) => p.name === fieldName)?.content}
+              </Grid>
+            ))}
+          </Grid>
+        );
+      })}
     </Grid>
   );
 };
@@ -454,11 +470,11 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
 
   const defaultStartDate = dayjs
     .utc(gcnEvent?.dateobs)
-    .format("YYYY-MM-DD HH:mm:ss");
+    .format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultEndDate = dayjs
     .utc(gcnEvent?.dateobs)
     .add(7, "day")
-    .format("YYYY-MM-DD HH:mm:ss");
+    .format("YYYY-MM-DDTHH:mm:ssZ");
   const [formDataState, setFormDataState] = useState<Record<string, any>>({
     startDate: defaultStartDate,
     endDate: defaultEndDate,
@@ -704,10 +720,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   const handleSubmit = async ({ formData }: { formData: any }) => {
     const { queryList = [] } = formData;
 
-    if (queryList.includes("sources") && !formData?.group_ids?.length) {
-      showError("Please select at least one group when querying sources.");
-      return;
-    }
     setIsSubmitting(true);
 
     const cleanDate = (date: string) =>
@@ -782,15 +794,29 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   };
 
   function validate(formData: any, errors: any) {
-    if (formData.start_date > formData.end_date) {
-      errors.start_date.addError("Start Date must come before End Date");
+    if (
+      formData.startDate &&
+      formData.endDate &&
+      formData.startDate > formData.endDate
+    ) {
+      errors.startDate.addError("Start Date must come before End Date");
     }
     if (
       formData.localizationCumprob < 0 ||
       formData.localizationCumprob > 1.01
     ) {
-      errors.cumulative.addError(
-        "Value of cumulative should be between 0 and 1",
+      errors.localizationCumprob.addError(
+        "Cumulative probability should be between 0 and 1",
+      );
+    }
+    // Querying sources requires a group; surface it inline instead of a
+    // submit-time notification.
+    if (
+      formData.queryList?.includes("sources") &&
+      !formData.group_ids?.length
+    ) {
+      errors.group_ids.addError(
+        "Select at least one group when querying sources.",
       );
     }
     return errors;
@@ -801,11 +827,13 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     properties: {
       startDate: {
         type: "string",
+        format: "date-time",
         title: "Start Date",
         default: defaultStartDate,
       },
       endDate: {
         type: "string",
+        format: "date-time",
         title: "End Date",
         default: defaultEndDate,
       },
@@ -884,13 +912,16 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
       "ui:enumNames": groups.map((group) => group.name),
     },
     "ui:grid": [
+      { __section: "Time range" },
       { startDate: 6, endDate: 6 },
+      { __section: "Filters" },
       { numberDetections: 4, localizationCumprob: 4, maxDistance: 4 },
       {
         requireDetections: 4,
         excludeForcedPhotometry: 4,
         localizationRejectSources: 4,
       },
+      { __section: "Query targets" },
       galaxyCatalogs?.length > 0
         ? { queryList: 4, catalog_name: 4, group_ids: 4 }
         : { queryList: 6, group_ids: 6 },
@@ -906,17 +937,19 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         {Object.keys(locLookUp).includes(analysisLoc?.id?.toString() ?? "") &&
         !fetchingLocalization ? (
           <div style={{ marginTop: "0.5rem" }}>
-            <LocalizationPlot
-              localization={analysisLoc}
-              sources={gcnEventSources}
-              galaxies={gcnEventGalaxies}
-              instrument={skymapInstrument}
-              observations={gcnEventObservations}
-              options={checkedDisplayState}
-              selectedFields={selectedFields}
-              setSelectedFields={setSelectedFields}
-              projection={selectedProjection}
-            />
+            <Suspense fallback={<CircularProgress />}>
+              <LocalizationPlot
+                localization={analysisLoc}
+                sources={gcnEventSources}
+                galaxies={gcnEventGalaxies}
+                instrument={skymapInstrument}
+                observations={gcnEventObservations}
+                options={checkedDisplayState}
+                selectedFields={selectedFields}
+                setSelectedFields={setSelectedFields}
+                projection={selectedProjection}
+              />
+            </Suspense>
             <InputLabel
               style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
               id="projection"
@@ -1007,17 +1040,19 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                   size={{ sm: 8, md: 12 }}
                   className={classes.localizationPlotSmall}
                 >
-                  <LocalizationPlot
-                    localization={analysisLoc}
-                    sources={gcnEventSources}
-                    galaxies={gcnEventGalaxies}
-                    instrument={skymapInstrument}
-                    observations={gcnEventObservations}
-                    options={checkedDisplayState}
-                    selectedFields={selectedFields}
-                    setSelectedFields={setSelectedFields}
-                    projection={selectedProjection}
-                  />
+                  <Suspense fallback={<CircularProgress />}>
+                    <LocalizationPlot
+                      localization={analysisLoc}
+                      sources={gcnEventSources}
+                      galaxies={gcnEventGalaxies}
+                      instrument={skymapInstrument}
+                      observations={gcnEventObservations}
+                      options={checkedDisplayState}
+                      selectedFields={selectedFields}
+                      setSelectedFields={setSelectedFields}
+                      projection={selectedProjection}
+                    />
+                  </Suspense>
                 </Grid>
                 <Grid size={{ xs: 9, sm: 4, md: 12 }}>
                   <InputLabel
@@ -1144,7 +1179,6 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                 onSubmit={handleSubmit as any}
                 customValidate={validate}
                 disabled={isSubmitting}
-                liveValidate
               >
                 <Button
                   primary

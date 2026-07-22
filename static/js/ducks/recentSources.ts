@@ -13,8 +13,15 @@ export type RecentSource = Record<string, any>;
 
 export const recentSourcesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getRecentSources: build.query<RecentSource[], void>({
-      query: () => "api/internal/recent_sources",
+    // Optional `teamID` scopes the widget to a single team's groups.
+    getRecentSources: build.query<
+      RecentSource[],
+      { teamID?: number | null } | void
+    >({
+      query: (arg) =>
+        arg && arg.teamID != null
+          ? `api/internal/recent_sources?teamID=${arg.teamID}`
+          : "api/internal/recent_sources",
       providesTags: ["RecentSource"],
     }),
   }),

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import sys
 import time
 import traceback
 import urllib
@@ -623,6 +624,11 @@ def service(*args, **kwargs):
     while True:
         log(f"Current TNS retrieval queue length: {len(queue)}")
         time.sleep(120)
+        # Exit if any worker thread died (e.g. DB connection drop in a context
+        # manager exit, outside the loop's try/except) so supervisor restarts us.
+        if not (t.is_alive() and t2.is_alive() and t3.is_alive()):
+            log("A TNS retrieval worker thread died, exiting for supervisor restart")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

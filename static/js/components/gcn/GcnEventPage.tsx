@@ -261,7 +261,10 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                       }}
                     >
                       <Grid>
-                        <span className={styles.headerName}>
+                        <span
+                          className={styles.headerName}
+                          data-testid="tour-gcn-header"
+                        >
                           {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
                         </span>
                       </Grid>
@@ -360,6 +363,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="gcnEvent-content"
                 id="observationplan-header"
+                data-testid="tour-gcn-obsplan"
               >
                 <Typography className={styles.accordionHeading}>
                   Observation Plans

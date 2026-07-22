@@ -67,9 +67,17 @@ const isFloat = (x: any) =>
 // floats are fixed to 6 (or 8 for *jd* columns) decimals, and altdata objects
 // are stringified. Used as a DataGrid valueFormatter so sorting still operates
 // on the underlying numeric/object value.
+const COLUMN_PRECISION: Record<string, number> = {
+  mjd: 3,
+  mag: 4,
+  magerr: 4,
+  limiting_mag: 2,
+};
+
 const formatCell = (key: string) => (value: any) => {
   if (isFloat(value)) {
-    return value.toFixed(key.includes("jd") ? 8 : 6);
+    const precision = COLUMN_PRECISION[key] ?? 6;
+    return value.toFixed(precision);
   }
   if (key === "altdata" && typeof value === "object" && value !== null) {
     return JSON.stringify(value);
@@ -278,15 +286,14 @@ const PhotometryTable = ({
         sortable: false,
         renderCell: (params: any) => {
           const phot = params.row;
-          let statusIcon = null;
-          if (phot?.validations.length === 0) {
+          const validation = phot?.validations?.[0];
+          let statusIcon = <QuestionMarkIcon color="primary" />;
+          if (!validation) {
             statusIcon = <PriorityHigh color="primary" />;
-          } else if (phot?.validations[0]?.validated === true) {
+          } else if (validation.validated === true) {
             statusIcon = <CheckIcon {...({ color: "green" } as any)} />;
-          } else if (phot?.validations[0]?.validated === false) {
+          } else if (validation.validated === false) {
             statusIcon = <ClearIcon color="secondary" />;
-          } else {
-            statusIcon = <QuestionMarkIcon color="primary" />;
           }
           return (
             <div
@@ -311,7 +318,7 @@ const PhotometryTable = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) =>
-          row?.validations.length === 0 ? "" : row?.validations[0]?.explanation,
+          row?.validations?.[0]?.explanation || "",
       });
 
       cols.push({
@@ -320,7 +327,7 @@ const PhotometryTable = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) =>
-          row?.validations.length === 0 ? "" : row?.validations[0]?.notes,
+          row?.validations?.[0]?.notes || "",
       });
     }
 
@@ -380,7 +387,7 @@ const PhotometryTable = ({
     () =>
       function PhotometryTableToolbar() {
         return (
-          <DataGridToolbar showQuickFilter>
+          <DataGridToolbar showQuickFilter showExport>
             <Button
               size="small"
               startIcon={<DownloadIcon />}
@@ -464,6 +471,7 @@ const PhotometryTable = ({
           objId={obj_id}
           usePhotometryValidation={usePhotometryValidation}
           onDownload={handleDownloadClose}
+          t0={t0}
         />
       </div>
     );

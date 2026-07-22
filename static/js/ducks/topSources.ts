@@ -11,8 +11,11 @@ import { invalidateOnMessage } from "../api/wsInvalidation";
 
 export const topSourcesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
-    getTopSources: build.query<any[], void>({
-      query: () => "api/internal/source_views",
+    getTopSources: build.query<any[], { teamID?: number | null } | void>({
+      query: (arg) =>
+        arg && arg.teamID != null
+          ? `api/internal/source_views?teamID=${arg.teamID}`
+          : "api/internal/source_views",
       providesTags: ["SourceView"],
     }),
   }),

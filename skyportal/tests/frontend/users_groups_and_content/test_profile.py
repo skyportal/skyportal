@@ -133,6 +133,31 @@ def test_profile_dropdown(page, user):
     ).to_be_visible()
 
 
+def test_join_auto_join_stream(page, user, super_admin_token):
+    # Create a public (auto-join) stream
+    stream_name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "streams",
+        data={"name": stream_name, "auto_join": True},
+        token=super_admin_token,
+    )
+    assert status == 200
+    stream_id = data["data"]["id"]
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
+
+    join_button = page.locator(f'//*[@data-testid="joinStreamButton{stream_id}"]').first
+    expect(join_button).to_be_visible()
+    join_button.click()
+
+    # After joining, the stream drops out of the "streams you can join" list
+    expect(
+        page.locator(f'//*[@data-testid="joinStreamButton{stream_id}"]').first
+    ).to_be_hidden()
+
+
 def add_classification_shortcut(page, user, public_group, taxonomy_token):
     status, _ = api(
         "POST",

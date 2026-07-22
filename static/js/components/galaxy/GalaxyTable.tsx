@@ -89,7 +89,7 @@ const GalaxyTable = ({
     () =>
       function GalaxyTableToolbar() {
         return (
-          <DataGridToolbar showQuickFilter={false}>
+          <DataGridToolbar showQuickFilter={false} showExport>
             <Tooltip title="Filter Table">
               <IconButton
                 size="small"

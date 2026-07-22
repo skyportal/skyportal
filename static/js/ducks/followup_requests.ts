@@ -13,7 +13,7 @@
 import * as API from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
-import { filterOutEmptyValues } from "../API";
+import { buildQueryString, filterOutEmptyValues } from "../API";
 import type { RouteData } from "../types/routeSchemaMap";
 
 type FollowupRequestsArg = Record<string, any> | void;
@@ -24,9 +24,7 @@ const buildFollowupRequestsUrl = (params: Record<string, any>): string => {
     withDefaults["numPerPage"] = 10;
   }
   const filtered = filterOutEmptyValues(withDefaults);
-  const queryString = new URLSearchParams(
-    filtered as Record<string, string>,
-  ).toString();
+  const queryString = buildQueryString(filtered);
   return queryString
     ? `api/followup_request?${queryString}`
     : "api/followup_request";

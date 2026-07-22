@@ -22,6 +22,7 @@ import { useDeleteDefaultFollowupRequestMutation } from "../../ducks/default_fol
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -47,6 +48,7 @@ const DefaultFollowupRequestList = ({
 }: DefaultFollowupRequestListProps) => {
   const dispatch = useAppDispatch();
   const { classes } = useStyles();
+  const isReadOnly = useIsReadOnly();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const groups = useGetGroupsQuery().data?.all ?? null;
@@ -125,8 +127,10 @@ const DefaultFollowupRequestList = ({
     return <div>{group ? group.name : ""}</div>;
   };
 
+  // Let the tree wrap and grow so every key/value is visible (paired with the
+  // grid's auto row height); otherwise all but the first field is clipped.
   const renderPayload = (params: any) => {
-    const cellStyle = { whiteSpace: "nowrap" as const };
+    const cellStyle = { whiteSpace: "normal" as const, padding: "0.25rem 0" };
     return (
       <div style={cellStyle}>
         {params.row ? <JSONTree data={params.row.payload} hideRoot /> : ""}
@@ -135,7 +139,7 @@ const DefaultFollowupRequestList = ({
   };
 
   const renderSourceFilter = (params: any) => {
-    const cellStyle = { whiteSpace: "nowrap" as const };
+    const cellStyle = { whiteSpace: "normal" as const, padding: "0.25rem 0" };
     return (
       <div style={cellStyle}>
         {params.row ? (
@@ -148,17 +152,12 @@ const DefaultFollowupRequestList = ({
   };
 
   const renderManage = (params: any) => {
-    if (!deletePermission) {
-      return null;
-    }
+    if (!deletePermission) return null;
+
     const default_followup_request = params.row;
     return (
       <div className={classes.defaultFollowupRequestManage}>
-        <Button
-          id={`delete_button_${default_followup_request.id}`}
-          onClick={() => openDeleteDialog(default_followup_request.id)}
-          disabled={!deletePermission}
-        >
+        <Button onClick={() => openDeleteDialog(default_followup_request.id)}>
           <DeleteIcon />
         </Button>
       </div>
@@ -223,13 +222,15 @@ const DefaultFollowupRequestList = ({
   ];
 
   const CustomToolbar = () => (
-    <DataGridToolbar showQuickFilter={false}>
-      <IconButton
-        name="new_default_followup_request"
-        onClick={() => openNewDialog()}
-      >
-        <AddIcon />
-      </IconButton>
+    <DataGridToolbar showQuickFilter={false} showExport>
+      {!isReadOnly && (
+        <IconButton
+          name="new_default_followup_request"
+          onClick={() => openNewDialog()}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
     </DataGridToolbar>
   );
 
@@ -241,6 +242,7 @@ const DefaultFollowupRequestList = ({
         </Typography>
         <StyledDataGrid
           autoHeight
+          getRowHeight={() => "auto"}
           rows={default_followup_requests || []}
           columns={columns}
           getRowId={(row: any) => row.id}

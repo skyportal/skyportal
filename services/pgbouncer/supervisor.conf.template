@@ -1,0 +1,8 @@
+{% if database.pooler.enabled %}
+[program:pgbouncer]
+command=pgbouncer services/pgbouncer/pgbouncer.ini
+# Start before the app so connections succeed on first try.
+priority=1
+stdout_logfile=log/pgbouncer.log
+redirect_stderr=true
+{% endif %}

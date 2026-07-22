@@ -25,7 +25,7 @@
  */
 import messageHandler from "baselayer/MessageHandler";
 
-import { filterOutEmptyValues } from "../../API";
+import { buildQueryString, filterOutEmptyValues } from "../../API";
 import { skyportalApi } from "../../api/skyportalApi";
 import { candidateApi } from "./candidate";
 import store from "../../store";
@@ -70,9 +70,7 @@ export const candidatesApi = skyportalApi.injectEndpoints({
         const cleaned = { ...filterParams };
         delete cleaned["_searchCount"];
         const filtered = filterOutEmptyValues(cleaned);
-        const queryString = new URLSearchParams(
-          filtered as Record<string, string>,
-        ).toString();
+        const queryString = buildQueryString(filtered);
         return `api/candidates?${queryString}`;
       },
       // All pages of one filter/query share a single cache entry. The scanning
@@ -105,11 +103,17 @@ export const candidatesApi = skyportalApi.injectEndpoints({
       providesTags: ["AnnotationsInfo"],
     }),
     generateSurveyThumbnail: build.mutation({
-      query: (objID) => ({
-        url: "api/internal/survey_thumbnail",
-        method: "POST",
-        body: { objID },
-      }),
+      // Accepts either an objID string (all-sky cutouts) or
+      // { objID, types } for on-demand pointed instruments (HST/Chandra).
+      query: (arg: string | { objID: string; types?: string[] }) => {
+        const { objID, types } =
+          typeof arg === "string" ? { objID: arg, types: undefined } : arg;
+        return {
+          url: "api/internal/survey_thumbnail",
+          method: "POST",
+          body: { objID, ...(types ? { types } : {}) },
+        };
+      },
     }),
   }),
 });

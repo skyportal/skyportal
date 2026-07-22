@@ -37,6 +37,7 @@ import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import {
   useFetchSourceSpectraQuery,
   useDeleteSpectrumMutation,
+  useLazyFetchSpectrumOriginalFileQuery,
 } from "../../ducks/spectra";
 import { useShareDataMutation } from "../../ducks/source";
 import { useGetGroupsQuery } from "../../ducks/groups";
@@ -170,7 +171,7 @@ const createPhotRow = (
   mjd: Number(mjd).toFixed(3),
   mag: mag === null ? null : Number(mag).toFixed(4),
   magerr: magerr === null ? null : Number(magerr).toFixed(4),
-  limiting_mag: Number(limiting_mag).toFixed(4),
+  limiting_mag: Number(limiting_mag).toFixed(2),
   instrument,
   filter,
   groups,
@@ -298,6 +299,7 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
   const groups = useGetGroupsQuery().data?.all ?? null;
   const { data: photometry } = useFetchSourcePhotometryQuery({ id: route.id });
   const { data: spectra } = useFetchSourceSpectraQuery({ id: route.id });
+  const [fetchSpectrumOriginalFile] = useLazyFetchSpectrumOriginalFileQuery();
 
   const {
     handleSubmit,
@@ -428,21 +430,33 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
     const spectrum = sourceSpectra.find((spec: any) => spec.id === specid);
     if (!spectrum) return null;
 
-    const data = spectrum.original_file_string
-      ? spectrum.original_file_string
-      : to_csv(spectrum);
-    const filename = spectrum.original_file_filename
-      ? spectrum.original_file_filename
-      : get_filename(spectrum);
-
-    const blob = new Blob([data], { type: "text/plain" });
+    const handleDownload = async () => {
+      // The raw uploaded file (with its FITS/ASCII headers) is deferred from the
+      // source-spectra payload, so fetch it on demand. Fall back to a generated
+      // CSV only when there is no original file (e.g. API array uploads).
+      let data = to_csv(spectrum);
+      let filename = get_filename(spectrum);
+      try {
+        const full: any = await fetchSpectrumOriginalFile(specid).unwrap();
+        if (full?.original_file_string) {
+          data = full.original_file_string;
+          filename = full.original_file_filename || filename;
+        }
+      } catch {
+        // keep the generated-CSV fallback
+      }
+      const url = URL.createObjectURL(new Blob([data], { type: "text/plain" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
 
     return (
-      <IconButton
-        href={URL.createObjectURL(blob)}
-        download={filename}
-        size="large"
-      >
+      <IconButton onClick={handleDownload} size="large">
         <GetAppIcon />
       </IconButton>
     );
@@ -484,22 +498,22 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
   };
 
   const photColumns: any[] = [
-    { field: "id", headerName: "ID", flex: 1, minWidth: 80 },
-    { field: "mjd", headerName: "MJD", flex: 1, minWidth: 100 },
-    { field: "mag", headerName: "Mag", flex: 1, minWidth: 90 },
-    { field: "magerr", headerName: "Mag Error", flex: 1, minWidth: 100 },
+    { field: "id", headerName: "ID", flex: 0.5, minWidth: 40 },
+    { field: "mjd", headerName: "MJD", flex: 0.5, minWidth: 80 },
+    { field: "mag", headerName: "Mag", flex: 0.5, minWidth: 60 },
+    { field: "magerr", headerName: "Mag Error", flex: 0.5, minWidth: 60 },
     {
       field: "limiting_mag",
       headerName: "Limiting Mag",
-      flex: 1,
-      minWidth: 110,
+      flex: 0.5,
+      minWidth: 60,
     },
-    { field: "instrument", headerName: "Instrument", flex: 1, minWidth: 110 },
-    { field: "filter", headerName: "Filter", flex: 1, minWidth: 90 },
+    { field: "instrument", headerName: "Instrument", flex: 0.8, minWidth: 100 },
+    { field: "filter", headerName: "Filter", flex: 0.6, minWidth: 80 },
     {
       field: "groups",
       headerName: "Currently visible to",
-      flex: 1,
+      flex: 2,
       minWidth: 150,
     },
   ];
@@ -710,9 +724,18 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
                   type: "include",
                   ids: new Set(selectedPhotRows),
                 }}
-                onRowSelectionModelChange={(model: any) =>
-                  setSelectedPhotRows(Array.from(model.ids))
-                }
+                onRowSelectionModelChange={(model: any) => {
+                  if (model.type === "exclude") {
+                    const excluded = new Set(model.ids);
+                    setSelectedPhotRows(
+                      photRows
+                        .map((r: any) => r.id)
+                        .filter((id: any) => !excluded.has(id)),
+                    );
+                  } else {
+                    setSelectedPhotRows(Array.from(model.ids));
+                  }
+                }}
                 pageSizeOptions={[10, 25, 50, 100]}
                 initialState={{
                   pagination: { paginationModel: { pageSize: 10, page: 0 } },
@@ -746,9 +769,18 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
                   type: "include",
                   ids: new Set(selectedSpecRows),
                 }}
-                onRowSelectionModelChange={(model: any) =>
-                  setSelectedSpecRows(Array.from(model.ids))
-                }
+                onRowSelectionModelChange={(model: any) => {
+                  if (model.type === "exclude") {
+                    const excluded = new Set(model.ids);
+                    setSelectedSpecRows(
+                      specRows
+                        .map((r: any) => r.id)
+                        .filter((id: any) => !excluded.has(id)),
+                    );
+                  } else {
+                    setSelectedSpecRows(Array.from(model.ids));
+                  }
+                }}
                 columnVisibilityModel={specColumnVisibilityModel}
                 pageSizeOptions={[10, 25, 50, 100]}
                 initialState={{

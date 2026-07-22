@@ -141,7 +141,7 @@ const UserProfileInfo = () => {
             >
               User roles:
             </Box>
-            {profile.roles.join(", ")}
+            {profile.roles?.join(", ")}
           </Box>
           {!!profile.acls?.length && (
             <Box

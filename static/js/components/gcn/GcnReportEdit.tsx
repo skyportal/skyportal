@@ -21,6 +21,7 @@ import { DataGridToolbar } from "../StyledDataGrid";
 
 import { useAppDispatch } from "../../types/hooks";
 import { usePatchGcnEventReportMutation } from "../../ducks/gcnEvent";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const GridActionsCellItemAny = GridActionsCellItem as any;
 
@@ -72,6 +73,7 @@ interface GcnReportEditProps {
 
 export default function GcnReportEdit({ report }: GcnReportEditProps) {
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [patchGcnEventReport] = usePatchGcnEventReportMutation();
 
   const [sourceRows, setSourceRows] = React.useState<any[]>([]);
@@ -518,6 +520,8 @@ export default function GcnReportEdit({ report }: GcnReportEditProps) {
       </div>
     );
   }
+
+  if (isReadOnly) return null;
 
   return (
     <div>

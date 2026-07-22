@@ -204,6 +204,10 @@ class SourceGroupsHandler(BaseHandler):
         group_id = data.get("groupID")
         if group_id is None:
             return self.error("Missing required parameter: groupID")
+        try:
+            group_id = int(group_id)
+        except (TypeError, ValueError):
+            return self.error("groupID must be an integer")
         active = data.get("active")
         requested = data.get("requested")
 
