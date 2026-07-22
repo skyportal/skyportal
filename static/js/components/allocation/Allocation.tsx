@@ -143,7 +143,7 @@ const SimpleMenu = ({ request }: SimpleMenuProps) => {
   );
 };
 
-const defaultNumPerPage = 10;
+const defaultNumPerPage = 25;
 
 interface AllocationProps {
   route: any;
@@ -310,7 +310,7 @@ const AllocationObservationPlansTable = ({
           pageSize: fetchParams.numPerPage,
         }}
         onPaginationModelChange={handlePaginationModelChange}
-        pageSizeOptions={[1, 10, 25, 50, 100]}
+        pageSizeOptions={[25, 50, 100]}
       />
     </div>
   );

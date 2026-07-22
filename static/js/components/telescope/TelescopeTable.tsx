@@ -279,7 +279,7 @@ const TelescopeTable = ({
           </DataGridToolbar>
         );
       },
-    [isReadOnly],
+    [isReadOnly, hideTitle],
   );
 
   return (
