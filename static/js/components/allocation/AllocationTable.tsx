@@ -246,6 +246,8 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 120,
       filterable: false,
+      valueGetter: (_value: any, row: any) =>
+        groups?.find((g) => g.id === row.group_id)?.name || "",
       renderCell: getGroupName,
     },
     {
@@ -254,6 +256,10 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 160,
       filterable: false,
+      valueGetter: (_value: any, row: any) =>
+        (row.default_share_group_ids || [])
+          .map((id: any) => groups?.find((g) => g.id === id)?.name || "")
+          .join(", "),
       renderCell: getShareGroups,
     },
     {
@@ -262,6 +268,10 @@ const AllocationTable = ({
       flex: 1,
       minWidth: 120,
       filterable: false,
+      valueGetter: (_value: any, row: any) =>
+        (row.allocation_users || [])
+          .map((user: any) => userLabel(user, true, true, true))
+          .join(", "),
       renderCell: getAllocationUsers,
     },
     {
