@@ -26,6 +26,7 @@ from .broker import (
     BrokerFilterModulesHandler,
     BrokerFiltersHandler,
     BrokerFilterTestHandler,
+    BrokerFilterValidateHandler,
     BrokerHandler,
     BrokerPhotometryHandler,
     BrokerSaveHandler,

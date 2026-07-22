@@ -1738,6 +1738,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brokers/{broker_id}/filters/{filter_id}/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate a broker filter version for activation
+         * @description Run the broker's activation validation for a filter version without changing state, and record the result on the filter so it can be activated (skyportal gates activation on this).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    filter_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brokers/{broker_id}/filter_modules/{name})?": {
         parameters: {
             query?: never;

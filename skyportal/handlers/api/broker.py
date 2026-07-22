@@ -749,6 +749,79 @@ class BrokerFilterTestHandler(BaseHandler):
             return self.success(data=data)
 
 
+class BrokerFilterValidateHandler(BaseHandler):
+    @auth_or_token
+    def post(self, broker_id, filter_id):
+        """
+        ---
+        summary: Validate a broker filter version for activation
+        description: Run the broker's activation validation for a filter version
+          without changing state, and record the result on the filter so it can
+          be activated (skyportal gates activation on this).
+        tags:
+          - brokers
+        parameters:
+          - in: path
+            name: broker_id
+            required: true
+            schema:
+              type: integer
+          - in: path
+            name: filter_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json() or {}
+        with self.Session() as session:
+            broker = _get_broker(self, session, broker_id)
+            if broker is None:
+                return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
+            if not broker.broker_class.implements()["validate_filter"]:
+                return self.error(
+                    f"Broker {broker.name} does not support filter validation."
+                )
+            f = session.scalars(
+                Filter.select(self.current_user, mode="update").where(
+                    Filter.id == int(filter_id)
+                )
+            ).first()
+            if f is None or not isinstance(f.altdata, dict) or "boom" not in f.altdata:
+                return self.error("Filter not found or not broker-managed.")
+            boom_filter_id = (f.altdata.get("boom") or {}).get("filter_id")
+            try:
+                result = broker.broker_class.validate_filter(
+                    broker,
+                    session,
+                    boom_filter_id=boom_filter_id,
+                    fid=data.get("fid"),
+                )
+            except Exception as e:
+                return self.error(f"Error validating filter on {broker.name}: {e}")
+            # Record the verdict keyed on fid; activation checks this. Keying on
+            # fid means it survives active on/off and is invalidated only when the
+            # active version changes (a new fid).
+            f.altdata.setdefault("boom", {})["validation"] = {
+                "fid": result.get("fid"),
+                "passed": bool(result.get("passed")),
+                "message": result.get("message"),
+            }
+            flag_modified(f, "altdata")
+            session.commit()
+            return self.success(data=result)
+
+
 def _get_broker(handler, session, broker_id):
     return session.scalars(
         Broker.select(handler.current_user).where(Broker.id == int(broker_id))
@@ -1201,12 +1274,29 @@ class BrokerFiltersHandler(BaseHandler):
             boom_filter_id = (f.altdata.get("boom") or {}).get("filter_id")
             try:
                 if "active" in data and "active_fid" in data:
+                    # skyportal owns the activation gate: activate only if the
+                    # selected version has a passing validation on record, or the
+                    # user is an admin. BOOM then skips its own (slow) inline
+                    # validation, so the toggle is fast.
+                    if data["active"]:
+                        validation = (f.altdata.get("boom") or {}).get(
+                            "validation"
+                        ) or {}
+                        validated = (
+                            validation.get("passed") is True
+                            and validation.get("fid") == data["active_fid"]
+                        )
+                        if not validated and not self.current_user.is_system_admin:
+                            return self.error(
+                                "This filter version must be validated before it can be activated."
+                            )
                     broker.broker_class.update_filter(
                         broker,
                         session,
                         boom_filter_id=boom_filter_id,
                         active=data["active"],
                         active_fid=data["active_fid"],
+                        skip_validation=True,
                     )
                 for flag in ("autoAnnotate", "autoSave", "autoFollowup"):
                     if flag in data:
