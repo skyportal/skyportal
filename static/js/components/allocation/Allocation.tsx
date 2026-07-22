@@ -246,12 +246,15 @@ const AllocationObservationPlansTable = ({
       headerName: "GCN Event",
       flex: 1,
       minWidth: 130,
+      valueGetter: (_value: any, row: any) => row.localization?.dateobs,
     },
     {
       field: "localization_name",
       headerName: "Localization",
       flex: 1,
       minWidth: 130,
+      valueGetter: (_value: any, row: any) =>
+        row.localization?.localization_name,
     },
     { field: "created_at", headerName: "Created at", flex: 1, minWidth: 150 },
     { field: "status", headerName: "Status", flex: 1, minWidth: 110 },
