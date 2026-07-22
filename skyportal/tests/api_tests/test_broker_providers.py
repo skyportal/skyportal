@@ -619,6 +619,24 @@ def test_build_photometry_groups_flux_and_mag_space():
     assert g["flux"][1] == pytest.approx(10.0 ** (-0.4 * (20.0 - 23.9)))
 
 
+def test_build_photometry_groups_survey_prefixed_band_not_doubled():
+    """BOOM emits survey-prefixed bands ("ztfg"); the filter must stay "ztfg",
+    not "ztfztfg" (which the photometry validator rejects, dropping the alert)."""
+    data = {
+        "prv_candidates": [
+            {
+                "jd": 2459000.5,
+                "band": "ztfg",
+                "psfFlux": 100.0,
+                "psfFluxErr": 1.0,
+                "programid": 1,
+            },
+        ],
+    }
+    groups = build_photometry_groups("ZTF1", "ZTF", data, 42, {("ZTF", 1): [10]})
+    assert groups[("ZTF", 1)]["filter"] == ["ztfg"]
+
+
 def test_build_photometry_groups_drops_ungated_programs():
     """A program with no mapped stream is dropped (never displayed) rather than
     leaked with empty gating."""
