@@ -97,7 +97,11 @@ const ScanningProfilesList = ({
     () =>
       function ScanningProfilesToolbar() {
         return (
-          <DataGridToolbar showColumns={false} showQuickFilter={false}>
+          <DataGridToolbar
+            showExport={false}
+            showColumns={false}
+            showQuickFilter={false}
+          >
             {!isReadOnly && (
               <IconButton
                 name="new_scanning_profile"

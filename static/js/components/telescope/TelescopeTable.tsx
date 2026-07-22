@@ -267,7 +267,7 @@ const TelescopeTable = ({
     () =>
       function TelescopeTableToolbar() {
         return (
-          <DataGridToolbar showExport title={hideTitle ? "" : "Telescopes"}>
+          <DataGridToolbar title={hideTitle ? "" : "Telescopes"}>
             {!isReadOnly && (
               <IconButton
                 name="new_telescope"

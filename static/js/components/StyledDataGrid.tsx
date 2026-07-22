@@ -109,7 +109,7 @@ export const DataGridToolbar = ({
   showColumns = true,
   showQuickFilter = true,
   showFilter = false,
-  showExport = false,
+  showExport = true,
   quickFilterTestId,
 }: {
   children?: any;

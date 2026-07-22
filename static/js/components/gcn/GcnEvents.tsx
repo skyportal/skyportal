@@ -435,7 +435,7 @@ const GcnEvents = () => {
 
   const CustomToolbar = function GcnEventsToolbar() {
     return (
-      <DataGridToolbar showQuickFilter={false}>
+      <DataGridToolbar showQuickFilter={false} showExport={false}>
         <Tooltip title="Filter Table">
           <IconButton
             size="small"

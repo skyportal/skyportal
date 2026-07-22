@@ -497,7 +497,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
 
   function CustomToolbar() {
     return (
-      <DataGridToolbar showQuickFilter={false} showExport title="Targets">
+      <DataGridToolbar showQuickFilter={false} title="Targets">
         <IconButton name="clouds" onClick={() => setDialog(true)}>
           <CloudIcon />
         </IconButton>

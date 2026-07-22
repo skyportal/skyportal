@@ -165,7 +165,6 @@ const DefaultSurveyEfficiencyTable = ({
   const CustomToolbar = () => (
     <DataGridToolbar
       showQuickFilter={false}
-      showExport
       title="Default Survey Efficiencies"
     >
       {!isReadOnly && (

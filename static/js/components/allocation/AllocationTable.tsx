@@ -290,7 +290,7 @@ const AllocationTable = ({
   ].filter(Boolean);
 
   const CustomToolbar = () => (
-    <DataGridToolbar showExport title={title}>
+    <DataGridToolbar title={title}>
       {!isReadOnly && (
         <IconButton
           name="new_allocation"

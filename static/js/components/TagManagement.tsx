@@ -258,7 +258,7 @@ const TagManagement = () => {
 
   function CustomToolbar() {
     return (
-      <DataGridToolbar showFilter showQuickFilter={false} showExport>
+      <DataGridToolbar showFilter showQuickFilter={false}>
         {!isReadOnly && (
           <Tooltip title="Create new tag">
             <IconButton
