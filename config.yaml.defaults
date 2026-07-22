@@ -264,7 +264,7 @@ app:
     - path: "/tag_management"
       component: TagManagement
     - path: "/taxonomies"
-      component: taxonomy/TaxonomyPage
+      component: taxonomy/TaxonomyList
     - path: "/sharing_services"
       component: sharing_service/SharingServicesPage
     - path: "/sharing_service/:id/submissions"

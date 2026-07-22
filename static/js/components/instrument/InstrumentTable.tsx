@@ -7,7 +7,6 @@ import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -19,11 +18,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import { useAppDispatch } from "../../types";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
-import Button from "../Button";
-import Paper from "../Paper";
 import { useIsReadOnly } from "../../ducks/profile";
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 interface InstrumentTableProps {
   title?: string;
@@ -142,18 +137,19 @@ const InstrumentTable = ({
   };
 
   const renderManage = (params: any) => {
+    if (!managePermission) return null;
     const instrument = params.row;
     return (
-      <div style={{ display: "flex" }}>
-        <Button
+      <Box style={{ display: "flex" }}>
+        <IconButton
           onClick={() => {
             setEditDialogOpen(true);
             setInstrumentToManage(instrument.id);
           }}
         >
           <EditIcon />
-        </Button>
-        <Button
+        </IconButton>
+        <IconButton
           color="error"
           onClick={() => {
             setDeleteDialogOpen(true);
@@ -161,13 +157,18 @@ const InstrumentTable = ({
           }}
         >
           <DeleteIcon />
-        </Button>
-      </div>
+        </IconButton>
+      </Box>
     );
   };
 
   const columns: any[] = [
-    { field: "id", headerName: "ID" },
+    {
+      field: "id",
+      headerName: "ID",
+      flex: 1,
+      minWidth: 80,
+    },
     {
       field: "name",
       headerName: "Name",
@@ -214,25 +215,21 @@ const InstrumentTable = ({
       field: "number_of_fields",
       headerName: "Fields",
       flex: 1,
-      minWidth: 90,
+      minWidth: 50,
     },
-    ...(managePermission
-      ? [
-          {
-            field: "manage",
-            headerName: " ",
-            minWidth: 120,
-            sortable: false,
-            filterable: false,
-            renderCell: renderManage,
-          },
-        ]
-      : []),
-  ];
+    managePermission && {
+      field: "manage",
+      headerName: " ",
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: renderManage,
+    },
+  ].filter(Boolean);
 
   const CustomToolbar = function InstrumentTableToolbar() {
     return (
-      <DataGridToolbar>
+      <DataGridToolbar title={title}>
         {!isReadOnly && (
           <IconButton
             name="new_instrument"
@@ -247,31 +244,24 @@ const InstrumentTable = ({
   };
 
   return (
-    <Paper>
-      <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
-        {title}
-      </Typography>
-      <Box
-        sx={
-          fixedHeader
-            ? { height: "calc(100vh - 148px)", width: "100%" }
-            : { width: "100%" }
-        }
-      >
-        <StyledDataGrid
-          autoHeight={!fixedHeader}
-          rows={enrichedInstruments}
-          columns={columns}
-          getRowId={(row: any) => row.id}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
-          initialState={{
-            columns: { columnVisibilityModel: { id: false } },
-            pagination: { paginationModel: { pageSize: 25, page: 0 } },
-          }}
-          slots={{ toolbar: CustomToolbar }}
-          showToolbar
-        />
-      </Box>
+    <Box
+      sx={
+        fixedHeader
+          ? { height: "calc(100vh - 6rem)", width: "100%" }
+          : { width: "100%" }
+      }
+    >
+      <StyledDataGrid
+        autoHeight={!fixedHeader}
+        rows={enrichedInstruments}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        initialState={{
+          columns: { columnVisibilityModel: { id: false } },
+        }}
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
       <Dialog
         open={newDialogOpen}
         onClose={() => setNewDialogOpen(false)}
@@ -305,7 +295,7 @@ const InstrumentTable = ({
         closeDialog={closeDeleteDialog}
         resourceName="instrument"
       />
-    </Paper>
+    </Box>
   );
 };
 

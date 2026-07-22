@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
@@ -7,8 +6,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Chip from "@mui/material/Chip";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
 import { JSONTree } from "react-json-tree";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -194,7 +191,7 @@ const DefaultObservationPlanTable = ({
   ];
 
   const CustomToolbar = () => (
-    <DataGridToolbar showExport>
+    <DataGridToolbar showExport title="Default Observation Plans">
       {!isReadOnly && (
         <IconButton size="small" onClick={() => setNewDialogOpen(true)}>
           <AddIcon />
@@ -205,40 +202,29 @@ const DefaultObservationPlanTable = ({
 
   return (
     <div>
-      <Paper>
-        <Typography variant="h6" style={{ padding: "0.5rem" }}>
-          Default Observation Plans
-        </Typography>
-        <Box sx={{ width: "100%" }}>
-          <StyledDataGrid
-            autoHeight
-            rows={default_observation_plans || []}
-            columns={columns}
-            getRowId={(row: any) => row.id}
-            rowCount={totalMatches}
-            sortingMode="server"
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
-            hideFooter
-            slots={{ toolbar: CustomToolbar }}
-            showToolbar
-          />
-        </Box>
-      </Paper>
-      {newDialogOpen && (
-        <Dialog
-          open={newDialogOpen}
-          onClose={() => setNewDialogOpen(false)}
-          maxWidth="md"
-        >
-          <DialogTitle>New Default Observation Plan</DialogTitle>
-          <DialogContent dividers>
-            <NewDefaultObservationPlan
-              onClose={() => setNewDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
+      <StyledDataGrid
+        autoHeight
+        rows={default_observation_plans || []}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        rowCount={totalMatches}
+        sortingMode="server"
+        sortModel={sortModel}
+        onSortModelChange={handleSortModelChange}
+        hideFooter
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
+      <Dialog
+        open={newDialogOpen}
+        onClose={() => setNewDialogOpen(false)}
+        maxWidth="md"
+      >
+        <DialogTitle>New Default Observation Plan</DialogTitle>
+        <DialogContent dividers>
+          <NewDefaultObservationPlan onClose={() => setNewDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteDefaultObservationPlan}
         dialogOpen={deleteDialogOpen}

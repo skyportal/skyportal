@@ -279,6 +279,12 @@ const ScanningProfilesList = ({
     const dataIndex = params.row.__rowid;
     return (
       <div className={classes.actionButtons}>
+        <IconButton onClick={() => editProfile(profiles[dataIndex])}>
+          <EditIcon />
+        </IconButton>
+        <IconButton onClick={() => deleteProfile(dataIndex)}>
+          <DeleteIcon />
+        </IconButton>
         {!isReadOnly && (
           <>
             <IconButton
