@@ -17,31 +17,17 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 import { useIsReadOnly } from "../../ducks/profile";
 
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map fall through to the field itself.
-const SERVER_SORT_FIELD: Record<string, string> = {
-  defaultObservationPlan: "defaultObservationPlan",
-  payload: "payload",
-  auto_send: "auto_send",
-};
-
 interface DefaultObservationPlanTableProps {
   instruments: any[];
   telescopes: any[];
   default_observation_plans: any[];
-  paginateCallback: (...a: any[]) => void;
-  sortingCallback?: ((...a: any[]) => void) | null;
   deletePermission?: boolean;
-  totalMatches?: number;
 }
 
 const DefaultObservationPlanTable = ({
   instruments,
   telescopes,
   default_observation_plans,
-  paginateCallback,
-  totalMatches = 0,
-  sortingCallback = null,
   deletePermission = false,
 }: DefaultObservationPlanTableProps) => {
   const dispatch = useAppDispatch();
@@ -52,7 +38,6 @@ const DefaultObservationPlanTable = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [defaultObservationPlanToDelete, setDefaultObservationPlanToDelete] =
     useState<any>(null);
-  const [sortModel, setSortModel] = useState<any[]>([]);
 
   const openDeleteDialog = (id: any) => {
     setDeleteDialogOpen(true);
@@ -130,19 +115,6 @@ const DefaultObservationPlanTable = ({
     );
   };
 
-  const handleSortModelChange = (model: any) => {
-    setSortModel(model);
-    if (!model.length) {
-      paginateCallback(1, 100, {});
-      return;
-    }
-    const { field, sort } = model[0];
-    sortingCallback?.({
-      name: SERVER_SORT_FIELD[field] || field,
-      direction: sort,
-    });
-  };
-
   const columns: any[] = [
     {
       field: "defaultObservationPlan",
@@ -207,10 +179,6 @@ const DefaultObservationPlanTable = ({
         rows={default_observation_plans || []}
         columns={columns}
         getRowId={(row: any) => row.id}
-        rowCount={totalMatches}
-        sortingMode="server"
-        sortModel={sortModel}
-        onSortModelChange={handleSortModelChange}
         hideFooter
         slots={{ toolbar: CustomToolbar }}
         showToolbar
