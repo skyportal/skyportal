@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Paper from "@mui/material/Paper";
 import { makeStyles } from "tss-react/mui";
@@ -13,10 +13,7 @@ import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import ClickAwayListener from "@mui/material/ClickAwayListener";
-import Grow from "@mui/material/Grow";
-import Popper from "@mui/material/Popper";
-import MenuList from "@mui/material/MenuList";
+import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -94,14 +91,19 @@ const ExecutedObservationsTable = ({
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
-  const [open, setOpen] = useState(false);
+  // Anchor the "Add" menu by position rather than element: the DataGrid
+  // toolbar (an inline `slots` component) remounts on every render, which
+  // would detach an element anchor and send the menu to the top-left corner.
+  const [addMenuPos, setAddMenuPos] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [newDialogFromFileOpen, setNewDialogFromFileOpen] = useState(false);
   const [newDialogFromAPIOpen, setNewDialogFromAPIOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState<any>(null);
-  const anchorRef = useRef<any>(null);
 
   const instrumentsLookup: Record<string, any> = {};
   if (instrumentList) {
@@ -111,15 +113,15 @@ const ExecutedObservationsTable = ({
   }
 
   const handleClose = () => {
-    setOpen(false);
+    setAddMenuPos(null);
   };
 
   const openNewFromFileDialog = () => {
-    setOpen(false);
+    setAddMenuPos(null);
     setNewDialogFromFileOpen(true);
   };
   const openNewFromAPIDialog = () => {
-    setOpen(false);
+    setAddMenuPos(null);
     setNewDialogFromAPIOpen(true);
   };
   const closeNewFromFileDialog = () => {
@@ -442,9 +444,9 @@ const ExecutedObservationsTable = ({
         <IconButton
           name="new_executed_observation"
           size="small"
-          ref={anchorRef}
-          onClick={() => {
-            setOpen(true);
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setAddMenuPos({ top: rect.bottom, left: rect.left });
           }}
         >
           <AddIcon />
@@ -491,39 +493,15 @@ const ExecutedObservationsTable = ({
             showToolbar
           />
         </Box>
-        <Popper
-          open={open}
-          anchorEl={() => anchorRef.current}
-          role={undefined}
-          transition
-          disablePortal
-          style={{ zIndex: 1 }}
+        <Menu
+          open={Boolean(addMenuPos)}
+          onClose={handleClose}
+          anchorReference="anchorPosition"
+          anchorPosition={addMenuPos ?? undefined}
         >
-          {({ TransitionProps, placement }) => (
-            <Grow
-              {...TransitionProps}
-              style={{
-                transformOrigin:
-                  placement === "bottom" ? "center top" : "center bottom",
-              }}
-            >
-              <Paper>
-                <ClickAwayListener onClickAway={handleClose}>
-                  <MenuList autoFocusItem={open} id="menu-list-grow">
-                    <MenuItem onClick={openNewFromFileDialog}>
-                      {" "}
-                      Add from File
-                    </MenuItem>
-                    <MenuItem onClick={openNewFromAPIDialog}>
-                      {" "}
-                      Add from API
-                    </MenuItem>
-                  </MenuList>
-                </ClickAwayListener>
-              </Paper>
-            </Grow>
-          )}
-        </Popper>
+          <MenuItem onClick={openNewFromFileDialog}>Add from File</MenuItem>
+          <MenuItem onClick={openNewFromAPIDialog}>Add from API</MenuItem>
+        </Menu>
         <Dialog
           open={newDialogFromFileOpen}
           onClose={closeNewFromFileDialog}

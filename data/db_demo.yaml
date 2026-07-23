@@ -752,6 +752,7 @@ instrument:
     band: optical
     telescope_id: =Simonyi
     filters: ["lsstu", "lsstg", "lsstr", "lssti", "lsstz", "lssty"]
+    api_classname_obsplan: RUBINMMAAPI
     # field_data:
     #   file: ../data/LSST_Fields.csv
     field_fov_type: rectangle
