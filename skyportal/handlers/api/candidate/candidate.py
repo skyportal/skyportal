@@ -1608,7 +1608,21 @@ class CandidateHandler(BaseHandler):
                         f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
                 session.add(obj)
-                await session.flush()
+                try:
+                    await session.flush()
+                except IntegrityError:
+                    # A concurrent request created this Obj between our existence
+                    # check and this flush; use the now-committed row instead.
+                    await session.rollback()
+                    obj = await session.scalar(
+                        Obj.select(session.user_or_token).where(Obj.id == data["id"])
+                    )
+                    if obj is None:
+                        return self.error(
+                            f"Failed to load object {data['id']} after a "
+                            "concurrent insert."
+                        )
+                    obj_already_exists = True
 
             filters_result = await session.scalars(
                 Filter.select(session.user_or_token).where(Filter.id.in_(filter_ids))

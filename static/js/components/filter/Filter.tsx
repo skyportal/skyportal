@@ -75,7 +75,7 @@ const Filter = () => {
           </Grid>
         )}
         <Grid size={{ sm: 12, md: 12 }}>
-          <FilterPlugins {...({ group } as any)} />
+          {group && <FilterPlugins group={group} />}
         </Grid>
       </Grid>
     </div>

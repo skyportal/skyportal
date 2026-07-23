@@ -374,6 +374,14 @@ const AutocompleteFields = ({
                     offset: [0, 4],
                   },
                 },
+                // Without this, Popper's default `hide` modifier sets
+                // visibility: hidden the instant the anchor field is even
+                // partially clipped by the viewport (e.g. a small window),
+                // which looks like the dropdown closing instantly.
+                {
+                  name: "hide",
+                  enabled: false,
+                },
               ],
             },
             paper: {
