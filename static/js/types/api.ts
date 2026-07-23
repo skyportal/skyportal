@@ -9094,6 +9094,16 @@ export interface paths {
                     /** @description Only count classifications at or above this probability. */
                     classificationProbThreshold?: number;
                     /**
+                     * @description Restrict to sources saved to this group (an alternative to
+                     *     classification-based selection).
+                     */
+                    group_id?: number;
+                    /**
+                     * @description Comma-separated object IDs to restrict to (an alternative to
+                     *     classification-based selection).
+                     */
+                    obj_ids?: string;
+                    /**
                      * @description Maximum number of points to return (default 20000, capped at
                      *     100000). If more match, the response is truncated.
                      */
@@ -18884,6 +18894,71 @@ export interface paths {
                                 id?: number;
                             };
                         };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spectra/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk spectra for a set of sources
+         * @description Return slim spectra (wavelengths/fluxes/observed_at) plus per-source
+         *     phase anchors (redshift, first-detection and peak MJD, TNS discovery
+         *     date) for a set of accessible sources selected by group, explicit
+         *     object list, and/or classification. Powers the phase-stacked spectra
+         *     view without one request per source.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description Restrict to sources saved to this group. */
+                        group_id?: number;
+                        /** @description Restrict to these object IDs (also accepts a comma-separated string). */
+                        obj_ids?: string[];
+                        /** @description Restrict to sources with any of these (non-ML) classifications. */
+                        classifications?: string[];
+                        /** @description Only count classifications at or above this probability. */
+                        classificationProbThreshold?: number;
+                        /** @description Max sources to fetch spectra for (default 200, capped at 1000). */
+                        maxSources?: number;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
