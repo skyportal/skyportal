@@ -82,8 +82,16 @@ if __name__ == "__main__":
     for model in Base.metadata.tables:
         print("    -", model)
 
+    # Mirror the boot-time seeding in app_server.make_app so a DB set up here
+    # is usable without ever starting the app (e.g. the model-permission CI).
+    with status("Refreshing enums"):
+        model_util.refresh_enums()
+
     with status("Creating permissions"):
         model_util.setup_permissions()
+
+    with status("Provisioning sitewide public group"):
+        model_util.provision_public_group()
 
     if adminuser != "":
         with status(f"Creating super admin ({adminuser})"):
