@@ -741,6 +741,14 @@ The `get_skyportal_token()` helper automatically handles both transport modes:
 - **HTTP mode**: Retrieves the per-request OAuth token from the Authorization header
 - **stdio mode**: Returns the `SKYPORTAL_TOKEN` environment variable
 
+### Running the Tests
+
+Unit tests live in `services/mcp_server/tests/` and run without a live SkyPortal instance: tools are exercised through FastMCP's in-memory client, and SkyPortal API calls are intercepted with `httpx.MockTransport`. They need `pytest` and `pytest-asyncio` in addition to the server's own dependencies:
+
+```bash
+pytest services/mcp_server/tests
+```
+
 ### Running Locally for Development
 
 #### Option 1: stdio mode (recommended for development)
