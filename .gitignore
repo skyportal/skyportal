@@ -77,3 +77,6 @@ services/pgbouncer/userlist.txt
 
 # GCN Kafka credential (local only)
 credential
+
+!flake.lock
+.direnv
