@@ -21,6 +21,11 @@ export interface DeleteGroupFilterArg {
   filter_id: number | string;
 }
 
+export interface UpdateFilterNameArg {
+  filter_id: number | string;
+  name: string;
+}
+
 export const filterApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getFilters: build.query<RouteData<"GET /api/filters">, void>({
@@ -51,6 +56,14 @@ export const filterApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Filters"],
     }),
+    updateFilterName: build.mutation<unknown, UpdateFilterNameArg>({
+      query: ({ filter_id, name }) => ({
+        url: `api/filters/${filter_id}`,
+        method: "PATCH",
+        body: { name },
+      }),
+      invalidatesTags: ["Filters"],
+    }),
   }),
 });
 
@@ -59,4 +72,5 @@ export const {
   useGetFilterQuery,
   useAddGroupFilterMutation,
   useDeleteGroupFilterMutation,
+  useUpdateFilterNameMutation,
 } = filterApi;
