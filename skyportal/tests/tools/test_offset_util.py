@@ -191,11 +191,13 @@ ztfref_url = get_ztfref_url(123.0, 33.3, 2)
 run_ztfref_test = True
 try:
     if ztfref_url != "":
-        r = requests.get(ztfref_url)
+        # bound the check: this runs at collection time, and an unreachable
+        # server would otherwise hang the whole pytest run
+        r = requests.get(ztfref_url, timeout=(6.05, 20))
         r.raise_for_status()
     else:
         run_ztfref_test = False
-except (HTTPError, TimeoutError, ConnectionError, MissingSchema) as e:
+except (HTTPError, Timeout, ConnectionError, MissingSchema) as e:
     run_ztfref_test = False
     print(e)
 
@@ -243,7 +245,7 @@ desi_url = (
 # check to see if the DESI server is up. If not, do not run test.
 run_desi_test = True
 try:
-    r = requests.get(desi_url)
+    r = requests.get(desi_url, timeout=(6.05, 20))
     r.raise_for_status()
 except (HTTPError, Timeout, ConnectionError) as e:
     run_desi_test = False
