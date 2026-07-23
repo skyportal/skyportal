@@ -24,12 +24,12 @@
             python3
             uv
           ];
-        };
 
-        shellHook = ''
-          unset PYTHONPATH
-          uv sync
-        '';
+          shellHook = ''
+            unset PYTHONPATH
+            uv sync
+          '';
+        };
       });
     };
 }
