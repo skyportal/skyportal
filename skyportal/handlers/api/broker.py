@@ -1067,7 +1067,9 @@ class BrokerFiltersHandler(BaseHandler):
                 "id": f.id,
                 "name": f.name,
                 "group_id": f.group_id,
-                "stream_id": f.stream_id,
+                "stream": {"id": f.stream.id, "name": f.stream.name}
+                if f.stream
+                else None,
                 "altdata": f.altdata,
             }
             boom = (
