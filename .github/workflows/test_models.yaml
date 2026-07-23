@@ -142,12 +142,6 @@ jobs:
 
           bun pm ls || true
 
-      - name: Refresh SkyPortal dependencies for tested version
-        run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-          make dependencies
-
       # Lint the diff once (on shard 0), not once per shard.
       - name: Formatting and linting checks
         if: matrix.shard == 0 && github.ref != 'refs/heads/main'
@@ -161,18 +155,19 @@ jobs:
       # The model/permission tests build their own fixtures, so they don't need
       # the demo-data load (that smoke test still runs in test_migrations.yaml).
       # Each job runs only its PERM_SHARD slice of the parametrized CASES.
+      #
+      # The suite is pure ORM (fixtures write straight to the DB; nothing
+      # calls the API), so bootstrap the test DB with initial_setup.py and run
+      # pytest directly instead of paying the full app/microservice launch of
+      # test_frontend.py in every shard.
       - name: Run model/permission tests (shard ${{ matrix.shard }}/${{ env.N_SHARDS }})
         run: |
           source .venv/bin/activate
+          PYTHONPATH=. python skyportal/initial_setup.py --config=test_config.yaml
+          mkdir -p test-results
           PERM_SHARD="${{ matrix.shard }}/${{ env.N_SHARDS }}" PYTHONPATH=. \
-            python baselayer/tools/test_frontend.py --xml 'skyportal/tests/models'
-
-      - name: Upload logs
-        uses: actions/upload-artifact@v4
-        if: ${{ always() }}
-        with:
-          name: logs-model-logic-${{ matrix.shard }}
-          path: log
+            python -m pytest -s -v --junitxml=test-results/junit.xml \
+            --randomly-seed=1 skyportal/tests/models
 
       - name: Upload test post-mortem reports
         uses: actions/upload-artifact@v4
