@@ -10,6 +10,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import BuildIcon from "@mui/icons-material/Build";
 import EditIcon from "@mui/icons-material/Edit";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
@@ -566,11 +567,15 @@ const AllocationSummaryTable = ({
         return (
           <div>
             {request.comment}
-            <IconButton
-              onClick={() => handleOpenDialog(request.id, request.comment)}
-            >
-              <EditIcon fontSize="small" />
-            </IconButton>
+            <Tooltip title="Update comment">
+              <span aria-label="Update comment">
+                <IconButton
+                  onClick={() => handleOpenDialog(request.id, request.comment)}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
           </div>
         );
       },

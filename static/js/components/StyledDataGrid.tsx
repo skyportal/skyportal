@@ -181,6 +181,7 @@ export const DataGridToolbar = ({
               inputRef={ref}
               size="small"
               placeholder="Search…"
+              aria-label="Search"
               slotProps={{
                 input: {
                   startAdornment: (
