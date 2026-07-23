@@ -33,10 +33,7 @@ def test_observation(super_admin_token, gcn_GW190425):
     assert status == 200
     assert data["status"] == "success"
 
-    # wait for the executed observations to populate
-    time.sleep(15)
-
-    data = {
+    params = {
         "telescopeName": telescope_name,
         "instrumentName": instrument_name,
         "startDate": "2019-04-25 08:18:05",
@@ -48,11 +45,23 @@ def test_observation(super_admin_token, gcn_GW190425):
         "numPerPage": 1000,
     }
 
-    status, data = api("GET", "observation", params=data, token=super_admin_token)
+    # wait for the executed observations to populate
+    nretries = 0
+    observations_loaded = False
+    while not observations_loaded and nretries < 10:
+        try:
+            status, data = api(
+                "GET", "observation", params=params, token=super_admin_token
+            )
+            assert status == 200
+            data = data["data"]
+            assert len(data["observations"]) == 10
+            observations_loaded = True
+        except AssertionError:
+            nretries = nretries + 1
+            time.sleep(2)
 
-    assert status == 200
-    data = data["data"]
-    assert len(data["observations"]) == 10
+    assert observations_loaded
     assert np.isclose(data["probability"], 2.582514047833091e-05)
     assert any(
         d["obstime"] == "2019-04-25T08:18:18.002909" and d["observation_id"] == 84434604

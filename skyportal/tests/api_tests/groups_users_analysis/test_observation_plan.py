@@ -73,12 +73,10 @@ def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
         assert status == 200
         assert data["status"] == "success"
 
-    # wait for the observation plans to finish, we added some patience later, but we know that it takes at least 30 seconds
-    time.sleep(10)
-
+    # the plans take ~30 s to process; the retry loop below waits for them
     n_retries = 0
     request_ids = []
-    while n_retries < 10:
+    while n_retries < 12:
         try:
             status, data = api(
                 "GET",
@@ -150,7 +148,7 @@ def test_observation_plan_tiling(super_admin_token, public_group, gcn_GW190814):
             n_retries += 1
             time.sleep(5)
 
-    assert n_retries < 10
+    assert n_retries < 12
     assert len(request_ids) == len(requests_data)
 
     # exercise the (async) delete path: DELETE each request and verify it is gone
@@ -245,11 +243,9 @@ def test_observation_plan_combined(super_admin_token, public_group, gcn_GW190814
     assert status == 200, data
     assert data["status"] == "success"
 
-    time.sleep(10)
-
     n_retries = 0
     request_ids = []
-    while n_retries < 10:
+    while n_retries < 12:
         try:
             status, data = api(
                 "GET",
@@ -282,7 +278,7 @@ def test_observation_plan_combined(super_admin_token, public_group, gcn_GW190814
             n_retries += 1
             time.sleep(5)
 
-    assert n_retries < 10
+    assert n_retries < 12
     assert len(request_ids) == len(observation_plans)
 
     # exercise the (async) delete path on the combined requests
@@ -401,11 +397,9 @@ def test_observation_plan_galaxy(
         assert status == 200
         assert data["status"] == "success"
 
-    # wait for the observation plans to finish, we added some patience later, but we know that it takes at least 30 seconds
-    time.sleep(10)
-
+    # the plans take ~30 s to process; the retry loop below waits for them
     n_retries = 0
-    while n_retries < 10:
+    while n_retries < 12:
         try:
             status, data = api(
                 "GET",
@@ -463,6 +457,6 @@ def test_observation_plan_galaxy(
             n_retries = n_retries + 1
             time.sleep(5)
 
-    assert n_retries < 10
+    assert n_retries < 12
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
