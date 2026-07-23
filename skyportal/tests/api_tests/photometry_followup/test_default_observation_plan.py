@@ -149,10 +149,8 @@ def test_default_observation_plan_tiling(super_admin_token, public_group):
     assert n_times_2 < 25
 
     # wait for the plans to be processed
-    time.sleep(10)
-
     n_retries = 0
-    while n_retries < 10:
+    while n_retries < 12:
         try:
             # now we want to see if any observation plans were created
             status, data = api(
@@ -172,7 +170,7 @@ def test_default_observation_plan_tiling(super_admin_token, public_group):
             n_retries += 1
             time.sleep(5)
 
-    assert n_retries < 10
+    assert n_retries < 12
 
     status, data = api(
         "DELETE",
