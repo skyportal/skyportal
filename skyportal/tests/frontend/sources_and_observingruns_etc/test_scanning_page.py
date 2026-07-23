@@ -390,7 +390,6 @@ def test_submit_annotations_sorting(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"numeric_field": 1},
         },
@@ -401,7 +400,6 @@ def test_submit_annotations_sorting(
         "POST",
         f"sources/{public_candidate2.id}/annotations",
         data={
-            "obj_id": public_candidate2.id,
             "origin": origin,
             "data": {"numeric_field": 2},
         },
@@ -588,7 +586,6 @@ def test_candidate_annotations_search(
         "POST",
         f"sources/{public_candidate.id}/annotations",
         data={
-            "obj_id": public_candidate.id,
             "origin": origin,
             "data": {"alphafield": 1, "betafield": 2},
         },
@@ -892,7 +889,6 @@ def test_add_scanning_profile(
         "POST",
         f"sources/{public_source.id}/annotations",
         data={
-            "obj_id": public_source.id,
             "origin": "kowalski",
             "data": {"offset_from_host_galaxy": 1.5},
             "group_ids": [public_group.id],

@@ -171,6 +171,7 @@ export const ROUTE_SCHEMA_MAP = {
   "POST /api/spectra/synthphot/{spectrum_id}": { schema: "Spectrum" as const, list: false },
   "POST /api/spectrum/parse/ascii": { schema: "SpectrumNoID" as const, list: false },
   "POST /api/summary_query": { schema: "Obj" as const, list: true },
+  "POST /api/{associated_resource_type}/{resource_id}/annotations": { schema: "AnnotationPostResponse" as const, list: false },
   "PUT /api/followup_request/prioritization": { schema: "FollowupRequest" as const, list: false },
   "PUT /api/followup_request/{followup_request_id}/comment": { schema: "FollowupRequest" as const, list: false },
   "PUT /api/followup_request/{request_id}": { schema: "FollowupRequest" as const, list: false },

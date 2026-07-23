@@ -4,12 +4,15 @@ import types
 import typing
 from math import ceil
 
+from pydantic import ValidationError as PydanticValidationError
 from tornado.gen import sleep
 from tornado.iostream import StreamClosedError
+from tornado.web import Finish
 
 from baselayer.app.handlers.base import BaseHandler as BaselayerHandler
 
 from .. import __version__
+from ..utils.api_validate import format_validation_errors
 
 HANDLER_METHODS = ("get", "post", "put", "patch", "delete")
 
@@ -56,6 +59,10 @@ def install_path_param_validation(cls):
         validators = []
         for i, p in enumerate(params):
             if p.annotation is inspect.Parameter.empty:
+                continue
+            # keyword-only params (e.g. pydantic body models documenting the
+            # endpoint for spec_from_handlers) are not path parameters
+            if p.kind is inspect.Parameter.KEYWORD_ONLY:
                 continue
             cast_fn, allow_none = resolve_cast(p.annotation)
             if cast_fn is None or cast_fn is str:
@@ -139,6 +146,18 @@ class BaseHandler(BaselayerHandler):
         if hasattr(self.current_user, "username"):
             return self.current_user
         return self.current_user.created_by
+
+    def parse_body(self, model):
+        """Validate the JSON request body against a pydantic model.
+
+        Returns the parsed model instance; on failure writes the standard 400
+        error response and raises tornado.web.Finish to abort the handler.
+        """
+        try:
+            return model.model_validate(self.get_json())
+        except PydanticValidationError as e:
+            self.error(f"Invalid/missing parameters: {format_validation_errors(e)}")
+            raise Finish() from None
 
     def success(self, *args, **kwargs):
         super().success(*args, **kwargs, extra={"version": __version__})
