@@ -27,14 +27,13 @@ def test_add_and_retrieve_annotation_group_id(
         "POST",
         f"spectra/{spectrum_id}/annotations",
         data={
-            "spectrum_id": spectrum_id,
             "data": {"offset_from_host_galaxy": 1.5},
             "group_ids": [public_group.id],
         },
         token=annotation_token,
     )
     assert status in [400]
-    assert "origin must be specified" in data["message"]
+    assert "origin: Field required" in data["message"]
 
     # this should not work, since "origin" is empty
     status, data = api(
@@ -49,7 +48,7 @@ def test_add_and_retrieve_annotation_group_id(
     )
 
     assert status in [400, 401]
-    assert "Input `origin` must begin with alphanumeric/underscore" in data["message"]
+    assert "origin: String should match pattern" in data["message"]
 
     # first time adding an annotation to this object from Kowalski
     status, data = api(
@@ -123,7 +122,6 @@ def test_add_and_retrieve_annotation_group_access(
         f"spectra/{spectrum_id}/annotations",
         data={
             "origin": "IPAC",
-            "spectrum_id": spectrum_id,
             "data": {"distance_from_host": 7.4},
             "group_ids": [public_group2.id],
         },
@@ -155,7 +153,6 @@ def test_add_and_retrieve_annotation_group_access(
         f"spectra/{spectrum_id}/annotations",
         data={
             "origin": "kowalski",
-            "spectrum_id": spectrum_id,
             "data": {"ACAI_class": "type Ia"},
             "group_ids": [public_group.id, public_group2.id],
         },
@@ -202,7 +199,6 @@ def test_add_and_retrieve_annotation_group_access(
         f"spectra/{spectrum_id}/annotations",
         data={
             "origin": "kowalski",
-            "spectrum_id": spectrum_id,
             "data": {"ACAI_class": "type Ia"},
             "group_ids": [public_group2.id],
         },

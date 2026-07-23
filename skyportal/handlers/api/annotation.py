@@ -1,8 +1,8 @@
-import re
 import time
-from collections.abc import Mapping
+from typing import Any
 
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
@@ -22,6 +22,34 @@ from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
 
 log = make_log("api/annotation")
+
+
+class AnnotationPostBody(BaseModel):
+    """Request body for posting an annotation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    origin: str = Field(
+        pattern=r"^\w+",
+        description="String describing the source of this information. "
+        "Only one Annotation per origin is allowed, although each Annotation "
+        "can have multiple fields. To add/change data, use the update method "
+        "instead of trying to post another Annotation from this origin. "
+        "Origin must be a non-empty string starting with an alphanumeric "
+        "character or underscore (it must match the regex: /^\\w+/).",
+    )
+    data: dict[str, Any] = Field(description="Annotation data as {key: value} pairs.")
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view annotation. Defaults to all of requesting user's groups.",
+    )
+
+
+class AnnotationPostResponse(BaseModel):
+    """Data payload returned when posting an annotation."""
+
+    annotation_id: int = Field(description="New annotation ID")
 
 
 def _coerce_resource_id(associated_resource_type, resource_id):
@@ -218,7 +246,13 @@ class AnnotationHandler(BaseHandler):
             return self.success(data=query_output)
 
     @permissions(["Annotate"])
-    async def post(self, associated_resource_type: str, resource_id: str):
+    async def post(
+        self,
+        associated_resource_type: str,
+        resource_id: str,
+        *,
+        body: AnnotationPostBody = None,
+    ) -> AnnotationPostResponse:
         """
         ---
         summary: Post an annotation
@@ -244,73 +278,14 @@ class AnnotationHandler(BaseHandler):
                This would be a string for an object ID,
                or an integer for other data types,
                e.g., a spectrum.
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  origin:
-                     type: string
-                     description: |
-                        String describing the source of this information.
-                        Only one Annotation per origin is allowed, although
-                        each Annotation can have multiple fields.
-                        To add/change data, use the update method instead
-                        of trying to post another Annotation from this origin.
-                        Origin must be a non-empty string starting with an
-                        alphanumeric character or underscore.
-                        (it must match the regex: /^\\w+/)
-
-                  data:
-                    type: object
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups should be
-                      able to view annotation. Defaults to all of requesting user's
-                      groups.
-
-                required:
-                  - origin
-                  - data
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            annotation_id:
-                              type: integer
-                              description: New annotation ID
         """
-        data = self.get_json()
-        origin = data.get("origin")
-
-        if origin is None:
-            return self.error("origin must be specified")
-
-        if not re.search(r"^\w+", origin):
-            return self.error("Input `origin` must begin with alphanumeric/underscore")
-
-        annotation_data = data.get("data")
-
-        group_ids = data.pop("group_ids", None)
-        if not group_ids:
-            group_ids = [g.id for g in self.current_user.accessible_groups]
-
-        if not isinstance(annotation_data, Mapping):
-            return self.error(
-                "Invalid data: the annotation data must be an object with at least one {key: value} pair"
-            )
+        body = self.parse_body(AnnotationPostBody)
+        origin = body.origin
+        annotation_data = body.data
+        group_ids = body.group_ids or [
+            g.id for g in self.current_user.accessible_groups
+        ]
+        data = {"origin": origin, "data": annotation_data}
 
         async with self.AsyncSession() as session:
             author_id = self.associated_user_object.id
