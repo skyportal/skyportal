@@ -10,6 +10,7 @@ how to install them on MacOS and Debian-based systems below.
 - NGINX (v>=1.7)
 - PostgreSQL (v>=14.0)
 - Node.JS/npm (v>=16.14.0/8.3.2)
+- Bun
 
 When installing SkyPortal on Debian-based systems, 2 additional packages are required to be able to install `pycurl` later on:
 
@@ -79,7 +80,7 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
 Using Homebrew, install core dependencies:
 ```
-brew install supervisor nginx postgresql node llvm libomp gsl rust
+brew install supervisor nginx postgresql node llvm libomp gsl rust bun
 ```
 If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
 ```
@@ -216,6 +217,12 @@ If you plan to run `make load_demo_data` or the unit tests, also update the port
 	```
 
 	Otherwise, you can install NGINX normally with `sudo apt-get install nginx`.
+
+	Bun isn't packaged in apt; install it with:
+
+	```
+	curl -fsSL https://bun.sh/install | bash
+	```
 
 2. Configure your database permissions.
 
