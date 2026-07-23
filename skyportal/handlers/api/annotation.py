@@ -1,12 +1,13 @@
 import time
 from typing import Any
 
-from baselayer.app.access import auth_or_token, permissions
-from baselayer.log import make_log
 from marshmallow.exceptions import ValidationError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
+
+from baselayer.app.access import auth_or_token, permissions
+from baselayer.log import make_log
 
 from ...models import (
     Annotation,
@@ -27,8 +28,8 @@ log = make_log("api/annotation")
 class AnnotationPostBody(BaseModel):
     """Request body for posting an annotation."""
 
-    # extra keys are ignored, not rejected: existing clients send e.g.
-    # obj_id/groups alongside the documented fields
+    model_config = ConfigDict(extra="forbid")
+
     origin: str = Field(
         pattern=r"^\w+",
         description="String describing the source of this information. "
