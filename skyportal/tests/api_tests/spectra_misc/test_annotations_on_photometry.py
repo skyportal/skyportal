@@ -36,7 +36,7 @@ def test_add_and_retrieve_annotation_group_id(
         },
         token=annotation_token,
     )
-    assert_api_fail(status, data, 400, "origin must be specified")
+    assert_api_fail(status, data, 400, "origin: Field required")
 
     # this should not work, since "origin" is empty
     status, data = api(
@@ -51,7 +51,7 @@ def test_add_and_retrieve_annotation_group_id(
     )
 
     assert status in [400, 401]
-    assert "Input `origin` must begin with alphanumeric/underscore" in data["message"]
+    assert "origin: String should match pattern" in data["message"]
 
     # first time adding an annotation to this object from Kowalski
     status, data = api(

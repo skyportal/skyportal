@@ -7,6 +7,7 @@ from tornado.routing import URLSpec
 
 from . import __version__
 from .models import schema
+from .utils.api_validate import register_pydantic_schema
 
 HTTP_METHODS = ("head", "get", "post", "put", "patch", "delete", "options")
 
@@ -114,9 +115,16 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
             path_parameters = path_template.count("{}")
 
             spec = yaml_utils.load_yaml_from_docstring(method.__doc__)
-            parameters = list(inspect.signature(method).parameters.keys())[1:]
-            # remove parameters called "ignored_args"
-            parameters = [param for param in parameters if param != "ignored_args"]
+            # keyword-only parameters (e.g. validated request bodies) and
+            # "ignored_args" are not path parameters
+            parameters = [
+                name
+                for name, param in list(inspect.signature(method).parameters.items())[
+                    1:
+                ]
+                if name != "ignored_args"
+                and param.kind is not inspect.Parameter.KEYWORD_ONLY
+            ]
             parameters = [f"{{{param}}}" for param in parameters]
             parameters = parameters + (path_parameters - len(parameters)) * [
                 "",
@@ -133,6 +141,41 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
                     f"<b>Permission(s) required:</b> <em>{', '.join(method.__permissions__)} (or System admin)</em><br><br>"
                     + spec.get("description", "")
                 )
+
+            # pydantic models attached by @validate_api override any
+            # hand-written docstring sections, so docs match validation
+            body_model = getattr(method, "__body_schema__", None)
+            if body_model is not None:
+                spec["requestBody"] = {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": register_pydantic_schema(openapi_spec, body_model)
+                        }
+                    },
+                }
+
+            response_model = getattr(method, "__response_schema__", None)
+            if response_model is not None:
+                spec.setdefault("responses", {})["200"] = {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "allOf": [
+                                    {"$ref": "#/components/schemas/Success"},
+                                    {
+                                        "type": "object",
+                                        "properties": {
+                                            "data": register_pydantic_schema(
+                                                openapi_spec, response_model
+                                            )
+                                        },
+                                    },
+                                ]
+                            }
+                        }
+                    }
+                }
 
             multiple_spec = spec.pop("multiple", {})
             single_spec = spec.pop("single", {})
