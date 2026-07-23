@@ -86,3 +86,6 @@ credential
 .secrets
 .fink
 key.json
+
+!flake.lock
+.direnv
