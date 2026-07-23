@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
@@ -7,8 +6,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import Chip from "@mui/material/Chip";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
 import { JSONTree } from "react-json-tree";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -20,31 +17,17 @@ import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 import { useIsReadOnly } from "../../ducks/profile";
 
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map fall through to the field itself.
-const SERVER_SORT_FIELD: Record<string, string> = {
-  defaultObservationPlan: "defaultObservationPlan",
-  payload: "payload",
-  auto_send: "auto_send",
-};
-
 interface DefaultObservationPlanTableProps {
   instruments: any[];
   telescopes: any[];
   default_observation_plans: any[];
-  paginateCallback: (...a: any[]) => void;
-  sortingCallback?: ((...a: any[]) => void) | null;
   deletePermission?: boolean;
-  totalMatches?: number;
 }
 
 const DefaultObservationPlanTable = ({
   instruments,
   telescopes,
   default_observation_plans,
-  paginateCallback,
-  totalMatches = 0,
-  sortingCallback = null,
   deletePermission = false,
 }: DefaultObservationPlanTableProps) => {
   const dispatch = useAppDispatch();
@@ -55,7 +38,6 @@ const DefaultObservationPlanTable = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [defaultObservationPlanToDelete, setDefaultObservationPlanToDelete] =
     useState<any>(null);
-  const [sortModel, setSortModel] = useState<any[]>([]);
 
   const openDeleteDialog = (id: any) => {
     setDeleteDialogOpen(true);
@@ -133,19 +115,6 @@ const DefaultObservationPlanTable = ({
     );
   };
 
-  const handleSortModelChange = (model: any) => {
-    setSortModel(model);
-    if (!model.length) {
-      paginateCallback(1, 100, {});
-      return;
-    }
-    const { field, sort } = model[0];
-    sortingCallback?.({
-      name: SERVER_SORT_FIELD[field] || field,
-      direction: sort,
-    });
-  };
-
   const columns: any[] = [
     {
       field: "defaultObservationPlan",
@@ -194,7 +163,7 @@ const DefaultObservationPlanTable = ({
   ];
 
   const CustomToolbar = () => (
-    <DataGridToolbar showExport>
+    <DataGridToolbar title="Default Observation Plans">
       {!isReadOnly && (
         <IconButton size="small" onClick={() => setNewDialogOpen(true)}>
           <AddIcon />
@@ -205,40 +174,25 @@ const DefaultObservationPlanTable = ({
 
   return (
     <div>
-      <Paper>
-        <Typography variant="h6" style={{ padding: "0.5rem" }}>
-          Default Observation Plans
-        </Typography>
-        <Box sx={{ width: "100%" }}>
-          <StyledDataGrid
-            autoHeight
-            rows={default_observation_plans || []}
-            columns={columns}
-            getRowId={(row: any) => row.id}
-            rowCount={totalMatches}
-            sortingMode="server"
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
-            hideFooter
-            slots={{ toolbar: CustomToolbar }}
-            showToolbar
-          />
-        </Box>
-      </Paper>
-      {newDialogOpen && (
-        <Dialog
-          open={newDialogOpen}
-          onClose={() => setNewDialogOpen(false)}
-          maxWidth="md"
-        >
-          <DialogTitle>New Default Observation Plan</DialogTitle>
-          <DialogContent dividers>
-            <NewDefaultObservationPlan
-              onClose={() => setNewDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
+      <StyledDataGrid
+        autoHeight
+        rows={default_observation_plans || []}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        hideFooter
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
+      <Dialog
+        open={newDialogOpen}
+        onClose={() => setNewDialogOpen(false)}
+        maxWidth="md"
+      >
+        <DialogTitle>New Default Observation Plan</DialogTitle>
+        <DialogContent dividers>
+          <NewDefaultObservationPlan onClose={() => setNewDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteDefaultObservationPlan}
         dialogOpen={deleteDialogOpen}

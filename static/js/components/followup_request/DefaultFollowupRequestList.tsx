@@ -1,21 +1,19 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
 import { JSONTree } from "react-json-tree";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 import { useDeleteDefaultFollowupRequestMutation } from "../../ducks/default_followup_requests";
@@ -23,31 +21,54 @@ import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useIsReadOnly } from "../../ducks/profile";
-
-const useStyles = makeStyles()(() => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  defaultFollowupRequestManage: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-}));
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Tooltip from "@mui/material/Tooltip";
 
 interface DefaultFollowupRequestListProps {
   default_followup_requests: any[];
   deletePermission: boolean;
 }
 
+const ExpandableCell = ({ children, maxHeight = 80 }: any) => {
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current) setOverflows(ref.current.scrollHeight > maxHeight);
+  }, [children]);
+
+  return (
+    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.5 }}>
+      <Box
+        ref={ref}
+        sx={{
+          flex: 1,
+          overflow: "hidden",
+          maxHeight: expanded ? "none" : maxHeight,
+        }}
+      >
+        {children}
+      </Box>
+      {(overflows || expanded) && (
+        <IconButton size="small" onClick={() => setExpanded((e) => !e)}>
+          {expanded ? (
+            <ExpandLessIcon fontSize="small" />
+          ) : (
+            <ExpandMoreIcon fontSize="small" />
+          )}
+        </IconButton>
+      )}
+    </Box>
+  );
+};
+
 const DefaultFollowupRequestList = ({
   default_followup_requests,
   deletePermission,
 }: DefaultFollowupRequestListProps) => {
   const dispatch = useAppDispatch();
-  const { classes } = useStyles();
   const isReadOnly = useIsReadOnly();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
@@ -87,99 +108,105 @@ const DefaultFollowupRequestList = ({
       .catch(() => {});
   };
 
-  const renderInstrumentName = (params: any) => {
-    const { allocation } = params.row;
-    const { instrument_id } = allocation;
-    const instrument = instrumentList?.filter(
-      (i: any) => i.id === instrument_id,
-    )[0];
+  const renderAllocationName = (params: any) => {
+    const allocation = params.value;
+    if (!allocation) return null;
+    const instrument = instrumentList?.find(
+      (i) => i.id === allocation.instrument_id,
+    );
     return (
-      <div>
-        <Link to={`/allocation/${allocation.id}`} role="link">
-          {instrument ? instrument["name"] : ""}
+      <Tooltip
+        title={
+          <>
+            PI: {allocation?.["pi"] || ""}
+            <br />
+            Proposal: {allocation?.["proposal_id"] || ""}
+            <br />
+            Instrument: {instrument?.["name"] || ""}
+            <br />
+          </>
+        }
+      >
+        <Link
+          to={`/allocation/${allocation.id}`}
+          style={{ display: "flex", flexDirection: "column" }}
+        >
+          {allocation?.["pi"] || ""} / {instrument?.["name"] || ""}
         </Link>
-      </div>
+      </Tooltip>
     );
   };
 
-  const renderTelescopeName = (params: any) => {
-    const { allocation } = params.row;
-    const { instrument_id } = allocation;
-    const instrument = instrumentList?.filter(
-      (i: any) => i.id === instrument_id,
-    )[0];
-    const telescope_id = instrument?.["telescope_id"];
-    const telescope = telescopeList?.filter(
-      (t: any) => t.id === telescope_id,
-    )[0];
+  const renderTelescopeNickname = (params: any) => {
+    const allocation = params.row.allocation;
+    if (!allocation) return null;
+    const instrument = instrumentList?.find(
+      (i) => i.id === allocation.instrument_id,
+    );
+    const telescope = telescopeList?.find(
+      (t: any) => t.id === instrument?.["telescope_id"],
+    );
     return (
-      <div>
-        <Link to={`/allocation/${allocation.id}`} role="link">
-          {telescope ? telescope["nickname"] : ""}
-        </Link>
-      </div>
+      <Link to={`/telescope/${instrument?.telescope_id}`}>
+        {telescope?.["nickname"] || ""}
+      </Link>
     );
   };
 
   const renderGroup = (params: any) => {
     const { allocation } = params.row;
-    const group = groups?.filter((g: any) => g.id === allocation.group_id)[0];
-    return <div>{group ? group.name : ""}</div>;
+    const group = groups?.find((g: any) => g.id === allocation.group_id);
+    if (!group?.name) return null;
+    return <Chip label={group.name} />;
   };
 
-  // Let the tree wrap and grow so every key/value is visible (paired with the
-  // grid's auto row height); otherwise all but the first field is clipped.
-  const renderPayload = (params: any) => {
-    const cellStyle = { whiteSpace: "normal" as const, padding: "0.25rem 0" };
-    return (
-      <div style={cellStyle}>
-        {params.row ? <JSONTree data={params.row.payload} hideRoot /> : ""}
-      </div>
+  const renderPayload = (params: any) =>
+    params.row ? (
+      <ExpandableCell>
+        <JSONTree data={params.row.payload} hideRoot />
+      </ExpandableCell>
+    ) : (
+      ""
     );
-  };
 
-  const renderSourceFilter = (params: any) => {
-    const cellStyle = { whiteSpace: "normal" as const, padding: "0.25rem 0" };
-    return (
-      <div style={cellStyle}>
-        {params.row ? (
-          <JSONTree data={params.row.source_filter} hideRoot />
-        ) : (
-          ""
-        )}
-      </div>
+  const renderSourceFilter = (params: any) =>
+    params.row ? (
+      <ExpandableCell>
+        <JSONTree data={params.row.source_filter} hideRoot />
+      </ExpandableCell>
+    ) : (
+      ""
     );
-  };
 
   const renderManage = (params: any) => {
     if (!deletePermission) return null;
-
     const default_followup_request = params.row;
     return (
-      <div className={classes.defaultFollowupRequestManage}>
-        <Button onClick={() => openDeleteDialog(default_followup_request.id)}>
-          <DeleteIcon />
-        </Button>
-      </div>
+      <IconButton
+        color="error"
+        onClick={() => openDeleteDialog(default_followup_request.id)}
+      >
+        <DeleteIcon />
+      </IconButton>
     );
   };
 
   const columns: any[] = [
     {
-      field: "instrument_name",
-      headerName: "Instrument Name",
+      field: "allocation",
+      headerName: "Allocation",
       flex: 1,
       minWidth: 140,
       sortable: false,
-      renderCell: renderInstrumentName,
+      renderCell: renderAllocationName,
     },
     {
-      field: "telescope_name",
-      headerName: "Telescope Name",
+      field: "telescope_nickname",
+      headerName: "Telescope",
       flex: 1,
       minWidth: 140,
       sortable: false,
-      renderCell: renderTelescopeName,
+      renderCell: renderTelescopeNickname,
     },
     {
       field: "default_followup_name",
@@ -211,18 +238,18 @@ const DefaultFollowupRequestList = ({
       sortable: false,
       renderCell: renderSourceFilter,
     },
-    {
+    deletePermission && {
       field: "manage",
       headerName: " ",
-      width: 70,
+      minWidth: 60,
       sortable: false,
       filterable: false,
       renderCell: renderManage,
     },
-  ];
+  ].filter(Boolean);
 
   const CustomToolbar = () => (
-    <DataGridToolbar showQuickFilter={false} showExport>
+    <DataGridToolbar showQuickFilter={false} title="Default Follow-up Requests">
       {!isReadOnly && (
         <IconButton
           name="new_default_followup_request"
@@ -235,21 +262,16 @@ const DefaultFollowupRequestList = ({
   );
 
   return (
-    <div>
-      <Paper className={classes.container}>
-        <Typography variant="h6" sx={{ p: 1 }}>
-          Default Follow-up Requests
-        </Typography>
-        <StyledDataGrid
-          autoHeight
-          getRowHeight={() => "auto"}
-          rows={default_followup_requests || []}
-          columns={columns}
-          getRowId={(row: any) => row.id}
-          slots={{ toolbar: CustomToolbar }}
-          showToolbar
-        />
-      </Paper>
+    <Box>
+      <StyledDataGrid
+        autoHeight
+        getRowHeight={() => "auto"}
+        rows={default_followup_requests || []}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
       <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
         <DialogTitle>New Default Follow-up Request</DialogTitle>
         <DialogContent dividers>
@@ -264,7 +286,7 @@ const DefaultFollowupRequestList = ({
         closeDialog={closeDeleteDialog}
         resourceName="default follow-up request"
       />
-    </div>
+    </Box>
   );
 };
 

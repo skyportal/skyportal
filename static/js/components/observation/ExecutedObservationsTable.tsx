@@ -428,7 +428,7 @@ const ExecutedObservationsTable = ({
   };
 
   const CustomToolbar = () => (
-    <DataGridToolbar>
+    <DataGridToolbar showExport={false}>
       <Tooltip title="Filter Table">
         <IconButton
           size="small"

@@ -26,30 +26,47 @@ const Groups = () => {
   );
 
   const tabPanels = [
-    <GroupList key="my-groups" groups={userGroups} />,
+    <GroupList key="my-groups" title="My groups" groups={userGroups} />,
     ...(nonMemberGroups.length
-      ? [<GroupList key="non-member" groups={nonMemberGroups} admission />]
+      ? [
+          <GroupList
+            key="non-member"
+            title="Non-member groups"
+            groups={nonMemberGroups}
+            admission
+          />,
+        ]
       : []),
     ...(canManageGroups
-      ? [<GroupList key="all-groups" groups={allMultiUserGroups} />]
+      ? [
+          <GroupList
+            key="all-groups"
+            title="All Groups"
+            groups={allMultiUserGroups}
+          />,
+        ]
       : []),
-    <NewGroupForm key="new-group" />,
+    <Box key="new-group" sx={{ borderTop: 1, borderColor: "divider" }}>
+      <NewGroupForm />
+    </Box>,
   ];
 
   const activeTab = Math.min(tab, tabPanels.length - 1);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs value={activeTab} onChange={(_event, value) => setTab(value)}>
-          <Tab label="My Groups" data-testid="tour-groups-list" />
-          {nonMemberGroups.length > 0 && (
-            <Tab label="Non-member groups" data-testid="tour-groups-request" />
-          )}
-          {canManageGroups && <Tab label="All Groups" />}
-          <Tab label="Create New Group" data-testid="tour-groups-new" />
-        </Tabs>
-      </Box>
+    <Box>
+      <Tabs
+        value={activeTab}
+        onChange={(_event, value) => setTab(value)}
+        centered
+      >
+        <Tab label="My Groups" data-testid="tour-groups-list" />
+        {nonMemberGroups.length > 0 && (
+          <Tab label="Non-member groups" data-testid="tour-groups-request" />
+        )}
+        {canManageGroups && <Tab label="All Groups" />}
+        <Tab label="Create New Group" data-testid="tour-groups-new" />
+      </Tabs>
       {tabPanels[activeTab]}
     </Box>
   );

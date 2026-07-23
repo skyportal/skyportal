@@ -62,6 +62,21 @@ class AllocationObservationPlanHandler(BaseHandler):
             schema:
               type: integer
             description: Page number for paginated query results. Defaults to 1
+          - in: query
+            name: sortBy
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Field to sort by. Can be one of: created_at, modified, status, gcnevent_id. Defaults to created_at.
+          - in: query
+            name: sortOrder
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Sort order. Can be one of: asc, desc. Defaults to asc.
+
         responses:
           200:
              content:
@@ -217,8 +232,27 @@ class AllocationHandler(BaseHandler):
             name: instrument_id
             nullable: true
             schema:
-              type: number
+              type: integer
             description: Instrument ID to retrieve allocations for
+          - in: query
+            name: apiType
+            nullable: true
+            schema:
+              type: string
+              enum: [api_classname, api_classname_obsplan]
+            description: |
+              Restrict to allocations whose instrument has the given API type set
+          - in: query
+            name: apiImplements
+            nullable: true
+            schema:
+              type: string
+              enum: [update, delete, get, submit, send, remove, retrieve, queued,
+                remove_queue, prepare_payload, send_skymap, queued_skymap,
+                remove_skymap, retrieve_log, update_status]
+            description: |
+              Restrict to allocations whose instrument API implements the given
+              method. Requires apiType to be specified.
           responses:
             200:
               content:

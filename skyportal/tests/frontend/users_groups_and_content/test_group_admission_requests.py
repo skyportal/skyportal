@@ -87,7 +87,7 @@ def test_group_admission_request_insufficient_stream_access(
     ).first
     expect(request_button).to_be_disabled()
     tooltip_target = page.locator(
-        f'//span[.//*[@data-testid="requestAdmissionButton{public_group.id}"]]'
+        f'//*[@data-testid="requestAdmissionButton{public_group.id}"]/..'
     ).first
 
     # A grid re-render can replace the cell node under a motionless cursor, and the

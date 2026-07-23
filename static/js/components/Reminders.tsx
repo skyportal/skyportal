@@ -282,6 +282,7 @@ const Reminders = ({
         return (
           <DataGridToolbar
             showColumns={false}
+            showExport={false}
             quickFilterTestId="reminders-quick-filter"
           >
             {!isReadOnly && (

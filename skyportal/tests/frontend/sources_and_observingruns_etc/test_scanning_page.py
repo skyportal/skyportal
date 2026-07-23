@@ -983,7 +983,9 @@ def test_delete_scanning_profile(page, user, public_group):
     page.locator(".MuiDataGrid-virtualScroller").first.evaluate(
         "el => el.scrollTo({ left: el.scrollWidth })"
     )
-    page.locator('//button[@id="delete_button_0"]').first.click()
+    page.locator(
+        '//div[@data-field="manage"]//button[contains(@class, "MuiIconButton-colorError")]'
+    ).first.click()
     expect(page.locator('//div[text()="123hrs"]').first).to_be_hidden()
 
 

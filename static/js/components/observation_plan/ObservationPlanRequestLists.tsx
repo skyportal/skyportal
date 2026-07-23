@@ -10,7 +10,6 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import { makeStyles } from "tss-react/mui";
 import { JSONTree } from "react-json-tree";
@@ -493,18 +492,11 @@ const ObservationPlanRequestLists = ({
         flex: 1,
         minWidth: 220,
         sortable: false,
-        renderCell: (params: any) => {
-          const observationplanRequest = params.row;
-          if (observationplanRequest.status === "running")
-            return <CircularProgress />;
-          return (
-            <Box sx={{ minWidth: "200px" }}>
-              <ObservationPlanSummaryStatistics
-                observationplanRequest={observationplanRequest}
-              />
-            </Box>
-          );
-        },
+        renderCell: (params: any) => (
+          <ObservationPlanSummaryStatistics
+            observationplanRequest={params.row}
+          />
+        ),
       },
       {
         field: "skymap",
@@ -522,13 +514,11 @@ const ObservationPlanRequestLists = ({
             return null;
           }
           return (
-            <Box sx={{ minWidth: "350px" }}>
-              <ObservationPlanGlobe
-                observationplanRequest={observationplanRequest}
-                size={350}
-                retrieveLocalization
-              />
-            </Box>
+            <ObservationPlanGlobe
+              observationplanRequest={observationplanRequest}
+              size={350}
+              retrieveLocalization
+            />
           );
         },
       },
