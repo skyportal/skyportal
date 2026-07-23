@@ -8,7 +8,9 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
+import Slider from "@mui/material/Slider";
 import Switch from "@mui/material/Switch";
+import TextField from "@mui/material/TextField";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
@@ -21,6 +23,7 @@ import {
   type BulkSpectraSource,
 } from "../ducks/spectra";
 import type { PhotStatPoint } from "../ducks/photStatAggregate";
+import { smoothing_func } from "../utils";
 
 const Plot = createPlotlyComponent(Plotly);
 
@@ -45,6 +48,17 @@ const median = (arr: number[]): number | null => {
   const m = Math.floor(v.length / 2);
   if (v.length % 2) return v[m] as number;
   return ((v[m - 1] as number) + (v[m] as number)) / 2;
+};
+
+// p-th percentile (0-100) of the finite values (nearest-rank).
+const percentile = (arr: number[], p: number): number | null => {
+  const v = arr.filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const idx = Math.min(
+    v.length - 1,
+    Math.max(0, Math.round((p / 100) * (v.length - 1))),
+  );
+  return v[idx] as number;
 };
 
 // Blue -> green -> red ramp for phase in [0, 1] (early -> late).
@@ -80,6 +94,13 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
   const [display, setDisplay] = useState<Display>("waterfall");
   const [restFrame, setRestFrame] = useState(true);
   const [normalize, setNormalize] = useState(true);
+  // Percent trimmed off each tail when clipping (0 = off). 1% kills the
+  // cosmic-ray/sky spikes seen in real data while barely touching normal spectra.
+  const [clipPct, setClipPct] = useState(1);
+  const [smoothWindow, setSmoothWindow] = useState(0);
+  const [offsetMult, setOffsetMult] = useState(1);
+  const [wlMin, setWlMin] = useState("");
+  const [wlMax, setWlMax] = useState("");
 
   // Spectra follow the page's source selection (chosen at the top); one bulk
   // request fetches all their spectra. Null (skips the query) if nothing plotted.
@@ -121,14 +142,26 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
       const wl = useRest ? wlRaw.map((w) => w / (1 + (z as number))) : wlRaw;
       let flux: number[] = flRaw;
       if (normalize) {
-        const med = median(flRaw.filter((f) => f > 0));
-        if (med) flux = flRaw.map((f) => f / med);
+        // Match the source-page viewer: divide by |median|, floored to avoid
+        // blow-up on faint / badly-sky-subtracted spectra.
+        const norm = Math.abs(median(flRaw) ?? 0) || 1e-20;
+        flux = flRaw.map((f) => f / norm);
       }
+      if (clipPct > 0) {
+        // Winsorize to [clipPct, 100-clipPct] percentiles: cosmic-ray / sky-line
+        // spikes otherwise set the whole y-scale across a multi-object stack.
+        const lo = percentile(flux, clipPct);
+        const hi = percentile(flux, 100 - clipPct);
+        if (lo != null && hi != null && hi > lo) {
+          flux = flux.map((f) => (f < lo ? lo : f > hi ? hi : f));
+        }
+      }
+      if (smoothWindow > 0) flux = smoothing_func(flux, smoothWindow) ?? flux;
       recs.push({ sourceId: sp.obj_id, phase: mjd - t0, wl, flux });
     });
     recs.sort((a, b) => a.phase - b.phase);
     return recs;
-  }, [data, meta, t0Mode, restFrame, normalize]);
+  }, [data, meta, t0Mode, restFrame, normalize, clipPct, smoothWindow]);
 
   // Cap the drawn traces, sampling evenly across the phase-sorted list so the
   // full phase range stays represented instead of dropping the latest spectra.
@@ -147,13 +180,59 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
     const pmax = phases.length ? Math.max(...phases) : 1;
     const span = pmax - pmin || 1;
 
-    // Waterfall offset: unit steps when normalized, else a robust flux scale.
-    const scales = rendered
-      .map((r) => median(r.flux.filter((f) => Number.isFinite(f))) ?? 0)
+    // Waterfall offset scaled to the typical trace amplitude (robust 5-95
+    // spread), so it works whatever the normalize/clip/smooth settings produce.
+    const spreads = rendered
+      .map((r) => {
+        const lo = percentile(r.flux, 5);
+        const hi = percentile(r.flux, 95);
+        return lo != null && hi != null ? hi - lo : 0;
+      })
       .filter((s) => s > 0);
-    const baseScale = median(scales) ?? 1;
+    const baseSpread = median(spreads) ?? 1;
     const offsetStep =
-      display === "waterfall" ? (normalize ? 1.2 : baseScale * 1.5) : 0;
+      display === "waterfall" ? baseSpread * 1.1 * offsetMult : 0;
+
+    // Robust default wavelength range so one spectrum spanning e.g. 3000-24000 A
+    // doesn't squash everything; either explicit bound independently overrides it.
+    let xLo: number | undefined;
+    let xHi: number | undefined;
+    if (rendered.length) {
+      xLo =
+        percentile(
+          rendered.map((r) => Math.min(...r.wl)),
+          5,
+        ) ?? undefined;
+      xHi =
+        percentile(
+          rendered.map((r) => Math.max(...r.wl)),
+          90,
+        ) ?? undefined;
+    }
+    const wlLo = parseFloat(wlMin);
+    const wlHi = parseFloat(wlMax);
+    if (Number.isFinite(wlLo)) xLo = wlLo;
+    if (Number.isFinite(wlHi)) xHi = wlHi;
+    const xRange: [number, number] | undefined =
+      xLo != null && xHi != null && xHi > xLo ? [xLo, xHi] : undefined;
+
+    // Color mode shares one flux axis: clamp its range to robust percentiles of
+    // a subsample so a lone survivor spike can't compress everything.
+    let yRange: [number, number] | undefined;
+    if (display === "color" && rendered.length) {
+      const sample: number[] = [];
+      rendered.forEach((r) => {
+        const step = Math.max(1, Math.floor(r.flux.length / 50));
+        for (let i = 0; i < r.flux.length; i += step)
+          sample.push(r.flux[i] as number);
+      });
+      const lo = percentile(sample, 1);
+      const hi = percentile(sample, 99);
+      if (lo != null && hi != null && hi > lo) {
+        const pad = (hi - lo) * 0.05;
+        yRange = [lo - pad, hi + pad];
+      }
+    }
 
     const tr = rendered.map((r, i) => {
       const t = (r.phase - pmin) / span;
@@ -181,6 +260,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
           title: {
             text: restFrame ? "Rest wavelength (Å)" : "Observed wavelength (Å)",
           },
+          ...(xRange ? { range: xRange } : {}),
         },
         yaxis: {
           title: {
@@ -192,13 +272,14 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
                 ? "Flux + offset"
                 : "Flux",
           },
+          ...(yRange ? { range: yRange } : {}),
         },
         showlegend: false,
         height: 600,
         margin: { t: 10 },
       },
     };
-  }, [rendered, display, restFrame, normalize]);
+  }, [rendered, display, restFrame, normalize, offsetMult, wlMin, wlMax]);
 
   const nSources = useMemo(
     () => new Set(rendered.map((r) => r.sourceId)).size,
@@ -256,6 +337,62 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
             />
           }
           label="Normalize"
+        />
+        <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
+          <Typography variant="caption">
+            Clip spikes: {clipPct === 0 ? "off" : `${clipPct}%`}
+          </Typography>
+          <Slider
+            size="small"
+            value={clipPct}
+            onChange={(_e, v) => setClipPct(v as number)}
+            min={0}
+            max={5}
+            step={0.5}
+            valueLabelDisplay="auto"
+          />
+        </Box>
+        <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
+          <Typography variant="caption">Smoothing: {smoothWindow}</Typography>
+          <Slider
+            size="small"
+            value={smoothWindow}
+            onChange={(_e, v) => setSmoothWindow(v as number)}
+            min={0}
+            max={20}
+            step={1}
+            valueLabelDisplay="auto"
+          />
+        </Box>
+        {display === "waterfall" && (
+          <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
+            <Typography variant="caption">
+              Offset: {offsetMult.toFixed(1)}×
+            </Typography>
+            <Slider
+              size="small"
+              value={offsetMult}
+              onChange={(_e, v) => setOffsetMult(v as number)}
+              min={0}
+              max={3}
+              step={0.1}
+              valueLabelDisplay="auto"
+            />
+          </Box>
+        )}
+        <TextField
+          size="small"
+          label="λ min (Å)"
+          value={wlMin}
+          onChange={(e) => setWlMin(e.target.value)}
+          sx={{ width: "6.5rem" }}
+        />
+        <TextField
+          size="small"
+          label="λ max (Å)"
+          value={wlMax}
+          onChange={(e) => setWlMax(e.target.value)}
+          sx={{ width: "6.5rem" }}
         />
         {isFetching && <CircularProgress size={20} />}
       </Box>
