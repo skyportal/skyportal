@@ -70,6 +70,9 @@ dependencies = [
     # floor here so the lock can't resolve to a vulnerable version and the bump
     # sticks (a lock-only floor reverts to baselayer's on the next uv resolve).
     "tornado>=6.5.6",
+    # redis-py client (talks to the Valkey server); MIT-licensed, so track the
+    # latest. Valkey speaks RESP2/3, which redis-py 8.x supports.
+    "redis>=5.0.0, <9.0.0",
     "geojson==3.2.0",
     "typing-extensions==4.15.0",
     "swifttools==3.0.23",
@@ -81,6 +84,9 @@ dependencies = [
     "black==26.5.1",
     "click==8.1.7",
     "penquins==2.4.2",
+    # BOOM's filter-module store; already pulled in by penquins, declared here
+    # because skyportal/broker_apis/boom.py imports it directly.
+    "pymongo>=4.6, <5.0",
     "afterglowpy==0.8.1",
     "gcn-kafka==0.3.3",
     "confluent_kafka==2.15.0",
@@ -104,8 +110,20 @@ dependencies = [
     "typing-inspect==0.9.0",
     "brotli==1.2.0",
     "numexpr==2.14.1",
-    "setuptools<82.1.0",
+    "setuptools<83.1.0",
 ]
+
+# Per-broker transport clients. Most brokers (Generic, ALeRCE, ANTARES, Lasair,
+# Fink) talk plain REST and/or self-describing Kafka, needing only core deps
+# (`requests`, and `confluent-kafka` via gcn-kafka). Pitt-Google is the one broker
+# needing an extra (first-party Google SDKs, no third-party client):
+# `pip install 'skyportal[pittgoogle]'`.
+[project.optional-dependencies]
+pittgoogle = [
+    "google-cloud-bigquery>=3.0.0,<4.0.0",
+    "google-cloud-pubsub>=2.0.0,<3.0.0",
+]
+brokers-all = ["skyportal[pittgoogle]"]
 
 [dependency-groups]
 dev = [

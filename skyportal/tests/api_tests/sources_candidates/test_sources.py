@@ -2834,6 +2834,42 @@ def test_deduplicate_photometry(
     assert np.isclose(data["data"]["photometry"][0]["mag"], 12.8)
 
 
+def test_source_gcn_crossmatch_event_filters(upload_data_token, public_source):
+    # The crossmatch endpoint accepts GCN/localization tag+property cuts. A
+    # malformed property filter is rejected synchronously (before the async
+    # crossmatch), via the shared apply_gcn_event_filters helper.
+    status, data = api(
+        "POST",
+        f"sources/{public_source.id}/gcn_event",
+        data={
+            "startDate": "2019-08-13T08:18:05",
+            "endDate": "2019-08-19T08:18:05",
+            "gcnPropertiesFilter": ["BNS:0.5"],  # 2 parts -> invalid (needs 1 or 3)
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert "gcnPropertiesFilter" in data["message"]
+
+    # Well-formed tag/property cuts are accepted (no matching events in range is
+    # reported separately, so just confirm the filter params parse and apply).
+    status, data = api(
+        "POST",
+        f"sources/{public_source.id}/gcn_event",
+        data={
+            "startDate": "2019-08-13T08:18:05",
+            "endDate": "2019-08-19T08:18:05",
+            "gcnTagKeep": ["GW"],
+            "gcnPropertiesFilter": ["FAR:1.0:lt"],
+        },
+        token=upload_data_token,
+    )
+    # No GCN events exist in that window in this test, so the endpoint reports
+    # that rather than a filter error.
+    assert status == 400
+    assert "Cannot find GcnEvents" in data["message"]
+
+
 def test_source_gcn_crossmatch_string_dateobs(
     super_admin_token, super_admin_user, public_source
 ):

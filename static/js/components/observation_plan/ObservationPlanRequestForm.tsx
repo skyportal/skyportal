@@ -1,6 +1,6 @@
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
@@ -42,7 +42,7 @@ import {
 import { useLazyGetPlanWithSameNameExistsQuery } from "../../ducks/observationPlans";
 import { useGetLocalizationQuery } from "../../ducks/localization";
 import GroupShareSelect from "../group/GroupShareSelect";
-import LocalizationPlot from "../localization/LocalizationPlot";
+const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -191,15 +191,17 @@ const ObservationPlanGlobe = ({
     gcnEvent?.localizations?.find((l: any) => l.id === loc.id) === undefined ? (
     <CircularProgress />
   ) : (
-    <LocalizationPlot
-      localization={loc}
-      instrument={skymapInstrument}
-      options={displayOptionsDefault}
-      selectedFields={selectedFields}
-      setSelectedFields={setSelectedFields}
-      projection={selectedProjection}
-      airmass_threshold={airmassValue}
-    />
+    <Suspense fallback={<CircularProgress />}>
+      <LocalizationPlot
+        localization={loc}
+        instrument={skymapInstrument}
+        options={displayOptionsDefault}
+        selectedFields={selectedFields}
+        setSelectedFields={setSelectedFields}
+        projection={selectedProjection}
+        airmass_threshold={airmassValue}
+      />
+    </Suspense>
   );
 };
 

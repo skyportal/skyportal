@@ -1,0 +1,66 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.0
+    method: GET
+    uri: https://api-lsst.alerce.online/object_api/object?survey_id=lsst&oid=170587116732416143
+  response:
+    body:
+      string: '{"oid":170587116732416143,"tid":1,"sid":1,"meanra":9.310540510229224,"meandec":-42.3746911041113,"sigmara":4.590563134167546e-06,"sigmadec":5.482957144558421e-06,"firstmjd":61217.41670499195,"lastmjd":61217.42049113812,"deltamjd":0.003786146167840343,"n_det":3,"n_forced":0,"n_non_det":0,"created_date":"2026-06-26T00:00:00","updated_date":"2026-06-26T00:00:00"}'
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '362'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 03 Jul 2026 17:48:35 GMT
+      Server:
+      - nginx/1.31.2
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.0
+    method: GET
+    uri: https://api-lsst.alerce.online/lightcurve_api/detections?survey_id=lsst&oid=170587116732416143
+  response:
+    body:
+      string: '[{"band_map":{"6":"u","1":"g","2":"r","3":"i","4":"z","5":"y"},"band":3,"mjd":61217.41670499195,"survey_id":"lsst","ra":9.310469102516116,"dec":-42.37466228780941,"oid":170587116732416143,"measurement_id":170587116732416143,"parentDiaSourceId":0,"diaObjectId":170587116732416143,"psfFlux":-2615.273,"psfFluxErr":216.23157,"psfFlux_flag":0,"psfFlux_flag_edge":0,"psfFlux_flag_noGoodPixels":0,"scienceFlux":6471.1646,"scienceFluxErr":212.64682,"has_stamp":true,"visit":2026062500646,"detector":3,"ssObjectId":0,"raErr":2.6906871e-05,"decErr":2.7368586e-05,"ra_dec_Cov":3.0018977e-11,"x":167.95622,"xErr":0.4783028,"y":461.65768,"yErr":0.5003319,"centroid_flag":false,"apFlux":-3828.045,"apFluxErr":631.3728,"apFlux_flag":false,"apFlux_flag_apertureTruncated":false,"isNegative":true,"snr":12.173693,"psfLnL":null,"psfChi2":1753.6516,"psfNdata":1681,"trailFlux":-2571.3274,"trailFluxErr":237.0395,"trailRa":9.31047396021837,"trailRaErr":null,"trailDec":-42.37466069126904,"trailDecErr":null,"trailLength":0.7139933,"trailLengthErr":0.3899782,"trailAngle":150.84708,"trailAngleErr":33.785442,"trailChi2":null,"trailNdata":0,"trail_flag_edge":false,"dipoleMeanFlux":null,"dipoleMeanFluxErr":null,"dipoleFluxDiff":null,"dipoleFluxDiffErr":null,"dipoleLength":null,"dipoleAngle":null,"dipoleChi2":null,"dipoleNdata":0,"forced_PsfFlux_flag":false,"forced_PsfFlux_flag_edge":false,"forced_PsfFlux_flag_noGoodPixels":false,"templateFlux":9149.338,"templateFluxErr":74.23164,"ixx":0.17306812,"iyy":0.14677423,"ixy":0.021529919,"ixxPSF":0.10250972,"iyyPSF":0.1296803,"ixyPSF":0.021904344,"shape_flag":false,"shape_flag_no_pixels":false,"shape_flag_not_contained":false,"shape_flag_parent_source":false,"extendedness":0.33979028,"reliability":0.5414376,"isDipole":false,"dipoleFitAttempted":false,"timeProcessedMjdTai":61217.41859910955,"timeWithdrawnMjdTai":null,"bboxSize":15,"pixelFlags":false,"pixelFlags_bad":false,"pixelFlags_cr":false,"pixelFlags_crCenter":false,"pixelFlags_edge":false,"pixelFlags_nodata":false,"pixelFlags_nodataCenter":false,"pixelFlags_interpolated":false,"pixelFlags_interpolatedCenter":false,"pixelFlags_offimage":false,"pixelFlags_saturated":false,"pixelFlags_saturatedCenter":false,"pixelFlags_suspect":false,"pixelFlags_suspectCenter":false,"pixelFlags_streak":false,"pixelFlags_streakCenter":false,"pixelFlags_injected":false,"pixelFlags_injectedCenter":false,"pixelFlags_injected_template":false,"pixelFlags_injected_templateCenter":false,"glint_trail":false},{"band_map":{"6":"u","1":"g","2":"r","3":"i","4":"z","5":"y"},"band":1,"mjd":61217.42002519088,"survey_id":"lsst","ra":9.310541031618985,"dec":-42.37469134421175,"oid":170587116732416143,"measurement_id":170587117134545027,"parentDiaSourceId":0,"diaObjectId":170587116732416143,"psfFlux":-2803.7178,"psfFluxErr":122.16363,"psfFlux_flag":0,"psfFlux_flag_edge":0,"psfFlux_flag_noGoodPixels":0,"scienceFlux":5431.4004,"scienceFluxErr":120.52965,"has_stamp":true,"visit":2026062500649,"detector":2,"ssObjectId":0,"raErr":7.2663674e-06,"decErr":9.620893e-06,"ra_dec_Cov":5.480987e-12,"x":3912.3071,"xErr":0.12989502,"y":1165.8969,"yErr":0.17424512,"centroid_flag":false,"apFlux":-2582.241,"apFluxErr":302.74298,"apFlux_flag":false,"apFlux_flag_apertureTruncated":false,"isNegative":true,"snr":22.834196,"psfLnL":null,"psfChi2":2061.6404,"psfNdata":1681,"trailFlux":-2846.373,"trailFluxErr":82.18847,"trailRa":9.310542083745622,"trailRaErr":null,"trailDec":-42.374693431241894,"trailDecErr":null,"trailLength":0.83312714,"trailLengthErr":0.16782138,"trailAngle":160.4969,"trailAngleErr":12.838221,"trailChi2":null,"trailNdata":0,"trail_flag_edge":false,"dipoleMeanFlux":null,"dipoleMeanFluxErr":null,"dipoleFluxDiff":null,"dipoleFluxDiffErr":null,"dipoleLength":null,"dipoleAngle":null,"dipoleChi2":null,"dipoleNdata":0,"forced_PsfFlux_flag":false,"forced_PsfFlux_flag_edge":false,"forced_PsfFlux_flag_noGoodPixels":false,"templateFlux":8355.946,"templateFluxErr":41.734295,"ixx":0.13704488,"iyy":0.17754349,"ixy":0.02666313,"ixxPSF":0.118253715,"iyyPSF":0.16230257,"ixyPSF":0.007496279,"shape_flag":false,"shape_flag_no_pixels":false,"shape_flag_not_contained":false,"shape_flag_parent_source":false,"extendedness":0.050407853,"reliability":0.6780155,"isDipole":false,"dipoleFitAttempted":false,"timeProcessedMjdTai":61217.421510147964,"timeWithdrawnMjdTai":null,"bboxSize":21,"pixelFlags":false,"pixelFlags_bad":false,"pixelFlags_cr":false,"pixelFlags_crCenter":false,"pixelFlags_edge":false,"pixelFlags_nodata":false,"pixelFlags_nodataCenter":false,"pixelFlags_interpolated":false,"pixelFlags_interpolatedCenter":false,"pixelFlags_offimage":false,"pixelFlags_saturated":false,"pixelFlags_saturatedCenter":false,"pixelFlags_suspect":false,"pixelFlags_suspectCenter":false,"pixelFlags_streak":false,"pixelFlags_streakCenter":false,"pixelFlags_injected":false,"pixelFlags_injectedCenter":false,"pixelFlags_injected_template":false,"pixelFlags_injected_templateCenter":false,"glint_trail":false},{"band_map":{"6":"u","1":"g","2":"r","3":"i","4":"z","5":"y"},"band":1,"mjd":61217.42049113812,"survey_id":"lsst","ra":9.31054378144314,"dec":-42.37469280243173,"oid":170587116732416143,"measurement_id":170587117274005632,"parentDiaSourceId":0,"diaObjectId":170587116732416143,"psfFlux":-3019.9097,"psfFluxErr":111.20995,"psfFlux_flag":0,"psfFlux_flag_edge":0,"psfFlux_flag_noGoodPixels":0,"scienceFlux":5262.311,"scienceFluxErr":107.787575,"has_stamp":true,"visit":2026062500650,"detector":12,"ssObjectId":0,"raErr":6.070887e-06,"decErr":6.880206e-06,"ra_dec_Cov":8.5052776e-13,"x":3566.4924,"xErr":0.1091475,"y":642.14075,"yErr":0.124102555,"centroid_flag":false,"apFlux":-3161.7317,"apFluxErr":267.12704,"apFlux_flag":false,"apFlux_flag_apertureTruncated":false,"isNegative":true,"snr":27.046476,"psfLnL":null,"psfChi2":1637.2465,"psfNdata":1681,"trailFlux":-2835.666,"trailFluxErr":105.47896,"trailRa":9.31054432257478,"trailRaErr":null,"trailDec":-42.37469364361578,"trailDecErr":null,"trailLength":0.36531985,"trailLengthErr":0.3693113,"trailAngle":160.89926,"trailAngleErr":59.27505,"trailChi2":null,"trailNdata":0,"trail_flag_edge":false,"dipoleMeanFlux":null,"dipoleMeanFluxErr":null,"dipoleFluxDiff":null,"dipoleFluxDiffErr":null,"dipoleLength":null,"dipoleAngle":null,"dipoleChi2":null,"dipoleNdata":0,"forced_PsfFlux_flag":false,"forced_PsfFlux_flag_edge":false,"forced_PsfFlux_flag_noGoodPixels":false,"templateFlux":8398.004,"templateFluxErr":42.54817,"ixx":0.14024508,"iyy":0.1481069,"ixy":0.0043162666,"ixxPSF":0.12487835,"iyyPSF":0.15257134,"ixyPSF":-0.00342885,"shape_flag":false,"shape_flag_no_pixels":false,"shape_flag_not_contained":false,"shape_flag_parent_source":false,"extendedness":0.005346689,"reliability":0.6972521,"isDipole":false,"dipoleFitAttempted":false,"timeProcessedMjdTai":61217.42204783552,"timeWithdrawnMjdTai":null,"bboxSize":20,"pixelFlags":false,"pixelFlags_bad":false,"pixelFlags_cr":false,"pixelFlags_crCenter":false,"pixelFlags_edge":false,"pixelFlags_nodata":false,"pixelFlags_nodataCenter":false,"pixelFlags_interpolated":false,"pixelFlags_interpolatedCenter":false,"pixelFlags_offimage":false,"pixelFlags_saturated":false,"pixelFlags_saturatedCenter":false,"pixelFlags_suspect":false,"pixelFlags_suspectCenter":false,"pixelFlags_streak":false,"pixelFlags_streakCenter":false,"pixelFlags_injected":false,"pixelFlags_injectedCenter":false,"pixelFlags_injected_template":false,"pixelFlags_injected_templateCenter":false,"glint_trail":false}]'
+    headers:
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 03 Jul 2026 17:48:36 GMT
+      Server:
+      - nginx/1.31.2
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+    status:
+      code: 200
+      message: OK
+version: 1

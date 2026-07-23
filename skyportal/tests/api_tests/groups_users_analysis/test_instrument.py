@@ -237,6 +237,52 @@ def test_token_user_update_instrument(
     assert data["data"]["name"] == new_name
 
 
+def test_update_instrument_across_id(super_admin_token):
+    # Regression: PUT-updating an instrument must not 500 with greenlet_spawn.
+    # The instrument is given a region so the update exercises both async
+    # lazy-load traps: the deferred `region` column and the load_instance
+    # schema's sync instance fetch.
+    name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "telescope",
+        data={"name": name, "nickname": name, "diameter": 0.0, "fixed_location": False},
+        token=super_admin_token,
+    )
+    assert status == 200
+    telescope_id = data["data"]["id"]
+
+    status, data = api(
+        "POST",
+        "instrument",
+        data={
+            "name": str(uuid.uuid4()),
+            "type": "imager",
+            "filters": ["f110w"],
+            "telescope_id": telescope_id,
+            "field_fov_type": "circle",
+            "field_fov_attributes": 3.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    instrument_id = data["data"]["id"]
+
+    across_id = str(uuid.uuid4())
+    status, data = api(
+        "PUT",
+        f"instrument/{instrument_id}",
+        data={"across_id": across_id},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["status"] == "success"
+
+    status, data = api("GET", f"instrument/{instrument_id}", token=super_admin_token)
+    assert status == 200
+    assert data["data"]["across_id"] == across_id
+
+
 def test_token_user_delete_instrument(super_admin_token, view_only_token):
     name = str(uuid.uuid4())
     status, data = api(

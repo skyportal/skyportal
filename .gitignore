@@ -70,6 +70,10 @@ dists/
 # postgres persistent volume
 data/dbdata/
 
+# observability scrape tokens (see observability/README.md)
+observability/prometheus/skyportal_token
+observability/tests/token
+
 # Generated pgbouncer config (from services/pgbouncer/*.template)
 services/pgbouncer/pgbouncer.ini
 services/pgbouncer/supervisor.conf
@@ -77,6 +81,11 @@ services/pgbouncer/userlist.txt
 
 # GCN Kafka credential (local only)
 credential
+
+# local broker credentials for testing (never commit)
+.secrets
+.fink
+key.json
 
 !flake.lock
 .direnv

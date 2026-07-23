@@ -1686,6 +1686,895 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brokers/{broker_id}/filter/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview a broker filter
+         * @description Run/preview a filter against the broker and return matching alerts, dispatched to the broker's provider. The request body is filter parameters specific to the broker's filter_kind (e.g. Lasair's selected/tables/conditions, BOOM's pipeline).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/filters/{filter_id}/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate a broker filter version for activation
+         * @description Run the broker's activation validation for a filter version without changing state, and record the result on the filter so it can be activated (skyportal gates activation on this).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    filter_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/filter_modules/{name})?": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Broker filter-building vocabulary
+         * @description Return the filter modules/schema (fields, operators, and any broker-scoped custom variables) for a broker's survey, dispatched to the broker's provider. Drives the filter builder UI. With a ``name`` path segment, returns just that module (or null when there is no such module).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    name: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /**
+         * Update a broker custom filter module
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Update an existing broker-scoped custom filter-building element named ``name``.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    name: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /**
+         * Create a broker custom filter module
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Store a broker-scoped custom filter-building element (a variable/listVariable/switchCase/block) named ``name``, for reuse by the filter builder. Where it is stored is up to the broker's provider.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    name: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/filters/{filter_id})?": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get broker filter(s)
+         * @description List skyportal Filters, or get one enriched with the broker-side versions/active state (via the provider).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    filter_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create a broker filter version
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Attach a broker-side filter/version to an existing skyportal Filter. The body carries the compiled native filter (``altdata``) and the editable version tree (``filters``); the provider forwards it to the broker and the broker-side ids are stored in the Filter's altdata.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    filter_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /**
+         * Delete a broker filter
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Delete the skyportal Filter and (best-effort) its broker-side filter via the provider.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    filter_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Update a broker filter
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Activate a version (``active``/``active_fid``, forwarded to the broker) or toggle autoAnnotate/autoSave/autoFollowup flags.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    filter_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/alerts/{alert_id}/cutouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an alert's cutouts from a broker
+         * @description Fetch science/template/difference cutouts for an alert, dispatched to the broker's provider.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    /** @description Alert identifier (e.g. candid) the provider keys cutouts on. */
+                    alert_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/cone_search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cross-match a position against a broker's archival catalogs
+         * @description Positional cone-search against a broker's reference catalogs (e.g. Gaia, PS1, AllWISE), dispatched to the broker's provider. Returns matched sources keyed by catalog name.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description RA in degrees (0 <= ra < 360). */
+                    ra: number;
+                    /** @description Declination in degrees (-90 <= dec <= 90). */
+                    dec: number;
+                    radius: number;
+                    radius_units?: "deg" | "arcmin" | "arcsec";
+                };
+                header?: never;
+                path: {
+                    broker_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/alerts/{alert_id}/photometry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Display photometry for an object (DB + on-demand broker)
+         * @description Return an object's photometry for display: the persisted,
+         *     access-controlled photometry from the database merged with photometry
+         *     fetched on demand from the broker (deduped by instrument/filter/mjd,
+         *     so the broker only augments saved points). The broker half is held in
+         *     a read-through cache keyed by the object and the requester's access
+         *     scope, and is never written to the database. Returns a bare list of
+         *     points, matching GET /sources/{id}/photometry.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    survey?: string;
+                    format?: string;
+                    magsys?: string;
+                    /** @description Bypass any cached broker payload and re-fetch. */
+                    refresh?: boolean;
+                };
+                header?: never;
+                path: {
+                    broker_id: number;
+                    /** @description Object identifier (objectId) to fetch photometry for. */
+                    alert_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/photometry/{object_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Display photometry for an object via the survey's broker
+         * @description Broker-address-free variant of the photometry passthrough for the
+         *     source-page lightcurve: resolves the active provider that supports
+         *     get_photometry for ``?survey=`` server-side, so a deployment can set
+         *     `photometry_display_endpoint:
+         *     /api/brokers/photometry/{id}?survey=ZTF` without pinning a broker id.
+         *     If no such broker is configured, degrades to the object's DB
+         *     photometry. Returns a bare list of points, matching
+         *     GET /sources/{id}/photometry.
+         */
+        get: {
+            parameters: {
+                query: {
+                    survey: string;
+                    format?: string;
+                    magsys?: string;
+                    refresh?: boolean;
+                };
+                header?: never;
+                path: {
+                    object_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/alerts/{alert_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save a broker alert as a source
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Ingest an alert/object from a broker into skyportal as an Obj/Source with photometry, dispatched to the broker's provider.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    /** @description Object identifier to save. */
+                    alert_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        group_ids: number[];
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/alerts/{alert_id})?": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Query broker alerts
+         * @description Search alerts (or fetch one by id) from a broker, dispatched to the broker's registered provider.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    alert_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id})?": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve broker(s)
+         * @description Get one broker (by id) or all brokers. Credentials are only included for system admins.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a broker
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Update a broker
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/brokers/)?": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a broker
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Register a configured connection to an external alert broker.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name: string;
+                        /** @description A registered BrokerAPI provider class name. */
+                        broker_classname: string;
+                        /** @description Endpoints/credentials for this broker instance. */
+                        altdata?: Record<string, never>;
+                        active?: boolean;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                id?: number;
+                            };
+                        };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/candidates/scan_reports/{report_id}/items/{_}": {
         parameters: {
             query?: never;
@@ -8204,6 +9093,16 @@ export interface paths {
                     classifications?: string;
                     /** @description Only count classifications at or above this probability. */
                     classificationProbThreshold?: number;
+                    /**
+                     * @description Restrict to sources saved to this group (an alternative to
+                     *     classification-based selection).
+                     */
+                    group_id?: number;
+                    /**
+                     * @description Comma-separated object IDs to restrict to (an alternative to
+                     *     classification-based selection).
+                     */
+                    obj_ids?: string;
                     /**
                      * @description Maximum number of points to return (default 20000, capped at
                      *     100000). If more match, the response is truncated.
@@ -16026,6 +16925,28 @@ export interface paths {
                          *     If provided, filter by GcnEvent.dateobs <= startDate.
                          */
                         endDate?: string;
+                        /** @description Integrated probability contour to crossmatch within (default 0.95). */
+                        probability?: number;
+                        /**
+                         * @description If true, only crossmatch GCN events at or before the source's
+                         *     first detection.
+                         */
+                        beforeFirstDetection?: boolean;
+                        /** @description Only crossmatch events having any of these GCN tags. */
+                        gcnTagKeep?: string[];
+                        /** @description Exclude events having any of these GCN tags. */
+                        gcnTagRemove?: string[];
+                        /** @description Only crossmatch events with a localization having any of these tags. */
+                        localizationTagKeep?: string[];
+                        /** @description Exclude events with a localization having any of these tags. */
+                        localizationTagRemove?: string[];
+                        /**
+                         * @description GCN property filters, each "name" or "name:value:op"
+                         *     (op in lt,le,eq,ne,ge,gt).
+                         */
+                        gcnPropertiesFilter?: string[];
+                        /** @description Localization property filters, same format as gcnPropertiesFilter. */
+                        localizationPropertiesFilter?: string[];
                     };
                 };
             };
@@ -17973,6 +18894,71 @@ export interface paths {
                                 id?: number;
                             };
                         };
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spectra/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk spectra for a set of sources
+         * @description Return slim spectra (wavelengths/fluxes/observed_at) plus per-source
+         *     phase anchors (redshift, first-detection and peak MJD, TNS discovery
+         *     date) for a set of accessible sources selected by group, explicit
+         *     object list, and/or classification. Powers the phase-stacked spectra
+         *     view without one request per source.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description Restrict to sources saved to this group. */
+                        group_id?: number;
+                        /** @description Restrict to these object IDs (also accepts a comma-separated string). */
+                        obj_ids?: string[];
+                        /** @description Restrict to sources with any of these (non-ML) classifications. */
+                        classifications?: string[];
+                        /** @description Only count classifications at or above this probability. */
+                        classificationProbThreshold?: number;
+                        /** @description Max sources to fetch spectra for (default 200, capped at 1000). */
+                        maxSources?: number;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -23062,6 +24048,58 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["AssociationNoID"][];
+        };
+        Broker: {
+            /** @description Unique name of the broker. */
+            name: string;
+            /**
+             * @description Name of the registered BrokerAPI provider class.
+             * @enum {string}
+             */
+            broker_classname: "GENERICBROKER" | "LASAIRBROKER" | "BABAMULBROKER" | "BOOMBROKER" | "FINKBROKER" | "ALERCEBROKER" | "ANTARESBROKER" | "PITTGOOGLEBROKER" | "AMPELBROKER";
+            /** @description Whether this broker is enabled. */
+            active?: boolean;
+            /** @description Encrypted per-instance configuration (endpoints, credentials). */
+            _altdata?: string | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleBroker: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Broker"];
+        };
+        ArrayOfBrokers: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Broker"][];
+        };
+        BrokerNoID: {
+            /** @description Unique name of the broker. */
+            name: string;
+            /**
+             * @description Name of the registered BrokerAPI provider class.
+             * @enum {string}
+             */
+            broker_classname: "GENERICBROKER" | "LASAIRBROKER" | "BABAMULBROKER" | "BOOMBROKER" | "FINKBROKER" | "ALERCEBROKER" | "ANTARESBROKER" | "PITTGOOGLEBROKER" | "AMPELBROKER";
+            /** @description Whether this broker is enabled. */
+            active?: boolean;
+            /** @description Encrypted per-instance configuration (endpoints, credentials). */
+            _altdata?: string | null;
+        };
+        SingleBrokerNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["BrokerNoID"];
+        };
+        ArrayOfBrokerNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["BrokerNoID"][];
         };
         Candidate: {
             /** @description The Obj that passed a filter */
@@ -32264,7 +33302,7 @@ export interface components {
             dec_unc?: number | number[];
             /** @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None. */
             origin?: string | string[];
-            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with site-wide public group (visible to all users who can view associated source). */
+            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with sitewide public group (visible to all users who can view associated source). */
             group_ids?: number[];
             /** @description List of stream IDs to which photometry points will be visible. */
             stream_ids?: number[];
@@ -32326,7 +33364,7 @@ export interface components {
             dec_unc?: number | number[];
             /** @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None. */
             origin?: string | string[];
-            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with site-wide public group (visible to all users who can view associated source). */
+            /** @description List of group IDs to which photometry points will be visible. If 'all', will be shared with sitewide public group (visible to all users who can view associated source). */
             group_ids?: number[];
             /** @description List of stream IDs to which photometry points will be visible. */
             stream_ids?: number[];
@@ -32863,6 +33901,8 @@ export interface components {
             readonly owner?: components["schemas"]["User"];
             readonly annotations?: components["schemas"]["AnnotationOnPhotometry"][];
             readonly validations?: components["schemas"]["PhotometryValidation"][];
+            /** @description Unique object identifier. */
+            id?: number;
             /** @description MJD of the observation. */
             mjd: number;
             /** @description Flux of the observation in µJy. Corresponds to an AB Zeropoint of 23.9 in all filters. */
@@ -32904,8 +33944,6 @@ export interface components {
             owner_id: number;
             ra?: number | null;
             dec?: number | null;
-            /** @description Unique object identifier. */
-            id?: number;
         };
         SinglePhotometry: {
             /** @enum {string} */

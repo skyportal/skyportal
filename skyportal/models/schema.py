@@ -412,7 +412,7 @@ class PhotBaseFlexible:
     group_ids = fields.Raw(
         metadata={
             "description": "List of group IDs to which photometry points will be visible. "
-            "If 'all', will be shared with site-wide public group (visible to all users "
+            "If 'all', will be shared with sitewide public group (visible to all users "
             "who can view associated source)."
         },
         required=False,
@@ -887,12 +887,14 @@ class PhotometryFlux(_Schema, PhotBase):
         from skyportal.models import PHOT_SYS, PHOT_ZP, Instrument, Obj, Photometry
 
         # get the instrument
-        instrument = Instrument.query.get(data["instrument_id"])
+        instrument = _DBSession().get(Instrument, data["instrument_id"])
         if not instrument:
             raise ValidationError(f"Invalid instrument ID: {data['instrument_id']}")
 
         # get the object
-        obj = Obj.query.get(data["obj_id"])  # TODO : implement permissions checking
+        obj = _DBSession().get(
+            Obj, data["obj_id"]
+        )  # TODO : implement permissions checking
         if not obj:
             raise ValidationError(f"Invalid object ID: {data['obj_id']}")
 
@@ -1063,12 +1065,14 @@ class PhotometryMag(_Schema, PhotBase):
             )
 
         # get the instrument
-        instrument = Instrument.query.get(data["instrument_id"])
+        instrument = _DBSession().get(Instrument, data["instrument_id"])
         if not instrument:
             raise ValidationError(f"Invalid instrument ID: {data['instrument_id']}")
 
         # get the object
-        obj = Obj.query.get(data["obj_id"])  # TODO: implement permissions checking
+        obj = _DBSession().get(
+            Obj, data["obj_id"]
+        )  # TODO: implement permissions checking
         if not obj:
             raise ValidationError(f"Invalid object ID: {data['obj_id']}")
 

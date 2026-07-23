@@ -12,6 +12,7 @@ import AddIcon from "@mui/icons-material/Add";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import { useGetScanReportsQuery } from "../../../ducks/candidate/scan_reports";
+import { useIsReadOnly } from "../../../ducks/profile";
 import ReportItems from "./ReportItems";
 import GenerateReportForm from "./GenerateReportForm";
 import DownloadReport from "./DownloadReport";
@@ -60,6 +61,7 @@ const Item = styled("div")({
 
 const ReportsList = () => {
   const navigate = useNavigate();
+  const isReadOnly = useIsReadOnly();
   const { data: scanReports, isFetching: loading } = useGetScanReportsQuery({
     numPerPage: 10,
     page: 1,
@@ -89,18 +91,22 @@ const ReportsList = () => {
             <FieldTitle>Author</FieldTitle>
             <FieldTitle>Groups</FieldTitle>
             <FieldTitle sx={{ justifyContent: "right" }}>
-              <IconButton
-                name="new_report"
-                onClick={() => setGenerateReportDialogOpen(true)}
-              >
-                <Tooltip title="Generate a report of scanned candidates">
-                  <AddIcon />
-                </Tooltip>
-              </IconButton>
-              <GenerateReportForm
-                dialogOpen={generateReportDialogOpen}
-                setDialogOpen={setGenerateReportDialogOpen}
-              />
+              {!isReadOnly && (
+                <>
+                  <IconButton
+                    name="new_report"
+                    onClick={() => setGenerateReportDialogOpen(true)}
+                  >
+                    <Tooltip title="Generate a report of scanned candidates">
+                      <AddIcon />
+                    </Tooltip>
+                  </IconButton>
+                  <GenerateReportForm
+                    dialogOpen={generateReportDialogOpen}
+                    setDialogOpen={setGenerateReportDialogOpen}
+                  />
+                </>
+              )}
             </FieldTitle>
           </FieldsTitle>
           {scanReports && scanReports.length > 0 ? (

@@ -4,6 +4,7 @@
  * RTK Query conversion of the old `FETCH_GCN_TAGS` duck. Websocket-driven
  * invalidation refetches the tag list; mutations post/delete a tag on an event.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
@@ -21,9 +22,9 @@ export const gcnTagsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getGcnTags: build.query<string[], Record<string, unknown> | void>({
       query: (filterParams) => {
-        const params = new URLSearchParams(
+        const params = buildQueryString(
           (filterParams as Record<string, string>) ?? {},
-        ).toString();
+        );
         return params ? `api/gcn_event/tags?${params}` : "api/gcn_event/tags";
       },
       providesTags: ["GcnTags"],

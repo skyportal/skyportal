@@ -1,0 +1,43 @@
+{
+ "locus_id": "ANT2019b5sdo",
+ "ra": 358.8877706520344,
+ "dec": 2.0821289101070164,
+ "properties": {
+  "survey": {
+   "lsst": {
+    "dia_object_id": [
+     "170595943059554358"
+    ]
+   }
+  }
+ },
+ "alerts": [
+  {
+   "lsst_diaSource_psfFlux": 76925.4375,
+   "lsst_diaSource_psfFluxErr": 568.33056640625,
+   "lsst_diaSource_band": "i",
+   "lsst_diaSource_midpointMjdTai": 61219.412590999746,
+   "lsst_diaSource_ra": 358.8878015606923,
+   "lsst_diaSource_dec": 2.0820967262940115,
+   "lsst_diaSource_diaObjectId": 170595943059554358
+  },
+  {
+   "lsst_diaSource_psfFlux": 78216.8515625,
+   "lsst_diaSource_psfFluxErr": 689.4255981445312,
+   "lsst_diaSource_band": "i",
+   "lsst_diaSource_midpointMjdTai": 61220.444841231554,
+   "lsst_diaSource_ra": 358.8878015681895,
+   "lsst_diaSource_dec": 2.0821007204275683,
+   "lsst_diaSource_diaObjectId": 170595943059554358
+  },
+  {
+   "lsst_diaSource_psfFlux": 76826.640625,
+   "lsst_diaSource_psfFluxErr": 491.2254333496094,
+   "lsst_diaSource_band": "i",
+   "lsst_diaSource_midpointMjdTai": 61221.36542349415,
+   "lsst_diaSource_ra": 358.8877949211095,
+   "lsst_diaSource_dec": 2.082096195680428,
+   "lsst_diaSource_diaObjectId": 170595943059554358
+  }
+ ]
+}
