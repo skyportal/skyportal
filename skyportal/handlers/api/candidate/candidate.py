@@ -1607,8 +1607,20 @@ class CandidateHandler(BaseHandler):
                     return self.error(
                         f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
-                session.add(obj)
-                await session.flush()
+                try:
+                    # Concurrent posts of the same new obj race here: the loser
+                    # rolls back to the savepoint and reuses the committed row.
+                    async with session.begin_nested():
+                        session.add(obj)
+                        await session.flush()
+                except IntegrityError:
+                    obj = await session.scalar(
+                        Obj.select(session.user_or_token).where(Obj.id == data["id"])
+                    )
+                    if obj is None:
+                        return self.error(
+                            f"Failed to create object {data['id']}: it already exists but is not accessible"
+                        )
 
             filters_result = await session.scalars(
                 Filter.select(session.user_or_token).where(Filter.id.in_(filter_ids))
