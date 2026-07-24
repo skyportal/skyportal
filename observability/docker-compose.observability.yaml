@@ -1,0 +1,43 @@
+# Local/dev observability bring-up: Prometheus scrapes the app workers and
+# Grafana visualizes them. Merge it with the main compose file:
+#
+#   docker compose -f docker-compose.yaml \
+#     -f observability/docker-compose.observability.yaml up
+#
+# Prometheus shares the `web` container's network namespace so it can reach the
+# workers' internal ports (127.0.0.1:app_internal+N). Because of that, Grafana
+# reaches Prometheus at http://web:9090.
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    network_mode: "service:web"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/skyportal_token:/etc/prometheus/skyportal_token:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    restart: unless-stopped
+    depends_on:
+      - web
+
+  grafana:
+    image: grafana/grafana:11.5.0
+    ports:
+      - "3000:3000"
+    environment:
+      PROMETHEUS_URL: http://web:9090
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_DEFAULT_THEME: light
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:

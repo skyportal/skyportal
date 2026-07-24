@@ -14,7 +14,6 @@ from sqlalchemy.orm import relationship
 from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
-    DBSession,
     User,
     UserAccessControl,
     join_model,
@@ -122,9 +121,8 @@ def stream_delete_logic(cls, user_or_token):
     from .group_joins import GroupStream
 
     return (
-        DBSession()
-        .query(cls)
-        .filter(sa.literal(user_or_token.is_admin))
+        sa.select(cls)
+        .where(sa.literal(user_or_token.is_admin))
         .join(User, cls.user)
         .outerjoin(Group, User.groups)
         .outerjoin(

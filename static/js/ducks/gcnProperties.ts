@@ -7,6 +7,7 @@
  * `invalidateOnMessage`; the old handler ignored the payload and always
  * refreshed, so we unconditionally invalidate the `GcnProperties` tag.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -22,9 +23,9 @@ export const gcnPropertiesApi = skyportalApi.injectEndpoints({
       FetchGcnPropertiesArgs | void
     >({
       query: (filterParams) => {
-        const params = new URLSearchParams(
+        const params = buildQueryString(
           (filterParams as Record<string, string>) ?? {},
-        ).toString();
+        );
         return `api/gcn_event/properties${params ? `?${params}` : ""}`;
       },
       providesTags: ["GcnProperties"],

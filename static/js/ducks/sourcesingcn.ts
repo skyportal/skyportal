@@ -6,6 +6,7 @@
  * submit/patch/delete the confirmation status of a single source and invalidate
  * the `SourceInGcn` tag so the list refetches.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import type { RouteData } from "../types/routeSchemaMap";
 
@@ -38,20 +39,7 @@ export const sourcesInGcnApi = skyportalApi.injectEndpoints({
       FetchSourcesInGcnArg
     >({
       query: ({ dateobs, ...filterParams }) => {
-        const cleaned: Record<string, string> = {};
-        Object.entries(filterParams).forEach(([key, value]) => {
-          if (value === undefined || value === null) {
-            return;
-          }
-          if (Array.isArray(value)) {
-            if (value.length > 0) {
-              cleaned[key] = value.join(",");
-            }
-          } else {
-            cleaned[key] = String(value);
-          }
-        });
-        const params = new URLSearchParams(cleaned).toString();
+        const params = buildQueryString(filterParams);
         return params
           ? `api/sources_in_gcn/${dateobs}?${params}`
           : `api/sources_in_gcn/${dateobs}`;

@@ -3496,3 +3496,11 @@ def test_bulk_upsert_photometry_update_mode(public_source, ztf_camera, user):
             await session.commit()
 
     asyncio.run(_body())
+
+
+def test_get_photometry_without_id_returns_error(upload_data_token):
+    # A bare GET /api/photometry (id is optional in the route, shared with POST)
+    # must return a clean error, not crash with a TypeError.
+    status, data = api("GET", "photometry", token=upload_data_token)
+    assert status == 400
+    assert "photometry_id" in data["message"]

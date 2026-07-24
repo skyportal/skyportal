@@ -1,7 +1,12 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
 import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
+import Tooltip from "@mui/material/Tooltip";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
@@ -9,10 +14,6 @@ import ListItemText from "@mui/material/ListItemText";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
@@ -22,6 +23,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 
+import { Box } from "@mui/material";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import FormHelperText from "@mui/material/FormHelperText";
@@ -30,13 +32,13 @@ import Select from "@mui/material/Select";
 import ListItemButton from "@mui/material/ListItemButton";
 import { showNotification } from "baselayer/components/Notifications";
 
-import FormValidationError from "../FormValidationError";
 import Button from "../Button";
 
 import { useAppDispatch } from "../../types/hooks";
 import {
   useAddGroupFilterMutation,
   useDeleteGroupFilterMutation,
+  useUpdateFilterNameMutation,
 } from "../../ducks/filter";
 import { groupApi } from "../../ducks/group";
 import {
@@ -46,7 +48,6 @@ import {
 
 interface GroupFiltersStreamsProps {
   group: any;
-  classes: any;
   currentUser: any;
   isAdmin: (...args: any[]) => any;
   theme: any;
@@ -54,59 +55,45 @@ interface GroupFiltersStreamsProps {
 
 const GroupFiltersStreams = ({
   group,
-  classes,
   currentUser,
   isAdmin,
   theme,
 }: GroupFiltersStreamsProps) => {
-  const [addFilterDialogOpen, setAddFilterDialogOpen] = useState(false);
+  const [filterStream, setFilterStream] = useState<any>(null);
   const [addStreamOpen, setAddStreamOpen] = useState(false);
-  const [panelStreamsExpanded, setPanelStreamsExpanded] =
-    useState<any>("panel-streams");
+  const [editingFilterId, setEditingFilterId] = useState<any>(null);
+  const [editNameInput, setEditNameInput] = useState("");
   const dispatch = useAppDispatch();
   const { data: streams } = useGetStreamsQuery();
   const [addGroupFilter] = useAddGroupFilterMutation();
   const [deleteGroupFilter] = useDeleteGroupFilterMutation();
   const [addGroupStream] = useAddGroupStreamMutation();
+  const [updateFilterName] = useUpdateFilterNameMutation();
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    formState: { errors },
-  } = useForm();
+  const { register, handleSubmit, control, reset } = useForm();
 
   const { handleSubmit: handleSubmit2, control: control2 } = useForm();
 
   const fullScreen = !useMediaQuery(theme.breakpoints.up("md"));
 
   const handleAddFilterDialogClose = () => {
-    setAddFilterDialogOpen(false);
+    setFilterStream(null);
   };
 
-  const handleAddFilterDialogOpen = () => {
-    setAddFilterDialogOpen(true);
-  };
-
-  const handleAddStreamOpen = () => {
-    setAddStreamOpen(true);
+  const handleAddFilterDialogOpen = (stream: any) => {
+    reset({ filter_name: "" });
+    setFilterStream(stream);
   };
 
   const handleAddStreamClose = () => {
     setAddStreamOpen(false);
   };
-  const handlePanelStreamsChange =
-    (panel: any) => (_event: any, isExpanded: any) => {
-      setPanelStreamsExpanded(isExpanded ? panel : false);
-    };
-
-  // add filter to group
   const onSubmitAddFilter = async (data: any) => {
     try {
       await addGroupFilter({
         name: data.filter_name,
         group_id: group.id,
-        stream_id: data.filter_stream_id,
+        stream_id: filterStream.id,
       }).unwrap();
       dispatch(showNotification("Added filter to group"));
       dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
@@ -116,7 +103,6 @@ const GroupFiltersStreams = ({
     }
   };
 
-  // add stream to group
   const onSubmitAddStream = async (data: any) => {
     try {
       await addGroupStream({
@@ -136,108 +122,178 @@ const GroupFiltersStreams = ({
   const isStreamIdInStreams = (sid: any) =>
     streams?.map((stream: any) => stream.id).includes(sid);
 
+  const filtersByStreamId = (group.filters ?? []).reduce(
+    (acc: any, filter: any) => {
+      (acc[filter.stream_id] ??= []).push(filter);
+      return acc;
+    },
+    {},
+  );
+
+  const handleDeleteFilter = async (filterId: any) => {
+    try {
+      await deleteGroupFilter({ filter_id: filterId }).unwrap();
+      dispatch(showNotification("Deleted filter from group"));
+    } catch {
+      // error notification handled by the base query
+    }
+    dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
+  };
+
+  const handleStartRename = (filter: any) => {
+    setEditingFilterId(filter.id);
+    setEditNameInput(filter.name);
+  };
+
+  const handleCancelRename = () => {
+    setEditingFilterId(null);
+    setEditNameInput("");
+  };
+
+  const handleSaveRename = async () => {
+    const trimmed = editNameInput.trim();
+    if (!trimmed) {
+      dispatch(showNotification("Filter name cannot be empty.", "error"));
+      return;
+    }
+    try {
+      await updateFilterName({
+        filter_id: editingFilterId,
+        name: trimmed,
+      }).unwrap();
+      dispatch(showNotification("Filter name updated."));
+      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
+    } catch {
+      // error notification handled by the base query
+    }
+    setEditingFilterId(null);
+    setEditNameInput("");
+  };
+
+  if (!streams?.length) return null;
+
   return (
-    <>
-      {(streams?.length ?? 0) > 0 && (
-        <Accordion
-          expanded={panelStreamsExpanded === "panel-streams"}
-          onChange={handlePanelStreamsChange("panel-streams")}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="panel-streams-content"
-            id="panel-streams-header"
-            style={{ borderBottom: "1px solid rgba(0, 0, 0, .125)" }}
-          >
-            <Typography className={classes.heading}>
-              Alert streams and filters
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails className={classes.accordion_details}>
-            <List component="nav" className={classes.padding_bottom}>
-              {group.streams?.map((stream: any) => (
-                <div key={stream.name}>
-                  <ListItem key={stream.name}>
-                    <ListItemText primary={stream.name} />
-                  </ListItem>
-                  <List component="nav" disablePadding>
-                    {group.filters
-                      ?.filter((f: any) => f.stream_id === stream.id)
-                      .map((filter: any) => (
-                        <ListItemButton
-                          key={filter.id}
-                          component={Link}
-                          to={`/filter/${filter.id}`}
-                        >
-                          <ListItemText
-                            key={filter.id}
-                            className={classes.nested}
-                            primary={filter.name}
-                          />
-                          {isAdmin(currentUser) && (
-                            <ListItemSecondaryAction>
-                              <IconButton
-                                edge="end"
-                                aria-label="delete"
-                                onClick={async () => {
-                                  try {
-                                    await deleteGroupFilter({
-                                      filter_id: filter.id,
-                                    }).unwrap();
-                                    dispatch(
-                                      showNotification(
-                                        "Deleted filter from group",
-                                      ),
-                                    );
-                                  } catch {
-                                    // error notification handled by the base query
-                                  }
-                                  dispatch(
-                                    groupApi.util.invalidateTags([
-                                      { type: "Group", id: group.id },
-                                    ]),
-                                  );
-                                }}
-                                size="large"
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </ListItemSecondaryAction>
-                          )}
-                        </ListItemButton>
-                      ))}
-                  </List>
-                </div>
-              ))}
-            </List>
-
-            <div data-testid="tour-group-filters">
-              {/* only Super admins can add streams to groups */}
-              {currentUser.permissions.includes("System admin") &&
-                (streams?.length ?? 0) > 0 &&
-                (group?.streams?.length ?? 0) < (streams?.length ?? 0) && (
-                  <Button
-                    primary
-                    className={classes.button_add}
-                    onClick={handleAddStreamOpen}
-                    style={{ marginRight: 10 }}
+    <Box sx={{ p: 1.5 }}>
+      <Typography variant="h6">Streams and filters</Typography>
+      <List component="nav">
+        {group.streams?.map((stream: any, index: number) => (
+          <Fragment key={stream.id}>
+            <ListItem
+              sx={{
+                bgcolor: index % 2 === 0 ? "action.hover" : "transparent",
+              }}
+              secondaryAction={
+                isAdmin(currentUser) && (
+                  <Tooltip
+                    title={`Add filter to stream "${stream.name}"`}
+                    placement={"left"}
                   >
-                    Add stream
-                  </Button>
-                )}
-
-              {isAdmin(currentUser) && group?.streams?.length > 0 && (
-                <Button
-                  primary
-                  className={classes.button_add}
-                  onClick={handleAddFilterDialogOpen}
-                >
-                  Add filter
-                </Button>
+                    <IconButton
+                      edge="end"
+                      aria-label="add filter"
+                      onClick={() => handleAddFilterDialogOpen(stream)}
+                    >
+                      <AddIcon />
+                    </IconButton>
+                  </Tooltip>
+                )
+              }
+            >
+              <ListItemText primary={stream.name} />
+            </ListItem>
+            <List disablePadding>
+              {(filtersByStreamId[stream.id] ?? []).map((filter: any) =>
+                editingFilterId === filter.id ? (
+                  <ListItem key={filter.id} sx={{ pl: 2 }}>
+                    <TextField
+                      value={editNameInput}
+                      onChange={(e: any) => setEditNameInput(e.target.value)}
+                      size="small"
+                      variant="outlined"
+                      slotProps={{
+                        htmlInput: { "data-testid": "filter-name-input" },
+                      }}
+                      onKeyDown={(e: any) => {
+                        if (e.key === "Enter") handleSaveRename();
+                        if (e.key === "Escape") handleCancelRename();
+                      }}
+                      autoFocus
+                    />
+                    <ListItemSecondaryAction>
+                      <IconButton
+                        size="small"
+                        onClick={handleSaveRename}
+                        aria-label="save filter name"
+                        data-testid="save-filter-name-button"
+                      >
+                        <CheckIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={handleCancelRename}
+                        aria-label="cancel filter rename"
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ) : (
+                  <ListItemButton
+                    key={filter.id}
+                    component={Link}
+                    to={`/filter/${filter.id}`}
+                  >
+                    <ListItemText sx={{ pl: 2 }} primary={filter.name} />
+                    {isAdmin(currentUser) && (
+                      <ListItemSecondaryAction>
+                        <Tooltip
+                          title={`Rename filter "${filter.name}"`}
+                          placement={"left"}
+                        >
+                          <IconButton
+                            onClick={(e: any) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleStartRename(filter);
+                            }}
+                            aria-label="rename filter"
+                            data-testid={`rename-filter-${filter.id}`}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip
+                          title={`Delete filter "${filter.name}"`}
+                          placement={"left"}
+                        >
+                          <Button
+                            onClick={(e: any) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteFilter(filter.id);
+                            }}
+                            color="error"
+                          >
+                            <DeleteIcon />
+                          </Button>
+                        </Tooltip>
+                      </ListItemSecondaryAction>
+                    )}
+                  </ListItemButton>
+                ),
               )}
-            </div>
-          </AccordionDetails>
-        </Accordion>
+            </List>
+          </Fragment>
+        ))}
+      </List>
+      {currentUser.permissions.includes("System admin") && (
+        <Button
+          primary
+          onClick={() => setAddStreamOpen(true)}
+          disabled={group?.streams?.length >= streams.length}
+        >
+          Add stream
+        </Button>
       )}
       <Dialog
         fullScreen={fullScreen}
@@ -247,10 +303,10 @@ const GroupFiltersStreams = ({
       >
         <form onSubmit={handleSubmit2(onSubmitAddStream)}>
           <DialogTitle id="responsive-dialog-title">
-            Add alert stream to group
+            Add Stream to group
           </DialogTitle>
           <DialogContent dividers>
-            <FormControl required className={classes.selectEmpty}>
+            <FormControl required fullWidth>
               <InputLabel>Alert stream</InputLabel>
               <Controller
                 name="stream_id"
@@ -283,7 +339,6 @@ const GroupFiltersStreams = ({
             <Button
               primary
               type="submit"
-              className={classes.button_add}
               data-testid="add-stream-dialog-submit"
             >
               Add
@@ -296,13 +351,13 @@ const GroupFiltersStreams = ({
       </Dialog>
       <Dialog
         fullScreen={fullScreen}
-        open={addFilterDialogOpen}
+        open={Boolean(filterStream)}
         onClose={handleAddFilterDialogClose}
         aria-labelledby="responsive-dialog-title"
       >
         <form onSubmit={handleSubmit(onSubmitAddFilter)}>
           <DialogTitle id="responsive-dialog-title">
-            Create a new alert stream filter
+            {`Create a new filter for "${filterStream?.name}"`}
           </DialogTitle>
           <DialogContent dividers>
             <DialogContentText>
@@ -339,39 +394,10 @@ const GroupFiltersStreams = ({
               name="filter_name"
               control={control}
             />
-            <FormControl required className={classes.selectEmpty}>
-              <InputLabel>Alert stream</InputLabel>
-              {errors["filter_stream_id"] && (
-                <FormValidationError
-                  message={errors["filter_stream_id"].message as any}
-                />
-              )}
-              <Controller
-                name="filter_stream_id"
-                defaultValue={0}
-                control={control}
-                rules={{ validate: isStreamIdInStreams }}
-                render={({ field: { onChange, value } }) => (
-                  <Select
-                    label="Alert stream"
-                    labelId="alert-stream-select-required-label"
-                    onChange={onChange}
-                    value={value}
-                  >
-                    {group.streams?.map((stream: any) => (
-                      <MenuItem key={stream.id} value={stream.id}>
-                        {stream.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                )}
-              />
-            </FormControl>
           </DialogContent>
           <DialogActions>
             <Button
               primary
-              className={classes.button_add}
               type="submit"
               data-testid="add-filter-dialog-submit"
             >
@@ -383,7 +409,7 @@ const GroupFiltersStreams = ({
           </DialogActions>
         </form>
       </Dialog>
-    </>
+    </Box>
   );
 };
 

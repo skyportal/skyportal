@@ -1,63 +1,57 @@
+import { useState } from "react";
 import { useGetProfileQuery } from "../../ducks/profile";
-import { makeStyles } from "tss-react/mui";
-import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
-import GroupManagement from "./GroupManagement";
 import GroupList from "./GroupList";
 import NewGroupForm from "./NewGroupForm";
-import NonMemberGroupList from "./NonMemberGroupList";
-
-const useStyles = makeStyles()(() => ({
-  // Hide drag handle icon since this isn't the home page
-  widgetIcon: {
-    display: "none",
-  },
-  widgetPaperDiv: {
-    padding: "1rem",
-    height: "100%",
-  },
-  widgetPaperFillSpace: {
-    height: "100%",
-  },
-}));
+import Spinner from "../Spinner";
 
 const Groups = () => {
-  const { classes } = useStyles();
   const { permissions } = useGetProfileQuery().data ?? {};
   const { data: groupsData } = useGetGroupsQuery();
   const userGroups = groupsData?.user ?? [];
   const allGroups = groupsData?.all ?? null;
 
-  if (userGroups.length === 0 || allGroups === null) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  const [tab, setTab] = useState(0);
 
-  const nonMemberGroups = allGroups?.filter(
-    (g) =>
-      !g["single_user_group"] && !userGroups.map((ug) => ug.id).includes(g.id),
+  if (!userGroups.length || allGroups === null) return <Spinner />;
+
+  const canManageGroups = permissions?.includes("System admin");
+  const allMultiUserGroups = allGroups.filter((g) => !g["single_user_group"]);
+  const nonMemberGroups = allMultiUserGroups?.filter(
+    (g) => !userGroups.map((ug) => ug.id).includes(g.id),
   );
 
+  const tabPanels = [
+    <GroupList key="my-groups" groups={userGroups} />,
+    ...(nonMemberGroups.length
+      ? [<GroupList key="non-member" groups={nonMemberGroups} admission />]
+      : []),
+    ...(canManageGroups
+      ? [<GroupList key="all-groups" groups={allMultiUserGroups} />]
+      : []),
+    <NewGroupForm key="new-group" />,
+  ];
+
+  const activeTab = Math.min(tab, tabPanels.length - 1);
+
   return (
-    <div>
-      <div data-testid="tour-groups-list">
-        <GroupList title="My Groups" groups={userGroups} classes={classes} />
-      </div>
-      {!!nonMemberGroups.length && (
-        <div data-testid="tour-groups-request">
-          <br />
-          <NonMemberGroupList groups={nonMemberGroups} />
-        </div>
-      )}
-      <div data-testid="tour-groups-new">
-        <NewGroupForm />
-      </div>
-      {permissions?.includes("System admin") && <GroupManagement />}
-    </div>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+        <Tabs value={activeTab} onChange={(_event, value) => setTab(value)}>
+          <Tab label="My Groups" data-testid="tour-groups-list" />
+          {nonMemberGroups.length > 0 && (
+            <Tab label="Non-member groups" data-testid="tour-groups-request" />
+          )}
+          {canManageGroups && <Tab label="All Groups" />}
+          <Tab label="Create New Group" data-testid="tour-groups-new" />
+        </Tabs>
+      </Box>
+      {tabPanels[activeTab]}
+    </Box>
   );
 };
 

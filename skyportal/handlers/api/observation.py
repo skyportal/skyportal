@@ -94,18 +94,30 @@ def add_queued_observations(instrument_id, obstable):
     else:
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
+    # Schedulers that report pointings by position (e.g. Rubin ObsLocTAP) rather
+    # than a fixed field grid: create the fields on the fly, as add_observations does.
+    if ("RA" in obstable) and ("Dec" in obstable) and not ("field_id" in obstable):
+        instrument = session.get(Instrument, instrument_id)
+        regions = Regions.parse(instrument.region, format="ds9")
+        field_ids = add_tiles(
+            instrument.id,
+            instrument.name,
+            regions,
+            obstable[["RA", "Dec"]],
+            session=session,
+        )
+        obstable["field_id"] = field_ids
+
     try:
         observations = []
         for index, row in obstable.iterrows():
             field_id = int(row["field_id"])
-            field = (
-                session.query(InstrumentField)
-                .filter(
+            field = session.scalars(
+                sa.select(InstrumentField).where(
                     InstrumentField.instrument_id == instrument_id,
                     InstrumentField.field_id == field_id,
                 )
-                .first()
-            )
+            ).first()
             if field is None:
                 return log(
                     f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
@@ -167,7 +179,7 @@ def add_observations(instrument_id, obstable):
 
     # if the fields do not yet exist, we need to add them
     if ("RA" in obstable) and ("Dec" in obstable) and not ("field_id" in obstable):
-        instrument = session.query(Instrument).get(instrument_id)
+        instrument = session.get(Instrument, instrument_id)
         regions = Regions.parse(instrument.region, format="ds9")
         field_data = obstable[["RA", "Dec"]]
         field_ids = add_tiles(

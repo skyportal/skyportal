@@ -4,28 +4,21 @@ import Box from "@mui/material/Box";
 import Select from "@mui/material/Select";
 import Chip from "@mui/material/Chip";
 import MenuItem from "@mui/material/MenuItem";
-import Input from "@mui/material/Input";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
-import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 
-import { makeStyles } from "tss-react/mui";
 import { useAddNewGroupMutation } from "../../ducks/groups";
 import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
-
-const getStyles = (userID: number, userIDs: number[] = [], theme: any) => ({
-  fontWeight:
-    userIDs.indexOf(userID) === -1
-      ? theme.typography.fontWeightRegular
-      : theme.typography.fontWeightMedium,
-});
+import Paper from "../Paper";
 
 const NewGroupForm = () => {
+  const theme = useTheme();
   const [addNewGroup] = useAddNewGroupMutation();
   const { data: usersData } = useGetUsersQuery();
   const allUsers = usersData?.users ?? [];
@@ -74,55 +67,20 @@ const NewGroupForm = () => {
     });
   };
 
-  const useStyles = makeStyles()((theme) => ({
-    formControl: {
-      margin: `${theme.spacing(1)} 0`,
-      minWidth: "50%",
-    },
-    customTextField: {
-      width: "50%", // Set the desired width
-      marginBottom: theme.spacing(2), // Example spacing
-    },
-    chips: {
-      display: "flex",
-      flexWrap: "wrap",
-    },
-    chip: {
-      margin: 2,
-    },
-    newGroupForm: {
-      position: "relative",
-    },
-    container: {
-      padding: "1rem",
-      margin: "1rem 0",
-    },
-  }));
-  const { classes } = useStyles();
-  const theme = useTheme();
-  const ITEM_HEIGHT = 48;
-  const MenuProps = {
-    slotProps: {
-      paper: {
-        style: {
-          maxHeight: ITEM_HEIGHT * 4.5,
-          width: 250,
-        },
-      },
-    },
-  };
-
   return (
-    <Paper className={classes.container}>
-      <h3>Create New Group</h3>
-      <form className={classes.newGroupForm} onSubmit={handleSubmit}>
+    <Paper sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <Typography variant="h6">Create New Group</Typography>
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+      >
         <Box>
           <TextField
             label="Group Name"
             name="name"
             value={formState.name}
             onChange={handleChange}
-            className={classes.customTextField}
+            sx={{ width: { xs: "100%", sm: "50%" } }}
           />
         </Box>
         <Box>
@@ -131,7 +89,7 @@ const NewGroupForm = () => {
             name="nickname"
             value={formState.nickname}
             onChange={handleChange}
-            className={classes.customTextField}
+            sx={{ width: { xs: "100%", sm: "50%" } }}
           />
         </Box>
         <Box>
@@ -140,8 +98,47 @@ const NewGroupForm = () => {
             name="description"
             value={formState.description}
             onChange={handleChange}
-            className={classes.customTextField}
+            sx={{ width: { xs: "100%", sm: "50%" } }}
           />
+        </Box>
+        <Box>
+          <FormControl sx={{ width: { xs: "100%", sm: "50%" } }}>
+            <InputLabel id="select-admins-label">Group Admins</InputLabel>
+            <Select
+              labelId="select-admins-label"
+              label="Group Admins"
+              id="groupAdminsSelect"
+              name="group_admins"
+              multiple
+              onChange={handleChange}
+              renderValue={(selected: any) => (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                  {selected.map((value: number) => (
+                    <Chip
+                      key={value}
+                      label={userIDToName[value]}
+                      sx={{ margin: "0.1rem" }}
+                    />
+                  ))}
+                </Box>
+              )}
+              defaultValue={[]}
+            >
+              {allUsers.map((user: any) => (
+                <MenuItem
+                  key={user.id}
+                  value={user.id}
+                  sx={{
+                    fontWeight: formState.group_admins.includes(user.id)
+                      ? theme.typography.fontWeightMedium
+                      : theme.typography.fontWeightRegular,
+                  }}
+                >
+                  {user.username}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Box>
         <Box>
           <FormControlLabel
@@ -160,42 +157,6 @@ const NewGroupForm = () => {
             }
             label="Automatically accept requests to join this group"
           />
-        </Box>
-        <Box>
-          <FormControl className={classes.formControl}>
-            <InputLabel id="select-admins-label">Group Admins</InputLabel>
-            <Select
-              labelId="select-admins-label"
-              id="groupAdminsSelect"
-              name="group_admins"
-              multiple
-              onChange={handleChange}
-              input={<Input id="selectAdminsChip" />}
-              renderValue={(selected: any) => (
-                <div className={classes.chips}>
-                  {selected.map((value: number) => (
-                    <Chip
-                      key={value}
-                      label={userIDToName[value]}
-                      className={classes.chip}
-                    />
-                  ))}
-                </div>
-              )}
-              MenuProps={MenuProps}
-              defaultValue={[]}
-            >
-              {allUsers.map((user: any) => (
-                <MenuItem
-                  key={user.id}
-                  value={user.id}
-                  style={getStyles(user.id, formState.group_admins, theme)}
-                >
-                  {user.username}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
         </Box>
         <Box>
           <Button primary type="submit">

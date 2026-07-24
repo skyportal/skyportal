@@ -59,7 +59,7 @@ def test_group_admission_auto_accept_join_button(
 
     page.goto(f"/become_user/{user_group2.id}")
     page.goto("/groups")
-    expect(page.locator('//h6[text()="My Groups"]').first).to_be_visible()
+    page.get_by_role("tab", name="Non-member groups").click()
     filter_for_value(page, public_group.name)
     # For an auto-accept group the action reads "Join group", not "Request admission"
     join_button = page.locator(
@@ -68,25 +68,39 @@ def test_group_admission_auto_accept_join_button(
     expect(join_button).to_have_text("Join group")
     join_button.click()
     # After joining, the group moves into the user's "My Groups" list
-    expect(
-        page.locator(f'//a[contains(.,"{public_group.name}")]').first
-    ).to_be_visible()
+    page.get_by_role("tab", name="My Groups").click()
+    expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_visible()
 
 
 def test_group_admission_request_insufficient_stream_access(
     page,
     user_no_groups_no_streams,
     public_group,
+    public_stream,
 ):
     page.goto(f"/become_user/{user_no_groups_no_streams.id}")
     page.goto("/groups")
-    expect(page.locator('//h6[text()="My Groups"]').first).to_be_visible()
+    page.get_by_role("tab", name="Non-member groups").click()
     filter_for_value(page, public_group.name)
-    page.locator(
+    request_button = page.locator(
         f'//*[@data-testid="requestAdmissionButton{public_group.id}"]'
-    ).first.click()
-    expect(
-        page.locator(
-            '//*[contains(text(), "does not have access to the following streams")]'
-        ).first
-    ).to_be_visible()
+    ).first
+    expect(request_button).to_be_disabled()
+    tooltip_target = page.locator(
+        f'//span[.//*[@data-testid="requestAdmissionButton{public_group.id}"]]'
+    ).first
+
+    # A grid re-render can replace the cell node under a motionless cursor, and the
+    # browser won't re-fire mouseover: the tooltip would then never open. Re-hover.
+    attempts = 10
+    for attempt in range(attempts):
+        page.mouse.move(0, 0)
+        tooltip_target.hover()
+        try:
+            expect(page.locator(".MuiTooltip-tooltip").first).to_contain_text(
+                public_stream.name, timeout=3000
+            )
+            break
+        except AssertionError:
+            if attempt == attempts - 1:
+                raise

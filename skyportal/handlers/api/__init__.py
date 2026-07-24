@@ -19,6 +19,20 @@ from .annotation_services import (
     PS1QueryHandler,
     VizierQueryHandler,
 )
+from .broker import (
+    BrokerAlertsHandler,
+    BrokerConeSearchHandler,
+    BrokerCutoutsHandler,
+    BrokerFilterModulesHandler,
+    BrokerFiltersHandler,
+    BrokerFilterTestHandler,
+    BrokerFilterValidateHandler,
+    BrokerHandler,
+    BrokerPhotometryHandler,
+    BrokerSaveHandler,
+    BrokerSurveyPhotometryHandler,
+)
+from .broker_apis import BrokerAPIsHandler
 from .candidate.candidate import BulkDeleteCandidatesHandler, CandidateHandler
 from .candidate.candidate_filter import CandidateFilterHandler
 from .candidate.scan_report import ScanReportHandler
@@ -200,6 +214,7 @@ from .sources_confirmed_in_gcn import (
 )
 from .spatial_catalog import SpatialCatalogASCIIFileHandler, SpatialCatalogHandler
 from .spectrum import (
+    BulkSpectraHandler,
     ObjSpectraHandler,
     SpectrumASCIIFileHandler,
     SpectrumASCIIFileParser,

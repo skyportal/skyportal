@@ -10,11 +10,14 @@ how to install them on MacOS and Debian-based systems below.
 - NGINX (v>=1.7)
 - PostgreSQL (v>=14.0)
 - Node.JS/npm (v>=16.14.0/8.3.2)
+- Bun
 
 When installing SkyPortal on Debian-based systems, 2 additional packages are required to be able to install `pycurl` later on:
 
 - libcurl4-gnutls-dev
 - libgnutls28-dev
+
+If you use [Nix](https://nixos.org/), the repository ships a flake that provides the language toolchain (Python, Node.js, `uv`) — see [Nix + direnv](#nix-direnv) below. You will still need to install the system services (PostgreSQL, NGINX, Supervisor) following the platform instructions.
 
 ## Source download, Python environment
 
@@ -48,6 +51,27 @@ source .venv/bin/activate
 
 If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
 
+<a name="nix-direnv"></a>
+## Nix + direnv (optional)
+
+The repository includes a Nix flake (`flake.nix`) that provides a development shell with Python, Node.js, and `uv`, pinned to exact versions by `flake.lock`. This means every developer — and any CI job or AI coding agent working in the repository — gets the same toolchain, regardless of what is installed system-wide, and entering the shell automatically runs `uv sync` to keep the Python environment up to date.
+
+With [Nix installed](https://nixos.org/download/) (and flakes enabled), enter the shell with:
+
+```
+nix develop
+```
+
+For a smoother workflow, install [direnv](https://direnv.net/) and hook it into your shell. The repository's `.envrc` already contains `use flake`, so after a one-time:
+
+```
+direnv allow
+```
+
+the development shell loads automatically whenever you `cd` into the repository, and unloads when you leave. This also benefits tools that spawn shells on your behalf: editors and AI coding agents (e.g., Claude Code) pick up the pinned toolchain through direnv, so their builds and tests run with the same versions you use, without any manual environment activation.
+
+Note that the flake only covers the language toolchain; system services (PostgreSQL, NGINX, Supervisor) and test/doc dependencies (Geckodriver, graphviz) still need to be installed following the platform instructions below.
+
 ## Installation: MacOS
 
 These instructions assume that you have [Homebrew](http://brew.sh/) installed.
@@ -56,7 +80,7 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
 Using Homebrew, install core dependencies:
 ```
-brew install supervisor nginx postgresql node llvm libomp gsl rust
+brew install supervisor nginx postgresql node llvm libomp gsl rust bun
 ```
 If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
 ```
@@ -193,6 +217,12 @@ If you plan to run `make load_demo_data` or the unit tests, also update the port
 	```
 
 	Otherwise, you can install NGINX normally with `sudo apt-get install nginx`.
+
+	Bun isn't packaged in apt; install it with:
+
+	```
+	curl -fsSL https://bun.sh/install | bash
+	```
 
 2. Configure your database permissions.
 

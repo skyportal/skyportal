@@ -2078,7 +2078,16 @@ class PhotometryHandler(BaseHandler):
                 return self.error(traceback.format_exc())
 
     @auth_or_token
-    def get(self, photometry_id: int):
+    def get(self, photometry_id=None):
+        # The route's id is optional (shared with POST), so a bare
+        # GET /api/photometry lands here without one. Tornado also passes the
+        # captured id as a string, so convert it explicitly.
+        if photometry_id is None:
+            return self.error("Missing required photometry_id.")
+        try:
+            photometry_id = int(photometry_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid photometry_id: {photometry_id}")
         with self.Session() as session:
             phot = session.scalars(
                 Photometry.select(session.user_or_token).where(

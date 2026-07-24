@@ -346,7 +346,6 @@ const ShiftManagement = ({ shiftToManage }: ShiftManagementProps) => {
           <Chip
             key={admin.id}
             label={userLabel(admin, true, true)}
-            data-testid={`shift-admin-chip-${admin.user_id}`}
             style={{ margin: "0.1rem" }}
           />
         ))}

@@ -84,6 +84,10 @@ db_create_tables: ## Create tables in the database
 db_create_tables: | dependencies_no_js
 	@$(PYTHON) skyportal/initial_setup.py $(FLAGS)
 
+db_clear_test: ## Drop and recreate only the test database.
+db_clear_test:
+	@$(PYTHON) ./baselayer/tools/db_init.py -f --test-only $(FLAGS)
+
 db_migrate: ## Migrate database to latest schema
 db_migrate: FLAGS := $(subst --,-x ,$(FLAGS))
 db_migrate:

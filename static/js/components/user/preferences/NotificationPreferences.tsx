@@ -198,21 +198,33 @@ const NotificationPreferences = () => {
     }
   }, [profile, allocationListApiClassname]);
 
+  const SIMPLE_TOGGLE_KEYS = [
+    "sources",
+    "gcn_events",
+    "mention",
+    "favorite_sources",
+    "facility_transactions",
+    "analysis_services",
+    "observation_plans",
+    "reminders",
+  ] as const;
+
   const prefToggled = (event: any) => {
     const prefs: any = {
       notifications: {},
     };
-    if (
-      event.target.name === "sources" ||
-      event.target.name === "gcn_events" ||
-      event.target.name === "mention" ||
-      event.target.name === "favorite_sources" ||
-      event.target.name === "facility_transactions" ||
-      event.target.name === "analysis_services" ||
-      event.target.name === "observation_plans"
-    ) {
+    if (SIMPLE_TOGGLE_KEYS.includes(event.target.name)) {
       prefs.notifications[event.target.name] = {
         active: event.target.checked,
+      };
+    } else if (
+      event.target.name === "reminder_on_source" ||
+      event.target.name === "reminder_on_spectra" ||
+      event.target.name === "reminder_on_gcn" ||
+      event.target.name === "reminder_on_shift"
+    ) {
+      prefs.notifications.reminders = {
+        [event.target.name]: event.target.checked,
       };
     } else if (event.target.name === "gcn_events_new_tags") {
       prefs.notifications.gcn_events = {
@@ -597,6 +609,56 @@ const NotificationPreferences = () => {
         </FormGroup>
         {profile?.notifications?.observation_plans?.active === true && (
           <NotificationSettingsSelect notificationResourceType="observation_plans" />
+        )}
+      </div>
+      <div className={classes.pref}>
+        <FormGroup row className={classes.form_group}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={profile?.notifications?.reminders?.active === true}
+                name="reminders"
+                onChange={prefToggled}
+              />
+            }
+            label="Reminders"
+          />
+          <Tooltip
+            title="Enable to receive notifications when your reminders fire. Click the settings icon to configure email, SMS, or Slack delivery."
+            placement="right"
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutlineOutlinedIcon />
+          </Tooltip>
+        </FormGroup>
+        {profile?.notifications?.reminders?.active === true && (
+          <div className={classes.form}>
+            <FormGroup row className={classes.form_group}>
+              {(
+                [
+                  { key: "reminder_on_source", label: "Sources" },
+                  { key: "reminder_on_spectra", label: "Spectra" },
+                  { key: "reminder_on_gcn", label: "GCN Events" },
+                  { key: "reminder_on_shift", label: "Shifts" },
+                ] as const
+              ).map(({ key, label }) => (
+                <FormControlLabel
+                  key={key}
+                  control={
+                    <Switch
+                      checked={
+                        profile?.notifications?.reminders?.[key] === true
+                      }
+                      name={key}
+                      onChange={prefToggled}
+                    />
+                  }
+                  label={label}
+                />
+              ))}
+            </FormGroup>
+            <NotificationSettingsSelect notificationResourceType="reminders" />
+          </div>
         )}
       </div>
     </div>
