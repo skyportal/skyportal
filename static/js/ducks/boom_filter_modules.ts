@@ -11,24 +11,16 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { brokerFilterBase } from "./brokerFilterTarget";
 import { useBoomFilterVersion } from "./boom_filter";
-import {
-  ztf_crossmatch_fields,
-  lsst_crossmatch_fields,
-} from "../constants/crossmatch";
+import { crossmatch_fields } from "../constants/crossmatch";
 
-// Append survey-specific cross-match fields to a fetched schema.
+// Append the cross-match fields (same catalogs for every survey) to a fetched schema.
 const patchSchema = (schema: any) => {
   if (!schema) return schema;
 
   const patchedSchema = JSON.parse(JSON.stringify(schema));
 
   if (patchedSchema.fields) {
-    if (patchedSchema.name.includes("Ztf")) {
-      patchedSchema.fields.push(ztf_crossmatch_fields);
-    }
-    if (patchedSchema.name.includes("Lsst")) {
-      patchedSchema.fields.push(lsst_crossmatch_fields);
-    }
+    patchedSchema.fields.push(crossmatch_fields);
   }
 
   return patchedSchema;
