@@ -4615,9 +4615,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["FilterNoID"];
+                    "application/json": components["schemas"]["FilterPatchBody"];
                 };
             };
             responses: {
@@ -4691,9 +4691,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["FilterNoID"];
+                    "application/json": components["schemas"]["FilterPostBody"];
                 };
             };
             responses: {
@@ -4703,10 +4703,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New filter ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["FilterPostResponse"];
                         };
                     };
                 };
@@ -38104,6 +38101,78 @@ export interface components {
             };
             /** @description Default observation plan request ID. */
             default_observationplan_request_id: number;
+        };
+        /**
+         * FilterPostBody
+         * @description Request body for creating a filter.
+         */
+        FilterPostBody: {
+            /**
+             * Name
+             * @description Filter name.
+             */
+            name: string;
+            /**
+             * Stream Id
+             * @description ID of the Filter's Stream.
+             */
+            stream_id: number;
+            /**
+             * Group Id
+             * @description ID of the Filter's Group.
+             */
+            group_id: number;
+            /**
+             * Altdata
+             * @description Arbitrary additional JSON data associated with the Filter.
+             * @default null
+             */
+            altdata: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * FilterPostResponse
+         * @description Data payload returned when creating a filter.
+         */
+        FilterPostResponse: {
+            /**
+             * Id
+             * @description New filter ID
+             */
+            id: number;
+        };
+        /**
+         * FilterPatchBody
+         * @description Request body for updating a filter.
+         */
+        FilterPatchBody: {
+            /**
+             * Name
+             * @description Filter name.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Altdata
+             * @description Arbitrary additional JSON data associated with the Filter.
+             * @default null
+             */
+            altdata: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Group Id
+             * @description ID of the Filter's Group. Cannot be changed; accepted only if it matches the current value.
+             * @default null
+             */
+            group_id: number | null;
+            /**
+             * Stream Id
+             * @description ID of the Filter's Stream. Cannot be changed; accepted only if it matches the current value.
+             * @default null
+             */
+            stream_id: number | null;
         };
         GalaxyASCIIFileHandlerPost: {
             /** @description Galaxy catalog name. */
