@@ -138,8 +138,13 @@ export const UnifiedBuilderProvider = ({
         );
 
         if (arithVar) {
-          // Arithmetic variable - scan its expression for variable references
-          // that need to be materialized
+          // Arithmetic variable - it must be included itself so its schema-field
+          // dependencies get marked "used" and survive the $project stage(s)
+          // (see mongoPipelineBuilder.js's additionalFieldsToProject handling).
+          annotationFieldsSet.add(f.fieldName);
+
+          // Also scan its expression for variable references that need to be
+          // materialized
           if (arithVar.variable) {
             const expression = arithVar.variable.includes("=")
               ? arithVar.variable.split("=")[1].trim()
