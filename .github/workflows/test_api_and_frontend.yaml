@@ -137,8 +137,6 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
-          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
-
           # Install dependencies, and initialize the database
           uv sync --inexact --group dev
 

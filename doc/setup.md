@@ -10,7 +10,7 @@ how to install them on MacOS and Debian-based systems below.
 - NGINX (v>=1.7)
 - PostgreSQL (v>=14.0)
 - Node.JS/npm (v>=16.14.0/8.3.2)
-- Bun
+- Bun package manager
 
 When installing SkyPortal on Debian-based systems, 2 additional packages are required to be able to install `pycurl` later on:
 
@@ -298,7 +298,7 @@ If you have trouble running `make run` and see this error:
 make[1]: *** [dependencies] Error 1
 make: *** [run] Error 2
 ```
-You may need to run `npm install --legacy-peer-deps` and then try `make run` again.
+You may need to run `bun install --frozen-lockfile` and then try `make run` again.
 
 ---
 
