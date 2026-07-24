@@ -153,6 +153,7 @@ export const ROUTE_SCHEMA_MAP = {
   "POST /api/candidates/scan_reports": { schema: "ScanReport" as const, list: false },
   "POST /api/earthquake/{earthquake_id}/mmadetector/{mma_detector_id}/measurements": { schema: "EarthquakeMeasured" as const, list: false },
   "POST /api/earthquake/{earthquake_id}/mmadetector/{mma_detector_id}/predictions": { schema: "EarthquakePrediction" as const, list: false },
+  "POST /api/filters": { schema: "FilterPostResponse" as const, list: false },
   "POST /api/galaxy_catalog/ascii": { schema: "Galaxy" as const, list: true },
   "POST /api/groups/{group_id}/usersFromGroups": { schema: "GroupUser" as const, list: false },
   "POST /api/objtag": { schema: "ObjTag" as const, list: false },
