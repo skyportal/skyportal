@@ -9,6 +9,7 @@
  * The websocket `FETCH_USERS` message is bridged to cache invalidation via
  * `invalidateOnMessage`.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -28,9 +29,9 @@ export const usersApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getUsers: build.query<UsersResult, Record<string, any> | void>({
       query: (filterParams) => {
-        const params = new URLSearchParams(
-          filterParams as Record<string, string> | undefined,
-        ).toString();
+        const params = buildQueryString(
+          (filterParams as Record<string, string>) ?? {},
+        );
         return `api/user${params ? `?${params}` : ""}`;
       },
       providesTags: ["User"],

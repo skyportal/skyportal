@@ -48,6 +48,67 @@ groups/=program_B/users:
   - userID: =fulluser
     admin: false
 
+teams:
+  - name: ZTF
+    nickname: ZTF
+    description: Zwicky Transient Facility
+    primary_color: "#d95f02"
+    secondary_color: "#fdae61"
+    logo_url: /static/images/team_logos/ZTF.png
+    group_ids: ["=program_A", "=program_B"]
+    =id: team_ztf
+  - name: DESC
+    nickname: DESC
+    description: LSST Dark Energy Science Collaboration
+    primary_color: "#1f78b4"
+    secondary_color: "#a6cee3"
+    logo_url: /static/images/team_logos/DESC.png
+    group_ids: ["=program_B"]
+    =id: team_desc
+  - name: TVS
+    nickname: TVS
+    description: LSST Transients and Variable Stars Collaboration
+    primary_color: "#6a3d9a"
+    secondary_color: "#cab2d6"
+    logo_url: /static/images/team_logos/TVS.png
+    group_ids: ["=program_A"]
+    =id: team_tvs
+
+# Public (no-auth) alert brokers, available out of the box. Credentialed ones
+# (BOOM, Babamul, Lasair, Pitt-Google) are configured per-deployment via
+# /broker_admin. See doc/broker_plugins.md.
+brokers:
+  - name: ALeRCE (ZTF)
+    broker_classname: ALERCEBROKER
+    active: true
+    altdata:
+      survey: ZTF
+  - name: ALeRCE (LSST)
+    broker_classname: ALERCEBROKER
+    active: true
+    altdata:
+      survey: LSST
+  - name: ANTARES (ZTF)
+    broker_classname: ANTARESBROKER
+    active: true
+    altdata:
+      survey: ZTF
+  - name: ANTARES (LSST)
+    broker_classname: ANTARESBROKER
+    active: true
+    altdata:
+      survey: LSST
+  - name: Fink (ZTF)
+    broker_classname: FINKBROKER
+    active: true
+    altdata:
+      survey: ZTF
+  - name: Fink (LSST)
+    broker_classname: FINKBROKER
+    active: true
+    altdata:
+      survey: LSST
+
 streams:
   - name: ZTF Public
     altdata:
@@ -691,6 +752,7 @@ instrument:
     band: optical
     telescope_id: =Simonyi
     filters: ["lsstu", "lsstg", "lsstr", "lssti", "lsstz", "lssty"]
+    api_classname_obsplan: RUBINMMAAPI
     # field_data:
     #   file: ../data/LSST_Fields.csv
     field_fov_type: rectangle
@@ -1661,6 +1723,23 @@ default_followup_request:
 
 
 analysis_service:
+  # Upload-only service used to seed an example fit (model_lightcurve overlay)
+  # on ZTF21aaqjmps, so a fresh demo shows the photometry-plot overlay.
+  - name: "Fiesta_Demo"
+    display_name: "Fiesta (demo fit)"
+    description: "Seeded example light-curve fit for the photometry-plot overlay."
+    version: "1.0"
+    contact_name: "Michael Coughlin"
+    url: "http://localhost/none"
+    authentication_type: "none"
+    analysis_type: "lightcurve_fitting"
+    input_data_types: ["photometry"]
+    optional_analysis_parameters: '{}'
+    upload_only: true
+    group_ids:
+      - =program_A
+      - =program_B
+    =id: Fiesta_Demo
   - name: "Demo_Analysis"
     display_name: "Demo analysis service display name"
     description: "Description for demo analysis"
@@ -1742,3 +1821,20 @@ analysis_service/=Demo_Analysis/default_analysis:
       - =program_B
     source_filter: '{"classifications": [{"name": "Supernova", "probability": 0.9}]}'
     daily_limit: 2
+
+# Seed an example completed fit so a fresh demo shows the photometry-plot overlay.
+# Posted to the upload_only Fiesta_Demo service; model_lightcurve tracks the data.
+obj/ZTF21aaqjmps/analysis_upload/=Fiesta_Demo:
+  - analysis:
+      model_name: "ArnettModel"
+      model_lightcurve:
+        file: ZTF21aaqjmps_arnett_lc.json
+      results:
+        model: "ArnettModel"
+        filters: ["ztfg", "ztfr"]
+        note: "seed demo fit"
+    group_ids:
+      - =program_A
+      - =program_B
+    show_plots: true
+    show_parameters: true

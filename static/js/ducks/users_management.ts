@@ -10,6 +10,7 @@
  * invalidation via `invalidateOnMessage`, so the active query refetches with
  * whatever params it currently holds.
  */
+import { buildQueryString as toQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
@@ -37,13 +38,7 @@ export interface UsersManagementResult {
 }
 
 const buildQueryString = (params: UsersManagementParams): string => {
-  const search = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      search.append(key, String(value));
-    }
-  });
-  const qs = search.toString();
+  const qs = toQueryString(params);
   return qs ? `?${qs}` : "";
 };
 

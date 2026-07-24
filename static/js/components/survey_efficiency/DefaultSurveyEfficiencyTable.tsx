@@ -17,6 +17,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultSurveyEfficiency from "./NewDefaultSurveyEfficiency";
+import { useIsReadOnly } from "../../ducks/profile";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -50,6 +51,7 @@ const DefaultSurveyEfficiencyTable = ({
   const { classes } = useStyles();
 
   const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
   const [deleteDefaultSurveyEfficiencyMutation] =
     useDeleteDefaultSurveyEfficiencyMutation();
 
@@ -253,16 +255,18 @@ const DefaultSurveyEfficiencyTable = ({
   ];
 
   const CustomToolbar = () => (
-    <DataGridToolbar showQuickFilter={false}>
-      <IconButton
-        name="new_default_survey_efficiency"
-        size="small"
-        onClick={() => {
-          openNewDialog();
-        }}
-      >
-        <AddIcon />
-      </IconButton>
+    <DataGridToolbar showQuickFilter={false} showExport>
+      {!isReadOnly && (
+        <IconButton
+          name="new_default_survey_efficiency"
+          size="small"
+          onClick={() => {
+            openNewDialog();
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+      )}
     </DataGridToolbar>
   );
 

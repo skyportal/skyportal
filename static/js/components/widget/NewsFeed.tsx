@@ -19,6 +19,7 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
 import { useGetNewsFeedQuery } from "../../ducks/newsFeed";
+import { useActiveTeam } from "../../ducks/teams";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -203,7 +204,10 @@ interface NewsFeedProps {
 
 const NewsFeed = ({ classes }: NewsFeedProps) => {
   const { classes: styles } = useStyles();
-  const { data: items } = useGetNewsFeedQuery();
+  const { activeTeam } = useActiveTeam();
+  const { data: items } = useGetNewsFeedQuery(
+    activeTeam ? { teamID: activeTeam.id } : undefined,
+  );
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const rawNewsFeedPrefs: any =
@@ -220,8 +224,29 @@ const NewsFeed = ({ classes }: NewsFeedProps) => {
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <div>
-          <Typography variant="h6" display="inline">
+          <Typography
+            variant="h6"
+            sx={{
+              display: "inline",
+            }}
+          >
             News Feed
+            {activeTeam ? (
+              <Typography
+                component="span"
+                sx={{
+                  ml: 1,
+                  px: 0.75,
+                  py: 0.25,
+                  borderRadius: "0.5rem",
+                  fontSize: "0.7em",
+                  color: "#fff",
+                  backgroundColor: activeTeam.primary_color || "#457b9d",
+                }}
+              >
+                {activeTeam.name}
+              </Typography>
+            ) : null}
           </Typography>
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div className={classes.widgetIcon}>

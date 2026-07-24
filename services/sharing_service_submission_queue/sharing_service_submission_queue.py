@@ -1,3 +1,4 @@
+import sys
 import time
 import traceback
 import uuid
@@ -33,6 +34,9 @@ env, cfg = load_env()
 init_db(**cfg["database"])
 
 log = make_log("sharing_service_queue")
+
+# Defensive guardrail so a stuck query can't wedge a backend.
+STATEMENT_TIMEOUT = "120s"
 
 tns_retrieval_microservice_url = (
     f"http://{cfg['hosts.tns_retrieval_queue']}:{cfg['ports.tns_retrieval_queue']}"
@@ -287,79 +291,92 @@ def process_submission_requests():
     session_context_id.set(uuid.uuid4().hex)
 
     while True:
-        with DBSession() as session:
-            try:
-                submission_request = session.scalar(
-                    sa.select(SharingServiceSubmission)
-                    .where(
-                        or_(
-                            and_(
-                                SharingServiceSubmission.publish_to_tns == True,
-                                SharingServiceSubmission.tns_status.in_(
-                                    ["pending", "processing"]
-                                ),
-                                SharingServiceSubmission.tns_submission_id.is_(None),
-                            ),
-                            and_(
-                                SharingServiceSubmission.publish_to_hermes == True,
-                                SharingServiceSubmission.hermes_status.in_(
-                                    ["pending", "processing"]
-                                ),
-                            ),
-                        )
-                    )
-                    .order_by(SharingServiceSubmission.created_at.asc())
-                )
-                if submission_request is None:
-                    time.sleep(5)
-                    continue
-                else:
-                    if submission_request.publish_to_hermes:
-                        submission_request.hermes_status = "processing"
-                    if submission_request.publish_to_tns:
-                        submission_request.tns_status = "processing"
-                    session.commit()
-            except Exception as e:
-                log(f"Error getting sharing submission request: {str(e)}")
-                continue
-
-            submission_request_id = submission_request.id
-
-            try:
-                process_submission_request(submission_request, session)
-            except Exception as e:
+        try:
+            with DBSession() as session:
                 try:
-                    session.rollback()
-                except Exception as e:
-                    log(f"Error rolling back session: {str(e)}")
-                else:
-                    try:
-                        traceback.print_exc()
-                        log(
-                            f"Error processing sharing submission request {submission_request_id}: {str(e)}"
-                        )
-                        submission_request = session.scalar(
-                            sa.select(SharingServiceSubmission).where(
-                                SharingServiceSubmission.id == submission_request_id
+                    # Guardrail so a stuck query can't wedge a backend.
+                    session.execute(
+                        sa.text(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'")
+                    )
+                    submission_request = session.scalar(
+                        sa.select(SharingServiceSubmission)
+                        .where(
+                            or_(
+                                and_(
+                                    SharingServiceSubmission.publish_to_tns == True,
+                                    SharingServiceSubmission.tns_status.in_(
+                                        ["pending", "processing"]
+                                    ),
+                                    SharingServiceSubmission.tns_submission_id.is_(
+                                        None
+                                    ),
+                                ),
+                                and_(
+                                    SharingServiceSubmission.publish_to_hermes == True,
+                                    SharingServiceSubmission.hermes_status.in_(
+                                        ["pending", "processing"]
+                                    ),
+                                ),
                             )
                         )
+                        .order_by(SharingServiceSubmission.created_at.asc())
+                    )
+                    if submission_request is None:
+                        time.sleep(5)
+                        continue
+                    else:
                         if submission_request.publish_to_hermes:
-                            submission_request.hermes_status = f"Error: {str(e)}"
+                            submission_request.hermes_status = "processing"
                         if submission_request.publish_to_tns:
-                            submission_request.tns_status = f"Error: {str(e)}"
+                            submission_request.tns_status = "processing"
                         session.commit()
-                        flow = Flow()
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
-                            payload={
-                                "sharing_service_id": submission_request.sharing_service_id
-                            },
-                        )
-                    except Exception as e:
-                        log(
-                            f"Error updating sharing submission request status: {str(e)}"
-                        )
+                except Exception as e:
+                    log(f"Error getting sharing submission request: {str(e)}")
+                    continue
+
+                submission_request_id = submission_request.id
+
+                try:
+                    process_submission_request(submission_request, session)
+                except Exception as e:
+                    try:
+                        session.rollback()
+                    except Exception as rollback_err:
+                        log(f"Error rolling back session: {str(rollback_err)}")
+                    else:
+                        try:
+                            traceback.print_exc()
+                            log(
+                                f"Error processing sharing submission request {submission_request_id}: {str(e)}"
+                            )
+                            submission_request = session.scalar(
+                                sa.select(SharingServiceSubmission).where(
+                                    SharingServiceSubmission.id == submission_request_id
+                                )
+                            )
+                            if submission_request.publish_to_hermes:
+                                submission_request.hermes_status = f"Error: {str(e)}"
+                            if submission_request.publish_to_tns:
+                                submission_request.tns_status = f"Error: {str(e)}"
+                            session.commit()
+                            flow = Flow()
+                            flow.push(
+                                "*",
+                                "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
+                                payload={
+                                    "sharing_service_id": submission_request.sharing_service_id
+                                },
+                            )
+                        except Exception as e:
+                            log(
+                                f"Error updating sharing submission request status: {str(e)}"
+                            )
+        except Exception as e:
+            # A dropped DB connection can raise on the DBSession context-manager
+            # exit (ROLLBACK), outside the inner try/except; retry instead of dying.
+            log(f"Error in submission request loop, retrying: {e}")
+            time.sleep(5)
+            continue
 
 
 def validate_submission_requests():
@@ -367,219 +384,238 @@ def validate_submission_requests():
     session_context_id.set(uuid.uuid4().hex)
     while True:
         time.sleep(5)
-        with DBSession() as session:
-            # Reprocess TNS submissions with status 504. Reset to pending if older than 5 min
-            # Confirm if reported. Label them appropriately if a newer one succeeded (same object/service)
-            try:
-                failed_submission_requests = session.scalars(
-                    sa.select(SharingServiceSubmission).where(
-                        SharingServiceSubmission.tns_status.ilike(
-                            "%504 - Gateway Time-out%"
-                        ),
-                        SharingServiceSubmission.modified
-                        < datetime.now(UTC) - timedelta(minutes=5),
+        try:
+            with DBSession() as session:
+                # Reprocess TNS submissions with status 504. Reset to pending if older than 5 min
+                # Confirm if reported. Label them appropriately if a newer one succeeded (same object/service)
+                try:
+                    # Guardrail so a stuck query can't wedge a backend.
+                    session.execute(
+                        sa.text(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'")
                     )
-                ).all()
-                log(
-                    f"Found {len(failed_submission_requests)} failed TNS submission requests to re-set..."
-                )
-                for submission_request in failed_submission_requests:
-                    # If a newer submission for the same object/service is submitted or confirmed
-                    # don't re-set this one but label it appropriately
-                    recent_submission_request = session.scalar(
+                    failed_submission_requests = session.scalars(
                         sa.select(SharingServiceSubmission).where(
-                            SharingServiceSubmission.obj_id
-                            == submission_request.obj_id,
-                            SharingServiceSubmission.sharing_service_id
-                            == submission_request.sharing_service_id,
-                            SharingServiceSubmission.created_at
-                            > submission_request.created_at,
-                            sa.or_(
-                                SharingServiceSubmission.tns_status.ilike(
-                                    "%submitted%"
+                            SharingServiceSubmission.tns_status.ilike(
+                                "%504 - Gateway Time-out%"
+                            ),
+                            SharingServiceSubmission.modified
+                            < datetime.now(UTC) - timedelta(minutes=5),
+                        )
+                    ).all()
+                    log(
+                        f"Found {len(failed_submission_requests)} failed TNS submission requests to re-set..."
+                    )
+                    for submission_request in failed_submission_requests:
+                        # If a newer submission for the same object/service is submitted or confirmed
+                        # don't re-set this one but label it appropriately
+                        recent_submission_request = session.scalar(
+                            sa.select(SharingServiceSubmission).where(
+                                SharingServiceSubmission.obj_id
+                                == submission_request.obj_id,
+                                SharingServiceSubmission.sharing_service_id
+                                == submission_request.sharing_service_id,
+                                SharingServiceSubmission.created_at
+                                > submission_request.created_at,
+                                sa.or_(
+                                    SharingServiceSubmission.tns_status.ilike(
+                                        "%submitted%"
+                                    ),
+                                    SharingServiceSubmission.tns_status.ilike(
+                                        "%confirmed%"
+                                    ),
                                 ),
-                                SharingServiceSubmission.tns_status.ilike(
-                                    "%confirmed%"
-                                ),
+                            )
+                        )
+                        if recent_submission_request is not None:
+                            submission_request.tns_status = "Error: TNS was unresponsive at some point during processing, but a more recent submission request (from the same sharing service) reported the object since."
+                            continue
+
+                        # let's check if the object is already on TNS and submitted by this sharing service, in which case we can mark the submission request as confirmed
+                        obj = session.scalar(
+                            sa.select(Obj).where(Obj.id == submission_request.obj_id)
+                        )
+                        if (
+                            obj.tns_name is not None
+                            and isinstance(obj.tns_info, dict)
+                            and obj.tns_info.get("reporterid") is not None
+                            and obj.tns_info.get("reporterid")
+                            == submission_request.sharing_service.tns_bot_id
+                            and isinstance(
+                                obj.tns_info.get("reporting_group", {}), dict
+                            )
+                            and obj.tns_info.get("reporting_group", {}).get("group_id")
+                            is not None
+                            and obj.tns_info.get("reporting_group", {}).get("group_id")
+                            == submission_request.sharing_service.tns_source_group_id
+                            and obj.tns_info.get("discoverer") is not None
+                            and (
+                                (
+                                    submission_request.tns_payload is not None
+                                    and isinstance(submission_request.tns_payload, dict)
+                                    and obj.tns_info.get("discoverer")
+                                    == submission_request.tns_payload.get("reporter")
+                                )
+                                or (
+                                    submission_request.custom_publishing_string
+                                    is not None
+                                    and obj.tns_info.get("discoverer")
+                                    == submission_request.custom_publishing_string
+                                )
+                            )
+                        ):
+                            log(
+                                f"TNS submission request {submission_request.id} for object {submission_request.obj_id} seems to have been successful, setting as confirmed"
+                            )
+                            submission_request.tns_status = "confirmed"
+                            continue
+
+                        # not reported on TNS by this sharing service yet, re-set the submission request to pending
+                        log(
+                            f"Re-setting failed TNS submission request {submission_request.id} for object {submission_request.obj_id}"
+                        )
+                        submission_request.tns_status = "pending"
+                    if len(failed_submission_requests) > 0:
+                        session.commit()
+                except Exception as e:
+                    log(f"Error re-setting failed TNS submission requests: {e}")
+                    session.rollback()
+
+                try:
+                    # grab the first TNS sharing submission request that has a submission ID that's not null
+                    submission_request = session.scalar(
+                        sa.select(SharingServiceSubmission)
+                        .where(
+                            SharingServiceSubmission.tns_status.like("submitted"),
+                            SharingServiceSubmission.tns_submission_id.isnot(None),
+                            SharingServiceSubmission.sharing_service_id.notin_(
+                                sa.select(SharingService.id).where(
+                                    SharingService.testing.is_(True)
+                                )
                             ),
                         )
+                        .order_by(SharingServiceSubmission.created_at.asc())
                     )
-                    if recent_submission_request is not None:
-                        submission_request.tns_status = "Error: TNS was unresponsive at some point during processing, but a more recent submission request (from the same sharing service) reported the object since."
+                    if submission_request is None:
+                        # here we add an extra sleep to avoid hammering the TNS API
+                        log("Waiting for TNS submission requests to validate...")
+                        time.sleep(25)
                         continue
 
-                    # let's check if the object is already on TNS and submitted by this sharing service, in which case we can mark the submission request as confirmed
-                    obj = session.scalar(
-                        sa.select(Obj).where(Obj.id == submission_request.obj_id)
+                    log(
+                        f"Checking TNS submission request {submission_request.id} for object {submission_request.obj_id}"
                     )
-                    if (
-                        obj.tns_name is not None
-                        and isinstance(obj.tns_info, dict)
-                        and obj.tns_info.get("reporterid") is not None
-                        and obj.tns_info.get("reporterid")
-                        == submission_request.sharing_service.tns_bot_id
-                        and isinstance(obj.tns_info.get("reporting_group", {}), dict)
-                        and obj.tns_info.get("reporting_group", {}).get("group_id")
-                        is not None
-                        and obj.tns_info.get("reporting_group", {}).get("group_id")
-                        == submission_request.sharing_service.tns_source_group_id
-                        and obj.tns_info.get("discoverer") is not None
-                        and (
-                            (
-                                submission_request.tns_payload is not None
-                                and isinstance(submission_request.tns_payload, dict)
-                                and obj.tns_info.get("discoverer")
-                                == submission_request.tns_payload.get("reporter")
-                            )
-                            or (
-                                submission_request.custom_publishing_string is not None
-                                and obj.tns_info.get("discoverer")
-                                == submission_request.custom_publishing_string
-                            )
+
+                    tns_submission_id = submission_request.tns_submission_id
+
+                    sharing_service = session.scalar(
+                        sa.select(SharingService).where(
+                            SharingService.id == submission_request.sharing_service_id
                         )
-                    ):
+                    )
+                    if sharing_service is None:
                         log(
-                            f"TNS submission request {submission_request.id} for object {submission_request.obj_id} seems to have been successful, setting as confirmed"
+                            "Could not find sharing service for this submission request"
                         )
-                        submission_request.tns_status = "confirmed"
                         continue
 
-                    # not reported on TNS by this sharing service yet, re-set the submission request to pending
-                    log(
-                        f"Re-setting failed TNS submission request {submission_request.id} for object {submission_request.obj_id}"
+                    tns_source, serialized_response, err = check_at_report(
+                        tns_submission_id, sharing_service
                     )
-                    submission_request.tns_status = "pending"
-                if len(failed_submission_requests) > 0:
-                    session.commit()
-            except Exception as e:
-                log(f"Error re-setting failed TNS submission requests: {e}")
-                session.rollback()
-
-            try:
-                # grab the first TNS sharing submission request that has a submission ID that's not null
-                submission_request = session.scalar(
-                    sa.select(SharingServiceSubmission)
-                    .where(
-                        SharingServiceSubmission.tns_status.like("submitted"),
-                        SharingServiceSubmission.tns_submission_id.isnot(None),
-                        SharingServiceSubmission.sharing_service_id.notin_(
-                            sa.select(SharingService.id).where(
-                                SharingService.testing.is_(True)
-                            )
-                        ),
-                    )
-                    .order_by(SharingServiceSubmission.created_at.asc())
-                )
-                if submission_request is None:
-                    # here we add an extra sleep to avoid hammering the TNS API
-                    log("Waiting for TNS submission requests to validate...")
-                    time.sleep(25)
-                    continue
-
-                log(
-                    f"Checking TNS submission request {submission_request.id} for object {submission_request.obj_id}"
-                )
-
-                tns_submission_id = submission_request.tns_submission_id
-
-                sharing_service = session.scalar(
-                    sa.select(SharingService).where(
-                        SharingService.id == submission_request.sharing_service_id
-                    )
-                )
-                if sharing_service is None:
-                    log("Could not find sharing service for this submission request")
-                    continue
-
-                tns_source, serialized_response, err = check_at_report(
-                    tns_submission_id, sharing_service
-                )
-                if (
-                    not err
-                    and not tns_source
-                    and serialized_response
-                    and "An identical AT report" in str(serialized_response)
-                ):
-                    submission_request.tns_status = "complete"
-                    submission_request.tns_response = serialized_response
-                    session.merge(submission_request)
-                    session.commit()
-                    log(
-                        f"AT report of {submission_request.obj_id} already exists on TNS"
-                    )
-                elif not err and tns_source and serialized_response:
-                    # we may have warnings after the "submitted" status, so we keep them in the "complete" status
-                    existing_tns_status = (
-                        str(submission_request.tns_status).strip().split(" ")
-                    )
-                    if existing_tns_status and existing_tns_status[0] == "submitted":
-                        submission_request.tns_status = (
-                            f"complete {' '.join(existing_tns_status[1:])}"
-                        )
-                    else:
-                        submission_request.tns_status = "complete"
-                    submission_request.tns_response = serialized_response
-                    session.merge(submission_request)
-                    session.commit()
-                    log(
-                        f"AT report of {submission_request.obj_id} submitted to TNS as {tns_source}"
-                    )
-                    try:
-                        flow = Flow()
-                        flow.push(
-                            user_id=submission_request.user_id,
-                            action_type="baselayer/SHOW_NOTIFICATION",
-                            payload={
-                                "note": f"AT report of {submission_request.obj_id} posted to TNS on {tns_source}",
-                                "type": "info",
-                                "duration": 8000,
-                            },
-                        )
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
-                            payload={
-                                "sharing_service_id": submission_request.sharing_service_id
-                            },
-                        )
-
-                    except Exception:
-                        pass
-                    try:
-                        requests.post(
-                            tns_retrieval_microservice_url,
-                            json={"tns_source": tns_source},
-                        )
-                    except Exception as e:
-                        log(f"Error submitting TNS name to retrieval queue: {e}")
-                elif err == "report not found":
-                    # Sometimes TNS accepts a report but it disappears.
-                    # If it's been <1 min since last update, wait; otherwise, mark as pending to retry.
                     if (
-                        datetime.now(UTC) - submission_request.modified
-                    ).total_seconds() > 60:
-                        submission_request.tns_status = "pending"
-                        submission_request.tns_submission_id = None
+                        not err
+                        and not tns_source
+                        and serialized_response
+                        and "An identical AT report" in str(serialized_response)
+                    ):
+                        submission_request.tns_status = "complete"
+                        submission_request.tns_response = serialized_response
                         session.merge(submission_request)
                         session.commit()
                         log(
-                            f"AT report submission of {submission_request.obj_id} not found on TNS, retrying"
+                            f"AT report of {submission_request.obj_id} already exists on TNS"
                         )
-                elif err is not None and serialized_response is not None:
-                    submission_request.tns_status = f"Error: {err}"
-                    submission_request.response = serialized_response
-                    session.merge(submission_request)
-                    session.commit()
-                    log(f"Error checking TNS report: {err}")
-                else:
-                    log(
-                        f"Error checking TNS report - source {tns_source}, response {serialized_response}, err {err}"
-                    )
-            except Exception as e:
-                session.rollback()
-                traceback.print_exc()
-                log(f"Unexpected error checking TNS report: {str(e)}")
-                continue
+                    elif not err and tns_source and serialized_response:
+                        # we may have warnings after the "submitted" status, so we keep them in the "complete" status
+                        existing_tns_status = (
+                            str(submission_request.tns_status).strip().split(" ")
+                        )
+                        if (
+                            existing_tns_status
+                            and existing_tns_status[0] == "submitted"
+                        ):
+                            submission_request.tns_status = (
+                                f"complete {' '.join(existing_tns_status[1:])}"
+                            )
+                        else:
+                            submission_request.tns_status = "complete"
+                        submission_request.tns_response = serialized_response
+                        session.merge(submission_request)
+                        session.commit()
+                        log(
+                            f"AT report of {submission_request.obj_id} submitted to TNS as {tns_source}"
+                        )
+                        try:
+                            flow = Flow()
+                            flow.push(
+                                user_id=submission_request.user_id,
+                                action_type="baselayer/SHOW_NOTIFICATION",
+                                payload={
+                                    "note": f"AT report of {submission_request.obj_id} posted to TNS on {tns_source}",
+                                    "type": "info",
+                                    "duration": 8000,
+                                },
+                            )
+                            flow.push(
+                                "*",
+                                "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
+                                payload={
+                                    "sharing_service_id": submission_request.sharing_service_id
+                                },
+                            )
+
+                        except Exception:
+                            pass
+                        try:
+                            requests.post(
+                                tns_retrieval_microservice_url,
+                                json={"tns_source": tns_source},
+                            )
+                        except Exception as e:
+                            log(f"Error submitting TNS name to retrieval queue: {e}")
+                    elif err == "report not found":
+                        # Sometimes TNS accepts a report but it disappears.
+                        # If it's been <1 min since last update, wait; otherwise, mark as pending to retry.
+                        if (
+                            datetime.now(UTC) - submission_request.modified
+                        ).total_seconds() > 60:
+                            submission_request.tns_status = "pending"
+                            submission_request.tns_submission_id = None
+                            session.merge(submission_request)
+                            session.commit()
+                            log(
+                                f"AT report submission of {submission_request.obj_id} not found on TNS, retrying"
+                            )
+                    elif err is not None and serialized_response is not None:
+                        submission_request.tns_status = f"Error: {err}"
+                        submission_request.response = serialized_response
+                        session.merge(submission_request)
+                        session.commit()
+                        log(f"Error checking TNS report: {err}")
+                    else:
+                        log(
+                            f"Error checking TNS report - source {tns_source}, response {serialized_response}, err {err}"
+                        )
+                except Exception as e:
+                    session.rollback()
+                    traceback.print_exc()
+                    log(f"Unexpected error checking TNS report: {str(e)}")
+                    continue
+        except Exception as e:
+            # A dropped DB connection can raise on the DBSession context-manager
+            # exit (ROLLBACK), outside the inner try/except; retry instead of dying.
+            log(f"Error in validation loop, retrying: {e}")
+            time.sleep(5)
+            continue
 
 
 @check_loaded(logger=log)
@@ -591,6 +627,11 @@ def service(*args, **kwargs):
     while True:
         log("Sharing service submission queue heartbeat")
         time.sleep(120)
+        # Exit if either worker thread died (e.g. DB connection drop in a context
+        # manager exit, outside the loop's try/except) so supervisor restarts us.
+        if not (t.is_alive() and t2.is_alive()):
+            log("A sharing service worker thread died, exiting for supervisor restart")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

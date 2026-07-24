@@ -1,4 +1,4 @@
-import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -126,10 +126,12 @@ const ObservingRunList = ({
   return (
     <Paper>
       <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        flexWrap="wrap"
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
       >
         <Typography variant="h6">List of Observing Runs</Typography>
 
@@ -181,7 +183,13 @@ const ObservingRunList = ({
             </ListItem>
           ))
         ) : (
-          <Typography variant="body1" color="textSecondary" mt={2}>
+          <Typography
+            variant="body1"
+            color="textSecondary"
+            sx={{
+              mt: 2,
+            }}
+          >
             No observing runs to show.
           </Typography>
         )}
@@ -211,6 +219,7 @@ const ObservingRunList = ({
 const ObservingRunPage = () => {
   const { data: observingRunList = [] } = useGetObservingRunsQuery();
   const { data: currentUser } = useGetProfileQuery();
+  const isReadOnly = useIsReadOnly();
 
   const managePermission =
     currentUser?.permissions?.includes("System admin") ||
@@ -224,9 +233,11 @@ const ObservingRunPage = () => {
           managePermission={!!managePermission}
         />
       </Grid>
-      <Grid size={{ md: 6, sm: 12 }}>
-        <NewObservingRun />
-      </Grid>
+      {!isReadOnly && (
+        <Grid size={{ md: 6, sm: 12 }}>
+          <NewObservingRun />
+        </Grid>
+      )}
     </Grid>
   );
 };

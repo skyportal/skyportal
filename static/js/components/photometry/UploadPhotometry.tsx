@@ -11,7 +11,7 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
@@ -28,6 +28,7 @@ import GroupShareSelect from "../group/GroupShareSelect";
 import FormValidationError from "../FormValidationError";
 import { useUploadPhotometryMutation } from "../../ducks/source";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useIsReadOnly } from "../../ducks/profile";
 
 // `font` is a deprecated HTML element not present in JSX.IntrinsicElements.
 const Font: any = "font";
@@ -53,6 +54,7 @@ export const HtmlTooltip = withStyles(Tooltip, (theme) => ({
 }));
 
 const UploadPhotometryForm = () => {
+  const isReadOnly = useIsReadOnly();
   const [uploadPhotometry] = useUploadPhotometryMutation();
   const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
     data: any[];
@@ -250,6 +252,10 @@ const UploadPhotometryForm = () => {
   }));
   const { classes } = useStyles();
 
+  if (isReadOnly) {
+    return null;
+  }
+
   if (!sortedInstrumentList || !userGroups) {
     return (
       <div>
@@ -277,8 +283,17 @@ const UploadPhotometryForm = () => {
           {id}
         </Link>
       </Typography>
-      <Box m={1}>
-        <Box component="span" mr={1}>
+      <Box
+        sx={{
+          m: 1,
+        }}
+      >
+        <Box
+          component="span"
+          sx={{
+            mr: 1,
+          }}
+        >
           <Button
             variant="contained"
             color="primary"
@@ -289,7 +304,12 @@ const UploadPhotometryForm = () => {
             Using CSV (bulk)
           </Button>
         </Box>
-        <Box component="span" ml={1}>
+        <Box
+          component="span"
+          sx={{
+            ml: 1,
+          }}
+        >
           <Button
             variant="contained"
             color="primary"
@@ -306,8 +326,17 @@ const UploadPhotometryForm = () => {
           <Card>
             <CardContent>
               <form onSubmit={handleSubmit(handleClickPreview)}>
-                <Box m={1}>
-                  <Box component="span" mr={1}>
+                <Box
+                  sx={{
+                    m: 1,
+                  }}
+                >
+                  <Box
+                    component="span"
+                    sx={{
+                      mr: 1,
+                    }}
+                  >
                     <Button
                       onClick={() => {
                         setValue("csvData", sampleFluxSpaceText);
@@ -316,7 +345,12 @@ const UploadPhotometryForm = () => {
                       Load sample flux-space data
                     </Button>
                   </Box>
-                  <Box component="span" ml={1}>
+                  <Box
+                    component="span"
+                    sx={{
+                      ml: 1,
+                    }}
+                  >
                     <Button
                       onClick={() => {
                         setValue("csvData", sampleMagSpaceText);
@@ -326,7 +360,12 @@ const UploadPhotometryForm = () => {
                     </Button>
                   </Box>
                 </Box>
-                <Box component="span" m={1}>
+                <Box
+                  component="span"
+                  sx={{
+                    m: 1,
+                  }}
+                >
                   {errors["csvData"] && (
                     <FormValidationError
                       message={errors["csvData"].message as any}
@@ -350,9 +389,24 @@ const UploadPhotometryForm = () => {
                     />
                   </FormControl>
                 </Box>
-                <Box m={1} style={{ display: "inline-block" }}>
-                  <Box display="flex" alignItems="center">
-                    <Box component="span" m={1}>
+                <Box
+                  style={{ display: "inline-block" }}
+                  sx={{
+                    m: 1,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Box
+                      component="span"
+                      sx={{
+                        m: 1,
+                      }}
+                    >
                       <Font size="small">
                         Note: To display an instrument&apos;s available filters,
                         hover over the instrument name in the drop-down menu
@@ -404,7 +458,12 @@ const UploadPhotometryForm = () => {
                       </FormControl>
                     </Box>
                   </Box>
-                  <Box component="span" m={1}>
+                  <Box
+                    component="span"
+                    sx={{
+                      m: 1,
+                    }}
+                  >
                     <GroupShareSelect
                       groupList={groups}
                       setGroupIDs={setSelectedGroupIds}
@@ -412,7 +471,11 @@ const UploadPhotometryForm = () => {
                     />
                   </Box>
                 </Box>
-                <Box m={1}>
+                <Box
+                  sx={{
+                    m: 1,
+                  }}
+                >
                   <HtmlTooltip
                     title={
                       <>
@@ -459,15 +522,29 @@ const UploadPhotometryForm = () => {
                     <HelpOutlineIcon />
                   </HtmlTooltip>
                 </Box>
-                <Box m={1}>
-                  <Box component="span" m={1}>
+                <Box
+                  sx={{
+                    m: 1,
+                  }}
+                >
+                  <Box
+                    component="span"
+                    sx={{
+                      m: 1,
+                    }}
+                  >
                     <FormControl>
                       <Button secondary type="submit">
                         Preview in Tabular Form
                       </Button>
                     </FormControl>
                   </Box>
-                  <Box component="span" m={1}>
+                  <Box
+                    component="span"
+                    sx={{
+                      m: 1,
+                    }}
+                  >
                     <FormControl>
                       <Button secondary onClick={handleReset}>
                         Clear Form
@@ -484,7 +561,12 @@ const UploadPhotometryForm = () => {
               <br />
               <Card>
                 <CardContent>
-                  <Box component="span" m={1}>
+                  <Box
+                    component="span"
+                    sx={{
+                      m: 1,
+                    }}
+                  >
                     <Typography variant="h6">Data Preview</Typography>
                     <StyledDataGrid
                       autoHeight
@@ -508,7 +590,12 @@ const UploadPhotometryForm = () => {
                 </CardContent>
               </Card>
               <br />
-              <Box component="span" m={1}>
+              <Box
+                component="span"
+                sx={{
+                  m: 1,
+                }}
+              >
                 <Button secondary onClick={handleClickSubmit}>
                   Upload Photometry
                 </Button>

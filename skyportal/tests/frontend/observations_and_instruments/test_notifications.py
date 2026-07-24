@@ -74,7 +74,7 @@ def test_group_admission_requests_notifications(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/groups")
-    expect(page.locator('//h6[text()="My Groups"]').first).to_be_visible()
+    page.get_by_role("tab", name="Non-member groups").click()
     filter_for_value(page, public_group2.name)
     page.locator(
         f'//*[@data-testid="requestAdmissionButton{public_group2.id}"]'
@@ -357,7 +357,9 @@ def test_new_gcn_event_triggers_notification(page, user):
 
     page.locator('//*[@id="GcnNotificationNameInput"]').first.fill("test")
 
-    page.locator('//*[@aria-labelledby="selectGcns"]').first.click()
+    page.locator(
+        '//*[@role="combobox" and (@aria-labelledby="selectGcns" or @id="selectGcns")]'
+    ).first.click()
     page.locator('//li[@data-value="FERMI_GBM_GND_POS"]').first.click()
     page.keyboard.press("Escape")
 

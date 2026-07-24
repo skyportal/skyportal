@@ -169,7 +169,7 @@ const ReplaceUserMenu = ({
               </Box>
             );
           }}
-          MenuProps={{ PaperProps: { style: { maxHeight: "25vh" } } }}
+          MenuProps={{ slotProps: { paper: { style: { maxHeight: "25vh" } } } }}
         >
           {usersToReplace.map((shiftUser: any) => (
             <MenuItem key={shiftUser.id} value={shiftUser.id}>
@@ -346,7 +346,6 @@ const ShiftManagement = ({ shiftToManage }: ShiftManagementProps) => {
           <Chip
             key={admin.id}
             label={userLabel(admin, true, true)}
-            data-testid={`shift-admin-chip-${admin.user_id}`}
             style={{ margin: "0.1rem" }}
           />
         ))}
@@ -399,8 +398,8 @@ const ShiftManagement = ({ shiftToManage }: ShiftManagementProps) => {
       />
       <Typography
         variant="body2"
-        color="text.secondary"
         sx={{
+          color: "text.secondary",
           fontSize: "0.75rem",
           mt: 0.5,
           fontStyle: "italic",

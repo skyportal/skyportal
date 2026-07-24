@@ -23,11 +23,15 @@ from ...enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 from ...models import (
     AnnotationOnSpectrum,
     ClassicalAssignment,
+    Classification,
     CommentOnSpectrum,
     FollowupRequest,
     Group,
+    GroupUser,
     Instrument,
     Obj,
+    PhotStat,
+    Source,
     Spectrum,
     SpectrumObserver,
     SpectrumPI,
@@ -264,9 +268,18 @@ class SpectrumHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                # always append the single user group (sync property reading
-                # DBSession() — safe to call from async handler).
-                single_user_group = self.associated_user_object.single_user_group
+                # always append the single user group (queried async-safely
+                # instead of via the sync-DBSession `single_user_group` property).
+                single_user_group = (
+                    await session.scalars(
+                        sa.select(Group)
+                        .join(GroupUser)
+                        .where(
+                            Group.single_user_group.is_(True),
+                            GroupUser.user_id == self.associated_user_object.id,
+                        )
+                    )
+                ).first()
 
                 group_ids = data.pop("group_ids", None)
                 if group_ids == [] or group_ids is None:
@@ -877,7 +890,9 @@ class SpectrumHandler(BaseHandler):
                 result_spectra = new_result_spectra
 
             if not minimal_payload:  # add other data to each spectrum
-                for spec, spec_dict in zip(spectra, result_spectra):
+                spectra_by_id = {spec.id: spec for spec in spectra}
+                for spec_dict in result_spectra:
+                    spec = spectra_by_id[spec_dict["id"]]
                     annotations_result = await session.scalars(
                         AnnotationOnSpectrum.select(session.user_or_token)
                         .options(selectinload(AnnotationOnSpectrum.author))
@@ -1026,20 +1041,20 @@ class SpectrumHandler(BaseHandler):
             if pi:
                 existing_pis = list(spectrum.pis)
                 pis = []
-                for pi_id in reduced_by:
+                for pi_id in pi:
                     pi_user = await session.scalar(
                         User.select(session.user_or_token).where(User.id == pi_id)
                     )
                     if pi_user is None:
                         return self.error(f"Invalid pi ID: {pi_id}.")
-                    pi_association = SpectrumReducer(
+                    pi_association = SpectrumPI(
                         external_pi=external_pi, user_id=pi_user.id
                     )
                     pis.append(pi_association)
 
                 if len(pis) == 0 and external_pi is not None:
                     return self.error(
-                        "At least one valid user must be provided as a pi point of contact via the 'reduced_by' parameter."
+                        "At least one valid user must be provided as a pi point of contact via the 'pi' parameter."
                     )
 
                 for pi_assoc in existing_pis:
@@ -1287,7 +1302,16 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                     f"Cannot find instrument with ID: {json['instrument_id']}"
                 )
 
-            single_user_group = self.associated_user_object.single_user_group
+            single_user_group = (
+                await session.scalars(
+                    sa.select(Group)
+                    .join(GroupUser)
+                    .where(
+                        Group.single_user_group.is_(True),
+                        GroupUser.user_id == self.associated_user_object.id,
+                    )
+                )
+            ).first()
 
             group_ids = json.pop("group_ids", [])
             if group_ids is None:
@@ -1685,6 +1709,177 @@ class ObjSpectraHandler(BaseHandler):
                         '"median" or None'
                     )
             return self.success(data={"obj_id": obj.id, "spectra": return_values})
+
+
+# Ceilings for the bulk spectra endpoint, which fans a whole source set into one
+# response (per-source phase anchors + slim spectra) for phase-stacking plots.
+DEFAULT_BULK_SPECTRA_SOURCES = 200
+MAX_BULK_SPECTRA_SOURCES = 1000
+MAX_BULK_SPECTRA = 3000
+
+
+class BulkSpectraHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        """
+        ---
+        summary: Bulk spectra for a set of sources
+        description: |
+          Return slim spectra (wavelengths/fluxes/observed_at) plus per-source
+          phase anchors (redshift, first-detection and peak MJD, TNS discovery
+          date) for a set of accessible sources selected by group, explicit
+          object list, and/or classification. Powers the phase-stacked spectra
+          view without one request per source.
+        tags:
+          - spectra
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  group_id:
+                    type: integer
+                    description: Restrict to sources saved to this group.
+                  obj_ids:
+                    type: array
+                    items:
+                      type: string
+                    description: Restrict to these object IDs (also accepts a
+                      comma-separated string).
+                  classifications:
+                    type: array
+                    items:
+                      type: string
+                    description: Restrict to sources with any of these
+                      (non-ML) classifications.
+                  classificationProbThreshold:
+                    type: number
+                    description: Only count classifications at or above this
+                      probability.
+                  maxSources:
+                    type: integer
+                    description: Max sources to fetch spectra for (default 200,
+                      capped at 1000).
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+        group_id = data.get("group_id")
+        obj_ids = data.get("obj_ids")
+        classifications = data.get("classifications")
+        prob_threshold = data.get("classificationProbThreshold")
+
+        if isinstance(obj_ids, str):
+            obj_ids = [o.strip() for o in obj_ids.split(",") if o.strip()]
+        if isinstance(classifications, str):
+            classifications = [
+                c.strip() for c in classifications.split(",") if c.strip()
+            ]
+        if prob_threshold is not None:
+            try:
+                prob_threshold = float(prob_threshold)
+            except (TypeError, ValueError):
+                return self.error("classificationProbThreshold must be a number")
+        try:
+            max_sources = int(data.get("maxSources", DEFAULT_BULK_SPECTRA_SOURCES))
+        except (TypeError, ValueError):
+            return self.error("maxSources must be an integer")
+        max_sources = max(1, min(max_sources, MAX_BULK_SPECTRA_SOURCES))
+
+        with self.Session() as session:
+            src = Source.select(self.current_user)
+            if group_id is not None:
+                try:
+                    src = src.where(Source.group_id == int(group_id))
+                except (TypeError, ValueError):
+                    return self.error("group_id must be an integer")
+            if obj_ids:
+                src = src.where(Source.obj_id.in_(obj_ids))
+            src_subq = src.subquery()
+            source_ids = sa.select(src_subq.c.obj_id).distinct()
+
+            if classifications:
+                accessible_cls = (
+                    Classification.select(self.current_user)
+                    .where(Classification.ml.is_(False))
+                    .subquery()
+                )
+                match = sa.select(accessible_cls.c.obj_id).where(
+                    accessible_cls.c.classification.in_(classifications)
+                )
+                if prob_threshold is not None:
+                    match = match.where(accessible_cls.c.probability >= prob_threshold)
+                source_ids = source_ids.where(src_subq.c.obj_id.in_(match))
+
+            meta_rows = session.execute(
+                sa.select(
+                    Obj.id,
+                    Obj.redshift,
+                    Obj.tns_info,
+                    PhotStat.first_detected_mjd,
+                    PhotStat.peak_mjd_global,
+                )
+                .outerjoin(PhotStat, PhotStat.obj_id == Obj.id)
+                .where(Obj.id.in_(source_ids))
+                .limit(max_sources)
+            ).all()
+            selected_ids = [r.id for r in meta_rows]
+
+            sources = [
+                {
+                    "id": r.id,
+                    "redshift": r.redshift,
+                    "first_detected_mjd": r.first_detected_mjd,
+                    "peak_mjd": r.peak_mjd_global,
+                    "tns_discovery_date": (
+                        (r.tns_info or {}).get("discoverydate")
+                        if isinstance(r.tns_info, dict)
+                        else None
+                    ),
+                }
+                for r in meta_rows
+            ]
+
+            spectra = []
+            spectra_truncated = False
+            if selected_ids:
+                spec_rows = (
+                    session.scalars(
+                        Spectrum.select(self.current_user)
+                        .where(Spectrum.obj_id.in_(selected_ids))
+                        .order_by(Spectrum.observed_at.asc())
+                    )
+                    .unique()
+                    .all()
+                )
+                spectra_truncated = len(spec_rows) > MAX_BULK_SPECTRA
+                for s in spec_rows[:MAX_BULK_SPECTRA]:
+                    spectra.append(
+                        {
+                            "obj_id": s.obj_id,
+                            "observed_at": (
+                                s.observed_at.isoformat() if s.observed_at else None
+                            ),
+                            "wavelengths": s.wavelengths,
+                            "fluxes": s.fluxes,
+                        }
+                    )
+
+            return self.success(
+                data={
+                    "sources": sources,
+                    "spectra": spectra,
+                    "truncated": len(selected_ids) >= max_sources or spectra_truncated,
+                }
+            )
 
 
 class SpectrumRangeHandler(BaseHandler):

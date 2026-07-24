@@ -49,7 +49,10 @@ from ....models import (
 )
 from ....utils.cache import Cache, array_to_bytes
 from ....utils.calculations import great_circle_distance
-from ....utils.data_access import accessible_group_and_filter_ids
+from ....utils.data_access import (
+    accessible_group_and_filter_ids,
+    accessible_group_ids_async,
+)
 from ....utils.parse import get_page_and_n_per_page
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...base import BaseHandler
@@ -792,6 +795,30 @@ class CandidateHandler(BaseHandler):
 
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 25)
+
+        # Lightweight autocomplete for the toolbar quick-search: return candidate
+        # obj_ids matching a partial name, skipping the heavy scanning-page query.
+        name_only = self.get_query_argument("nameOnly", "false").lower() == "true"
+        obj_id_partial = self.get_query_argument("objID", None)
+        if name_only and obj_id_partial:
+            async with self.AsyncSession() as session:
+                group_ids = await accessible_group_ids_async(
+                    session.user_or_token, session
+                )
+                matches = await session.scalars(
+                    sa.select(Candidate.obj_id)
+                    .join(Filter, Filter.id == Candidate.filter_id)
+                    .where(
+                        Candidate.obj_id.ilike(f"{obj_id_partial}%"),
+                        Filter.group_id.in_(group_ids),
+                    )
+                    .distinct()
+                    .order_by(Candidate.obj_id)
+                    .limit(int(n_per_page))
+                )
+                return self.success(
+                    data={"candidates": [{"id": oid} for oid in matches.all()]}
+                )
         # Not documented in API docs as this is for frontend-only usage & will confuse
         # users looking through the API docs
         query_id = self.get_query_argument("queryID", None)
@@ -1581,7 +1608,21 @@ class CandidateHandler(BaseHandler):
                         f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
                 session.add(obj)
-                await session.flush()
+                try:
+                    await session.flush()
+                except IntegrityError:
+                    # A concurrent request created this Obj between our existence
+                    # check and this flush; use the now-committed row instead.
+                    await session.rollback()
+                    obj = await session.scalar(
+                        Obj.select(session.user_or_token).where(Obj.id == data["id"])
+                    )
+                    if obj is None:
+                        return self.error(
+                            f"Failed to load object {data['id']} after a "
+                            "concurrent insert."
+                        )
+                    obj_already_exists = True
 
             filters_result = await session.scalars(
                 Filter.select(session.user_or_token).where(Filter.id.in_(filter_ids))
@@ -1797,3 +1838,126 @@ async def grab_query_results(
 
     info[items_name] = items
     return info
+
+
+class BulkDeleteCandidatesHandler(BaseHandler):
+    @permissions(["System admin"])
+    def post(self):
+        """
+        ---
+        summary: Bulk-delete old, unsaved candidates
+        description: |
+          Delete objects that appear as candidates, are not currently saved as
+          an active source in any group, and whose most recent candidate
+          `passed_at` is older than `maxAgeMonths`. Deleting the object cascades
+          to its candidates, photometry, annotations, thumbnails, etc. System
+          admin only. Intended to be driven periodically via the Recurring API.
+        tags:
+          - candidates
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  maxAgeMonths:
+                    type: integer
+                    description: |
+                      Delete objects whose most recent candidate `passed_at` is
+                      older than this many months. Defaults to 6.
+                  batchSize:
+                    type: integer
+                    description: |
+                      Maximum number of objects to delete in this call (deleted
+                      oldest-first). Defaults to 1000.
+                  dryRun:
+                    type: boolean
+                    description: |
+                      If true, only report how many objects would be deleted,
+                      without deleting anything. Defaults to false.
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            deleted:
+                              type: integer
+                              description: Number of objects deleted in this call.
+                            remaining:
+                              type: integer
+                              description: Number of matching objects still to delete.
+                            dryRun:
+                              type: boolean
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json()
+
+        try:
+            max_age_months = int(data.get("maxAgeMonths", 6))
+        except (TypeError, ValueError):
+            return self.error("maxAgeMonths must be an integer.")
+        try:
+            batch_size = int(data.get("batchSize", 1000))
+        except (TypeError, ValueError):
+            return self.error("batchSize must be an integer.")
+        dry_run = bool(data.get("dryRun", False))
+
+        if max_age_months < 1:
+            return self.error("maxAgeMonths must be a positive integer.")
+        if not (1 <= batch_size <= 10000):
+            return self.error("batchSize must be between 1 and 10000.")
+
+        cutoff = arrow.utcnow().shift(months=-max_age_months).naive
+
+        # Objects that are candidates, are not currently saved as an active
+        # source anywhere, and have no candidate activity at/after the cutoff
+        # (i.e. their most recent passed_at is older than maxAgeMonths).
+        criteria = sa.and_(
+            Obj.id.in_(sa.select(Candidate.obj_id)),
+            Obj.id.notin_(sa.select(Source.obj_id).where(Source.active.is_(True))),
+            Obj.id.notin_(
+                sa.select(Candidate.obj_id).where(Candidate.passed_at >= cutoff)
+            ),
+        )
+
+        with self.Session() as session:
+            count_stmt = sa.select(func.count()).select_from(Obj).where(criteria)
+
+            if dry_run:
+                total = int(session.scalar(count_stmt) or 0)
+                return self.success(
+                    data={"deleted": 0, "remaining": total, "dryRun": True}
+                )
+
+            objs = session.scalars(
+                sa.select(Obj)
+                .where(criteria)
+                .order_by(Obj.created_at)
+                .limit(batch_size)
+            ).all()
+
+            # Per-row delete so ORM cascades and the Obj `before_delete` event
+            # (on-disk thumbnail cleanup) fire, rather than a bulk DELETE.
+            n = len(objs)
+            for obj in objs:
+                session.delete(obj)
+            session.commit()
+
+            remaining = int(session.scalar(count_stmt) or 0)
+            log(
+                f"Bulk-deleted {n} unsaved candidate object(s) older than "
+                f"{max_age_months} months; {remaining} remaining."
+            )
+            return self.success(
+                data={"deleted": n, "remaining": remaining, "dryRun": False}
+            )

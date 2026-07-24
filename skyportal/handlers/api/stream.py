@@ -1,5 +1,7 @@
+import sqlalchemy as sa
 from marshmallow.exceptions import ValidationError
 
+from baselayer.app import models as baselayer_models
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import (
@@ -222,12 +224,15 @@ class StreamHandler(BaseHandler):
 
 
 class StreamUserHandler(BaseHandler):
-    @permissions(["System admin"])
+    @auth_or_token
     async def post(self, stream_id: int, *ignored_args):
         """
         ---
         summary: Grant stream access to a user
-        description: Grant stream access to a user
+        description: |
+          Grant stream access to a user. System admins may add any user; a
+          non-admin user may add only themselves, and only to an auto-join
+          stream.
         tags:
           - streams
           - users
@@ -272,20 +277,47 @@ class StreamUserHandler(BaseHandler):
         if user_id is None:
             return self.error("User ID must be specified")
 
-        stream_id = int(stream_id)
+        try:
+            stream_id = int(stream_id)
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid stream_id/user_id: {stream_id}/{user_id}")
+
         async with self.AsyncSession() as session:
+            # Plain select (not RLS-gated) so we can make an explicit
+            # authorization decision below rather than leaking it as "not found".
+            stream = await session.scalar(
+                sa.select(Stream).where(Stream.id == stream_id)
+            )
+            if stream is None:
+                return self.error(f"Could not retrieve stream with ID {stream_id}.")
+
+            # A non-admin may add only themselves, and only to an auto-join stream.
+            self_join = user_id == self.associated_user_object.id and stream.auto_join
+            if not self.current_user.is_system_admin and not self_join:
+                return self.error(
+                    "Insufficient permissions: only system admins can grant stream "
+                    "access to other users or to non-auto-join streams."
+                )
+
+            # Plain select (not RLS-gated) so an already-present membership is
+            # detected even for a self-joining non-admin.
             su = await session.scalar(
-                StreamUser.select(session.user_or_token)
+                sa.select(StreamUser)
                 .where(StreamUser.stream_id == stream_id)
                 .where(StreamUser.user_id == user_id)
             )
-            if su is None:
-                session.add(StreamUser(stream_id=stream_id, user_id=user_id))
-            else:
+            if su is not None:
                 return self.error("Specified user already has access to this stream.")
-            await session.commit()
 
-            return self.success(data={"stream_id": stream_id, "user_id": user_id})
+        # StreamUser.create is restricted; add via an unverified session so a
+        # self-joining non-admin can be granted access.
+        async with baselayer_models.async_plain_session_factory() as plain_session:
+            plain_session.add(StreamUser(stream_id=stream_id, user_id=user_id))
+            await plain_session.commit()
+
+        self.push(action="skyportal/FETCH_USER_PROFILE")
+        return self.success(data={"stream_id": stream_id, "user_id": user_id})
 
     @permissions(["System admin"])
     async def delete(self, stream_id: int, user_id: int):

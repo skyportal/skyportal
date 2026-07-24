@@ -19,6 +19,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 // Store
 import store from "../../store";
 import { useAppSelector } from "../../types/hooks";
+import { useIsAnonymous } from "../../ducks/profile";
 
 // Actions
 import hydrate from "../../actions";
@@ -30,6 +31,7 @@ import Spinner from "../Spinner";
 import NoMatchingRoute from "../NoMatchingRoute";
 import SidebarAndHeader from "./SidebarAndHeader";
 import ErrorBoundary from "../ErrorBoundary";
+import PageTourProvider from "../PageTourProvider";
 
 {% for route in app.routes -%}
 const {{ (route.component).split('/').pop() }} = React.lazy(() => import("../{{ route.component }}"));
@@ -61,6 +63,10 @@ const LazyRoute = ({ Component }: LazyRouteProps) => (
   <Suspense fallback={<Spinner />}><Component /></Suspense>
 );
 
+const AnonymousLoginPrompt = () => (
+  <p>Please <a href="/login/google-oauth2">log in</a> to view this page.</p>
+);
+
 interface MainContentInternalProps {
   root: string;
 }
@@ -68,6 +74,7 @@ interface MainContentInternalProps {
 const MainContentInternal = ({ root }: MainContentInternalProps) => {
   const { open } = useAppSelector((state) => (state as any).sidebar);
   const { classes } = useStyles();
+  const isAnonymous = useIsAnonymous();
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down("md"));
   const marginLeft = isSmall ? "0" : open ? "170px" : "65px";
@@ -97,6 +104,7 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
         dispatch={store.dispatch}
       />
       <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <PageTourProvider />
         <SidebarAndHeader/>
         <div
           role="main"
@@ -107,7 +115,11 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
           <ErrorBoundary key={location.pathname}>
             <Routes>
               {%- for route in app.routes %}
+              {%- if not route.anonymous_ok %}
+              <Route path="{{ route.path }}" element={isAnonymous ? <AnonymousLoginPrompt /> : <LazyRoute Component={{ "{" + (route.component).split('/').pop() + "}" }} />} />
+              {%- else %}
               <Route path="{{ route.path }}" element={<LazyRoute Component={{ "{" + (route.component).split('/').pop() + "}" }} />} />
+              {%- endif %}
               {%- endfor %}
               <Route path="*" element={<NoMatchingRoute/>} />
             </Routes>

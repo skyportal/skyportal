@@ -22,8 +22,44 @@ export interface Spectrum {
   [key: string]: any;
 }
 
+export interface BulkSpectraSource {
+  id: string;
+  redshift: number | null;
+  first_detected_mjd: number | null;
+  peak_mjd: number | null;
+  tns_discovery_date: string | null;
+}
+
+export interface BulkSpectrum {
+  obj_id: string;
+  observed_at: string | null;
+  wavelengths: number[];
+  fluxes: number[];
+}
+
+export interface BulkSpectraArgs {
+  group_id?: number;
+  obj_ids?: string[];
+  classifications?: string[];
+  classificationProbThreshold?: number;
+  maxSources?: number;
+}
+
 export const spectraApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
+    // Slim spectra + per-source phase anchors for a whole source set in one
+    // request (group / object list / classification), for phase-stacked plots.
+    getBulkSpectra: build.query<
+      {
+        sources: BulkSpectraSource[];
+        spectra: BulkSpectrum[];
+        truncated: boolean;
+      },
+      BulkSpectraArgs
+    >({
+      query: (body) => ({ url: "/api/spectra/bulk", method: "POST", body }),
+      providesTags: ["Spectra"],
+    }),
     // The spectrum shape is highly dynamic across SkyPortal apps; consumers read
     // many optional fields, so the element type is `any` (the `Spectrum`
     // interface above documents the stable fields).
@@ -40,6 +76,11 @@ export const spectraApi = skyportalApi.injectEndpoints({
       transformResponse: (data: { spectra?: Spectrum[] }) =>
         data?.spectra ?? [],
       providesTags: ["Spectra"],
+    }),
+    // Single spectrum WITH the raw uploaded file (original_file_string), which is
+    // deferred from the source-spectra payload. Fetched on demand for download.
+    fetchSpectrumOriginalFile: build.query<any, number | string>({
+      query: (id) => `/api/spectra/${id}?includeOriginalFile=true`,
     }),
     parseASCIISpectrum: build.mutation<
       RouteData<"POST /api/spectrum/parse/ascii">,
@@ -99,8 +140,10 @@ invalidateOnMessage(REFRESH_SOURCE_SPECTRA, (payload) =>
 );
 
 export const {
+  useGetBulkSpectraQuery,
   useFetchSourceSpectraQuery,
   useLazyFetchSourceSpectraQuery,
+  useLazyFetchSpectrumOriginalFileQuery,
   useParseASCIISpectrumMutation,
   useAddSyntheticPhotometryMutation,
   useDeleteSpectrumMutation,

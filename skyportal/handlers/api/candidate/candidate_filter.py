@@ -110,7 +110,12 @@ class CandidateFilterHandler(BaseHandler):
                 filter_ids,
             )
 
-            page_number, n_per_page = get_page_and_n_per_page(page_number, n_per_page)
+            try:
+                page_number, n_per_page = get_page_and_n_per_page(
+                    page_number, n_per_page
+                )
+            except ValueError as e:
+                return self.error(str(e))
 
             stmt = Candidate.select(session.user_or_token).where(
                 Candidate.filter_id.in_(filter_ids)

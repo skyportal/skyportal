@@ -9,7 +9,7 @@ import { dataUriToBuffer } from "data-uri-to-buffer";
 import Typography from "@mui/material/Typography";
 import Accordion from "@mui/material/Accordion";
 import Grid from "@mui/material/Grid";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CircularProgress from "@mui/material/CircularProgress";
 import embed from "vega-embed";
@@ -40,6 +40,7 @@ import Paper from "../Paper";
 import Spinner from "../Spinner";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useIsReadOnly } from "../../ducks/profile";
 
 dayjs.extend(utc);
 
@@ -81,6 +82,7 @@ interface UploadSpectrumFormProps {
 }
 
 const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
+  const isReadOnly = useIsReadOnly();
   const dispatch = useAppDispatch();
   const groups = useGetGroupsQuery().data?.all ?? null;
   const [parsed, setParsed] = useState<any>(null);
@@ -204,6 +206,10 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
     setHeader(newHeader);
     setData(newData);
   }, [parsed]);
+
+  if (isReadOnly) {
+    return null;
+  }
 
   if (
     !groups ||
@@ -690,7 +696,9 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
             <Typography
               variant="body1"
               color="textSecondary"
-              fontStyle="italic"
+              sx={{
+                fontStyle: "italic",
+              }}
             >
               <b>
                 Form prefilled from URL parameters (the ascii file was

@@ -7,9 +7,11 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
 from ...models import (
+    Classification,
     Obj,
     Photometry,
     PhotStat,
+    Source,
 )
 from ..base import BaseHandler
 
@@ -17,6 +19,31 @@ log = make_log("api/source")
 
 DEFAULT_SOURCES_PER_PAGE = 100
 MAX_SOURCES_PER_PAGE = 500
+
+# Scalar PhotStat columns that can be plotted against one another, with the
+# labels shown in the bulk-statistics UI. Restricting to this allowlist keeps
+# the aggregate endpoint from exposing arbitrary column access.
+PHOT_STAT_PLOT_FIELDS = {
+    "num_obs_global": "Number of observations",
+    "num_det_global": "Number of detections",
+    "first_detected_mjd": "First detection [MJD]",
+    "first_detected_mag": "First detection magnitude",
+    "last_detected_mjd": "Last detection [MJD]",
+    "last_detected_mag": "Last detection magnitude",
+    "peak_mjd_global": "Peak time [MJD]",
+    "peak_mag_global": "Peak magnitude",
+    "mean_mag_global": "Mean magnitude",
+    "faintest_mag_global": "Faintest magnitude",
+    "deepest_limit_global": "Deepest limit",
+    "rise_rate": "Rise rate [mag/day]",
+    "decay_rate": "Decay rate [mag/day]",
+    "mag_rms_global": "Magnitude RMS",
+    "time_to_non_detection": "Time to non-detection [day]",
+}
+
+# Absolute ceiling on returned points, regardless of the requested maxMatches.
+MAX_AGGREGATE_POINTS = 100000
+DEFAULT_AGGREGATE_POINTS = 20000
 
 
 class PhotStatHandler(BaseHandler):
@@ -754,3 +781,239 @@ class PhotStatUpdateHandler(BaseHandler):
             "pageNumber": page_number,
         }
         return self.success(data=results)
+
+
+class PhotStatAggregateHandler(BaseHandler):
+    @auth_or_token
+    async def get(self):
+        """
+        ---
+        summary: Bulk photometry statistics for plotting
+        description: |
+          Return a compact set of PhotStat scalar fields across many accessible
+          sources, optionally down-selected by classification, for bulk
+          visualization (e.g. plotting peak magnitude against rise rate for all
+          sources classified as SN Ia). Each source is colored by its
+          highest-probability classification. Call without xField/yField to get
+          the list of plottable fields only.
+        tags:
+          - photometry
+        parameters:
+          - in: query
+            name: xField
+            schema:
+              type: string
+            description: PhotStat field for the x axis (see the returned `fields`).
+          - in: query
+            name: yField
+            schema:
+              type: string
+            description: PhotStat field for the y axis.
+          - in: query
+            name: zField
+            schema:
+              type: string
+            description: Optional PhotStat field for a third (z) axis.
+          - in: query
+            name: classifications
+            schema:
+              type: string
+            description: |
+              Comma-separated classification names to down-select sources
+              (matches any). Omit to include all accessible sources.
+          - in: query
+            name: classificationProbThreshold
+            schema:
+              type: number
+            description: Only count classifications at or above this probability.
+          - in: query
+            name: group_id
+            schema:
+              type: integer
+            description: |
+              Restrict to sources saved to this group (an alternative to
+              classification-based selection).
+          - in: query
+            name: obj_ids
+            schema:
+              type: string
+            description: |
+              Comma-separated object IDs to restrict to (an alternative to
+              classification-based selection).
+          - in: query
+            name: maxMatches
+            schema:
+              type: integer
+            description: |
+              Maximum number of points to return (default 20000, capped at
+              100000). If more match, the response is truncated.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        fields_meta = [
+            {"value": value, "label": label}
+            for value, label in PHOT_STAT_PLOT_FIELDS.items()
+        ]
+
+        x_field = self.get_query_argument("xField", None)
+        y_field = self.get_query_argument("yField", None)
+        z_field = self.get_query_argument("zField", None)
+
+        # Metadata-only request: let the UI populate its axis dropdowns.
+        if not x_field or not y_field:
+            return self.success(
+                data={
+                    "fields": fields_meta,
+                    "points": [],
+                    "count": 0,
+                    "truncated": False,
+                }
+            )
+
+        to_check = [("xField", x_field), ("yField", y_field)]
+        if z_field:
+            to_check.append(("zField", z_field))
+        for name, value in to_check:
+            if value not in PHOT_STAT_PLOT_FIELDS:
+                return self.error(f"Invalid {name}: {value}")
+
+        classifications = self.get_query_argument("classifications", None)
+        prob_threshold = self.get_query_argument("classificationProbThreshold", None)
+        if prob_threshold is not None:
+            try:
+                prob_threshold = float(prob_threshold)
+            except ValueError:
+                return self.error("classificationProbThreshold must be a number")
+
+        # Alternative source selections (used instead of classification): a group
+        # or an explicit object list.
+        group_id = self.get_query_argument("group_id", None)
+        if group_id is not None:
+            try:
+                group_id = int(group_id)
+            except ValueError:
+                return self.error("group_id must be an integer")
+        obj_ids = self.get_query_argument("obj_ids", None)
+        if obj_ids:
+            obj_ids = [o.strip() for o in obj_ids.split(",") if o.strip()]
+
+        try:
+            max_matches = int(
+                self.get_query_argument("maxMatches", DEFAULT_AGGREGATE_POINTS)
+            )
+        except ValueError:
+            return self.error("maxMatches must be an integer")
+        max_matches = max(1, min(max_matches, MAX_AGGREGATE_POINTS))
+
+        async with self.AsyncSession() as session:
+            # Restrict to sources the user can access, and to classifications
+            # they can see (non-ML), then color by the highest-probability one.
+            # A group or explicit object list narrows the accessible source set.
+            src = Source.select(self.current_user)
+            if group_id is not None:
+                src = src.where(Source.group_id == group_id)
+            if obj_ids:
+                src = src.where(Source.obj_id.in_(obj_ids))
+            accessible_source_obj_ids = sa.select(src.subquery().c.obj_id)
+            accessible_cls = (
+                Classification.select(self.current_user)
+                .where(Classification.ml.is_(False))
+                .subquery()
+            )
+            primary_cls = (
+                sa.select(
+                    accessible_cls.c.obj_id,
+                    accessible_cls.c.classification.label("classification"),
+                )
+                .order_by(
+                    accessible_cls.c.obj_id,
+                    accessible_cls.c.probability.desc().nullslast(),
+                )
+                .distinct(accessible_cls.c.obj_id)
+                .subquery()
+            )
+
+            x_col = getattr(PhotStat, x_field)
+            y_col = getattr(PhotStat, y_field)
+            columns = [
+                Obj.id.label("id"),
+                Obj.ra.label("ra"),
+                Obj.dec.label("dec"),
+                Obj.redshift.label("redshift"),
+                Obj.tns_info.label("tns_info"),
+                PhotStat.first_detected_mjd.label("first_detected_mjd"),
+                PhotStat.peak_mjd_global.label("peak_mjd"),
+                x_col.label("x"),
+                y_col.label("y"),
+                primary_cls.c.classification.label("classification"),
+            ]
+            if z_field:
+                columns.append(getattr(PhotStat, z_field).label("z"))
+
+            query = (
+                sa.select(*columns)
+                .select_from(PhotStat)
+                .join(Obj, Obj.id == PhotStat.obj_id)
+                .outerjoin(primary_cls, primary_cls.c.obj_id == PhotStat.obj_id)
+                .where(PhotStat.obj_id.in_(accessible_source_obj_ids))
+                .where(x_col.isnot(None))
+                .where(y_col.isnot(None))
+            )
+            if z_field:
+                query = query.where(getattr(PhotStat, z_field).isnot(None))
+
+            if classifications:
+                names = [c.strip() for c in classifications.split(",") if c.strip()]
+                if names:
+                    match = sa.select(accessible_cls.c.obj_id).where(
+                        accessible_cls.c.classification.in_(names)
+                    )
+                    if prob_threshold is not None:
+                        match = match.where(
+                            accessible_cls.c.probability >= prob_threshold
+                        )
+                    query = query.where(PhotStat.obj_id.in_(match))
+
+            # Fetch one extra row to detect truncation.
+            rows = (await session.execute(query.limit(max_matches + 1))).all()
+            truncated = len(rows) > max_matches
+            rows = rows[:max_matches]
+
+            points = []
+            for row in rows:
+                point = {
+                    "id": row.id,
+                    "ra": row.ra,
+                    "dec": row.dec,
+                    "redshift": row.redshift,
+                    "classification": row.classification,
+                    # t0 candidates for phase-stacking spectra (SpectraAggregation).
+                    "first_detected_mjd": row.first_detected_mjd,
+                    "peak_mjd": row.peak_mjd,
+                    "tns_discovery_date": (
+                        (row.tns_info or {}).get("discoverydate")
+                        if isinstance(row.tns_info, dict)
+                        else None
+                    ),
+                    "x": row.x,
+                    "y": row.y,
+                }
+                if z_field:
+                    point["z"] = row.z
+                points.append(point)
+
+            return self.success(
+                data={
+                    "fields": fields_meta,
+                    "points": points,
+                    "count": len(points),
+                    "truncated": truncated,
+                }
+            )

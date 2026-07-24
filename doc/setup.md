@@ -17,6 +17,8 @@ When installing SkyPortal on Debian-based systems, 2 additional packages are req
 - libcurl4-gnutls-dev
 - libgnutls28-dev
 
+If you use [Nix](https://nixos.org/), the repository ships a flake that provides the language toolchain (Python, Node.js, `uv`) — see [Nix + direnv](#nix-direnv) below. You will still need to install the system services (PostgreSQL, NGINX, Supervisor) following the platform instructions.
+
 ## Source download, Python environment
 
 First, clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and its submodule [Baselayer](https://github.com/cesium-ml/baselayer/):
@@ -49,6 +51,27 @@ source .venv/bin/activate
 
 If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
 
+<a name="nix-direnv"></a>
+## Nix + direnv (optional)
+
+The repository includes a Nix flake (`flake.nix`) that provides a development shell with Python, Node.js, and `uv`, pinned to exact versions by `flake.lock`. This means every developer — and any CI job or AI coding agent working in the repository — gets the same toolchain, regardless of what is installed system-wide, and entering the shell automatically runs `uv sync` to keep the Python environment up to date.
+
+With [Nix installed](https://nixos.org/download/) (and flakes enabled), enter the shell with:
+
+```
+nix develop
+```
+
+For a smoother workflow, install [direnv](https://direnv.net/) and hook it into your shell. The repository's `.envrc` already contains `use flake`, so after a one-time:
+
+```
+direnv allow
+```
+
+the development shell loads automatically whenever you `cd` into the repository, and unloads when you leave. This also benefits tools that spawn shells on your behalf: editors and AI coding agents (e.g., Claude Code) pick up the pinned toolchain through direnv, so their builds and tests run with the same versions you use, without any manual environment activation.
+
+Note that the flake only covers the language toolchain; system services (PostgreSQL, NGINX, Supervisor) and test/doc dependencies (Geckodriver, graphviz) still need to be installed following the platform instructions below.
+
 ## Installation: MacOS
 
 These instructions assume that you have [Homebrew](http://brew.sh/) installed.
@@ -57,7 +80,7 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 
 Using Homebrew, install core dependencies:
 ```
-brew install supervisor nginx postgresql node llvm libomp gsl rust
+brew install supervisor nginx postgresql node llvm libomp gsl rust bun
 ```
 If you want to use [brotli compression](https://en.wikipedia.org/wiki/Brotli) with NGINX (better compression rates for the frontend), you can install NGINX with the `ngx_brotli` module with this command:
 ```
@@ -151,12 +174,28 @@ alias python='python3'
 source ~/.zshrc
 ```
 ### Checking for Port Availability
-SkyPortal defaults to using port 5000. However, this port may already be in use by MacPorts or other services. To verify if port 5000 is available, use the `lsof` command in the terminal.
+SkyPortal defaults to using port 5000. However, this port may already be in use on MacOS (e.g., by AirPlay Receiver, MacPorts, or other services). To verify port availability, use the `lsof` command in the terminal:
 
 ```
 lsof -i :5000
 ```
-If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port (in `config.yaml`, and if you intend to run the unit tests, then also in `test_config.yaml`).
+If the command outputs information about a service, it means that port 5000 is already in use. In this case, you may need to configure SkyPortal to use a different port by updating the following lines in `config.yaml`:
+
+```yaml
+server:
+  port: 5001  # Change from 5000 to 5001
+
+ports:
+  app: 5001  # Change from 5000 to 5001
+
+docs:
+  servers:
+    - url: http://localhost:5001  # Change from 5000 to 5001
+```
+
+Before switching, verify that your chosen alternative port is itself available (e.g., `lsof -i :5001`).
+
+If you plan to run `make load_demo_data` or the unit tests, also update the port in `test_config.yaml` to match. Port mismatches between the two configs can cause 403 Forbidden errors during demo data loading.
 
 ## Installation: Debian-based Linux and WSL
 
@@ -178,6 +217,12 @@ If the command outputs information about a service, it means that port 5000 is a
 	```
 
 	Otherwise, you can install NGINX normally with `sudo apt-get install nginx`.
+
+	Bun isn't packaged in apt; install it with:
+
+	```
+	curl -fsSL https://bun.sh/install | bash
+	```
 
 2. Configure your database permissions.
 
@@ -231,7 +276,7 @@ If the command outputs information about a service, it means that port 5000 is a
    happen once).
 2. Copy `config.yaml.defaults` to `config.yaml`.
 3. Run `make log` to monitor the service and, in a separate window, `make run` to start the server.
-4. Direct your browser to `http://localhost:5000`.
+4. Direct your browser to `http://localhost:5000` (or `http://localhost:<port>` if you changed the default port in `config.yaml`).
 5. If you want some test data to play with, run `make load_demo_data` (do this while the server is running!).
 6. Change users by navigating to `http://localhost:5000/become_user/<#>` where # is a number from 1-5.
    Different users have different privileges and can see more or less of the demo data.

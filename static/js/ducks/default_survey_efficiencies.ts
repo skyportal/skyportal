@@ -5,6 +5,7 @@
  * Websocket-driven invalidation refetches the list; mutations submit/delete a
  * default survey efficiency.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -16,9 +17,7 @@ export const defaultSurveyEfficienciesApi = skyportalApi.injectEndpoints({
       Record<string, unknown> | void
     >({
       query: (filterParams) => {
-        const params = new URLSearchParams(
-          (filterParams as Record<string, string>) ?? {},
-        ).toString();
+        const params = buildQueryString(filterParams ?? {});
         return params
           ? `api/default_survey_efficiency?${params}`
           : "api/default_survey_efficiency";

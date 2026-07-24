@@ -88,6 +88,7 @@ User Guide
    api
    dev
    deploy
+   observability
    versioning
    data_loader
    contributing
@@ -106,6 +107,7 @@ User Guide
    advanced_usage
    photometric_series
    analysis
+   external_services
    extensions
    pages
    thumbnails

@@ -1,5 +1,6 @@
 from sqlalchemy.orm import selectinload
 
+from baselayer.app import models as baselayer_models
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
 
@@ -203,11 +204,14 @@ class GroupAdmissionRequestHandler(BaseHandler):
                     f"User {user_id} is already a member of group {group_id}"
                 )
             # Ensure user has sufficient stream access for target group
-            if group.streams:
+            if group.streams and "System admin" not in requesting_user.permissions:
+                accessible_stream_ids = {
+                    stream.id for stream in requesting_user.streams
+                }
                 missing_streams = [
                     stream
                     for stream in group.streams
-                    if stream not in requesting_user.accessible_streams
+                    if stream.id not in accessible_stream_ids
                 ]
                 if missing_streams:
                     stream_names = ", ".join(
@@ -217,8 +221,11 @@ class GroupAdmissionRequestHandler(BaseHandler):
                         f"User {user_id} does not have access to the following streams: {stream_names},"
                         f"required to be added to group {group_id}."
                     )
+            auto_accept = bool(group.auto_accept_requests)
             admission_request = GroupAdmissionRequest(
-                user_id=user_id, group_id=group_id, status="pending"
+                user_id=user_id,
+                group_id=group_id,
+                status="accepted" if auto_accept else "pending",
             )
             session.add(admission_request)
 
@@ -229,6 +236,29 @@ class GroupAdmissionRequestHandler(BaseHandler):
                     "Insufficient permissions: group admission requests cannot be made "
                     f"on behalf of others. (Original exception: {e})"
                 )
+
+            if auto_accept:
+                # The group accepts requests automatically. Adding a GroupUser
+                # normally requires group-admin access, so grant membership here
+                # as a system action via an unverified session.
+                async with (
+                    baselayer_models.async_plain_session_factory() as plain_session
+                ):
+                    plain_session.add(
+                        GroupUser(group_id=group_id, user_id=user_id, admin=False)
+                    )
+                    plain_session.add(
+                        UserNotification(
+                            user_id=user_id,
+                            text=f"You've been added to group *{group.name}*",
+                            url=f"/group/{group_id}",
+                        )
+                    )
+                    await plain_session.commit()
+                self.push_all(
+                    action="skyportal/REFRESH_GROUP", payload={"group_id": group_id}
+                )
+                self.flow.push(user_id, "skyportal/FETCH_NOTIFICATIONS", {})
 
             self.push(action="skyportal/FETCH_USER_PROFILE")
             return self.success(data={"id": admission_request.id})

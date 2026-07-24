@@ -558,6 +558,11 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            classification_id = int(classification_id)
+        except (ValueError, TypeError):
+            return self.error(f"Invalid classification ID: {classification_id}")
+
         async with self.AsyncSession() as session:
             c = await session.scalar(
                 Classification.select(session.user_or_token, mode="delete")

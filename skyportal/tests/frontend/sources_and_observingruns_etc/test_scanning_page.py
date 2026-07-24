@@ -127,6 +127,84 @@ def test_candidate_group_filtering(
 
 
 @pytest.mark.flaky(reruns=2)
+def test_candidate_filter_selection(
+    page,
+    user,
+    public_filter,
+    public_group,
+    public_stream,
+    upload_data_token,
+    super_admin_token,
+):
+    # A second filter sharing public_filter's group, so the group holds two
+    # filters. The scanning page can narrow a scan to one of them (needed to
+    # isolate e.g. a broker filter that shares a group with others).
+    filter2_name = f"filterB-{uuid.uuid4().hex[:8]}"
+    status, data = api(
+        "POST",
+        "filters",
+        data={
+            "name": filter2_name,
+            "stream_id": public_stream.id,
+            "group_id": public_group.id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    filter2_id = data["data"]["id"]
+
+    # 3 candidates passing only public_filter, 2 passing only filter2.
+    base = str(uuid.uuid4())
+    for prefix, filter_id, count in (
+        ("a", public_filter.id, 3),
+        ("b", filter2_id, 2),
+    ):
+        for i in range(count):
+            status, _ = api(
+                "POST",
+                "candidates",
+                data={
+                    "id": f"{base}_{prefix}_{i}",
+                    "ra": 234.22,
+                    "dec": -22.33,
+                    "transient": False,
+                    "ra_dis": 2.3,
+                    "passed_at": str(utcnow_naive()),
+                    "filter_ids": [filter_id],
+                },
+                token=upload_data_token,
+            )
+            assert status == 200
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+
+    submit_button = page.locator('//button[text()="Search"]').first
+    submit_button.click()
+
+    # Scanning the whole group shows both filters' candidates (3 + 2).
+    expect(
+        page.locator('//*[contains(., "Found 5 candidates.")]').first
+    ).to_be_visible()
+
+    # Narrow to the second filter only -> just its 2 candidates. This also guards
+    # the backend precedence: groupIDs must be dropped once filterIDs is set,
+    # otherwise the group query would broaden the results back to all 5.
+    filter_input = page.locator("//*[@data-testid='scanFilterSelect']//input").first
+    filter_input.click()
+    filter_input.fill(filter2_name)
+    page.get_by_role("option", name=filter2_name).first.click()
+    submit_button.click()
+
+    expect(
+        page.locator('//*[contains(., "Found 2 candidates.")]').first
+    ).to_be_visible()
+
+
+@pytest.mark.flaky(reruns=2)
 def test_candidate_saved_status_filtering(
     page,
     user,
@@ -459,6 +537,90 @@ def test_candidate_classifications_filtering(
     expect(page.locator(f'//a[@data-testid="{candidate_id}"]').first).to_be_hidden()
 
 
+@pytest.mark.flaky(reruns=2)
+def test_candidate_classifications_filter_searchable(
+    page,
+    user,
+    public_group,
+    taxonomy_token,
+):
+    # A searchable classification filter (issue #4818).
+    status, data = api(
+        "POST",
+        "taxonomy",
+        data={
+            "name": "test taxonomy" + str(uuid.uuid4()),
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/candidates")
+    page.locator("//div[@id='classifications-select']").first.click()
+    # Both options present before searching.
+    expect(page.locator("//li[@data-value='Algol']").first).to_be_visible()
+    expect(page.locator("//li[@data-value='AGN']").first).to_be_visible()
+    # Typing in the search box filters the option list.
+    page.locator('//input[@data-testid="classifications-select-search"]').first.fill(
+        "algol"
+    )
+    expect(page.locator("//li[@data-value='Algol']").first).to_be_visible()
+    expect(page.locator("//li[@data-value='AGN']").first).to_be_hidden()
+
+
+@pytest.mark.flaky(reruns=2)
+def test_candidate_annotations_search(
+    page,
+    view_only_user,
+    public_group,
+    public_candidate,
+    annotation_token,
+):
+    # Per-candidate annotation search on the scanning page (issue #4821).
+    origin = str(uuid.uuid4())[:5]
+    status, data = api(
+        "POST",
+        f"sources/{public_candidate.id}/annotations",
+        data={
+            "obj_id": public_candidate.id,
+            "origin": origin,
+            "data": {"alphafield": 1, "betafield": 2},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    # origins are cached, so wait for the cache to invalidate (5 s in test config)
+    time.sleep(3)
+
+    page.goto(f"/become_user/{view_only_user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+    expect(
+        page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
+    ).to_be_visible()
+
+    # Both annotation entries show before filtering.
+    expect(page.locator('//*[contains(text(),"alphafield:")]').first).to_be_visible()
+    expect(page.locator('//*[contains(text(),"betafield:")]').first).to_be_visible()
+
+    # Filtering to one key hides the other.
+    page.locator('//input[@data-testid="annotationSearchInput"]').first.fill(
+        "alphafield"
+    )
+    expect(page.locator('//*[contains(text(),"alphafield:")]').first).to_be_visible()
+    expect(page.locator('//*[contains(text(),"betafield:")]').first).to_be_hidden()
+
+
 def test_candidate_redshift_filtering(
     page,
     user,
@@ -622,12 +784,11 @@ def test_candidate_date_filtering(
     page.locator(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group2.id}"]'
     ).first.click()
-    start_date_input = page.locator(
-        '//label[text()="Start (Local Time)"]/../div/input'
-    ).first
-    end_date_input = page.locator(
-        "//label[text()='End (Local Time)']/../div/input"
-    ).first
+    # x-date-pickers v9 renders an accessible sectioned field (role="group",
+    # named by its label); the value <input> is now aria-hidden, so target the
+    # section group and type the digits into it.
+    start_date_input = page.get_by_role("group", name="Start (Local Time)").first
+    end_date_input = page.get_by_role("group", name="End (Local Time)").first
 
     minus_2 = now - datetime.timedelta(minutes=2)
     minus_1 = now - datetime.timedelta(minutes=1)
@@ -751,7 +912,9 @@ def test_add_scanning_profile(
     page.locator('//div[@data-testid="profile-name"]//input').first.fill("profile1")
     page.locator('//div[@data-testid="timeRange"]//input').first.fill("48")
 
-    page.locator('//div[@aria-labelledby="savedStatusSelectLabel"]').first.click()
+    page.locator(
+        '//div[@role="combobox" and (@aria-labelledby="savedStatusSelectLabel" or @id="savedStatusSelectLabel")]'
+    ).first.click()
     saved_status_option = "and is saved to at least one group I have access to"
     page.locator(f'//li[text()="{saved_status_option}"]').first.click()
 

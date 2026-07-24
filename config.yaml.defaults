@@ -9,6 +9,13 @@ app:
       https://github.com/skyportal/skyportal
     </a>
 
+  # Anonymous read-only access. When true, visitors who are not signed in are
+  # served as `anonymous_user` (a "View only" account) so pages render without a
+  # login. Write endpoints still 401 because that account holds no write ACLs.
+  # The account is auto-provisioned (in the public group) when this is enabled.
+  anonymous_access: false
+  anonymous_user: anonymous
+
   secret_key: abc01234  # This secret key can be any random string of
                         # characters.
                         #
@@ -76,6 +83,7 @@ app:
   # Set to an empty string to skip the HTTP call and use the
   # "currently_unavailable.png" placeholder (useful in tests).
   ps1_cutout_url: http://ps1images.stsci.edu/cgi-bin/ps1cutouts
+  skymapper_cutout_url: https://api.skymapper.nci.org.au/public/siap/dr4/query
 
   tess_endpoint: https://tess.mit.edu/public/tesstransients/
 
@@ -137,84 +145,114 @@ app:
     - path: "/"
       component: templates/HomePage
       exact: True
+      anonymous_ok: true
+    - path: "/sources"
+      component: source/SourceList
+      anonymous_ok: true
     - path: "/source/:id"
       component: source/Source
+      anonymous_ok: true
+    - path: "/source/:id/finder"
+      component: FindingChart
+      anonymous_ok: true
+    - path: "/source/:id/periodogram"
+      component: Periodogram
+      anonymous_ok: true
+    - path: "/source/:obj_id/analysis/:analysis_id"
+      component: source/SourceAnalysisPage
+      anonymous_ok: true
     - path: "/favorites"
       component: listing/FavoritesPage
     - path: "/groups"
       component: group/Groups
     - path: "/group/:id"
       component: group/Group
-    - path: "/profile"
-      component: user/Profile
+    - path: "/teams"
+      component: team/Teams
+    - path: "/group_sources/:id"
+      component: group/GroupSources
     - path: "/candidates"
       component: candidate/CandidateList
     - path: "/candidates/scan_reports"
       component: candidate/scan_reports/ReportsList
-    - path: "/sources"
-      component: source/SourceList
+    - path: "/profile"
+      component: user/Profile
+    - path: "/brokers"
+      component: broker/BrokerAlerts
+    - path: "/brokers/:brokerId/filter/:fid"
+      component: broker/BrokerFilterPage
+    - path: "/broker_admin"
+      component: broker/BrokerAdmin
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
       component: photometry/UploadPhotometry
-    - path: "/about"
-      component: About
-    - path: "/run/:id"
-      component: observing_run/RunSummary
-    - path: "/source/:obj_id/analysis/:analysis_id"
-      component: source/SourceAnalysisPage
     - path: "/share_data/:id"
       component: source/ShareDataForm
     - path: "/filter/:fid"
       component: filter/Filter
+    - path: "/about"
+      component: About
+      anonymous_ok: true
     - path: "/runs"
       component: observing_run/ObservingRunPage
+    - path: "/run/:id"
+      component: observing_run/RunSummary
     - path: "/allocations"
-      component: allocation/AllocationPage
+      component: allocation/AllocationList
     - path: "/allocation/:id"
-      component: allocation/AllocationSummary
+      component: allocation/Allocation
+    - path: "/instruments"
+      component: instrument/InstrumentList
+      anonymous_ok: true
     - path: "/instrument/:id"
-      component: instrument/InstrumentSummary
+      component: instrument/Instrument
+      anonymous_ok: true
+    - path: "/telescopes"
+      component: telescope/TelescopeList
+      anonymous_ok: true
     - path: "/telescope/:id"
-      component: telescope/TelescopeSummary
+      component: telescope/Telescope
+      anonymous_ok: true
     - path: "/observations"
       component: observation/ObservationPage
     - path: "/galaxies"
       component: galaxy/GalaxyPage
+      anonymous_ok: true
     - path: "/spatial_catalogs"
       component: spatial_catalog/SpatialCatalogPage
+      anonymous_ok: true
     - path: "/followup_requests"
       component: followup_request/FollowupRequestPage
-    - path: "/group_sources/:id"
-      component: group/GroupSources
     - path: "/user_management"
       component: user/UserManagement
     - path: "/upload_spectrum/:id"
       component: spectrum/UploadSpectrum
     - path: "/observability/:id"
       component: source/Observability
-    - path: "/source/:id/finder"
-      component: FindingChart
-    - path: "/source/:id/periodogram"
-      component: Periodogram
+      anonymous_ok: true
     - path: "/db_stats"
       component: DBStats
+    - path: "/source_statistics"
+      component: SourceStatistics
     - path: "/gcn_events"
       component: gcn/GcnEvents
+      anonymous_ok: true
     - path: "/gcn_events/:dateobs"
       component: gcn/GcnEventPage
-    - path: "/telescopes"
-      component: telescope/TelescopePage
-    - path: "/instruments"
-      component: instrument/InstrumentPage
+      anonymous_ok: true
     - path: "/mmadetectors"
       component: mma_detector/MMADetectorPage
     - path: "/earthquakes"
       component: earthquake/EarthquakesPage
+      anonymous_ok: true
     - path: "/earthquakes/:event_id"
       component: earthquake/EarthquakePage
+      anonymous_ok: true
     - path: "/services"
       component: analysis/AnalysisServicePage
+    - path: "/analysis_requests"
+      component: analysis/AnalysisRequestPage
     - path: "/recurring_apis"
       component: RecurringAPIPage
     - path: "/shifts"
@@ -241,14 +279,20 @@ app:
         - name: Dashboard
           icon: Home
           url: /
+          anonymous_ok: true
 
         - name: Sources
           icon: Storage
           url: /sources
+          anonymous_ok: true
 
         - name: Candidates
           icon: Search
           url: /candidates
+
+        - name: Alerts
+          icon: NotificationsActive
+          url: /brokers
 
         - name: Favorites
           icon: Star
@@ -258,6 +302,10 @@ app:
           icon: GroupWork
           url: /groups
 
+        - name: Teams
+          icon: Diversity3
+          url: /teams
+
         - name: Observing Runs
           icon: LocalCafe
           url: /runs
@@ -265,10 +313,15 @@ app:
         - name: GCN Events
           icon: SettingsInputAntenna
           url: /gcn_events
+          anonymous_ok: true
 
         - name: Followup Requests
           icon: WorkOutlined
           url: /followup_requests
+
+        - name: Analysis Requests
+          icon: Analytics
+          url: /analysis_requests
 
         - name: Shifts
           icon: SubwayRounded
@@ -278,9 +331,14 @@ app:
           icon: Troubleshoot
           url: /summary_search
 
+        - name: Source Statistics
+          icon: ScatterPlot
+          url: /source_statistics
+
         - name: About
           icon: Info
           url: /about
+          anonymous_ok: true
 
     - name: Other
       icon: MoreHoriz
@@ -288,10 +346,12 @@ app:
         - name: Telescopes
           icon: MyLocation
           url: /telescopes
+          anonymous_ok: true
 
         - name: Instruments
           icon: Wifi
           url: /instruments
+          anonymous_ok: true
 
         - name: MMADetectors
           icon: Abc
@@ -316,14 +376,17 @@ app:
         - name: Earthquakes
           icon: PieChart
           url: /earthquakes
+          anonymous_ok: true
 
         - name: Galaxies
           icon: TornadoOutlined
           url: /galaxies
+          anonymous_ok: true
 
         - name: Spatial Catalogs
           icon: PhotoSizeSelectLargeOutlined
           url: /spatial_catalogs
+          anonymous_ok: true
 
         - name: Analysis Services
           icon: SentimentSatisfied
@@ -358,6 +421,10 @@ app:
           icon: Group
           permissions: ["Manage users", "System admin"]
           url: /user_management
+        - name: Brokers
+          icon: Hub
+          permissions: ["System admin"]
+          url: /broker_admin
 
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package
@@ -423,6 +490,19 @@ app:
     # the column 1 (zero-indexed) and row 2. Note that each row is by default
     # 150px in height. The row height can be altered in the homepage_grid
     # section above (as well as other grid characteristics).
+    GettingStarted:
+      # Onboarding checklist + guided tour. Shown to every user until they
+      # dismiss it (persisted per-user); reopenable any time. Set show: false to
+      # disable it for a deployment.
+      resizeable: true
+      minW: 2
+      layouts:
+        xlg: [0, 0, 4, 3]
+        lg: [0, 0, 4, 3]
+        md: [0, 0, 4, 3]
+        sm: [0, 0, 6, 3]
+        xs: [0, 0, 4, 3]
+
     WeatherWidget:
       resizeable: true
       minW: 2
@@ -518,6 +598,48 @@ database:
   user: skyportal
   password:
 
+  # Optional transaction-mode connection pooler (pgbouncer/pgcat) between the app
+  # and Postgres, so many processes share a small bounded backend pool instead of
+  # exhausting max_connections. Pooler-agnostic: point `host`/`port` at whichever
+  # pooler you run (the bundled `pgbouncer` service, or an external one).
+  pooler:
+    enabled: false
+    host: localhost
+    port: 6432
+    pool_mode: transaction
+    # Real Postgres backend connections the pooler keeps per user/db.
+    default_pool_size: 25
+    max_client_conn: 1000
+    # Seconds before the pooler force-closes a connection left idle in a
+    # transaction; guards the pool against leaked transactions (0 = disabled).
+    idle_transaction_timeout: 0
+
+# Valkey connection. Valkey speaks the redis protocol, so a standard redis
+# client talks to it directly; these keys are the redis client's host/port/db.
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+
+cache:
+  # When false (default), `get_cache()` returns a no-op cache and nothing uses
+  # Valkey — behavior is unchanged until caching is explicitly enabled.
+  enabled: false
+  ttl:
+    # Default time-to-live (seconds) for cached entries when a caller does not
+    # specify one.
+    default: 300
+
+# Optional: route the source page's photometry fetch through a custom endpoint
+# (e.g. a broker passthrough that merges saved DB photometry with on-demand
+# broker photometry). "{id}" is substituted with the object id; the endpoint
+# must return the same response shape as /api/sources/{id}/photometry (a bare
+# list of serialized points). Null (default) uses the standard endpoint.
+# To display broker-augmented photometry, point this at the survey-addressed
+# broker passthrough, e.g.:
+#   photometry_display_endpoint: "/api/brokers/photometry/{id}?survey=ZTF"
+photometry_display_endpoint:
+
 server:
   # From https://console.developers.google.com/
   #
@@ -577,6 +699,27 @@ server:
 services:
   dask: False
 
+# Alert brokers (BOOM, Kowalski, Fink, Lasair, ...) are configured at runtime as
+# `Broker` database records (name + provider class + encrypted credentials), not
+# here; see doc/broker_plugins.md. Providers are registered in
+# skyportal/broker_apis/.
+brokers:
+  # Run the in-core ingestion service (services/broker_ingest): for each active
+  # broker whose provider implements run_ingestion, consume its stream and ingest
+  # alerts via the shared save transform. Off by default; interactive access
+  # (the /brokers alerts page) works regardless of this setting.
+  ingest_enabled: False
+
+# BOOM-specific settings. The filter builder's user-created modules (variables,
+# list variables, switch cases, blocks) live in BOOM's own MongoDB store, not in
+# skyportal's database. Point this at that store, or set the equivalent
+# `filter_modules_mongodb_uri`/`filter_modules_database` keys on the broker
+# record's altdata; left unset, the builder shows no saved modules.
+boom:
+  filter_modules:
+    mongodb_uri: null
+    database: null
+
 misc:
   days_to_keep_unsaved_candidates: 7
   days_to_keep_finding_charts_cache: 30
@@ -632,6 +775,15 @@ weather:
   # for each telescope
   openweather_api_key:
 
+across:
+  # NASA ACROSS joint-visibility integration. Uses the public, unauthenticated
+  # ACROSS API to compute per-instrument visibility for a source; joint windows
+  # are intersected locally. See https://across.sciencecloud.nasa.gov
+  api_url: https://api.across.sciencecloud.nasa.gov/v1
+  # hi_res=true routinely exceeds the ACROSS gateway timeout; keep it off.
+  hi_res: False
+  request_timeout: 20.0
+
 external_logging:
   papertrail:
     # get an account at https://papertrailapp.com
@@ -652,6 +804,16 @@ external_logging:
     # of sampled transactions.
     # We recommend adjusting this value in production.
     profiles_sample_rate: 1.0
+
+observability:
+  # Enable OpenTelemetry instrumentation of the Tornado app and expose request
+  # metrics in Prometheus format at /api/internal/metrics. The endpoint requires
+  # a System admin token (scrape with `Authorization: token <id>`). Each app
+  # worker serves its own metrics on its internal port (ports.app_internal +
+  # worker number); point Prometheus at those ports directly rather than the
+  # load-balanced public endpoint. Disabled by default.
+  enabled: False
+  service_name: skyportal
 
 cron:
   # - interval: 60
@@ -764,11 +926,8 @@ ports:
   app: 5000 # This is the internal port
   # migration_manager port is already defined in baselayer config.yaml.defaults, but can be overridden here
   # migration_manager:
-  facility_queue: 64510
   notification_queue: 64610
-  observation_plan_queue: 64710
   tns_retrieval_queue: 64810
-  sharing_service_submission_queue: 64812
 
 hosts:
   # Hostnames the application uses to reach its internal microservices. These
@@ -803,16 +962,13 @@ gcn:
       - gcn.classic.voevent.FERMI_GBM_SUBTHRESH
       - gcn.classic.voevent.SWIFT_BAT_GRB_POS_ACK
       - gcn.classic.voevent.SWIFT_XRT_POSITION
-      - gcn.classic.voevent.LVC_PRELIMINARY
-      - gcn.classic.voevent.LVC_INITIAL
-      - gcn.classic.voevent.LVC_UPDATE
-      - gcn.classic.voevent.LVC_RETRACTION
       # - gcn.classic.voevent.AMON_ICECUBE_COINC
       # - gcn.classic.voevent.AMON_ICECUBE_HESE
       - gcn.classic.voevent.ICECUBE_ASTROTRACK_GOLD
       - gcn.classic.voevent.ICECUBE_ASTROTRACK_BRONZE
       # - gcn.classic.voevent.MAXI_UNKNOWN
     json:
+      - igwn.gwalert
       - gcn.notices.einstein_probe.wxt.alert
       - gcn.notices.swift.bat.guano
       # - gcn.notices.icecube.lvk_nu_track_search

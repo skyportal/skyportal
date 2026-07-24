@@ -94,18 +94,30 @@ def add_queued_observations(instrument_id, obstable):
     else:
         session = Session(bind=DBSession.session_factory.kw["bind"])
 
+    # Schedulers that report pointings by position (e.g. Rubin ObsLocTAP) rather
+    # than a fixed field grid: create the fields on the fly, as add_observations does.
+    if ("RA" in obstable) and ("Dec" in obstable) and not ("field_id" in obstable):
+        instrument = session.get(Instrument, instrument_id)
+        regions = Regions.parse(instrument.region, format="ds9")
+        field_ids = add_tiles(
+            instrument.id,
+            instrument.name,
+            regions,
+            obstable[["RA", "Dec"]],
+            session=session,
+        )
+        obstable["field_id"] = field_ids
+
     try:
         observations = []
         for index, row in obstable.iterrows():
             field_id = int(row["field_id"])
-            field = (
-                session.query(InstrumentField)
-                .filter(
+            field = session.scalars(
+                sa.select(InstrumentField).where(
                     InstrumentField.instrument_id == instrument_id,
                     InstrumentField.field_id == field_id,
                 )
-                .first()
-            )
+            ).first()
             if field is None:
                 return log(
                     f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
@@ -167,7 +179,7 @@ def add_observations(instrument_id, obstable):
 
     # if the fields do not yet exist, we need to add them
     if ("RA" in obstable) and ("Dec" in obstable) and not ("field_id" in obstable):
-        instrument = session.query(Instrument).get(instrument_id)
+        instrument = session.get(Instrument, instrument_id)
         regions = Regions.parse(instrument.region, format="ds9")
         field_data = obstable[["RA", "Dec"]]
         field_ids = add_tiles(
@@ -794,9 +806,12 @@ async def get_observations(
     t0 = time.time()
     # eager-load `field` relationship for serialization below.
     # also undefer `contour_summary` when GeoJSON is requested.
-    field_load = joinedload(Observation.field)
     if includeGeoJSON:
-        field_load = field_load.undefer(InstrumentField.contour_summary)
+        field_load = selectinload(Observation.field).undefer(
+            InstrumentField.contour_summary
+        )
+    else:
+        field_load = joinedload(Observation.field)
     obs_query = obs_query.options(field_load)
     observations_result = await session.scalars(obs_query)
     observations = observations_result.unique().all()
@@ -1117,7 +1132,20 @@ class ObservationHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfExecutedObservations
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              observations:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/ExecutedObservation'
+                              totalMatches:
+                                type: integer
             400:
               content:
                 application/json:
@@ -1451,7 +1479,7 @@ class ObservationExternalAPIHandler(BaseHandler):
             try:
                 # we now retrieve and commit to the database the
                 # executed observations
-                instrument.api_class_obsplan.retrieve(
+                await instrument.api_class_obsplan.retrieve(
                     allocation, data["start_date"], data["end_date"]
                 )
                 self.push_notification(
@@ -1552,7 +1580,7 @@ class ObservationExternalAPIHandler(BaseHandler):
             try:
                 # we now retrieve and commit to the database the
                 # executed observations
-                queue_names = instrument.api_class_obsplan.queued(
+                queue_names = await instrument.api_class_obsplan.queued(
                     allocation,
                     data["start_date"],
                     data["end_date"],
@@ -1633,7 +1661,7 @@ class ObservationExternalAPIHandler(BaseHandler):
                 return self.error("Cannot delete queues from this Instrument.")
 
             try:
-                instrument.api_class_obsplan.remove_queue(
+                await instrument.api_class_obsplan.remove_queue(
                     allocation, queue_name, self.associated_user_object.username
                 )
                 return self.success()

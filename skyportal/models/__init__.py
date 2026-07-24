@@ -6,6 +6,7 @@ from .allocation import *
 from .analysis import *
 from .annotation import *
 from .assignment import *
+from .broker import *
 from .candidate import *
 from .classification import *
 from .comment import *
@@ -52,6 +53,7 @@ from .super_obj import *
 from .survey_efficiency import *
 from .tag import *
 from .taxonomy import *
+from .team import *
 from .telescope import *
 from .thumbnail import *
 from .user_notification import *

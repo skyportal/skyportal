@@ -35,6 +35,7 @@ export interface Profile {
   groups: any[];
   tokens?: any[];
   groupAdmissionRequests?: any[];
+  is_anonymous?: boolean;
   [key: string]: any;
 }
 
@@ -140,3 +141,14 @@ export const {
   useUpdateTokenMutation,
   useDeleteTokenMutation,
 } = profileApi;
+
+// True when the current request is served as the read-only anonymous account.
+// Drives the login-vs-account UI (a logged-in "View only" user is NOT anonymous).
+export const useIsAnonymous = (): boolean =>
+  !!useGetProfileQuery().data?.is_anonymous;
+
+// True for any user with no write ACLs (the anonymous account AND logged-in
+// "View only" users). Use to hide write/action UI that isn't already gated on a
+// specific ACL. Defaults to read-only while the profile is loading.
+export const useIsReadOnly = (): boolean =>
+  (useGetProfileQuery().data?.permissions?.length ?? 0) === 0;
