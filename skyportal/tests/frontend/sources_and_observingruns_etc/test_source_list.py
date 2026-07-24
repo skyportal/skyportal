@@ -342,7 +342,6 @@ def test_hr_diagram(page, user, public_group, upload_data_token, annotation_toke
         "POST",
         f"sources/{source_id}/annotations",
         data={
-            "obj_id": source_id,
             "origin": "gaiadr3.gaia_source",
             "data": {"Mag_G": 11.3, "Mag_Bp": 11.8, "Mag_Rp": 11.0, "Plx": 20},
         },

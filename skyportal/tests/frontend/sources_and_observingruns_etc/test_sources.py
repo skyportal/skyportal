@@ -568,7 +568,6 @@ def test_source_hr_diagram(page, user, public_source, annotation_token, tmp_path
         "POST",
         f"sources/{public_source.id}/annotations",
         data={
-            "obj_id": public_source.id,
             "origin": "gaiadr3.gaia_source",
             "data": {"Mag_G": 11.3, "Mag_Bp": 12.8, "Mag_Rp": 11.0, "Plx": 20},
         },

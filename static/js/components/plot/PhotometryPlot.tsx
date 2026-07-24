@@ -214,13 +214,12 @@ const PeriodAnnotationDialog = ({
 
   const submitPeriodAnnotation = async ({ formData }: { formData: any }) => {
     const periodData = {
-      obj_id,
       origin: formData.origin,
       data: {
         period:
           formData.period / (periodUnitDividers[formData.periodUnitValue] ?? 1),
       },
-      groups: formData.groupIDs,
+      group_ids: formData.groupIDs,
     };
     addAnnotation({ sourceID: obj_id, formData: periodData })
       .unwrap()

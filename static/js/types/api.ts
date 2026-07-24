@@ -17701,28 +17701,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description String describing the source of this information.
-                         *     Only one Annotation per origin is allowed, although
-                         *     each Annotation can have multiple fields.
-                         *     To add/change data, use the update method instead
-                         *     of trying to post another Annotation from this origin.
-                         *     Origin must be a non-empty string starting with an
-                         *     alphanumeric character or underscore.
-                         *     (it must match the regex: /^\w+/)
-                         */
-                        origin: string;
-                        data: Record<string, never>;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view annotation. Defaults to all of requesting user's
-                         *     groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["AnnotationPostBody"];
                 };
             };
             responses: {
@@ -17732,10 +17713,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New annotation ID */
-                                annotation_id?: number;
-                            };
+                            data?: components["schemas"]["AnnotationPostResponse"];
                         };
                     };
                 };
@@ -38246,6 +38224,41 @@ export interface components {
             localization_id: number;
             /** @description Integrated probability within skymap. */
             integrated_probability?: number;
+        };
+        /**
+         * AnnotationPostBody
+         * @description Request body for posting an annotation.
+         */
+        AnnotationPostBody: {
+            /**
+             * Origin
+             * @description String describing the source of this information. Only one Annotation per origin is allowed, although each Annotation can have multiple fields. To add/change data, use the update method instead of trying to post another Annotation from this origin. Origin must be a non-empty string starting with an alphanumeric character or underscore (it must match the regex: /^\w+/).
+             */
+            origin: string;
+            /**
+             * Data
+             * @description Annotation data as {key: value} pairs.
+             */
+            data: {
+                [key: string]: unknown;
+            };
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view annotation. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * AnnotationPostResponse
+         * @description Data payload returned when posting an annotation.
+         */
+        AnnotationPostResponse: {
+            /**
+             * Annotation Id
+             * @description New annotation ID
+             */
+            annotation_id: number;
         };
         SpatialCatalogASCIIFileHandlerPost: {
             /** @description Spatial catalog name. */
