@@ -10880,12 +10880,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description One of either 'accepted', 'declined', or 'pending'. */
-                        status: string;
-                    };
+                    "application/json": components["schemas"]["GroupAdmissionRequestPatchBody"];
                 };
             };
             responses: {
@@ -10954,12 +10951,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        groupID: number;
-                        userID: number;
-                    };
+                    "application/json": components["schemas"]["GroupAdmissionRequestPostBody"];
                 };
             };
             responses: {
@@ -10969,10 +10963,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New group admission request ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["GroupAdmissionRequestPostResponse"];
                         };
                     };
                 };
@@ -38179,6 +38170,45 @@ export interface components {
             contour?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * GroupAdmissionRequestPostBody
+         * @description Request body for creating a group admission request.
+         */
+        GroupAdmissionRequestPostBody: {
+            /**
+             * Groupid
+             * @description ID of the group to request admission to
+             */
+            groupID: number;
+            /**
+             * Userid
+             * @description ID of the user requesting admission
+             */
+            userID: number;
+        };
+        /**
+         * GroupAdmissionRequestPostResponse
+         * @description Data payload returned when creating a group admission request.
+         */
+        GroupAdmissionRequestPostResponse: {
+            /**
+             * Id
+             * @description New group admission request ID
+             */
+            id: number;
+        };
+        /**
+         * GroupAdmissionRequestPatchBody
+         * @description Request body for updating a group admission request's status.
+         */
+        GroupAdmissionRequestPatchBody: {
+            /**
+             * Status
+             * @description One of either 'accepted', 'declined', or 'pending'.
+             * @enum {string}
+             */
+            status: "pending" | "accepted" | "declined";
         };
         ObservationHandlerPost: {
             /** @description The telescope name associated with the fields */

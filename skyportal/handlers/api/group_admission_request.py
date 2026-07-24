@@ -1,3 +1,6 @@
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app import models as baselayer_models
@@ -6,6 +9,31 @@ from baselayer.app.custom_exceptions import AccessError
 
 from ...models import Group, GroupAdmissionRequest, GroupUser, User, UserNotification
 from ..base import BaseHandler
+
+
+class GroupAdmissionRequestPostBody(BaseModel):
+    """Request body for creating a group admission request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    groupID: int = Field(description="ID of the group to request admission to")
+    userID: int = Field(description="ID of the user requesting admission")
+
+
+class GroupAdmissionRequestPostResponse(BaseModel):
+    """Data payload returned when creating a group admission request."""
+
+    id: int = Field(description="New group admission request ID")
+
+
+class GroupAdmissionRequestPatchBody(BaseModel):
+    """Request body for updating a group admission request's status."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["pending", "accepted", "declined"] = Field(
+        description="One of either 'accepted', 'declined', or 'pending'."
+    )
 
 
 class GroupAdmissionRequestHandler(BaseHandler):
@@ -113,7 +141,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.success(data=response_data)
 
     @auth_or_token
-    async def post(self):
+    async def post(
+        self, *, body: GroupAdmissionRequestPostBody = None
+    ) -> GroupAdmissionRequestPostResponse:
         """
         ---
         summary: Create a group admission request
@@ -121,50 +151,10 @@ class GroupAdmissionRequestHandler(BaseHandler):
         tags:
           - groups
           - users
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  groupID:
-                    type: integer
-                  userID:
-                    type: integer
-                required:
-                  - groupID
-                  - userID
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New group admission request ID
         """
-        data = self.get_json()
-        user_id = data.get("userID")
-        group_id = data.get("groupID")
-        if user_id is None:
-            return self.error("Missing required parameter `userID`")
-        if group_id is None:
-            return self.error("Missing required parameter `groupID`")
-        try:
-            user_id = int(user_id)
-        except ValueError:
-            return self.error("Invalid `userID` parameter; unable to parse to int")
-        try:
-            group_id = int(group_id)
-        except ValueError:
-            return self.error("Invalid `groupID` parameter; unable to parse to int")
+        body = self.parse_body(GroupAdmissionRequestPostBody)
+        user_id = body.userID
+        group_id = body.groupID
 
         async with self.AsyncSession() as session:
             group = await session.scalar(
@@ -264,7 +254,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.success(data={"id": admission_request.id})
 
     @permissions(["Upload data"])
-    async def patch(self, admission_request_id: int):
+    async def patch(
+        self, admission_request_id: int, *, body: GroupAdmissionRequestPatchBody = None
+    ):
         """
         ---
         summary: Update a group admission request status
@@ -278,31 +270,14 @@ class GroupAdmissionRequestHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    description: One of either 'accepted', 'declined', or 'pending'.
-                required:
-                  - status
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-        data = self.get_json()
-        status = data.get("status")
-        if status is None:
-            return self.error("Missing required parameter `status`")
-        if status not in ["pending", "accepted", "declined"]:
-            return self.error(
-                "Invalid 'status' value - should be one of either 'accepted', 'declined', or 'pending'"
-            )
+        body = self.parse_body(GroupAdmissionRequestPatchBody)
+        status = body.status
 
         try:
             admission_request_id = int(admission_request_id)
