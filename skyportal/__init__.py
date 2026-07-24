@@ -1,6 +1,15 @@
 __version__ = "1.4.0"
 
 try:
+    # Once the IERS_Auto predictive values age past auto_max_age (30 days),
+    # astropy re-downloads the table on every time/coordinate calculation and
+    # raises if that fails - stalling request handlers for minutes before
+    # erroring. Disable the age check; the sub-arcsecond drift on stale tables
+    # does not matter for observability calculations.
+    from astropy.utils.iers import conf as iers_conf
+
+    iers_conf.auto_max_age = None
+
     # Monkey-patch matplotlib for simsurvey compatibility with matplotlib >= 3.8
     # simsurvey imports matplotlib.docstring which was renamed to matplotlib._docstring
     import matplotlib
