@@ -68,3 +68,67 @@ def test_invalid_flux_handling(flux_value):
 def test_no_extinction_for_invalid_filter():
     corrected_flux = deredden_flux(100.0, 180.0, 45.0, "invalid_filter", Rv=3.1)
     assert corrected_flux is None
+
+
+def test_deredden_photometry_df_matches_per_filter_law():
+    """The analysis-handler helper must deredden a photometry frame with the
+    same per-filter A_lambda used elsewhere: mag -> mag - A, flux -> flux *
+    10**(0.4 A), leaving magerr and unsupported/NaN values untouched."""
+    import pandas as pd
+
+    from skyportal.handlers.api.analysis import deredden_photometry_df
+
+    ra, dec = 150.0, 2.5
+    a_g = calculate_extinction(ra, dec, "ztfg")
+    a_r = calculate_extinction(ra, dec, "ztfr")
+
+    df = pd.DataFrame(
+        {
+            "mjd": [59000.0, 59001.0, 59002.0],
+            "flux": [100.0, 50.0, np.nan],  # last row is a non-detection
+            "fluxerr": [10.0, 5.0, 8.0],
+            "mag": [20.0, 20.75, np.nan],
+            "magerr": [0.1, 0.11, np.nan],
+            "filter": ["ztfg", "ztfr", "ztfg"],
+            "limiting_mag": [np.nan, np.nan, 21.0],
+        }
+    )
+    out = deredden_photometry_df(df.copy(), ra, dec)
+
+    assert out["mag"][0] == pytest.approx(20.0 - a_g)
+    assert out["mag"][1] == pytest.approx(20.75 - a_r)
+    assert out["flux"][0] == pytest.approx(100.0 * 10 ** (0.4 * a_g))
+    assert out["fluxerr"][0] == pytest.approx(10.0 * 10 ** (0.4 * a_g))
+    assert out["limiting_mag"][2] == pytest.approx(21.0 - a_g)  # non-detection UL
+    assert np.isnan(out["mag"][2])  # masked mag stays masked
+    assert out["magerr"][0] == 0.1  # magnitude errors unchanged
+
+
+def test_deredden_photometry_df_noop_without_coordinates():
+    """No coordinates -> return the frame unchanged rather than guessing."""
+    import pandas as pd
+
+    from skyportal.handlers.api.analysis import deredden_photometry_df
+
+    df = pd.DataFrame({"mag": [20.0], "flux": [100.0], "filter": ["ztfg"]})
+    out = deredden_photometry_df(df.copy(), None, None)
+    assert out["mag"][0] == 20.0
+    assert out["flux"][0] == 100.0
+
+
+def test_correct_extinction_is_a_reserved_analysis_parameter():
+    """correct_extinction is consumed by SkyPortal, so it is accepted for any
+    service without appearing in that service's optional_analysis_parameters."""
+    from skyportal.handlers.api.analysis import unknown_analysis_parameters
+
+    oap = {"source": ["Arnett"], "tmax": {}}
+    # reserved key allowed even though the service never declared it
+    assert unknown_analysis_parameters({"correct_extinction": True}, oap) == set()
+    assert (
+        unknown_analysis_parameters(
+            {"source": "Arnett", "correct_extinction": True}, oap
+        )
+        == set()
+    )
+    # genuinely unknown keys are still rejected
+    assert unknown_analysis_parameters({"bogus": 1}, oap) == {"bogus"}
