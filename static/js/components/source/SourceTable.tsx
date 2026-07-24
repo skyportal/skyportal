@@ -100,8 +100,15 @@ const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 // tsc; cast to any so call sites don't need to pass it.
 const StyledDataGrid: any = StyledDataGridBase;
 
-// Page-size options preserved from the previous mui-datatables config.
-const PAGE_SIZE_OPTIONS = [1, 5, 10, 25, 50, 75, 100, 200];
+// Page-size options preserved from the previous mui-datatables config. The
+// community DataGrid throws above MAX_PAGE_SIZE (100), so stop there.
+const PAGE_SIZE_OPTIONS = [1, 5, 10, 25, 50, 75, 100];
+
+// Shared empty defaults. Inline `= []` / `= {}` defaults allocate a new value on
+// every render, which permanently invalidates the `columns` memo below (it
+// depends on them) and forces the grid to rebuild every column each render.
+const EMPTY_ARRAY: any[] = [];
+const EMPTY_OBJECT: Record<string, any> = {};
 
 // Map each DataGrid column `field` to the field name the server expects for
 // sorting. Columns absent from this map are not server-sortable.
@@ -627,7 +634,7 @@ const SourceTable = ({
   sortingCallback = null,
   downloadCallback = null,
   includeGcnStatus = false,
-  sourceInGcnFilter = {},
+  sourceInGcnFilter = EMPTY_OBJECT,
   gcnEventDateobs = null,
   fixedHeader = false,
 }: SourceTableProps) => {
@@ -640,7 +647,7 @@ const SourceTable = ({
   const [fetchPendingGroupSourcesTrigger] =
     useLazyFetchPendingGroupSourcesQuery();
   const [fetchSavedGroupSourcesTrigger] = useLazyFetchSavedGroupSourcesQuery();
-  const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
+  const { data: taxonomyList = EMPTY_ARRAY } = useGetTaxonomiesQuery();
 
   const { classes } = useStyles() as { classes: any };
 
@@ -663,7 +670,7 @@ const SourceTable = ({
   const { data: gcnEvent } = useGetGcnEventQuery(gcnEventDateobs as string, {
     skip: !gcnEventDateobs,
   });
-  const { data: sourcesingcn = [] } = useGetSourcesInGcnQuery(
+  const { data: sourcesingcn = EMPTY_ARRAY } = useGetSourcesInGcnQuery(
     {
       dateobs: gcnEvent?.dateobs as string,
       localizationName: sourceInGcnFilter?.localizationName,
@@ -671,7 +678,7 @@ const SourceTable = ({
     },
     { skip: !includeGcnStatus || !gcnEvent?.dateobs || !sources },
   );
-  const { data: tagOptions = [] } = useGetTagOptionsQuery();
+  const { data: tagOptions = EMPTY_ARRAY } = useGetTagOptionsQuery();
   // Available annotation origin/key pairs, keyed by origin: { origin: [{ key: type }] }
   const { data: annotationsInfo } = useGetAnnotationsInfoQuery(undefined);
   // Distinct top-level altdata keys: { keys: [{ key: type }] }
@@ -827,6 +834,11 @@ const SourceTable = ({
   );
 
   const handlePaginationModelChange = (model: any) => {
+    // The grid also emits this when it merely clamps an out-of-range page, so
+    // ignore no-op changes: refetching on those loops back into the grid.
+    if (model.page === pageNumber - 1 && model.pageSize === rowsPerPage) {
+      return;
+    }
     setRowsPerPage(model.pageSize);
     setLoading(true);
     paginateCallback(
@@ -1639,6 +1651,15 @@ const SourceTable = ({
     [],
   );
 
+  // Must be a stable object. An inline literal re-runs the grid's pagination
+  // sync effect every render, and while the model is out of range (e.g. a page
+  // size change lands before the new page of results does) the grid re-emits
+  // onPaginationModelChange each time, looping back through paginateCallback.
+  const paginationModel = useMemo(
+    () => ({ page: pageNumber - 1, pageSize: rowsPerPage }),
+    [pageNumber, rowsPerPage],
+  );
+
   const handleSearchChange = (text: any) => {
     const data: any = {
       ...filterFormData,
@@ -1950,10 +1971,7 @@ const SourceTable = ({
                 paginationMode="server"
                 sortingMode="server"
                 rowCount={totalMatches}
-                paginationModel={{
-                  page: pageNumber - 1,
-                  pageSize: rowsPerPage,
-                }}
+                paginationModel={paginationModel}
                 onPaginationModelChange={handlePaginationModelChange}
                 sortModel={sortModel}
                 onSortModelChange={handleSortModelChange}
