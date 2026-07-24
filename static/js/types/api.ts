@@ -16708,12 +16708,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description List of IDs of groups to indicate labelling for */
-                        groupIds: number[];
-                    };
+                    "application/json": components["schemas"]["SourceLabelsPostBody"];
                 };
             };
             responses: {
@@ -16740,12 +16737,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description List of IDs of groups to indicate scanning for */
-                        groupIds: number[];
-                    };
+                    "application/json": components["schemas"]["SourceLabelsDeleteBody"];
                 };
             };
             responses: {
@@ -38254,6 +38248,28 @@ export interface components {
             localization_id: number;
             /** @description Integrated probability within skymap. */
             integrated_probability?: number;
+        };
+        /**
+         * SourceLabelsPostBody
+         * @description Request body for labelling a source.
+         */
+        SourceLabelsPostBody: {
+            /**
+             * Groupids
+             * @description List of IDs of groups to indicate labelling for
+             */
+            groupIds: number[];
+        };
+        /**
+         * SourceLabelsDeleteBody
+         * @description Request body for deleting source labels.
+         */
+        SourceLabelsDeleteBody: {
+            /**
+             * Groupids
+             * @description List of IDs of groups to indicate scanning for
+             */
+            groupIds: number[];
         };
         /**
          * AnnotationPostBody
