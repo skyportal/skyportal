@@ -15,7 +15,9 @@ server:
   # microservices and Firefox. Keep the process count small to reduce CPU/memory
   # starvation (which otherwise shows up as nginx 504s and 30s+ UI timeouts).
   processes: 2
-  dedicated_frontend_processes: 1
+  # both workers serve the API, else one 504 makes nginx fall back to the status server (405s) for all tests
+  dedicated_frontend_processes: 0
+  fail_timeout: 1 # keep that fallback window short
   auth:
     debug_login: True
     google_oauth2_key:
