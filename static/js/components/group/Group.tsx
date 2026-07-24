@@ -138,7 +138,9 @@ const Group = () => {
           isAdmin={isAdmin}
         />
       )}
-      {tab === 1 && <GroupSources route={{ id: id as string }} />}
+      {/* key: this stays mounted across group -> group navigation, so remount to
+          reset the queries and table state onto the new group. */}
+      {tab === 1 && <GroupSources key={id} route={{ id: id as string }} />}
       {tab === 2 && (
         <GroupFiltersStreams
           group={group}
