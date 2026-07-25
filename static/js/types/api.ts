@@ -17495,15 +17495,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["AnnotationNoID"] & {
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view the annotation.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["AnnotationPutBody"];
                 };
             };
             responses: {
@@ -17683,15 +17677,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["AnnotationNoID"] & {
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view the annotation.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["AnnotationPutBody"];
                 };
             };
             responses: {
@@ -38424,6 +38412,32 @@ export interface components {
              * @description New annotation ID
              */
             annotation_id: number;
+        };
+        /**
+         * AnnotationPutBody
+         * @description Request body for updating an annotation.
+         */
+        AnnotationPutBody: {
+            /**
+             * Data
+             * @description Annotation data as {key: value} pairs.
+             * @default null
+             */
+            data: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Origin
+             * @description String describing the source of this information.
+             * @default null
+             */
+            origin: string | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view the annotation.
+             * @default null
+             */
+            group_ids: number[] | null;
         };
         /**
          * SourceGroupsPostBody
