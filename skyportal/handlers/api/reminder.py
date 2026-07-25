@@ -1,5 +1,5 @@
 import arrow
-from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
@@ -22,6 +22,68 @@ from ...models import (
     UserNotification,
 )
 from ..base import BaseHandler
+
+
+class ReminderPostBody(BaseModel):
+    """Request body for creating reminder(s)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(description="Text to post for the reminder")
+    next_reminder: str = Field(
+        description="Arrow-parseable date string for the next reminder"
+    )
+    reminder_delay: float = Field(
+        default=1, description="Delay until the next reminder in days"
+    )
+    number_of_reminders: int = Field(
+        default=1, description="Number of remaining reminders"
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view reminder. Defaults to all of requesting user's groups.",
+    )
+    user_ids: list[int] | None = Field(
+        default=None,
+        description="List of IDs of users to post the reminder for. Defaults to "
+        "the requesting user.",
+    )
+
+
+class ReminderPostResponse(BaseModel):
+    """IDs of the newly created reminders."""
+
+    reminder_ids: list[int] = Field(
+        description="IDs of the new reminders (one per user)"
+    )
+
+
+class ReminderPatchBody(BaseModel):
+    """Request body for updating a reminder."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str | None = Field(default=None, description="Text to post for the reminder")
+    next_reminder: str | None = Field(
+        default=None, description="Arrow-parseable date string for the next reminder"
+    )
+    reminder_delay: float | None = Field(
+        default=None, description="Delay until the next reminder in days"
+    )
+    number_of_reminders: int | None = Field(
+        default=None, description="Number of remaining reminders"
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be "
+        "able to view reminder. Defaults to all of requesting user's groups.",
+    )
+    user_ids: list[int] | None = Field(
+        default=None,
+        description="List of IDs of users the reminder is for. Defaults to "
+        "the requesting user.",
+    )
 
 
 def _coerce_resource_id(associated_resource_type, resource_id):
@@ -384,8 +446,12 @@ class ReminderHandler(BaseHandler):
 
     @permissions(["Reminder"])
     async def post(
-        self, associated_resource_type: str, resource_id: str, *ignored_args
-    ):
+        self,
+        associated_resource_type: str,
+        resource_id: str,
+        *ignored_args,
+        body: ReminderPostBody = None,
+    ) -> ReminderPostResponse:
         """
         ---
         summary: Post a reminder
@@ -412,39 +478,6 @@ class ReminderHandler(BaseHandler):
                that the reminder is posted to.
                This would be a string for a source ID
                or an integer for a spectrum.
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  text:
-                    type: string
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups should be
-                      able to view reminder. Defaults to all of requesting user's
-                      groups.
-                required:
-                  - text
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            reminder_id:
-                              type: integer
-                              description: New reminder ID
         """
         coerced_resource_id, err = _coerce_resource_id(
             associated_resource_type, resource_id
@@ -452,16 +485,15 @@ class ReminderHandler(BaseHandler):
         if err is not None:
             return self.error(err)
 
-        data = self.get_json()
+        body = self.parse_body(ReminderPostBody)
 
-        reminder_text = data.get("text")
-        next_reminder = data.get("next_reminder")
-        next_reminder = arrow.get(next_reminder).datetime.replace(tzinfo=None)
-        reminder_delay = data.get("reminder_delay", 1)
-        number_of_reminders = data.get("number_of_reminders", 1)
+        reminder_text = body.text
+        next_reminder = arrow.get(body.next_reminder).datetime.replace(tzinfo=None)
+        reminder_delay = body.reminder_delay
+        number_of_reminders = body.number_of_reminders
         async with self.AsyncSession() as session:
             try:
-                group_ids = data.pop("group_ids", None)
+                group_ids = body.group_ids
                 if not group_ids:
                     group_ids = [g.id for g in self.current_user.accessible_groups]
                 elif not set(group_ids).issubset(
@@ -475,7 +507,7 @@ class ReminderHandler(BaseHandler):
                 )
                 groups = groups_result.all()
 
-                user_ids = data.pop("user_ids", None)
+                user_ids = body.user_ids
                 if not user_ids:
                     user_ids = [self.associated_user_object.id]
                 else:
@@ -570,7 +602,12 @@ class ReminderHandler(BaseHandler):
 
     @permissions(["Reminder"])
     async def patch(
-        self, associated_resource_type: str, resource_id: str, reminder_id: int
+        self,
+        associated_resource_type: str,
+        resource_id: str,
+        reminder_id: int,
+        *,
+        body: ReminderPatchBody = None,
     ):
         """
         ---
@@ -603,21 +640,6 @@ class ReminderHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ReminderNoID'
-                  - type: object
-                    properties:
-                      group_ids:
-                        type: array
-                        items:
-                          type: integer
-                        description: |
-                          List of group IDs corresponding to which groups should be
-                          able to view reminder.
         responses:
           200:
             content:
@@ -640,11 +662,10 @@ class ReminderHandler(BaseHandler):
         if err is not None:
             return self.error(err)
 
-        data = self.get_json()
-        group_ids = data.pop("group_ids", None)
+        body = self.parse_body(ReminderPatchBody)
         async with self.AsyncSession() as session:
             try:
-                group_ids = data.pop("group_ids", None)
+                group_ids = body.group_ids
                 if not group_ids:
                     group_ids = [g.id for g in self.current_user.accessible_groups]
                 elif not set(group_ids).issubset(
@@ -657,9 +678,8 @@ class ReminderHandler(BaseHandler):
                     Group.select(session.user_or_token).where(Group.id.in_(group_ids))
                 )
                 groups = groups_result.all()
-                data["groups"] = groups
 
-                user_ids = data.pop("user_ids", None)
+                user_ids = body.user_ids
                 if not user_ids:
                     user_ids = [self.associated_user_object.id]
                 else:
@@ -671,12 +691,6 @@ class ReminderHandler(BaseHandler):
                         return self.error(
                             "cannot find some of the requested users", status=403
                         )
-                users_result = await session.scalars(
-                    User.select(session.user_or_token).where(User.id.in_(user_ids))
-                )
-                users = users_result.all()
-                data["users"] = users
-                data["id"] = reminder_id
 
                 if associated_resource_type.lower() == "source":
                     source = await session.scalar(
@@ -686,7 +700,6 @@ class ReminderHandler(BaseHandler):
                     )
                     if not source:
                         raise AccessError(f"Could not find source {resource_id}")
-                    schema = Reminder.__schema__()
                     reminder = await session.scalar(
                         Reminder.select(session.user_or_token).where(
                             Reminder.id == reminder_id
@@ -701,7 +714,6 @@ class ReminderHandler(BaseHandler):
                     )
                     if not spectrum:
                         raise AccessError(f"Could not find spectrum {resource_id}")
-                    schema = ReminderOnSpectrum.__schema__()
                     reminder = await session.scalar(
                         ReminderOnSpectrum.select(session.user_or_token).where(
                             ReminderOnSpectrum.id == reminder_id
@@ -716,7 +728,6 @@ class ReminderHandler(BaseHandler):
                     )
                     if not gcn_event:
                         raise AccessError(f"Could not find gcn event {resource_id}")
-                    schema = ReminderOnGCN.__schema__()
                     reminder = await session.scalar(
                         ReminderOnGCN.select(session.user_or_token).where(
                             ReminderOnGCN.id == reminder_id
@@ -730,7 +741,6 @@ class ReminderHandler(BaseHandler):
                     )
                     if not earthquake:
                         raise AccessError(f"Could not find earthquake {resource_id}")
-                    schema = ReminderOnEarthquake.__schema__()
                     reminder = await session.scalar(
                         ReminderOnEarthquake.select(session.user_or_token).where(
                             ReminderOnEarthquake.id == reminder_id
@@ -744,7 +754,6 @@ class ReminderHandler(BaseHandler):
                     )
                     if not shift:
                         raise AccessError(f"Could not find shift {resource_id}")
-                    schema = ReminderOnShift.__schema__()
                     reminder = await session.scalar(
                         ReminderOnShift.select(session.user_or_token).where(
                             ReminderOnShift.id == reminder_id
@@ -773,12 +782,19 @@ class ReminderHandler(BaseHandler):
                         f"Reminder resource ID does not match resource ID given in path ({resource_id})"
                     )
 
-                try:
-                    schema.load(data, partial=True)
-                except ValidationError as e:
-                    return self.error(
-                        f"Invalid/missing parameters: {e.normalized_messages()}"
-                    )
+                if body.text is not None:
+                    reminder.text = body.text
+                if body.next_reminder is not None:
+                    reminder.next_reminder = arrow.get(
+                        body.next_reminder
+                    ).datetime.replace(tzinfo=None)
+                if body.reminder_delay is not None:
+                    reminder.reminder_delay = body.reminder_delay
+                if body.number_of_reminders is not None:
+                    reminder.number_of_reminders = body.number_of_reminders
+                # like the old marshmallow merge, groups are always replaced,
+                # defaulting to the requesting user's accessible groups
+                reminder.groups = groups
 
                 await session.commit()
 

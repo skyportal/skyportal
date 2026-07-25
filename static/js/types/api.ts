@@ -6566,15 +6566,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ReminderNoID"] & {
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view reminder.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["ReminderPatchBody"];
                 };
             };
             responses: {
@@ -6673,17 +6667,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        text: string;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view reminder. Defaults to all of requesting user's
-                         *     groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["ReminderPostBody"];
                 };
             };
             responses: {
@@ -6693,10 +6679,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New reminder ID */
-                                reminder_id?: number;
-                            };
+                            data?: components["schemas"]["ReminderPostResponse"];
                         };
                     };
                 };
@@ -37922,6 +37905,99 @@ export interface components {
             catalog_data: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * ReminderPostBody
+         * @description Request body for creating reminder(s).
+         */
+        ReminderPostBody: {
+            /**
+             * Text
+             * @description Text to post for the reminder
+             */
+            text: string;
+            /**
+             * Next Reminder
+             * @description Arrow-parseable date string for the next reminder
+             */
+            next_reminder: string;
+            /**
+             * Reminder Delay
+             * @description Delay until the next reminder in days
+             * @default 1
+             */
+            reminder_delay: number;
+            /**
+             * Number Of Reminders
+             * @description Number of remaining reminders
+             * @default 1
+             */
+            number_of_reminders: number;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view reminder. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * User Ids
+             * @description List of IDs of users to post the reminder for. Defaults to the requesting user.
+             * @default null
+             */
+            user_ids: number[] | null;
+        };
+        /**
+         * ReminderPostResponse
+         * @description IDs of the newly created reminders.
+         */
+        ReminderPostResponse: {
+            /**
+             * Reminder Ids
+             * @description IDs of the new reminders (one per user)
+             */
+            reminder_ids: number[];
+        };
+        /**
+         * ReminderPatchBody
+         * @description Request body for updating a reminder.
+         */
+        ReminderPatchBody: {
+            /**
+             * Text
+             * @description Text to post for the reminder
+             * @default null
+             */
+            text: string | null;
+            /**
+             * Next Reminder
+             * @description Arrow-parseable date string for the next reminder
+             * @default null
+             */
+            next_reminder: string | null;
+            /**
+             * Reminder Delay
+             * @description Delay until the next reminder in days
+             * @default null
+             */
+            reminder_delay: number | null;
+            /**
+             * Number Of Reminders
+             * @description Number of remaining reminders
+             * @default null
+             */
+            number_of_reminders: number | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view reminder. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * User Ids
+             * @description List of IDs of users the reminder is for. Defaults to the requesting user.
+             * @default null
+             */
+            user_ids: number[] | null;
         };
         GcnEventTagPost: {
             /** @description UTC event timestamp */
