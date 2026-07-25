@@ -66,6 +66,14 @@ import CornerPlot from "./CornerPlot";
 // effectiveModelFits memo every render → setState-in-effect → render loop.
 const EMPTY_MODEL_FITS: ModelFit[] = [];
 const MODEL_DASHES = ["solid", "dash", "dot", "dashdot"];
+
+// True when an analysis ran on extinction-corrected (dereddened) photometry, so
+// its model overlay is dereddened-native. analysis_parameters may store the flag
+// as a bool or a string.
+const analysisIsDereddened = (a: any): boolean => {
+  const v = a?.analysis_parameters?.correct_extinction;
+  return v === true || v === 1 || v === "true" || v === "True" || v === "1";
+};
 const DASH_GLYPH: Record<string, string> = {
   solid: "──",
   dash: "– –",
@@ -214,13 +222,12 @@ const PeriodAnnotationDialog = ({
 
   const submitPeriodAnnotation = async ({ formData }: { formData: any }) => {
     const periodData = {
-      obj_id,
       origin: formData.origin,
       data: {
         period:
           formData.period / (periodUnitDividers[formData.periodUnitValue] ?? 1),
       },
-      groups: formData.groupIDs,
+      group_ids: formData.groupIDs,
     };
     addAnnotation({ sourceID: obj_id, formData: periodData })
       .unwrap()
@@ -330,6 +337,7 @@ const PhotometryPlot = ({
                   model, // key into data.posteriors
                   createdAt: a.created_at,
                   nDet: a.n_detections,
+                  dereddened: analysisIsDereddened(a),
                 }),
               );
             }
@@ -351,6 +359,7 @@ const PhotometryPlot = ({
                 // no `model` key -> single fit uses data.posterior_samples
                 createdAt: a.created_at,
                 nDet: a.n_detections,
+                dereddened: analysisIsDereddened(a),
               },
             ];
           });
@@ -505,11 +514,16 @@ const PhotometryPlot = ({
   // lazily with just `{ magsys }` (mirroring the old duplicate fetch).
   const mainPhotParams = useMemo<any>(() => {
     const params: any = { magsys };
-    if (showExtinctionCorrection) {
+    // Fetch per-point extinction when the toggle is on, or when a dereddened
+    // model fit exists (so its overlay can be re-reddened to the observed data).
+    if (
+      showExtinctionCorrection ||
+      effectiveModelFits.some((f) => f.dereddened)
+    ) {
       params.includeExtinction = true;
     }
     return params;
-  }, [magsys, showExtinctionCorrection]);
+  }, [magsys, showExtinctionCorrection, effectiveModelFits]);
 
   const { data: mainPhotometry } = useFetchSourcePhotometryQuery(
     { id: obj_id, params: mainPhotParams },
@@ -553,6 +567,19 @@ const PhotometryPlot = ({
     }),
     [obj_id, mainPhotometry, duplicatesPhotometryById],
   );
+
+  // Per-filter Galactic A_lambda (mag), present on the points when the
+  // photometry query includes extinction. Used to shift model overlays into
+  // whatever extinction frame the plot is currently showing.
+  const extinctionByFilter = useMemo<Record<string, number>>(() => {
+    const out: Record<string, number> = {};
+    (mainPhotometry || []).forEach((p: any) => {
+      if (p?.filter != null && typeof p.extinction === "number") {
+        out[p.filter] = p.extinction;
+      }
+    });
+    return out;
+  }, [mainPhotometry]);
 
   const [data, setData] = useState<any>(null);
   const [plotData, setPlotData] = useState<any>(null);
@@ -1450,6 +1477,8 @@ const PhotometryPlot = ({
           (mjd: number) =>
             t0 && displayXAxisInlog ? daysToSec(mjd - t0) : mjd,
           tabToPlotType(tabIndex),
+          extinctionByFilter,
+          showExtinctionCorrection,
         ),
       );
 
@@ -1529,6 +1558,8 @@ const PhotometryPlot = ({
           (mjd: number) =>
             t0 && displayXAxisInlog ? daysToSec(mjd - t0) : mjd,
           tabToPlotType(tabIndex),
+          extinctionByFilter,
+          showExtinctionCorrection,
         ),
       );
       setPlotData(traces);

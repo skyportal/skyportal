@@ -1,5 +1,5 @@
 from astropy.time import Time
-from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -8,78 +8,100 @@ from ...models import Allocation, AllocationUser, Instrument, Telescope
 from ..base import BaseHandler
 
 
+class TelescopePostBody(BaseModel):
+    """Request body for creating a telescope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(
+        description="Unabbreviated facility name (e.g., Palomar 200-inch "
+        "Hale Telescope)."
+    )
+    nickname: str = Field(description="Abbreviated facility name (e.g., P200).")
+    diameter: float = Field(description="Diameter in meters.")
+    lat: float | None = Field(default=None, description="Latitude in deg.")
+    lon: float | None = Field(default=None, description="Longitude in deg.")
+    elevation: float | None = Field(default=None, description="Elevation in meters.")
+    skycam_link: str | None = Field(
+        default=None, description="Link to the telescope's sky camera."
+    )
+    weather_link: str | None = Field(
+        default=None, description="Link to the preferred weather site."
+    )
+    robotic: bool = Field(default=False, description="Is this telescope robotic?")
+    fixed_location: bool | None = Field(
+        default=None,
+        description="Does this telescope have a fixed location (lon, lat, "
+        "elev)? Defaults to true.",
+    )
+
+
+class TelescopePostResponse(BaseModel):
+    """Data payload returned when creating a telescope."""
+
+    id: int = Field(description="New telescope ID")
+
+
+class TelescopePutBody(BaseModel):
+    """Request body for updating a telescope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(
+        default=None,
+        description="Unabbreviated facility name (e.g., Palomar 200-inch "
+        "Hale Telescope).",
+    )
+    nickname: str | None = Field(
+        default=None, description="Abbreviated facility name (e.g., P200)."
+    )
+    diameter: float | None = Field(default=None, description="Diameter in meters.")
+    lat: float | None = Field(default=None, description="Latitude in deg.")
+    lon: float | None = Field(default=None, description="Longitude in deg.")
+    elevation: float | None = Field(default=None, description="Elevation in meters.")
+    skycam_link: str | None = Field(
+        default=None, description="Link to the telescope's sky camera."
+    )
+    weather_link: str | None = Field(
+        default=None, description="Link to the preferred weather site."
+    )
+    robotic: bool | None = Field(default=None, description="Is this telescope robotic?")
+    fixed_location: bool | None = Field(
+        default=None,
+        description="Does this telescope have a fixed location (lon, lat, elev)?",
+    )
+
+
 class TelescopeHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(self, *, body: TelescopePostBody = None) -> TelescopePostResponse:
         """
         ---
         summary: Create a telescope
         description: Create telescopes
         tags:
           - telescopes
-        requestBody:
-          content:
-            application/json:
-              schema: TelescopeNoID
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New telescope ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(TelescopePostBody)
 
         async with self.AsyncSession() as session:
-            schema = Telescope.__schema__()
             # check if the telescope has a fixed location
-            if "fixed_location" in data:
-                if data["fixed_location"]:
-                    if (
-                        "lat" not in data
-                        or "lon" not in data
-                        or "elevation" not in data
-                    ):
-                        return self.error(
-                            "Missing latitude, longitude, or elevation; required if the telescope is fixed"
-                        )
-                    elif (
-                        not isinstance(data["lat"], int | float)
-                        or not isinstance(data["lon"], int | float)
-                        or not isinstance(data["elevation"], int | float)
-                    ):
-                        return self.error(
-                            "Latitude, longitude, and elevation must all be numbers"
-                        )
-                    elif (
-                        data["lat"] < -90
-                        or data["lat"] > 90
-                        or data["lon"] < -180
-                        or data["lon"] > 180
-                        or data["elevation"] < 0
-                    ):
-                        return self.error(
-                            "Latitude must be between -90 and 90, longitude between -180 and 180, and elevation must be positive"
-                        )
-            try:
-                telescope = schema.load(data)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
+            if body.fixed_location:
+                if body.lat is None or body.lon is None or body.elevation is None:
+                    return self.error(
+                        "Missing latitude, longitude, or elevation; required if the telescope is fixed"
+                    )
+                elif (
+                    body.lat < -90
+                    or body.lat > 90
+                    or body.lon < -180
+                    or body.lon > 180
+                    or body.elevation < 0
+                ):
+                    return self.error(
+                        "Latitude must be between -90 and 90, longitude between -180 and 180, and elevation must be positive"
+                    )
+            telescope = Telescope(**body.model_dump(exclude_unset=True))
             session.add(telescope)
             await session.commit()
 
@@ -235,7 +257,7 @@ class TelescopeHandler(BaseHandler):
             return self.success(data=telescopes)
 
     @permissions(["Manage telescopes"])
-    async def put(self, telescope_id: int):
+    async def put(self, telescope_id: int, *, body: TelescopePutBody = None):
         """
         ---
         summary: Update a telescope
@@ -248,10 +270,6 @@ class TelescopeHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema: TelescopeNoID
         responses:
           200:
             content:
@@ -262,19 +280,7 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        keys_to_update = [
-            "name",
-            "nickname",
-            "lat",
-            "lon",
-            "elevation",
-            "diameter",
-            "skycam_link",
-            "weather_link",
-            "robotic",
-            "fixed_location",
-        ]
-        data = {k: v for k, v in self.get_json().items() if k in keys_to_update}
+        body = self.parse_body(TelescopePutBody)
 
         async with self.AsyncSession() as session:
             telescope = await session.scalar(
@@ -285,16 +291,9 @@ class TelescopeHandler(BaseHandler):
             if telescope is None:
                 return self.error("Invalid telescope ID.")
 
-            schema = Telescope.__schema__()
-            try:
-                schema.load(data, partial=True)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
-
             changed = []
-            for key, value in data.items():
+            for key in body.model_fields_set:
+                value = getattr(body, key)
                 if getattr(telescope, key) != value:
                     setattr(telescope, key, value)
                     changed.append(key)

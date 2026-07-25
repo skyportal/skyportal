@@ -1,3 +1,4 @@
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
@@ -6,9 +7,31 @@ from ...models import Group, Photometry, Spectrum
 from ..base import BaseHandler
 
 
+class SharingPostBody(BaseModel):
+    """Request body for sharing data with additional groups/users."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    groupIDs: list[int] = Field(
+        min_length=1,
+        description="List of IDs of groups data will be shared with. To share "
+        "data with a single user, specify their single user group ID here.",
+    )
+    photometryIDs: list[int] | None = Field(
+        default=None,
+        description="IDs of the photometry data to be shared. If `spectrumIDs` "
+        "is not provided, this is required.",
+    )
+    spectrumIDs: list[int] | None = Field(
+        default=None,
+        description="IDs of the spectra to be shared. If `photometryIDs` is "
+        "not provided, this is required.",
+    )
+
+
 class SharingHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: SharingPostBody = None):
         """
         ---
         summary: Share data with additional groups/users
@@ -17,46 +40,16 @@ class SharingHandler(BaseHandler):
           - data sharing
           - photometry
           - spectra
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  photometryIDs:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      IDs of the photometry data to be shared. If `spectrumIDs` is not
-                      provided, this is required.
-                  spectrumIDs:
-                    type: array
-                    items:
-                      type: integer
-                    description: IDs of the spectra to be shared. If `photometryIDs` is
-                      not provided, this is required.
-                  groupIDs:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of IDs of groups data will be shared with. To share data with
-                      a single user, specify their single user group ID here.
-                required:
-                  - groupIDs
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-        data = self.get_json()
-        group_ids = data.get("groupIDs", None)
-        if group_ids is None or group_ids == []:
-            return self.error("Missing required `groupIDs` field.")
-        phot_ids = data.get("photometryIDs", [])
-        spec_ids = data.get("spectrumIDs", [])
+        body = self.parse_body(SharingPostBody)
+        group_ids = body.groupIDs
+        phot_ids = body.photometryIDs or []
+        spec_ids = body.spectrumIDs or []
         if not phot_ids and not spec_ids:
             return self.error(
                 "One of either `photometryIDs` or `spectrumIDs` must be provided."

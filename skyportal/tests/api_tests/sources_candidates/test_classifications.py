@@ -14,7 +14,6 @@ def test_add_bad_classification(
         data={
             "name": "test taxonomy" + str(uuid.uuid4()),
             "hierarchy": taxonomy,
-            "origin": "SCoPe",
             "group_ids": [public_group.id],
             "provenance": f"tdtax_{__version__}",
             "version": __version__,

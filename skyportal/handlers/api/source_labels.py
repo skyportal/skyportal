@@ -1,3 +1,5 @@
+from pydantic import BaseModel, ConfigDict, Field
+
 from baselayer.app.access import auth_or_token
 
 from ...models import (
@@ -7,9 +9,29 @@ from ...models import (
 from ..base import BaseHandler
 
 
+class SourceLabelsPostBody(BaseModel):
+    """Request body for labelling a source."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    groupIds: list[int] = Field(
+        description="List of IDs of groups to indicate labelling for"
+    )
+
+
+class SourceLabelsDeleteBody(BaseModel):
+    """Request body for deleting source labels."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    groupIds: list[int] = Field(
+        description="List of IDs of groups to indicate scanning for"
+    )
+
+
 class SourceLabelsHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: str):
+    async def post(self, obj_id: str, *, body: SourceLabelsPostBody = None):
         """
         ---
         summary: Label a source
@@ -24,39 +46,14 @@ class SourceLabelsHandler(BaseHandler):
               type: string
             description: |
               ID of object to indicate source labelling for
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  groupIds:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of IDs of groups to indicate labelling for
-                required:
-                  - groupIds
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-
-        data = self.get_json()
-        group_ids = data.get("groupIds")
-        if group_ids is None:
-            return self.error("Missing required parameter: `groupIds`")
-
-        try:
-            group_ids = [int(gid) for gid in data["groupIds"]]
-        except ValueError:
-            return self.error(
-                "Invalid value provided for `groupIDs`; unable to parse "
-                "all list items to integers."
-            )
+        body = self.parse_body(SourceLabelsPostBody)
+        group_ids = body.groupIds
 
         async with self.AsyncSession() as session:
             obj = await session.scalar(
@@ -87,7 +84,7 @@ class SourceLabelsHandler(BaseHandler):
             return self.success()
 
     @auth_or_token
-    async def delete(self, obj_id: str):
+    async def delete(self, obj_id: str, *, body: SourceLabelsDeleteBody = None):
         """
         ---
         summary: Delete source labels
@@ -100,39 +97,14 @@ class SourceLabelsHandler(BaseHandler):
             required: true
             schema:
               type: string
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  groupIds:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of IDs of groups to indicate scanning for
-                required:
-                  - groupIds
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-
-        data = self.get_json()
-        group_ids = data.get("groupIds")
-        if group_ids is None:
-            return self.error("Missing required parameter: `groupIds`")
-
-        try:
-            group_ids = [int(gid) for gid in data["groupIds"]]
-        except ValueError:
-            return self.error(
-                "Invalid value provided for `groupIDs`; unable to parse "
-                "all list items to integers."
-            )
+        body = self.parse_body(SourceLabelsDeleteBody)
+        group_ids = body.groupIds
 
         async with self.AsyncSession() as session:
             obj = await session.scalar(

@@ -4626,9 +4626,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["FilterNoID"];
+                    "application/json": components["schemas"]["FilterPatchBody"];
                 };
             };
             responses: {
@@ -4702,9 +4702,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["FilterNoID"];
+                    "application/json": components["schemas"]["FilterPostBody"];
                 };
             };
             responses: {
@@ -4714,10 +4714,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New filter ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["FilterPostResponse"];
                         };
                     };
                 };
@@ -10660,33 +10657,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description ID of user that you want to add the listing to.
-                         *     If not given, will default to the associated user object that is posting.
-                         */
-                        user_id?: number;
-                        obj_id?: string;
-                        /**
-                         * @description Listing name for this item, e.g., "favorites".
-                         *     Multiple objects can be saved by the same user to different
-                         *     lists, where the list names are user-defined.
-                         *     List name must be a non-empty string starting with an
-                         *     alphanumeric character or underscore.
-                         *     (it must match the regex: /^\w+/)
-                         */
-                        list_name?: string;
-                        /**
-                         * @description Optional parameters for "watchlist" type listings, when searching for new candidates around a given object.
-                         *     For example, if you want to search for new candidates around a given object, you can specify the search radius
-                         *     and the number of candidates to return.
-                         *     The parameters are passed to the microservice that is responsible for processing the listing.
-                         *     The microservice will return a list of candidates that match the given parameters, and ingest them.
-                         */
-                        params?: Record<string, never>;
-                    };
+                    "application/json": components["schemas"]["ListingPostBody"];
                 };
             };
             responses: {
@@ -10696,10 +10669,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New listing ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["ListingPostResponse"];
                         };
                     };
                 };
@@ -10779,21 +10749,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        user_id?: number;
-                        obj_id?: string;
-                        /**
-                         * @description Listing name for this item, e.g., "favorites".
-                         *     Multiple objects can be saved by the same user to different
-                         *     lists, where the list names are user-defined.
-                         *     List name must be a non-empty string starting with an
-                         *     alphanumeric character or underscore.
-                         *     (it must match the regex: /^\w+/)
-                         */
-                        list_name?: string;
-                    };
+                    "application/json": components["schemas"]["ListingPatchBody"];
                 };
             };
             responses: {
@@ -10891,12 +10849,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description One of either 'accepted', 'declined', or 'pending'. */
-                        status: string;
-                    };
+                    "application/json": components["schemas"]["GroupAdmissionRequestPatchBody"];
                 };
             };
             responses: {
@@ -10965,12 +10920,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        groupID: number;
-                        userID: number;
-                    };
+                    "application/json": components["schemas"]["GroupAdmissionRequestPostBody"];
                 };
             };
             responses: {
@@ -10980,10 +10932,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New group admission request ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["GroupAdmissionRequestPostResponse"];
                         };
                     };
                 };
@@ -11068,16 +11017,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Arrow-parseable date string (e.g. 2020-01-01). */
-                        start_date: string;
-                        /** @description Arrow-parseable date string (e.g. 2020-01-01). */
-                        end_date: string;
-                        /** @description Nested JSON containing the log messages. */
-                        logs: Record<string, never>;
-                    };
+                    "application/json": components["schemas"]["InstrumentLogPostBody"];
                 };
             };
             responses: {
@@ -11087,19 +11029,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description The id of the InstrumentLog */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["InstrumentLogPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -11192,12 +11123,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description The status of the instrument */
-                        status: string;
-                    };
+                    "application/json": components["schemas"]["InstrumentStatusPutBody"];
                 };
             };
             responses: {
@@ -11614,45 +11542,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        userEmail: string;
-                        /**
-                         * @description The role the new user will have in the system.
-                         *     If provided, must be one of either "Full user" or "View only".
-                         *     Defaults to "Full user".
-                         */
-                        role?: string;
-                        /**
-                         * @description List of IDs of streams invited user will be given access to. If
-                         *     not provided, user will be granted access to all streams associated
-                         *     with the groups specified by `groupIDs`.
-                         */
-                        streamIDs?: number[];
-                        /**
-                         * @description List of IDs of groups invited user will be added to. If `streamIDs`
-                         *     is not provided, invited user will be given accesss to all streams
-                         *     associated with the groups specified by this field.
-                         */
-                        groupIDs: number[];
-                        /**
-                         * @description List of booleans indicating whether user should be granted admin
-                         *     status for respective specified group(s). Defaults to all false.
-                         */
-                        groupAdmin?: boolean[];
-                        /**
-                         * @description List of booleans indicating whether user should be able to save
-                         *     sources to respective specified group(s). Defaults to all true.
-                         */
-                        canSave?: boolean[];
-                        /**
-                         * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
-                         *     date, after which the user's account will be deactivated and will be unable
-                         *     to access the application.
-                         */
-                        userExpirationDate?: string;
-                    };
+                    "application/json": components["schemas"]["InvitationPostBody"];
                 };
             };
             responses: {
@@ -11662,10 +11554,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New invitation ID */
-                                id?: string;
-                            };
+                            data?: components["schemas"]["InvitationPostResponse"];
                         };
                     };
                 };
@@ -11725,19 +11614,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        groupIDs?: number[];
-                        streamIDs?: number[];
-                        role?: string;
-                        /**
-                         * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
-                         *     date, after which the user's account will be deactivated and will be unable
-                         *     to access the application.
-                         */
-                        userExpirationDate?: string;
-                    };
+                    "application/json": components["schemas"]["InvitationPatchBody"];
                 };
             };
             responses: {
@@ -13624,14 +13503,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Tag name (letters and numbers only) */
-                        name: string;
-                        /** @description Hex color code (e.g., */
-                        color?: string;
-                    };
+                    "application/json": components["schemas"]["ObjTagOptionPostBody"];
                 };
             };
             responses: {
@@ -13727,14 +13601,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description New tag name */
-                        name: string;
-                        /** @description New hex color code (e.g., */
-                        color?: string;
-                    };
+                    "application/json": components["schemas"]["ObjTagOptionPatchBody"];
                 };
             };
             responses: {
@@ -13821,16 +13690,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description ID of the tag option to associate */
-                        objtagoption_id: number;
-                        /** @description ID of the object to tag */
-                        obj_id: string;
-                        /** @description IDs of groups that can access this tag association */
-                        group_ids: number[];
-                    };
+                    "application/json": components["schemas"]["ObjTagPostBody"];
                 };
             };
             responses: {
@@ -15126,22 +14988,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description IDs of the photometry data to be shared. If `spectrumIDs` is not
-                         *     provided, this is required.
-                         */
-                        photometryIDs?: number[];
-                        /** @description IDs of the spectra to be shared. If `photometryIDs` is not provided, this is required. */
-                        spectrumIDs?: number[];
-                        /**
-                         * @description List of IDs of groups data will be shared with. To share data with
-                         *     a single user, specify their single user group ID here.
-                         */
-                        groupIDs: number[];
-                    };
+                    "application/json": components["schemas"]["SharingPostBody"];
                 };
             };
             responses: {
@@ -15795,22 +15644,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Endpoint of the API call. */
-                        endpoint: string;
-                        /** @description HTTP method of the API call. */
-                        method: string;
-                        /** @description Time of the next API call. */
-                        next_call: Record<string, never>;
-                        /** @description Delay until next API call in days. */
-                        call_delay: number;
-                        /** @description Number of retries before service is deactivated. */
-                        number_of_retries?: number;
-                        /** @description Payload of the API call. */
-                        payload: Record<string, never>;
-                    };
+                    "application/json": components["schemas"]["RecurringAPIPostBody"];
                 };
             };
             responses: {
@@ -15820,10 +15656,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New RecurringAPI ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["RecurringAPIPostResponse"];
                         };
                     };
                 };
@@ -16728,12 +16561,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description List of IDs of groups to indicate labelling for */
-                        groupIds: number[];
-                    };
+                    "application/json": components["schemas"]["SourceLabelsPostBody"];
                 };
             };
             responses: {
@@ -16760,12 +16590,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description List of IDs of groups to indicate scanning for */
-                        groupIds: number[];
-                    };
+                    "application/json": components["schemas"]["SourceLabelsDeleteBody"];
                 };
             };
             responses: {
@@ -17658,15 +17485,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["AnnotationNoID"] & {
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view the annotation.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["AnnotationPutBody"];
                 };
             };
             responses: {
@@ -17712,28 +17533,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description String describing the source of this information.
-                         *     Only one Annotation per origin is allowed, although
-                         *     each Annotation can have multiple fields.
-                         *     To add/change data, use the update method instead
-                         *     of trying to post another Annotation from this origin.
-                         *     Origin must be a non-empty string starting with an
-                         *     alphanumeric character or underscore.
-                         *     (it must match the regex: /^\w+/)
-                         */
-                        origin: string;
-                        data: Record<string, never>;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view annotation. Defaults to all of requesting user's
-                         *     groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["AnnotationPostBody"];
                 };
             };
             responses: {
@@ -17743,10 +17545,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New annotation ID */
-                                annotation_id?: number;
-                            };
+                            data?: components["schemas"]["AnnotationPostResponse"];
                         };
                     };
                 };
@@ -17868,15 +17667,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["AnnotationNoID"] & {
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view the annotation.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["AnnotationPutBody"];
                 };
             };
             responses: {
@@ -18622,16 +18415,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description ID of the object in question. */
-                        objId: string;
-                        /** @description List of group IDs to save or invite to save specified source. */
-                        inviteGroupIds?: number[];
-                        /** @description List of group IDs from which specified source is to be unsaved. */
-                        unsaveGroupIds?: number[];
-                    } | unknown | unknown;
+                    "application/json": components["schemas"]["SourceGroupsPostBody"];
                 };
             };
             responses: {
@@ -18677,13 +18463,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        groupID: number;
-                        active: boolean;
-                        requested: boolean;
-                    };
+                    "application/json": components["schemas"]["SourceGroupsPatchBody"];
                 };
             };
             responses: {
@@ -20035,11 +19817,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        user_id: number;
-                    };
+                    "application/json": components["schemas"]["StreamUserPostBody"];
                 };
             };
             responses: {
@@ -20049,12 +19829,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description Stream ID */
-                                stream_id?: number;
-                                /** @description User ID */
-                                user_id?: number;
-                            };
+                            data?: components["schemas"]["StreamUserPostResponse"];
                         };
                     };
                 };
@@ -20189,12 +19964,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        name?: string;
-                        altdata?: Record<string, never>;
-                    };
+                    "application/json": components["schemas"]["StreamPatchBody"];
                 };
             };
             responses: {
@@ -20203,9 +19975,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Stream"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -20270,12 +20040,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        name: string;
-                        altdata?: Record<string, never>;
-                    };
+                    "application/json": components["schemas"]["StreamPostBody"];
                 };
             };
             responses: {
@@ -20285,10 +20052,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New stream ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["StreamPostResponse"];
                         };
                     };
                 };
@@ -20718,9 +20482,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["TaxonomyNoID"];
+                    "application/json": components["schemas"]["TaxonomyPutBody"];
                 };
             };
             responses: {
@@ -20823,40 +20587,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description Short string to make this taxonomy memorable
-                         *     to end users.
-                         */
-                        name: string;
-                        /**
-                         * @description Nested JSON describing the taxonomy
-                         *     which should be validated against
-                         *     a schema before entry
-                         */
-                        hierarchy: Record<string, never>;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view comment. Defaults to all of requesting
-                         *     user's groups.
-                         */
-                        group_ids?: number[];
-                        /** @description Semantic version of this taxonomy name */
-                        version: string;
-                        /**
-                         * @description Identifier (e.g., URL or git hash) that
-                         *     uniquely ties this taxonomy back
-                         *     to an origin or place of record
-                         */
-                        provenance?: string;
-                        /**
-                         * @description Consider this version of the taxonomy with this
-                         *     name the latest? Defaults to True.
-                         */
-                        isLatest?: boolean;
-                    };
+                    "application/json": components["schemas"]["TaxonomyPostBody"];
                 };
             };
             responses: {
@@ -20866,10 +20599,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New taxonomy ID */
-                                taxonomy_id?: number;
-                            };
+                            data?: components["schemas"]["TaxonomyPostResponse"];
                         };
                     };
                 };
@@ -20936,9 +20666,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["TeamPutBody"];
                 };
             };
             responses: {
@@ -20947,15 +20677,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["TeamPutResponse"];
+                        };
                     };
                 };
             };
@@ -21042,12 +20766,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        name?: string;
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["TeamPostBody"];
                 };
             };
             responses: {
@@ -21056,15 +20777,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["TeamPostResponse"];
+                        };
                     };
                 };
             };
@@ -21128,9 +20843,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["TelescopeNoID"];
+                    "application/json": components["schemas"]["TelescopePutBody"];
                 };
             };
             responses: {
@@ -21252,9 +20967,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["TelescopeNoID"];
+                    "application/json": components["schemas"]["TelescopePostBody"];
                 };
             };
             responses: {
@@ -21264,19 +20979,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New telescope ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["TelescopePostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -21340,9 +21044,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ThumbnailNoID"];
+                    "application/json": components["schemas"]["ThumbnailPutBody"];
                 };
             };
             responses: {
@@ -21351,9 +21055,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Thumbnail"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -21425,19 +21127,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description ID of object associated with thumbnails. */
-                        obj_id?: string;
-                        /**
-                         * Format: byte
-                         * @description base64-encoded PNG image file contents. Image size must be between 16px and 500px on a side.
-                         */
-                        data: string;
-                        /** @description Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz' */
-                        ttype: string;
-                    };
+                    "application/json": components["schemas"]["ThumbnailPostBody"];
                 };
             };
             responses: {
@@ -21447,19 +21139,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New thumbnail ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["ThumbnailPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -22382,12 +22063,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Array of ACL IDs (strings) to be granted to user */
-                        aclIds: string[];
-                    };
+                    "application/json": components["schemas"]["UserACLPostBody"];
                 };
             };
             responses: {
@@ -22470,12 +22148,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Array of Role IDs (strings) to be granted to user */
-                        roleIds: string[];
-                    };
+                    "application/json": components["schemas"]["UserRolePostBody"];
                 };
             };
             responses: {
@@ -38153,6 +37828,78 @@ export interface components {
             /** @description Default observation plan request ID. */
             default_observationplan_request_id: number;
         };
+        /**
+         * FilterPostBody
+         * @description Request body for creating a filter.
+         */
+        FilterPostBody: {
+            /**
+             * Name
+             * @description Filter name.
+             */
+            name: string;
+            /**
+             * Stream Id
+             * @description ID of the Filter's Stream.
+             */
+            stream_id: number;
+            /**
+             * Group Id
+             * @description ID of the Filter's Group.
+             */
+            group_id: number;
+            /**
+             * Altdata
+             * @description Arbitrary additional JSON data associated with the Filter.
+             * @default null
+             */
+            altdata: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * FilterPostResponse
+         * @description Data payload returned when creating a filter.
+         */
+        FilterPostResponse: {
+            /**
+             * Id
+             * @description New filter ID
+             */
+            id: number;
+        };
+        /**
+         * FilterPatchBody
+         * @description Request body for updating a filter.
+         */
+        FilterPatchBody: {
+            /**
+             * Name
+             * @description Filter name.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Altdata
+             * @description Arbitrary additional JSON data associated with the Filter.
+             * @default null
+             */
+            altdata: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Group Id
+             * @description ID of the Filter's Group. Cannot be changed; accepted only if it matches the current value.
+             * @default null
+             */
+            group_id: number | null;
+            /**
+             * Stream Id
+             * @description ID of the Filter's Stream. Cannot be changed; accepted only if it matches the current value.
+             * @default null
+             */
+            stream_id: number | null;
+        };
         GalaxyASCIIFileHandlerPost: {
             /** @description Galaxy catalog name. */
             catalogName: string;
@@ -38213,6 +37960,245 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * ListingPostBody
+         * @description Request body for adding a listing.
+         */
+        ListingPostBody: {
+            /**
+             * Obj Id
+             * @description ID of the object to add to the list.
+             */
+            obj_id: string;
+            /**
+             * List Name
+             * @description Listing name for this item, e.g., "favorites". Multiple objects can be saved by the same user to different lists, where the list names are user-defined. List name must be a non-empty string starting with an alphanumeric character or underscore. (it must match the regex: /^\w+/)
+             */
+            list_name: string;
+            /**
+             * User Id
+             * @description ID of user that you want to add the listing to. If not given, will default to the associated user object that is posting.
+             * @default null
+             */
+            user_id: number | null;
+            /**
+             * Params
+             * @description Optional parameters for "watchlist" type listings, when searching for new candidates around a given object. For example, if you want to search for new candidates around a given object, you can specify the search radius and the number of candidates to return. The parameters are passed to the microservice that is responsible for processing the listing. The microservice will return a list of candidates that match the given parameters, and ingest them.
+             * @default null
+             */
+            params: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * ListingPostResponse
+         * @description Data payload returned when adding a listing.
+         */
+        ListingPostResponse: {
+            /**
+             * Id
+             * @description New listing ID
+             */
+            id: number;
+        };
+        /**
+         * ListingPatchBody
+         * @description Request body for updating a listing.
+         */
+        ListingPatchBody: {
+            /**
+             * User Id
+             * @description ID of the user the listing belongs to.
+             * @default null
+             */
+            user_id: number | null;
+            /**
+             * Obj Id
+             * @description ID of the listed object.
+             * @default null
+             */
+            obj_id: string | null;
+            /**
+             * List Name
+             * @description Listing name for this item, e.g., "favorites". Multiple objects can be saved by the same user to different lists, where the list names are user-defined. List name must be a non-empty string starting with an alphanumeric character or underscore. (it must match the regex: /^\w+/)
+             * @default null
+             */
+            list_name: string | null;
+        };
+        /**
+         * GroupAdmissionRequestPostBody
+         * @description Request body for creating a group admission request.
+         */
+        GroupAdmissionRequestPostBody: {
+            /**
+             * Groupid
+             * @description ID of the group to request admission to
+             */
+            groupID: number;
+            /**
+             * Userid
+             * @description ID of the user requesting admission
+             */
+            userID: number;
+        };
+        /**
+         * GroupAdmissionRequestPostResponse
+         * @description Data payload returned when creating a group admission request.
+         */
+        GroupAdmissionRequestPostResponse: {
+            /**
+             * Id
+             * @description New group admission request ID
+             */
+            id: number;
+        };
+        /**
+         * GroupAdmissionRequestPatchBody
+         * @description Request body for updating a group admission request's status.
+         */
+        GroupAdmissionRequestPatchBody: {
+            /**
+             * Status
+             * @description One of either 'accepted', 'declined', or 'pending'.
+             * @enum {string}
+             */
+            status: "pending" | "accepted" | "declined";
+        };
+        /**
+         * InstrumentLogPostBody
+         * @description Request body for posting instrument logs.
+         */
+        InstrumentLogPostBody: {
+            /**
+             * Start Date
+             * @description Arrow-parseable date string (e.g. 2020-01-01).
+             */
+            start_date: string;
+            /**
+             * End Date
+             * @description Arrow-parseable date string (e.g. 2020-01-01).
+             */
+            end_date: string;
+            /**
+             * Log
+             * @description Nested JSON containing the log messages, or a parsable string of log lines.
+             */
+            log: string | {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * InstrumentLogPostResponse
+         * @description Data payload returned when posting instrument logs.
+         */
+        InstrumentLogPostResponse: {
+            /**
+             * Id
+             * @description The id of the InstrumentLog
+             */
+            id: number;
+        };
+        /**
+         * InstrumentStatusPutBody
+         * @description Request body for updating an instrument's status.
+         */
+        InstrumentStatusPutBody: {
+            /**
+             * Status
+             * @description The status of the instrument, as a JSON object or a JSON-encoded string. When empty or omitted, the status is instead refreshed from the instrument's remote API.
+             * @default null
+             */
+            status: (string | {
+                [key: string]: unknown;
+            }) | null;
+        };
+        /**
+         * InvitationPostBody
+         * @description Request body for inviting a new user.
+         */
+        InvitationPostBody: {
+            /**
+             * Useremail
+             * @description Email address to send the invitation to.
+             */
+            userEmail: string;
+            /**
+             * Groupids
+             * @description List of IDs of groups invited user will be added to. If `streamIDs` is not provided, invited user will be given accesss to all streams associated with the groups specified by this field.
+             */
+            groupIDs: number[];
+            /**
+             * Role
+             * @description The role the new user will have in the system. If provided, must be one of either "Full user" or "View only". Defaults to "Full user".
+             * @default Full user
+             */
+            role: string;
+            /**
+             * Streamids
+             * @description List of IDs of streams invited user will be given access to. If not provided, user will be granted access to all streams associated with the groups specified by `groupIDs`.
+             * @default null
+             */
+            streamIDs: number[] | null;
+            /**
+             * Groupadmin
+             * @description List of booleans indicating whether user should be granted admin status for respective specified group(s). Defaults to all false.
+             * @default null
+             */
+            groupAdmin: boolean[] | null;
+            /**
+             * Cansave
+             * @description List of booleans indicating whether user should be able to save sources to respective specified group(s). Defaults to all true.
+             * @default null
+             */
+            canSave: boolean[] | null;
+            /**
+             * Userexpirationdate
+             * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration date, after which the user's account will be deactivated and will be unable to access the application.
+             * @default null
+             */
+            userExpirationDate: string | null;
+        };
+        /**
+         * InvitationPostResponse
+         * @description Data payload returned when creating an invitation.
+         */
+        InvitationPostResponse: {
+            /**
+             * Id
+             * @description New invitation ID
+             */
+            id: number;
+        };
+        /**
+         * InvitationPatchBody
+         * @description Request body for updating a pending invitation.
+         */
+        InvitationPatchBody: {
+            /**
+             * Groupids
+             * @description List of IDs of groups the user is invited to.
+             * @default null
+             */
+            groupIDs: number[] | null;
+            /**
+             * Streamids
+             * @description List of IDs of streams invited user will be given access to.
+             * @default null
+             */
+            streamIDs: number[] | null;
+            /**
+             * Role
+             * @description The role the new user will have in the system.
+             * @default null
+             */
+            role: string | null;
+            /**
+             * Userexpirationdate
+             * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration date, after which the user's account will be deactivated and will be unable to access the application.
+             * @default null
+             */
+            userExpirationDate: string | null;
+        };
         ObservationHandlerPost: {
             /** @description The telescope name associated with the fields */
             telescopeName: string;
@@ -38250,6 +38236,133 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * ObjTagOptionPostBody
+         * @description Request body for creating a tag option.
+         */
+        ObjTagOptionPostBody: {
+            /**
+             * Name
+             * @description Tag name (letters and numbers only)
+             */
+            name: string;
+            /**
+             * Color
+             * @description Hex color code (e.g., #3a87ad)
+             * @default null
+             */
+            color: string | null;
+        };
+        /**
+         * ObjTagOptionPatchBody
+         * @description Request body for updating a tag option.
+         */
+        ObjTagOptionPatchBody: {
+            /**
+             * Name
+             * @description New tag name
+             */
+            name: string;
+            /**
+             * Color
+             * @description New hex color code (e.g., #3a87ad)
+             * @default null
+             */
+            color: string | null;
+        };
+        /**
+         * ObjTagPostBody
+         * @description Request body for creating an object-tag association.
+         */
+        ObjTagPostBody: {
+            /**
+             * Objtagoption Id
+             * @description ID of the tag option to associate
+             */
+            objtagoption_id: number;
+            /**
+             * Obj Id
+             * @description ID of the object to tag
+             */
+            obj_id: string;
+            /**
+             * Group Ids
+             * @description IDs of groups that can access this tag association. Defaults to the public group.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * SharingPostBody
+         * @description Request body for sharing data with additional groups/users.
+         */
+        SharingPostBody: {
+            /**
+             * Groupids
+             * @description List of IDs of groups data will be shared with. To share data with a single user, specify their single user group ID here.
+             */
+            groupIDs: number[];
+            /**
+             * Photometryids
+             * @description IDs of the photometry data to be shared. If `spectrumIDs` is not provided, this is required.
+             * @default null
+             */
+            photometryIDs: number[] | null;
+            /**
+             * Spectrumids
+             * @description IDs of the spectra to be shared. If `photometryIDs` is not provided, this is required.
+             * @default null
+             */
+            spectrumIDs: number[] | null;
+        };
+        /**
+         * RecurringAPIPostBody
+         * @description Request body for creating a recurring API.
+         */
+        RecurringAPIPostBody: {
+            /**
+             * Endpoint
+             * @description Endpoint of the API call.
+             */
+            endpoint: string;
+            /**
+             * Method
+             * @description HTTP method of the API call.
+             */
+            method: string;
+            /**
+             * Next Call
+             * @description Time of the next API call.
+             */
+            next_call: string;
+            /**
+             * Call Delay
+             * @description Delay until next API call in days.
+             */
+            call_delay: number;
+            /**
+             * Payload
+             * @description JSON string with the payload of the API call.
+             */
+            payload: string;
+            /**
+             * Number Of Retries
+             * @description Number of retries before service is deactivated.
+             * @default null
+             */
+            number_of_retries: number | null;
+        };
+        /**
+         * RecurringAPIPostResponse
+         * @description Data payload returned when creating a recurring API.
+         */
+        RecurringAPIPostResponse: {
+            /**
+             * Id
+             * @description New RecurringAPI ID
+             */
+            id: number;
+        };
         SkymapQueueAPIHandlerPost: {
             /** @description Followup request allocation ID. */
             allocation_id: number;
@@ -38257,6 +38370,131 @@ export interface components {
             localization_id: number;
             /** @description Integrated probability within skymap. */
             integrated_probability?: number;
+        };
+        /**
+         * SourceLabelsPostBody
+         * @description Request body for labelling a source.
+         */
+        SourceLabelsPostBody: {
+            /**
+             * Groupids
+             * @description List of IDs of groups to indicate labelling for
+             */
+            groupIds: number[];
+        };
+        /**
+         * SourceLabelsDeleteBody
+         * @description Request body for deleting source labels.
+         */
+        SourceLabelsDeleteBody: {
+            /**
+             * Groupids
+             * @description List of IDs of groups to indicate scanning for
+             */
+            groupIds: number[];
+        };
+        /**
+         * AnnotationPostBody
+         * @description Request body for posting an annotation.
+         */
+        AnnotationPostBody: {
+            /**
+             * Origin
+             * @description String describing the source of this information. Only one Annotation per origin is allowed, although each Annotation can have multiple fields. To add/change data, use the update method instead of trying to post another Annotation from this origin. Origin must be a non-empty string starting with an alphanumeric character or underscore (it must match the regex: /^\w+/).
+             */
+            origin: string;
+            /**
+             * Data
+             * @description Annotation data as {key: value} pairs.
+             */
+            data: {
+                [key: string]: unknown;
+            };
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view annotation. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * AnnotationPostResponse
+         * @description Data payload returned when posting an annotation.
+         */
+        AnnotationPostResponse: {
+            /**
+             * Annotation Id
+             * @description New annotation ID
+             */
+            annotation_id: number;
+        };
+        /**
+         * AnnotationPutBody
+         * @description Request body for updating an annotation.
+         */
+        AnnotationPutBody: {
+            /**
+             * Data
+             * @description Annotation data as {key: value} pairs.
+             * @default null
+             */
+            data: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Origin
+             * @description String describing the source of this information.
+             * @default null
+             */
+            origin: string | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view the annotation.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * SourceGroupsPostBody
+         * @description Request body for saving/unsaving a source to/from groups.
+         */
+        SourceGroupsPostBody: {
+            /**
+             * Objid
+             * @description ID of the object in question.
+             */
+            objId: string;
+            /**
+             * Invitegroupids
+             * @description List of group IDs to save or invite to save specified source.
+             */
+            inviteGroupIds?: number[];
+            /**
+             * Unsavegroupids
+             * @description List of group IDs from which specified source is to be unsaved.
+             */
+            unsaveGroupIds?: number[];
+        };
+        /**
+         * SourceGroupsPatchBody
+         * @description Request body for updating a Source table row.
+         */
+        SourceGroupsPatchBody: {
+            /**
+             * Groupid
+             * @description ID of the group whose Source row to update.
+             */
+            groupID: number;
+            /**
+             * Active
+             * @description Whether the source is saved to the group.
+             */
+            active: boolean;
+            /**
+             * Requested
+             * @description Whether the source is requested to be saved to the group.
+             */
+            requested: boolean;
         };
         SpatialCatalogASCIIFileHandlerPost: {
             /** @description Spatial catalog name. */
@@ -38273,6 +38511,561 @@ export interface components {
             catalog_data?: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * StreamUserPostBody
+         * @description Request body for granting stream access to a user.
+         */
+        StreamUserPostBody: {
+            /**
+             * User Id
+             * @description ID of the user to be granted stream access
+             */
+            user_id: number;
+        };
+        /**
+         * StreamUserPostResponse
+         * @description Data payload returned when granting stream access to a user.
+         */
+        StreamUserPostResponse: {
+            /**
+             * Stream Id
+             * @description Stream ID
+             */
+            stream_id: number;
+            /**
+             * User Id
+             * @description User ID
+             */
+            user_id: number;
+        };
+        /**
+         * StreamPostBody
+         * @description Request body for creating a stream.
+         */
+        StreamPostBody: {
+            /**
+             * Name
+             * @description Stream name.
+             */
+            name: string;
+            /**
+             * Altdata
+             * @description Misc. metadata stored in JSON format, e.g. `{'collection': 'ZTF_alerts', selector: [1, 2]}`
+             * @default null
+             */
+            altdata: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Auto Join
+             * @description Boolean indicating whether any user may add themselves to this stream. Auto-join streams are visible to all users.
+             * @default false
+             */
+            auto_join: boolean;
+        };
+        /**
+         * StreamPostResponse
+         * @description Data payload returned when creating a stream.
+         */
+        StreamPostResponse: {
+            /**
+             * Id
+             * @description New stream ID
+             */
+            id: number;
+        };
+        /**
+         * StreamPatchBody
+         * @description Request body for updating a stream.
+         */
+        StreamPatchBody: {
+            /**
+             * Name
+             * @description Stream name.
+             */
+            name: string;
+            /**
+             * Altdata
+             * @description Misc. metadata stored in JSON format, e.g. `{'collection': 'ZTF_alerts', selector: [1, 2]}`
+             * @default null
+             */
+            altdata: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Auto Join
+             * @description Boolean indicating whether any user may add themselves to this stream. Auto-join streams are visible to all users.
+             * @default null
+             */
+            auto_join: boolean | null;
+        };
+        /**
+         * TaxonomyPostBody
+         * @description Request body for posting a new taxonomy.
+         */
+        TaxonomyPostBody: {
+            /**
+             * Name
+             * @description Short string to make this taxonomy memorable to end users.
+             */
+            name: string;
+            /**
+             * Version
+             * @description Semantic version of this taxonomy name
+             */
+            version: string;
+            /**
+             * Hierarchy
+             * @description Nested JSON describing the taxonomy which should be validated against a schema before entry. One of `hierarchy` or `hierarchy_file` must be provided.
+             * @default null
+             */
+            hierarchy: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Hierarchy File
+             * @description YAML string describing the taxonomy, parsed into `hierarchy` when provided.
+             * @default null
+             */
+            hierarchy_file: string | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view the taxonomy. Defaults to the public group.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Provenance
+             * @description Identifier (e.g., URL or git hash) that uniquely ties this taxonomy back to an origin or place of record
+             * @default null
+             */
+            provenance: string | null;
+            /**
+             * Islatest
+             * @description Consider this version of the taxonomy with this name the latest? Defaults to True.
+             * @default true
+             */
+            isLatest: boolean;
+        };
+        /**
+         * TaxonomyPostResponse
+         * @description Data payload returned when posting a taxonomy.
+         */
+        TaxonomyPostResponse: {
+            /**
+             * Taxonomy Id
+             * @description New taxonomy ID
+             */
+            taxonomy_id: number;
+        };
+        /**
+         * TaxonomyPutBody
+         * @description Request body for updating a taxonomy.
+         */
+        TaxonomyPutBody: {
+            /**
+             * Name
+             * @description Short string to make this taxonomy memorable to end users.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Version
+             * @description Semantic version of this taxonomy name
+             * @default null
+             */
+            version: string | null;
+            /**
+             * Provenance
+             * @description Identifier (e.g., URL or git hash) that uniquely ties this taxonomy back to an origin or place of record
+             * @default null
+             */
+            provenance: string | null;
+            /**
+             * Islatest
+             * @description Consider this version of the taxonomy with this name the latest?
+             * @default null
+             */
+            isLatest: boolean | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view the taxonomy.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Hierarchy
+             * @description Not editable; upload a new taxonomy if a hierarchy change is desired.
+             * @default null
+             */
+            hierarchy: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * TeamPostBody
+         * @description Request body for creating a team.
+         */
+        TeamPostBody: {
+            /**
+             * Name
+             * @description Team name.
+             */
+            name: string;
+            /**
+             * Nickname
+             * @description Team nickname.
+             * @default null
+             */
+            nickname: string | null;
+            /**
+             * Description
+             * @description Team description.
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Primary Color
+             * @description Primary color.
+             * @default null
+             */
+            primary_color: string | null;
+            /**
+             * Secondary Color
+             * @description Secondary color.
+             * @default null
+             */
+            secondary_color: string | null;
+            /**
+             * Logo Url
+             * @description Logo URL or data URI.
+             * @default null
+             */
+            logo_url: string | null;
+            /**
+             * Background Url
+             * @description Background image URL or data URI.
+             * @default null
+             */
+            background_url: string | null;
+            /**
+             * Group Ids
+             * @description IDs of the groups making up the team. The current user must be an admin of each group added to the team.
+             */
+            group_ids?: number[];
+        };
+        /**
+         * TeamPostResponse
+         * @description Data payload returned when creating a team.
+         */
+        TeamPostResponse: {
+            /**
+             * Id
+             * @description New team ID
+             */
+            id: number;
+        };
+        /**
+         * TeamPutBody
+         * @description Request body for updating a team.
+         */
+        TeamPutBody: {
+            /**
+             * Name
+             * @description Team name.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Nickname
+             * @description Team nickname.
+             * @default null
+             */
+            nickname: string | null;
+            /**
+             * Description
+             * @description Team description.
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Primary Color
+             * @description Primary color.
+             * @default null
+             */
+            primary_color: string | null;
+            /**
+             * Secondary Color
+             * @description Secondary color.
+             * @default null
+             */
+            secondary_color: string | null;
+            /**
+             * Logo Url
+             * @description Logo URL or data URI.
+             * @default null
+             */
+            logo_url: string | null;
+            /**
+             * Background Url
+             * @description Background image URL or data URI.
+             * @default null
+             */
+            background_url: string | null;
+            /**
+             * Group Ids
+             * @description When provided, replaces the team's groups; the user must be an admin of each group added or removed.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * TeamPutResponse
+         * @description Data payload returned when updating a team.
+         */
+        TeamPutResponse: {
+            /**
+             * Id
+             * @description Updated team ID
+             */
+            id: number;
+        };
+        /**
+         * TelescopePostBody
+         * @description Request body for creating a telescope.
+         */
+        TelescopePostBody: {
+            /**
+             * Name
+             * @description Unabbreviated facility name (e.g., Palomar 200-inch Hale Telescope).
+             */
+            name: string;
+            /**
+             * Nickname
+             * @description Abbreviated facility name (e.g., P200).
+             */
+            nickname: string;
+            /**
+             * Diameter
+             * @description Diameter in meters.
+             */
+            diameter: number;
+            /**
+             * Lat
+             * @description Latitude in deg.
+             * @default null
+             */
+            lat: number | null;
+            /**
+             * Lon
+             * @description Longitude in deg.
+             * @default null
+             */
+            lon: number | null;
+            /**
+             * Elevation
+             * @description Elevation in meters.
+             * @default null
+             */
+            elevation: number | null;
+            /**
+             * Skycam Link
+             * @description Link to the telescope's sky camera.
+             * @default null
+             */
+            skycam_link: string | null;
+            /**
+             * Weather Link
+             * @description Link to the preferred weather site.
+             * @default null
+             */
+            weather_link: string | null;
+            /**
+             * Robotic
+             * @description Is this telescope robotic?
+             * @default false
+             */
+            robotic: boolean;
+            /**
+             * Fixed Location
+             * @description Does this telescope have a fixed location (lon, lat, elev)? Defaults to true.
+             * @default null
+             */
+            fixed_location: boolean | null;
+        };
+        /**
+         * TelescopePostResponse
+         * @description Data payload returned when creating a telescope.
+         */
+        TelescopePostResponse: {
+            /**
+             * Id
+             * @description New telescope ID
+             */
+            id: number;
+        };
+        /**
+         * TelescopePutBody
+         * @description Request body for updating a telescope.
+         */
+        TelescopePutBody: {
+            /**
+             * Name
+             * @description Unabbreviated facility name (e.g., Palomar 200-inch Hale Telescope).
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Nickname
+             * @description Abbreviated facility name (e.g., P200).
+             * @default null
+             */
+            nickname: string | null;
+            /**
+             * Diameter
+             * @description Diameter in meters.
+             * @default null
+             */
+            diameter: number | null;
+            /**
+             * Lat
+             * @description Latitude in deg.
+             * @default null
+             */
+            lat: number | null;
+            /**
+             * Lon
+             * @description Longitude in deg.
+             * @default null
+             */
+            lon: number | null;
+            /**
+             * Elevation
+             * @description Elevation in meters.
+             * @default null
+             */
+            elevation: number | null;
+            /**
+             * Skycam Link
+             * @description Link to the telescope's sky camera.
+             * @default null
+             */
+            skycam_link: string | null;
+            /**
+             * Weather Link
+             * @description Link to the preferred weather site.
+             * @default null
+             */
+            weather_link: string | null;
+            /**
+             * Robotic
+             * @description Is this telescope robotic?
+             * @default null
+             */
+            robotic: boolean | null;
+            /**
+             * Fixed Location
+             * @description Does this telescope have a fixed location (lon, lat, elev)?
+             * @default null
+             */
+            fixed_location: boolean | null;
+        };
+        /**
+         * ThumbnailPostBody
+         * @description Request body for uploading a thumbnail.
+         */
+        ThumbnailPostBody: {
+            /**
+             * Obj Id
+             * @description ID of object associated with thumbnails.
+             */
+            obj_id: string;
+            /**
+             * Data
+             * @description base64-encoded PNG image file contents. Image size must be between 16px and 500px on a side.
+             */
+            data: string;
+            /**
+             * Ttype
+             * @description Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
+             */
+            ttype: string;
+        };
+        /**
+         * ThumbnailPostResponse
+         * @description Data payload returned when uploading a thumbnail.
+         */
+        ThumbnailPostResponse: {
+            /**
+             * Id
+             * @description New thumbnail ID
+             */
+            id: number;
+        };
+        /**
+         * ThumbnailPutBody
+         * @description Request body for updating a thumbnail.
+         */
+        ThumbnailPutBody: {
+            /**
+             * Obj Id
+             * @description ID of the thumbnail's obj.
+             * @default null
+             */
+            obj_id: string | null;
+            /**
+             * Type
+             * @description Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)
+             * @default null
+             */
+            type: string | null;
+            /**
+             * File Uri
+             * @description Path of the Thumbnail on the machine running SkyPortal.
+             * @default null
+             */
+            file_uri: string | null;
+            /**
+             * Public Url
+             * @description Publically accessible URL of the thumbnail.
+             * @default null
+             */
+            public_url: string | null;
+            /**
+             * Origin
+             * @description Origin of the Thumbnail.
+             * @default null
+             */
+            origin: string | null;
+            /**
+             * Is Grayscale
+             * @description Whether the thumbnail is (mostly) grayscale.
+             * @default null
+             */
+            is_grayscale: boolean | null;
+        };
+        /**
+         * UserACLPostBody
+         * @description Request body for granting ACLs to a user.
+         */
+        UserACLPostBody: {
+            /**
+             * Aclids
+             * @description Array of ACL IDs (strings) to be granted to user
+             */
+            aclIds: string[];
+        };
+        /**
+         * UserRolePostBody
+         * @description Request body for granting roles to a user.
+         */
+        UserRolePostBody: {
+            /**
+             * Roleids
+             * @description Array of Role IDs (strings) to be granted to user
+             */
+            roleIds: string[];
         };
     };
     responses: never;

@@ -349,8 +349,10 @@ const UserManagement = () => {
 
   const handleAddUserAffiliations = async (formData: any) => {
     try {
+      // The dialogs share one useForm instance, which retains values from
+      // other dialogs' fields; send only the affiliations key.
       await updateBasicUserInfo({
-        formData,
+        formData: { affiliations: formData.affiliations },
         user_id: clickedUser.id,
       }).unwrap();
       dispatch(showNotification("Successfully updated user's affiliations."));
