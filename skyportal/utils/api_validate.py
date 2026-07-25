@@ -1,9 +1,10 @@
 """Pydantic-based request validation for API handlers.
 
-Annotate a keyword-only handler parameter with a pydantic model (and
-optionally the return type with a response model); `spec_from_handlers` reads
-these hints to document the endpoint. At runtime the handler validates
-explicitly with `BaseHandler.parse_body`, which 400s with field-level errors:
+Annotate a keyword-only handler parameter named `body` or `query` with a
+pydantic model (and optionally the return type with a response model);
+`spec_from_handlers` reads these hints to document the endpoint. At runtime
+the handler validates explicitly with `BaseHandler.parse_body` /
+`BaseHandler.parse_query`, which 400 with field-level errors:
 
     class MyBody(BaseModel):
         name: str
@@ -11,6 +12,10 @@ explicitly with `BaseHandler.parse_body`, which 400s with field-level errors:
     @permissions(["..."])
     async def post(self, obj_id: str, *, body: MyBody = None) -> MyResponse:
         body = self.parse_body(MyBody)
+
+    @auth_or_token
+    async def get(self, *, query: MyQuery = None):
+        query = self.parse_query(MyQuery)
 """
 
 import inspect
@@ -33,18 +38,73 @@ def model_from_annotation(annotation):
     return None
 
 
-def body_model_from(method):
-    """Pydantic model annotating a keyword-only parameter of `method`, or None.
+def _keyword_only_model(method, name):
+    """Pydantic model annotating the keyword-only parameter `name`, or None.
 
     `inspect.signature` follows `__wrapped__`, so this sees through
     `@permissions` and the path-parameter validation wrapper.
     """
-    for param in inspect.signature(method).parameters.values():
-        if param.kind is inspect.Parameter.KEYWORD_ONLY:
-            model = model_from_annotation(param.annotation)
-            if model is not None:
-                return model
+    param = inspect.signature(method).parameters.get(name)
+    if param is not None and param.kind is inspect.Parameter.KEYWORD_ONLY:
+        return model_from_annotation(param.annotation)
     return None
+
+
+def body_model_from(method):
+    """Pydantic request-body model of `method` (its `body` parameter), or None."""
+    return _keyword_only_model(method, "body")
+
+
+def query_model_from(method):
+    """Pydantic query-parameter model of `method` (its `query` parameter), or None."""
+    return _keyword_only_model(method, "query")
+
+
+def _is_list_annotation(annotation):
+    """True if an annotation is a list type, unwrapping `X | None`."""
+    if typing.get_origin(annotation) in (typing.Union, types.UnionType):
+        return any(_is_list_annotation(arg) for arg in typing.get_args(annotation))
+    return annotation is list or typing.get_origin(annotation) is list
+
+
+def query_dict_from(query_arguments, model):
+    """Decode tornado query arguments (name → list of bytes) for `model`.
+
+    Repeated parameters keep the last value (tornado semantics); values for
+    list-typed fields are split on commas (the API-wide convention).
+    """
+    list_fields = {
+        name
+        for name, field in model.model_fields.items()
+        if _is_list_annotation(field.annotation)
+    }
+    args = {}
+    for name, values in query_arguments.items():
+        value = values[-1].decode("utf-8", "replace")
+        args[name] = value.split(",") if name in list_fields and value else value
+    return args
+
+
+def query_parameters_from(model):
+    """Render a pydantic query model's fields as OpenAPI `parameters` entries.
+
+    Query models must be flat (scalars, lists, Literals) — nested models
+    would leave dangling `$defs` references.
+    """
+    schema = _to_openapi_30(model.model_json_schema(ref_template=REF_TEMPLATE))
+    required = schema.get("required", [])
+    parameters = []
+    for name, prop in schema.get("properties", {}).items():
+        prop.pop("title", None)
+        if prop.get("default", ...) is None:
+            del prop["default"]
+        parameter = {"in": "query", "name": name, "required": name in required}
+        description = prop.pop("description", None)
+        if description:
+            parameter["description"] = description
+        parameter["schema"] = prop
+        parameters.append(parameter)
+    return parameters
 
 
 def response_model_from(method):

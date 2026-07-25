@@ -11501,23 +11501,20 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /**
-                     * @description Bool indicating whether to include used invitations.
-                     *     Defaults to false.
-                     */
+                    /** @description Bool indicating whether to include used invitations. Defaults to false. */
                     includeUsed?: boolean;
-                    /** @description Number of candidates to return per paginated request. Defaults to 25 */
+                    /** @description Number of invitations to return per paginated request. Defaults to 25. */
                     numPerPage?: number;
-                    /** @description Page number for paginated query results. Defaults to 1 */
+                    /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
                     /** @description Get invitations whose email contains this string. */
-                    email?: string;
+                    email?: string | null;
                     /** @description Get invitations part of the group with name given by this parameter. */
-                    group?: string;
+                    group?: string | null;
                     /** @description Get invitations with access to the stream with name given by this parameter. */
-                    stream?: string;
+                    stream?: string | null;
                     /** @description Get invitations invited by users whose username contains this string. */
-                    invitedBy?: string;
+                    invitedBy?: string | null;
                 };
                 header?: never;
                 path?: never;
