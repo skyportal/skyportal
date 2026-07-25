@@ -15716,22 +15716,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Endpoint of the API call. */
-                        endpoint: string;
-                        /** @description HTTP method of the API call. */
-                        method: string;
-                        /** @description Time of the next API call. */
-                        next_call: Record<string, never>;
-                        /** @description Delay until next API call in days. */
-                        call_delay: number;
-                        /** @description Number of retries before service is deactivated. */
-                        number_of_retries?: number;
-                        /** @description Payload of the API call. */
-                        payload: Record<string, never>;
-                    };
+                    "application/json": components["schemas"]["RecurringAPIPostBody"];
                 };
             };
             responses: {
@@ -15741,10 +15728,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New RecurringAPI ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["RecurringAPIPostResponse"];
                         };
                     };
                 };
@@ -38348,6 +38332,54 @@ export interface components {
              * @default null
              */
             group_ids: number[] | null;
+        };
+        /**
+         * RecurringAPIPostBody
+         * @description Request body for creating a recurring API.
+         */
+        RecurringAPIPostBody: {
+            /**
+             * Endpoint
+             * @description Endpoint of the API call.
+             */
+            endpoint: string;
+            /**
+             * Method
+             * @description HTTP method of the API call.
+             */
+            method: string;
+            /**
+             * Next Call
+             * @description Time of the next API call.
+             */
+            next_call: string;
+            /**
+             * Call Delay
+             * @description Delay until next API call in days.
+             */
+            call_delay: number;
+            /**
+             * Payload
+             * @description JSON string with the payload of the API call.
+             */
+            payload: string;
+            /**
+             * Number Of Retries
+             * @description Number of retries before service is deactivated.
+             * @default null
+             */
+            number_of_retries: number | null;
+        };
+        /**
+         * RecurringAPIPostResponse
+         * @description Data payload returned when creating a recurring API.
+         */
+        RecurringAPIPostResponse: {
+            /**
+             * Id
+             * @description New RecurringAPI ID
+             */
+            id: number;
         };
         SkymapQueueAPIHandlerPost: {
             /** @description Followup request allocation ID. */
