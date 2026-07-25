@@ -52,6 +52,25 @@ class AnnotationPostResponse(BaseModel):
     annotation_id: int = Field(description="New annotation ID")
 
 
+class AnnotationPutBody(BaseModel):
+    """Request body for updating an annotation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    data: dict[str, Any] | None = Field(
+        default=None, description="Annotation data as {key: value} pairs."
+    )
+    origin: str | None = Field(
+        default=None,
+        description="String describing the source of this information.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should "
+        "be able to view the annotation.",
+    )
+
+
 def _coerce_resource_id(associated_resource_type, resource_id):
     """Cast the resource_id from the URL path to the appropriate type for the
     target column. obj_id is a string; spectrum_id and photometry_id are
@@ -413,7 +432,12 @@ class AnnotationHandler(BaseHandler):
 
     @permissions(["Annotate"])
     async def put(
-        self, associated_resource_type: str, resource_id: str, annotation_id: int
+        self,
+        associated_resource_type: str,
+        resource_id: str,
+        annotation_id: int,
+        *,
+        body: AnnotationPutBody = None,
     ):
         """
         ---
@@ -444,21 +468,6 @@ class AnnotationHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/AnnotationNoID'
-                  - type: object
-                    properties:
-                      group_ids:
-                        type: array
-                        items:
-                          type: integer
-                        description: |
-                          List of group IDs corresponding to which groups should be
-                          able to view the annotation.
         responses:
           200:
             content:
@@ -469,6 +478,7 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(AnnotationPutBody)
 
         try:
             annotation_id = int(annotation_id)
@@ -478,7 +488,6 @@ class AnnotationHandler(BaseHandler):
         associated_resource = self.get_associated_resource(associated_resource_type)
 
         async with self.AsyncSession() as session:
-            schema = associated_resource["class"].__schema__()
             a = await session.scalar(
                 associated_resource["class"]
                 .select(self.current_user, mode="update")
@@ -490,22 +499,13 @@ class AnnotationHandler(BaseHandler):
                     "Could not find any accessible annotations.", status=403
                 )
 
-            data = self.get_json()
-            group_ids = data.pop("group_ids", None)
-            data["id"] = annotation_id
+            group_ids = body.group_ids
 
-            try:
-                schema.load(data, partial=True)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
+            if body.data is not None:
+                a.data = body.data
 
-            if "data" in data:
-                a.data = data["data"]
-
-            if "origin" in data:
-                a.origin = data["origin"]
+            if body.origin is not None:
+                a.origin = body.origin
 
             if group_ids is not None:
                 groups_result = await session.scalars(
