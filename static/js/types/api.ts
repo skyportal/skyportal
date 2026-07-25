@@ -5685,16 +5685,18 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EarthquakeMeasurementBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["EarthquakeMeasured"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
             };
@@ -5743,16 +5745,18 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EarthquakeMeasurementBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["EarthquakeMeasured"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
             };
@@ -6992,9 +6996,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["EarthquakeEventNoID"];
+                    "application/json": components["schemas"]["EarthquakePostBody"];
                 };
             };
             responses: {
@@ -7003,15 +7007,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["EarthquakePostResponse"];
+                        };
                     };
                 };
             };
@@ -37922,6 +37920,85 @@ export interface components {
             catalog_data: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * EarthquakeMeasurementBody
+         * @description Request body for posting or updating a ground velocity measurement;
+         *     at least one of rfamp or lockloss must be provided.
+         */
+        EarthquakeMeasurementBody: {
+            /**
+             * Rfamp
+             * @description Earthquake amplitude measured [m/s]
+             * @default null
+             */
+            rfamp: number | null;
+            /**
+             * Lockloss
+             * @description Earthquake lockloss measured, 0 (no lockloss) or 1 (lockloss)
+             * @default null
+             */
+            lockloss: number | null;
+        };
+        /**
+         * EarthquakePostBody
+         * @description Request body for ingesting an earthquake event, either from a QuakeML
+         *     xml document or from explicit event properties.
+         */
+        EarthquakePostBody: {
+            /**
+             * Xml
+             * @description QuakeML xml document describing the event
+             * @default null
+             */
+            xml: string | null;
+            /**
+             * Event Id
+             * @description Earthquake event ID; required if xml is not given
+             * @default null
+             */
+            event_id: string | null;
+            /**
+             * Date
+             * @description Date of the event; required if xml is not given
+             * @default null
+             */
+            date: string | null;
+            /**
+             * Latitude
+             * @description Event latitude [deg]; required if xml is not given
+             * @default null
+             */
+            latitude: number | null;
+            /**
+             * Longitude
+             * @description Event longitude [deg]; required if xml is not given
+             * @default null
+             */
+            longitude: number | null;
+            /**
+             * Depth
+             * @description Event depth [m]; required if xml is not given
+             * @default null
+             */
+            depth: number | null;
+            /**
+             * Magnitude
+             * @description Event magnitude; required if xml is not given
+             * @default null
+             */
+            magnitude: number | null;
+        };
+        /**
+         * EarthquakePostResponse
+         * @description ID of the ingested earthquake event.
+         */
+        EarthquakePostResponse: {
+            /**
+             * Id
+             * @description Earthquake event ID
+             */
+            id: (string | number) | null;
         };
         GcnEventTagPost: {
             /** @description UTC event timestamp */
