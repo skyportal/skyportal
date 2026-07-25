@@ -5,8 +5,8 @@ import os
 from pathlib import Path
 
 import sqlalchemy as sa
-from marshmallow.exceptions import ValidationError
 from PIL import Image, UnidentifiedImageError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.exc import StatementError
 
@@ -14,6 +14,50 @@ from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Obj, Thumbnail, User
 from ..base import BaseHandler
+
+
+class ThumbnailPostBody(BaseModel):
+    """Request body for uploading a thumbnail."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str = Field(description="ID of object associated with thumbnails.")
+    data: str = Field(
+        description="base64-encoded PNG image file contents. Image size must "
+        "be between 16px and 500px on a side."
+    )
+    ttype: str = Field(
+        description="Thumbnail type. Must be one of 'new', 'ref', 'sub', "
+        "'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'"
+    )
+
+
+class ThumbnailPostResponse(BaseModel):
+    """Data payload returned when uploading a thumbnail."""
+
+    id: int = Field(description="New thumbnail ID")
+
+
+class ThumbnailPutBody(BaseModel):
+    """Request body for updating a thumbnail."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str | None = Field(default=None, description="ID of the thumbnail's obj.")
+    type: str | None = Field(
+        default=None, description="Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)"
+    )
+    file_uri: str | None = Field(
+        default=None,
+        description="Path of the Thumbnail on the machine running SkyPortal.",
+    )
+    public_url: str | None = Field(
+        default=None, description="Publically accessible URL of the thumbnail."
+    )
+    origin: str | None = Field(default=None, description="Origin of the Thumbnail.")
+    is_grayscale: bool | None = Field(
+        default=None, description="Whether the thumbnail is (mostly) grayscale."
+    )
 
 
 async def post_thumbnail(data, user_id, session):
@@ -84,60 +128,20 @@ async def post_thumbnail(data, user_id, session):
 
 class ThumbnailHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: ThumbnailPostBody = None) -> ThumbnailPostResponse:
         """
         ---
         summary: Upload thumbnails
         description: Upload thumbnails
         tags:
           - thumbnails
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  obj_id:
-                    type: string
-                    description: ID of object associated with thumbnails.
-                  data:
-                    type: string
-                    format: byte
-                    description: base64-encoded PNG image file contents. Image size must be between 16px and 500px on a side.
-                  ttype:
-                    type: string
-                    description: Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
-                required:
-                  - data
-                  - ttype
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New thumbnail ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
-        if "obj_id" not in data:
-            return self.error("Missing required parameter: obj_id")
+        body = self.parse_body(ThumbnailPostBody)
 
         async with self.AsyncSession() as session:
             try:
                 thumbnail_id = await post_thumbnail(
-                    data, self.associated_user_object.id, session
+                    body.model_dump(), self.associated_user_object.id, session
                 )
             except Exception as e:
                 return self.error(f"Thumbnail failed to post: {str(e)}")
@@ -178,7 +182,7 @@ class ThumbnailHandler(BaseHandler):
             return self.success(data=t)
 
     @permissions(["Manage sources"])
-    async def put(self, thumbnail_id: int):
+    async def put(self, thumbnail_id: int, *, body: ThumbnailPutBody = None):
         """
         ---
         summary: Update a thumbnail
@@ -191,26 +195,17 @@ class ThumbnailHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema: ThumbnailNoID
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Thumbnail'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(ThumbnailPutBody)
         async with self.AsyncSession() as session:
             t = await session.scalar(
                 Thumbnail.select(session.user_or_token, mode="update").where(
@@ -220,19 +215,8 @@ class ThumbnailHandler(BaseHandler):
             if t is None:
                 return self.error(f"Cannot find Thumbnail with ID: {thumbnail_id}")
 
-            data = self.get_json()
-            data["id"] = thumbnail_id
-
-            schema = Thumbnail.__schema__()
-            try:
-                schema.load(data, partial=True)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
-
-            for k in data:
-                setattr(t, k, data[k])
+            for field in body.model_fields_set:
+                setattr(t, field, getattr(body, field))
 
             await session.commit()
             return self.success()

@@ -21066,9 +21066,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ThumbnailNoID"];
+                    "application/json": components["schemas"]["ThumbnailPutBody"];
                 };
             };
             responses: {
@@ -21077,9 +21077,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Thumbnail"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -21151,19 +21149,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description ID of object associated with thumbnails. */
-                        obj_id?: string;
-                        /**
-                         * Format: byte
-                         * @description base64-encoded PNG image file contents. Image size must be between 16px and 500px on a side.
-                         */
-                        data: string;
-                        /** @description Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz' */
-                        ttype: string;
-                    };
+                    "application/json": components["schemas"]["ThumbnailPostBody"];
                 };
             };
             responses: {
@@ -21173,19 +21161,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New thumbnail ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["ThumbnailPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -38941,6 +38918,80 @@ export interface components {
              * @default null
              */
             fixed_location: boolean | null;
+        };
+        /**
+         * ThumbnailPostBody
+         * @description Request body for uploading a thumbnail.
+         */
+        ThumbnailPostBody: {
+            /**
+             * Obj Id
+             * @description ID of object associated with thumbnails.
+             */
+            obj_id: string;
+            /**
+             * Data
+             * @description base64-encoded PNG image file contents. Image size must be between 16px and 500px on a side.
+             */
+            data: string;
+            /**
+             * Ttype
+             * @description Thumbnail type. Must be one of 'new', 'ref', 'sub', 'sdss', 'dr8', 'new_gz', 'ref_gz', 'sub_gz'
+             */
+            ttype: string;
+        };
+        /**
+         * ThumbnailPostResponse
+         * @description Data payload returned when uploading a thumbnail.
+         */
+        ThumbnailPostResponse: {
+            /**
+             * Id
+             * @description New thumbnail ID
+             */
+            id: number;
+        };
+        /**
+         * ThumbnailPutBody
+         * @description Request body for updating a thumbnail.
+         */
+        ThumbnailPutBody: {
+            /**
+             * Obj Id
+             * @description ID of the thumbnail's obj.
+             * @default null
+             */
+            obj_id: string | null;
+            /**
+             * Type
+             * @description Thumbnail type (e.g., ref, new, sub, ls, ps1, ...)
+             * @default null
+             */
+            type: string | null;
+            /**
+             * File Uri
+             * @description Path of the Thumbnail on the machine running SkyPortal.
+             * @default null
+             */
+            file_uri: string | null;
+            /**
+             * Public Url
+             * @description Publically accessible URL of the thumbnail.
+             * @default null
+             */
+            public_url: string | null;
+            /**
+             * Origin
+             * @description Origin of the Thumbnail.
+             * @default null
+             */
+            origin: string | null;
+            /**
+             * Is Grayscale
+             * @description Whether the thumbnail is (mostly) grayscale.
+             * @default null
+             */
+            is_grayscale: boolean | null;
         };
         /**
          * UserACLPostBody
