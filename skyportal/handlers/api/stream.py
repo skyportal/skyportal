@@ -1,5 +1,7 @@
+from typing import Any
+
 import sqlalchemy as sa
-from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app import models as baselayer_models
 from baselayer.app.access import auth_or_token, permissions
@@ -9,6 +11,63 @@ from ...models import (
     StreamUser,
 )
 from ..base import BaseHandler
+
+
+class StreamPostBody(BaseModel):
+    """Request body for creating a stream."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(description="Stream name.")
+    altdata: dict[str, Any] | None = Field(
+        default=None,
+        description="Misc. metadata stored in JSON format, e.g. "
+        "`{'collection': 'ZTF_alerts', selector: [1, 2]}`",
+    )
+    auto_join: bool = Field(
+        default=False,
+        description="Boolean indicating whether any user may add themselves "
+        "to this stream. Auto-join streams are visible to all users.",
+    )
+
+
+class StreamPostResponse(BaseModel):
+    """Data payload returned when creating a stream."""
+
+    id: int = Field(description="New stream ID")
+
+
+class StreamPatchBody(BaseModel):
+    """Request body for updating a stream."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(description="Stream name.")
+    altdata: dict[str, Any] | None = Field(
+        default=None,
+        description="Misc. metadata stored in JSON format, e.g. "
+        "`{'collection': 'ZTF_alerts', selector: [1, 2]}`",
+    )
+    auto_join: bool | None = Field(
+        default=None,
+        description="Boolean indicating whether any user may add themselves "
+        "to this stream. Auto-join streams are visible to all users.",
+    )
+
+
+class StreamUserPostBody(BaseModel):
+    """Request body for granting stream access to a user."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int = Field(description="ID of the user to be granted stream access")
+
+
+class StreamUserPostResponse(BaseModel):
+    """Data payload returned when granting stream access to a user."""
+
+    stream_id: int = Field(description="Stream ID")
+    user_id: int = Field(description="User ID")
 
 
 class StreamHandler(BaseHandler):
@@ -68,57 +127,26 @@ class StreamHandler(BaseHandler):
             return self.success(data=result.all())
 
     @permissions(["System admin"])
-    async def post(self):
+    async def post(self, *, body: StreamPostBody = None) -> StreamPostResponse:
         """
         ---
         summary: Create a new stream
         description: POST a new stream.
         tags:
           - streams
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                  altdata:
-                    type: object
-                required:
-                  - name
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New stream ID
         """
-        data = self.get_json()
+        body = self.parse_body(StreamPostBody)
         async with self.AsyncSession() as session:
-            schema = Stream.__schema__()
-            try:
-                stream = schema.load(data)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
+            stream = Stream(
+                name=body.name, altdata=body.altdata, auto_join=body.auto_join
+            )
             session.add(stream)
             await session.commit()
 
             return self.success(data={"id": stream.id})
 
     @permissions(["System admin"])
-    async def patch(self, stream_id: int):
+    async def patch(self, stream_id: int, *, body: StreamPatchBody = None):
         """
         ---
         summary: Update a stream
@@ -131,38 +159,21 @@ class StreamHandler(BaseHandler):
             required: True
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                  altdata:
-                    type: object
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Stream'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(StreamPatchBody)
         try:
             stream_id = int(stream_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid stream_id: {stream_id}")
-        data = self.get_json()
-        data["id"] = stream_id
         async with self.AsyncSession() as session:
             s = await session.scalar(
                 Stream.select(session.user_or_token, mode="update").where(
@@ -172,15 +183,11 @@ class StreamHandler(BaseHandler):
             if s is None:
                 return self.error(f"Could not retrieve stream with ID {stream_id}.")
 
-            schema = Stream.__schema__()
-            try:
-                schema.load(data)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
-            for k in data:
-                setattr(s, k, data[k])
+            s.name = body.name
+            if "altdata" in body.model_fields_set:
+                s.altdata = body.altdata
+            if body.auto_join is not None:
+                s.auto_join = body.auto_join
 
             await session.commit()
             return self.success()
@@ -225,7 +232,9 @@ class StreamHandler(BaseHandler):
 
 class StreamUserHandler(BaseHandler):
     @auth_or_token
-    async def post(self, stream_id: int, *ignored_args):
+    async def post(
+        self, stream_id: int, *ignored_args, body: StreamUserPostBody = None
+    ) -> StreamUserPostResponse:
         """
         ---
         summary: Grant stream access to a user
@@ -242,44 +251,12 @@ class StreamUserHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user_id:
-                    type: integer
-                required:
-                  - user_id
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            stream_id:
-                              type: integer
-                              description: Stream ID
-                            user_id:
-                              type: integer
-                              description: User ID
         """
-        data = self.get_json()
-
-        user_id = data.pop("user_id", None)
-        if user_id is None:
-            return self.error("User ID must be specified")
+        body = self.parse_body(StreamUserPostBody)
+        user_id = body.user_id
 
         try:
             stream_id = int(stream_id)
-            user_id = int(user_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid stream_id/user_id: {stream_id}/{user_id}")
 
