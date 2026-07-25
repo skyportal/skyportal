@@ -20885,9 +20885,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["TeamPutBody"];
                 };
             };
             responses: {
@@ -20896,15 +20896,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["TeamPutResponse"];
+                        };
                     };
                 };
             };
@@ -20991,12 +20985,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        name?: string;
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["TeamPostBody"];
                 };
             };
             responses: {
@@ -21005,15 +20996,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["TeamPostResponse"];
+                        };
                     };
                 };
             };
@@ -38390,6 +38375,134 @@ export interface components {
             catalog_data?: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * TeamPostBody
+         * @description Request body for creating a team.
+         */
+        TeamPostBody: {
+            /**
+             * Name
+             * @description Team name.
+             */
+            name: string;
+            /**
+             * Nickname
+             * @description Team nickname.
+             * @default null
+             */
+            nickname: string | null;
+            /**
+             * Description
+             * @description Team description.
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Primary Color
+             * @description Primary color.
+             * @default null
+             */
+            primary_color: string | null;
+            /**
+             * Secondary Color
+             * @description Secondary color.
+             * @default null
+             */
+            secondary_color: string | null;
+            /**
+             * Logo Url
+             * @description Logo URL or data URI.
+             * @default null
+             */
+            logo_url: string | null;
+            /**
+             * Background Url
+             * @description Background image URL or data URI.
+             * @default null
+             */
+            background_url: string | null;
+            /**
+             * Group Ids
+             * @description IDs of the groups making up the team. The current user must be an admin of each group added to the team.
+             */
+            group_ids?: number[];
+        };
+        /**
+         * TeamPostResponse
+         * @description Data payload returned when creating a team.
+         */
+        TeamPostResponse: {
+            /**
+             * Id
+             * @description New team ID
+             */
+            id: number;
+        };
+        /**
+         * TeamPutBody
+         * @description Request body for updating a team.
+         */
+        TeamPutBody: {
+            /**
+             * Name
+             * @description Team name.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Nickname
+             * @description Team nickname.
+             * @default null
+             */
+            nickname: string | null;
+            /**
+             * Description
+             * @description Team description.
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Primary Color
+             * @description Primary color.
+             * @default null
+             */
+            primary_color: string | null;
+            /**
+             * Secondary Color
+             * @description Secondary color.
+             * @default null
+             */
+            secondary_color: string | null;
+            /**
+             * Logo Url
+             * @description Logo URL or data URI.
+             * @default null
+             */
+            logo_url: string | null;
+            /**
+             * Background Url
+             * @description Background image URL or data URI.
+             * @default null
+             */
+            background_url: string | null;
+            /**
+             * Group Ids
+             * @description When provided, replaces the team's groups; the user must be an admin of each group added or removed.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * TeamPutResponse
+         * @description Data payload returned when updating a team.
+         */
+        TeamPutResponse: {
+            /**
+             * Id
+             * @description Updated team ID
+             */
+            id: number;
         };
     };
     responses: never;

@@ -168,7 +168,7 @@ def test_cannot_create_team_without_name(manage_teams_token, public_group):
         token=manage_teams_token,
     )
     assert status == 400
-    assert "Missing required parameter" in data["message"]
+    assert "name: Field required" in data["message"]
 
 
 def test_manage_teams_acl_required_to_create(group_admin_token, public_group):

@@ -1,4 +1,5 @@
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -19,6 +20,60 @@ EDITABLE_FIELDS = [
     "logo_url",
     "background_url",
 ]
+
+
+class TeamPostBody(BaseModel):
+    """Request body for creating a team."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(description="Team name.")
+    nickname: str | None = Field(default=None, description="Team nickname.")
+    description: str | None = Field(default=None, description="Team description.")
+    primary_color: str | None = Field(default=None, description="Primary color.")
+    secondary_color: str | None = Field(default=None, description="Secondary color.")
+    logo_url: str | None = Field(default=None, description="Logo URL or data URI.")
+    background_url: str | None = Field(
+        default=None, description="Background image URL or data URI."
+    )
+    group_ids: list[int] = Field(
+        default_factory=list,
+        description="IDs of the groups making up the team. The current user "
+        "must be an admin of each group added to the team.",
+    )
+
+
+class TeamPostResponse(BaseModel):
+    """Data payload returned when creating a team."""
+
+    id: int = Field(description="New team ID")
+
+
+class TeamPutBody(BaseModel):
+    """Request body for updating a team."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Team name.")
+    nickname: str | None = Field(default=None, description="Team nickname.")
+    description: str | None = Field(default=None, description="Team description.")
+    primary_color: str | None = Field(default=None, description="Primary color.")
+    secondary_color: str | None = Field(default=None, description="Secondary color.")
+    logo_url: str | None = Field(default=None, description="Logo URL or data URI.")
+    background_url: str | None = Field(
+        default=None, description="Background image URL or data URI."
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="When provided, replaces the team's groups; the user must "
+        "be an admin of each group added or removed.",
+    )
+
+
+class TeamPutResponse(BaseModel):
+    """Data payload returned when updating a team."""
+
+    id: int = Field(description="Updated team ID")
 
 
 def team_to_dict(team, include_users=True):
@@ -123,7 +178,7 @@ class TeamHandler(BaseHandler):
             )
 
     @permissions(["Manage teams"])
-    async def post(self):
+    async def post(self, *, body: TeamPostBody = None) -> TeamPostResponse:
         """
         ---
         summary: Create a new team
@@ -132,37 +187,13 @@ class TeamHandler(BaseHandler):
           an admin of each group added to the team.
         tags:
           - teams
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
-        name = data.get("name")
-        if name is None or (isinstance(name, str) and name.strip() == ""):
+        body = self.parse_body(TeamPostBody)
+        name = body.name
+        if name.strip() == "":
             return self.error("Missing required parameter: `name`")
 
-        try:
-            group_ids = [int(gid) for gid in data.get("group_ids", [])]
-        except (TypeError, ValueError):
-            return self.error("Invalid group_ids field; unable to parse items to int")
+        group_ids = body.group_ids
 
         async with self.AsyncSession() as session:
             existing = await session.scalar(
@@ -186,12 +217,12 @@ class TeamHandler(BaseHandler):
 
             team = Team(
                 name=name,
-                nickname=data.get("nickname") or None,
-                description=data.get("description") or None,
-                primary_color=data.get("primary_color") or None,
-                secondary_color=data.get("secondary_color") or None,
-                logo_url=data.get("logo_url") or None,
-                background_url=data.get("background_url") or None,
+                nickname=body.nickname or None,
+                description=body.description or None,
+                primary_color=body.primary_color or None,
+                secondary_color=body.secondary_color or None,
+                logo_url=body.logo_url or None,
+                background_url=body.background_url or None,
                 groups=groups,
             )
             session.add(team)
@@ -201,7 +232,7 @@ class TeamHandler(BaseHandler):
             return self.success(data={"id": team.id})
 
     @permissions(["Manage teams"])
-    async def put(self, team_id: int):
+    async def put(self, team_id: int, *, body: TeamPutBody = None) -> TeamPutResponse:
         """
         ---
         summary: Update a team
@@ -217,26 +248,12 @@ class TeamHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
         """
+        body = self.parse_body(TeamPutBody)
         try:
             team_id = int(team_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid team_id: {team_id}")
-        data = self.get_json()
 
         async with self.AsyncSession() as session:
             team = await session.scalar(
@@ -248,19 +265,14 @@ class TeamHandler(BaseHandler):
                 return self.error(f"Cannot find Team with id {team_id}", status=403)
 
             for field in EDITABLE_FIELDS:
-                if field in data:
-                    value = data[field]
-                    if field == "name" and (
-                        value is None or (isinstance(value, str) and not value.strip())
-                    ):
+                if field in body.model_fields_set:
+                    value = getattr(body, field)
+                    if field == "name" and (value is None or not value.strip()):
                         return self.error("`name` cannot be empty")
                     setattr(team, field, value)
 
-            if "group_ids" in data:
-                try:
-                    group_ids = [int(gid) for gid in data.get("group_ids") or []]
-                except (TypeError, ValueError):
-                    return self.error("Invalid group_ids field")
+            if "group_ids" in body.model_fields_set:
+                group_ids = body.group_ids or []
                 groups = []
                 if group_ids:
                     groups_result = await session.scalars(
