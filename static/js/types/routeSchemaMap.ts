@@ -181,6 +181,7 @@ export const ROUTE_SCHEMA_MAP = {
   "POST /api/taxonomy": { schema: "TaxonomyPostResponse" as const, list: false },
   "POST /api/teams": { schema: "TeamPostResponse" as const, list: false },
   "POST /api/telescope": { schema: "TelescopePostResponse" as const, list: false },
+  "POST /api/thumbnail": { schema: "ThumbnailPostResponse" as const, list: false },
   "POST /api/{associated_resource_type}/{resource_id}/annotations": { schema: "AnnotationPostResponse" as const, list: false },
   "PUT /api/followup_request/prioritization": { schema: "FollowupRequest" as const, list: false },
   "PUT /api/followup_request/{followup_request_id}/comment": { schema: "FollowupRequest" as const, list: false },
@@ -192,7 +193,6 @@ export const ROUTE_SCHEMA_MAP = {
   "PUT /api/spectra/{spectrum_id}": { schema: "Spectrum" as const, list: false },
   "PUT /api/spectrum/{spectrum_id}": { schema: "Spectrum" as const, list: false },
   "PUT /api/teams/{team_id}": { schema: "TeamPutResponse" as const, list: false },
-  "PUT /api/thumbnail/{thumbnail_id}": { schema: "Thumbnail" as const, list: false },
   "PUT /api/{associated_resource_type}/{resource_id}/comments": { schema: "Comment" as const, list: false },
   "PUT /api/{associated_resource_type}/{resource_id}/comments/{comment_id}": { schema: "Comment" as const, list: false },
 } satisfies Record<string, { schema: SchemaName; list: boolean; wrapper?: string }>;
