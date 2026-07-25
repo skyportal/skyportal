@@ -20566,9 +20566,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["TaxonomyNoID"];
+                    "application/json": components["schemas"]["TaxonomyPutBody"];
                 };
             };
             responses: {
@@ -20671,40 +20671,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description Short string to make this taxonomy memorable
-                         *     to end users.
-                         */
-                        name: string;
-                        /**
-                         * @description Nested JSON describing the taxonomy
-                         *     which should be validated against
-                         *     a schema before entry
-                         */
-                        hierarchy: Record<string, never>;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view comment. Defaults to all of requesting
-                         *     user's groups.
-                         */
-                        group_ids?: number[];
-                        /** @description Semantic version of this taxonomy name */
-                        version: string;
-                        /**
-                         * @description Identifier (e.g., URL or git hash) that
-                         *     uniquely ties this taxonomy back
-                         *     to an origin or place of record
-                         */
-                        provenance?: string;
-                        /**
-                         * @description Consider this version of the taxonomy with this
-                         *     name the latest? Defaults to True.
-                         */
-                        isLatest?: boolean;
-                    };
+                    "application/json": components["schemas"]["TaxonomyPostBody"];
                 };
             };
             responses: {
@@ -20714,10 +20683,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New taxonomy ID */
-                                taxonomy_id?: number;
-                            };
+                            data?: components["schemas"]["TaxonomyPostResponse"];
                         };
                     };
                 };
@@ -38570,6 +38536,109 @@ export interface components {
              * @default null
              */
             auto_join: boolean | null;
+        };
+        /**
+         * TaxonomyPostBody
+         * @description Request body for posting a new taxonomy.
+         */
+        TaxonomyPostBody: {
+            /**
+             * Name
+             * @description Short string to make this taxonomy memorable to end users.
+             */
+            name: string;
+            /**
+             * Version
+             * @description Semantic version of this taxonomy name
+             */
+            version: string;
+            /**
+             * Hierarchy
+             * @description Nested JSON describing the taxonomy which should be validated against a schema before entry. One of `hierarchy` or `hierarchy_file` must be provided.
+             * @default null
+             */
+            hierarchy: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Hierarchy File
+             * @description YAML string describing the taxonomy, parsed into `hierarchy` when provided.
+             * @default null
+             */
+            hierarchy_file: string | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view the taxonomy. Defaults to the public group.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Provenance
+             * @description Identifier (e.g., URL or git hash) that uniquely ties this taxonomy back to an origin or place of record
+             * @default null
+             */
+            provenance: string | null;
+            /**
+             * Islatest
+             * @description Consider this version of the taxonomy with this name the latest? Defaults to True.
+             * @default true
+             */
+            isLatest: boolean;
+        };
+        /**
+         * TaxonomyPostResponse
+         * @description Data payload returned when posting a taxonomy.
+         */
+        TaxonomyPostResponse: {
+            /**
+             * Taxonomy Id
+             * @description New taxonomy ID
+             */
+            taxonomy_id: number;
+        };
+        /**
+         * TaxonomyPutBody
+         * @description Request body for updating a taxonomy.
+         */
+        TaxonomyPutBody: {
+            /**
+             * Name
+             * @description Short string to make this taxonomy memorable to end users.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Version
+             * @description Semantic version of this taxonomy name
+             * @default null
+             */
+            version: string | null;
+            /**
+             * Provenance
+             * @description Identifier (e.g., URL or git hash) that uniquely ties this taxonomy back to an origin or place of record
+             * @default null
+             */
+            provenance: string | null;
+            /**
+             * Islatest
+             * @description Consider this version of the taxonomy with this name the latest?
+             * @default null
+             */
+            isLatest: boolean | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view the taxonomy.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Hierarchy
+             * @description Not editable; upload a new taxonomy if a hierarchy change is desired.
+             * @default null
+             */
+            hierarchy: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * TeamPostBody
