@@ -5,6 +5,7 @@ import phonenumbers
 import sqlalchemy as sa
 from email_validator import EmailNotValidError, validate_email
 from phonenumbers.phonenumberutil import NumberParseException
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -28,6 +29,64 @@ from ..base import BaseHandler
 
 log = make_log("api/user")
 env, cfg = load_env()
+
+
+class UserPostBody(BaseModel):
+    """Request body for adding a new user."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    username: str = Field(description="Username of the new user")
+    first_name: str | None = Field(default=None, description="User's first name")
+    last_name: str | None = Field(default=None, description="User's last name")
+    affiliations: list[str] | None = Field(
+        default=None, description="User's list of affiliations"
+    )
+    contact_email: str | None = Field(
+        default=None, description="User's contact email address"
+    )
+    contact_phone: str | None = Field(
+        default=None, description="User's contact phone number"
+    )
+    oauth_uid: str | None = Field(default=None, description="User's OAuth UID")
+    roles: list[str] = Field(
+        default_factory=list,
+        description="List of user roles. Defaults to `[Full user]`. Will be "
+        "overridden by `groupIDsAndAdmin` on a per-group basis.",
+    )
+    groupIDsAndAdmin: list[tuple[int, bool]] = Field(
+        default_factory=list,
+        description="Array of 2-element arrays `[groupID, admin]` where `groupID` "
+        "is the ID of a group that the new user will be added to and `admin` is "
+        "a boolean indicating whether they will be an admin in that group, "
+        "e.g. `[[group_id_1, true], [group_id_2, false]]`",
+    )
+
+
+class UserPostResponse(BaseModel):
+    """ID of the newly added user."""
+
+    id: int = Field(description="New user ID")
+
+
+class UserPatchBody(BaseModel):
+    """Request body for updating a user."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expirationDate: str | None = Field(
+        default=None,
+        description="Arrow-parseable date string (e.g. 2020-01-01). Set a "
+        "user's expiration date, after which the user's account will be "
+        "deactivated and will be unable to access the application. An explicit "
+        "null or empty string clears the expiration date.",
+    )
+    username: str | None = Field(default=None, description="New username")
+    first_name: str | None = Field(default=None, description="User's first name")
+    last_name: str | None = Field(default=None, description="User's last name")
+    contact_email: str | None = Field(
+        default=None, description="User's contact email address"
+    )
 
 
 def set_default_role(user, session):
@@ -512,75 +571,19 @@ class UserHandler(BaseHandler):
             return self.success(data=info)
 
     @permissions(["Manage users"])
-    async def post(self):
+    async def post(self, *, body: UserPostBody = None) -> UserPostResponse:
         """
         ---
         summary: Add a new user
         description: Add a new user
         tags:
           - users
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  username:
-                    type: string
-                  first_name:
-                    type: string
-                  last_name:
-                    type: string
-                  affiliations:
-                    type: array
-                    items:
-                      type: string
-                  contact_email:
-                    type: string
-                  oauth_uid:
-                    type: string
-                  contact_phone:
-                    type: string
-                  roles:
-                    type: array
-                    items:
-                      type: string
-                    enum: {list(role_acls)}
-                    description: |
-                      List of user roles. Defaults to `[Full user]`. Will be overridden
-                      by `groupIDsAndAdmin` on a per-group basis.
-                  groupIDsAndAdmin:
-                    type: array
-                    items:
-                      type: array
-                    description: |
-                      Array of 2-element arrays `[groupID, admin]` where `groupID`
-                      is the ID of a group that the new user will be added to and
-                      `admin` is a boolean indicating whether they will be an admin in
-                      that group, e.g. `[[group_id_1, true], [group_id_2, false]]`
-                required:
-                  - username
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New user ID
         """
-        data = self.get_json()
-        role_ids = data.get("roles", [])
-        group_ids_and_admin = data.get("groupIDsAndAdmin", [])
+        body = self.parse_body(UserPostBody)
+        role_ids = body.roles
+        group_ids_and_admin = body.groupIDsAndAdmin
 
-        phone = data.get("contact_phone")
+        phone = body.contact_phone
         if phone not in [None, ""]:
             try:
                 if not phonenumbers.is_possible_number(phonenumbers.parse(phone, "US")):
@@ -591,7 +594,7 @@ class UserHandler(BaseHandler):
         else:
             contact_phone = None
 
-        email = data.get("contact_email")
+        email = body.contact_email
         if email not in [None, ""]:
             try:
                 emailinfo = validate_email(email, check_deliverability=False)
@@ -601,21 +604,17 @@ class UserHandler(BaseHandler):
         else:
             contact_email = None
 
-        affiliations = data.get("affiliations")
-        # check if the affiliations are a list
-        if affiliations is not None and not isinstance(affiliations, list):
-            return self.error("Affiliations must be a list of strings")
         async with self.AsyncSession() as session:
             try:
                 user_id = await add_user_and_setup_groups(
                     session=session,
-                    username=data["username"],
-                    first_name=data.get("first_name"),
-                    last_name=data.get("last_name"),
-                    affiliations=affiliations,
+                    username=body.username,
+                    first_name=body.first_name,
+                    last_name=body.last_name,
+                    affiliations=body.affiliations,
                     contact_phone=contact_phone,
                     contact_email=contact_email,
-                    oauth_uid=data.get("oauth_uid"),
+                    oauth_uid=body.oauth_uid,
                     role_ids=role_ids,
                     group_ids_and_admin=group_ids_and_admin,
                 )
@@ -628,7 +627,7 @@ class UserHandler(BaseHandler):
         return self.success(data={"id": user_id})
 
     @permissions(["Manage users"])
-    async def patch(self, user_id: int):
+    async def patch(self, user_id: int, *, body: UserPatchBody = None):
         """
         ---
         summary: Update a user
@@ -641,25 +640,13 @@ class UserHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  expirationDate:
-                    type: string
-                    description: |
-                      Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
-                      date, after which the user's account will be deactivated and will be unable
-                      to access the application.
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-        data = self.get_json()
+        body = self.parse_body(UserPatchBody)
 
         if user_id is None:
             return self.error("User ID must be provided")
@@ -675,8 +662,8 @@ class UserHandler(BaseHandler):
             if user is None:
                 return self.error(f"Cannot find user with ID {user_id}")
 
-            if "expirationDate" in data:
-                expiration_date = data.get("expirationDate")
+            if "expirationDate" in body.model_fields_set:
+                expiration_date = body.expirationDate
                 if expiration_date is not None and expiration_date != "":
                     try:
                         user.expiration_date = arrow.get(
@@ -687,9 +674,14 @@ class UserHandler(BaseHandler):
                 else:
                     user.expiration_date = None
 
-            for k in data:
-                if k != "expiration_date":
-                    setattr(user, k, data[k])
+            if body.username is not None:
+                user.username = body.username
+            if body.first_name is not None:
+                user.first_name = body.first_name
+            if body.last_name is not None:
+                user.last_name = body.last_name
+            if body.contact_email is not None:
+                user.contact_email = body.contact_email
 
             await session.commit()
             self.push_all(action="skyportal/FETCH_USERS")

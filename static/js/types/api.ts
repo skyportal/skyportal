@@ -22290,16 +22290,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
-                         *     date, after which the user's account will be deactivated and will be unable
-                         *     to access the application.
-                         */
-                        expirationDate?: string;
-                    };
+                    "application/json": components["schemas"]["UserPatchBody"];
                 };
             };
             responses: {
@@ -22399,30 +22392,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        username: string;
-                        first_name?: string;
-                        last_name?: string;
-                        affiliations?: string[];
-                        contact_email?: string;
-                        oauth_uid?: string;
-                        contact_phone?: string;
-                        /**
-                         * @description List of user roles. Defaults to `[Full user]`. Will be overridden
-                         *     by `groupIDsAndAdmin` on a per-group basis.
-                         * @enum {array}
-                         */
-                        roles?: string[];
-                        /**
-                         * @description Array of 2-element arrays `[groupID, admin]` where `groupID`
-                         *     is the ID of a group that the new user will be added to and
-                         *     `admin` is a boolean indicating whether they will be an admin in
-                         *     that group, e.g. `[[group_id_1, true], [group_id_2, false]]`
-                         */
-                        groupIDsAndAdmin?: unknown[][];
-                    };
+                    "application/json": components["schemas"]["UserPostBody"];
                 };
             };
             responses: {
@@ -22432,10 +22404,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New user ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["UserPostResponse"];
                         };
                     };
                 };
@@ -39055,6 +39024,113 @@ export interface components {
              * @description Array of Role IDs (strings) to be granted to user
              */
             roleIds: string[];
+        };
+        /**
+         * UserPostBody
+         * @description Request body for adding a new user.
+         */
+        UserPostBody: {
+            /**
+             * Username
+             * @description Username of the new user
+             */
+            username: string;
+            /**
+             * First Name
+             * @description User's first name
+             * @default null
+             */
+            first_name: string | null;
+            /**
+             * Last Name
+             * @description User's last name
+             * @default null
+             */
+            last_name: string | null;
+            /**
+             * Affiliations
+             * @description User's list of affiliations
+             * @default null
+             */
+            affiliations: string[] | null;
+            /**
+             * Contact Email
+             * @description User's contact email address
+             * @default null
+             */
+            contact_email: string | null;
+            /**
+             * Contact Phone
+             * @description User's contact phone number
+             * @default null
+             */
+            contact_phone: string | null;
+            /**
+             * Oauth Uid
+             * @description User's OAuth UID
+             * @default null
+             */
+            oauth_uid: string | null;
+            /**
+             * Roles
+             * @description List of user roles. Defaults to `[Full user]`. Will be overridden by `groupIDsAndAdmin` on a per-group basis.
+             */
+            roles?: string[];
+            /**
+             * Groupidsandadmin
+             * @description Array of 2-element arrays `[groupID, admin]` where `groupID` is the ID of a group that the new user will be added to and `admin` is a boolean indicating whether they will be an admin in that group, e.g. `[[group_id_1, true], [group_id_2, false]]`
+             */
+            groupIDsAndAdmin?: [
+                number,
+                boolean
+            ][];
+        };
+        /**
+         * UserPostResponse
+         * @description ID of the newly added user.
+         */
+        UserPostResponse: {
+            /**
+             * Id
+             * @description New user ID
+             */
+            id: number;
+        };
+        /**
+         * UserPatchBody
+         * @description Request body for updating a user.
+         */
+        UserPatchBody: {
+            /**
+             * Expirationdate
+             * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration date, after which the user's account will be deactivated and will be unable to access the application. An explicit null or empty string clears the expiration date.
+             * @default null
+             */
+            expirationDate: string | null;
+            /**
+             * Username
+             * @description New username
+             * @default null
+             */
+            username: string | null;
+            /**
+             * First Name
+             * @description User's first name
+             * @default null
+             */
+            first_name: string | null;
+            /**
+             * Last Name
+             * @description User's last name
+             * @default null
+             */
+            last_name: string | null;
+            /**
+             * Contact Email
+             * @description User's contact email address
+             * @default null
+             */
+            contact_email: string | null;
         };
     };
     responses: never;

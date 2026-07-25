@@ -182,6 +182,7 @@ export const ROUTE_SCHEMA_MAP = {
   "POST /api/teams": { schema: "TeamPostResponse" as const, list: false },
   "POST /api/telescope": { schema: "TelescopePostResponse" as const, list: false },
   "POST /api/thumbnail": { schema: "ThumbnailPostResponse" as const, list: false },
+  "POST /api/user": { schema: "UserPostResponse" as const, list: false },
   "POST /api/{associated_resource_type}/{resource_id}/annotations": { schema: "AnnotationPostResponse" as const, list: false },
   "PUT /api/followup_request/prioritization": { schema: "FollowupRequest" as const, list: false },
   "PUT /api/followup_request/{followup_request_id}/comment": { schema: "FollowupRequest" as const, list: false },
