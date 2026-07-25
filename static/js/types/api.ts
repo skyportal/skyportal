@@ -11006,16 +11006,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Arrow-parseable date string (e.g. 2020-01-01). */
-                        start_date: string;
-                        /** @description Arrow-parseable date string (e.g. 2020-01-01). */
-                        end_date: string;
-                        /** @description Nested JSON containing the log messages. */
-                        logs: Record<string, never>;
-                    };
+                    "application/json": components["schemas"]["InstrumentLogPostBody"];
                 };
             };
             responses: {
@@ -11025,19 +11018,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description The id of the InstrumentLog */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["InstrumentLogPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -11130,12 +11112,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description The status of the instrument */
-                        status: string;
-                    };
+                    "application/json": components["schemas"]["InstrumentStatusPutBody"];
                 };
             };
             responses: {
@@ -38108,6 +38087,54 @@ export interface components {
              * @enum {string}
              */
             status: "pending" | "accepted" | "declined";
+        };
+        /**
+         * InstrumentLogPostBody
+         * @description Request body for posting instrument logs.
+         */
+        InstrumentLogPostBody: {
+            /**
+             * Start Date
+             * @description Arrow-parseable date string (e.g. 2020-01-01).
+             */
+            start_date: string;
+            /**
+             * End Date
+             * @description Arrow-parseable date string (e.g. 2020-01-01).
+             */
+            end_date: string;
+            /**
+             * Log
+             * @description Nested JSON containing the log messages, or a parsable string of log lines.
+             */
+            log: string | {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * InstrumentLogPostResponse
+         * @description Data payload returned when posting instrument logs.
+         */
+        InstrumentLogPostResponse: {
+            /**
+             * Id
+             * @description The id of the InstrumentLog
+             */
+            id: number;
+        };
+        /**
+         * InstrumentStatusPutBody
+         * @description Request body for updating an instrument's status.
+         */
+        InstrumentStatusPutBody: {
+            /**
+             * Status
+             * @description The status of the instrument, as a JSON object or a JSON-encoded string. When empty or omitted, the status is instead refreshed from the instrument's remote API.
+             * @default null
+             */
+            status: (string | {
+                [key: string]: unknown;
+            }) | null;
         };
         /**
          * InvitationPostBody
