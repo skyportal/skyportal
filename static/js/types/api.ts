@@ -19901,11 +19901,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        user_id: number;
-                    };
+                    "application/json": components["schemas"]["StreamUserPostBody"];
                 };
             };
             responses: {
@@ -19915,12 +19913,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description Stream ID */
-                                stream_id?: number;
-                                /** @description User ID */
-                                user_id?: number;
-                            };
+                            data?: components["schemas"]["StreamUserPostResponse"];
                         };
                     };
                 };
@@ -20055,12 +20048,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        name?: string;
-                        altdata?: Record<string, never>;
-                    };
+                    "application/json": components["schemas"]["StreamPatchBody"];
                 };
             };
             responses: {
@@ -20069,9 +20059,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["Stream"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -20136,12 +20124,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        name: string;
-                        altdata?: Record<string, never>;
-                    };
+                    "application/json": components["schemas"]["StreamPostBody"];
                 };
             };
             responses: {
@@ -20151,10 +20136,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New stream ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["StreamPostResponse"];
                         };
                     };
                 };
@@ -38500,6 +38482,94 @@ export interface components {
             catalog_data?: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * StreamUserPostBody
+         * @description Request body for granting stream access to a user.
+         */
+        StreamUserPostBody: {
+            /**
+             * User Id
+             * @description ID of the user to be granted stream access
+             */
+            user_id: number;
+        };
+        /**
+         * StreamUserPostResponse
+         * @description Data payload returned when granting stream access to a user.
+         */
+        StreamUserPostResponse: {
+            /**
+             * Stream Id
+             * @description Stream ID
+             */
+            stream_id: number;
+            /**
+             * User Id
+             * @description User ID
+             */
+            user_id: number;
+        };
+        /**
+         * StreamPostBody
+         * @description Request body for creating a stream.
+         */
+        StreamPostBody: {
+            /**
+             * Name
+             * @description Stream name.
+             */
+            name: string;
+            /**
+             * Altdata
+             * @description Misc. metadata stored in JSON format, e.g. `{'collection': 'ZTF_alerts', selector: [1, 2]}`
+             * @default null
+             */
+            altdata: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Auto Join
+             * @description Boolean indicating whether any user may add themselves to this stream. Auto-join streams are visible to all users.
+             * @default false
+             */
+            auto_join: boolean;
+        };
+        /**
+         * StreamPostResponse
+         * @description Data payload returned when creating a stream.
+         */
+        StreamPostResponse: {
+            /**
+             * Id
+             * @description New stream ID
+             */
+            id: number;
+        };
+        /**
+         * StreamPatchBody
+         * @description Request body for updating a stream.
+         */
+        StreamPatchBody: {
+            /**
+             * Name
+             * @description Stream name.
+             */
+            name: string;
+            /**
+             * Altdata
+             * @description Misc. metadata stored in JSON format, e.g. `{'collection': 'ZTF_alerts', selector: [1, 2]}`
+             * @default null
+             */
+            altdata: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Auto Join
+             * @description Boolean indicating whether any user may add themselves to this stream. Auto-join streams are visible to all users.
+             * @default null
+             */
+            auto_join: boolean | null;
         };
         /**
          * TeamPostBody
