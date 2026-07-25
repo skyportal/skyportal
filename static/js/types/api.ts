@@ -13601,14 +13601,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Tag name (letters and numbers only) */
-                        name: string;
-                        /** @description Hex color code (e.g., */
-                        color?: string;
-                    };
+                    "application/json": components["schemas"]["ObjTagOptionPostBody"];
                 };
             };
             responses: {
@@ -13704,14 +13699,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description New tag name */
-                        name: string;
-                        /** @description New hex color code (e.g., */
-                        color?: string;
-                    };
+                    "application/json": components["schemas"]["ObjTagOptionPatchBody"];
                 };
             };
             responses: {
@@ -13798,16 +13788,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description ID of the tag option to associate */
-                        objtagoption_id: number;
-                        /** @description ID of the object to tag */
-                        obj_id: string;
-                        /** @description IDs of groups that can access this tag association */
-                        group_ids: number[];
-                    };
+                    "application/json": components["schemas"]["ObjTagPostBody"];
                 };
             };
             responses: {
@@ -38309,6 +38292,62 @@ export interface components {
             observation_plan_data?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * ObjTagOptionPostBody
+         * @description Request body for creating a tag option.
+         */
+        ObjTagOptionPostBody: {
+            /**
+             * Name
+             * @description Tag name (letters and numbers only)
+             */
+            name: string;
+            /**
+             * Color
+             * @description Hex color code (e.g., #3a87ad)
+             * @default null
+             */
+            color: string | null;
+        };
+        /**
+         * ObjTagOptionPatchBody
+         * @description Request body for updating a tag option.
+         */
+        ObjTagOptionPatchBody: {
+            /**
+             * Name
+             * @description New tag name
+             */
+            name: string;
+            /**
+             * Color
+             * @description New hex color code (e.g., #3a87ad)
+             * @default null
+             */
+            color: string | null;
+        };
+        /**
+         * ObjTagPostBody
+         * @description Request body for creating an object-tag association.
+         */
+        ObjTagPostBody: {
+            /**
+             * Objtagoption Id
+             * @description ID of the tag option to associate
+             */
+            objtagoption_id: number;
+            /**
+             * Obj Id
+             * @description ID of the object to tag
+             */
+            obj_id: string;
+            /**
+             * Group Ids
+             * @description IDs of groups that can access this tag association. Defaults to the public group.
+             * @default null
+             */
+            group_ids: number[] | null;
         };
         SkymapQueueAPIHandlerPost: {
             /** @description Followup request allocation ID. */

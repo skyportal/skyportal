@@ -8,6 +8,7 @@ This module provides REST API endpoints for:
 import re
 
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -19,6 +20,42 @@ from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 
 env, cfg = load_env()
+
+
+class ObjTagOptionPostBody(BaseModel):
+    """Request body for creating a tag option."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(description="Tag name (letters and numbers only)")
+    color: str | None = Field(
+        default=None, description="Hex color code (e.g., #3a87ad)"
+    )
+
+
+class ObjTagOptionPatchBody(BaseModel):
+    """Request body for updating a tag option."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(description="New tag name")
+    color: str | None = Field(
+        default=None, description="New hex color code (e.g., #3a87ad)"
+    )
+
+
+class ObjTagPostBody(BaseModel):
+    """Request body for creating an object-tag association."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    objtagoption_id: int = Field(description="ID of the tag option to associate")
+    obj_id: str = Field(description="ID of the object to tag")
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="IDs of groups that can access this tag association. "
+        "Defaults to the public group.",
+    )
 
 
 class ObjTagOptionHandler(BaseHandler):
@@ -57,27 +94,13 @@ class ObjTagOptionHandler(BaseHandler):
             return self.success(data=tags)
 
     @permissions(["Manage sources"])
-    async def post(self):
+    async def post(self, *, body: ObjTagOptionPostBody = None):
         """
         ---
         summary: Create a new tag option
         description: Create a new tag option that can be applied to objects
         tags:
           - object tags
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                    description: Tag name (letters and numbers only)
-                  color:
-                    type: string
-                    description: Hex color code (e.g., #3a87ad)
-                required:
-                  - name
         responses:
           200:
             content:
@@ -98,11 +121,11 @@ class ObjTagOptionHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
-        name = data.get("name")
-        color = data.get("color")
+        body = self.parse_body(ObjTagOptionPostBody)
+        name = body.name
+        color = body.color
 
-        if not name or not isinstance(name, str):
+        if not name:
             return self.error("`name` must be provided as a non-empty string")
 
         if not re.fullmatch(r"[A-Za-z0-9]+", name):
@@ -138,7 +161,7 @@ class ObjTagOptionHandler(BaseHandler):
             return self.success(new_tag)
 
     @auth_or_token
-    async def patch(self, tag_id: int):
+    async def patch(self, tag_id: int, *, body: ObjTagOptionPatchBody = None):
         """
         ---
         summary: Update a tag option
@@ -151,20 +174,6 @@ class ObjTagOptionHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                    description: New tag name
-                  color:
-                    type: string
-                    description: New hex color code (e.g., #3a87ad)
-                required:
-                  - name
         responses:
           200:
             content:
@@ -179,16 +188,16 @@ class ObjTagOptionHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
-        new_name = data.get("name")
-        new_color = data.get("color")
+        body = self.parse_body(ObjTagOptionPatchBody)
+        new_name = body.name
+        new_color = body.color
 
         try:
             tag_id = int(tag_id)
         except Exception:
             raise ValueError("Invalid tag ID")
 
-        if not new_name or not isinstance(new_name, str):
+        if not new_name:
             return self.error("`name` must be provided as a non-empty string")
 
         if not re.fullmatch(r"[A-Za-z0-9]+", new_name):
@@ -363,34 +372,13 @@ class ObjTagHandler(BaseHandler):
             return self.success(associations)
 
     @auth_or_token
-    async def post(self):
+    async def post(self, *, body: ObjTagPostBody = None):
         """
         ---
         summary: Create object-tag association
         description: Create a new association between an object and a tag option, with group access
         tags:
           - object tags
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  objtagoption_id:
-                    type: integer
-                    description: ID of the tag option to associate
-                  obj_id:
-                    type: string
-                    description: ID of the object to tag
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: IDs of groups that can access this tag association
-                required:
-                  - objtagoption_id
-                  - obj_id
-                  - group_ids
         responses:
           200:
             content:
@@ -411,24 +399,13 @@ class ObjTagHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
-        objtagoption_id = data.get("objtagoption_id")
-        obj_id = data.get("obj_id")
-        group_ids = data.get("group_ids")
+        body = self.parse_body(ObjTagPostBody)
+        objtagoption_id = body.objtagoption_id
+        obj_id = body.obj_id
+        group_ids = body.group_ids or None
 
         if not objtagoption_id or not obj_id:
             return self.error("Both `objtagoption_id` and `obj_id` must be provided")
-
-        if group_ids is not None:
-            if not isinstance(group_ids, list):
-                return self.error("`group_ids` must be a list of integers")
-            if len(group_ids) > 0:
-                try:
-                    group_ids = [int(gid) for gid in group_ids]
-                except (ValueError, TypeError):
-                    return self.error("`group_ids` must be a list of integers")
-            else:
-                group_ids = None
 
         async with self.AsyncSession() as session:
             if group_ids is None:
