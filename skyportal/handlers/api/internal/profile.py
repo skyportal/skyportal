@@ -1,9 +1,11 @@
 from copy import deepcopy
+from typing import Any
 
 import phonenumbers
 import sqlalchemy as sa
 from email_validator import EmailNotValidError, validate_email
 from phonenumbers.phonenumberutil import NumberParseException
+from pydantic import BaseModel, ConfigDict, Field
 from slugify import slugify
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
@@ -21,6 +23,39 @@ from ....models import (
     User,
 )
 from ...base import BaseHandler
+
+
+class ProfilePatchBody(BaseModel):
+    """Request body for updating a user's profile and preferences."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    username: str | None = Field(default=None, description="User's preferred user name")
+    first_name: str | None = Field(
+        default=None, description="User's preferred first name"
+    )
+    last_name: str | None = Field(
+        default=None, description="User's preferred last name"
+    )
+    affiliations: list[str] | None = Field(
+        default=None, description="User's list of affiliations"
+    )
+    contact_email: str | None = Field(
+        default=None, description="User's preferred email address"
+    )
+    contact_phone: str | None = Field(
+        default=None, description="User's preferred (international) phone number"
+    )
+    bio: str | None = Field(
+        default=None, description="User's biography, or a short description of the user"
+    )
+    is_bot: bool | None = Field(
+        default=None,
+        description="Whether or not the user account should be flagged as a bot account",
+    )
+    preferences: dict[str, Any] | None = Field(
+        default=None, description="JSON describing updates to user preferences dict"
+    )
 
 
 class ProfileHandler(BaseHandler):
@@ -123,51 +158,10 @@ class ProfileHandler(BaseHandler):
             return self.success(data=user_info)
 
     @auth_or_token
-    async def patch(self, user_id: int | None = None):
+    async def patch(self, user_id: int | None = None, *, body: ProfilePatchBody = None):
         """
         ---
         description: Update user preferences
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  username:
-                    type: string
-                    description: |
-                      User's preferred user name
-                  first_name:
-                    type: string
-                    description: |
-                      User's preferred first name
-                  last_name:
-                    type: string
-                    description: |
-                      User's preferred last name
-                  affiliations:
-                    type: list
-                    description: |
-                      User's list of affiliations
-                  contact_email:
-                    type: string
-                    description: |
-                      User's preferred email address
-                  contact_phone:
-                    type: string
-                    description: |
-                      User's preferred (international) phone number
-                  bio:
-                    type: string
-                    description: |
-                      User's biography, or a short description of the user
-                  is_bot:
-                    type: boolean
-                    description: |
-                      Whether or not the user account should be flagged as a bot account
-                  preferences:
-                    schema: UpdateUserPreferencesRequestJSON
-                    description: JSON describing updates to user preferences dict
         responses:
           200:
             content:
@@ -178,7 +172,7 @@ class ProfileHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(ProfilePatchBody)
 
         async with self.AsyncSession() as session:
             if user_id is None:
@@ -191,11 +185,8 @@ class ProfileHandler(BaseHandler):
             if user is None:
                 return self.error(f"Cannot find User with ID: {user_id}")
 
-            if (
-                data.get("username") is not None
-                and data.get("username") != user.username
-            ):
-                username = data.pop("username").strip()
+            if body.username is not None and body.username != user.username:
+                username = body.username.strip()
                 if len(username) < 5:
                     return self.error("Username must be at least five characters long.")
                 user.username = username
@@ -214,23 +205,17 @@ class ProfileHandler(BaseHandler):
                         .values(name=slugify(username))
                     )
 
-            if data.get("first_name") is not None:
-                user.first_name = data.pop("first_name")
+            if body.first_name is not None:
+                user.first_name = body.first_name
 
-            if data.get("last_name") is not None:
-                user.last_name = data.pop("last_name")
+            if body.last_name is not None:
+                user.last_name = body.last_name
 
-            if data.get("affiliations") is not None:
-                if isinstance(data.get("affiliations"), list):
-                    user.affiliations = data.pop("affiliations")
-                else:
-                    return self.error(
-                        "Invalid affiliations. Should be a list of strings."
-                    )
+            if body.affiliations is not None:
+                user.affiliations = body.affiliations
 
-            if data.get("bio") is not None and isinstance(data.get("bio"), str):
-                bio = data.pop("bio")
-                bio = str(bio).strip()
+            if body.bio is not None:
+                bio = body.bio.strip()
 
                 # the bio is not empty, verify that it is valid
                 if len(bio) > 0:
@@ -248,11 +233,8 @@ class ProfileHandler(BaseHandler):
 
                 user.bio = bio
 
-            if data.get("is_bot") not in [None, ""]:
-                if str(data.get("is_bot")).lower() in ["true", "t", "1"]:
-                    user.is_bot = True
-                else:
-                    user.is_bot = False
+            if body.is_bot is not None:
+                user.is_bot = body.is_bot
 
             if user.is_bot:
                 # check that the bio is set and is between 10 and 1000 characters if the user is a bot
@@ -300,9 +282,9 @@ class ProfileHandler(BaseHandler):
                         "User is a coauthor of a sharing service and cannot be flagged as a bot."
                     )
 
-            if data.get("contact_phone") is not None:
-                phone = data.pop("contact_phone")
-                if phone not in [None, ""]:
+            if body.contact_phone is not None:
+                phone = body.contact_phone
+                if phone != "":
                     try:
                         if not phonenumbers.is_possible_number(
                             phonenumbers.parse(phone, "US")
@@ -314,9 +296,9 @@ class ProfileHandler(BaseHandler):
                 else:
                     user.contact_phone = None
 
-            if data.get("contact_email") is not None:
-                email = data.pop("contact_email")
-                if email not in [None, ""]:
+            if body.contact_email is not None:
+                email = body.contact_email
+                if email != "":
                     try:
                         emailinfo = validate_email(email, check_deliverability=False)
                     except EmailNotValidError as e:
@@ -327,7 +309,7 @@ class ProfileHandler(BaseHandler):
                 else:
                     user.contact_email = None
 
-            preferences = data.get("preferences", {})
+            preferences = body.preferences or {}
             # Do not save blank fields (empty strings)
             for k, v in preferences.items():
                 if isinstance(v, dict):
