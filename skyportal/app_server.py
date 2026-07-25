@@ -239,6 +239,7 @@ from skyportal.handlers.api.internal import (
     StandardsHandler,
     TokenHandler,
 )
+from skyportal.handlers.mcp import MCPHandler
 from skyportal.handlers.public import (
     CachedSourceFinderHandler,
     ReleaseHandler,
@@ -663,6 +664,8 @@ skyportal_handlers = [
     (r"/api/internal/survey_thumbnail", SurveyThumbnailHandler),
     (r"/api/internal/recent_gcn_events", RecentGcnEventsHandler),
     (r"/api/.*", InvalidEndpointHandler),
+    # MCP endpoint for AI assistants (Streamable HTTP transport).
+    (r"/mcp", MCPHandler),
     # Public pages.
     (
         r"/public/sources(?:/)?([0-9A-Za-z-_\.\+]+)?(?:/)?(?:version)?(?:/)?([0-9a-f]+)?",

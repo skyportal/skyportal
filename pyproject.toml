@@ -111,6 +111,8 @@ dependencies = [
     "brotli==1.2.0",
     "numexpr==2.14.1",
     "setuptools<83.1.0",
+    "fastmcp>=3.4,<4",
+    "httpx>=0.28",
 ]
 
 # Per-broker transport clients. Most brokers (Generic, ALeRCE, ANTARES, Lasair,
@@ -133,6 +135,7 @@ dev = [
     "pytest-rerunfailures>=14.0",
     "playwright==1.58.0",
     "pytest-playwright==0.8.0",
+    "pytest-asyncio>=1.4.0",
 ]
 docs = [
     "sphinx>=9.1.0; python_version >= '3.12'",

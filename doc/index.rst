@@ -111,6 +111,7 @@ User Guide
    extensions
    pages
    thumbnails
+   mcp_server
 
 Contributing
 ------------
