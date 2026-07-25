@@ -15047,22 +15047,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description IDs of the photometry data to be shared. If `spectrumIDs` is not
-                         *     provided, this is required.
-                         */
-                        photometryIDs?: number[];
-                        /** @description IDs of the spectra to be shared. If `photometryIDs` is not provided, this is required. */
-                        spectrumIDs?: number[];
-                        /**
-                         * @description List of IDs of groups data will be shared with. To share data with
-                         *     a single user, specify their single user group ID here.
-                         */
-                        groupIDs: number[];
-                    };
+                    "application/json": components["schemas"]["SharingPostBody"];
                 };
             };
             responses: {
@@ -38311,6 +38298,29 @@ export interface components {
              * @default null
              */
             group_ids: number[] | null;
+        };
+        /**
+         * SharingPostBody
+         * @description Request body for sharing data with additional groups/users.
+         */
+        SharingPostBody: {
+            /**
+             * Groupids
+             * @description List of IDs of groups data will be shared with. To share data with a single user, specify their single user group ID here.
+             */
+            groupIDs: number[];
+            /**
+             * Photometryids
+             * @description IDs of the photometry data to be shared. If `spectrumIDs` is not provided, this is required.
+             * @default null
+             */
+            photometryIDs: number[] | null;
+            /**
+             * Spectrumids
+             * @description IDs of the spectra to be shared. If `photometryIDs` is not provided, this is required.
+             * @default null
+             */
+            spectrumIDs: number[] | null;
         };
         /**
          * RecurringAPIPostBody
