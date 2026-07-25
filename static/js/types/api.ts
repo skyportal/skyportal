@@ -22300,12 +22300,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Array of Role IDs (strings) to be granted to user */
-                        roleIds: string[];
-                    };
+                    "application/json": components["schemas"]["UserRolePostBody"];
                 };
             };
             responses: {
@@ -38709,6 +38706,17 @@ export interface components {
              * @description Array of ACL IDs (strings) to be granted to user
              */
             aclIds: string[];
+        };
+        /**
+         * UserRolePostBody
+         * @description Request body for granting roles to a user.
+         */
+        UserRolePostBody: {
+            /**
+             * Roleids
+             * @description Array of Role IDs (strings) to be granted to user
+             */
+            roleIds: string[];
         };
     };
     responses: never;
