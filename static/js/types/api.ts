@@ -22249,12 +22249,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Array of ACL IDs (strings) to be granted to user */
-                        aclIds: string[];
-                    };
+                    "application/json": components["schemas"]["UserACLPostBody"];
                 };
             };
             responses: {
@@ -38599,6 +38596,17 @@ export interface components {
              * @description Updated team ID
              */
             id: number;
+        };
+        /**
+         * UserACLPostBody
+         * @description Request body for granting ACLs to a user.
+         */
+        UserACLPostBody: {
+            /**
+             * Aclids
+             * @description Array of ACL IDs (strings) to be granted to user
+             */
+            aclIds: string[];
         };
     };
     responses: never;

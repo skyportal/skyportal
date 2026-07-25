@@ -1,9 +1,20 @@
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import ACL, User, UserACL
 from ..base import BaseHandler
+
+
+class UserACLPostBody(BaseModel):
+    """Request body for granting ACLs to a user."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    aclIds: list[str] = Field(
+        description="Array of ACL IDs (strings) to be granted to user"
+    )
 
 
 class ACLHandler(BaseHandler):
@@ -39,7 +50,7 @@ class ACLHandler(BaseHandler):
 
 class UserACLHandler(BaseHandler):
     @permissions(["Manage users"])
-    async def post(self, user_id: int, *ignored_args):
+    async def post(self, user_id: int, *ignored_args, body: UserACLPostBody = None):
         """
         ---
         summary: Grant ACLs to a user
@@ -52,33 +63,14 @@ class UserACLHandler(BaseHandler):
             required: true
             schema:
               type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  aclIds:
-                    type: array
-                    items:
-                      type: string
-                    description: Array of ACL IDs (strings) to be granted to user
-                required:
-                  - aclIds
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-        data = self.get_json()
-        new_acl_ids = data.get("aclIds")
-        if new_acl_ids is None:
-            return self.error("Missing required parameter aclIds")
-        if not isinstance(new_acl_ids, list | tuple):
-            return self.error(
-                "Improperly formatted parameter aclIds; must be an array of strings."
-            )
+        body = self.parse_body(UserACLPostBody)
+        new_acl_ids = body.aclIds
         async with self.AsyncSession() as session:
             # Validate every supplied ACL id exists/is accessible in a single
             # round trip rather than one query per id.
