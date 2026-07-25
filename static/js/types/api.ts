@@ -11552,45 +11552,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        userEmail: string;
-                        /**
-                         * @description The role the new user will have in the system.
-                         *     If provided, must be one of either "Full user" or "View only".
-                         *     Defaults to "Full user".
-                         */
-                        role?: string;
-                        /**
-                         * @description List of IDs of streams invited user will be given access to. If
-                         *     not provided, user will be granted access to all streams associated
-                         *     with the groups specified by `groupIDs`.
-                         */
-                        streamIDs?: number[];
-                        /**
-                         * @description List of IDs of groups invited user will be added to. If `streamIDs`
-                         *     is not provided, invited user will be given accesss to all streams
-                         *     associated with the groups specified by this field.
-                         */
-                        groupIDs: number[];
-                        /**
-                         * @description List of booleans indicating whether user should be granted admin
-                         *     status for respective specified group(s). Defaults to all false.
-                         */
-                        groupAdmin?: boolean[];
-                        /**
-                         * @description List of booleans indicating whether user should be able to save
-                         *     sources to respective specified group(s). Defaults to all true.
-                         */
-                        canSave?: boolean[];
-                        /**
-                         * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
-                         *     date, after which the user's account will be deactivated and will be unable
-                         *     to access the application.
-                         */
-                        userExpirationDate?: string;
-                    };
+                    "application/json": components["schemas"]["InvitationPostBody"];
                 };
             };
             responses: {
@@ -11600,10 +11564,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New invitation ID */
-                                id?: string;
-                            };
+                            data?: components["schemas"]["InvitationPostResponse"];
                         };
                     };
                 };
@@ -11663,19 +11624,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        groupIDs?: number[];
-                        streamIDs?: number[];
-                        role?: string;
-                        /**
-                         * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
-                         *     date, after which the user's account will be deactivated and will be unable
-                         *     to access the application.
-                         */
-                        userExpirationDate?: string;
-                    };
+                    "application/json": components["schemas"]["InvitationPatchBody"];
                 };
             };
             responses: {
@@ -38168,6 +38119,93 @@ export interface components {
              * @enum {string}
              */
             status: "pending" | "accepted" | "declined";
+        };
+        /**
+         * InvitationPostBody
+         * @description Request body for inviting a new user.
+         */
+        InvitationPostBody: {
+            /**
+             * Useremail
+             * @description Email address to send the invitation to.
+             */
+            userEmail: string;
+            /**
+             * Groupids
+             * @description List of IDs of groups invited user will be added to. If `streamIDs` is not provided, invited user will be given accesss to all streams associated with the groups specified by this field.
+             */
+            groupIDs: number[];
+            /**
+             * Role
+             * @description The role the new user will have in the system. If provided, must be one of either "Full user" or "View only". Defaults to "Full user".
+             * @default Full user
+             */
+            role: string;
+            /**
+             * Streamids
+             * @description List of IDs of streams invited user will be given access to. If not provided, user will be granted access to all streams associated with the groups specified by `groupIDs`.
+             * @default null
+             */
+            streamIDs: number[] | null;
+            /**
+             * Groupadmin
+             * @description List of booleans indicating whether user should be granted admin status for respective specified group(s). Defaults to all false.
+             * @default null
+             */
+            groupAdmin: boolean[] | null;
+            /**
+             * Cansave
+             * @description List of booleans indicating whether user should be able to save sources to respective specified group(s). Defaults to all true.
+             * @default null
+             */
+            canSave: boolean[] | null;
+            /**
+             * Userexpirationdate
+             * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration date, after which the user's account will be deactivated and will be unable to access the application.
+             * @default null
+             */
+            userExpirationDate: string | null;
+        };
+        /**
+         * InvitationPostResponse
+         * @description Data payload returned when creating an invitation.
+         */
+        InvitationPostResponse: {
+            /**
+             * Id
+             * @description New invitation ID
+             */
+            id: number;
+        };
+        /**
+         * InvitationPatchBody
+         * @description Request body for updating a pending invitation.
+         */
+        InvitationPatchBody: {
+            /**
+             * Groupids
+             * @description List of IDs of groups the user is invited to.
+             * @default null
+             */
+            groupIDs: number[] | null;
+            /**
+             * Streamids
+             * @description List of IDs of streams invited user will be given access to.
+             * @default null
+             */
+            streamIDs: number[] | null;
+            /**
+             * Role
+             * @description The role the new user will have in the system.
+             * @default null
+             */
+            role: string | null;
+            /**
+             * Userexpirationdate
+             * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration date, after which the user's account will be deactivated and will be unable to access the application.
+             * @default null
+             */
+            userExpirationDate: string | null;
         };
         ObservationHandlerPost: {
             /** @description The telescope name associated with the fields */
