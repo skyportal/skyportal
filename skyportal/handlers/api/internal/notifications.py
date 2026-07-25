@@ -1,9 +1,18 @@
-from jsonschema.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token
 
 from ....models import UserNotification
 from ...base import BaseHandler
+
+
+class NotificationPatchBody(BaseModel):
+    """Request body for updating a notification (or all of a user's
+    notifications)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    viewed: bool = Field(description="Whether the notification has been viewed")
 
 
 class NotificationHandler(BaseHandler):
@@ -31,7 +40,7 @@ class NotificationHandler(BaseHandler):
             return self.success(data=result.all())
 
     @auth_or_token
-    async def patch(self, notification_id: int):
+    async def patch(self, notification_id: int, *, body: NotificationPatchBody = None):
         """Update a notification"""
 
         try:
@@ -39,8 +48,7 @@ class NotificationHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error(f"Invalid notification_id: {notification_id}")
 
-        data = self.get_json()
-        data["id"] = notification_id
+        body = self.parse_body(NotificationPatchBody)
 
         async with self.AsyncSession() as session:
             notification = await session.scalar(
@@ -52,16 +60,8 @@ class NotificationHandler(BaseHandler):
                 return self.error(
                     f"Cannot find UserNotification with ID: {notification_id}"
                 )
-            schema = UserNotification.__schema__()
-            try:
-                schema.load(data, partial=True)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
 
-            for k in data:
-                setattr(notification, k, data[k])
+            notification.viewed = body.viewed
             await session.commit()
 
             return self.success(action="skyportal/FETCH_NOTIFICATIONS")
@@ -98,9 +98,9 @@ class BulkNotificationHandler(BaseHandler):
     deleting all notifications or marking all notifications as read."""
 
     @auth_or_token
-    async def patch(self):
+    async def patch(self, *, body: NotificationPatchBody = None):
         """Update all notifications associated with requesting user."""
-        data = self.get_json()
+        body = self.parse_body(NotificationPatchBody)
         async with self.AsyncSession() as session:
             result = await session.scalars(
                 UserNotification.select(session.user_or_token, mode="update").where(
@@ -108,8 +108,7 @@ class BulkNotificationHandler(BaseHandler):
                 )
             )
             for notification in result.all():
-                for key in data:
-                    setattr(notification, key, data[key])
+                notification.viewed = body.viewed
             await session.commit()
             return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
