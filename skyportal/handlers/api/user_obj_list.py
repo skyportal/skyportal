@@ -1,6 +1,8 @@
 import re
+from typing import Any
 
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.custom_exceptions import AccessError
@@ -10,6 +12,65 @@ from ...models import (
     Obj,
 )
 from ..base import BaseHandler
+
+
+class ListingPostBody(BaseModel):
+    """Request body for adding a listing."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str = Field(description="ID of the object to add to the list.")
+    list_name: str = Field(
+        description='Listing name for this item, e.g., "favorites". '
+        "Multiple objects can be saved by the same user to different "
+        "lists, where the list names are user-defined. "
+        "List name must be a non-empty string starting with an "
+        "alphanumeric character or underscore. "
+        "(it must match the regex: /^\\w+/)"
+    )
+    user_id: int | None = Field(
+        default=None,
+        description="ID of user that you want to add the listing to. "
+        "If not given, will default to the associated user object that is posting.",
+    )
+    params: dict[str, Any] | None = Field(
+        default=None,
+        description='Optional parameters for "watchlist" type listings, when '
+        "searching for new candidates around a given object. "
+        "For example, if you want to search for new candidates around a given "
+        "object, you can specify the search radius and the number of candidates "
+        "to return. "
+        "The parameters are passed to the microservice that is responsible for "
+        "processing the listing. "
+        "The microservice will return a list of candidates that match the given "
+        "parameters, and ingest them.",
+    )
+
+
+class ListingPostResponse(BaseModel):
+    """Data payload returned when adding a listing."""
+
+    id: int = Field(description="New listing ID")
+
+
+class ListingPatchBody(BaseModel):
+    """Request body for updating a listing."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int | None = Field(
+        default=None, description="ID of the user the listing belongs to."
+    )
+    obj_id: str | None = Field(default=None, description="ID of the listed object.")
+    list_name: str | None = Field(
+        default=None,
+        description='Listing name for this item, e.g., "favorites". '
+        "Multiple objects can be saved by the same user to different "
+        "lists, where the list names are user-defined. "
+        "List name must be a non-empty string starting with an "
+        "alphanumeric character or underscore. "
+        "(it must match the regex: /^\\w+/)",
+    )
 
 
 def check_list_name(name):
@@ -84,71 +145,17 @@ class UserObjListHandler(BaseHandler):
             return self.success(data=result.all())
 
     @auth_or_token
-    async def post(self):
+    async def post(self, *, body: ListingPostBody = None) -> ListingPostResponse:
         """
         ---
         summary: Add a listing
         description: Add a listing.
         tags:
         - listings
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user_id:
-                    type: integer
-                    required: false
-                    description: |
-                      ID of user that you want to add the listing to.
-                      If not given, will default to the associated user object that is posting.
-                  obj_id:
-                    type: string
-                    required: true
-                  list_name:
-                    type: string
-                    required: true
-                    description: |
-                        Listing name for this item, e.g., "favorites".
-                        Multiple objects can be saved by the same user to different
-                        lists, where the list names are user-defined.
-                        List name must be a non-empty string starting with an
-                        alphanumeric character or underscore.
-                        (it must match the regex: /^\\w+/)
-                  params:
-                    type: object
-                    required: false
-                    description: |
-                        Optional parameters for "watchlist" type listings, when searching for new candidates around a given object.
-                        For example, if you want to search for new candidates around a given object, you can specify the search radius
-                        and the number of candidates to return.
-                        The parameters are passed to the microservice that is responsible for processing the listing.
-                        The microservice will return a list of candidates that match the given parameters, and ingest them.
-
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New listing ID
-
         """
+        body = self.parse_body(ListingPostBody)
 
-        data = self.get_json()
-
-        schema = Listing.__schema__(exclude=["user_id"])
-        user_id = data.pop("user_id", None)
-
+        user_id = body.user_id
         if user_id is None:
             user_id = self.associated_user_object.id
 
@@ -158,30 +165,23 @@ class UserObjListHandler(BaseHandler):
         ):
             return self.error("Only admins can add listings to other users' accounts")
 
-        try:
-            schema.load(data)
-        except ValidationError as e:
-            return self.error(f"Invalid/missing parameters: {e.normalized_messages()}")
-
-        obj_id = data.get("obj_id")
+        obj_id = body.obj_id
         obj_check = Obj.get(obj_id, self.current_user)
         if obj_check is None:
             return self.error(f"Cannot find Obj with ID: {obj_id}")
 
-        list_name = data.get("list_name")
+        list_name = body.list_name
         if not check_list_name(list_name):
             return self.error(
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
-        if list_name == "watchlist" and "params" not in data:
+        if list_name == "watchlist" and body.params is None:
             return self.error("Input `params` must be provided for `watchlist`")
 
-        params = data.get("params", None)
+        params = body.params
 
         if params is not None:
-            if not isinstance(params, dict):
-                return self.error("Input `params` must be a dictionary")
             if list_name == "watchlist":
                 # verify that the params are "arcsec", "cadence", and "end_of_night"
                 if "arcsec" not in params or "cadence" not in params:
@@ -242,7 +242,7 @@ class UserObjListHandler(BaseHandler):
             return self.success(data={"id": listing.id})
 
     @auth_or_token
-    async def patch(self, listing_id: int):
+    async def patch(self, listing_id: int, *, body: ListingPatchBody = None):
         """
         ---
         summary: Update a listing
@@ -255,29 +255,6 @@ class UserObjListHandler(BaseHandler):
           required: true
           schema:
             type: integer
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user_id:
-                    type: integer
-                    required: true
-                  obj_id:
-                    type: string
-                    required: true
-                  list_name:
-                    type: string
-                    required: true
-                    description: |
-                        Listing name for this item, e.g., "favorites".
-                        Multiple objects can be saved by the same user to different
-                        lists, where the list names are user-defined.
-                        List name must be a non-empty string starting with an
-                        alphanumeric character or underscore.
-                        (it must match the regex: /^\\w+/)
-
         responses:
           200:
             content:
@@ -285,6 +262,7 @@ class UserObjListHandler(BaseHandler):
                 schema: Success
 
         """
+        body = self.parse_body(ListingPatchBody)
         async with self.AsyncSession() as session:
             listing = await session.scalar(
                 Listing.select(self.current_user, mode="update").where(
@@ -294,33 +272,23 @@ class UserObjListHandler(BaseHandler):
             if listing is None:
                 return self.error(f"Cannot find listing with ID: {listing_id}")
 
-            # get the data from the request body
-            data = self.get_json()
-
-            schema = Listing.__schema__()
-            try:
-                schema.load(data, partial=True)
-            except ValidationError as e:
-                return self.error(
-                    f"Invalid/missing parameters: {e.normalized_messages()}"
-                )
-
-            user_id = data.get("user_id", listing.user_id)
-            user_id = int(user_id)
+            user_id = body.user_id if body.user_id is not None else listing.user_id
             if (
                 user_id != self.associated_user_object.id
                 and not self.current_user.is_system_admin
             ):
                 return self.error("Insufficient permissions.")
 
-            obj_id = data.get("obj_id", listing.obj_id)
+            obj_id = body.obj_id if body.obj_id is not None else listing.obj_id
             obj_check = await session.scalar(
                 Obj.select(self.current_user).where(Obj.id == obj_id)
             )
             if obj_check is None:
                 return self.error(f"Cannot find Obj with ID: {obj_id}")
 
-            list_name = data.get("list_name", listing.list_name)
+            list_name = (
+                body.list_name if body.list_name is not None else listing.list_name
+            )
 
             if not check_list_name(list_name):
                 return self.error(

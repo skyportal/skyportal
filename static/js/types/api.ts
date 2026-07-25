@@ -10646,33 +10646,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description ID of user that you want to add the listing to.
-                         *     If not given, will default to the associated user object that is posting.
-                         */
-                        user_id?: number;
-                        obj_id?: string;
-                        /**
-                         * @description Listing name for this item, e.g., "favorites".
-                         *     Multiple objects can be saved by the same user to different
-                         *     lists, where the list names are user-defined.
-                         *     List name must be a non-empty string starting with an
-                         *     alphanumeric character or underscore.
-                         *     (it must match the regex: /^\w+/)
-                         */
-                        list_name?: string;
-                        /**
-                         * @description Optional parameters for "watchlist" type listings, when searching for new candidates around a given object.
-                         *     For example, if you want to search for new candidates around a given object, you can specify the search radius
-                         *     and the number of candidates to return.
-                         *     The parameters are passed to the microservice that is responsible for processing the listing.
-                         *     The microservice will return a list of candidates that match the given parameters, and ingest them.
-                         */
-                        params?: Record<string, never>;
-                    };
+                    "application/json": components["schemas"]["ListingPostBody"];
                 };
             };
             responses: {
@@ -10682,10 +10658,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New listing ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["ListingPostResponse"];
                         };
                     };
                 };
@@ -10765,21 +10738,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        user_id?: number;
-                        obj_id?: string;
-                        /**
-                         * @description Listing name for this item, e.g., "favorites".
-                         *     Multiple objects can be saved by the same user to different
-                         *     lists, where the list names are user-defined.
-                         *     List name must be a non-empty string starting with an
-                         *     alphanumeric character or underscore.
-                         *     (it must match the regex: /^\w+/)
-                         */
-                        list_name?: string;
-                    };
+                    "application/json": components["schemas"]["ListingPatchBody"];
                 };
             };
             responses: {
@@ -38233,6 +38194,71 @@ export interface components {
             contour?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * ListingPostBody
+         * @description Request body for adding a listing.
+         */
+        ListingPostBody: {
+            /**
+             * Obj Id
+             * @description ID of the object to add to the list.
+             */
+            obj_id: string;
+            /**
+             * List Name
+             * @description Listing name for this item, e.g., "favorites". Multiple objects can be saved by the same user to different lists, where the list names are user-defined. List name must be a non-empty string starting with an alphanumeric character or underscore. (it must match the regex: /^\w+/)
+             */
+            list_name: string;
+            /**
+             * User Id
+             * @description ID of user that you want to add the listing to. If not given, will default to the associated user object that is posting.
+             * @default null
+             */
+            user_id: number | null;
+            /**
+             * Params
+             * @description Optional parameters for "watchlist" type listings, when searching for new candidates around a given object. For example, if you want to search for new candidates around a given object, you can specify the search radius and the number of candidates to return. The parameters are passed to the microservice that is responsible for processing the listing. The microservice will return a list of candidates that match the given parameters, and ingest them.
+             * @default null
+             */
+            params: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * ListingPostResponse
+         * @description Data payload returned when adding a listing.
+         */
+        ListingPostResponse: {
+            /**
+             * Id
+             * @description New listing ID
+             */
+            id: number;
+        };
+        /**
+         * ListingPatchBody
+         * @description Request body for updating a listing.
+         */
+        ListingPatchBody: {
+            /**
+             * User Id
+             * @description ID of the user the listing belongs to.
+             * @default null
+             */
+            user_id: number | null;
+            /**
+             * Obj Id
+             * @description ID of the listed object.
+             * @default null
+             */
+            obj_id: string | null;
+            /**
+             * List Name
+             * @description Listing name for this item, e.g., "favorites". Multiple objects can be saved by the same user to different lists, where the list names are user-defined. List name must be a non-empty string starting with an alphanumeric character or underscore. (it must match the regex: /^\w+/)
+             * @default null
+             */
+            list_name: string | null;
         };
         /**
          * GroupAdmissionRequestPostBody
