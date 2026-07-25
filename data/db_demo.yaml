@@ -1345,38 +1345,33 @@ sources/ZTF18aabcvnq/comments:
     text: "You're a star! <3"
 
 sources/ZTF21aaqjmps/annotations:
-  - obj_id: ZTF21aaqjmps
-    origin: "Program A"
+  - origin: "Program A"
     data:
       numeric_field: 0.11235813
       some_boolean: true
       class: "SNe II"
 
 sources/ZTF18aabcvnq/annotations:
-  - obj_id: ZTF18aabcvnq
-    origin: "Program b"
+  - origin: "Program b"
     data:
       numeric_field: 0.213471118
       some_boolean: false
       class: "varstar"
 
 sources/ZTFe028h94k/annotations:
-  - obj_id: ZTFe028h94k
-    origin: "Program B"
+  - origin: "Program B"
     data:
       period: 0.5281475
     group_ids:
       - =program_B
-  - obj_id: ZTFe028h94k
-    origin: "ZVM"
+  - origin: "ZVM"
     data:
       period: 0.5281217208459
     group_ids:
       - =program_B
 
 sources/ZTFrlh6cyjh/annotations:
-  - obj_id: ZTFrlh6cyjh
-    origin: "ZVM"
+  - origin: "ZVM"
     data:
       period: 1.107332
     group_ids:
