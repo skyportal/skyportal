@@ -18571,16 +18571,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description ID of the object in question. */
-                        objId: string;
-                        /** @description List of group IDs to save or invite to save specified source. */
-                        inviteGroupIds?: number[];
-                        /** @description List of group IDs from which specified source is to be unsaved. */
-                        unsaveGroupIds?: number[];
-                    } | unknown | unknown;
+                    "application/json": components["schemas"]["SourceGroupsPostBody"];
                 };
             };
             responses: {
@@ -18626,13 +18619,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        groupID: number;
-                        active: boolean;
-                        requested: boolean;
-                    };
+                    "application/json": components["schemas"]["SourceGroupsPatchBody"];
                 };
             };
             responses: {
@@ -38374,6 +38363,48 @@ export interface components {
              * @description New annotation ID
              */
             annotation_id: number;
+        };
+        /**
+         * SourceGroupsPostBody
+         * @description Request body for saving/unsaving a source to/from groups.
+         */
+        SourceGroupsPostBody: {
+            /**
+             * Objid
+             * @description ID of the object in question.
+             */
+            objId: string;
+            /**
+             * Invitegroupids
+             * @description List of group IDs to save or invite to save specified source.
+             */
+            inviteGroupIds?: number[];
+            /**
+             * Unsavegroupids
+             * @description List of group IDs from which specified source is to be unsaved.
+             */
+            unsaveGroupIds?: number[];
+        };
+        /**
+         * SourceGroupsPatchBody
+         * @description Request body for updating a Source table row.
+         */
+        SourceGroupsPatchBody: {
+            /**
+             * Groupid
+             * @description ID of the group whose Source row to update.
+             */
+            groupID: number;
+            /**
+             * Active
+             * @description Whether the source is saved to the group.
+             */
+            active: boolean;
+            /**
+             * Requested
+             * @description Whether the source is requested to be saved to the group.
+             */
+            requested: boolean;
         };
         SpatialCatalogASCIIFileHandlerPost: {
             /** @description Spatial catalog name. */
