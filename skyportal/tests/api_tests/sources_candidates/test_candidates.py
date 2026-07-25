@@ -85,6 +85,9 @@ def test_token_user_post_delete_new_candidate(
     assert status == 200
     assert data["data"]["id"] == obj_id
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
+    redshift_history = data["data"]["redshift_history"]
+    assert redshift_history is not None
+    assert redshift_history[-1]["value"] == 3
 
     status, data = api(
         "DELETE",

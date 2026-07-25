@@ -1607,6 +1607,13 @@ class CandidateHandler(BaseHandler):
                     return self.error(
                         f"Invalid/missing parameters: {e.normalized_messages()}"
                     )
+                # Set derived columns while obj is transient so they go into the
+                # INSERT; reading them after the flush can sync-lazy-load an
+                # expired attribute and raise MissingGreenlet.
+                update_redshift_history_if_relevant(
+                    data, obj, self.associated_user_object
+                )
+                update_healpix_if_relevant(data, obj)
                 session.add(obj)
                 try:
                     await session.flush()
@@ -1631,8 +1638,13 @@ class CandidateHandler(BaseHandler):
             if not filters:
                 return self.error("At least one valid filter ID must be provided.")
 
-            update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-            update_healpix_if_relevant(data, obj)
+            # Existing obj (found up front, or created concurrently): it is fully
+            # loaded, so applying the updates here can't lazy-load.
+            if obj_already_exists:
+                update_redshift_history_if_relevant(
+                    data, obj, self.associated_user_object
+                )
+                update_healpix_if_relevant(data, obj)
 
             # Capture obj.id BEFORE the commit attempt so that we can still
             # build an error message after a rollback (which detaches obj).
