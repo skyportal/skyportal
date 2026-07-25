@@ -156,6 +156,7 @@ export const ROUTE_SCHEMA_MAP = {
   "POST /api/galaxy_catalog/ascii": { schema: "Galaxy" as const, list: true },
   "POST /api/group_admission_requests": { schema: "GroupAdmissionRequestPostResponse" as const, list: false },
   "POST /api/groups/{group_id}/usersFromGroups": { schema: "GroupUser" as const, list: false },
+  "POST /api/invitations": { schema: "InvitationPostResponse" as const, list: false },
   "POST /api/listing": { schema: "ListingPostResponse" as const, list: false },
   "POST /api/objtag": { schema: "ObjTag" as const, list: false },
   "POST /api/objtagoption": { schema: "ObjTagOption" as const, list: false },
