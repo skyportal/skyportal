@@ -20914,9 +20914,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["TelescopeNoID"];
+                    "application/json": components["schemas"]["TelescopePutBody"];
                 };
             };
             responses: {
@@ -21038,9 +21038,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["TelescopeNoID"];
+                    "application/json": components["schemas"]["TelescopePostBody"];
                 };
             };
             responses: {
@@ -21050,19 +21050,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New telescope ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["TelescopePostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -38774,6 +38763,146 @@ export interface components {
              * @description Updated team ID
              */
             id: number;
+        };
+        /**
+         * TelescopePostBody
+         * @description Request body for creating a telescope.
+         */
+        TelescopePostBody: {
+            /**
+             * Name
+             * @description Unabbreviated facility name (e.g., Palomar 200-inch Hale Telescope).
+             */
+            name: string;
+            /**
+             * Nickname
+             * @description Abbreviated facility name (e.g., P200).
+             */
+            nickname: string;
+            /**
+             * Diameter
+             * @description Diameter in meters.
+             */
+            diameter: number;
+            /**
+             * Lat
+             * @description Latitude in deg.
+             * @default null
+             */
+            lat: number | null;
+            /**
+             * Lon
+             * @description Longitude in deg.
+             * @default null
+             */
+            lon: number | null;
+            /**
+             * Elevation
+             * @description Elevation in meters.
+             * @default null
+             */
+            elevation: number | null;
+            /**
+             * Skycam Link
+             * @description Link to the telescope's sky camera.
+             * @default null
+             */
+            skycam_link: string | null;
+            /**
+             * Weather Link
+             * @description Link to the preferred weather site.
+             * @default null
+             */
+            weather_link: string | null;
+            /**
+             * Robotic
+             * @description Is this telescope robotic?
+             * @default false
+             */
+            robotic: boolean;
+            /**
+             * Fixed Location
+             * @description Does this telescope have a fixed location (lon, lat, elev)? Defaults to true.
+             * @default null
+             */
+            fixed_location: boolean | null;
+        };
+        /**
+         * TelescopePostResponse
+         * @description Data payload returned when creating a telescope.
+         */
+        TelescopePostResponse: {
+            /**
+             * Id
+             * @description New telescope ID
+             */
+            id: number;
+        };
+        /**
+         * TelescopePutBody
+         * @description Request body for updating a telescope.
+         */
+        TelescopePutBody: {
+            /**
+             * Name
+             * @description Unabbreviated facility name (e.g., Palomar 200-inch Hale Telescope).
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Nickname
+             * @description Abbreviated facility name (e.g., P200).
+             * @default null
+             */
+            nickname: string | null;
+            /**
+             * Diameter
+             * @description Diameter in meters.
+             * @default null
+             */
+            diameter: number | null;
+            /**
+             * Lat
+             * @description Latitude in deg.
+             * @default null
+             */
+            lat: number | null;
+            /**
+             * Lon
+             * @description Longitude in deg.
+             * @default null
+             */
+            lon: number | null;
+            /**
+             * Elevation
+             * @description Elevation in meters.
+             * @default null
+             */
+            elevation: number | null;
+            /**
+             * Skycam Link
+             * @description Link to the telescope's sky camera.
+             * @default null
+             */
+            skycam_link: string | null;
+            /**
+             * Weather Link
+             * @description Link to the preferred weather site.
+             * @default null
+             */
+            weather_link: string | null;
+            /**
+             * Robotic
+             * @description Is this telescope robotic?
+             * @default null
+             */
+            robotic: boolean | null;
+            /**
+             * Fixed Location
+             * @description Does this telescope have a fixed location (lon, lat, elev)?
+             * @default null
+             */
+            fixed_location: boolean | null;
         };
         /**
          * UserACLPostBody
