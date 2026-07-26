@@ -8,7 +8,13 @@ import {
   QuickFilter,
   QuickFilterControl,
 } from "@mui/x-data-grid";
-import { TextField, Tooltip, InputAdornment } from "@mui/material";
+import {
+  TextField,
+  Tooltip,
+  InputAdornment,
+  Typography,
+  Box,
+} from "@mui/material";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
@@ -99,13 +105,15 @@ const StyledDataGrid = ({ sx, ...props }: StyledDataGridProps) => (
 // between for any table-specific buttons (download/export/etc.).
 export const DataGridToolbar = ({
   children,
+  title,
   showColumns = true,
   showQuickFilter = true,
   showFilter = false,
-  showExport = false,
+  showExport = true,
   quickFilterTestId,
 }: {
   children?: any;
+  title?: string;
   showColumns?: boolean;
   showQuickFilter?: boolean;
   showFilter?: boolean;
@@ -113,6 +121,14 @@ export const DataGridToolbar = ({
   quickFilterTestId?: string;
 }) => (
   <Toolbar>
+    {title && (
+      <>
+        <Typography variant="h6" sx={{ ml: 1, mr: 1 }}>
+          {title}
+        </Typography>
+        <Box sx={{ flexGrow: 1 }} />
+      </>
+    )}
     {showColumns && (
       <Tooltip title="Columns">
         <ColumnsPanelTrigger
@@ -165,6 +181,7 @@ export const DataGridToolbar = ({
               inputRef={ref}
               size="small"
               placeholder="Search…"
+              aria-label="Search"
               slotProps={{
                 input: {
                   startAdornment: (

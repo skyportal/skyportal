@@ -146,7 +146,7 @@ const RecurringAPIPage = () => {
   }
 
   const CustomToolbar = () => (
-    <DataGridToolbar showQuickFilter={false} showExport>
+    <DataGridToolbar showQuickFilter={false}>
       <IconButton
         name="new_recurring_api_form"
         onClick={() => setOpenNewForm(true)}

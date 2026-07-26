@@ -5,7 +5,6 @@ import React, { Suspense, useState } from "react";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
-import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import BuildIcon from "@mui/icons-material/Build";
 import CloudIcon from "@mui/icons-material/Cloud";
@@ -24,8 +23,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-
-import { makeStyles } from "tss-react/mui";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -49,21 +46,9 @@ import SkyCam from "../SkyCam";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Spinner from "../Spinner";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import Box from "@mui/material/Box";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
-
-const useStyles = makeStyles()((theme) => ({
-  chip: {
-    margin: theme.spacing(0.5),
-  },
-  displayInlineBlock: {
-    display: "inline-block",
-  },
-  center: {
-    margin: "auto",
-    padding: "0.625rem",
-  },
-}));
 
 function getStatusColors(status: string) {
   // if it starts with success, green
@@ -214,7 +199,6 @@ interface RunSummaryProps {
 
 const RunSummary = ({ route }: RunSummaryProps) => {
   const dispatch = useAppDispatch();
-  const { classes: styles } = useStyles();
   const { data: observingRun } = useGetObservingRunQuery(route.id) as {
     data: any;
   };
@@ -319,11 +303,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       valueGetter: (_value: any, row: any) => row.obj?.id,
       renderCell: (params: any) => {
         const objid = params.row.obj?.id;
-        return (
-          <a href={`/source/${objid}`} key={`${objid}_objid`}>
-            {objid}
-          </a>
-        );
+        return <a href={`/source/${objid}`}>{objid}</a>;
       },
     },
     {
@@ -361,11 +341,6 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       headerName: "Date Requested",
       flex: 1,
       minWidth: 150,
-      renderCell: (params: any) => (
-        <div key={`${params.row.id}_date_requested`}>
-          {params.row.created_at}
-        </div>
-      ),
     },
     {
       field: "ra",
@@ -375,7 +350,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       sortable: false,
       valueGetter: (_value: any, row: any) => row.obj?.ra,
       renderCell: (params: any) => (
-        <div key={`${params.row.id}_ra`}>
+        <div>
           {params.row.obj?.ra}
           <br />
           {params.row.obj?.ra != null && ra_to_hours(params.row.obj.ra)}
@@ -390,7 +365,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       sortable: false,
       valueGetter: (_value: any, row: any) => row.obj?.dec,
       renderCell: (params: any) => (
-        <div key={`${params.row.id}_dec`}>
+        <div>
           {params.row.obj?.dec}
           <br />
           {params.row.obj?.dec != null && dec_to_dms(params.row.obj.dec)}
@@ -429,13 +404,10 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       flex: 1,
       minWidth: 150,
       sortable: false,
-      renderCell: (params: any) => (
-        <div key={`${params.row.id}_rise`}>
-          {params.row.rise_time_utc === ""
-            ? "Never up"
-            : new Date(params.row.rise_time_utc).toLocaleTimeString()}
-        </div>
-      ),
+      renderCell: (params: any) =>
+        params.row.rise_time_utc === ""
+          ? "Never up"
+          : new Date(params.row.rise_time_utc).toLocaleTimeString(),
     },
     {
       field: "set_time_utc",
@@ -443,13 +415,10 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       flex: 1,
       minWidth: 150,
       sortable: false,
-      renderCell: (params: any) => (
-        <div key={`${params.row.id}_set`}>
-          {params.row.set_time_utc === ""
-            ? "Never up"
-            : new Date(params.row.set_time_utc).toLocaleTimeString()}
-        </div>
-      ),
+      renderCell: (params: any) =>
+        params.row.set_time_utc === ""
+          ? "Never up"
+          : new Date(params.row.set_time_utc).toLocaleTimeString(),
     },
     {
       field: "groups",
@@ -459,22 +428,14 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       sortable: false,
       renderCell: (params: any) => {
         const assignment = params.row;
-        return (
-          <div key={`${assignment.obj?.id}_groups`}>
-            {assignment.accessible_group_names?.map((name: string) => (
-              <div key={name}>
-                <Chip
-                  label={name.substring(0, 15)}
-                  key={name}
-                  size="small"
-                  className={styles.chip}
-                  data-testid={`chip-assignment_${assignment.id}-group_${name}`}
-                />
-                <br />
-              </div>
-            ))}
-          </div>
-        );
+        return assignment.accessible_group_names?.map((name: string) => (
+          <Chip
+            sx={{ m: 0.5 }}
+            label={name.substring(0, 15)}
+            size="small"
+            key={name}
+          />
+        ));
       },
     },
     {
@@ -488,12 +449,12 @@ const RunSummary = ({ route }: RunSummaryProps) => {
         const assignment = params.row;
         return (
           <>
-            <IconButton size="small" key={`${assignment.id}_actions`}>
+            <IconButton size="small">
               <Link href={`/api/sources/${assignment.obj.id}/finder`}>
                 <PictureAsPdfIcon />
               </Link>
             </IconButton>
-            <IconButton size="small" key={`${assignment.id}_actions_int`}>
+            <IconButton size="small">
               <Link
                 href={`/source/${assignment.obj.id}/finder`}
                 rel="noopener noreferrer"
@@ -513,9 +474,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       minWidth: 90,
       sortable: false,
       filterable: false,
-      renderCell: (params: any) => (
-        <SimpleMenu assignment={params.row} key={`${params.row.id}_menu`} />
-      ),
+      renderCell: (params: any) => <SimpleMenu assignment={params.row} />,
     },
   ];
 
@@ -533,7 +492,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
 
   function CustomToolbar() {
     return (
-      <DataGridToolbar showQuickFilter={false} showExport>
+      <DataGridToolbar showQuickFilter={false} title="Targets">
         <IconButton name="clouds" onClick={() => setDialog(true)}>
           <CloudIcon />
         </IconButton>
@@ -542,8 +501,8 @@ const RunSummary = ({ route }: RunSummaryProps) => {
   }
 
   return (
-    <div className={styles.center}>
-      <Typography variant="h4" gutterBottom color="textSecondary">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+      <Typography variant="h5" color="textSecondary">
         Plan for:{" "}
         <b>
           {observingRunTitle(
@@ -554,65 +513,48 @@ const RunSummary = ({ route }: RunSummaryProps) => {
           )}
         </b>
       </Typography>
-      <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
-        Targets
-      </Typography>
-      <Box sx={{ width: "100%" }}>
-        <StyledDataGrid
-          autoHeight
-          rows={displayRows}
-          columns={columns}
-          getRowId={(row: any) => row.id}
-          getRowHeight={(params: any) =>
-            params.model.__detail ? "auto" : null
-          }
-          columnBufferPx={3000}
-          pageSizeOptions={[10, 25, 50, 100]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10, page: 0 } },
-          }}
-          slots={{ toolbar: CustomToolbar }}
-          showToolbar
-        />
-      </Box>
+      <StyledDataGrid
+        autoHeight
+        rows={displayRows}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        getRowHeight={(params: any) => (params.model.__detail ? "auto" : null)}
+        columnBufferPx={3000}
+        pageSizeOptions={[10, 25, 50, 100]}
+        initialState={{
+          pagination: { paginationModel: { pageSize: 10, page: 0 } },
+        }}
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
       <Grid container spacing={1} style={{ marginTop: "0.5rem" }}>
-        <Grid
-          size={{ xs: 12, sm: 12, md: 12, lg: 8, xl: 8 }}
-          className={styles.displayInlineBlock}
-        >
+        <Grid size={{ xs: 12, sm: 12, md: 12, lg: 8, xl: 8 }}>
           <Paper style={{ padding: "0.5rem" }}>
-            <Typography gutterBottom align="center">
+            <Typography gutterBottom variant="h6">
               Starlist and Offsets
             </Typography>
             <ObservingRunStarList observingRunId={observingRun.id} />
           </Paper>
         </Grid>
-        <Grid
-          size={{ xs: 12, sm: 12, md: 12, lg: 4, xl: 4 }}
-          className={styles.displayInlineBlock}
-        >
+        <Grid size={{ xs: 12, sm: 12, md: 12, lg: 4, xl: 4 }}>
           <SkyCam telescope={observingRun.instrument.telescope} />
         </Grid>
       </Grid>
-      <div>
-        {dialog && (
-          <Dialog open={dialog} onClose={closeDialog} maxWidth="md">
-            <DialogContent dividers>
-              Is your observing run clouded out and want to set all pending
-              objects to not observered?
-            </DialogContent>
-            <DialogActions>
-              <Button secondary autoFocus onClick={closeDialog}>
-                Dismiss
-              </Button>
-              <Button primary onClick={() => notObservedFunction()}>
-                Confirm
-              </Button>
-            </DialogActions>
-          </Dialog>
-        )}
-      </div>
-    </div>
+      <Dialog open={dialog} onClose={closeDialog} maxWidth="md">
+        <DialogContent dividers>
+          Is your observing run clouded out and want to set all pending objects
+          to not observered?
+        </DialogContent>
+        <DialogActions>
+          <Button secondary autoFocus onClick={closeDialog}>
+            Dismiss
+          </Button>
+          <Button primary onClick={() => notObservedFunction()}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

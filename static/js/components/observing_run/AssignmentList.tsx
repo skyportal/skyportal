@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -18,22 +17,13 @@ import { useDeleteAssignmentMutation } from "../../ducks/source";
 import { useGetUsersQuery } from "../../ducks/users";
 import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
-
-const useStyles = makeStyles()(() => ({
-  assignmentManage: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-}));
+import Box from "@mui/material/Box";
 
 interface AssignmentListProps {
   assignments: any[];
 }
 
 const AssignmentList = ({ assignments }: AssignmentListProps) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [deleteAssignmentMutation] = useDeleteAssignmentMutation();
 
@@ -199,11 +189,15 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       renderCell: (params: any) => {
         const assignment = params.row;
         return (
-          <div className={classes.assignmentManage}>
-            <IconButton
-              id={`edit_button_assignment_${assignment.id}`}
-              onClick={() => openEditDialog(assignment.id)}
-            >
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              alignItems: "center",
+            }}
+          >
+            <IconButton onClick={() => openEditDialog(assignment.id)}>
               <EditIcon />
             </IconButton>
             <IconButton
@@ -212,7 +206,7 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
             >
               <DeleteIcon />
             </IconButton>
-          </div>
+          </Box>
         );
       },
     },

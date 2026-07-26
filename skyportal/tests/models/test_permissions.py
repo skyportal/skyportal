@@ -842,7 +842,7 @@ CASES = [
     ("user_group2", "public_taxonomy", "delete", False),
     ("group_admin_user", "public_taxonomy", "create", True),
     ("group_admin_user", "public_taxonomy", "read", True),
-    ("group_admin_user", "public_taxonomy", "update", False),
+    ("group_admin_user", "public_taxonomy", "update", True),
     ("group_admin_user", "public_taxonomy", "delete", False),
     ("super_admin_user", "public_taxonomy", "create", True),
     ("super_admin_user", "public_taxonomy", "read", True),

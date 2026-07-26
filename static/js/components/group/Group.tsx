@@ -123,13 +123,15 @@ const Group = () => {
           )}
         </Box>
       </Box>
-      <Box sx={{ borderBottom: 1, borderColor: "divider", mt: 2 }}>
-        <Tabs value={tab} onChange={(_event, value) => setTab(value)}>
-          <Tab label="Members" data-testid="tour-group-members" />
-          <Tab label="Sources" />
-          <Tab label="Streams and filters" data-testid="tour-group-filters" />
-        </Tabs>
-      </Box>
+      <Tabs
+        sx={{ borderBottom: 1, borderColor: "divider" }}
+        value={tab}
+        onChange={(_event, value) => setTab(value)}
+      >
+        <Tab label="Members" data-testid="tour-group-members" />
+        <Tab label="Sources" />
+        <Tab label="Streams and filters" data-testid="tour-group-filters" />
+      </Tabs>
       {tab === 0 && (
         <GroupUsers
           group={group}

@@ -1614,20 +1614,19 @@ class CandidateHandler(BaseHandler):
                     data, obj, self.associated_user_object
                 )
                 update_healpix_if_relevant(data, obj)
-                session.add(obj)
                 try:
-                    await session.flush()
+                    # Concurrent posts of the same new obj race here: the loser
+                    # rolls back to the savepoint and reuses the committed row.
+                    async with session.begin_nested():
+                        session.add(obj)
+                        await session.flush()
                 except IntegrityError:
-                    # A concurrent request created this Obj between our existence
-                    # check and this flush; use the now-committed row instead.
-                    await session.rollback()
                     obj = await session.scalar(
                         Obj.select(session.user_or_token).where(Obj.id == data["id"])
                     )
                     if obj is None:
                         return self.error(
-                            f"Failed to load object {data['id']} after a "
-                            "concurrent insert."
+                            f"Failed to create object {data['id']}: it already exists but is not accessible"
                         )
                     obj_already_exists = True
 

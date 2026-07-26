@@ -6,7 +6,6 @@ import { useGetProfileQuery } from "../../ducks/profile";
 const InstrumentList = () => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
-
   const { data: currentUser } = useGetProfileQuery();
   const managePermission =
     currentUser?.permissions?.includes("Manage instruments") ||

@@ -1,55 +1,28 @@
 import { useState } from "react";
-import { makeStyles } from "tss-react/mui";
-import Paper from "@mui/material/Paper";
 import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
 import AddIcon from "@mui/icons-material/Add";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useDeleteDefaultSurveyEfficiencyMutation } from "../../ducks/default_survey_efficiencies";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
-import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultSurveyEfficiency from "./NewDefaultSurveyEfficiency";
 import { useIsReadOnly } from "../../ducks/profile";
 
-const useStyles = makeStyles()(() => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-}));
-
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map fall through to the field itself.
-const SERVER_SORT_FIELD: Record<string, string> = {
-  defaultSurveyEfficiency: "defaultSurveyEfficiency",
-  modelName: "modelName",
-};
-
 interface DefaultSurveyEfficiencyTableProps {
   default_survey_efficiencies: any[];
-  paginateCallback: (...args: any[]) => void;
-  sortingCallback?: ((...args: any[]) => void) | null;
-  totalMatches?: number;
   deletePermission?: boolean;
 }
 
 const DefaultSurveyEfficiencyTable = ({
   default_survey_efficiencies,
-  paginateCallback,
-  totalMatches = 0,
-  sortingCallback = null,
   deletePermission = false,
 }: DefaultSurveyEfficiencyTableProps) => {
-  const { classes } = useStyles();
-
   const dispatch = useAppDispatch();
   const isReadOnly = useIsReadOnly();
   const [deleteDefaultSurveyEfficiencyMutation] =
@@ -59,7 +32,6 @@ const DefaultSurveyEfficiencyTable = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [defaultSurveyEfficiencyToDelete, setDefaultSurveyEfficiencyToDelete] =
     useState<any>(null);
-  const [sortModel, setSortModel] = useState<any[]>([]);
 
   const openNewDialog = () => {
     setNewDialogOpen(true);
@@ -89,75 +61,12 @@ const DefaultSurveyEfficiencyTable = ({
       });
   };
 
-  const handleSortModelChange = (model: any) => {
-    setSortModel(model);
-    if (!model.length) {
-      paginateCallback(1, 100, {});
-      return;
-    }
-    const { field, sort } = model[0];
-    sortingCallback?.({
-      name: SERVER_SORT_FIELD[field] || field,
-      direction: sort,
-    });
-  };
-
-  const renderSurveyEfficiencyTitle = (params: any) => (
-    <div>{params.row.default_observationplan_request.default_plan_name}</div>
-  );
-
-  const renderModelName = (params: any) => (
-    <div>{params.row ? params.row.payload.modelName : ""}</div>
-  );
-
-  const renderMaxPhase = (params: any) => (
-    <div>{params.row ? params.row.payload.maximumPhase : ""}</div>
-  );
-
-  const renderMinPhase = (params: any) => (
-    <div>{params.row ? params.row.payload.minimumPhase : ""}</div>
-  );
-
-  const renderNumDetections = (params: any) => (
-    <div>{params.row ? params.row.payload.numberDetections : ""}</div>
-  );
-
-  const renderNumInjections = (params: any) => (
-    <div>{params.row ? params.row.payload.numberInjections : ""}</div>
-  );
-
-  const renderDetectionThreshold = (params: any) => (
-    <div>{params.row ? params.row.payload.detectionThreshold : ""}</div>
-  );
-
-  const renderLocCumprob = (params: any) => (
-    <div>{params.row ? params.row.payload.localizationCumprob : ""}</div>
-  );
-
-  const renderInjectionParameters = (params: any) => (
-    <div>
-      {params.row ? params.row.payload.optionalInjectionParameters : ""}
-    </div>
-  );
-
   const renderDelete = (params: any) => {
-    if (!deletePermission) {
-      return null;
-    }
+    if (!deletePermission) return null;
     return (
-      <div>
-        <Button
-          id="delete_button"
-          classes={{
-            root: (classes as any).defaultSurveyEfficiencyDelete,
-            disabled: (classes as any).defaultSurveyEfficiencyDeleteDisabled,
-          }}
-          onClick={() => openDeleteDialog(params.row.id)}
-          disabled={!deletePermission}
-        >
-          <DeleteIcon />
-        </Button>
-      </div>
+      <IconButton color="error" onClick={() => openDeleteDialog(params.row.id)}>
+        <DeleteIcon />
+      </IconButton>
     );
   };
 
@@ -170,7 +79,6 @@ const DefaultSurveyEfficiencyTable = ({
       filterable: false,
       valueGetter: (_value: any, row: any) =>
         row.default_observationplan_request?.default_plan_name || "",
-      renderCell: renderSurveyEfficiencyTitle,
     },
     {
       field: "modelName",
@@ -179,7 +87,6 @@ const DefaultSurveyEfficiencyTable = ({
       minWidth: 130,
       filterable: false,
       valueGetter: (_value: any, row: any) => row.payload?.modelName || "",
-      renderCell: renderModelName,
     },
     {
       field: "numInjections",
@@ -188,7 +95,7 @@ const DefaultSurveyEfficiencyTable = ({
       minWidth: 160,
       sortable: false,
       filterable: false,
-      renderCell: renderNumInjections,
+      valueGetter: (_value: any, row: any) => row.payload?.numberInjections,
     },
     {
       field: "maxPhase",
@@ -197,7 +104,7 @@ const DefaultSurveyEfficiencyTable = ({
       minWidth: 170,
       sortable: false,
       filterable: false,
-      renderCell: renderMaxPhase,
+      valueGetter: (_value: any, row: any) => row.payload?.maximumPhase,
     },
     {
       field: "minPhase",
@@ -206,7 +113,7 @@ const DefaultSurveyEfficiencyTable = ({
       minWidth: 170,
       sortable: false,
       filterable: false,
-      renderCell: renderMinPhase,
+      valueGetter: (_value: any, row: any) => row.payload?.minimumPhase,
     },
     {
       field: "numDetections",
@@ -215,7 +122,7 @@ const DefaultSurveyEfficiencyTable = ({
       minWidth: 170,
       sortable: false,
       filterable: false,
-      renderCell: renderNumDetections,
+      valueGetter: (_value: any, row: any) => row.payload?.numberDetections,
     },
     {
       field: "detectionThreshold",
@@ -224,7 +131,7 @@ const DefaultSurveyEfficiencyTable = ({
       minWidth: 200,
       sortable: false,
       filterable: false,
-      renderCell: renderDetectionThreshold,
+      valueGetter: (_value: any, row: any) => row.payload?.detectionThreshold,
     },
     {
       field: "cumProb",
@@ -233,7 +140,7 @@ const DefaultSurveyEfficiencyTable = ({
       minWidth: 180,
       sortable: false,
       filterable: false,
-      renderCell: renderLocCumprob,
+      valueGetter: (_value: any, row: any) => row.payload?.localizationCumprob,
     },
     {
       field: "injectionParameters",
@@ -242,7 +149,8 @@ const DefaultSurveyEfficiencyTable = ({
       minWidth: 210,
       sortable: false,
       filterable: false,
-      renderCell: renderInjectionParameters,
+      valueGetter: (_value: any, row: any) =>
+        row.payload?.optionalInjectionParameters,
     },
     {
       field: "delete",
@@ -255,15 +163,12 @@ const DefaultSurveyEfficiencyTable = ({
   ];
 
   const CustomToolbar = () => (
-    <DataGridToolbar showQuickFilter={false} showExport>
+    <DataGridToolbar
+      showQuickFilter={false}
+      title="Default Survey Efficiencies"
+    >
       {!isReadOnly && (
-        <IconButton
-          name="new_default_survey_efficiency"
-          size="small"
-          onClick={() => {
-            openNewDialog();
-          }}
-        >
+        <IconButton size="small" onClick={() => openNewDialog()}>
           <AddIcon />
         </IconButton>
       )}
@@ -272,34 +177,21 @@ const DefaultSurveyEfficiencyTable = ({
 
   return (
     <div>
-      <Paper className={classes.container}>
-        <Typography variant="h6" style={{ padding: "0.5rem" }}>
-          Default Survey Efficiencies
-        </Typography>
-        <Box sx={{ width: "100%" }}>
-          <StyledDataGrid
-            autoHeight
-            rows={default_survey_efficiencies || []}
-            columns={columns}
-            getRowId={(row: any) => row.id}
-            rowCount={totalMatches}
-            sortingMode="server"
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
-            hideFooter
-            slots={{ toolbar: CustomToolbar }}
-            showToolbar
-          />
-        </Box>
-      </Paper>
-      {newDialogOpen && (
-        <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
-          <DialogTitle>New Default Survey Efficiency</DialogTitle>
-          <DialogContent dividers>
-            <NewDefaultSurveyEfficiency onClose={closeNewDialog} />
-          </DialogContent>
-        </Dialog>
-      )}
+      <StyledDataGrid
+        autoHeight
+        rows={default_survey_efficiencies || []}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        hideFooter
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
+      <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
+        <DialogTitle>New Default Survey Efficiency</DialogTitle>
+        <DialogContent dividers>
+          <NewDefaultSurveyEfficiency onClose={closeNewDialog} />
+        </DialogContent>
+      </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteDefaultSurveyEfficiency}
         dialogOpen={deleteDialogOpen}

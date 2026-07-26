@@ -73,6 +73,10 @@ export interface paths {
                     numPerPage?: number;
                     /** @description Page number for paginated query results. Defaults to 1 */
                     pageNumber?: number;
+                    /** @description Field to sort by. Can be one of: created_at, modified, status, gcnevent_id. Defaults to created_at. */
+                    sortBy?: string;
+                    /** @description Sort order. Can be one of: asc, desc. Defaults to asc. */
+                    sortOrder?: string;
                 };
                 header?: never;
                 path: {
@@ -242,6 +246,13 @@ export interface paths {
                 query?: {
                     /** @description Instrument ID to retrieve allocations for */
                     instrument_id?: number;
+                    /** @description Restrict to allocations whose instrument has the given API type set */
+                    apiType?: "api_classname" | "api_classname_obsplan";
+                    /**
+                     * @description Restrict to allocations whose instrument API implements the given
+                     *     method. Requires apiType to be specified.
+                     */
+                    apiImplements?: "update" | "delete" | "get" | "submit" | "send" | "remove" | "retrieve" | "queued" | "remove_queue" | "prepare_payload" | "send_skymap" | "queued_skymap" | "remove_skymap" | "retrieve_log" | "update_status";
                 };
                 header?: never;
                 path?: never;

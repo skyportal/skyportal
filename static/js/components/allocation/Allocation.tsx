@@ -4,13 +4,13 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
-import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import BuildIcon from "@mui/icons-material/Build";
 import EditIcon from "@mui/icons-material/Edit";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 
@@ -18,22 +18,18 @@ import Link from "@mui/material/Link";
 import SaveIcon from "@mui/icons-material/Save";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ImageAspectRatioIcon from "@mui/icons-material/ImageAspectRatio";
-import CircularProgress from "@mui/material/CircularProgress";
 
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 
-import { makeStyles } from "tss-react/mui";
 import { JSONTree } from "react-json-tree";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
 import ThumbnailList from "../thumbnail/ThumbnailList";
-import { allocationTitle } from "./AllocationList";
 import withRouter from "../withRouter";
 
-import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useEditFollowupRequestMutation } from "../../ducks/source";
@@ -48,25 +44,9 @@ import ObservationPlanGlobe from "../observation_plan/ObservationPlanGlobe";
 import ObservationPlanSummaryStatistics from "../observation_plan/ObservationPlanSummaryStatistics";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Button from "../Button";
+import Spinner from "../Spinner";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
-
-const useStyles = makeStyles()((theme) => ({
-  chip: {
-    margin: theme.spacing(0.5),
-  },
-  displayInlineBlock: {
-    display: "inline-block",
-  },
-  center: {
-    margin: "auto",
-    padding: "0.625rem",
-  },
-  editIcon: {
-    cursor: "pointer",
-    marginLeft: "0.2rem",
-  },
-}));
 
 interface SimpleMenuProps {
   request: any;
@@ -120,34 +100,25 @@ const SimpleMenu = ({ request }: SimpleMenuProps) => {
         {(request.status.startsWith("submitted") ||
           request.status.startsWith("not observed") ||
           request.status.startsWith("pending")) && (
-          <MenuItem
-            onClick={() => updateRequestStatus("complete")}
-            key={`${request.id}_done`}
-          >
+          <MenuItem onClick={() => updateRequestStatus("complete")}>
             Mark Observed
           </MenuItem>
         )}
         {(request.status.startsWith("submitted") ||
           request.status.startsWith("complete") ||
           request.status.startsWith("pending")) && (
-          <MenuItem
-            onClick={() => updateRequestStatus("not observed")}
-            key={`${request.id}_notdone`}
-          >
+          <MenuItem onClick={() => updateRequestStatus("not observed")}>
             Mark Not Observed
           </MenuItem>
         )}
         {(request.status === "complete" ||
           request.status === "not observed") && (
-          <MenuItem
-            onClick={() => updateRequestStatus("pending")}
-            key={`${request.id}_pending`}
-          >
+          <MenuItem onClick={() => updateRequestStatus("pending")}>
             Mark Pending
           </MenuItem>
         )}
         {request.status === "complete" && (
-          <MenuItem key={`${request.id}_upload_spec`} onClick={handleClose}>
+          <MenuItem onClick={handleClose}>
             <Link
               href={`/upload_spectrum/${request.obj.id}`}
               underline="none"
@@ -158,7 +129,7 @@ const SimpleMenu = ({ request }: SimpleMenuProps) => {
           </MenuItem>
         )}
         {request.status === "complete" && (
-          <MenuItem key={`${request.id}_upload_phot`} onClick={handleClose}>
+          <MenuItem onClick={handleClose}>
             <Link
               href={`/upload_photometry/${request.obj.id}`}
               underline="none"
@@ -173,7 +144,7 @@ const SimpleMenu = ({ request }: SimpleMenuProps) => {
   );
 };
 
-const defaultNumPerPage = 10;
+const defaultNumPerPage = 25;
 
 interface AllocationProps {
   route: any;
@@ -182,7 +153,6 @@ interface AllocationProps {
 const Allocation = ({ route }: AllocationProps) => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
-  const groups = useGetGroupsQuery().data?.all ?? null;
 
   const [fetchAllocationParams, setFetchAllocationParams] = useState<any>({
     pageNumber: 1,
@@ -214,53 +184,33 @@ const Allocation = ({ route }: AllocationProps) => {
     params: fetchObservationPlansParams,
   }).data ?? { observation_plan_requests: undefined, totalMatches: undefined };
 
-  if (
-    !(
-      allocation &&
-      "id" in allocation &&
-      allocation["id"] === parseInt(route.id, 10)
-    )
-  ) {
-    // Don't need to do this for assignments -- we can just let the page be blank for a short time
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
+  if (allocation?.id !== parseInt(route.id, 10)) return <Spinner />;
+
+  const instrument = instrumentList?.find(
+    (i) => i.id === allocation.instrument_id,
+  );
+  const telescope = telescopeList?.find(
+    (t) => t.id === instrument?.telescope_id,
+  );
 
   return (
-    <div>
-      <div>
-        <Typography variant="h4" gutterBottom color="textSecondary">
-          Plan for:{" "}
-          <b>
-            {(allocationTitle as any)(
-              allocation,
-              instrumentList,
-              telescopeList,
-              groups,
-            )}
-          </b>
-        </Typography>
-      </div>
-      <div>
-        <AllocationSummaryTable
-          allocation={allocation}
-          totalMatches={totalMatchesAllocations}
-          fetchParams={fetchAllocationParams}
-          setFetchParams={setFetchAllocationParams}
-        />
-      </div>
-      <div>
-        <AllocationObservationPlansTable
-          observation_plan_requests={observation_plan_requests}
-          totalMatches={totalMatchesObservationPlans}
-          fetchParams={fetchObservationPlansParams}
-          setFetchParams={setFetchObservationPlansParams}
-        />
-      </div>
-    </div>
+    <Box sx={{ display: "flex", flexDirection: "column", rowGap: "1rem" }}>
+      <Typography variant="h5">
+        Plan for: {instrument?.name}/{telescope?.nickname}
+      </Typography>
+      <AllocationSummaryTable
+        allocation={allocation}
+        totalMatches={totalMatchesAllocations}
+        fetchParams={fetchAllocationParams}
+        setFetchParams={setFetchAllocationParams}
+      />
+      <AllocationObservationPlansTable
+        observation_plan_requests={observation_plan_requests}
+        totalMatches={totalMatchesObservationPlans}
+        fetchParams={fetchObservationPlansParams}
+        setFetchParams={setFetchObservationPlansParams}
+      />
+    </Box>
   );
 };
 
@@ -277,9 +227,6 @@ const AllocationObservationPlansTable = ({
   fetchParams,
   setFetchParams,
 }: AllocationObservationPlansTableProps) => {
-  const { classes } = useStyles();
-  const { classes: styles } = useStyles();
-
   const handlePageChange = (page: number, numPerPage: number) => {
     const params = {
       ...fetchParams,
@@ -330,24 +277,9 @@ const AllocationObservationPlansTable = ({
       flex: 1,
       minWidth: 150,
       sortable: false,
-      renderCell: (params: any) => {
-        const observationplanRequest = params.row;
-        return (
-          <div>
-            {observationplanRequest.status === "running" ? (
-              <div>
-                <CircularProgress />
-              </div>
-            ) : (
-              <div>
-                <ObservationPlanSummaryStatistics
-                  observationplanRequest={observationplanRequest}
-                />
-              </div>
-            )}
-          </div>
-        );
-      },
+      renderCell: (params: any) => (
+        <ObservationPlanSummaryStatistics observationplanRequest={params.row} />
+      ),
     },
     {
       field: "skymap",
@@ -356,37 +288,31 @@ const AllocationObservationPlansTable = ({
       minWidth: 150,
       sortable: false,
       renderCell: (params: any) => (
-        <div className={(classes as any).localization}>
-          <ObservationPlanGlobe
-            observationplanRequest={params.row}
-            retrieveLocalization
-          />
-        </div>
+        <ObservationPlanGlobe
+          observationplanRequest={params.row}
+          retrieveLocalization
+        />
       ),
     },
   ];
 
   return (
-    <div className={styles.center}>
-      <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
-        Observation Plans
-      </Typography>
-      <Box sx={{ width: "100%" }}>
-        <StyledDataGrid
-          autoHeight
-          rows={observation_plan_requests || []}
-          columns={columns}
-          getRowId={(row: any) => row.id}
-          paginationMode="server"
-          rowCount={totalMatches}
-          paginationModel={{
-            page: fetchParams.pageNumber - 1,
-            pageSize: fetchParams.numPerPage,
-          }}
-          onPaginationModelChange={handlePaginationModelChange}
-          pageSizeOptions={[1, 10, 25, 50, 100]}
-        />
-      </Box>
+    <div>
+      <Typography variant="h6">Observation Plans</Typography>
+      <StyledDataGrid
+        autoHeight
+        rows={observation_plan_requests || []}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        paginationMode="server"
+        rowCount={totalMatches}
+        paginationModel={{
+          page: fetchParams.pageNumber - 1,
+          pageSize: fetchParams.numPerPage,
+        }}
+        onPaginationModelChange={handlePaginationModelChange}
+        pageSizeOptions={[25, 50, 100]}
+      />
     </div>
   );
 };
@@ -404,11 +330,10 @@ const AllocationSummaryTable = ({
   fetchParams,
   setFetchParams,
 }: AllocationSummaryTableProps) => {
-  const { classes: styles } = useStyles();
   const [editFollowupRequestComment] = useEditFollowupRequestCommentMutation();
   const { requests } = allocation;
 
-  const [dialogOpen, setDialogOpen] = useState<any>(null);
+  const [editCommentRequestId, setEditCommentRequestId] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [commentContent, setCommentContent] = useState("");
 
@@ -435,7 +360,7 @@ const AllocationSummaryTable = ({
 
   const handleOpenDialog = (id: any, comment: any) => {
     setCommentContent(comment);
-    setDialogOpen(id);
+    setEditCommentRequestId(id);
   };
 
   const handleChange = (e: any) => {
@@ -449,13 +374,13 @@ const AllocationSummaryTable = ({
     };
     try {
       await editFollowupRequestComment({
-        id: dialogOpen,
+        id: editCommentRequestId,
         params: json,
       }).unwrap();
     } catch {
       // error notification handled by the baseQuery
     }
-    setDialogOpen(null);
+    setEditCommentRequestId(null);
     setIsSubmitting(false);
   };
 
@@ -644,14 +569,11 @@ const AllocationSummaryTable = ({
             {request.comment}
             <Tooltip title="Update comment">
               <span aria-label="Update comment">
-                <EditIcon
-                  data-testid="updateCommentIconButton"
-                  fontSize="small"
-                  className={styles.editIcon}
-                  onClick={() => {
-                    handleOpenDialog(request.id, request.comment);
-                  }}
-                />
+                <IconButton
+                  onClick={() => handleOpenDialog(request.id, request.comment)}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
               </span>
             </Tooltip>
           </div>
@@ -669,18 +591,18 @@ const AllocationSummaryTable = ({
         const request = params.row;
         return (
           <>
-            <IconButton size="small" key={`${request.id}_actions`}>
+            <IconButton size="small">
               <Link href={`/api/sources/${request.obj.id}/finder`}>
-                <PictureAsPdfIcon />
+                <PictureAsPdfIcon color="primary" />
               </Link>
             </IconButton>
-            <IconButton size="small" key={`${request.id}_actions_int`}>
+            <IconButton size="small">
               <Link
                 href={`/source/${request.obj.id}/finder`}
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                <ImageAspectRatioIcon />
+                <ImageAspectRatioIcon color="primary" />
               </Link>
             </IconButton>
           </>
@@ -713,65 +635,63 @@ const AllocationSummaryTable = ({
   });
 
   return (
-    <div className={styles.center}>
-      <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
-        Targets
-      </Typography>
-      <Box sx={{ width: "100%" }}>
-        <StyledDataGrid
-          autoHeight
-          rows={displayRows}
-          columns={columns}
-          getRowId={(row: any) => row.id}
-          getRowHeight={(params: any) =>
-            params.model.__detail ? "auto" : null
-          }
-          columnBufferPx={3000}
-          paginationMode="server"
-          rowCount={totalMatches}
-          paginationModel={{
-            page: fetchParams.pageNumber - 1,
-            pageSize: fetchParams.numPerPage,
-          }}
-          onPaginationModelChange={handlePaginationModelChange}
-          pageSizeOptions={[1, 10, 25, 50, 100]}
-        />
-      </Box>
+    <div>
+      <Typography variant="h6">Targets</Typography>
+      <StyledDataGrid
+        autoHeight
+        rows={displayRows}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        getRowHeight={() => "auto"}
+        columnBufferPx={3000}
+        paginationMode="server"
+        rowCount={totalMatches}
+        paginationModel={{
+          page: fetchParams.pageNumber - 1,
+          pageSize: fetchParams.numPerPage,
+        }}
+        onPaginationModelChange={handlePaginationModelChange}
+        pageSizeOptions={[25, 50, 100]}
+      />
       <Dialog
-        open={dialogOpen != null}
+        open={editCommentRequestId !== null}
+        onClose={() => setEditCommentRequestId(null)}
         fullWidth
-        maxWidth="lg"
-        onClose={() => setDialogOpen(null)}
+        maxWidth="md"
       >
-        <DialogTitle>Update comment</DialogTitle>
-        <DialogContent>
-          <div>
-            <TextField
-              data-testid="updateCommentTextfield"
-              size="small"
-              label="comment"
-              value={commentContent || ""}
-              name="comment"
-              minRows={2}
-              fullWidth
-              multiline
-              onChange={(e) => handleChange(e)}
-              variant="outlined"
-            />
-          </div>
-          <p />
-          <div className={(styles as any).saveButton}>
+        <DialogTitle>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            Update comment
             <Button
               secondary
               onClick={handleSubmit}
               endIcon={<SaveIcon />}
-              size="large"
               data-testid="updateCommentSubmitButton"
               disabled={isSubmitting}
             >
               Save
             </Button>
-          </div>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            data-testid="updateCommentTextfield"
+            label="comment"
+            fullWidth
+            value={commentContent || ""}
+            name="comment"
+            minRows={2}
+            multiline
+            onChange={(e) => handleChange(e)}
+            variant="outlined"
+            sx={{ mt: "0.2rem" }}
+          />
         </DialogContent>
       </Dialog>
     </div>

@@ -192,7 +192,7 @@ const TelescopeList = () => {
           <Box
             sx={{
               position: "absolute",
-              top: 43,
+              top: 10,
               left: "50%",
               transform: "translateX(-50%)",
               zIndex: 10,

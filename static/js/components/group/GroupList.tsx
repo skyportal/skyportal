@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -8,6 +9,8 @@ import Typography from "@mui/material/Typography";
 import Tooltip from "@mui/material/Tooltip";
 import CircularProgress from "@mui/material/CircularProgress";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
+import CloseIcon from "@mui/icons-material/Close";
+import IconButton from "@mui/material/IconButton";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -17,7 +20,7 @@ import {
   useDeleteAdmissionRequestMutation,
 } from "../../ducks/groupAdmissionRequests";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import { Group } from "../../types";
 
 interface GroupListProps {
@@ -29,7 +32,7 @@ interface GroupListProps {
 }
 
 const GroupList = ({
-  title,
+  title = "",
   groups = [],
   variant = "normal",
   linkToGroupSources = false,
@@ -45,6 +48,14 @@ const GroupList = ({
     permissions,
     groupAdmissionRequests,
   } = (useGetProfileQuery().data as any) ?? {};
+
+  const CustomToolbar = useMemo(
+    () =>
+      function GroupListToolbar() {
+        return <DataGridToolbar title={title} />;
+      },
+    [title],
+  );
 
   if (!groups?.length) return null;
   const multiUserGroups = groups.filter((group) => !group.single_user_group);
@@ -117,66 +128,59 @@ const GroupList = ({
 
   const renderAdmissionActions = (params: any) => {
     const group = params.row;
+    let label = group.auto_accept_requests ? "Join group" : "Request admission";
+    let tooltip = "";
+    let isDisable = false;
+    let requestToDelete = null;
+
     if (declinedRequestGroupIDs.includes(group.id)) {
-      return <em>Admission request declined.</em>;
-    }
-    if (pendingRequestGroupIDs.includes(group.id)) {
-      const admissionRequestID = groupAdmissionRequests?.filter(
+      tooltip = "This admission request has been declined.";
+      label = "Admission request declined";
+      isDisable = true;
+    } else if (pendingRequestGroupIDs.includes(group.id)) {
+      tooltip =
+        "This admission is pending, you can delete this request by clicking on the cross";
+      label = "Request pending...";
+      isDisable = true;
+      requestToDelete = groupAdmissionRequests?.filter(
         (request: any) => request.group_id === group.id,
       )[0]?.id;
-      return (
-        <>
-          <em>Request pending...</em>
-          <br />
+    } else {
+      const missingStreamNames = isSystemAdmin
+        ? ""
+        : (group.streams ?? [])
+            .filter((stream: any) => !userStreamIDs.has(stream.id))
+            .map((stream: any) => stream.name)
+            .join(", ");
+      if (missingStreamNames.length) {
+        tooltip = `You need access to the following stream(s) to join this group: ${missingStreamNames}`;
+        isDisable = true;
+      }
+    }
+    return (
+      <Tooltip title={tooltip}>
+        <Box sx={{ display: "flex" }}>
           <Button
             secondary
             size="small"
-            onClick={() => deleteAdmissionRequest(admissionRequestID)}
-            data-testid={`deleteAdmissionRequestButton${group.id}`}
+            disabled={isDisable}
+            onClick={() => handleRequestAdmission(group)}
+            data-testid={`requestAdmissionButton${group.id}`}
           >
-            Delete request
+            {label}
           </Button>
-        </>
-      );
-    }
-    const label = group.auto_accept_requests
-      ? "Join group"
-      : "Request admission";
-    const missingStreams = isSystemAdmin
-      ? []
-      : (group.streams ?? []).filter(
-          (stream: any) => !userStreamIDs.has(stream.id),
-        );
-    if (missingStreams.length > 0) {
-      const missingNames = missingStreams
-        .map((stream: any) => stream.name)
-        .join(", ");
-      return (
-        <Tooltip
-          title={`You need access to the following stream(s) to join this group: ${missingNames}`}
-        >
-          <span>
-            <Button
-              secondary
+          {requestToDelete != null && (
+            <IconButton
+              color="error"
               size="small"
-              disabled
-              data-testid={`requestAdmissionButton${group.id}`}
+              onClick={() => deleteAdmissionRequest(requestToDelete)}
+              data-testid={`deleteAdmissionRequestButton${group.id}`}
             >
-              {label}
-            </Button>
-          </span>
-        </Tooltip>
-      );
-    }
-    return (
-      <Button
-        secondary
-        size="small"
-        onClick={() => handleRequestAdmission(group)}
-        data-testid={`requestAdmissionButton${group.id}`}
-      >
-        {label}
-      </Button>
+              <CloseIcon />
+            </IconButton>
+          )}
+        </Box>
+      </Tooltip>
     );
   };
 
@@ -198,21 +202,20 @@ const GroupList = ({
   ];
 
   return (
-    <Box sx={{ width: "100%" }}>
-      <StyledDataGrid
-        autoHeight
-        rows={multiUserGroups}
-        columns={columns}
-        getRowId={(row: any) => row.id}
-        initialState={{ pagination: { paginationModel: { pageSize: 30 } } }}
-        pageSizeOptions={[30, 50, 100, 200]}
-        showToolbar
-        onRowClick={
-          admission ? undefined : (params: any) => navigate(getLink(params.row))
-        }
-        sx={admission ? {} : { "& .MuiDataGrid-row": { cursor: "pointer" } }}
-      />
-    </Box>
+    <StyledDataGrid
+      autoHeight
+      rows={multiUserGroups}
+      columns={columns}
+      getRowId={(row: any) => row.id}
+      initialState={{ pagination: { paginationModel: { pageSize: 30 } } }}
+      pageSizeOptions={[30, 50, 100, 200]}
+      showToolbar
+      onRowClick={
+        admission ? undefined : (params: any) => navigate(getLink(params.row))
+      }
+      slots={{ toolbar: CustomToolbar }}
+      sx={admission ? {} : { "& .MuiDataGrid-row": { cursor: "pointer" } }}
+    />
   );
 };
 
