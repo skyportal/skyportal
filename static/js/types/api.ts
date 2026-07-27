@@ -8136,22 +8136,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description The name of the localization of the event */
-                        localization_name: string;
-                        /** @description The cumprob of the localization of the event */
-                        localization_cumprob: string;
-                        /** @description The source_id of the source to confirm or reject */
-                        source_id: string;
-                        /** @description Whether the source is confirmed (True) or rejected (False) */
-                        confirmed: boolean;
-                        /** @description Choose sources with a first detection after start_date, as an arrow parseable string */
-                        start_date: string;
-                        /** @description Choose sources with a last detection before end_date, as an arrow parseable string */
-                        end_date: string;
-                    };
+                    "application/json": components["schemas"]["SourcesConfirmedInGCNPostBody"];
                 };
             };
             responses: {
@@ -8161,19 +8148,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description The id of the source_confirmed_in_gcn */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["SourcesConfirmedInGCNIdResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -8234,12 +8210,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description Whether the source is confirmed (True) or rejected (False) */
-                        confirmed: boolean;
-                    };
+                    "application/json": components["schemas"]["SourcesConfirmedInGCNPatchBody"];
                 };
             };
             responses: {
@@ -8249,19 +8222,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description The id of the modified source_confirmed_in_gcn */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["SourcesConfirmedInGCNIdResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -37947,6 +37909,91 @@ export interface components {
             xml?: string;
             /** @description JSON notice content. */
             json?: string;
+        };
+        /**
+         * SourcesConfirmedInGCNPostBody
+         * @description Request body for confirming or rejecting a source in a GCN.
+         */
+        SourcesConfirmedInGCNPostBody: {
+            /**
+             * Source Id
+             * @description The source_id of the source to confirm or reject
+             */
+            source_id: string;
+            /**
+             * Localization Name
+             * @description The name of the localization of the event
+             */
+            localization_name: string;
+            /**
+             * Localization Cumprob
+             * @description The cumprob of the localization of the event
+             */
+            localization_cumprob: number;
+            /**
+             * Confirmed
+             * @description Whether the source is confirmed (True) or rejected (False)
+             * @default null
+             */
+            confirmed: boolean | null;
+            /**
+             * Start Date
+             * @description Choose sources with a first detection after start_date, as an arrow parseable string
+             */
+            start_date: string;
+            /**
+             * End Date
+             * @description Choose sources with a last detection before end_date, as an arrow parseable string
+             */
+            end_date: string;
+            /**
+             * Explanation
+             * @description Explanation of the confirmation/rejection
+             * @default null
+             */
+            explanation: string | null;
+            /**
+             * Notes
+             * @description Notes about the confirmation/rejection
+             * @default null
+             */
+            notes: string | null;
+        };
+        /**
+         * SourcesConfirmedInGCNIdResponse
+         * @description ID of the affected sources_confirmed_in_gcn row.
+         */
+        SourcesConfirmedInGCNIdResponse: {
+            /**
+             * Id
+             * @description The id of the source_confirmed_in_gcn
+             */
+            id: number;
+        };
+        /**
+         * SourcesConfirmedInGCNPatchBody
+         * @description Request body for updating the confirmed/rejected status of a source in
+         *     a GCN.
+         */
+        SourcesConfirmedInGCNPatchBody: {
+            /**
+             * Confirmed
+             * @description Whether the source is confirmed (True) or rejected (False)
+             * @default null
+             */
+            confirmed: boolean | null;
+            /**
+             * Explanation
+             * @description Explanation of the confirmation/rejection
+             * @default null
+             */
+            explanation: string | null;
+            /**
+             * Notes
+             * @description Notes about the confirmation/rejection
+             * @default null
+             */
+            notes: string | null;
         };
         LocalizationHandlerGet: {
             /** @description Localization name */
