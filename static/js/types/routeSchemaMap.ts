@@ -164,6 +164,7 @@ export const ROUTE_SCHEMA_MAP = {
   "POST /api/observation/ascii": { schema: "ExecutedObservation" as const, list: true },
   "POST /api/observation/external_api": { schema: "ExecutedObservation" as const, list: true },
   "POST /api/observation_plan/{observation_plan_request_id}/queue": { schema: "ObservationPlanRequest" as const, list: false },
+  "POST /api/public_pages/release": { schema: "PublicReleasePostResponse" as const, list: false },
   "POST /api/recurring_api": { schema: "RecurringAPIPostResponse" as const, list: false },
   "POST /api/sharing_service/submission": { schema: "SharingServiceSubmission" as const, list: false },
   "POST /api/sharing_service/{sharing_service_id}/coauthor/{user_id}": { schema: "SharingServiceCoauthor" as const, list: false },

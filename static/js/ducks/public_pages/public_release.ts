@@ -43,10 +43,29 @@ export const publicReleaseApi = skyportalApi.injectEndpoints({
       unknown,
       { releaseId: number; payload: PublicRelease }
     >({
-      query: ({ releaseId, payload }) => ({
+      // The edit form seeds its state from the full fetched release; send only
+      // the keys the PATCH endpoint accepts (link_name is immutable).
+      query: ({
+        releaseId,
+        payload: {
+          name,
+          description,
+          group_ids,
+          options,
+          is_visible,
+          auto_publish_enabled,
+        },
+      }) => ({
         url: `api/public_pages/release/${releaseId}`,
         method: "PATCH",
-        body: payload,
+        body: {
+          name,
+          description,
+          group_ids,
+          options,
+          is_visible,
+          auto_publish_enabled,
+        },
       }),
       invalidatesTags: ["PublicRelease"],
     }),

@@ -22796,16 +22796,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        name?: string;
-                        link_name?: string;
-                        group_ids?: number[];
-                        description?: string;
-                        options?: Record<string, never>;
-                        is_visible?: boolean;
-                    };
+                    "application/json": components["schemas"]["PublicReleasePostBody"];
                 };
             };
             responses: {
@@ -22814,15 +22807,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["PublicReleasePostResponse"];
+                        };
                     };
                 };
             };
@@ -22891,15 +22878,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        name?: string;
-                        group_ids?: number[];
-                        description?: string;
-                        options?: Record<string, never>;
-                        is_visible?: boolean;
-                    };
+                    "application/json": components["schemas"]["PublicReleasePatchBody"];
                 };
             };
             responses: {
@@ -39066,6 +39047,109 @@ export interface components {
              * @description Array of Role IDs (strings) to be granted to user
              */
             roleIds: string[];
+        };
+        /**
+         * PublicReleasePostBody
+         * @description Request body for creating a public release.
+         */
+        PublicReleasePostBody: {
+            /**
+             * Name
+             * @description Name of the release
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Link Name
+             * @description URL-safe name identifying the release in its public URL
+             * @default null
+             */
+            link_name: string | null;
+            /**
+             * Group Ids
+             * @description IDs of the groups that can manage this release
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Description
+             * @description Description of the release
+             * @default
+             */
+            description: string;
+            /**
+             * Is Visible
+             * @description Whether the release is publicly visible
+             * @default true
+             */
+            is_visible: boolean;
+            /**
+             * Auto Publish Enabled
+             * @description Whether sources saved to the release's groups are automatically published
+             * @default false
+             */
+            auto_publish_enabled: boolean;
+            /**
+             * Options
+             * @description Options for the sources in this release
+             */
+            options?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * PublicReleasePostResponse
+         * @description ID of the newly created public release.
+         */
+        PublicReleasePostResponse: {
+            /**
+             * Id
+             * @description Public release ID
+             */
+            id: number;
+        };
+        /**
+         * PublicReleasePatchBody
+         * @description Request body for updating a public release.
+         */
+        PublicReleasePatchBody: {
+            /**
+             * Name
+             * @description Name of the release
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Group Ids
+             * @description IDs of the groups that can manage this release
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Description
+             * @description Description of the release
+             * @default
+             */
+            description: string;
+            /**
+             * Is Visible
+             * @description Whether the release is publicly visible
+             * @default true
+             */
+            is_visible: boolean;
+            /**
+             * Auto Publish Enabled
+             * @description Whether sources saved to the release's groups are automatically published
+             * @default false
+             */
+            auto_publish_enabled: boolean;
+            /**
+             * Options
+             * @description Options for the sources in this release
+             */
+            options?: {
+                [key: string]: unknown;
+            };
         };
     };
     responses: never;
