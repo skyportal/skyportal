@@ -1043,7 +1043,11 @@ class BrokerFiltersHandler(BaseHandler):
             if not broker.active:
                 return self.error(f"Broker {broker.name} is not active")
             if filter_id is None:
-                filters = session.scalars(Filter.select(self.current_user)).all()
+                # .unique(): the access-control join over group members returns a
+                # row per member, so a filter would list once per user in its group.
+                filters = (
+                    session.scalars(Filter.select(self.current_user)).unique().all()
+                )
                 return self.success(
                     data=[
                         {

@@ -42,7 +42,14 @@ def decode_cutout(cutout_data, survey):
     if isinstance(cutout_data, list):
         cutout_data = bytes(cutout_data)
     elif isinstance(cutout_data, str):
-        cutout_data = base64.b64decode(cutout_data)
+        try:
+            # validate=True so a URL/placeholder (not image bytes) fails with a
+            # clear reason rather than a cryptic binascii length error.
+            cutout_data = base64.b64decode(cutout_data, validate=True)
+        except ValueError as e:
+            raise ValueError(
+                f"cutout is not valid base64 ({len(cutout_data)} chars)"
+            ) from e
     if survey.upper() == "LSST":
         with fits.open(io.BytesIO(cutout_data), ignore_missing_simple=True) as hdu:
             return np.array(hdu[0].data), dict(hdu[0].header)
