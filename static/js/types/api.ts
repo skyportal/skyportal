@@ -12374,7 +12374,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ObservingRunBulkEditBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -12454,9 +12458,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ObservingRunPost"];
+                    "application/json": components["schemas"]["ObservingRunPutBody"];
                 };
             };
             responses: {
@@ -12465,9 +12469,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["ObservingRun"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -12569,9 +12571,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ObservingRunPost"];
+                    "application/json": components["schemas"]["ObservingRunPostBody"];
                 };
             };
             responses: {
@@ -12581,19 +12583,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New Observing Run ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["ObservingRunPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -38216,6 +38207,117 @@ export interface components {
             observationData?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * ObservingRunBulkEditBody
+         * @description Request body for bulk-updating the assignments of an observing run.
+         */
+        ObservingRunBulkEditBody: {
+            /**
+             * Current Status
+             * @description Assignment status to filter on
+             * @default null
+             */
+            current_status: string | null;
+            /**
+             * New Status
+             * @description New status to apply to the matching assignments
+             * @default null
+             */
+            new_status: string | null;
+        };
+        /**
+         * ObservingRunPostBody
+         * @description Request body for creating an observing run.
+         */
+        ObservingRunPostBody: {
+            /**
+             * Instrument Id
+             * @description The ID of the instrument to be used in this run.
+             */
+            instrument_id: number;
+            /**
+             * Calendar Date
+             * @description The local calendar date of the run (YYYY-MM-DD).
+             */
+            calendar_date: string;
+            /**
+             * Pi
+             * @description The PI of the observing run.
+             * @default null
+             */
+            pi: string | null;
+            /**
+             * Observers
+             * @description The names of the observers
+             * @default null
+             */
+            observers: string | null;
+            /**
+             * Duration
+             * @description Number of nights in the observing run
+             * @default null
+             */
+            duration: number | null;
+            /**
+             * Group Id
+             * @description The ID of the group this run is associated with.
+             * @default null
+             */
+            group_id: number | null;
+        };
+        /**
+         * ObservingRunPostResponse
+         * @description ID of the newly created observing run.
+         */
+        ObservingRunPostResponse: {
+            /**
+             * Id
+             * @description New Observing Run ID
+             */
+            id: number;
+        };
+        /**
+         * ObservingRunPutBody
+         * @description Request body for updating an observing run.
+         */
+        ObservingRunPutBody: {
+            /**
+             * Instrument Id
+             * @description The ID of the instrument to be used in this run.
+             * @default null
+             */
+            instrument_id: number | null;
+            /**
+             * Calendar Date
+             * @description The local calendar date of the run (YYYY-MM-DD).
+             * @default null
+             */
+            calendar_date: string | null;
+            /**
+             * Pi
+             * @description The PI of the observing run.
+             * @default null
+             */
+            pi: string | null;
+            /**
+             * Observers
+             * @description The names of the observers
+             * @default null
+             */
+            observers: string | null;
+            /**
+             * Duration
+             * @description Number of nights in the observing run
+             * @default null
+             */
+            duration: number | null;
+            /**
+             * Group Id
+             * @description The ID of the group this run is associated with.
+             * @default null
+             */
+            group_id: number | null;
         };
         ObservationPlanManualHandlerPost: {
             /** @description ID of the GcnEvent. */
