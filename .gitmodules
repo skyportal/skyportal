@@ -1,7 +1,9 @@
 [submodule "baselayer"]
 	path = baselayer
-	url = https://github.com/cesium-ml/baselayer.git
-	branch = main
+	# TEMPORARY: points at the fork for cesium-ml/baselayer#446 (bundle check
+	# skip); revert to cesium-ml/baselayer.git and re-pin once that merges.
+	url = https://github.com/leonitousconforti/baselayer.git
+	branch = test-frontend-optional-bundle
 [submodule "skyportal-data"]
 	path = skyportal-data
 	url = https://github.com/skyportal/skyportal-data.git
