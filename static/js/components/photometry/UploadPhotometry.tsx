@@ -11,6 +11,8 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -64,6 +66,9 @@ const UploadPhotometryForm = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [csvData, setCsvData] = useState<any>({});
   const [successMessage, setSuccessMessage] = useState<string | null>("");
+  // When set, the uploaded magnitudes are already MW-extinction corrected; the
+  // server re-reddens them so storage stays observed (uncorrected).
+  const [extinctionCorrected, setExtinctionCorrected] = useState(false);
   const { id } = useParams();
   const {
     handleSubmit,
@@ -207,6 +212,9 @@ const UploadPhotometryForm = () => {
     });
     if (selectedGroupIds.length >= 0) {
       data.group_ids = selectedGroupIds;
+    }
+    if (extinctionCorrected) {
+      data.extinction_corrected = true;
     }
     try {
       const result: any = await uploadPhotometry(data).unwrap();
@@ -469,6 +477,26 @@ const UploadPhotometryForm = () => {
                       setGroupIDs={setSelectedGroupIds}
                       groupIDs={selectedGroupIds}
                     />
+                  </Box>
+                  <Box sx={{ mt: 1 }}>
+                    <Tooltip
+                      title="Enable if the uploaded magnitudes are already corrected for Milky Way (Galactic) extinction. SkyPortal stores observed photometry, so it will re-redden them on upload using the SFD dust map + G23 law."
+                      placement="top"
+                    >
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={extinctionCorrected}
+                            onChange={(e) =>
+                              setExtinctionCorrected(e.target.checked)
+                            }
+                            size="small"
+                            data-testid="extinction-corrected-toggle"
+                          />
+                        }
+                        label="Magnitudes are MW-extinction corrected"
+                      />
+                    </Tooltip>
                   </Box>
                 </Box>
                 <Box
