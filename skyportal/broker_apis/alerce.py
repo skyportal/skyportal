@@ -182,26 +182,47 @@ class ALERCEBROKER(BrokerAPI):
                 "type": "string",
                 "title": "ZTF REST API URL",
                 "default": DEFAULT_API_URL,
+                "description": "ALeRCE ZTF REST API base URL.",
             },
             "stamp_url": {
                 "type": "string",
                 "title": "ZTF Stamp API URL",
                 "default": DEFAULT_STAMP_URL,
+                "description": "ALeRCE ZTF cutout/stamp API base URL.",
             },
             "lsst_api_url": {
                 "type": "string",
                 "title": "LSST REST API URL",
                 "default": DEFAULT_LSST_API_URL,
+                "description": "ALeRCE LSST REST API base URL.",
             },
             "lsst_stamp_url": {
                 "type": "string",
                 "title": "LSST Stamp API URL",
                 "default": DEFAULT_LSST_STAMP_URL,
+                "description": "ALeRCE LSST cutout/stamp API base URL.",
             },
             "survey": {
                 "type": "string",
                 "enum": ["ZTF", "LSST"],
                 "default": "ZTF",
+                "title": "Survey",
+                "description": "Which survey's API this connection uses.",
+            },
+            "poll_interval": {
+                "type": "number",
+                "title": "Poll interval (seconds)",
+                "default": 3600,
+                "description": (
+                    "How often this broker's filters re-run against ALeRCE. "
+                    "Default 3600 (hourly)."
+                ),
+            },
+            "page_size": {
+                "type": "integer",
+                "title": "Results per page",
+                "default": 100,
+                "description": "Objects fetched per ALeRCE query page.",
             },
         },
     }
