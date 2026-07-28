@@ -253,6 +253,23 @@ class ANTARESBROKER(BrokerAPI):
                 "type": "string",
                 "enum": ["ZTF", "LSST"],
                 "default": "ZTF",
+                "title": "Survey",
+                "description": "Which survey this connection serves.",
+            },
+            "poll_interval": {
+                "type": "number",
+                "title": "Poll interval (seconds)",
+                "default": 3600,
+                "description": (
+                    "How often this broker's filters re-run against ANTARES. "
+                    "Default 3600 (hourly)."
+                ),
+            },
+            "limit": {
+                "type": "integer",
+                "title": "Max results per query",
+                "default": 50,
+                "description": "Maximum objects returned per ANTARES query.",
             },
         },
     }

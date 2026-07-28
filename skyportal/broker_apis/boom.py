@@ -233,18 +233,31 @@ class BOOMBROKER(BrokerAPI):
         "type": "object",
         "required": ["host", "username", "password"],
         "properties": {
-            "protocol": {"type": "string", "default": "https"},
+            "protocol": {
+                "type": "string",
+                "title": "Protocol",
+                "default": "https",
+                "description": "http or https.",
+            },
             "host": {
                 "type": "string",
                 "title": "API host (e.g. api.kaboom.caltech.edu)",
+                "description": "Hostname of the BOOM API.",
             },
-            "port": {"type": "integer", "default": 443},
-            "username": {"type": "string"},
-            "password": {"type": "string"},
+            "port": {
+                "type": "integer",
+                "title": "Port",
+                "default": 443,
+                "description": "BOOM API port.",
+            },
+            "username": {"type": "string", "title": "Username"},
+            "password": {"type": "string", "title": "Password"},
             "survey": {
                 "type": "string",
                 "enum": ["ZTF", "LSST"],
                 "default": DEFAULT_SURVEY,
+                "title": "Survey",
+                "description": "Survey this connection serves.",
             },
         },
     }

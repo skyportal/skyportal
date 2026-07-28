@@ -3467,7 +3467,9 @@ class SurveyThumbnailHandler(BaseHandler):
         # SDSS/PS1/LS are generated automatically (this endpoint is hit on
         # source/candidate view). SkyMapper, HST, Chandra and JWST have slow or
         # flaky lookups, so they are only generated when explicitly requested.
-        default_types = ["sdss", "ps1", "ls"]
+        # Configurable so instances without external egress can disable these
+        # outbound survey-thumbnail fetches (set misc.external_thumbnail_types: []).
+        default_types = cfg.get("misc.external_thumbnail_types", ["sdss", "ps1", "ls"])
         on_demand_types = ["sm", "hst", "chandra", "jwst"]
         requested_types = data.get("types")
         if requested_types:

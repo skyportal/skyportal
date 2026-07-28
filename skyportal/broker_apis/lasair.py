@@ -203,11 +203,45 @@ class LASAIRBROKER(BrokerAPI):
         "type": "object",
         "required": ["token"],
         "properties": {
-            "token": {"type": "string", "title": "Lasair API token"},
+            "token": {
+                "type": "string",
+                "title": "Lasair API token",
+                "description": "Your Lasair API token (40 hex characters).",
+            },
             "endpoint": {
                 "type": "string",
                 "title": "API endpoint",
                 "default": DEFAULT_ENDPOINT,
+                "description": (
+                    "Lasair API base URL. LSST instance: "
+                    "https://api.lasair.lsst.ac.uk/api ; ZTF instance: "
+                    "https://lasair-ztf.lsst.ac.uk/api . These are separate "
+                    "systems with separate tokens."
+                ),
+            },
+            "survey": {
+                "type": "string",
+                "enum": ["ZTF", "LSST"],
+                "title": "Survey",
+                "description": (
+                    "Survey this connection serves. Leave unset to infer it "
+                    "from the endpoint."
+                ),
+            },
+            "poll_interval": {
+                "type": "number",
+                "title": "Poll interval (seconds)",
+                "default": 86400,
+                "description": (
+                    "How often this broker's filters are re-run against Lasair. "
+                    "Default 86400 (once per day)."
+                ),
+            },
+            "limit": {
+                "type": "integer",
+                "title": "Max results per query",
+                "default": 1000,
+                "description": "Maximum objects returned per Lasair query.",
             },
         },
     }
