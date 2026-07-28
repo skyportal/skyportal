@@ -37,6 +37,7 @@ import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import CandidatesPreferences from "./CandidatesPreferences";
+import { filterAnnotationOrigins } from "./annotationSortOptions";
 import FormValidationError from "../FormValidationError";
 import { allowedClasses } from "../classification/ClassificationForm";
 import ClassificationSelect from "../classification/ClassificationSelect";
@@ -1241,6 +1242,9 @@ const FilterCandidateList = ({
                         id="annotationSortingOriginSelect"
                         data-testid="annotationSortingOriginSelect"
                         options={Object.keys(availableAnnotationsInfo || [])}
+                        filterOptions={(options, state) =>
+                          filterAnnotationOrigins(options, state.inputValue)
+                        }
                         style={{ minWidth: "100%" }}
                         value={value}
                         onChange={(_event, newValue) => {
