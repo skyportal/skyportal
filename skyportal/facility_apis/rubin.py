@@ -46,6 +46,12 @@ LSST_NOMINAL_M5 = {
     "lssty": 22.1,
 }
 
+# Each executed visit is a distinct pointing, so add_observations tiles a fresh
+# InstrumentField per row. Tiling thousands at once holds one transaction past
+# pgbouncer's idle_transaction_timeout; ingest in small chunks (fresh session
+# each) so every field-creation transaction stays well under that bound.
+_INGEST_CHUNK = 100
+
 
 def _visit_id(t_min, ra, dec, band):
     """Stable 56-bit id for a visit. ObsLocTAP has no unique per-visit key
@@ -160,7 +166,9 @@ def fetch_rubin_executed(instrument_id, endpoint, start_mjd, end_mjd):
 
     from skyportal.handlers.api.observation import add_observations
 
-    add_observations(instrument_id, df)
+    for start in range(0, len(df), _INGEST_CHUNK):
+        chunk = df.iloc[start : start + _INGEST_CHUNK].reset_index(drop=True)
+        add_observations(instrument_id, chunk)
 
 
 def fetch_rubin_queued(instrument_id, endpoint, start_date, end_date):
