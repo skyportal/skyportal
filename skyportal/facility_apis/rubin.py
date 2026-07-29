@@ -164,11 +164,17 @@ def fetch_rubin_executed(instrument_id, endpoint, start_mjd, end_mjd):
     df["processed_fraction"] = 1.0
     df = df.drop(columns=["t_min", "t_max"])
 
+    from baselayer.app.models import DBSession
     from skyportal.handlers.api.observation import add_observations
 
     for start in range(0, len(df), _INGEST_CHUNK):
         chunk = df.iloc[start : start + _INGEST_CHUNK].reset_index(drop=True)
-        add_observations(instrument_id, chunk)
+        try:
+            add_observations(instrument_id, chunk)
+        finally:
+            # Drop the scoped session so no idle transaction lingers across
+            # chunks (pgbouncer kills idle-in-transaction connections at 300s).
+            DBSession.remove()
 
 
 def fetch_rubin_queued(instrument_id, endpoint, start_date, end_date):
