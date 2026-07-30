@@ -167,13 +167,17 @@ def fetch_rubin_executed(instrument_id, endpoint, start_mjd, end_mjd):
     from baselayer.app.models import DBSession
     from skyportal.handlers.api.observation import add_observations
 
+    # This runs in a run_in_executor thread, which doesn't inherit the request's
+    # session context; the shared default-scope DBSession may carry a stale
+    # (pgbouncer-killed) connection from a prior run. Drop it before we start and
+    # after each chunk so no idle-in-transaction connection is reused or lingers
+    # past pgbouncer's 300s idle_transaction_timeout.
+    DBSession.remove()
     for start in range(0, len(df), _INGEST_CHUNK):
         chunk = df.iloc[start : start + _INGEST_CHUNK].reset_index(drop=True)
         try:
             add_observations(instrument_id, chunk)
         finally:
-            # Drop the scoped session so no idle transaction lingers across
-            # chunks (pgbouncer kills idle-in-transaction connections at 300s).
             DBSession.remove()
 
 
