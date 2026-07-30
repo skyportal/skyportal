@@ -487,25 +487,21 @@ const UploadPhotometryForm = () => {
                     />
                   </Box>
                   <Box sx={{ mt: 1 }}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={extinctionCorrected}
-                          onChange={(e) =>
-                            setExtinctionCorrected(e.target.checked)
-                          }
-                          size="small"
-                          data-testid="extinction-corrected-toggle"
-                        />
-                      }
-                      label="Magnitudes are MW-extinction corrected"
-                    />
-                    <Font size="small">
-                      Enable if the uploaded magnitudes are already corrected
-                      for Milky Way (Galactic) extinction; SkyPortal re-reddens
-                      them on upload (SFD dust map + G23 law) so storage stays
-                      observed.
-                    </Font>
+                    <Tooltip title="Enable if the uploaded magnitudes are already corrected for Milky Way (Galactic) extinction; SkyPortal re-reddens them on upload (SFD dust map + G23 law) so storage stays observed.">
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={extinctionCorrected}
+                            onChange={(e) =>
+                              setExtinctionCorrected(e.target.checked)
+                            }
+                            size="small"
+                            data-testid="extinction-corrected-toggle"
+                          />
+                        }
+                        label="Magnitudes are MW-extinction corrected"
+                      />
+                    </Tooltip>
                   </Box>
                 </Box>
                 <Box
