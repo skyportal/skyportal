@@ -303,6 +303,7 @@ class BOOMBROKER(BrokerAPI):
                     "object_coordinates": {"query": [float(ra), float(dec)]},
                     "radius": float(radius),
                     "unit": unit,
+                    "projection": NO_CUTOUT_PROJECTION,
                     "max_time_ms": 10000,
                 },
             )

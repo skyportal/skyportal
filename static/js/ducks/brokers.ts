@@ -26,6 +26,16 @@ const buildQuery = (params: BrokerAlertQuery["params"]) => {
   return qs ? `?${qs}` : "";
 };
 
+// ZTF/LSST candids are 19-digit integers, well past what a JS number holds
+// exactly, so JSON.parse silently rounds them (…010009 -> …010000). The exact
+// value addresses an alert's cutouts, and BOOM happily serves a *different*
+// alert for a rounded one, so quote candids before parsing and keep them as
+// strings.
+const parseKeepingCandid = async (response: Response) => {
+  const text = await response.text();
+  return JSON.parse(text.replace(/"candid":\s*(\d{16,})/g, '"candid":"$1"'));
+};
+
 export const brokersApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getBrokers: build.query<Broker[], void>({
@@ -33,15 +43,19 @@ export const brokersApi = skyportalApi.injectEndpoints({
       providesTags: ["Broker"],
     }),
     getBrokerAlerts: build.query<unknown, BrokerAlertQuery>({
-      query: ({ brokerId, params }) =>
-        `api/brokers/${brokerId}/alerts${buildQuery(params)}`,
+      query: ({ brokerId, params }) => ({
+        url: `api/brokers/${brokerId}/alerts${buildQuery(params)}`,
+        responseHandler: parseKeepingCandid,
+      }),
     }),
     getBrokerAlert: build.query<
       any,
       { brokerId: number; alertId: string | number }
     >({
-      query: ({ brokerId, alertId }) =>
-        `api/brokers/${brokerId}/alerts/${alertId}`,
+      query: ({ brokerId, alertId }) => ({
+        url: `api/brokers/${brokerId}/alerts/${alertId}`,
+        responseHandler: parseKeepingCandid,
+      }),
     }),
     // Cross-match a position against a broker's reference catalogs (Gaia, PS1,
     // AllWISE, ...). Returns matched sources keyed by catalog name.
@@ -93,6 +107,7 @@ export const brokersApi = skyportalApi.injectEndpoints({
         url: `api/brokers/${brokerId}/filter/test`,
         method: "POST",
         body: params,
+        responseHandler: parseKeepingCandid,
       }),
     }),
     // Quiet lookup of whether an object is already a saved source (a miss is

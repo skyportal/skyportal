@@ -7,7 +7,6 @@ import CircularProgress from "@mui/material/CircularProgress";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import Pagination from "@mui/material/Pagination";
 import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
@@ -19,11 +18,10 @@ import {
   useLazyGetBrokerAlertsQuery,
   useLazyTestBrokerFilterQuery,
 } from "../../ducks/brokers";
-import BrokerAlertCard, { AlertOption } from "./BrokerAlertCard";
+import BrokerAlertDialog from "./BrokerAlertDialog";
+import BrokerAlertTable, { AlertRow } from "./BrokerAlertTable";
 import BrokerFilterManager from "./BrokerFilterManager";
 import LasairFilterBuilder from "./LasairFilterBuilder";
-
-const PAGE_SIZE = 12;
 
 const useStyles = makeStyles()((theme) => ({
   root: { padding: theme.spacing(2) },
@@ -33,11 +31,6 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "center",
     gap: theme.spacing(2),
     marginBottom: theme.spacing(2),
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(520px, 1fr))",
-    gap: theme.spacing(2),
   },
   json: { padding: theme.spacing(2), maxHeight: "50vh", overflow: "auto" },
   pre: {
@@ -61,27 +54,61 @@ const asArray = (result: unknown): unknown[] | null => {
   return null;
 };
 
-interface NormalizedAlert extends AlertOption {
-  objectId?: string;
-}
+const FID_BAND: Record<number, string> = { 1: "g", 2: "r", 3: "i" };
 
-// Pull the fields we render from a provider alert (candidate may be nested).
-const normalizeAlert = (a: any): NormalizedAlert => {
+const DEG = Math.PI / 180;
+
+// Angular separation in arcsec, for the cone-search separation column.
+const separation = (ra1: number, dec1: number, ra2: number, dec2: number) => {
+  const d =
+    Math.sin(dec1 * DEG) * Math.sin(dec2 * DEG) +
+    Math.cos(dec1 * DEG) * Math.cos(dec2 * DEG) * Math.cos((ra1 - ra2) * DEG);
+  return Math.acos(Math.min(1, Math.max(-1, d))) * (180 / Math.PI) * 3600;
+};
+
+// Pull the columns we render from a provider alert (candidate may be nested).
+// `raw` keeps the whole record so the detail dialog can show every field.
+const toRow = (a: any, index: number, center: [number, number] | null) => {
   const cand = a?.candidate ?? a ?? {};
+  const cls = a?.classifications ?? {};
+  // `object`/`diaObjectId` are the objectId in Lasair cone/LSST result rows.
+  const objectId =
+    a?.objectId ??
+    a?.diaObjectId ??
+    a?.object_id ??
+    a?.object ??
+    cand?.objectId;
+  const candid = cand?.candid ?? a?.candid;
+  const ra = cand?.ra ?? a?.ra;
+  const dec = cand?.dec ?? a?.dec;
   return {
-    // `object`/`diaObjectId` are the objectId in Lasair cone/LSST result rows.
-    objectId:
-      a?.objectId ??
-      a?.diaObjectId ??
-      a?.object_id ??
-      a?.object ??
-      cand?.objectId,
-    candid: cand?.candid ?? a?.candid,
-    ra: cand?.ra ?? a?.ra,
-    dec: cand?.dec ?? a?.dec,
-    magpsf: cand?.magpsf ?? a?.magpsf ?? cand?.mag,
+    id: String(candid ?? `${objectId}-${index}`),
+    objectId,
+    candid,
+    ra,
+    dec,
     jd: cand?.jd ?? a?.jd,
-  };
+    band: cand?.band ?? FID_BAND[cand?.fid],
+    magpsf: cand?.magpsf ?? a?.magpsf ?? cand?.mag,
+    sigmapsf: cand?.sigmapsf,
+    snr: cand?.snr_psf,
+    isdiffpos: cand?.isdiffpos,
+    // Real-bogus score: `drb` (ZTF), `reliability` (LSST), `rb` (older ZTF).
+    drb: cand?.drb ?? cand?.reliability ?? cand?.rb,
+    programid: cand?.programid,
+    braai: cls?.braai,
+    acai_h: cls?.acai_h,
+    acai_n: cls?.acai_n,
+    acai_o: cls?.acai_o,
+    acai_v: cls?.acai_v,
+    acai_b: cls?.acai_b,
+    btsbot: cls?.btsbot,
+    separation:
+      center && typeof ra === "number" && typeof dec === "number"
+        ? separation(center[0], center[1], ra, dec)
+        : undefined,
+    raw: a,
+  } as AlertRow;
 };
 
 const BrokerAlerts = () => {
@@ -94,7 +121,12 @@ const BrokerAlerts = () => {
   const [dec, setDec] = useState("");
   const [radius, setRadius] = useState("");
   const [mode, setMode] = useState<"search" | "preview">("search");
-  const [page, setPage] = useState(1);
+  // The row whose detail dialog is open, if any.
+  const [selected, setSelected] = useState<AlertRow | null>(null);
+  // Position the results were searched at, for the separation column.
+  const [center, setCenter] = useState<[number, number] | null>(null);
+  // Bumped per search so the table re-applies its default sort.
+  const [searchKey, setSearchKey] = useState(0);
 
   const [
     triggerAlerts,
@@ -141,7 +173,8 @@ const BrokerAlerts = () => {
     setDec(uDec);
     setRadius(uRadius);
     setMode("search");
-    setPage(1);
+    setCenter(uRa && uDec ? [Number(uRa), Number(uDec)] : null);
+    setSearchKey((k) => k + 1);
     triggerAlerts({
       brokerId: match.id,
       params: {
@@ -158,7 +191,8 @@ const BrokerAlerts = () => {
   const onSearch = () => {
     if (brokerId === "") return;
     setMode("search");
-    setPage(1);
+    setCenter(ra && dec ? [Number(ra), Number(dec)] : null);
+    setSearchKey((k) => k + 1);
     triggerAlerts({
       brokerId,
       params: {
@@ -174,25 +208,18 @@ const BrokerAlerts = () => {
   const onPreview = (params: Record<string, unknown>) => {
     if (brokerId === "") return;
     setMode("preview");
-    setPage(1);
+    setCenter(null);
+    setSearchKey((k) => k + 1);
     triggerFilter({ brokerId, params });
   };
 
-  // Group alerts by object so each card is one object with a per-alert selector.
-  const rows = asArray(data);
-  const objectGroups: { objectId: string; alerts: NormalizedAlert[] }[] = [];
-  if (rows) {
-    const byObject = new Map<string, NormalizedAlert[]>();
-    rows.map(normalizeAlert).forEach((a) => {
-      // Require an objectId; candid is optional (Lasair cone rows have none).
-      if (!a.objectId) return;
-      if (!byObject.has(a.objectId)) byObject.set(a.objectId, []);
-      byObject.get(a.objectId)!.push(a);
-    });
-    byObject.forEach((alerts, oid) =>
-      objectGroups.push({ objectId: oid, alerts }),
-    );
-  }
+  // One row per alert. Rows without an objectId can't be acted on (saved, or
+  // looked up for cutouts), so they fall through to the raw JSON view.
+  const results = asArray(data);
+  const alertRows = (results ?? [])
+    .map((a, i) => toRow(a, i, center))
+    .filter((r) => r.objectId);
+  const objectCount = new Set(alertRows.map((r) => r.objectId)).size;
 
   return (
     <Box className={classes.root}>
@@ -284,55 +311,29 @@ const BrokerAlerts = () => {
           )}
 
           {data !== undefined &&
-            (objectGroups.length > 0 ? (
+            (alertRows.length > 0 ? (
               <>
-                {(() => {
-                  const pageCount = Math.ceil(objectGroups.length / PAGE_SIZE);
-                  const current = Math.min(page, pageCount);
-                  const start = (current - 1) * PAGE_SIZE;
-                  const pageGroups = objectGroups.slice(
-                    start,
-                    start + PAGE_SIZE,
-                  );
-                  return (
-                    <>
-                      <Typography variant="subtitle2" gutterBottom>
-                        {`${objectGroups.length} object${
-                          objectGroups.length === 1 ? "" : "s"
-                        } — showing ${start + 1}–${start + pageGroups.length}`}
-                      </Typography>
-                      <div className={classes.grid}>
-                        {pageGroups.map((g) => (
-                          <BrokerAlertCard
-                            key={g.objectId}
-                            brokerId={brokerId as number}
-                            objectId={g.objectId}
-                            survey={survey}
-                            alerts={g.alerts}
-                          />
-                        ))}
-                      </div>
-                      {pageCount > 1 && (
-                        <Pagination
-                          count={pageCount}
-                          page={current}
-                          onChange={(_e, p) => setPage(p)}
-                          sx={{
-                            mt: 2,
-                            display: "flex",
-                            justifyContent: "center",
-                          }}
-                        />
-                      )}
-                    </>
-                  );
-                })()}
+                <Typography variant="subtitle2" gutterBottom>
+                  {`${alertRows.length} alert${
+                    alertRows.length === 1 ? "" : "s"
+                  } across ${objectCount} object${
+                    objectCount === 1 ? "" : "s"
+                  } — click a row for cutouts and metadata`}
+                </Typography>
+                <BrokerAlertTable
+                  rows={alertRows}
+                  onRowClick={setSelected}
+                  hasPosition={center !== null}
+                  searchKey={searchKey}
+                />
               </>
             ) : (
               <Paper className={classes.json} variant="outlined">
-                {rows ? (
+                {results ? (
                   <Typography variant="subtitle2" gutterBottom>
-                    {`${rows.length} result${rows.length === 1 ? "" : "s"}`}
+                    {`${results.length} result${
+                      results.length === 1 ? "" : "s"
+                    }`}
                   </Typography>
                 ) : null}
                 <pre className={classes.pre}>
@@ -340,6 +341,13 @@ const BrokerAlerts = () => {
                 </pre>
               </Paper>
             ))}
+
+          <BrokerAlertDialog
+            brokerId={brokerId as number}
+            survey={survey}
+            alert={selected}
+            onClose={() => setSelected(null)}
+          />
         </>
       )}
     </Box>

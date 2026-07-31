@@ -203,6 +203,9 @@ const VegaPlot = ({ dataUrl = null, values = null, jd }: VegaPlotProps) => {
   return (
     <div
       ref={(node) => {
+        // React passes null on unmount (e.g. closing the alert dialog), and
+        // vega-embed throws on a null container.
+        if (!node) return;
         embed(node as any, spec(dataUrl, values, jd), {
           actions: false,
         });
