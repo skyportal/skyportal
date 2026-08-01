@@ -124,7 +124,7 @@
     "@babel/plugin-transform-object-rest-spread": "7.27.1",
     "@babel/plugin-transform-optional-chaining": "7.27.1",
     "@babel/preset-env": "7.28.5",
-    "@babel/preset-react": "7.28.5",
+    "@babel/preset-react": "8.0.1",
     "@babel/preset-typescript": "7.27.1",
     "@eslint/js": "9.39.4",
     "@rspack/cli": "1.6.8",
