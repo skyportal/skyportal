@@ -98,6 +98,14 @@ brokers:
     active: true
     altdata:
       survey: LSST
+  - name: BOOM
+    broker_classname: BOOMBROKER
+    active: true
+    altdata:
+      protocol: https
+      host: api.kaboom.caltech.edu
+      username: demo
+      password: demo
   - name: Fink (ZTF)
     broker_classname: FINKBROKER
     active: true
