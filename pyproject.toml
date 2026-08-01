@@ -77,7 +77,7 @@ dependencies = [
     "typing-extensions==4.15.0",
     "swifttools==3.0.23",
     "gwemopt==0.4.1",
-    "humanize==4.14.0",
+    "humanize==4.16.0",
     "xarray>=21.1",
     "simsurvey==0.7.5",  # requires matplotlib monkey-patch, see models/__init__.py
     "noaodatalab==2.20.0",
