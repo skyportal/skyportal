@@ -82,7 +82,7 @@ dependencies = [
     "simsurvey==0.7.5",  # requires matplotlib monkey-patch, see models/__init__.py
     "noaodatalab==2.20.0",
     "black==26.5.1",
-    "click==8.1.7",
+    "click==8.4.2",
     "penquins==2.4.2",
     # BOOM's filter-module store; already pulled in by penquins, declared here
     # because skyportal/broker_apis/boom.py imports it directly.
