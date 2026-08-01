@@ -15,6 +15,21 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 
+def record_mode_for(cache):
+    """Static recordings are hand-maintained, so never contact the real server:
+    vcr only skips the connection when the cassette is write-protected."""
+    return "none" if cache == get_cache_file_static() else "new_episodes"
+
+
+def redirect_host(uri):
+    """Real host for a test route, longest match first (`/too` also matches
+    `/too/winter`, and the last match in config order would otherwise win)."""
+    matches = [r for r in cfg["test_server.redirects"] if re.match(r, uri)]
+    if not matches:
+        return None
+    return cfg["test_server.redirects"][max(matches, key=len)]
+
+
 def get_cache_file_static():
     """
     Helper function to get the path to the VCR cache file for requests
@@ -318,13 +333,10 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
         with my_vcr.use_cassette(
             cache,
-            record_mode="new_episodes",
+            record_mode=record_mode_for(cache),
             match_on=match_on,
         ) as cass:
-            real_host = None
-            for route in cfg["test_server.redirects"]:
-                if re.match(route, self.request.uri):
-                    real_host = cfg["test_server.redirects"][route]
+            real_host = redirect_host(self.request.uri)
 
             if real_host is not None:
                 url = real_host + self.request.uri
@@ -403,13 +415,10 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
         with my_vcr.use_cassette(
             cache,
-            record_mode="new_episodes",
+            record_mode=record_mode_for(cache),
             match_on=match_on,
         ) as cass:
-            real_host = None
-            for route in cfg["test_server.redirects"]:
-                if re.match(route, self.request.uri):
-                    real_host = cfg["test_server.redirects"][route]
+            real_host = redirect_host(self.request.uri)
 
             if real_host is not None:
                 url = real_host + self.request.uri
@@ -483,13 +492,10 @@ class TestRouteHandler(tornado.web.RequestHandler):
         else:
             cache = get_cache_file()
 
-        with my_vcr.use_cassette(cache, record_mode="new_episodes") as cass:
+        with my_vcr.use_cassette(cache, record_mode=record_mode_for(cache)) as cass:
             base_route = self.request.uri.split("?")[0]
 
-            real_host = None
-            for route in cfg["test_server.redirects"]:
-                if re.match(route, base_route):
-                    real_host = cfg["test_server.redirects"][route]
+            real_host = redirect_host(base_route)
 
             if real_host is not None:
                 url = real_host + self.request.uri
@@ -589,13 +595,10 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
         with my_vcr.use_cassette(
             cache,
-            record_mode="new_episodes",
+            record_mode=record_mode_for(cache),
             match_on=match_on,
         ) as cass:
-            real_host = None
-            for route in cfg["test_server.redirects"]:
-                if re.match(route, self.request.uri):
-                    real_host = cfg["test_server.redirects"][route]
+            real_host = redirect_host(self.request.uri)
 
             if real_host is not None:
                 url = real_host + self.request.uri
