@@ -178,11 +178,11 @@ app:
     - path: "/profile"
       component: user/Profile
     - path: "/brokers"
-      component: broker/BrokerAlerts
+      component: broker/BrokerList
+    - path: "/brokers/:brokerId"
+      component: broker/Broker
     - path: "/brokers/:brokerId/filter/:fid"
       component: broker/BrokerFilterPage
-    - path: "/broker_admin"
-      component: broker/BrokerAdmin
     - path: "/user/:id"
       component: user/UserInfo
     - path: "/upload_photometry/:id"
@@ -289,10 +289,6 @@ app:
         - name: Candidates
           icon: Search
           url: /candidates
-
-        - name: Alerts
-          icon: NotificationsActive
-          url: /brokers
 
         - name: Favorites
           icon: Star
@@ -424,7 +420,7 @@ app:
         - name: Brokers
           icon: Hub
           permissions: ["System admin"]
-          url: /broker_admin
+          url: /brokers
 
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package
@@ -707,7 +703,7 @@ brokers:
   # Run the in-core ingestion service (services/broker_ingest): for each active
   # broker whose provider implements run_ingestion, consume its stream and ingest
   # alerts via the shared save transform. Off by default; interactive access
-  # (the /brokers alerts page) works regardless of this setting.
+  # (the /brokers/{id} page) works regardless of this setting.
   ingest_enabled: False
 
 # BOOM-specific settings. The filter builder's user-created modules (variables,

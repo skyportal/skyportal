@@ -76,7 +76,7 @@ teams:
 
 # Public (no-auth) alert brokers, available out of the box. Credentialed ones
 # (BOOM, Babamul, Lasair, Pitt-Google) are configured per-deployment via
-# /broker_admin. See doc/broker_plugins.md.
+# /brokers. See doc/broker_plugins.md.
 brokers:
   - name: ALeRCE (ZTF)
     broker_classname: ALERCEBROKER
