@@ -5,6 +5,7 @@ import uuid
 import pandas as pd
 import pytest
 import requests
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect
 from regions import Regions
 
@@ -603,15 +604,21 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
     select_box = page.locator(
         "//div[@id='mui-component-select-forcedPhotometryAllocationSelect']"
     ).first
-    # Heavy Plotly plots on this page keep re-rendering and shifting layout, so
-    # the (already-populated) select never satisfies Playwright's stability
-    # check; force the click past actionability since the target is correct.
-    select_box.click(force=True)
-
     allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     ).first
-    allocation.click()
+    # Heavy Plotly plots on this page keep re-rendering: they leave the select
+    # failing Playwright's stability check and can dismiss the just-opened MUI
+    # menu before the option is clicked. Force the open past actionability and
+    # retry open+select until the allocation is picked.
+    for attempt in range(5):
+        select_box.click(force=True)
+        try:
+            allocation.click(timeout=15000)
+            break
+        except PlaywrightTimeoutError:
+            if attempt == 4:
+                raise
 
     submit_button.click()
 
@@ -656,15 +663,21 @@ def add_followup_request_using_frontend_and_verify_PS1(
     select_box = page.locator(
         "//div[@id='mui-component-select-forcedPhotometryAllocationSelect']"
     ).first
-    # Heavy Plotly plots on this page keep re-rendering and shifting layout, so
-    # the (already-populated) select never satisfies Playwright's stability
-    # check; force the click past actionability since the target is correct.
-    select_box.click(force=True)
-
     allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     ).first
-    allocation.click()
+    # Heavy Plotly plots on this page keep re-rendering: they leave the select
+    # failing Playwright's stability check and can dismiss the just-opened MUI
+    # menu before the option is clicked. Force the open past actionability and
+    # retry open+select until the allocation is picked.
+    for attempt in range(5):
+        select_box.click(force=True)
+        try:
+            allocation.click(timeout=15000)
+            break
+        except PlaywrightTimeoutError:
+            if attempt == 4:
+                raise
 
     submit_button.click()
 
@@ -996,6 +1009,7 @@ def test_submit_new_followup_request_Spectral(
     )
 
 
+@pytest.mark.flaky(reruns=3)
 def test_submit_new_followup_request_ATLAS(
     page, super_admin_user, public_source, super_admin_token, public_group
 ):
