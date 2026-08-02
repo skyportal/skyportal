@@ -12,7 +12,7 @@ import Typography from "@mui/material/Typography";
 import {
   useGetBrokerFiltersQuery,
   useSaveBrokerFilterMutation,
-} from "../../ducks/brokers";
+} from "../../../ducks/brokers";
 
 interface LasairFilterBuilderProps {
   brokerId: number;
