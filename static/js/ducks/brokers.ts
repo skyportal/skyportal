@@ -26,6 +26,13 @@ const buildQuery = (params: BrokerAlertQuery["params"]) => {
   return qs ? `?${qs}` : "";
 };
 
+// 64-bit alert ids: JSON.parse would round them, so keep them as strings.
+const ID_KEYS = /"(candid|diaSourceId|diaObjectId)":\s*(\d{16,})/g;
+const parseKeepingIds = async (response: Response) => {
+  const text = await response.text();
+  return JSON.parse(text.replace(ID_KEYS, '"$1":"$2"'));
+};
+
 export const brokersApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getBrokers: build.query<Broker[], void>({
@@ -33,15 +40,19 @@ export const brokersApi = skyportalApi.injectEndpoints({
       providesTags: ["Broker"],
     }),
     getBrokerAlerts: build.query<unknown, BrokerAlertQuery>({
-      query: ({ brokerId, params }) =>
-        `api/brokers/${brokerId}/alerts${buildQuery(params)}`,
+      query: ({ brokerId, params }) => ({
+        url: `api/brokers/${brokerId}/alerts${buildQuery(params)}`,
+        responseHandler: parseKeepingIds,
+      }),
     }),
     getBrokerAlert: build.query<
       any,
       { brokerId: number; alertId: string | number }
     >({
-      query: ({ brokerId, alertId }) =>
-        `api/brokers/${brokerId}/alerts/${alertId}`,
+      query: ({ brokerId, alertId }) => ({
+        url: `api/brokers/${brokerId}/alerts/${alertId}`,
+        responseHandler: parseKeepingIds,
+      }),
     }),
     // Cross-match a position against a broker's reference catalogs (Gaia, PS1,
     // AllWISE, ...). Returns matched sources keyed by catalog name.
@@ -93,6 +104,7 @@ export const brokersApi = skyportalApi.injectEndpoints({
         url: `api/brokers/${brokerId}/filter/test`,
         method: "POST",
         body: params,
+        responseHandler: parseKeepingIds,
       }),
     }),
     // Quiet lookup of whether an object is already a saved source (a miss is
