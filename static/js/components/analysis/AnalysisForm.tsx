@@ -19,15 +19,10 @@ import {
   useGetAssociatedGcnsQuery,
 } from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
+import { utc_to_mjd } from "../../units";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
-
-// MJD from a UTC datetime string (Unix epoch = MJD 40587). Null if unparseable.
-const utcToMjd = (s: string): number | null => {
-  const ms = dayjs.utc(s).valueOf();
-  return Number.isNaN(ms) ? null : ms / 86400000 + 40587;
-};
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -313,7 +308,7 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
     // T0 widget (handled outside rjsf): convert the UTC datetime to an MJD
     // trigger_time the fit backend understands. Blank = let the fit default it.
     if (acceptsTriggerTime && triggerTimeUtc.trim() !== "") {
-      const mjd = utcToMjd(triggerTimeUtc.trim());
+      const mjd = utc_to_mjd(triggerTimeUtc.trim());
       if (mjd !== null) analysis_parameters.trigger_time = mjd;
     }
 
@@ -459,9 +454,9 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
             <div style={{ fontSize: "0.8rem", opacity: 0.8 }}>
               {triggerTimeUtc.trim() === ""
                 ? "No T0 set — the fit defaults to first detection − 2 days."
-                : utcToMjd(triggerTimeUtc.trim()) === null
+                : utc_to_mjd(triggerTimeUtc.trim()) === null
                   ? "Unrecognized UTC datetime."
-                  : `trigger_time = MJD ${utcToMjd(triggerTimeUtc.trim())!.toFixed(6)}${
+                  : `trigger_time = MJD ${utc_to_mjd(triggerTimeUtc.trim())!.toFixed(6)}${
                       associatedGCNs.length > 0
                         ? ` (from associated G-event${associatedGCNs.length > 1 ? "s" : ""})`
                         : ""
