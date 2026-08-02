@@ -4,7 +4,6 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Pagination from "@mui/material/Pagination";
 import Paper from "@mui/material/Paper";
@@ -24,6 +23,7 @@ import BrokerAlertCard, { AlertOption } from "./BrokerAlertCard";
 import BrokerFilterManager from "./BrokerFilterManager";
 import NewBrokerFilterForm from "./NewBrokerFilterForm";
 import LasairFilterBuilder from "./lasair/LasairFilterBuilder";
+import Spinner from "../Spinner";
 
 const PAGE_SIZE = 12;
 
@@ -83,6 +83,7 @@ const normalizeAlert = (a: any): NormalizedAlert => {
     dec: cand?.dec ?? a?.dec,
     magpsf: cand?.magpsf ?? a?.magpsf ?? cand?.mag,
     jd: cand?.jd ?? a?.jd,
+    raw: a,
   };
 };
 
@@ -216,7 +217,7 @@ const Broker = () => {
     );
   }
 
-  if (brokersLoading) return <CircularProgress />;
+  if (brokersLoading) return <Spinner />;
 
   return (
     <Box className={classes.root}>
@@ -312,14 +313,11 @@ const Broker = () => {
 
           {activeTab === 2 && <NewBrokerFilterForm brokerId={brokerId} />}
 
-          {/* Results belong to the tab that produced them: search on Alerts, preview on Filters. */}
           {activeTab === (mode === "preview" ? 1 : 0) && (
             <>
               {error && (
                 <Typography color="error" gutterBottom>
-                  {`Error: ${JSON.stringify(
-                    (error as { data?: unknown }).data ?? error,
-                  )}`}
+                  {(error as any)?.data?.message || "Failed to query broker."}
                 </Typography>
               )}
 
@@ -348,6 +346,7 @@ const Broker = () => {
                               <BrokerAlertCard
                                 key={g.objectId}
                                 brokerId={brokerId}
+                                brokerClassname={broker.broker_classname}
                                 objectId={g.objectId}
                                 survey={survey}
                                 alerts={g.alerts}

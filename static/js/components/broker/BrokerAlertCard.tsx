@@ -7,6 +7,7 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Link } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 
@@ -17,6 +18,7 @@ import {
 import CutoutTriplet from "./CutoutTriplet";
 import BrokerAlertLightCurve from "./BrokerAlertLightCurve";
 import BrokerSaveButton from "./BrokerSaveButton";
+import BoomAlertMetadata from "./boom/BoomAlertMetadata";
 
 const useStyles = makeStyles()((theme) => ({
   card: { height: "100%" },
@@ -27,7 +29,13 @@ const useStyles = makeStyles()((theme) => ({
     gap: theme.spacing(1),
     marginBottom: theme.spacing(1),
   },
-  objectId: { fontWeight: 600, fontSize: "1rem" },
+  objectId: {
+    fontWeight: 600,
+    fontSize: "1rem",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+  },
   meta: {
     fontFamily: "monospace",
     fontSize: "0.8rem",
@@ -48,7 +56,12 @@ const useStyles = makeStyles()((theme) => ({
     gap: theme.spacing(1),
     flexWrap: "wrap",
   },
-  chips: { display: "flex", gap: theme.spacing(0.5), flexWrap: "wrap" },
+  chips: {
+    display: "flex",
+    gap: theme.spacing(0.5),
+    flexWrap: "wrap",
+    marginBottom: theme.spacing(1),
+  },
 }));
 
 export interface AlertOption {
@@ -57,10 +70,12 @@ export interface AlertOption {
   dec?: number;
   magpsf?: number;
   jd?: number;
+  raw?: any;
 }
 
 interface BrokerAlertCardProps {
   brokerId: number;
+  brokerClassname: string;
   objectId: string;
   survey: string;
   alerts: AlertOption[];
@@ -71,6 +86,7 @@ const num = (v: number | undefined, d = 4) =>
 
 const BrokerAlertCard = ({
   brokerId,
+  brokerClassname,
   objectId,
   survey,
   alerts,
@@ -108,7 +124,14 @@ const BrokerAlertCard = ({
     <Card variant="outlined" className={classes.card}>
       <CardContent>
         <div className={classes.header}>
-          <span className={classes.objectId}>{objectId}</span>
+          {source ? (
+            <Link className={classes.objectId} to={`/source/${objectId}`}>
+              {objectId}
+              <OpenInNewIcon fontSize="inherit" />
+            </Link>
+          ) : (
+            <span className={classes.objectId}>{objectId}</span>
+          )}
           {sorted.length > 1 && (
             <FormControl size="small" sx={{ minWidth: 150 }}>
               <InputLabel id={`alert-${objectId}`}>Alert</InputLabel>
@@ -153,26 +176,28 @@ const BrokerAlertCard = ({
           </div>
         </div>
 
-        <div className={classes.footer}>
-          {source ? (
-            <>
-              <Chip size="small" color="primary" label="Saved" />
-              <div className={classes.chips}>
-                {savedGroups.map((g: any) => (
-                  <Chip
-                    key={g.id}
-                    size="small"
-                    variant="outlined"
-                    label={g.name}
-                  />
-                ))}
-              </div>
-              <Link to={`/source/${objectId}`}>View source</Link>
-            </>
-          ) : (
+        {source && (
+          <div className={classes.chips}>
+            Saved to:
+            {savedGroups.map((g: any) => (
+              <Chip key={g.id} color="primary" size="small" label={g.name} />
+            ))}
+          </div>
+        )}
+
+        {brokerClassname === "BOOMBROKER" && (
+          <BoomAlertMetadata
+            alerts={sorted}
+            survey={survey}
+            selectedCandid={candid}
+          />
+        )}
+
+        {!source && (
+          <div className={classes.footer}>
             <BrokerSaveButton brokerId={brokerId} objectId={objectId} />
-          )}
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
