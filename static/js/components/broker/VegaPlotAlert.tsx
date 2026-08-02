@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import embed from "vega-embed";
 
 // Consistent color palette for photometric bands across surveys
@@ -197,19 +198,50 @@ interface VegaPlotProps {
 }
 
 const VegaPlot = ({ dataUrl = null, values = null, jd }: VegaPlotProps) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const viewRef = useRef<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const container = containerRef.current;
+
+    const renderPlot = async () => {
+      if (!container || (!dataUrl && !values)) {
+        return;
+      }
+      // Finalize the previous view to release its DOM nodes and event handlers.
+      if (viewRef.current) {
+        viewRef.current.finalize();
+        viewRef.current = null;
+      }
+      const result = await embed(container, spec(dataUrl, values, jd), {
+        actions: false,
+      });
+      if (cancelled) {
+        result?.view?.finalize();
+        return;
+      }
+      viewRef.current = result?.view || null;
+    };
+
+    renderPlot();
+
+    return () => {
+      cancelled = true;
+      if (viewRef.current) {
+        viewRef.current.finalize();
+        viewRef.current = null;
+      }
+      if (container) {
+        container.innerHTML = "";
+      }
+    };
+  }, [dataUrl, values, jd]);
+
   if (!dataUrl && !values) {
     return null;
   }
-  return (
-    <div
-      ref={(node) => {
-        embed(node as any, spec(dataUrl, values, jd), {
-          actions: false,
-        });
-      }}
-      style={{ width: "100%", height: "100%" }}
-    />
-  );
+  return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 };
 
 export default VegaPlot;
