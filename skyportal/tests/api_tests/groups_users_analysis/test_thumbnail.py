@@ -167,16 +167,33 @@ def test_thumbnail_queue_classifies_remote_grayscale(
             )
 
     async def _run():
-        # Remote (public_url-only) thumbnails start unclassified.
+        # Remote (public_url) thumbnails are inserted unclassified so the
+        # request path never blocks on a cutout fetch. Verify that on an
+        # *uncommitted* row: a live thumbnail_queue service only sees committed
+        # rows, so it can't have classified it first (which races a check of
+        # the committed table).
+        async with async_plain_session_factory() as session:
+            probe = Thumbnail(
+                obj_id=obj_id,
+                public_url="https://example.invalid/thumb.png",
+                type="ps1",
+            )
+            session.add(probe)
+            await session.flush()
+            assert probe.is_grayscale is None
+            await session.rollback()
+
         async with async_plain_session_factory() as session:
             obj = await session.get(Obj, obj_id)
             await obj.add_linked_thumbnails(["sdss", "ls", "ps1"], session)
-        values = await _values()
-        assert values and all(v is None for v in values)
 
-        # Stub the network fetch, then drain the (globally-batched) queue until
-        # this obj's thumbnails are classified.
+        # Drain the (globally-batched) queue until this obj's thumbnails are
+        # classified. The stub keeps the test's own drain offline; a live
+        # thumbnail_queue service may also classify some (to False on a failed
+        # fetch), and whichever classifier reaches a NULL row first wins — so
+        # assert only that the queue fills every thumbnail in (non-NULL).
         monkeypatch.setattr(tq, "_classify_remote_thumbnail", lambda url: True)
+        values = []
         for _ in range(50):
             await tq.classify_pending_grayscale(
                 session_factory=async_plain_session_factory
@@ -184,7 +201,7 @@ def test_thumbnail_queue_classifies_remote_grayscale(
             values = await _values()
             if values and all(v is not None for v in values):
                 break
-        assert values and all(v is True for v in values)
+        assert values and all(v is not None for v in values)
 
     asyncio.run(_run())
 
