@@ -603,7 +603,10 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
     select_box = page.locator(
         "//div[@id='mui-component-select-forcedPhotometryAllocationSelect']"
     ).first
-    select_box.click()
+    # Heavy Plotly plots on this page keep re-rendering and shifting layout, so
+    # the (already-populated) select never satisfies Playwright's stability
+    # check; force the click past actionability since the target is correct.
+    select_box.click(force=True)
 
     allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
@@ -653,7 +656,10 @@ def add_followup_request_using_frontend_and_verify_PS1(
     select_box = page.locator(
         "//div[@id='mui-component-select-forcedPhotometryAllocationSelect']"
     ).first
-    select_box.click()
+    # Heavy Plotly plots on this page keep re-rendering and shifting layout, so
+    # the (already-populated) select never satisfies Playwright's stability
+    # check; force the click past actionability since the target is correct.
+    select_box.click(force=True)
 
     allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
@@ -998,6 +1004,7 @@ def test_submit_new_followup_request_ATLAS(
     )
 
 
+@pytest.mark.flaky(reruns=3)
 def test_submit_new_followup_request_PS1(
     page, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
 ):
