@@ -10,6 +10,7 @@ import Pagination from "@mui/material/Pagination";
 import Paper from "@mui/material/Paper";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
+import Tooltip from "@mui/material/Tooltip";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
@@ -85,6 +86,14 @@ const normalizeAlert = (a: any): NormalizedAlert => {
   };
 };
 
+const TooltipTab = ({ tooltip, ...tabProps }: any) => (
+  <Tooltip title={tooltip} placement="top">
+    <span style={{ display: "inline-flex" }}>
+      <Tab {...tabProps} />
+    </span>
+  </Tooltip>
+);
+
 const Broker = () => {
   const { classes } = useStyles();
   const { brokerId: brokerIdParam } = useParams();
@@ -117,11 +126,23 @@ const Broker = () => {
   const canQuery = Boolean(broker?.capabilities?.["query_alerts"]);
   const canPreview = Boolean(broker?.capabilities?.["test_filter"]);
   const hasFilters = Boolean(broker && broker.filter_kind !== "none");
-  // A broker may expose only some of the tabs (ingestion-only, filters-only...).
+  // A broker may expose only some of the tabs (ingestion-only, filters-only...)
   const TABS = [
-    { label: "Alerts", enabled: canQuery },
-    { label: "Filters", enabled: hasFilters },
-    { label: "New filter", enabled: broker?.filter_kind === "pipeline" },
+    {
+      label: "Alerts",
+      enabled: canQuery,
+      reason: `${broker?.name} does not support alerts query.`,
+    },
+    {
+      label: "Filters",
+      enabled: hasFilters,
+      reason: `${broker?.name} does not support filters.`,
+    },
+    {
+      label: "New filter",
+      enabled: broker?.filter_kind === "pipeline",
+      reason: `${broker?.name} does not support filters creation.`,
+    },
   ];
   const activeTab = TABS[tab]?.enabled ? tab : TABS.findIndex((t) => t.enabled);
 
@@ -227,7 +248,12 @@ const Broker = () => {
             onChange={(_event, value) => setTab(value)}
           >
             {TABS.map((t) => (
-              <Tab key={t.label} label={t.label} disabled={!t.enabled} />
+              <TooltipTab
+                key={t.label}
+                label={t.label}
+                disabled={!t.enabled}
+                tooltip={t.enabled ? "" : t.reason}
+              />
             ))}
           </Tabs>
 
