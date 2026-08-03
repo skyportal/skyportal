@@ -7,6 +7,7 @@ import validator from "@rjsf/validator-ajv8";
 
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
@@ -34,12 +35,14 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
 import {
+  Broker,
   useCreateBrokerMutation,
   useDeleteBrokerMutation,
   useGetBrokerAPIsQuery,
   useGetBrokersQuery,
   useUpdateBrokerMutation,
 } from "../../ducks/brokers";
+import { useGetProfileQuery } from "../../ducks/profile";
 import FilterCatalog from "./FilterCatalog";
 
 const Form = withTheme(MuiTheme);
@@ -60,6 +63,21 @@ const brokerLink = (id: number) => `/brokers/${id}`;
 const TABS = ["Brokers", "Filters"];
 
 const NEW_BROKER_FORM_ID = "new-broker-form";
+
+const optionalSchema = (node: any): any => {
+  if (!node || typeof node !== "object") return node;
+  const { required, properties, ...rest } = node;
+  return {
+    ...rest,
+    ...(properties
+      ? {
+          properties: Object.fromEntries(
+            Object.entries(properties).map(([k, v]) => [k, optionalSchema(v)]),
+          ),
+        }
+      : {}),
+  };
+};
 
 const COLUMNS = [
   { id: "name", label: "Name", value: (b: any) => b.name || "" },
@@ -95,6 +113,8 @@ const BrokerList = () => {
   const navigate = useNavigate();
   const { data: brokers, isLoading } = useGetBrokersQuery();
   const { data: apis } = useGetBrokerAPIsQuery();
+  const { data: profile } = useGetProfileQuery();
+  const isSystemAdmin = Boolean(profile?.permissions?.includes("System admin"));
   const [createBroker] = useCreateBrokerMutation();
   const [updateBroker] = useUpdateBrokerMutation();
   const [deleteBroker] = useDeleteBrokerMutation();
@@ -105,6 +125,7 @@ const BrokerList = () => {
 
   const [tab, setTab] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<Broker | null>(null);
   const [orderBy, setOrderBy] = useState("name");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
 
@@ -129,18 +150,41 @@ const BrokerList = () => {
   const classNames = Object.keys(apis || {});
   const schema = newClass ? apis?.[newClass]?.formSchemaConfig : null;
   const uiSchema = newClass ? apis?.[newClass]?.uiSchema : null;
+  const dialogSchema = editing ? optionalSchema(schema) : schema;
 
-  const onCreate = async () => {
+  const openCreate = () => {
+    setEditing(null);
+    setNewName("");
+    setNewClass("");
+    setFormData({});
+    setAddOpen(true);
+  };
+
+  const openEdit = (broker: Broker) => {
+    setEditing(broker);
+    setNewName(broker.name);
+    setNewClass(broker.broker_classname);
+    setFormData((broker.altdata as Record<string, unknown>) ?? {});
+    setAddOpen(true);
+  };
+
+  const onSubmit = async () => {
     if (!newName || !newClass) return;
-    const res = await createBroker({
-      name: newName,
-      broker_classname: newClass,
-      altdata: formData,
-    });
+    const res = editing
+      ? await updateBroker({
+          id: editing.id,
+          patch: { name: newName, altdata: formData },
+        })
+      : await createBroker({
+          name: newName,
+          broker_classname: newClass,
+          altdata: formData,
+        });
     if ("data" in res) {
       setNewName("");
       setNewClass("");
       setFormData({});
+      setEditing(null);
       setAddOpen(false);
     }
   };
@@ -157,14 +201,16 @@ const BrokerList = () => {
         }}
       >
         <Typography variant="h5">Brokers</Typography>
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddIcon />}
-          onClick={() => setAddOpen(true)}
-        >
-          Add a broker
-        </Button>
+        {isSystemAdmin && (
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={openCreate}
+          >
+            Add a broker
+          </Button>
+        )}
       </Box>
 
       <Tabs
@@ -247,13 +293,24 @@ const BrokerList = () => {
                       align="right"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <IconButton
-                        size="small"
-                        aria-label="delete broker"
-                        onClick={() => deleteBroker(b.id)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
+                      {isSystemAdmin && (
+                        <>
+                          <IconButton
+                            size="small"
+                            aria-label="edit broker"
+                            onClick={() => openEdit(b)}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            aria-label="delete broker"
+                            onClick={() => deleteBroker(b.id)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -270,7 +327,9 @@ const BrokerList = () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Add a broker</DialogTitle>
+        <DialogTitle>
+          {editing ? `Edit ${editing.name}` : "Add a broker"}
+        </DialogTitle>
         <DialogContent dividers>
           <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
             <TextField
@@ -285,6 +344,7 @@ const BrokerList = () => {
                 labelId="new-broker-class"
                 label="Provider"
                 value={newClass}
+                disabled={Boolean(editing)}
                 onChange={(e) => {
                   setNewClass(e.target.value);
                   setFormData({});
@@ -301,30 +361,27 @@ const BrokerList = () => {
           {schema ? (
             <Form
               id={NEW_BROKER_FORM_ID}
-              schema={schema as Record<string, unknown>}
+              schema={dialogSchema as Record<string, unknown>}
               uiSchema={(uiSchema || {}) as Record<string, unknown>}
               formData={formData}
               validator={validator}
               onChange={(e) => setFormData(e.formData)}
-              onSubmit={() => onCreate()}
+              onSubmit={() => onSubmit()}
             >
               <></>
             </Form>
           ) : null}
         </DialogContent>
         <DialogActions>
-          <Button size="small" onClick={() => setAddOpen(false)}>
-            Cancel
-          </Button>
+          <Button onClick={() => setAddOpen(false)}>Cancel</Button>
           <Button
-            size="small"
             variant="contained"
             disabled={!newName || !newClass}
             {...(schema
               ? ({ type: "submit", form: NEW_BROKER_FORM_ID } as const)
-              : { onClick: () => onCreate() })}
+              : { onClick: () => onSubmit() })}
           >
-            Create broker
+            {editing ? "Save changes" : "Create broker"}
           </Button>
         </DialogActions>
       </Dialog>
