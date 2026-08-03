@@ -116,6 +116,7 @@ def test_scan_report_item_includes_followup_and_assignment(
     assert followup["type"] == "spectroscopy"
     assert followup["priority"] == 3
     assert followup["status"] is not None
+    assert followup["requester"] == user.username
 
     assignments = item["data"]["assignments"]
     assert assignments is not None
@@ -124,6 +125,7 @@ def test_scan_report_item_includes_followup_and_assignment(
     )
     assert assignment["priority"] == "5"
     assert assignment["status"] is not None
+    assert assignment["requester"] == user.username
 
 
 def test_scan_report_item_comment_only_from_scanner(

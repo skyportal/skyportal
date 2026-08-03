@@ -176,7 +176,7 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                       <Tooltip
                         title={`${followup.instrument} (${followup.type}): ${followup.priority}${
                           followup.status ? ` — ${followup.status}` : ""
-                        }`}
+                        }${followup.requester ? ` — by ${followup.requester}` : ""}`}
                         key={index}
                       >
                         <Chip
@@ -191,8 +191,14 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                   {reportItem.data.assignments?.map(
                     (assignment: any, index: number) => (
                       <Tooltip
-                        title={`${assignment.instrument}: ${assignment.priority}${
+                        title={`${assignment.instrument}${
+                          assignment.run_date ? ` (${assignment.run_date})` : ""
+                        }: ${assignment.priority}${
                           assignment.status ? ` — ${assignment.status}` : ""
+                        }${
+                          assignment.requester
+                            ? ` — by ${assignment.requester}`
+                            : ""
                         }`}
                         key={index}
                       >

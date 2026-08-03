@@ -4,7 +4,6 @@ from sqlalchemy.orm import joinedload, selectinload
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
-from .... import facility_apis
 from ....models import (
     Allocation,
     ClassicalAssignment,
@@ -103,90 +102,62 @@ async def create_scan_report_item(session, report, sources_by_obj):
 
     # Query follow-up requests through their own access rules so the report only
     # includes what the scanner is allowed to see (allocation group membership).
+    # Every request is kept (newest first) with its requester, so scanners can see
+    # who requested what, where and at which priority.
     followup_requests = (
         await session.scalars(
             FollowupRequest.select(session.user_or_token, mode="read")
             .options(
-                joinedload(FollowupRequest.allocation).joinedload(Allocation.instrument)
+                joinedload(FollowupRequest.allocation).joinedload(
+                    Allocation.instrument
+                ),
+                joinedload(FollowupRequest.requester),
             )
             .where(FollowupRequest.obj_id == obj_id)
+            .order_by(FollowupRequest.created_at.desc())
         )
     ).all()
 
-    if followup_requests:
-        # Keep the best-priority request per (instrument, request type).
-        followups = {}
-        for followup in followup_requests:
-            instrument = followup.instrument
-            req_type = _followup_request_type(followup.allocation, instrument)
-            priority_order = getattr(
-                facility_apis, instrument.api_classname
-            ).priorityOrder
-            priority = (followup.payload or {}).get("priority")
-            key = (instrument.name, req_type)
-            current = followups.get(key)
-
-            should_update = False
-            if current is None or current["priority"] == "NA":
-                should_update = True
-            elif priority is not None:
-                if priority_order == "desc" and priority < current["priority"]:
-                    should_update = True
-                elif priority_order == "asc" and priority > current["priority"]:
-                    should_update = True
-
-            if should_update:
-                followups[key] = {
-                    "priority": priority if priority is not None else "NA",
-                    "status": followup.status,
-                }
-        followups = [
-            {
-                "instrument": name,
-                "type": req_type,
-                "priority": info["priority"],
-                "status": info["status"],
-            }
-            for (name, req_type), info in followups.items()
-        ]
-    else:
-        followups = None
+    followups = [
+        {
+            "instrument": followup.instrument.name,
+            "type": _followup_request_type(followup.allocation, followup.instrument),
+            "priority": (followup.payload or {}).get("priority"),
+            "status": followup.status,
+            "requester": followup.requester.username if followup.requester else None,
+        }
+        for followup in followup_requests
+    ] or None
 
     # Observing-run assignments, also filtered by the scanner's access rules.
     assignment_rows = (
         await session.scalars(
             ClassicalAssignment.select(session.user_or_token, mode="read")
             .options(
-                joinedload(ClassicalAssignment.run).joinedload(ObservingRun.instrument)
+                joinedload(ClassicalAssignment.run).joinedload(ObservingRun.instrument),
+                joinedload(ClassicalAssignment.requester),
             )
             .where(ClassicalAssignment.obj_id == obj_id)
+            .order_by(ClassicalAssignment.created_at.desc())
         )
     ).all()
 
-    if assignment_rows:
-        # Keep the highest priority (5 = highest) assignment per instrument.
-        assignments = {}
-        for assignment in assignment_rows:
-            name = assignment.run.instrument.name
-            current = assignments.get(name)
-            if (
-                current is None
-                or current["priority"] is None
-                or (
-                    assignment.priority is not None
-                    and assignment.priority > current["priority"]
-                )
-            ):
-                assignments[name] = {
-                    "priority": assignment.priority,
-                    "status": assignment.status,
-                }
-        assignments = [
-            {"instrument": name, "priority": info["priority"], "status": info["status"]}
-            for name, info in assignments.items()
-        ]
-    else:
-        assignments = None
+    assignments = [
+        {
+            "instrument": assignment.run.instrument.name,
+            "run_date": (
+                assignment.run.calendar_date.isoformat()
+                if assignment.run.calendar_date
+                else None
+            ),
+            "priority": assignment.priority,
+            "status": assignment.status,
+            "requester": (
+                assignment.requester.username if assignment.requester else None
+            ),
+        }
+        for assignment in assignment_rows
+    ] or None
 
     # Pre-fill the item's comment with the most recent note the scanner left on the
     # source, if any, so scanners don't have to re-enter it after generating the report.
