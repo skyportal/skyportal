@@ -1,7 +1,9 @@
 import operator  # noqa: F401
 import re
+from typing import Any
 
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -12,6 +14,62 @@ from ....models import Group, GroupPublicRelease, PublicRelease, PublicSourcePag
 from ...base import BaseHandler
 
 log = make_log("api/public_release")
+
+
+class PublicReleasePostBody(BaseModel):
+    """Request body for creating a public release."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the release")
+    link_name: str | None = Field(
+        default=None,
+        description="URL-safe name identifying the release in its public URL",
+    )
+    group_ids: list[int] | None = Field(
+        default=None, description="IDs of the groups that can manage this release"
+    )
+    description: str = Field(default="", description="Description of the release")
+    is_visible: bool = Field(
+        default=True, description="Whether the release is publicly visible"
+    )
+    auto_publish_enabled: bool = Field(
+        default=False,
+        description="Whether sources saved to the release's groups are "
+        "automatically published",
+    )
+    options: dict[str, Any] = Field(
+        default_factory=dict, description="Options for the sources in this release"
+    )
+
+
+class PublicReleasePostResponse(BaseModel):
+    """ID of the newly created public release."""
+
+    id: int = Field(description="Public release ID")
+
+
+class PublicReleasePatchBody(BaseModel):
+    """Request body for updating a public release."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the release")
+    group_ids: list[int] | None = Field(
+        default=None, description="IDs of the groups that can manage this release"
+    )
+    description: str = Field(default="", description="Description of the release")
+    is_visible: bool = Field(
+        default=True, description="Whether the release is publicly visible"
+    )
+    auto_publish_enabled: bool = Field(
+        default=False,
+        description="Whether sources saved to the release's groups are "
+        "automatically published",
+    )
+    options: dict[str, Any] = Field(
+        default_factory=dict, description="Options for the sources in this release"
+    )
 
 
 async def process_link_name_validation(session, link_name, release_id):
@@ -39,7 +97,9 @@ async def process_link_name_validation(session, link_name, release_id):
 
 class PublicReleaseHandler(BaseHandler):
     @permissions(["Manage sources"])
-    async def post(self):
+    async def post(
+        self, *, body: PublicReleasePostBody = None
+    ) -> PublicReleasePostResponse:
         """
         ---
           summary: Create a new public release
@@ -47,46 +107,17 @@ class PublicReleaseHandler(BaseHandler):
             Create a new public release
           tags:
             - public
-          requestBody:
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    name:
-                      type: string
-                    link_name:
-                      type: string
-                    group_ids:
-                      type: array
-                      items:
-                        type: integer
-                    description:
-                      type: string
-                    options:
-                      type: object
-                    is_visible:
-                      type: boolean
-          responses:
-            200:
-              content:
-                application/json:
-                  schema: Success
-            400:
-              content:
-                application/json:
-                  schema: Error
         """
-        data = self.get_json()
-        if data is None or data == {}:
+        body = self.parse_body(PublicReleasePostBody)
+        if not body.model_fields_set:
             return self.error("No data provided")
-        name = data.get("name")
+        name = body.name
         if name is None or name == "":
             return self.error("Name is required")
-        link_name = data.get("link_name")
+        link_name = body.link_name
         if link_name is None or link_name == "":
             return self.error("Link name is required")
-        group_ids = data.get("group_ids")
+        group_ids = body.group_ids
         if group_ids is None or len(group_ids) == 0:
             return self.error("Specify at least one group")
 
@@ -113,10 +144,10 @@ class PublicReleaseHandler(BaseHandler):
             public_release = PublicRelease(
                 name=name,
                 link_name=link_name,
-                description=data.get("description", ""),
-                is_visible=data.get("is_visible", True),
-                auto_publish_enabled=data.get("auto_publish_enabled", False),
-                options=data.get("options", {}),
+                description=body.description,
+                is_visible=body.is_visible,
+                auto_publish_enabled=body.auto_publish_enabled,
+                options=body.options,
                 groups=groups,
             )
             session.add(public_release)
@@ -125,31 +156,13 @@ class PublicReleaseHandler(BaseHandler):
             return self.success(data={"id": public_release.id})
 
     @permissions(["Manage sources"])
-    async def patch(self, release_id: int):
+    async def patch(self, release_id: int, *, body: PublicReleasePatchBody = None):
         """
         ---
         summary: Update a public release
         description: Update a public release
         tags:
           - public
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  name:
-                    type: string
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                  description:
-                    type: string
-                  options:
-                    type: object
-                  is_visible:
-                    type: boolean
         responses:
           200:
             content:
@@ -160,13 +173,13 @@ class PublicReleaseHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
-        if data is None or data == {}:
+        body = self.parse_body(PublicReleasePatchBody)
+        if not body.model_fields_set:
             return self.error("No data provided")
-        name = data.get("name")
+        name = body.name
         if name is None or name == "":
             return self.error("Name is required")
-        group_ids = data.get("group_ids")
+        group_ids = body.group_ids
         if group_ids is None or len(group_ids) == 0:
             return self.error("Specify at least one group")
 
@@ -200,20 +213,20 @@ class PublicReleaseHandler(BaseHandler):
             if not groups:
                 return self.error("Invalid groups")
 
+            # like the old code, an omitted is_visible clears the cache (the
+            # check defaulted to False) but leaves the release visible (the
+            # assignment defaulted to True)
             if (
-                data.get("is_visible", False) is False
-                and public_release.is_visible is True
-            ):
+                "is_visible" not in body.model_fields_set or body.is_visible is False
+            ) and public_release.is_visible is True:
                 for source_page in public_release.source_pages:
                     source_page.remove_from_cache()
 
             public_release.name = name
-            public_release.auto_publish_enabled = data.get(
-                "auto_publish_enabled", False
-            )
-            public_release.description = data.get("description", "")
-            public_release.is_visible = data.get("is_visible", True)
-            public_release.options = data.get("options", {})
+            public_release.auto_publish_enabled = body.auto_publish_enabled
+            public_release.description = body.description
+            public_release.is_visible = body.is_visible
+            public_release.options = body.options
             public_release.groups = groups
             await session.commit()
 
