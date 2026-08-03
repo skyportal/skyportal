@@ -1,3 +1,4 @@
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
@@ -9,9 +10,32 @@ from ...base import BaseHandler
 log = make_log("api/sharing_service_coauthor")
 
 
+class SharingServiceCoauthorPostBody(BaseModel):
+    """Request body for adding a coauthor to an external sharing service."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int | None = Field(
+        default=None,
+        description="ID of the user to add as a coauthor, if not specified in the URL",
+    )
+
+
+class SharingServiceCoauthorPostResponse(BaseModel):
+    """Data payload returned when adding a coauthor."""
+
+    id: int = Field(description="New SharingServiceCoauthor ID")
+
+
 class SharingServiceCoauthorHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    async def post(self, sharing_service_id: int, user_id: int | None = None):
+    async def post(
+        self,
+        sharing_service_id: int,
+        user_id: int | None = None,
+        *,
+        body: SharingServiceCoauthorPostBody = None,
+    ) -> SharingServiceCoauthorPostResponse:
         """
         ---
         summary: Add a coauthor to an external sharing service
@@ -31,33 +55,10 @@ class SharingServiceCoauthorHandler(BaseHandler):
               schema:
                 type: integer
               description: ID of the user to add as a coauthor
-        requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            user_id:
-                                type: integer
-                                description: ID of the user to add as a coauthor, if not specified in the URL
-        responses:
-            200:
-                content:
-                    application/json:
-                        schema:
-                            allOf:
-                                - $ref: '#/components/schemas/Success'
-                                - type: object
-                                  properties:
-                                    data:
-                                      $ref: '#/components/schemas/SharingServiceCoauthor'
-            400:
-                content:
-                    application/json:
-                        schema: Error
         """
+        body = self.parse_body(SharingServiceCoauthorPostBody)
         if user_id is None:
-            user_id = self.get_json().get("user_id")
+            user_id = body.user_id
         if user_id is None:
             return self.error(
                 "You must specify a coauthor_id when adding a coauthor to a sharing service"

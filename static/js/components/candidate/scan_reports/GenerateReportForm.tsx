@@ -38,7 +38,6 @@ const GenerateReportForm = ({
       start_saved_date: twelveHoursAgo.toISOString(),
       end_saved_date: now.toISOString(),
     },
-    groups: [],
   });
 
   const generateReportSchema = (): any => {

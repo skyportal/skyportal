@@ -1,4 +1,5 @@
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
@@ -16,9 +17,42 @@ from ...base import BaseHandler
 log = make_log("api/sharing_service_group")
 
 
+class SharingServiceGroupPutBody(BaseModel):
+    """Request body for adding or editing a group of an external sharing service."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_id: int | None = Field(default=None, description="ID of the group to add")
+    auto_share_to_tns: bool | str | None = Field(
+        default=None, description="Whether to automatically publish to TNS"
+    )
+    auto_share_to_hermes: bool | str | None = Field(
+        default=None, description="Whether to automatically publish to Hermes"
+    )
+    auto_sharing_allow_bots: bool | str | None = Field(
+        default=None, description="Whether to allow bots to automatically publish"
+    )
+    owner: bool | str | None = Field(
+        default=None,
+        description="Whether this group is the owner of the external sharing service",
+    )
+
+
+class SharingServiceGroupPutResponse(BaseModel):
+    """Data payload returned when adding or editing a sharing service group."""
+
+    id: int = Field(description="SharingServiceGroup ID")
+
+
 class SharingServiceGroupHandler(BaseHandler):
     @permissions(["Manage sharing services"])
-    async def put(self, sharing_service_id: int, group_id: int | None = None):
+    async def put(
+        self,
+        sharing_service_id: int,
+        group_id: int | None = None,
+        *,
+        body: SharingServiceGroupPutBody = None,
+    ) -> SharingServiceGroupPutResponse:
         """
         ---
         summary: Add or edit a group for an external sharing service
@@ -38,62 +72,26 @@ class SharingServiceGroupHandler(BaseHandler):
               schema:
                 type: integer
               description: ID of the group to edit
-        requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            group_id:
-                                type: integer
-                                description: ID of the group to add
-                            auto_share_to_tns:
-                                type: boolean
-                                description: Whether to automatically publish to TNS
-                            auto_share_to_hermes:
-                                type: boolean
-                                description: Whether to automatically publish to Hermes
-                            auto_sharing_allow_bots:
-                                type: boolean
-                                description: Whether to allow bots to automatically publish
-                            owner:
-                                type: boolean
-                                description: Whether this group is the owner of the external sharing service
-        responses:
-            200:
-                content:
-                    application/json:
-                        schema:
-                            allOf:
-                                - $ref: '#/components/schemas/Success'
-                                - type: object
-                                  properties:
-                                    data:
-                                      $ref: '#/components/schemas/SharingServiceGroup'
-            400:
-                content:
-                    application/json:
-                        schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(SharingServiceGroupPutBody)
         auto_share_to_tns = (
-            str_to_bool(data.get("auto_share_to_tns"))
-            if "auto_share_to_tns" in data
+            str_to_bool(body.auto_share_to_tns)
+            if "auto_share_to_tns" in body.model_fields_set
             else None
         )
         auto_share_to_hermes = (
-            str_to_bool(data.get("auto_share_to_hermes"))
-            if "auto_share_to_hermes" in data
+            str_to_bool(body.auto_share_to_hermes)
+            if "auto_share_to_hermes" in body.model_fields_set
             else None
         )
         auto_sharing_allow_bots = (
-            str_to_bool(data.get("auto_sharing_allow_bots"))
-            if "auto_sharing_allow_bots" in data
+            str_to_bool(body.auto_sharing_allow_bots)
+            if "auto_sharing_allow_bots" in body.model_fields_set
             else None
         )
-        owner = str_to_bool(data.get("owner")) if "owner" in data else None
+        owner = str_to_bool(body.owner) if "owner" in body.model_fields_set else None
 
-        group_id = data.get("group_id", group_id)
+        group_id = body.group_id if "group_id" in body.model_fields_set else group_id
         if group_id is None:
             return self.error(
                 "You must specify a group_id when giving or editing the access to a sharing service for a group"

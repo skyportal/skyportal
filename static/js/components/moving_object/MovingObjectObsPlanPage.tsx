@@ -94,8 +94,12 @@ const MovingObjectObsPlanPage = () => {
   async function onFormSubmit(params: any) {
     setLoading(true);
     let name = params.formData.name.replace(/\s/g, "");
+    // `name` is the URL path param; the API rejects unknown body keys, so keep
+    // it out of the request body.
     let data = Object.fromEntries(
-      Object.entries(params.formData).filter(([_, v]) => v != null),
+      Object.entries(params.formData).filter(
+        ([k, v]) => k !== "name" && v != null,
+      ),
     );
     try {
       const result = await postMovingObjectObsPlan({ name, data }).unwrap();
