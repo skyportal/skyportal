@@ -2,7 +2,7 @@ from astropy.time import Time
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from .... import facility_apis
 from ....models import FollowupRequest, Obj, Source

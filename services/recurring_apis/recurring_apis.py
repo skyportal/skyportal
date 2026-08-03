@@ -6,7 +6,7 @@ from astropy.time import Time
 
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.models import DBSession, RecurringAPI, User, UserNotification
 from skyportal.tests import api
 from skyportal.utils.naive_datetime import utcnow_naive
@@ -34,7 +34,7 @@ def perform_api_calls():
                 )
             ).all()
         except Exception as e:
-            log(e)
+            log.info(e)
             return
 
         for recurring_api in recurring_apis:
@@ -63,7 +63,9 @@ def perform_api_calls():
                     params=data,
                 )
             else:
-                log("Unable to execute recurring API calls that are not GET or POST")
+                log.error(
+                    "Unable to execute recurring API calls that are not GET or POST"
+                )
                 continue
 
             while True:
@@ -82,7 +84,7 @@ def perform_api_calls():
                 else:
                     text_to_send = f"Failed call to recurring API {recurring_api.id}: {str(data)}; will try again {recurring_api.next_call}, remaining calls before deactivation: {recurring_api.number_of_retries}."
 
-            log(text_to_send)
+            log.info(text_to_send)
             session.add(recurring_api)
             session.add(
                 UserNotification(
@@ -116,7 +118,7 @@ def service(*args, **kwargs):
         try:
             perform_api_calls()
         except Exception as e:
-            log(e)
+            log.info(e)
 
 
 if __name__ == "__main__":

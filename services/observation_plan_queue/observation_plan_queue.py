@@ -1,7 +1,6 @@
 import asyncio
 import itertools
 import time
-import traceback
 
 import arrow
 import sqlalchemy as sa
@@ -10,11 +9,11 @@ from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
-from baselayer.log import make_log
 from skyportal.handlers.api.observation_plan import (
     post_survey_efficiency_analysis,
     send_observation_plan,
 )
+from skyportal.log import make_log
 from skyportal.models import (
     DBSession,
     DefaultObservationPlanRequest,
@@ -52,7 +51,7 @@ def mark_failed(rids):
                     pr.status = "failed to process"
             session.commit()
     except Exception as e:
-        log(f"Error marking observation plan requests {rids} as failed: {e}")
+        log.error(f"Error marking observation plan requests {rids} as failed: {e}")
 
 
 def prioritize_requests(requests):
@@ -170,14 +169,13 @@ def prioritize_requests(requests):
 
         return plan_with_priority["plan_id"]
     except Exception as e:
-        traceback.print_exc()
-        log(f"Error occured prioritizing the observation plan queue: {e}")
+        log.exception("Error occured prioritizing the observation plan queue")
         return 0
 
 
 @check_loaded(logger=log)
 def service(*args, **kwargs):
-    log("Starting observation plan queue.")
+    log.info("Starting observation plan queue.")
     while True:
         try:
             # 1. Read/claim (short txn): pick the plan(s) to process and snapshot
@@ -243,7 +241,7 @@ def service(*args, **kwargs):
                     time.sleep(5)
                     continue
 
-                log(f"Prioritizing {len(requests)} observation plan requests...")
+                log.info(f"Prioritizing {len(requests)} observation plan requests...")
 
                 index = prioritize_requests(requests)
 
@@ -273,14 +271,11 @@ def service(*args, **kwargs):
                             return await api.submit(rid, s, asynchronous=False)
 
                     plan_ids = [asyncio.run(_submit())]
-            except Exception as e:
-                traceback.print_exc()
+            except Exception:
                 if is_combined:
-                    log(f"Error processing combined plans: {rids}: {str(e)}")
+                    log.exception(f"Error processing combined plans: {rids}")
                 else:
-                    log(
-                        f"Error processing observation plan: {e.args[0] if e.args else e}"
-                    )
+                    log.exception("Error processing observation plan")
                 mark_failed(rids)
                 time.sleep(2)
                 continue
@@ -298,7 +293,7 @@ def service(*args, **kwargs):
                     )
                     if plan_request is None:
                         continue
-                    log(f"Plan {rid} status: {plan_request.status}")
+                    log.info(f"Plan {rid} status: {plan_request.status}")
                     if plan_request.status == "running":
                         plan_request.status = "complete"
                 session.commit()
@@ -312,9 +307,11 @@ def service(*args, **kwargs):
                         payload={"gcnEvent_dateobs": dateobs},
                     )
             except Exception as e:
-                log(f"Error refreshing observation plan requests on the frontend: {e}")
+                log.error(
+                    f"Error refreshing observation plan requests on the frontend: {e}"
+                )
 
-            log(f"Generated plans: {plan_ids}")
+            log.info(f"Generated plans: {plan_ids}")
 
             # 4. Per-plan post-processing (auto-send + survey efficiency). Same
             # split: snapshot in a short txn, then run the async calls with no txn.
@@ -383,20 +380,19 @@ def service(*args, **kwargs):
                                 "Need at least one observation to evaluate efficiency"
                                 in str(e)
                             ):
-                                log(
+                                log.error(
                                     f"Error processing default survey efficiency for plan {id}: {e}"
                                 )
                             else:
                                 raise e
                 except Exception as e:
-                    traceback.print_exc()
-                    log(
-                        f"Error occured processing default queue submission or survey efficiency for plan {id}: {e}"
+                    log.exception(
+                        f"Error occured processing default queue submission or survey efficiency for plan {id}"
                     )
                     time.sleep(2)
 
         except Exception as e:
-            log(f"Error occured processing the observation plan queue: {e}")
+            log.error(f"Error occured processing the observation plan queue: {e}")
             time.sleep(2)
 
 
@@ -404,5 +400,5 @@ if __name__ == "__main__":
     try:
         service()
     except Exception as e:
-        log(f"Error starting observation plan queue: {str(e)}")
+        log.error(f"Error starting observation plan queue: {str(e)}")
         raise e

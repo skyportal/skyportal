@@ -9,7 +9,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...utils.naive_datetime import utcnow_naive
 from ...utils.offset import (

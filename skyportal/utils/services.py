@@ -45,8 +45,8 @@ def check_loaded(*args, **kwargs):
             while True:
                 if is_loaded():
                     break
-                elif kwargs.get("logger") is not None and callable(kwargs["logger"]):
-                    kwargs["logger"]("Waiting for the app to start...")
+                elif kwargs.get("logger") is not None:
+                    kwargs["logger"].info("Waiting for the app to start...")
                 time.sleep(10)
 
             return func(*args, **kwargs)

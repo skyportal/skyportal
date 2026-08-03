@@ -23,7 +23,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...app_utils import get_app_base_url
 from ...enum_types import (
@@ -190,7 +190,9 @@ def deredden_photometry_df(df, ra, dec):
     # partially-corrected multi-survey light curve isn't a silent surprise.
     skipped = sorted(f for f, v in a_lambda.items() if v is None)
     if skipped:
-        log(f"deredden: no extinction coefficient for {skipped}; left uncorrected")
+        log.warning(
+            f"deredden: no extinction coefficient for {skipped}; left uncorrected"
+        )
     a = df["filter"].map(a_lambda).astype(float)
     mask = a.notna()
     if not mask.any():
@@ -517,7 +519,7 @@ def post_analysis(
             session.add(user_notification)
             session.commit()
         except Exception as e:
-            log(f"Could not add notification: {e}")
+            log.error(f"Could not add notification: {e}")
 
     def analysis_done_callback(
         future,
@@ -538,10 +540,10 @@ def post_analysis(
                     logger.error(f"Analysis {analysis_id} not found")
                     return
             except Exception as e:
-                log(f"Could not access Analysis {analysis_id} {e}.")
+                log.error(f"Could not access Analysis {analysis_id} {e}.")
                 return
         else:
-            log(f"Invalid analysis_resource_type: {analysis_resource_type}")
+            log.info(f"Invalid analysis_resource_type: {analysis_resource_type}")
             return
 
         analysis.last_activity = utcnow_naive()
@@ -554,7 +556,7 @@ def post_analysis(
             analysis.status = "failure"
             analysis.status_message = str(future.exception())[:1024]
         finally:
-            logger(
+            logger.info(
                 f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
             )
             session.commit()
@@ -567,7 +569,7 @@ def post_analysis(
                         payload={"obj_key": analysis.obj.internal_key},
                     )
                 except Exception as e:
-                    logger(f"Could not refresh analyses: {e}")
+                    logger.error(f"Could not refresh analyses: {e}")
 
     # Start the analysis service in a separate thread and log any exceptions
     x = IOLoop.current().run_in_executor(None, external_analysis_service)
@@ -806,7 +808,7 @@ async def post_analysis_async(
             session.add(user_notification)
             await session.commit()
         except Exception as e:
-            log(f"Could not add notification: {e}")
+            log.error(f"Could not add notification: {e}")
 
     def analysis_done_callback(
         future,
@@ -831,10 +833,10 @@ async def post_analysis_async(
                         logger.error(f"Analysis {analysis_id} not found")
                         return
                 except Exception as e:
-                    log(f"Could not access Analysis {analysis_id} {e}.")
+                    log.error(f"Could not access Analysis {analysis_id} {e}.")
                     return
             else:
-                log(f"Invalid analysis_resource_type: {analysis_resource_type}")
+                log.info(f"Invalid analysis_resource_type: {analysis_resource_type}")
                 return
 
             analysis.last_activity = utcnow_naive()
@@ -847,7 +849,7 @@ async def post_analysis_async(
                 analysis.status = "failure"
                 analysis.status_message = str(future.exception())[:1024]
             finally:
-                logger(
+                logger.info(
                     f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
                 )
                 db_session.commit()
@@ -860,7 +862,7 @@ async def post_analysis_async(
                             payload={"obj_key": analysis.obj.internal_key},
                         )
                     except Exception as e:
-                        logger(f"Could not refresh analyses: {e}")
+                        logger.error(f"Could not refresh analyses: {e}")
 
     # Start the analysis service in a separate thread and log any exceptions
     x = IOLoop.current().run_in_executor(None, external_analysis_service)
@@ -1926,7 +1928,7 @@ class AnalysisHandler(BaseHandler):
                             payload={"obj_key": obj_internal_key},
                         )
                 except Exception as e:
-                    log(f"Error pushing updates to source: {e}")
+                    log.error(f"Error pushing updates to source: {e}")
 
                 return self.success()
             else:
@@ -2286,7 +2288,7 @@ class AnalysisUploadOnlyHandler(BaseHandler):
                 message = f"Saved upload_only analysis data at {analysis.filename}. Message: {analysis.status_message}"
             else:
                 message = f"Note: empty analysis upload_only results. Message: {analysis.status_message}"
-            log(message)
+            log.info(message)
             await session.commit()
             return self.success(data={"id": analysis.id, "message": message})
 

@@ -9,7 +9,7 @@ from tornado.ioloop import IOLoop
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import CommentOnGCN, DBSession, GcnEvent, Group, User
 from ..base import BaseHandler
@@ -105,9 +105,9 @@ def post_gracedb_data(dateobs, gracedb_id, user_id):
             action_type="skyportal/REFRESH_GCN_EVENT",
             payload={"gcnEvent_dateobs": dateobs},
         )
-        log(f"Posted GraceDB data for {dateobs}")
+        log.info(f"Posted GraceDB data for {dateobs}")
     except Exception as e:
-        log(f"Failed to post GraceDB data for {dateobs}: {str(e)}")
+        log.error(f"Failed to post GraceDB data for {dateobs}: {str(e)}")
     finally:
         session.close()
         Session.remove()

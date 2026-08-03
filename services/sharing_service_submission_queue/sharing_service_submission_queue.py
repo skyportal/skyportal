@@ -1,6 +1,5 @@
 import sys
 import time
-import traceback
 import uuid
 from datetime import UTC, datetime, timedelta
 from threading import Thread
@@ -12,7 +11,7 @@ from sqlalchemy import and_, or_
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db, session_context_id
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.models import (
     DBSession,
     Obj,
@@ -242,7 +241,7 @@ def process_submission_request(submission_request, session):
 
     except Exception as e:
         notif_type = "Warning" if isinstance(e, SharingServicesWarning) else "Error"
-        log(str(e))
+        log.info(str(e))
         try:
             flow = Flow()
             flow.push(
@@ -331,7 +330,7 @@ def process_submission_requests():
                             submission_request.tns_status = "processing"
                         session.commit()
                 except Exception as e:
-                    log(f"Error getting sharing submission request: {str(e)}")
+                    log.error(f"Error getting sharing submission request: {str(e)}")
                     continue
 
                 submission_request_id = submission_request.id
@@ -342,12 +341,11 @@ def process_submission_requests():
                     try:
                         session.rollback()
                     except Exception as rollback_err:
-                        log(f"Error rolling back session: {str(rollback_err)}")
+                        log.error(f"Error rolling back session: {str(rollback_err)}")
                     else:
                         try:
-                            traceback.print_exc()
-                            log(
-                                f"Error processing sharing submission request {submission_request_id}: {str(e)}"
+                            log.exception(
+                                f"Error processing sharing submission request {submission_request_id}"
                             )
                             submission_request = session.scalar(
                                 sa.select(SharingServiceSubmission).where(
@@ -368,13 +366,13 @@ def process_submission_requests():
                                 },
                             )
                         except Exception as e:
-                            log(
+                            log.error(
                                 f"Error updating sharing submission request status: {str(e)}"
                             )
         except Exception as e:
             # A dropped DB connection can raise on the DBSession context-manager
             # exit (ROLLBACK), outside the inner try/except; retry instead of dying.
-            log(f"Error in submission request loop, retrying: {e}")
+            log.error(f"Error in submission request loop, retrying: {e}")
             time.sleep(5)
             continue
 
@@ -402,7 +400,7 @@ def validate_submission_requests():
                             < datetime.now(UTC) - timedelta(minutes=5),
                         )
                     ).all()
-                    log(
+                    log.info(
                         f"Found {len(failed_submission_requests)} failed TNS submission requests to re-set..."
                     )
                     for submission_request in failed_submission_requests:
@@ -463,21 +461,21 @@ def validate_submission_requests():
                                 )
                             )
                         ):
-                            log(
+                            log.info(
                                 f"TNS submission request {submission_request.id} for object {submission_request.obj_id} seems to have been successful, setting as confirmed"
                             )
                             submission_request.tns_status = "confirmed"
                             continue
 
                         # not reported on TNS by this sharing service yet, re-set the submission request to pending
-                        log(
+                        log.info(
                             f"Re-setting failed TNS submission request {submission_request.id} for object {submission_request.obj_id}"
                         )
                         submission_request.tns_status = "pending"
                     if len(failed_submission_requests) > 0:
                         session.commit()
                 except Exception as e:
-                    log(f"Error re-setting failed TNS submission requests: {e}")
+                    log.error(f"Error re-setting failed TNS submission requests: {e}")
                     session.rollback()
 
                 try:
@@ -497,11 +495,11 @@ def validate_submission_requests():
                     )
                     if submission_request is None:
                         # here we add an extra sleep to avoid hammering the TNS API
-                        log("Waiting for TNS submission requests to validate...")
+                        log.info("Waiting for TNS submission requests to validate...")
                         time.sleep(25)
                         continue
 
-                    log(
+                    log.info(
                         f"Checking TNS submission request {submission_request.id} for object {submission_request.obj_id}"
                     )
 
@@ -513,7 +511,7 @@ def validate_submission_requests():
                         )
                     )
                     if sharing_service is None:
-                        log(
+                        log.error(
                             "Could not find sharing service for this submission request"
                         )
                         continue
@@ -531,7 +529,7 @@ def validate_submission_requests():
                         submission_request.tns_response = serialized_response
                         session.merge(submission_request)
                         session.commit()
-                        log(
+                        log.info(
                             f"AT report of {submission_request.obj_id} already exists on TNS"
                         )
                     elif not err and tns_source and serialized_response:
@@ -551,7 +549,7 @@ def validate_submission_requests():
                         submission_request.tns_response = serialized_response
                         session.merge(submission_request)
                         session.commit()
-                        log(
+                        log.info(
                             f"AT report of {submission_request.obj_id} submitted to TNS as {tns_source}"
                         )
                         try:
@@ -581,7 +579,9 @@ def validate_submission_requests():
                                 json={"tns_source": tns_source},
                             )
                         except Exception as e:
-                            log(f"Error submitting TNS name to retrieval queue: {e}")
+                            log.error(
+                                f"Error submitting TNS name to retrieval queue: {e}"
+                            )
                     elif err == "report not found":
                         # Sometimes TNS accepts a report but it disappears.
                         # If it's been <1 min since last update, wait; otherwise, mark as pending to retry.
@@ -592,7 +592,7 @@ def validate_submission_requests():
                             submission_request.tns_submission_id = None
                             session.merge(submission_request)
                             session.commit()
-                            log(
+                            log.info(
                                 f"AT report submission of {submission_request.obj_id} not found on TNS, retrying"
                             )
                     elif err is not None and serialized_response is not None:
@@ -600,20 +600,19 @@ def validate_submission_requests():
                         submission_request.response = serialized_response
                         session.merge(submission_request)
                         session.commit()
-                        log(f"Error checking TNS report: {err}")
+                        log.error(f"Error checking TNS report: {err}")
                     else:
-                        log(
+                        log.error(
                             f"Error checking TNS report - source {tns_source}, response {serialized_response}, err {err}"
                         )
                 except Exception as e:
                     session.rollback()
-                    traceback.print_exc()
-                    log(f"Unexpected error checking TNS report: {str(e)}")
+                    log.exception("Unexpected error checking TNS report")
                     continue
         except Exception as e:
             # A dropped DB connection can raise on the DBSession context-manager
             # exit (ROLLBACK), outside the inner try/except; retry instead of dying.
-            log(f"Error in validation loop, retrying: {e}")
+            log.error(f"Error in validation loop, retrying: {e}")
             time.sleep(5)
             continue
 
@@ -625,12 +624,14 @@ def service(*args, **kwargs):
     t.start()
     t2.start()
     while True:
-        log("Sharing service submission queue heartbeat")
+        log.info("Sharing service submission queue heartbeat")
         time.sleep(120)
         # Exit if either worker thread died (e.g. DB connection drop in a context
         # manager exit, outside the loop's try/except) so supervisor restarts us.
         if not (t.is_alive() and t2.is_alive()):
-            log("A sharing service worker thread died, exiting for supervisor restart")
+            log.error(
+                "A sharing service worker thread died, exiting for supervisor restart"
+            )
             sys.exit(1)
 
 
@@ -638,5 +639,5 @@ if __name__ == "__main__":
     try:
         service()
     except Exception as e:
-        log(f"Error starting sharing service submission queue: {str(e)}")
+        log.error(f"Error starting sharing service submission queue: {str(e)}")
         raise e

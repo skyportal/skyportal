@@ -314,7 +314,7 @@ async def submit_mmt_request(
                 request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
             )
     except Exception as e:
-        log(f"Failed to send notification: {str(e)}")
+        log.error(f"Failed to send notification: {str(e)}")
 
 
 async def delete_mmt_request(session, request, log, **kwargs):
@@ -410,7 +410,7 @@ async def delete_mmt_request(session, request, log, **kwargs):
                 "skyportal/REFRESH_FOLLOWUP_REQUESTS",
             )
     except Exception as e:
-        log(f"Failed to send notification: {str(e)}")
+        log.error(f"Failed to send notification: {str(e)}")
 
 
 mmt_properties = {

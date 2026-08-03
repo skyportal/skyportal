@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload, undefer
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ....models import Obj, SharingService, SharingServiceSubmission
 from ....utils.data_access import (
@@ -209,7 +209,7 @@ class SharingServiceSubmissionHandler(BaseHandler):
             )
             session.add(sharing_service_submission)
             await session.commit()
-            log(
+            log.info(
                 f"Added submission for obj_id {obj.id} (manual submission) with sharing service id {sharing_service.id} for user_id {self.associated_user_object.id}"
             )
 

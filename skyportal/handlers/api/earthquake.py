@@ -14,7 +14,7 @@ from sqlalchemy.orm.attributes import set_attribute
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.custom_exceptions import AccessError
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     EarthquakeEvent,

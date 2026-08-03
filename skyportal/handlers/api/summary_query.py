@@ -7,7 +7,7 @@ from pinecone import Pinecone
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     User,
@@ -75,7 +75,7 @@ def search_sources(
             }
             sources.append(source)
         except Exception as e:
-            log(f"Error: {e}")
+            log.error(f"Error: {e}")
             continue
     return sources
 
@@ -94,7 +94,7 @@ if (
     and summarize_embedding_config.get("index_name")
     and summarize_embedding_config.get("index_size")
 ):
-    log("initializing pinecone access...")
+    log.info("initializing pinecone access...")
     pinecone_client = Pinecone(
         api_key=summarize_embedding_config.get("api_key"),
     )
@@ -110,9 +110,11 @@ if (
 else:
     if cfg["database.database"] == "skyportal_test":
         USE_PINECONE = True
-        log("Setting USE_PINECONE=True as it seems like we are in a test environment")
+        log.info(
+            "Setting USE_PINECONE=True as it seems like we are in a test environment"
+        )
     else:
-        log("No valid pinecone configuration found. Please check the config file.")
+        log.info("No valid pinecone configuration found. Please check the config file.")
 
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
 if summary_config.get("api_key"):

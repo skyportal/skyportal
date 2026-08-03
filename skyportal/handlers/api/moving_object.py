@@ -1,11 +1,10 @@
-import traceback
-
 import arrow
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
+from skyportal.log import make_log
 
 from ...models import Instrument
 from ...utils.moving_objects import (
@@ -17,6 +16,8 @@ from ...utils.parse import str_to_bool
 from ..base import BaseHandler
 
 _, cfg = load_env()
+
+log = make_log("api/moving_object")
 
 
 class MovingObjectFollowupHandler(BaseHandler):
@@ -193,5 +194,5 @@ class MovingObjectFollowupHandler(BaseHandler):
 
                 return self.success(data=observations)
             except Exception as e:
-                traceback.print_exc()
+                log.exception(f"Error finding observable sequence for {obj_name}")
                 return self.error(f"Error: {e}")

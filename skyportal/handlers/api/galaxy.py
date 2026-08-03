@@ -20,7 +20,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     DBSession,
@@ -888,9 +888,9 @@ def delete_galaxies(catalog_id):
                 sa.delete(GalaxyCatalog).where(GalaxyCatalog.id == catalog_id)
             )
             session.commit()
-            log(f"Deleted galaxy catalog with id {catalog_id}")
+            log.info(f"Deleted galaxy catalog with id {catalog_id}")
     except Exception as e:
-        log(f"Unable to delete galaxy catalog with id {catalog_id}: {e}")
+        log.error(f"Unable to delete galaxy catalog with id {catalog_id}: {e}")
 
 
 def add_galaxies(catalog_metadata, catalog_data):
@@ -971,9 +971,9 @@ def add_galaxies(catalog_metadata, catalog_data):
 
         session.add_all(galaxies)
         session.commit()
-        return log("Generated galaxy table")
+        return log.info("Generated galaxy table")
     except Exception as e:
-        return log(f"Unable to generate galaxy table: {e}")
+        return log.error(f"Unable to generate galaxy table: {e}")
     finally:
         session.close()
         Session.remove()
@@ -1138,9 +1138,9 @@ def add_glade(file_path=None, file_url=None):
         datafile = "http://elysium.elte.hu/~dalyag/GLADE+.txt"
 
     if datafile.startswith("http"):
-        log(f"add_glade - Downloading {datafile}")
+        log.info(f"add_glade - Downloading {datafile}")
     else:
-        log(f"add_glade - Reading {datafile}")
+        log.info(f"add_glade - Reading {datafile}")
 
     # if the GLADE GalaxyCatalog does not exist in the DB yet,
     # create it first
@@ -1351,13 +1351,13 @@ def add_glade(file_path=None, file_url=None):
             output.close()
             DBSession().commit()
             end_timer = time.perf_counter()
-            log(
+            log.info(
                 f"add_glade - File part {ii}: Added {length} galaxies (including {blueshift_length} with a negative redshift) in {end_timer - start_timer:0.4f} seconds"
             )
         except Exception as e:
-            log(f"add_glade - File part {ii}: Error: {e}")
+            log.info(f"add_glade - File part {ii}: Error: {e}")
             continue
-    log(
+    log.info(
         f"add_glade - Added a total of {full_length} galaxies (including {full_blueshift_length} with a negative redshift) to the database in {time.perf_counter() - start_loop_timer:0.4f} seconds"
     )
     return full_length, full_blueshift_length

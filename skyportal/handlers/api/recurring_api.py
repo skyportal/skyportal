@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import (
     RecurringAPI,

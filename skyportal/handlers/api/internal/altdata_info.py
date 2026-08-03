@@ -3,7 +3,7 @@ import sqlalchemy as sa
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ....utils.cache import Cache, dict_to_bytes
 from ...base import BaseHandler
@@ -77,5 +77,5 @@ class AltdataInfoHandler(BaseHandler):
                 return self.success(data=data)
 
         except Exception as e:
-            log(f"Failed to get altdata info: {e}")
+            log.error(f"Failed to get altdata info: {e}")
             return self.error(f"Failed to get altdata info: {e}")

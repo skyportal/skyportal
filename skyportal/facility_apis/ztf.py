@@ -21,7 +21,7 @@ from tornado.ioloop import IOLoop
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import async_plain_session_factory
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
@@ -572,7 +572,7 @@ class ZTFAPI(FollowUpAPI):
                 await session.delete(transaction)
             await session.delete(request)
             await session.commit()
-            log(f"Deleted request {request.id} from ZTF queue.")
+            log.info(f"Deleted request {request.id} from ZTF queue.")
         else:
             raise ValueError("Unknown request type.")
 
@@ -1091,7 +1091,7 @@ class ZTFMMAAPI(MMAAPI):
                         },
                     )
         except Exception as e:
-            log(
+            log.error(
                 f"Error marking observation plan request (with same queue name) status as deleted from queue: {e}"
             )
 
@@ -1282,7 +1282,7 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
         r = session.head(url)
 
         if r.status_code == 401:
-            log(
+            log.info(
                 f"Unauthorized access to depot for instrument ID {instrument_id} for JD: {jd}"
             )
             continue
@@ -1293,7 +1293,9 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
             obstable = pd.DataFrame(r.json())
 
             if obstable.empty:
-                log(f"No observations for instrument ID {instrument_id} for JD: {jd}")
+                log.info(
+                    f"No observations for instrument ID {instrument_id} for JD: {jd}"
+                )
                 continue
             # only want successfully reduced images
             obstable = obstable[obstable["status"] == 0]
@@ -1327,7 +1329,7 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                         obstable[col] = obstable[col].str.strip()
 
                 if obstable.empty:
-                    log(
+                    log.info(
                         f"No observations for instrument ID {instrument_id} for JD: {jd}"
                     )
                     continue
@@ -1347,10 +1349,10 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                         ]
                     ]
                 except KeyError as e:
-                    log(
+                    log.error(
                         f"Could not find expected columns in depot file for JD {jd}: {e}"
                     )
-                    log(f"Depot file head:\n{obstable.head(1)}")
+                    log.info(f"Depot file head:\n{obstable.head(1)}")
                     continue
 
                 # move rows with NaN values in any of the columns
@@ -1368,7 +1370,7 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                 )
 
                 if obstable.empty:
-                    log(
+                    log.info(
                         f"No observations for instrument ID {instrument_id} for JD: {jd}"
                     )
                     continue
@@ -1438,7 +1440,7 @@ def fetch_tap_observations(instrument_id, client, request_str):
     obstable = job.fetch_result().to_table()
     obstable = obstable.filled().to_pandas()
     if obstable.empty:
-        log(
+        log.info(
             f"No observations for instrument ID {instrument_id} for request: {request_str}"
         )
         return

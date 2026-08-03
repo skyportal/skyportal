@@ -3,7 +3,7 @@ from sqlalchemy.orm import selectinload
 from baselayer.app import models as baselayer_models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ...models import ObjAnalysis
 from ...utils.naive_datetime import utcnow_naive
@@ -60,7 +60,7 @@ class AnalysisWebhookHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        log(
+        log.info(
             f"Received webhook request for Analysis type={analysis_resource_type} token={token}"
         )
 
@@ -98,7 +98,7 @@ class AnalysisWebhookHandler(BaseHandler):
                 ).total_seconds()
                 await session.commit()
             except Exception as e:
-                log(f"Trouble accessing Analysis with token {token} {e}.")
+                log.info(f"Trouble accessing Analysis with token {token} {e}.")
                 return self.error("Invalid token", status=403)
 
             data = self.get_json()
@@ -111,11 +111,11 @@ class AnalysisWebhookHandler(BaseHandler):
             if len(results.keys()) > 0:
                 analysis._data = results
                 analysis.save_data()
-                log(
+                log.info(
                     f"Saved webhook data at {analysis.filename}. Message: {analysis.status_message}"
                 )
             else:
-                log(
+                log.info(
                     f"Note: empty analysis results for this webhook. Message: {analysis.status_message}"
                 )
 
@@ -149,7 +149,7 @@ class AnalysisWebhookHandler(BaseHandler):
                         summary, analysis.obj, analysis.author
                     )
                     await session.commit()
-                    log("analysis is a summary. Pushing to source.")
+                    log.info("analysis is a summary. Pushing to source.")
                     flow.push(
                         "*",
                         "skyportal/REFRESH_SOURCE",
@@ -163,7 +163,7 @@ class AnalysisWebhookHandler(BaseHandler):
                             payload={"obj_key": analysis.obj.internal_key},
                         )
             except Exception as e:
-                log(f"Error pushing update to source: {e}")
+                log.error(f"Error pushing update to source: {e}")
 
         return self.success(data={"status": "success"})
 

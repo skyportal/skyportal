@@ -12,7 +12,7 @@ import vcr
 from suds import Client
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 
 def record_mode_for(cache):
@@ -342,9 +342,9 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 url = real_host + self.request.uri
 
                 if is_soap_action:
-                    log(f"Forwarding SOAP method call {url}")
+                    log.info(f"Forwarding SOAP method call {url}")
                 else:
-                    log(f"Forwarding DELETE call {url}")
+                    log.info(f"Forwarding DELETE call {url}")
 
                 # Convert Tornado HTTPHeaders object to a regular dict
                 headers = {}
@@ -369,7 +369,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                         headers=header,
                     )
                 else:
-                    log(f"Forwarding DELETE call: {url}")
+                    log.info(f"Forwarding DELETE call: {url}")
                     s = requests.Session()
                     req = requests.Request(
                         "DELETE", url, data=self.request.body, headers=headers
@@ -424,9 +424,9 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 url = real_host + self.request.uri
 
                 if is_soap_action:
-                    log(f"Forwarding SOAP method call {url}")
+                    log.info(f"Forwarding SOAP method call {url}")
                 else:
-                    log(f"Forwarding PUT call {url}")
+                    log.info(f"Forwarding PUT call {url}")
 
                 # Convert Tornado HTTPHeaders object to a regular dict
                 headers = {}
@@ -451,7 +451,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                         headers=header,
                     )
                 else:
-                    log(f"Forwarding PUT call: {url}")
+                    log.info(f"Forwarding PUT call: {url}")
                     s = requests.Session()
                     req = requests.Request(
                         "PUT", url, data=self.request.body, headers=headers
@@ -510,10 +510,10 @@ class TestRouteHandler(tornado.web.RequestHandler):
                         headers[k] = str(v)
 
                 if is_wsdl is not None:
-                    log(f"Forwarding WSDL call {url}")
+                    log.info(f"Forwarding WSDL call {url}")
                     Client(url=url, headers=headers, cache=None)
                 else:
-                    log(f"Forwarding GET call: {url}")
+                    log.info(f"Forwarding GET call: {url}")
                     if is_ps1:
                         # PS1 request does not need headers
                         requests.get(url)
@@ -604,9 +604,9 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 url = real_host + self.request.uri
 
                 if is_soap_action:
-                    log(f"Forwarding SOAP method call {url}")
+                    log.info(f"Forwarding SOAP method call {url}")
                 else:
-                    log(f"Forwarding POST call {url}")
+                    log.info(f"Forwarding POST call {url}")
 
                 # Convert Tornado HTTPHeaders object to a regular dict
                 headers = {}
@@ -695,5 +695,5 @@ if __name__ == "__main__":
 
         refresh_cache_days = cfg["test_server.refresh_cache_days"]
 
-        log(f"Listening for test HTTP requests on port {port}")
+        log.info(f"Listening for test HTTP requests on port {port}")
         tornado.ioloop.IOLoop.current().start()

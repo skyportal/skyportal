@@ -1,5 +1,4 @@
 import time
-import traceback
 
 import astropy_healpix as ah
 import healpix_alchemy as ha
@@ -17,7 +16,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..handlers.api.galaxy import get_galaxies
 from .cache import Cache, array_to_bytes
@@ -198,7 +197,7 @@ def generate_observation_plan_statistics(
                 .distinct()
             ).all()
             if stats_logging:
-                log(
+                log.info(
                     "STATS: ",
                     f"{len(localization_tiles)} localization tiles in localization "
                     f"{request.localization_id} retrieved in {time.time() - t0:.2f}s. ",
@@ -218,7 +217,7 @@ def generate_observation_plan_statistics(
                 .distinct()
             ).all()
             if stats_logging:
-                log(
+                log.info(
                     f"STATS: {len(instrument_field_tiles)} instrument "
                     f"fields retrieved in {time.time() - t0:.2f}s. "
                 )
@@ -267,7 +266,7 @@ def generate_observation_plan_statistics(
             intprob *= ha.constants.PIXEL_AREA
 
             if stats_logging:
-                log(
+                log.info(
                     "STATS: ",
                     f"intarea= {intarea * (180 / np.pi) ** 2}, "
                     f"intprob= {intprob}. "
@@ -301,7 +300,7 @@ def generate_observation_plan_statistics(
                 intarea = 0.0
             intarea *= (180.0 / np.pi) ** 2
             if stats_logging:
-                log(f"STATS: area= {intarea}. Runtime= {time.time() - t0:.2f}s. ")
+                log.info(f"STATS: area= {intarea}. Runtime= {time.time() - t0:.2f}s. ")
 
             prob = sa.func.sum(
                 localizationtilescls.probdensity
@@ -318,7 +317,7 @@ def generate_observation_plan_statistics(
                 intprob = 0.0
 
             if stats_logging:
-                log(f"STATS: prob= {intprob}. Runtime= {time.time() - t0:.2f}s. ")
+                log.info(f"STATS: prob= {intprob}. Runtime= {time.time() - t0:.2f}s. ")
         else:
             raise ValueError(f"Unknown stats_method: {stats_method}")
 
@@ -364,7 +363,7 @@ def generate_plan(
 
     error = None
     try:
-        log(
+        log.info(
             f"Creating observation plan(s) for ID(s): {','.join(observation_plan_id_strings)}"
         )
 
@@ -377,7 +376,7 @@ def generate_plan(
             requests.append(request)
 
         user = session.get(User, user_id)
-        log(
+        log.info(
             f"Running observation plan(s) for ID(s): {','.join(observation_plan_id_strings)} in session {user._sa_instance_state.session_id}"
         )
         session.user_or_token = user
@@ -584,7 +583,7 @@ def generate_plan(
 
         params = gwemopt.segments.get_telescope_segments(params)
 
-        log(f"Reading skymap for ID(s): {','.join(observation_plan_id_strings)}")
+        log.info(f"Reading skymap for ID(s): {','.join(observation_plan_id_strings)}")
 
         map_struct = {"skymap": request.localization.table}
 
@@ -680,7 +679,7 @@ def generate_plan(
             else:
                 galaxy_sorting = request.payload["galaxy_sorting"]
 
-            log("querying for galaxies in the localization...")
+            log.info("querying for galaxies in the localization...")
             start = time.time()
             galaxies = get_galaxies(
                 session,
@@ -702,9 +701,9 @@ def generate_plan(
             galaxies, probs = zip(
                 *[(g, g["probability"]) for g in galaxies["galaxies"]]
             )
-            log("done querying and reformatting the results")
+            log.info("done querying and reformatting the results")
             end = time.time()
-            log(
+            log.info(
                 f"querying for galaxies took {end - start} seconds: {len(galaxies)} galaxies found"
             )
 
@@ -776,9 +775,11 @@ def generate_plan(
                     field_ids[request.instrument.name] = field_tiles
 
         end = time.time()
-        log(f"Queries took {end - start} seconds")
+        log.info(f"Queries took {end - start} seconds")
 
-        log(f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}")
+        log.info(
+            f"Retrieving fields for ID(s): {','.join(observation_plan_id_strings)}"
+        )
 
         if params["tilesType"] == "moc":
             moc_structs = gwemopt.moc.create_moc(
@@ -798,7 +799,9 @@ def generate_plan(
                     params, map_struct, catalog_struct, regions=regions
                 )
 
-        log(f"Creating schedule(s) for ID(s): {','.join(observation_plan_id_strings)}")
+        log.info(
+            f"Creating schedule(s) for ID(s): {','.join(observation_plan_id_strings)}"
+        )
 
         tile_structs, coverage_struct = gwemopt.coverage.timeallocation(
             params, map_struct, tile_structs
@@ -826,7 +829,7 @@ def generate_plan(
                     session=session,
                 )
                 field_ids[idx] = field_id
-        log(
+        log.info(
             f"Writing planned observations to database for ID(s): {','.join(observation_plan_id_strings)}"
         )
 
@@ -858,7 +861,7 @@ def generate_plan(
                 )
             ).first()
             if field is None:
-                return log(f"Missing field {field_id} from list")
+                return log.info(f"Missing field {field_id} from list")
 
             planned_observation = PlannedObservation(
                 obstime=tt.datetime,
@@ -883,7 +886,9 @@ def generate_plan(
 
         session.commit()
 
-        log(f"Generating statistics for ID(s): {','.join(observation_plan_id_strings)}")
+        log.info(
+            f"Generating statistics for ID(s): {','.join(observation_plan_id_strings)}"
+        )
 
         generate_observation_plan_statistics(observation_plan_ids, request_ids, session)
 
@@ -894,12 +899,11 @@ def generate_plan(
             payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
         )
 
-        log(f"Finished plan(s) for ID(s): {','.join(observation_plan_id_strings)}")
+        log.info(f"Finished plan(s) for ID(s): {','.join(observation_plan_id_strings)}")
 
     except Exception as e:
-        traceback.print_exc()
-        log(
-            f"Failed to generate plans for ID(s): {','.join(observation_plan_id_strings)}: {str(e)}."
+        log.exception(
+            f"Failed to generate plans for ID(s): {','.join(observation_plan_id_strings)}."
         )
         session.rollback()
         # mark the request and plan as failed

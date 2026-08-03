@@ -1,5 +1,4 @@
 import json
-import traceback
 
 import tornado.escape
 import tornado.ioloop
@@ -7,7 +6,7 @@ import tornado.web
 from tornado.httpclient import AsyncHTTPClient
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 env, cfg = load_env()
 log = make_log("slack")
@@ -34,9 +33,8 @@ class MainHandler(tornado.web.RequestHandler):
         """
         try:
             data = tornado.escape.json_decode(self.request.body)
-        except json.decoder.JSONDecodeError:
-            err = traceback.format_exc()
-            log(err)
+        except json.decoder.JSONDecodeError as e:
+            log.info(f"JSON decode error: {e}")
             return self.error(400, "Invalid JSON")
 
         url = data.pop("url", "")
@@ -54,12 +52,12 @@ class MainHandler(tornado.web.RequestHandler):
                 headers={"Content-type": "application/json"},
             )
             if response.code != 200:
-                log(
+                log.info(
                     f"Slack POST failed with code {response.code}: {str(response.body)}"
                 )
                 return self.error(response.code, str(response.body))
         except Exception as e:
-            log(f"Error posting to Slack: {e}")
+            log.error(f"Error posting to Slack: {e}")
 
 
 def make_app():
@@ -75,5 +73,5 @@ if __name__ == "__main__":
 
     port = cfg.get("slack.microservice_port", 64100)
     slack_poster.listen(port)
-    log(f"Listening on port {port}")
+    log.info(f"Listening on port {port}")
     tornado.ioloop.IOLoop.current().start()

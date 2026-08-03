@@ -1071,9 +1071,9 @@ class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
     # or the row fails to flush.
     can_save_to_groups = []
     role = factory.LazyFunction(
-        lambda: DBSession()
-        .scalars(sa.select(Role).where(Role.id == "Full user"))
-        .first()
+        lambda: (
+            DBSession().scalars(sa.select(Role).where(Role.id == "Full user")).first()
+        )
     )
     user_email = "user@email.com"
     invited_by = factory.SubFactory(UserFactory)

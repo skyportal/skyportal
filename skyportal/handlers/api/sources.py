@@ -14,7 +14,7 @@ from mocpy import MOC
 from sqlalchemy.sql import and_, bindparam, text
 
 from baselayer.app.env import load_env
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.models import (
     Allocation,
     Annotation,
@@ -451,7 +451,7 @@ async def get_localization(localization_dateobs, localization_name, session):
             )
 
     endTime = time.time()
-    log_verbose(f"get_localization took {endTime - startTime} seconds")
+    log_verbose.info(f"get_localization took {endTime - startTime} seconds")
 
     return localization_id, localizationtilescls.__tablename__
 
@@ -590,7 +590,7 @@ async def get_sources(
         page_number = int(page_number)
         num_per_page = int(num_per_page)
     except Exception as e:
-        log(f"Invalid pagination arguments: {e}")
+        log.info(f"Invalid pagination arguments: {e}")
         raise ValueError(f"Invalid pagination arguments: {e}")
 
     if page_number < 1:
@@ -1691,8 +1691,8 @@ async def get_sources(
                             .columns(id=sa.String)
                         )
                         if verbose:
-                            log_verbose(f"Params:\n{query_params}")
-                            log_verbose(f"Query:\n{statement}")
+                            log_verbose.info(f"Params:\n{query_params}")
+                            log_verbose.info(f"Query:\n{statement}")
 
                         startTime = time.time()
 
@@ -1701,13 +1701,13 @@ async def get_sources(
 
                         endTime = time.time()
                         if verbose:
-                            log_verbose(
+                            log_verbose.info(
                                 f"1. SUB SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results."
                             )
 
                     all_source_ids = list(set(all_source_ids))
                     if verbose:
-                        log_verbose(
+                        log_verbose.info(
                             f"1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_source_ids)} results."
                         )
                 else:
@@ -1733,8 +1733,8 @@ async def get_sources(
                         text(statement).bindparams(*query_params).columns(id=sa.String)
                     )
                     if verbose:
-                        log_verbose(f"Params:\n{query_params}")
-                        log_verbose(f"Query:\n{statement}")
+                        log_verbose.info(f"Params:\n{query_params}")
+                        log_verbose.info(f"Query:\n{statement}")
 
                     startTime = time.time()
 
@@ -1743,7 +1743,7 @@ async def get_sources(
 
                     endTime = time.time()
                     if verbose:
-                        log_verbose(
+                        log_verbose.info(
                             f"1. MAIN SAVE SUMMARY Query took {endTime - startTime} seconds, returned {len(all_source_ids)} results."
                         )
 
@@ -1788,7 +1788,9 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log_verbose(f"2. Sources Query took {endTime - startTime} seconds.")
+                log_verbose.info(
+                    f"2. Sources Query took {endTime - startTime} seconds."
+                )
 
             data["sources"] = sources
             return data
@@ -1832,8 +1834,8 @@ async def get_sources(
                             .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                         )
                         if verbose:
-                            log_verbose(f"Params:\n{query_params}")
-                            log_verbose(f"Query:\n{statement}")
+                            log_verbose.info(f"Params:\n{query_params}")
+                            log_verbose.info(f"Query:\n{statement}")
 
                         startTime = time.time()
 
@@ -1842,7 +1844,7 @@ async def get_sources(
 
                         endTime = time.time()
                         if verbose:
-                            log_verbose(
+                            log_verbose.info(
                                 f"1. SUB MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results."
                             )
 
@@ -1959,7 +1961,7 @@ async def get_sources(
                     all_obj_ids = [r[0] for r in results]
 
                     if verbose:
-                        log_verbose(
+                        log_verbose.info(
                             f"1. COMBINING BOTH QUERY RESULTS TOOK {endTime - startTime} seconds, returned {len(all_obj_ids)} results."
                         )
                 else:
@@ -2046,8 +2048,8 @@ async def get_sources(
                         .columns(id=sa.String, most_recent_saved_at=sa.DateTime)
                     )
                     if verbose:
-                        log_verbose(f"Params:\n{query_params}")
-                        log_verbose(f"Query:\n{statement}")
+                        log_verbose.info(f"Params:\n{query_params}")
+                        log_verbose.info(f"Query:\n{statement}")
 
                     startTime = time.time()
 
@@ -2060,7 +2062,7 @@ async def get_sources(
 
                     endTime = time.time()
                     if verbose:
-                        log_verbose(
+                        log_verbose.info(
                             f"1. MAIN Query took {endTime - startTime} seconds, returned {len(all_obj_ids)} results."
                         )
 
@@ -2113,7 +2115,7 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log_verbose(f"2. Objs Query took {endTime - startTime} seconds.")
+                log_verbose.info(f"2. Objs Query took {endTime - startTime} seconds.")
 
             # SOURCES
             startTime = time.time()
@@ -2128,7 +2130,9 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log_verbose(f"3. Sources Query took {endTime - startTime} seconds.")
+                log_verbose.info(
+                    f"3. Sources Query took {endTime - startTime} seconds."
+                )
 
             if not remove_nested:
                 # REFORMAT SOURCES (SAVE INFO)
@@ -2175,7 +2179,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"4. Sources Refomatting took {endTime - startTime} seconds."
                     )
 
@@ -2209,7 +2213,7 @@ async def get_sources(
 
             endTime = time.time()
             if verbose:
-                log_verbose(
+                log_verbose.info(
                     f"5. Various obj computations took {endTime - startTime} seconds."
                 )
 
@@ -2230,7 +2234,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"6. Thumbnails Query took {endTime - startTime} seconds."
                     )
 
@@ -2252,7 +2256,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"7. Photstats Query took {endTime - startTime} seconds."
                     )
 
@@ -2282,7 +2286,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"8. Classifications Query took {endTime - startTime} seconds."
                     )
 
@@ -2305,7 +2309,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"9. Annotations Query took {endTime - startTime} seconds."
                     )
 
@@ -2351,7 +2355,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"10. Hosts Query (+offset) took {endTime - startTime} seconds."
                     )
 
@@ -2379,7 +2383,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"11. Spectrum Exists Query took {endTime - startTime} seconds."
                     )
 
@@ -2412,7 +2416,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"12. Comment Exists Query took {endTime - startTime} seconds."
                     )
 
@@ -2459,7 +2463,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"13. Photometry Exists Query took {endTime - startTime} seconds."
                     )
 
@@ -2477,7 +2481,7 @@ async def get_sources(
                     for obj in objs:
                         del obj["annotations"]
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"14. Period Exists Query took {endTime - startTime} seconds."
                     )
 
@@ -2505,7 +2509,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"15. Comments Query took {endTime - startTime} seconds."
                     )
 
@@ -2527,7 +2531,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"16. Labellers Query took {endTime - startTime} seconds."
                     )
 
@@ -2538,7 +2542,7 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(
+                    log_verbose.info(
                         f"17. Color Mag Query took {endTime - startTime} seconds."
                     )
             if include_tags:
@@ -2579,7 +2583,9 @@ async def get_sources(
 
                 endTime = time.time()
                 if verbose:
-                    log_verbose(f"18. Tags Query took {endTime - startTime} seconds.")
+                    log_verbose.info(
+                        f"18. Tags Query took {endTime - startTime} seconds."
+                    )
 
             data["sources"] = objs
 
@@ -2614,10 +2620,10 @@ async def get_sources(
 
         endMethodTime = time.time()
         if verbose:
-            log_verbose(f"TOTAL took {endMethodTime - startMethodTime} seconds.")
+            log_verbose.info(f"TOTAL took {endMethodTime - startMethodTime} seconds.")
 
         return data
     except Exception as e:
-        log_verbose(str(e))
+        log_verbose.info(str(e))
         await session.rollback()
         raise e

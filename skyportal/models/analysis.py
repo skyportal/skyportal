@@ -30,7 +30,7 @@ from baselayer.app.models import (
     AccessibleIfUserMatches,
     Base,
 )
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.models import DBSession
 
 from ..enum_types import (
@@ -293,7 +293,7 @@ class AnalysisMixin:
                 data = joblib.load(buf)
                 jsons = json.dumps(data, cls=DictNumpyEncoder)
             except Exception as e:
-                log(f"Error serializing results data: {e}")
+                log.error(f"Error serializing results data: {e}")
                 jsons = "{}"
             return json.loads(jsons)
         else:
@@ -311,7 +311,7 @@ class AnalysisMixin:
             format = plot["format"]
         except Exception as e:
             format = "png"
-            log(f"Warning: missing format in plot, assuming png {e}")
+            log.warning(f"Warning: missing format in plot, assuming png {e}")
 
         buf = io.BytesIO()
         buf.write(base64.b64decode(plot["data"]))
@@ -624,15 +624,15 @@ class DefaultAnalysis(Base):
 
 @event.listens_for(ObjAnalysis, "after_delete")
 def delete_analysis_data_from_disk(mapper, connection, target):
-    log(f"Deleting analysis data for analysis id={target.id}")
+    log.info(f"Deleting analysis data for analysis id={target.id}")
     target.delete_data()
 
 
 @event.listens_for(AnalysisService, "before_delete")
 def delete_assoc_analysis_data_from_disk(mapper, connection, target):
-    log(f"Deleting associated analysis data for analysis_service={target.id}")
+    log.info(f"Deleting associated analysis data for analysis_service={target.id}")
     for analysis in target.obj_analyses:
-        log(f" ... deleting analysis data for analysis id={analysis.id}")
+        log.info(f" ... deleting analysis data for analysis id={analysis.id}")
         analysis.delete_data()
 
 
@@ -705,7 +705,9 @@ def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
                 session=db_session,
             )
         except Exception as e:
-            log(f"Error creating default analysis with id {default_analysis_id}: {e}")
+            log.error(
+                f"Error creating default analysis with id {default_analysis_id}: {e}"
+            )
             db_session.rollback()
 
 
@@ -713,7 +715,7 @@ def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
 def create_default_analysis(mapper, connection, target):
     """Trigger default analyses whose source_filter matches a new classification
     (by name + probability), within the per-day limit and a shared group."""
-    log(f"Checking for default analyses for classification {target.id}")
+    log.info(f"Checking for default analyses for classification {target.id}")
 
     @event.listens_for(inspect(target).session, "after_flush", once=True)
     def receive_after_flush(session, context):
@@ -745,7 +747,7 @@ def create_default_analysis(mapper, connection, target):
                     and classification_filter["probability"]
                     <= target_data["probability"]
                 ):
-                    log(
+                    log.info(
                         f"Creating default analysis {default_analysis.analysis_service.name} "
                         f"for classification {target.id}"
                     )
@@ -758,7 +760,9 @@ def create_default_analysis(mapper, connection, target):
                         f"triggered by classification {target_data['classification']}",
                     )
         except Exception as e:
-            log(f"Error creating default analyses on classification {target.id}: {e}")
+            log.error(
+                f"Error creating default analyses on classification {target.id}: {e}"
+            )
 
 
 @event.listens_for(Source, "after_insert")
@@ -781,7 +785,7 @@ def create_default_analysis_on_save(mapper, connection, target):
                 _default_analysis_under_limit(),
             )
             for default_analysis in session.scalars(stmt).all():
-                log(
+                log.info(
                     f"Creating default analysis {default_analysis.analysis_service.name} "
                     f"for source {target_data['obj_id']} saved to group {group_id}"
                 )
@@ -794,4 +798,4 @@ def create_default_analysis_on_save(mapper, connection, target):
                     f"triggered by save to group {group_id}",
                 )
         except Exception as e:
-            log(f"Error creating default analyses on source save: {e}")
+            log.error(f"Error creating default analyses on source save: {e}")

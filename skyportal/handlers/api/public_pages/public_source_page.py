@@ -9,7 +9,7 @@ from sqlalchemy import not_, or_
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
 from baselayer.app.models import DBSession
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ....enum_types import THUMBNAIL_TYPES
 from ....models import (

@@ -1,5 +1,4 @@
 import json
-import traceback
 from copy import deepcopy
 from datetime import timedelta
 
@@ -9,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
-from baselayer.log import make_log
+from skyportal.log import make_log
 
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
@@ -319,8 +318,7 @@ class SEDMAPI(FollowUpAPI):
                     is_update=False,
                 )
         except Exception as e:
-            traceback.print_exc()
-            log(f"Error sending notification: {e}")
+            log.exception("Error sending notification")
 
     @staticmethod
     async def delete(request, session, **kwargs):
@@ -470,8 +468,7 @@ class SEDMAPI(FollowUpAPI):
                     is_update=True,
                 )
         except Exception as e:
-            traceback.print_exc()
-            log(f"Error sending notification: {e}")
+            log.exception("Error sending notification")
 
     @staticmethod
     def prepare_payload(payload, existing_payload=None):

@@ -9,7 +9,7 @@ from baselayer.app import models
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import init_db
-from baselayer.log import make_log
+from skyportal.log import make_log
 from skyportal.models import (
     Obj,
     Thumbnail,
@@ -155,7 +155,7 @@ async def _run_loop():
     while True:
         if time.time() - heartbeat > 60:
             heartbeat = time.time()
-            log("Thumbnail queue heartbeat.")
+            log.info("Thumbnail queue heartbeat.")
         try:
             # Classify remote thumbnails left NULL by before_insert (fetch runs
             # off the event loop with no txn held). Isolated so a failure here
@@ -163,7 +163,7 @@ async def _run_loop():
             try:
                 await classify_pending_grayscale()
             except Exception as e:
-                log(f"Error classifying pending thumbnails: {str(e)}")
+                log.error(f"Error classifying pending thumbnails: {str(e)}")
 
             internal_key = None
             # 1. Read/claim: find one obj missing thumbnails and snapshot what we
@@ -176,7 +176,9 @@ async def _run_loop():
                 await set_statement_timeout(session)
                 obj, err = await fetch_obj(session)
                 if err is not None:
-                    log(f"Error fetching object with missing thumbnails: {str(err)}")
+                    log.error(
+                        f"Error fetching object with missing thumbnails: {str(err)}"
+                    )
                     await asyncio.sleep(1)
                     continue
                 if obj is None:
@@ -186,9 +188,9 @@ async def _run_loop():
                 thumbnails = list(THUMBNAIL_TYPES - set(existing_thumbnail_types))
                 obj_id = obj.id
                 if len(thumbnails) == 0:
-                    log(f"Source {obj_id} has all thumbnails.")
+                    log.info(f"Source {obj_id} has all thumbnails.")
                     continue
-                log(f"Processing thumbnail request for object {obj_id}.")
+                log.info(f"Processing thumbnail request for object {obj_id}.")
 
             # 2. Resolve the slow PanSTARRS cutout URL off the event loop with no
             # DB transaction open. `obj` is detached but its attributes are loaded.
@@ -207,14 +209,14 @@ async def _run_loop():
                         )
                         internal_key = obj.internal_key
                 except Exception as e:
-                    log(
+                    log.error(
                         f"Error processing thumbnail request for object {obj_id}: {str(e)}"
                     )
                     if isinstance(e, sa.exc.SQLAlchemyError):
                         try:
                             await session.rollback()
                         except Exception as rollback_err:
-                            log(
+                            log.error(
                                 f"Error rolling back session after thumbnail failure for object {obj_id}: {str(rollback_err)}"
                             )
 
@@ -231,7 +233,7 @@ async def _run_loop():
                     payload={"id": internal_key},
                 )
         except Exception as e:
-            log(f"Error processing thumbnail request: {str(e)}")
+            log.error(f"Error processing thumbnail request: {str(e)}")
             await asyncio.sleep(5)
 
 
@@ -244,5 +246,5 @@ if __name__ == "__main__":
     try:
         service()
     except Exception as e:
-        log(f"Error starting thumbnail queue: {str(e)}")
+        log.error(f"Error starting thumbnail queue: {str(e)}")
         raise e
