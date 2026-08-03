@@ -141,7 +141,7 @@ export const shiftsApi = skyportalApi.injectEndpoints({
       query: ({ userID, shiftID, admin }) => ({
         url: `api/shifts/${shiftID}/users`,
         method: "POST",
-        body: { userID, shiftID, admin },
+        body: { userID, admin },
       }),
       invalidatesTags: ["Shift"],
     }),

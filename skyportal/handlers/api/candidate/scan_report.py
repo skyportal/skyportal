@@ -1,7 +1,9 @@
 from datetime import timedelta
+from typing import Any
 
 import arrow
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
@@ -15,6 +17,38 @@ from ...base import BaseHandler
 from .scan_report_item import create_scan_report_items
 
 log = make_log("api/scan_report")
+
+
+class ScanReportPostBody(BaseModel):
+    """Request body for populating a candidate scanning report."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="Groups used to filter the candidates and manage the report",
+    )
+    passed_filters_range: dict[str, Any] | None = Field(
+        default=None,
+        description="Range (start_date, end_date) between which the candidates "
+        "passed the filters",
+    )
+    saved_candidates_range: dict[str, Any] | None = Field(
+        default=None,
+        description="Range (start_saved_date, end_saved_date) between which the "
+        "candidates were saved as sources",
+    )
+    passed_filters_window_hours: float | None = Field(
+        default=None,
+        description="Alternative to passed_filters_range: a rolling window of this "
+        "many hours ending now. Ignored if passed_filters_range is given. Lets a "
+        "recurring caller generate reports on a schedule.",
+    )
+    saved_candidates_window_hours: float | None = Field(
+        default=None,
+        description="Alternative to saved_candidates_range: a rolling window of this "
+        "many hours ending now. Ignored if saved_candidates_range is given.",
+    )
 
 
 async def get_sources_by_objs_in_range(
@@ -88,76 +122,26 @@ async def get_sources_by_objs_in_range(
 
 class ScanReportHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(self, *, body: ScanReportPostBody = None):
         """
         ---
         summary: Populate the candidate scanning report with all saved candidates in a given range
         tags:
           - report
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: groups use to filter the candidates and manage the report
-                  passed_filters_range:
-                    type: object
-                    properties:
-                      start_date:
-                        type: string
-                        format: date-time
-                        description: Start date of the passed filters range
-                      end_date:
-                        type: string
-                        format: date-time
-                        description: End date of the passed filters range
-                    saved_candidates_range:
-                      type: object
-                      properties:
-                        start_saved_date:
-                          type: string
-                          format: date-time
-                          description: Start date of the saved candidates range
-                        end_saved_date:
-                          type: string
-                          format: date-time
-                          description: End date of the saved candidates range
-                  passed_filters_window_hours:
-                    type: number
-                    description: |
-                      Alternative to passed_filters_range: a rolling window of this
-                      many hours ending now. Ignored if passed_filters_range is given.
-                      Lets a recurring caller generate reports on a schedule.
-                  saved_candidates_window_hours:
-                    type: number
-                    description: |
-                      Alternative to saved_candidates_range: a rolling window of this
-                      many hours ending now. Ignored if saved_candidates_range is given.
         responses:
             200:
                 content:
                   application/json:
-                    schema:
-                      allOf:
-                        - $ref: '#/components/schemas/Success'
-                        - type: object
-                          properties:
-                            data:
-                              $ref: '#/components/schemas/ScanReport'
+                    schema: Success
             400:
                 content:
                   application/json:
                     schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(ScanReportPostBody)
 
         async with self.AsyncSession() as session:
-            group_ids = data.get("group_ids")
+            group_ids = body.group_ids
             if not group_ids:
                 return self.error("No groups provided")
 
@@ -172,35 +156,24 @@ class ScanReportHandler(BaseHandler):
                     end_key: now.isoformat(),
                 }
 
-            passed_filters_range = data.get("passed_filters_range")
-            if not passed_filters_range:
-                window = data.get("passed_filters_window_hours")
-                if window is not None:
-                    try:
-                        window = float(window)
-                    except (TypeError, ValueError):
-                        return self.error(
-                            "passed_filters_window_hours must be a number of hours"
-                        )
-                    passed_filters_range = rolling_range(
-                        window, "start_date", "end_date"
-                    )
+            passed_filters_range = body.passed_filters_range
+            if (
+                not passed_filters_range
+                and body.passed_filters_window_hours is not None
+            ):
+                passed_filters_range = rolling_range(
+                    body.passed_filters_window_hours, "start_date", "end_date"
+                )
             if not passed_filters_range:
                 return self.error("No passed filters range provided")
 
-            saved_range = data.get("saved_candidates_range")
-            if not saved_range:
-                window = data.get("saved_candidates_window_hours")
-                if window is not None:
-                    try:
-                        window = float(window)
-                    except (TypeError, ValueError):
-                        return self.error(
-                            "saved_candidates_window_hours must be a number of hours"
-                        )
-                    saved_range = rolling_range(
-                        window, "start_saved_date", "end_saved_date"
-                    )
+            saved_range = body.saved_candidates_range
+            if not saved_range and body.saved_candidates_window_hours is not None:
+                saved_range = rolling_range(
+                    body.saved_candidates_window_hours,
+                    "start_saved_date",
+                    "end_saved_date",
+                )
             if not saved_range:
                 return self.error("No saved candidates range provided")
 
