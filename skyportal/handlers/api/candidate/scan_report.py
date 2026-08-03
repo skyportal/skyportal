@@ -12,7 +12,7 @@ from ....models.candidate import Candidate
 from ....models.scan_report.scan_report import ScanReport
 from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
-from .scan_report_item import create_scan_report_item
+from .scan_report_item import create_scan_report_items
 
 log = make_log("api/scan_report")
 
@@ -236,14 +236,10 @@ class ScanReportHandler(BaseHandler):
 
             session.add(scan_report)
 
-            for sources_by_obj in sources_by_objs:
-                scan_report_item = await create_scan_report_item(
-                    session, scan_report, sources_by_obj
-                )
-
-                if scan_report_item is None:
-                    return self.error("Error while creating scan report item")
-
+            scan_report_items = await create_scan_report_items(
+                session, scan_report, sources_by_objs
+            )
+            for scan_report_item in scan_report_items:
                 session.add(scan_report_item)
                 scan_report.items.append(scan_report_item)
 

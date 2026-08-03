@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from astropy.time import Time
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -30,37 +32,21 @@ def _followup_request_type(allocation, instrument):
     return "photometry"
 
 
-async def create_scan_report_item(session, report, sources_by_obj):
-    """
-    Parameters
-    ----------
-    session: sqlalchemy.orm.Session
-    report: skyportal.model.ScanReport
-        The scanning report to create an item for
-    sources_by_obj: tuple (obj_id, source_ids)
-        The object and link source ids to create the item for
-    Returns
-    -------
-    scan_report_item: skyportal.model.ScanReportItem
-    """
-    obj_id, source_ids = sources_by_obj
-
-    if not obj_id or not source_ids:
-        return None
-
-    obj = await session.scalar(
-        Obj.select(session.user_or_token, mode="read")
-        .options(
-            selectinload(Obj.photstats),
-            selectinload(Obj.classifications),
-        )
-        .where(Obj.id == obj_id)
-    )
-
+def _build_scan_report_item(
+    report,
+    obj,
+    sources,
+    followup_requests,
+    assignment_rows,
+    detections,
+    comment,
+    now_mjd,
+):
+    """Build a report item from data already fetched for this obj (no queries)."""
     if obj.photstats:
         current_filter = obj.photstats[0].last_detected_filter
         current_mag = obj.photstats[0].last_detected_mag
-        current_age = Time.now().mjd - obj.photstats[0].first_detected_mjd
+        current_age = now_mjd - obj.photstats[0].first_detected_mjd
         dm = obj.dm
         abs_mag = current_mag - dm if dm else None
     else:
@@ -68,16 +54,6 @@ async def create_scan_report_item(session, report, sources_by_obj):
         current_mag = None
         current_age = None
         abs_mag = None
-
-    sources_result = await session.scalars(
-        Source.select(session.user_or_token, mode="read")
-        .options(
-            selectinload(Source.saved_by),
-            selectinload(Source.group),
-        )
-        .where(Source.obj_id == obj_id, Source.id.in_(source_ids))
-    )
-    sources = sources_result.all()
 
     classifications = None
     if obj.classifications:
@@ -101,24 +77,8 @@ async def create_scan_report_item(session, report, sources_by_obj):
             for source in sources
         ]
 
-    # Query follow-up requests through their own access rules so the report only
-    # includes what the scanner is allowed to see (allocation group membership).
-    # Every request is kept (newest first) with its requester, so scanners can see
-    # who requested what, where and at which priority.
-    followup_requests = (
-        await session.scalars(
-            FollowupRequest.select(session.user_or_token, mode="read")
-            .options(
-                joinedload(FollowupRequest.allocation).joinedload(
-                    Allocation.instrument
-                ),
-                joinedload(FollowupRequest.requester),
-            )
-            .where(FollowupRequest.obj_id == obj_id)
-            .order_by(FollowupRequest.created_at.desc())
-        )
-    ).all()
-
+    # Every follow-up request is kept (newest first) with its requester, so scanners
+    # can see who requested what, where and at which priority.
     followups = [
         {
             "instrument": followup.instrument.name,
@@ -129,19 +89,6 @@ async def create_scan_report_item(session, report, sources_by_obj):
         }
         for followup in followup_requests
     ] or None
-
-    # Observing-run assignments, also filtered by the scanner's access rules.
-    assignment_rows = (
-        await session.scalars(
-            ClassicalAssignment.select(session.user_or_token, mode="read")
-            .options(
-                joinedload(ClassicalAssignment.run).joinedload(ObservingRun.instrument),
-                joinedload(ClassicalAssignment.requester),
-            )
-            .where(ClassicalAssignment.obj_id == obj_id)
-            .order_by(ClassicalAssignment.created_at.desc())
-        )
-    ).all()
 
     assignments = [
         {
@@ -162,20 +109,11 @@ async def create_scan_report_item(session, report, sources_by_obj):
 
     # First and peak detection per survey (instrument), with how long ago each was
     # recorded. A detection is a point with a measured magnitude (flux > 0).
-    detections = (
-        await session.scalars(
-            Photometry.select(session.user_or_token, mode="read")
-            .options(joinedload(Photometry.instrument))
-            .where(Photometry.obj_id == obj_id, Photometry.mag.isnot(None))
-        )
-    ).all()
-
     detections_by_survey = {}
     if detections:
-        now_mjd = Time.now().mjd
-        by_survey = {}
+        by_survey = defaultdict(list)
         for point in detections:
-            by_survey.setdefault(point.instrument.name, []).append(point)
+            by_survey[point.instrument.name].append(point)
 
         def _detection(point):
             return {
@@ -191,25 +129,12 @@ async def create_scan_report_item(session, report, sources_by_obj):
             }
     detections_by_survey = detections_by_survey or None
 
-    # Pre-fill the item's comment with the most recent note the scanner left on the
-    # source, if any, so scanners don't have to re-enter it after generating the report.
-    latest_comment = await session.scalar(
-        Comment.select(session.user_or_token, mode="read")
-        .where(
-            Comment.obj_id == obj_id,
-            Comment.author_id == report.author_id,
-            Comment.bot.is_(False),
-        )
-        .order_by(Comment.created_at.desc())
-        .limit(1)
-    )
-
     return ScanReportItem(
         obj_id=obj.id,
         scan_report=report,
         data={
             "tns_name": obj.tns_name,
-            "comment": latest_comment.text if latest_comment else None,
+            "comment": comment.text if comment else None,
             "host_redshift": obj.redshift,
             "current_filter": current_filter,
             "abs_mag": safe_round(abs_mag, 3),
@@ -222,6 +147,135 @@ async def create_scan_report_item(session, report, sources_by_obj):
             "detections_by_survey": detections_by_survey,
         },
     )
+
+
+async def create_scan_report_items(session, report, sources_by_objs):
+    """Build report items for many objects with a constant number of queries.
+
+    Each data type (Obj, Source, FollowupRequest, ClassicalAssignment, Photometry,
+    Comment) is fetched once for every object and grouped by obj_id, rather than
+    querying once per object.
+
+    Parameters
+    ----------
+    session: sqlalchemy.orm.Session
+    report: skyportal.model.ScanReport
+    sources_by_objs: list of tuples (obj_id, source_ids)
+    Returns
+    -------
+    list of skyportal.model.ScanReportItem
+    """
+    valid = [
+        (obj_id, source_ids)
+        for obj_id, source_ids in sources_by_objs
+        if obj_id and source_ids
+    ]
+    if not valid:
+        return []
+
+    obj_ids = [obj_id for obj_id, _ in valid]
+    source_ids = [sid for _, sids in valid for sid in sids]
+    user_or_token = session.user_or_token
+
+    objs = {
+        obj.id: obj
+        for obj in (
+            await session.scalars(
+                Obj.select(user_or_token, mode="read")
+                .options(
+                    selectinload(Obj.photstats),
+                    selectinload(Obj.classifications),
+                )
+                .where(Obj.id.in_(obj_ids))
+            )
+        ).all()
+    }
+
+    # Each of the following is grouped by obj_id; access rules are applied per model.
+    sources_by_obj = defaultdict(list)
+    for source in (
+        await session.scalars(
+            Source.select(user_or_token, mode="read")
+            .options(selectinload(Source.saved_by), selectinload(Source.group))
+            .where(Source.obj_id.in_(obj_ids), Source.id.in_(source_ids))
+        )
+    ).all():
+        sources_by_obj[source.obj_id].append(source)
+
+    followups_by_obj = defaultdict(list)
+    for followup in (
+        await session.scalars(
+            FollowupRequest.select(user_or_token, mode="read")
+            .options(
+                joinedload(FollowupRequest.allocation).joinedload(
+                    Allocation.instrument
+                ),
+                joinedload(FollowupRequest.requester),
+            )
+            .where(FollowupRequest.obj_id.in_(obj_ids))
+            .order_by(FollowupRequest.created_at.desc())
+        )
+    ).all():
+        followups_by_obj[followup.obj_id].append(followup)
+
+    assignments_by_obj = defaultdict(list)
+    for assignment in (
+        await session.scalars(
+            ClassicalAssignment.select(user_or_token, mode="read")
+            .options(
+                joinedload(ClassicalAssignment.run).joinedload(ObservingRun.instrument),
+                joinedload(ClassicalAssignment.requester),
+            )
+            .where(ClassicalAssignment.obj_id.in_(obj_ids))
+            .order_by(ClassicalAssignment.created_at.desc())
+        )
+    ).all():
+        assignments_by_obj[assignment.obj_id].append(assignment)
+
+    detections_by_obj = defaultdict(list)
+    for point in (
+        await session.scalars(
+            Photometry.select(user_or_token, mode="read")
+            .options(joinedload(Photometry.instrument))
+            .where(Photometry.obj_id.in_(obj_ids), Photometry.mag.isnot(None))
+        )
+    ).all():
+        detections_by_obj[point.obj_id].append(point)
+
+    # Most recent non-bot comment left by the scanner, per obj (newest first).
+    comment_by_obj = {}
+    for comment in (
+        await session.scalars(
+            Comment.select(user_or_token, mode="read")
+            .where(
+                Comment.obj_id.in_(obj_ids),
+                Comment.author_id == report.author_id,
+                Comment.bot.is_(False),
+            )
+            .order_by(Comment.created_at.desc())
+        )
+    ).all():
+        comment_by_obj.setdefault(comment.obj_id, comment)
+
+    now_mjd = Time.now().mjd
+    items = []
+    for obj_id, _source_ids in valid:
+        obj = objs.get(obj_id)
+        if obj is None:
+            continue
+        items.append(
+            _build_scan_report_item(
+                report,
+                obj,
+                sources_by_obj.get(obj_id, []),
+                followups_by_obj.get(obj_id, []),
+                assignments_by_obj.get(obj_id, []),
+                detections_by_obj.get(obj_id, []),
+                comment_by_obj.get(obj_id),
+                now_mjd,
+            )
+        )
+    return items
 
 
 class ScanReportItemHandler(BaseHandler):
