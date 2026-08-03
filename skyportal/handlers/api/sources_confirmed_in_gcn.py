@@ -1,5 +1,6 @@
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -15,6 +16,64 @@ from ...utils.naive_datetime import UTCTZnaiveDateTime
 from ..base import BaseHandler
 
 log = make_log("api/sources_confirmed_in_gcn")
+
+
+class SourcesConfirmedInGCNPostBody(BaseModel):
+    """Request body for confirming or rejecting a source in a GCN."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: str = Field(
+        description="The source_id of the source to confirm or reject"
+    )
+    localization_name: str = Field(
+        description="The name of the localization of the event"
+    )
+    localization_cumprob: float = Field(
+        description="The cumprob of the localization of the event"
+    )
+    confirmed: bool | None = Field(
+        default=None,
+        description="Whether the source is confirmed (True) or rejected (False)",
+    )
+    start_date: str = Field(
+        description="Choose sources with a first detection after start_date, "
+        "as an arrow parseable string"
+    )
+    end_date: str = Field(
+        description="Choose sources with a last detection before end_date, "
+        "as an arrow parseable string"
+    )
+    explanation: str | None = Field(
+        default=None, description="Explanation of the confirmation/rejection"
+    )
+    notes: str | None = Field(
+        default=None, description="Notes about the confirmation/rejection"
+    )
+
+
+class SourcesConfirmedInGCNPatchBody(BaseModel):
+    """Request body for updating the confirmed/rejected status of a source in
+    a GCN."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    confirmed: bool | None = Field(
+        default=None,
+        description="Whether the source is confirmed (True) or rejected (False)",
+    )
+    explanation: str | None = Field(
+        default=None, description="Explanation of the confirmation/rejection"
+    )
+    notes: str | None = Field(
+        default=None, description="Notes about the confirmation/rejection"
+    )
+
+
+class SourcesConfirmedInGCNIdResponse(BaseModel):
+    """ID of the affected sources_confirmed_in_gcn row."""
+
+    id: int = Field(description="The id of the source_confirmed_in_gcn")
 
 
 class Validator(Schema):
@@ -229,7 +288,13 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data=sources_in_gcn)
 
     @permissions(["Manage GCNs"])
-    async def post(self, dateobs: str, source_id: str = None):
+    async def post(
+        self,
+        dateobs: str,
+        source_id: str = None,
+        *,
+        body: SourcesConfirmedInGCNPostBody = None,
+    ) -> SourcesConfirmedInGCNIdResponse:
         """
         ---
         summary: Confirm or reject a source in a gcn
@@ -244,78 +309,23 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
             schema:
               type: string
             description: The dateobs of the event, as an arrow parseable string
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  localization_name:
-                    type: string
-                    description: The name of the localization of the event
-                  localization_cumprob:
-                    type: string
-                    description: The cumprob of the localization of the event
-                  source_id:
-                    type: string
-                    description: The source_id of the source to confirm or reject
-                  confirmed:
-                    type: boolean
-                    description: Whether the source is confirmed (True) or rejected (False)
-                  start_date:
-                    type: string
-                    description: Choose sources with a first detection after start_date, as an arrow parseable string
-                  end_date:
-                    type: string
-                    description: Choose sources with a last detection before end_date, as an arrow parseable string
-                required:
-                  - localization_name
-                  - localization_cumprob
-                  - source_id
-                  - confirmed
-                  - start_date
-                  - end_date
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: The id of the source_confirmed_in_gcn
-          400:
-            content:
-              application/json:
-                schema: Error
-
         """
-        data = self.get_json()
+        body = self.parse_body(SourcesConfirmedInGCNPostBody)
 
-        localization_name = data.get("localization_name")
-        localization_cumprob = data.get("localization_cumprob")
-        source_id = data.get("source_id")
-        confirmed = data.get("confirmed")
-        explanation = data.get("explanation")
-        notes = data.get("notes")
-        start_date = data.get("start_date")
-        end_date = data.get("end_date")
+        confirmed = body.confirmed
+        explanation = body.explanation
+        notes = body.notes
 
+        # the Validator converts dateobs/start_date/end_date to naive datetimes
         validator_instance = Validator()
         params_to_be_validated = {
             "method": "POST",
-            "source_id": source_id,
+            "source_id": body.source_id,
             "dateobs": dateobs,
-            "start_date": start_date,
-            "end_date": end_date,
-            "localization_name": localization_name,
-            "localization_cumprob": localization_cumprob,
+            "start_date": body.start_date,
+            "end_date": body.end_date,
+            "localization_name": body.localization_name,
+            "localization_cumprob": body.localization_cumprob,
         }
         try:
             validated = validator_instance.load(params_to_be_validated)
@@ -407,7 +417,13 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
         return self.success(data={"id": source_in_gcn_id})
 
     @permissions(["Manage GCNs"])
-    async def patch(self, dateobs: str, source_id: str):
+    async def patch(
+        self,
+        dateobs: str,
+        source_id: str,
+        *,
+        body: SourcesConfirmedInGCNPatchBody = None,
+    ) -> SourcesConfirmedInGCNIdResponse:
         """
         ---
         summary: Update the confirmed/rejected status of a source in a GCN
@@ -426,42 +442,11 @@ class SourcesConfirmedInGCNHandler(BaseHandler):
             required: true
             schema:
               type: string
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  confirmed:
-                    type: boolean
-                    description: Whether the source is confirmed (True) or rejected (False)
-                required:
-                  - confirmed
-
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: The id of the modified source_confirmed_in_gcn
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
-        confirmed = data.get("confirmed")
-        explanation = data.get("explanation")
-        notes = data.get("notes")
+        body = self.parse_body(SourcesConfirmedInGCNPatchBody)
+        confirmed = body.confirmed
+        explanation = body.explanation
+        notes = body.notes
 
         validator_instance = Validator()
         params_to_be_validated = {
