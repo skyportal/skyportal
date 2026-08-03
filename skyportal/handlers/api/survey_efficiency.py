@@ -1,3 +1,6 @@
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
@@ -9,6 +12,26 @@ from ...models import (
     SurveyEfficiencyForObservations,
 )
 from ..base import BaseHandler
+
+
+class DefaultSurveyEfficiencyPostBody(BaseModel):
+    """Request body for creating a default survey efficiency request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    default_observationplan_request_id: int = Field(
+        description="Default observation plan request ID."
+    )
+    payload: dict[str, Any] | None = Field(
+        default=None,
+        description="Content of the default survey efficiency analysis.",
+    )
+
+
+class DefaultSurveyEfficiencyPostResponse(BaseModel):
+    """Data payload returned when creating a default survey efficiency request."""
+
+    id: int = Field(description="New default survey efficiency request ID")
 
 
 class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
@@ -177,49 +200,32 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
 
 class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(self) -> DefaultSurveyEfficiencyPostResponse:
         """
         ---
         summary: Create default survey efficiency requests
         description: Create default survey efficiency requests.
         tags:
           - default survey efficiency
-        requestBody:
-          content:
-            application/json:
-              schema: DefaultSurveyEfficiencyPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New default survey efficiency request ID
         """
-        data = self.get_json()
+        body = self.parse_body(DefaultSurveyEfficiencyPostBody)
 
         async with self.AsyncSession() as session:
             stmt = DefaultObservationPlanRequest.select(session.user_or_token).where(
                 DefaultObservationPlanRequest.id
-                == data["default_observationplan_request_id"],
+                == body.default_observationplan_request_id,
             )
             default_observation_plan = await session.scalar(stmt)
             if default_observation_plan is None:
                 return self.error(
-                    f"Missing allocation with ID: {data['default_observation_plan_id']}",
+                    f"Missing allocation with ID: {body.default_observationplan_request_id}",
                     status=403,
                 )
 
             default_survey_efficiency_request = (
-                DefaultSurveyEfficiencyRequest.__schema__().load(data)
+                DefaultSurveyEfficiencyRequest.__schema__().load(
+                    body.model_dump(exclude_unset=True)
+                )
             )
             session.add(default_survey_efficiency_request)
             await session.commit()

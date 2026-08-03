@@ -1331,18 +1331,13 @@ sources:
     origin: TESS
 
 sources/ZTF21aaqjmps/comments:
-  - obj_id: ZTF21aaqjmps
-    text: "Kilroy was here"
-  - obj_id: ZTF21aaqjmps
-    text: "Birds aren't real"
-  - obj_id: ZTF21aaqjmps
-    text: "Thanks to Daniel Perley and his team for this spectrum. It was observed 2021-04-03 02:28:20 on LT/SPRAT"
+  - text: "Kilroy was here"
+  - text: "Birds aren't real"
+  - text: "Thanks to Daniel Perley and his team for this spectrum. It was observed 2021-04-03 02:28:20 on LT/SPRAT"
 
 sources/ZTF18aabcvnq/comments:
-  - obj_id: ZTF18aabcvnq
-    text: "Gosh, stars are cool"
-  - obj_id: ZTF18aabcvnq
-    text: "You're a star! <3"
+  - text: "Gosh, stars are cool"
+  - text: "You're a star! <3"
 
 sources/ZTF21aaqjmps/annotations:
   - origin: "Program A"
@@ -1655,8 +1650,6 @@ gcn_event:
 
 gcn_event/1/comments:
   - text: "This is a test comment"
-    author_id: testadmin
-    created_at: "2022-03-18 16:00:00"
 
 earthquake:
   - xml:

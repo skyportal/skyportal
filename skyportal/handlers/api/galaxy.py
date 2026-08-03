@@ -1,6 +1,7 @@
 import os
 import time
 from io import StringIO
+from typing import Any
 
 import arrow
 import astropy.units as u
@@ -12,6 +13,7 @@ import pandas as pd
 import sqlalchemy as sa
 from astropy.io import ascii
 from geojson import Feature, Point
+from pydantic import BaseModel, ConfigDict, Field
 from scipy.integrate import quad
 from scipy.stats import norm
 from sqlalchemy import func, nulls_last
@@ -40,6 +42,62 @@ env, cfg = load_env()
 Session = scoped_session(sessionmaker())
 
 MAX_GALAXIES = 10000
+
+
+class GalaxyCatalogPostBody(BaseModel):
+    """Request body for ingesting a galaxy catalog."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_name: str | None = Field(default=None, description="Galaxy catalog name.")
+    catalog_description: str | None = Field(
+        default=None, description="Galaxy catalog description."
+    )
+    catalog_url: str | None = Field(default=None, description="Galaxy catalog URL.")
+    catalog_data: dict[str, Any] | None = Field(
+        default=None,
+        description="Galaxy catalog data as a mapping of column name to list of "
+        "values (must include ra, dec, and name).",
+    )
+
+
+class GalaxyASCIIFilePostBody(BaseModel):
+    """Request body for uploading galaxies from an ASCII file."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalogName: str | None = Field(default=None, description="Galaxy catalog name.")
+    catalogDescription: str | None = Field(
+        default=None, description="Galaxy catalog description."
+    )
+    catalogURL: str | None = Field(default=None, description="Galaxy catalog URL.")
+    catalogData: str | None = Field(
+        default=None, description="Catalog data ASCII string."
+    )
+
+
+class GalaxyGladePostBody(BaseModel):
+    """Request body for uploading galaxies from the GLADE+ catalog."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    file_name: str | None = Field(
+        default=None,
+        description="Name of the file containing the galaxies (in the data directory).",
+    )
+    file_url: str | None = Field(
+        default=None, description="URL of the file containing the galaxies."
+    )
+
+
+class ObjHostPostBody(BaseModel):
+    """Request body for setting an object's host galaxy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    galaxyName: str | None = Field(
+        default=None, description="Name of the galaxy to associate with the object."
+    )
 
 
 def get_galaxies(
@@ -455,17 +513,13 @@ def get_galaxies(
 
 class GalaxyCatalogHandler(BaseHandler):
     @permissions(["System admin"])
-    async def post(self):
+    async def post(self, *, body: GalaxyCatalogPostBody = None):
         """
         ---
         summary: Ingest a Galaxy catalog
         description: Ingest a Galaxy catalog
         tags:
           - galaxies
-        requestBody:
-          content:
-            application/json:
-              schema: GalaxyHandlerPost
         responses:
           200:
             content:
@@ -476,12 +530,11 @@ class GalaxyCatalogHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        data = self.get_json()
-        catalog_name = data.get("catalog_name", None)
-        catalog_description = data.get("catalog_description", None)
-        catalog_url = data.get("catalog_url", None)
-        catalog_data = data.get("catalog_data", None)
+        body = self.parse_body(GalaxyCatalogPostBody)
+        catalog_name = body.catalog_name
+        catalog_description = body.catalog_description
+        catalog_url = body.catalog_url
+        catalog_data = body.catalog_data
 
         if catalog_name is None:
             return self.error("catalog_name is a required parameter.")
@@ -981,17 +1034,13 @@ def add_galaxies(catalog_metadata, catalog_data):
 
 class GalaxyASCIIFileHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: GalaxyASCIIFilePostBody = None):
         """
         ---
         summary: Upload galaxies from ASCII file
         description: Upload galaxies from ASCII file
         tags:
           - galaxies
-        requestBody:
-          content:
-            application/json:
-              schema: GalaxyASCIIFileHandlerPost
         responses:
           200:
             content:
@@ -1002,12 +1051,11 @@ class GalaxyASCIIFileHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        json = self.get_json()
-        catalog_data = json.pop("catalogData", None)
-        catalog_name = json.pop("catalogName", None)
-        catalog_description = json.pop("catalogDescription", None)
-        catalog_url = json.pop("catalogURL", None)
+        body = self.parse_body(GalaxyASCIIFilePostBody)
+        catalog_data = body.catalogData
+        catalog_name = body.catalogName
+        catalog_description = body.catalogDescription
+        catalog_url = body.catalogURL
 
         if catalog_data is None:
             return self.error(message="Missing catalog_data")
@@ -1402,25 +1450,13 @@ def get_galaxies_completeness(galaxies, dist_min=0, dist_max=10000, M_min=8, M_m
 
 class GalaxyGladeHandler(BaseHandler):
     @permissions(["System Admin"])
-    async def post(self):
+    async def post(self, *, body: GalaxyGladePostBody = None):
         """
         ---
         summary: Upload galaxies from GLADE+ catalog
         description: Upload galaxies from GLADE+ catalog. If no file_name or file_url is provided, will look for the GLADE+ catalog in the data directory. If it can't be found, it will download it.
         tags:
           - galaxies
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                    file_name:
-                        type: string
-                        description: Name of the file containing the galaxies (in the data directory)
-                    file_url:
-                        type: string
-                        description: URL of the file containing the galaxies
         responses:
           200:
             content:
@@ -1431,6 +1467,7 @@ class GalaxyGladeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(GalaxyGladePostBody)
 
         def add_glade_and_notify(file_path=None, file_url=None):
             full_length, full_blueshift_length = add_glade(file_path, file_url)
@@ -1441,9 +1478,8 @@ class GalaxyGladeHandler(BaseHandler):
         try:
             file_name = None
             file_url = None
-            data = self.get_json()
-            if "file_name" in data:
-                file_name = data["file_name"]
+            if "file_name" in body.model_fields_set:
+                file_name = body.file_name
                 if not file_name.endswith(".txt"):
                     return self.error("Catalog's file type is incorrect. Must be .txt.")
                 file_path = os.path.join(
@@ -1454,8 +1490,8 @@ class GalaxyGladeHandler(BaseHandler):
                 if not os.path.isfile(file_path):
                     return self.error("File does not exist.")
                 file_url = file_path
-            elif "file_url" in data:
-                file_url = data["file_url"]
+            elif "file_url" in body.model_fields_set:
+                file_url = body.file_url
                 if not file_url.endswith(".txt"):
                     return self.error(
                         "Catalog's url points to an incorrect file type. Must be .txt."
@@ -1483,7 +1519,7 @@ class GalaxyGladeHandler(BaseHandler):
 
 class ObjHostHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, obj_id: str):
+    async def post(self, obj_id: str, *, body: ObjHostPostBody = None):
         """
         ---
         summary: Set an object's host galaxy
@@ -1497,18 +1533,6 @@ class ObjHostHandler(BaseHandler):
             required: true
             schema:
               type: string
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  galaxyName:
-                    type: string
-                    description: |
-                      Name of the galaxy to associate with the object
-                required:
-                  - galaxyName
         responses:
           200:
             content:
@@ -1519,10 +1543,9 @@ class ObjHostHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(ObjHostPostBody)
 
-        data = self.get_json()
-
-        name = data.get("galaxyName")
+        name = body.galaxyName
         if name is None:
             return self.error("galaxyName required to set object host")
 
