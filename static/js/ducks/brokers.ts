@@ -21,7 +21,26 @@ export interface BrokerAlertQuery {
   params: Record<string, string | number | undefined>;
 }
 
-const buildQuery = (params: BrokerAlertQuery["params"]) => {
+export interface BrokerFilter {
+  id: number;
+  name: string;
+  group_id: number;
+  stream_id: number;
+  broker_id: number | null;
+  altdata?: Record<string, unknown>;
+}
+
+export interface FilterCatalogQuery {
+  pageNumber?: number | undefined;
+  numPerPage?: number | undefined;
+  unattachedOnly?: boolean | undefined;
+  name?: string | undefined;
+  groupID?: number | "" | undefined;
+  streamID?: number | "" | undefined;
+  brokerID?: number | "" | undefined;
+}
+
+const buildQuery = (params: Record<string, string | number | undefined>) => {
   const qs = buildQueryString(params);
   return qs ? `?${qs}` : "";
 };
@@ -124,18 +143,32 @@ export const brokersApi = skyportalApi.injectEndpoints({
       }),
     }),
     // Filters this broker manages (skyportal Filter rows with broker altdata).
-    getBrokerFilters: build.query<
-      {
-        id: number;
-        name: string;
-        group_id: number;
-        stream_id: number;
-        altdata?: Record<string, unknown>;
-      }[],
-      number
-    >({
+    getBrokerFilters: build.query<BrokerFilter[], number>({
       query: (brokerId) => `api/brokers/${brokerId}/filters`,
       providesTags: ["Broker"],
+    }),
+    // Every filter with its broker, and the binding that attaches one.
+    getFilterCatalog: build.query<
+      { filters: BrokerFilter[]; totalMatches: number },
+      FilterCatalogQuery
+    >({
+      query: ({ unattachedOnly, ...rest }) =>
+        `api/brokers/filters${buildQuery({
+          ...rest,
+          unattachedOnly: unattachedOnly ? "true" : undefined,
+        })}`,
+      providesTags: ["Broker"],
+    }),
+    attachFilterToBroker: build.mutation<
+      { id: number; broker_id: number },
+      { filterId: number; brokerId: number }
+    >({
+      query: ({ filterId, brokerId }) => ({
+        url: `api/brokers/filters/${filterId}/attach`,
+        method: "POST",
+        body: { broker_id: brokerId },
+      }),
+      invalidatesTags: ["Broker"],
     }),
     // Save a query-kind broker filter (Lasair): stores selected/tables/conditions
     // on the skyportal Filter's altdata.
@@ -211,6 +244,8 @@ export const {
   useSaveBrokerAlertAsSourceMutation,
   useLazyTestBrokerFilterQuery,
   useGetBrokerFiltersQuery,
+  useGetFilterCatalogQuery,
+  useAttachFilterToBrokerMutation,
   useSaveBrokerFilterMutation,
   useGetBrokerAPIsQuery,
   useCreateBrokerMutation,
