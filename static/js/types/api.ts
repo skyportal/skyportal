@@ -2687,7 +2687,15 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        name?: string;
+                        active?: boolean;
+                        altdata?: Record<string, never>;
+                        /** @description Make this the broker the source page searches alerts on. */
+                        default_alert_search?: boolean;
+                        /** @description Make this the broker cross-matches are run against. */
+                        default_crossmatch?: boolean;
+                    };
                 };
             };
             responses: {
@@ -2740,6 +2748,10 @@ export interface paths {
                         /** @description Endpoints/credentials for this broker instance. */
                         altdata?: Record<string, never>;
                         active?: boolean;
+                        /** @description Make this the broker the source page searches alerts on. */
+                        default_alert_search?: boolean;
+                        /** @description Make this the broker cross-matches are run against. */
+                        default_crossmatch?: boolean;
                     };
                 };
             };

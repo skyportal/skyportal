@@ -21,6 +21,7 @@ import IconButton from "@mui/material/IconButton";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
+import Radio from "@mui/material/Radio";
 import Select from "@mui/material/Select";
 import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
@@ -104,7 +105,22 @@ const COLUMNS = [
     label: "Active",
     value: (b: any) => Number(Boolean(b.active)),
   },
+  {
+    id: "default_alert_search",
+    label: "Default search",
+    value: (b: any) => Number(Boolean(b.default_alert_search)),
+  },
+  {
+    id: "default_crossmatch",
+    label: "Default cross-match",
+    value: (b: any) => Number(Boolean(b.default_crossmatch)),
+  },
 ];
+
+const DEFAULT_TOGGLES = [
+  { field: "default_alert_search", capability: "query_alerts" },
+  { field: "default_crossmatch", capability: "cone_search" },
+] as const;
 
 // Admin/config view for every broker (searchable AND ingestion-only), where any
 // provider can be configured, activated, and removed — distinct from the alert
@@ -289,6 +305,25 @@ const BrokerList = () => {
                         }
                       />
                     </TableCell>
+                    {DEFAULT_TOGGLES.map(({ field, capability }) => (
+                      <TableCell
+                        key={field}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Radio
+                          size="small"
+                          checked={Boolean(b[field])}
+                          disabled={
+                            !isSystemAdmin ||
+                            !b.active ||
+                            !b.capabilities?.[capability]
+                          }
+                          onChange={() =>
+                            updateBroker({ id: b.id, patch: { [field]: true } })
+                          }
+                        />
+                      </TableCell>
+                    ))}
                     <TableCell
                       align="right"
                       onClick={(e) => e.stopPropagation()}

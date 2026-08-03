@@ -10,6 +10,8 @@ export interface Broker {
   name: string;
   broker_classname: string;
   active: boolean;
+  default_alert_search: boolean;
+  default_crossmatch: boolean;
   capabilities: Record<string, boolean>;
   surveys: string[];
   filter_kind: string;

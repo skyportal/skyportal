@@ -201,7 +201,7 @@ class LASAIRBROKER(BrokerAPI):
 
     form_json_schema_config = {
         "type": "object",
-        "required": ["token"],
+        "required": ["endpoint"],
         "properties": {
             "token": {
                 "type": "string",
@@ -250,8 +250,8 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def validate_config(altdata):
-        if not (altdata or {}).get("token"):
-            raise ValueError("Broker altdata must include 'token'.")
+        if not (altdata or {}).get("endpoint"):
+            raise ValueError("Broker altdata must include 'endpoint'.")
 
     @staticmethod
     def query_alerts(broker, session, **kwargs):

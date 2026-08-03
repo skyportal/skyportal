@@ -48,6 +48,35 @@ class Broker(Base):
         doc="Whether this broker is enabled.",
     )
 
+    default_alert_search = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether this broker is the one the source page's alert search targets.",
+    )
+
+    default_crossmatch = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether this broker is the one cross-matches (cone searches) target.",
+    )
+
+    __table_args__ = (
+        sa.Index(
+            "brokers_default_alert_search",
+            "default_alert_search",
+            unique=True,
+            postgresql_where=sa.text("default_alert_search"),
+        ),
+        sa.Index(
+            "brokers_default_crossmatch",
+            "default_crossmatch",
+            unique=True,
+            postgresql_where=sa.text("default_crossmatch"),
+        ),
+    )
+
     filters = relationship(
         "Filter",
         back_populates="broker",
