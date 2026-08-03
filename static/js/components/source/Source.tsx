@@ -275,13 +275,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
 
   const [hovering, setHovering] = useState<any>(null);
 
-  // Target of the "Search alerts" button: an active broker that can query
-  // alerts, preferring one covering ZTF.
-  const queryBrokers = brokers.filter(
-    (b) => b.active && b.capabilities?.["query_alerts"],
+  const alertBroker = brokers.find(
+    (b) =>
+      b.active && b.capabilities?.["query_alerts"] && b.default_alert_search,
   );
-  const alertBroker =
-    queryBrokers.find((b) => b.surveys?.includes("ZTF")) || queryBrokers[0];
 
   const sourceDuplicatesWithoutAssociatedObjs = useMemo(
     () =>
@@ -969,7 +966,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <SimilarSources source={source} min_score={0.9} k={3} />
             ) : null}
             <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
-              {alertBroker && (
+              {alertBroker ? (
                 <Link
                   to={`/brokers/${alertBroker.id}?${new URLSearchParams({
                     objectId: source.id,
@@ -987,6 +984,14 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     Search alerts
                   </Button>
                 </Link>
+              ) : (
+                <Tooltip title="No broker is set as the default for alert search">
+                  <span>
+                    <Button primary size="small" disabled>
+                      Search alerts
+                    </Button>
+                  </span>
+                </Tooltip>
               )}
               <div>
                 <Button
