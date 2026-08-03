@@ -1,4 +1,5 @@
 import copy
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
@@ -6,9 +7,29 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from baselayer.app.access import auth_or_token, permissions
 
+from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES
-from ...models import Broker, Filter
+from ...models import Broker, Filter, Stream
 from ..base import BaseHandler
+
+
+def alert_permissions(user, session):
+    """The requester's survey -> programids scope for alert queries, derived from
+    the streams they can access. ``None`` means unrestricted (system admins).
+
+    Handlers must always pass the result down to the provider: a provider that
+    receives no scope denies everything.
+    """
+    if user.is_system_admin:
+        return None
+    return survey_permissions(session.scalars(Stream.select(user)).all())
+
+
+async def alert_permissions_async(user, session):
+    """``alert_permissions`` for the async handlers."""
+    if user.is_system_admin:
+        return None
+    return survey_permissions((await session.scalars(Stream.select(user))).all())
 
 
 def strip_secrets(altdata, paths):
@@ -41,6 +62,21 @@ def merge_altdata(stored, incoming):
     return merged
 
 
+DEFAULT_FIELDS = ("default_alert_search", "default_crossmatch")
+
+
+def set_default(session, broker, field, value):
+    """Make ``broker`` the one holding ``field``, clearing it everywhere else."""
+    if value:
+        session.execute(
+            sa.update(Broker)
+            .where(Broker.id != broker.id)
+            .values(**{field: False})
+            .execution_options(synchronize_session="fetch")
+        )
+    setattr(broker, field, value)
+
+
 def broker_to_dict(broker, include_altdata=False):
     """Serialize a Broker, redacting encrypted credentials by default."""
     data = {
@@ -48,6 +84,8 @@ def broker_to_dict(broker, include_altdata=False):
         "name": broker.name,
         "broker_classname": broker.broker_classname,
         "active": broker.active,
+        "default_alert_search": broker.default_alert_search,
+        "default_crossmatch": broker.default_crossmatch,
         "capabilities": broker.broker_class.implements(),
         # Per-record surveys (what THIS connection serves), so survey-based
         # routing is deterministic for one-deployment-per-survey providers.
@@ -89,6 +127,12 @@ class BrokerHandler(BaseHandler):
                     description: Endpoints/credentials for this broker instance.
                   active:
                     type: boolean
+                  default_alert_search:
+                    type: boolean
+                    description: Make this the broker the source page searches alerts on.
+                  default_crossmatch:
+                    type: boolean
+                    description: Make this the broker cross-matches are run against.
         responses:
           200:
             content:
@@ -134,6 +178,10 @@ class BrokerHandler(BaseHandler):
             broker.altdata = altdata
 
             session.add(broker)
+            session.flush()
+            for field in DEFAULT_FIELDS:
+                if data.get(field):
+                    set_default(session, broker, field, True)
             session.commit()
             return self.success(data={"id": broker.id})
 
@@ -196,6 +244,19 @@ class BrokerHandler(BaseHandler):
             application/json:
               schema:
                 type: object
+                properties:
+                  name:
+                    type: string
+                  active:
+                    type: boolean
+                  altdata:
+                    type: object
+                  default_alert_search:
+                    type: boolean
+                    description: Make this the broker the source page searches alerts on.
+                  default_crossmatch:
+                    type: boolean
+                    description: Make this the broker cross-matches are run against.
         responses:
           200:
             content:
@@ -220,6 +281,9 @@ class BrokerHandler(BaseHandler):
                 broker.name = data["name"]
             if "active" in data:
                 broker.active = data["active"]
+            for field in DEFAULT_FIELDS:
+                if field in data:
+                    set_default(session, broker, field, bool(data[field]))
             if "altdata" in data:
                 altdata = merge_altdata(broker.altdata, data["altdata"])
                 if broker.broker_class.implements()["validate_config"]:
@@ -299,7 +363,9 @@ class BrokerAlertsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        params = {k: self.get_argument(k) for k in self.request.arguments}
+        params: dict[str, Any] = {
+            k: self.get_argument(k) for k in self.request.arguments
+        }
 
         with self.Session() as session:
             broker = session.scalars(
@@ -315,6 +381,8 @@ class BrokerAlertsHandler(BaseHandler):
                 return self.error(
                     f"Broker {broker.name} does not support '{operation}'."
                 )
+
+            params["permissions"] = alert_permissions(self.current_user, session)
 
             try:
                 if alert_id is not None:
@@ -365,7 +433,9 @@ class BrokerCutoutsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        params = {k: self.get_argument(k) for k in self.request.arguments}
+        params: dict[str, Any] = {
+            k: self.get_argument(k) for k in self.request.arguments
+        }
 
         with self.Session() as session:
             broker = session.scalars(
@@ -377,6 +447,7 @@ class BrokerCutoutsHandler(BaseHandler):
                 return self.error(f"Broker {broker.name} is not active")
             if not broker.broker_class.implements()["get_cutouts"]:
                 return self.error(f"Broker {broker.name} does not support cutouts.")
+            params["permissions"] = alert_permissions(self.current_user, session)
             try:
                 data = broker.broker_class.get_cutouts(
                     broker, alert_id, session, **params
@@ -537,6 +608,9 @@ class BrokerSaveHandler(BaseHandler):
                     session,
                     self.associated_user_object,
                     group_ids,
+                    permissions=await alert_permissions_async(
+                        self.current_user, session
+                    ),
                 )
             except Exception as e:
                 return self.error(f"Error saving alert as source: {e}")
@@ -778,6 +852,7 @@ class BrokerFilterTestHandler(BaseHandler):
                 return self.error(
                     f"Broker {broker.name} does not support filter preview."
                 )
+            params["permissions"] = alert_permissions(self.current_user, session)
             try:
                 data = broker.broker_class.test_filter(broker, session, **params)
             except Exception as e:
