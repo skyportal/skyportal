@@ -1156,6 +1156,9 @@ def _copy_galaxies(df, catalog_id):
         & (df["dec"] >= -90)
         & (df["dec"] <= 90)
     ]
+    for col in ("distmpc", "distmpc_unc", "redshift_error"):
+        if col in df.columns:
+            df = df[~(df[col] < 0)]
     if df.empty:
         return 0, 0
 
@@ -1220,6 +1223,7 @@ def _ingest_fits_catalog(catalog_name, datafile, map_chunk, chunk_size, label):
                     f"redshift) in {time.perf_counter() - start_timer:0.2f} s"
                 )
             except Exception as e:
+                DBSession().rollback()
                 log(f"{label} - chunk at row {start}: Error: {e}")
                 continue
     log(
