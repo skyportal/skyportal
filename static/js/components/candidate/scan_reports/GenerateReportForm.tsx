@@ -1,5 +1,6 @@
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -20,6 +21,7 @@ const GenerateReportForm = ({
   setDialogOpen,
 }: GenerateReportFormProps) => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [generateScanReport] = useGenerateScanReportMutation();
@@ -99,6 +101,7 @@ const GenerateReportForm = ({
         setLoading(false);
         dispatch(showNotification("Scanning report successfully generated"));
         setDialogOpen(false);
+        navigate("/candidates/scan_reports");
       })
       .catch(() => {
         setLoading(false);
