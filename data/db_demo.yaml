@@ -86,7 +86,7 @@ brokers:
     active: true
   - name: BOOM
     broker_classname: BOOMBROKER
-    active: true
+    active: false
     altdata:
       protocol: https
       host: api.kaboom.caltech.edu
