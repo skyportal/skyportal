@@ -1409,10 +1409,6 @@ class BrokerFilterCatalogHandler(BaseHandler):
             schema:
               type: integer
           - in: query
-            name: unattachedOnly
-            schema:
-              type: boolean
-          - in: query
             name: name
             schema:
               type: string
@@ -1428,7 +1424,8 @@ class BrokerFilterCatalogHandler(BaseHandler):
           - in: query
             name: brokerID
             schema:
-              type: integer
+              type: string
+            description: A broker id, or "none" for filters attached to no broker.
         responses:
           200:
             content:
@@ -1449,11 +1446,6 @@ class BrokerFilterCatalogHandler(BaseHandler):
         n_per_page = min(max(n_per_page, 1), MAX_FILTERS_PER_PAGE)
         page_number = max(page_number, 1)
 
-        unattached_only = self.get_query_argument("unattachedOnly", "false") in (
-            "true",
-            "True",
-            "1",
-        )
         name = self.get_query_argument("name", None)
         group_id = self.get_query_argument("groupID", None)
         stream_id = self.get_query_argument("streamID", None)
@@ -1461,7 +1453,7 @@ class BrokerFilterCatalogHandler(BaseHandler):
 
         with self.Session() as session:
             stmt = Filter.select(self.current_user).distinct()
-            if unattached_only:
+            if broker_id == "none":
                 stmt = stmt.where(Filter.broker_id.is_(None))
             elif broker_id:
                 stmt = stmt.where(Filter.broker_id == int(broker_id))

@@ -30,23 +30,21 @@ import { useGetStreamsQuery } from "../../ducks/streams";
 const PAGE_SIZES = [10, 25, 50];
 
 const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
-  const [unattachedOnly, setUnattachedOnly] = useState(false);
   const [page, setPage] = useState(0);
   const [numPerPage, setNumPerPage] = useState(25);
   const [name, setName] = useState("");
   const [groupID, setGroupID] = useState<number | "">("");
   const [streamID, setStreamID] = useState<number | "">("");
-  const [brokerID, setBrokerID] = useState<number | "">("");
+  const [brokerID, setBrokerID] = useState<number | "" | "none">("");
   const [targets, setTargets] = useState<Record<number, number>>({});
 
   const { data, isFetching } = useGetFilterCatalogQuery({
     pageNumber: page + 1,
     numPerPage,
-    unattachedOnly,
     name: name || undefined,
     groupID,
     streamID,
-    brokerID: unattachedOnly ? "" : (brokerId ?? brokerID),
+    brokerID: brokerId ?? brokerID,
   });
   const { data: brokers } = useGetBrokersQuery();
   const { data: groups } = useGetGroupsQuery();
@@ -89,24 +87,6 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
           flexWrap: "wrap",
         }}
       >
-        {brokerId ? null : (
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel id="filter-catalog-mode">Show</InputLabel>
-            <Select
-              labelId="filter-catalog-mode"
-              label="Show"
-              value={unattachedOnly ? "unattached" : "all"}
-              onChange={(e) =>
-                onFilterChange(setUnattachedOnly)(
-                  e.target.value === "unattached",
-                )
-              }
-            >
-              <MenuItem value="all">All filters</MenuItem>
-              <MenuItem value="unattached">Unattached filters only</MenuItem>
-            </Select>
-          </FormControl>
-        )}
         <TextField
           size="small"
           label="Name"
@@ -156,10 +136,11 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
             <Select
               labelId="filter-catalog-broker"
               label="Broker"
-              disabled={unattachedOnly}
-              value={unattachedOnly ? "" : brokerID}
+              value={brokerID}
               onChange={(e) =>
-                onFilterChange(setBrokerID)(e.target.value as number | "")
+                onFilterChange(setBrokerID)(
+                  e.target.value as number | "" | "none",
+                )
               }
             >
               <MenuItem value="">All brokers</MenuItem>
@@ -168,6 +149,7 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
                   {b.name}
                 </MenuItem>
               ))}
+              <MenuItem value="none">No broker</MenuItem>
             </Select>
           </FormControl>
         )}

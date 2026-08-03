@@ -33,11 +33,10 @@ export interface BrokerFilter {
 export interface FilterCatalogQuery {
   pageNumber?: number | undefined;
   numPerPage?: number | undefined;
-  unattachedOnly?: boolean | undefined;
   name?: string | undefined;
   groupID?: number | "" | undefined;
   streamID?: number | "" | undefined;
-  brokerID?: number | "" | undefined;
+  brokerID?: number | "" | "none" | undefined;
 }
 
 const buildQuery = (params: Record<string, string | number | undefined>) => {
@@ -152,11 +151,7 @@ export const brokersApi = skyportalApi.injectEndpoints({
       { filters: BrokerFilter[]; totalMatches: number },
       FilterCatalogQuery
     >({
-      query: ({ unattachedOnly, ...rest }) =>
-        `api/brokers/filters${buildQuery({
-          ...rest,
-          unattachedOnly: unattachedOnly ? "true" : undefined,
-        })}`,
+      query: (params) => `api/brokers/filters${buildQuery({ ...params })}`,
       providesTags: ["Broker"],
     }),
     attachFilterToBroker: build.mutation<
