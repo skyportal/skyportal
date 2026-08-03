@@ -571,7 +571,7 @@ export const sourceApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
-    fetchPhotoz: build.mutation<
+    fetchDatalab: build.mutation<
       any,
       { sourceID: number | string; catalog?: string | undefined }
     >({
@@ -771,7 +771,7 @@ export const {
   useFetchGaiaMutation,
   useFetchWiseMutation,
   useFetchVizierMutation,
-  useFetchPhotozMutation,
+  useFetchDatalabMutation,
   useFetchPS1Mutation,
   useAddTNSMutation,
   useAddHostMutation,

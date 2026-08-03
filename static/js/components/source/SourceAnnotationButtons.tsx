@@ -9,7 +9,7 @@ import {
   useFetchGaiaMutation,
   useFetchWiseMutation,
   useFetchVizierMutation,
-  useFetchPhotozMutation,
+  useFetchDatalabMutation,
   useFetchPS1Mutation,
 } from "../../ducks/source";
 import type { Source } from "../../types";
@@ -22,7 +22,7 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
   const [fetchGaia] = useFetchGaiaMutation();
   const [fetchWise] = useFetchWiseMutation();
   const [fetchVizier] = useFetchVizierMutation();
-  const [fetchPhotoz] = useFetchPhotozMutation();
+  const [fetchDatalab] = useFetchDatalabMutation();
   const [fetchPS1] = useFetchPS1Mutation();
 
   const [isSubmittingAnnotationGaia, setIsSubmittingAnnotationGaia] =
@@ -61,7 +61,7 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
     useState<any>(null);
   const handleAnnotationPhotoz = async (id: string) => {
     setIsSubmittingAnnotationPhotoz(id);
-    await fetchPhotoz({ sourceID: id, catalog: "ls_dr10" });
+    await fetchDatalab({ sourceID: id, catalog: "ls_dr10" });
     setIsSubmittingAnnotationPhotoz(null);
   };
 
@@ -71,7 +71,7 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
   ] = useState<any>(null);
   const handleAnnotationDesi = async (id: string) => {
     setIsSubmittingAnnotationPhotozDesi(id);
-    await fetchPhotoz({ sourceID: id, catalog: "desi_dr1" });
+    await fetchDatalab({ sourceID: id, catalog: "desi_dr1" });
     setIsSubmittingAnnotationPhotozDesi(null);
   };
 
