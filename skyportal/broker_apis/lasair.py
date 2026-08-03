@@ -401,12 +401,16 @@ class LASAIRBROKER(BrokerAPI):
             # SQL lives in Filter.altdata["lasair"]), plus any legacy queries on
             # the broker record. Re-read each cycle so filter edits are picked up.
             async with async_plain_session_factory() as session:
-                rows = (await session.scalars(sa.select(Filter))).all()
+                rows = (
+                    await session.scalars(
+                        sa.select(Filter).where(Filter.broker_id == broker.id)
+                    )
+                ).all()
             queries = []
             for f in rows:
                 ad = f.altdata if isinstance(f.altdata, dict) else {}
                 lasair = ad.get("lasair") if isinstance(ad, dict) else None
-                if ad.get("broker_id") != broker.id or not isinstance(lasair, dict):
+                if not isinstance(lasair, dict):
                     continue
                 if not lasair.get("tables"):
                     continue

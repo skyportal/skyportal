@@ -23,6 +23,7 @@ from .broker import (
     BrokerAlertsHandler,
     BrokerConeSearchHandler,
     BrokerCutoutsHandler,
+    BrokerFilterCatalogHandler,
     BrokerFilterModulesHandler,
     BrokerFiltersHandler,
     BrokerFilterTestHandler,

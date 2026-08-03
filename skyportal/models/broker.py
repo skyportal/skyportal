@@ -3,6 +3,7 @@ __all__ = ["Broker"]
 import json
 
 import sqlalchemy as sa
+from sqlalchemy.orm import relationship
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy_utils.types.encrypted.encrypted_type import (
     AesEngine,
@@ -45,6 +46,13 @@ class Broker(Base):
         nullable=False,
         server_default="true",
         doc="Whether this broker is enabled.",
+    )
+
+    filters = relationship(
+        "Filter",
+        back_populates="broker",
+        passive_deletes=True,
+        doc="Filters attached to this broker.",
     )
 
     _altdata = sa.Column(

@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -1046,7 +1047,13 @@ class BrokerFiltersHandler(BaseHandler):
                 # .unique(): the access-control join over group members returns a
                 # row per member, so a filter would list once per user in its group.
                 filters = (
-                    session.scalars(Filter.select(self.current_user)).unique().all()
+                    session.scalars(
+                        Filter.select(self.current_user).where(
+                            Filter.broker_id == broker.id
+                        )
+                    )
+                    .unique()
+                    .all()
                 )
                 return self.success(
                     data=[
@@ -1055,6 +1062,7 @@ class BrokerFiltersHandler(BaseHandler):
                             "name": f.name,
                             "group_id": f.group_id,
                             "stream_id": f.stream_id,
+                            "broker_id": f.broker_id,
                             "altdata": f.altdata,
                         }
                         for f in filters
@@ -1071,6 +1079,7 @@ class BrokerFiltersHandler(BaseHandler):
                 "id": f.id,
                 "name": f.name,
                 "group_id": f.group_id,
+                "broker_id": f.broker_id,
                 "stream": {"id": f.stream.id, "name": f.stream.name}
                 if f.stream
                 else None,
@@ -1161,8 +1170,8 @@ class BrokerFiltersHandler(BaseHandler):
                     return self.error(
                         "A query filter requires 'selected' and 'tables'."
                     )
+                f.broker_id = broker.id
                 ad = dict(f.altdata) if isinstance(f.altdata, dict) else {}
-                ad["broker_id"] = broker.id
                 ad["lasair"] = {
                     "selected": selected,
                     "tables": tables,
@@ -1199,8 +1208,8 @@ class BrokerFiltersHandler(BaseHandler):
                         survey=survey,
                         permissions=perms,
                     )
+                    f.broker_id = broker.id
                     f.altdata = {
-                        "broker_id": broker.id,
                         "boom": {"filter_id": resp["id"]},
                         "autoAnnotate": False,
                         "autoSave": False,
@@ -1373,3 +1382,177 @@ class BrokerFiltersHandler(BaseHandler):
             session.delete(f)
             session.commit()
             return self.success()
+
+
+DEFAULT_FILTERS_PER_PAGE = 25
+MAX_FILTERS_PER_PAGE = 100
+
+
+class BrokerFilterCatalogHandler(BaseHandler):
+    @auth_or_token
+    def get(self, filter_id=None):
+        """
+        ---
+        summary: List filters and their broker
+        description: Paginated list of the skyportal Filters accessible to the
+          user, optionally restricted to the ones attached to no broker.
+        tags:
+          - brokers
+          - filters
+        parameters:
+          - in: query
+            name: pageNumber
+            schema:
+              type: integer
+          - in: query
+            name: numPerPage
+            schema:
+              type: integer
+          - in: query
+            name: unattachedOnly
+            schema:
+              type: boolean
+          - in: query
+            name: name
+            schema:
+              type: string
+            description: Case-insensitive substring of the filter name.
+          - in: query
+            name: groupID
+            schema:
+              type: integer
+          - in: query
+            name: streamID
+            schema:
+              type: integer
+          - in: query
+            name: brokerID
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        try:
+            page_number = self.get_query_argument("pageNumber", 1, type=int)
+            n_per_page = self.get_query_argument(
+                "numPerPage", DEFAULT_FILTERS_PER_PAGE, type=int
+            )
+        except ValueError:
+            return self.error("Cannot parse pageNumber or numPerPage as integers.")
+        n_per_page = min(max(n_per_page, 1), MAX_FILTERS_PER_PAGE)
+        page_number = max(page_number, 1)
+
+        unattached_only = self.get_query_argument("unattachedOnly", "false") in (
+            "true",
+            "True",
+            "1",
+        )
+        name = self.get_query_argument("name", None)
+        group_id = self.get_query_argument("groupID", None)
+        stream_id = self.get_query_argument("streamID", None)
+        broker_id = self.get_query_argument("brokerID", None)
+
+        with self.Session() as session:
+            stmt = Filter.select(self.current_user).distinct()
+            if unattached_only:
+                stmt = stmt.where(Filter.broker_id.is_(None))
+            elif broker_id:
+                stmt = stmt.where(Filter.broker_id == int(broker_id))
+            if name:
+                stmt = stmt.where(Filter.name.ilike(f"%{name}%"))
+            if group_id:
+                stmt = stmt.where(Filter.group_id == int(group_id))
+            if stream_id:
+                stmt = stmt.where(Filter.stream_id == int(stream_id))
+
+            total_matches = session.scalar(
+                sa.select(sa.func.count()).select_from(stmt.subquery())
+            )
+            filters = session.scalars(
+                stmt.order_by(Filter.name, Filter.id)
+                .limit(n_per_page)
+                .offset((page_number - 1) * n_per_page)
+            ).all()
+            return self.success(
+                data={
+                    "filters": [
+                        {
+                            "id": f.id,
+                            "name": f.name,
+                            "group_id": f.group_id,
+                            "stream_id": f.stream_id,
+                            "broker_id": f.broker_id,
+                            "altdata": f.altdata,
+                        }
+                        for f in filters
+                    ],
+                    "totalMatches": int(total_matches),
+                }
+            )
+
+    @permissions(["Upload data"])
+    def post(self, filter_id=None):
+        """
+        ---
+        summary: Attach a filter to a broker
+        description: Bind an unattached skyportal Filter to a broker.
+        tags:
+          - brokers
+          - filters
+        parameters:
+          - in: path
+            name: filter_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - broker_id
+                properties:
+                  broker_id:
+                    type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        data = self.get_json() or {}
+        broker_id = data.get("broker_id")
+        if filter_id is None or broker_id is None:
+            return self.error("A filter id and a 'broker_id' are required.")
+        with self.Session() as session:
+            broker = _get_broker(self, session, broker_id)
+            if broker is None:
+                return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
+            if broker.broker_class.filter_kind == "none":
+                return self.error(f"Broker {broker.name} does not accept filters.")
+            f = session.scalars(
+                Filter.select(self.current_user, mode="update").where(
+                    Filter.id == int(filter_id)
+                )
+            ).first()
+            if f is None:
+                return self.error(f"Cannot find a filter with ID: {filter_id}.")
+            if f.broker_id not in (None, broker.id):
+                return self.error("This filter is already attached to a broker.")
+            f.broker_id = broker.id
+            session.commit()
+            return self.success(data={"id": f.id, "broker_id": f.broker_id})

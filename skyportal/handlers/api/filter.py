@@ -17,6 +17,10 @@ class FilterPostBody(BaseModel):
     name: str = Field(description="Filter name.")
     stream_id: int = Field(description="ID of the Filter's Stream.")
     group_id: int = Field(description="ID of the Filter's Group.")
+    broker_id: int | None = Field(
+        default=None,
+        description="ID of the Broker this Filter runs on, if any.",
+    )
     altdata: dict[str, Any] | None = Field(
         default=None,
         description="Arbitrary additional JSON data associated with the Filter.",
@@ -122,6 +126,7 @@ class FilterHandler(BaseHandler):
                 name=body.name,
                 stream_id=body.stream_id,
                 group_id=body.group_id,
+                broker_id=body.broker_id,
                 altdata=body.altdata,
             )
             session.add(fil)
