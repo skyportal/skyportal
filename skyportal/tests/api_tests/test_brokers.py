@@ -115,6 +115,69 @@ def test_broker_requires_admin_and_redacts_altdata(super_admin_token, view_only_
     assert "altdata" not in data["data"]
     assert data["data"]["capabilities"]["query_alerts"] is True
 
+    # admins get the config, minus the credentials (GENERICBROKER renders
+    # `token` as a password field)
+    status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
+    assert status == 200
+    assert data["data"]["altdata"]["base_url"] == "https://broker.test"
+    assert "token" not in data["data"]["altdata"]
+
+    # so editing another field must not wipe the stored credential
+    status, _ = api(
+        "PATCH",
+        f"brokers/{broker_id}",
+        data={"altdata": {"base_url": "https://broker2.test"}},
+        token=super_admin_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
+    assert data["data"]["altdata"]["base_url"] == "https://broker2.test"
+
+
+def test_altdata_merge_and_redaction():
+    from skyportal.handlers.api.broker import merge_altdata, strip_secrets
+
+    stored = {
+        "base_url": "https://a",
+        "token": "secret",
+        "scimma": {"password": "p", "user": "u"},
+    }
+
+    assert strip_secrets(stored, ["token", "scimma.password"]) == {
+        "base_url": "https://a",
+        "scimma": {"user": "u"},
+    }
+    assert stored["token"] == "secret"
+
+    # blank means "keep what is stored", at any depth
+    merged = merge_altdata(
+        stored, {"base_url": "https://b", "token": "", "scimma": {"password": "  "}}
+    )
+    assert merged["base_url"] == "https://b"
+    assert merged["token"] == "secret"
+    assert merged["scimma"]["password"] == "p"
+
+    assert merge_altdata(stored, {"token": "new"})["token"] == "new"
+
+
+def test_secret_config_fields_cover_every_provider():
+    from skyportal import broker_apis
+
+    expected = {
+        "ALERCEBROKER": [],
+        "AMPELBROKER": ["scimma.password"],
+        "ANTARESBROKER": [],
+        "BABAMULBROKER": ["token"],
+        "BOOMBROKER": ["password"],
+        "FINKBROKER": ["fink.password"],
+        "GENERICBROKER": ["token"],
+        "LASAIRBROKER": ["token"],
+        "PITTGOOGLEBROKER": ["service_account_key"],
+    }
+    for name, paths in expected.items():
+        provider = getattr(broker_apis, name)
+        assert sorted(provider.secret_config_fields()) == sorted(paths), name
+
 
 def test_broker_apis_discovery(view_only_token):
     status, data = api("GET", "internal/broker_apis", token=view_only_token)

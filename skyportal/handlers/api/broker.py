@@ -1,3 +1,5 @@
+import copy
+
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
@@ -7,6 +9,36 @@ from baselayer.app.access import auth_or_token, permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES
 from ...models import Broker, Filter
 from ..base import BaseHandler
+
+
+def strip_secrets(altdata, paths):
+    """Drop the given dotted paths from a copy of ``altdata``."""
+    data = copy.deepcopy(altdata or {})
+    for path in paths:
+        *parents, leaf = path.split(".")
+        node = data
+        for parent in parents:
+            node = node.get(parent) if isinstance(node, dict) else None
+        if isinstance(node, dict):
+            node.pop(leaf, None)
+    return data
+
+
+def merge_altdata(stored, incoming):
+    """Overlay ``incoming`` on ``stored``; blank values keep what is stored.
+
+    A client that never receives credentials
+    can still edit the rest of the config without wiping them.
+    """
+    merged = dict(stored or {})
+    for key, value in (incoming or {}).items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = merge_altdata(merged[key], value)
+        elif value is None or (isinstance(value, str) and not value.strip()):
+            continue
+        else:
+            merged[key] = value
+    return merged
 
 
 def broker_to_dict(broker, include_altdata=False):
@@ -23,7 +55,9 @@ def broker_to_dict(broker, include_altdata=False):
         "filter_kind": broker.broker_class.filter_kind,
     }
     if include_altdata:
-        data["altdata"] = broker.altdata
+        data["altdata"] = strip_secrets(
+            broker.altdata, broker.broker_class.secret_config_fields()
+        )
     return data
 
 
@@ -187,12 +221,13 @@ class BrokerHandler(BaseHandler):
             if "active" in data:
                 broker.active = data["active"]
             if "altdata" in data:
+                altdata = merge_altdata(broker.altdata, data["altdata"])
                 if broker.broker_class.implements()["validate_config"]:
                     try:
-                        broker.broker_class.validate_config(data["altdata"])
+                        broker.broker_class.validate_config(altdata)
                     except Exception as e:
                         return self.error(f"Invalid broker configuration: {e}")
-                broker.altdata = data["altdata"]
+                broker.altdata = altdata
 
             session.commit()
             return self.success()
