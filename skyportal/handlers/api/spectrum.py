@@ -1,6 +1,6 @@
 import io
 from pathlib import Path
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, Any, ClassVar, Literal
 
 import arrow
 import numpy as np
@@ -54,6 +54,234 @@ from .photometry import add_external_photometry
 
 _, cfg = load_env()
 log = make_log("api/spectrum")
+
+
+# The pydantic request models below gate the top-level body shape (allowed keys +
+# extra="forbid"); the existing marshmallow schemas (SpectrumPost, the ASCII
+# JSON schemas) keep doing the deep per-field validation on model_dump().
+class SpectrumPostBody(BaseModel):
+    """Request body for uploading/updating a spectrum (see SpectrumPost)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Array elements may be null; the downstream marshmallow schema enforces the
+    # real per-element rules (see the photometry migration null-element bug).
+    wavelengths: list[float | None] | None = Field(
+        default=None, description="Wavelengths of the spectrum [Angstrom]."
+    )
+    fluxes: list[float | None] | None = Field(
+        default=None,
+        description="Flux of the Spectrum [F_lambda, arbitrary units].",
+    )
+    errors: list[float | None] | None = Field(
+        default=None,
+        description="Errors on the fluxes of the spectrum [F_lambda, same units as "
+        "`fluxes`.]",
+    )
+    units: str | None = Field(
+        default=None,
+        description="Units of the fluxes/errors. Options are Jy, AB, or "
+        "erg/s/cm/cm/AA).",
+    )
+    obj_id: str | None = Field(default=None, description="ID of this Spectrum's Obj.")
+    observed_at: str | None = Field(
+        default=None, description="The ISO UTC time the spectrum was taken."
+    )
+    pi: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who are PI of this Spectrum, or to use as "
+        "points of contact given an external PI.",
+    )
+    external_pi: str | None = Field(
+        default=None, description="Free text provided as an external PI"
+    )
+    reduced_by: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who reduced this Spectrum, or to use as points "
+        "of contact given an external reducer.",
+    )
+    external_reducer: str | None = Field(
+        default=None, description="Free text provided as an external reducer"
+    )
+    observed_by: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who observed this Spectrum, or to use as points "
+        "of contact given an external observer.",
+    )
+    external_observer: str | None = Field(
+        default=None, description="Free text provided as an external observer"
+    )
+    origin: str | None = Field(default=None, description="Origin of the spectrum.")
+    type: str | None = Field(
+        default=None,
+        description="Type of spectrum. One of the configured allowed spectrum types.",
+    )
+    label: str | None = Field(
+        default=None,
+        description="User defined label (can be used to replace default "
+        "instrument/date labeling on plot legends).",
+    )
+    instrument_id: int | None = Field(
+        default=None,
+        description="ID of the Instrument that acquired the Spectrum.",
+    )
+    group_ids: list[int] | str | None = Field(
+        default=None,
+        description='IDs of the Groups to share this spectrum with. Set to "all" to '
+        "make this spectrum visible to all users.",
+    )
+    followup_request_id: int | None = Field(
+        default=None,
+        description="ID of the Followup request that generated this spectrum, if any.",
+    )
+    assignment_id: int | None = Field(
+        default=None,
+        description="ID of the classical assignment that generated this spectrum, "
+        "if any.",
+    )
+    altdata: dict[str, Any] | None = Field(
+        default=None, description="Miscellaneous alternative metadata."
+    )
+
+
+class SpectrumPostResponse(BaseModel):
+    """Data payload returned when uploading a spectrum."""
+
+    id: int = Field(description="New spectrum ID")
+
+
+class SpectrumASCIIParseBody(BaseModel):
+    """Request body for parsing a spectrum from an ASCII file (see
+    SpectrumAsciiFileParseJSON)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    wave_column: int | None = Field(
+        default=None,
+        description="The 0-based index of the ASCII column corresponding to the "
+        "wavelength values of the spectrum (default 0).",
+    )
+    flux_column: int | None = Field(
+        default=None,
+        description="The 0-based index of the ASCII column corresponding to the flux "
+        "values of the spectrum (default 1).",
+    )
+    fluxerr_column: int | None = Field(
+        default=None,
+        description="The 0-based index of the ASCII column corresponding to the flux "
+        "error values of the spectrum (default None). If a column for errors is "
+        "provided, set to the corresponding 0-based column number, otherwise, it "
+        "will be ignored.",
+    )
+    ascii: str | None = Field(
+        default=None, description="The content of the ASCII file to be parsed."
+    )
+
+
+class SpectrumASCIIPostBody(SpectrumASCIIParseBody):
+    """Request body for uploading a spectrum from an ASCII file (see
+    SpectrumAsciiFilePostJSON)."""
+
+    obj_id: str | None = Field(
+        default=None, description="The ID of the object that the spectrum is of."
+    )
+    instrument_id: int | None = Field(
+        default=None, description="The ID of the instrument that took the spectrum."
+    )
+    type: str | None = Field(
+        default=None,
+        description="Type of spectrum. One of the configured allowed spectrum types.",
+    )
+    label: str | None = Field(
+        default=None,
+        description="User defined label to be placed in plot legends, instead of the "
+        "default <instrument>-<date taken>.",
+    )
+    observed_at: str | None = Field(
+        default=None, description="The ISO UTC time the spectrum was taken."
+    )
+    group_ids: list[int] | str | None = Field(
+        default=None,
+        description="The IDs of the groups to share this spectrum with.",
+    )
+    filename: str | None = Field(
+        default=None,
+        description="The original filename (for bookkeeping purposes).",
+    )
+    pi: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who are PI of this Spectrum, or to use as "
+        "points of contact given an external PI.",
+    )
+    external_pi: str | None = Field(
+        default=None, description="Free text provided as an external PI"
+    )
+    reduced_by: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who reduced this Spectrum, or to use as points "
+        "of contact given an external reducer.",
+    )
+    external_reducer: str | None = Field(
+        default=None, description="Free text provided as an external reducer"
+    )
+    observed_by: list[int] | None = Field(
+        default=None,
+        description="IDs of the Users who observed this Spectrum, or to use as points "
+        "of contact given an external observer.",
+    )
+    external_observer: str | None = Field(
+        default=None, description="Free text provided as an external observer"
+    )
+    followup_request_id: int | None = Field(
+        default=None,
+        description="ID of the Followup request that generated this spectrum, if any.",
+    )
+    assignment_id: int | None = Field(
+        default=None,
+        description="ID of the classical assignment that generated this spectrum, "
+        "if any.",
+    )
+
+
+class SpectrumASCIIPostResponse(BaseModel):
+    """Data payload returned when uploading a spectrum from an ASCII file."""
+
+    id: int = Field(description="New spectrum ID")
+
+
+class BulkSpectraPostBody(BaseModel):
+    """Request body for the bulk spectra endpoint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_id: int | None = Field(
+        default=None, description="Restrict to sources saved to this group."
+    )
+    obj_ids: list[str] | str | None = Field(
+        default=None,
+        description="Restrict to these object IDs (also accepts a comma-separated "
+        "string).",
+    )
+    classifications: list[str] | str | None = Field(
+        default=None,
+        description="Restrict to sources with any of these (non-ML) classifications.",
+    )
+    classificationProbThreshold: float | None = Field(
+        default=None,
+        description="Only count classifications at or above this probability.",
+    )
+    maxSources: int | None = Field(
+        default=None,
+        description="Max sources to fetch spectra for (default 200, capped at 1000).",
+    )
+
+
+class SyntheticPhotometryPostBody(BaseModel):
+    """Request body for creating synthetic photometry from a spectrum."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    filters: list[str] | None = Field(default=None, description="List of filters")
 
 
 async def parse_id_list(id_list, model_class, session):
@@ -378,41 +606,18 @@ class SpectrumGetQuery(BaseModel):
 
 class SpectrumHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: SpectrumPostBody = None) -> SpectrumPostResponse:
         """
         ---
         summary: Upload spectrum
         description: Upload spectrum
         tags:
           - spectra
-        requestBody:
-          content:
-            application/json:
-              schema: SpectrumPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New spectrum ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        json = self.get_json()
+        body = self.parse_body(SpectrumPostBody)
 
         try:
-            data = SpectrumPost.load(json)
+            data = SpectrumPost.load(body.model_dump(exclude_unset=True))
         except ValidationError as e:
             return self.error(
                 f"Invalid / missing parameters; {e.normalized_messages()}"
@@ -919,42 +1124,32 @@ class SpectrumHandler(BaseHandler):
             return self.success(data=result_spectra)
 
     @permissions(["Upload data"])
-    async def put(self, spectrum_id: int):
+    async def put(self, spectrum_id: int, *, body: SpectrumPostBody = None):
         """
         ---
         summary: Update a spectrum
         description: Update a spectrum
         tags:
           - spectra
-        requestBody:
-          content:
-            application/json:
-              schema: SpectrumPost
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Spectrum'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(SpectrumPostBody)
+
         try:
             spectrum_id = int(spectrum_id)
         except TypeError:
             return self.error("Could not convert spectrum id to int.")
 
-        data = self.get_json()
-
         try:
-            data = SpectrumPost.load(data, partial=True)
+            data = SpectrumPost.load(body.model_dump(exclude_unset=True), partial=True)
         except ValidationError as e:
             return self.error(f"Invalid/missing parameters: {e.normalized_messages()}")
 
@@ -1155,13 +1350,11 @@ class SpectrumHandler(BaseHandler):
 
 class ASCIIHandler:
     def spec_from_ascii_request(
-        self, validator=SpectrumAsciiFilePostJSON, return_json=False
+        self, data, validator=SpectrumAsciiFilePostJSON, return_json=False
     ):
         """Helper method to read in Spectrum objects from ASCII POST."""
-        json = self.get_json()
-
         try:
-            json = validator.load(json)
+            json = validator.load(data)
         except ValidationError as e:
             raise ValidationError(
                 f"Invalid/missing parameters: {e.normalized_messages()}"
@@ -1204,40 +1397,22 @@ class ASCIIHandler:
 
 class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(
+        self, *, body: SpectrumASCIIPostBody = None
+    ) -> SpectrumASCIIPostResponse:
         """
         ---
         summary: Upload spectrum from ASCII
         description: Upload spectrum from ASCII file
         tags:
           - spectra
-        requestBody:
-          content:
-            application/json:
-              schema: SpectrumAsciiFilePostJSON
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New spectrum ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
+        body = self.parse_body(SpectrumASCIIPostBody)
 
         try:
-            spec, json = self.spec_from_ascii_request(return_json=True)
+            spec, json = self.spec_from_ascii_request(
+                body.model_dump(exclude_unset=True), return_json=True
+            )
         except Exception as e:
             return self.error(f"Error parsing spectrum: {e.args[0]}")
 
@@ -1411,17 +1586,13 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
 class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: SpectrumASCIIParseBody = None):
         """
         ---
         summary: Parse spectrum from ASCII file
         description: Parse spectrum from ASCII file
         tags:
           - spectra
-        requestBody:
-          content:
-            application/json:
-              schema: SpectrumAsciiFileParseJSON
         responses:
           200:
             content:
@@ -1438,9 +1609,13 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(SpectrumASCIIParseBody)
 
         try:
-            spec = self.spec_from_ascii_request(validator=SpectrumAsciiFileParseJSON)
+            spec = self.spec_from_ascii_request(
+                body.model_dump(exclude_unset=True),
+                validator=SpectrumAsciiFileParseJSON,
+            )
         except Exception as e:
             return self.error(f"Error parsing spectrum: {e.args[0]}")
         return self.success(data=spec)
@@ -1675,7 +1850,7 @@ MAX_BULK_SPECTRA = 3000
 
 class BulkSpectraHandler(BaseHandler):
     @auth_or_token
-    def post(self):
+    def post(self, *, body: BulkSpectraPostBody = None):
         """
         ---
         summary: Bulk spectra for a set of sources
@@ -1687,35 +1862,6 @@ class BulkSpectraHandler(BaseHandler):
           view without one request per source.
         tags:
           - spectra
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  group_id:
-                    type: integer
-                    description: Restrict to sources saved to this group.
-                  obj_ids:
-                    type: array
-                    items:
-                      type: string
-                    description: Restrict to these object IDs (also accepts a
-                      comma-separated string).
-                  classifications:
-                    type: array
-                    items:
-                      type: string
-                    description: Restrict to sources with any of these
-                      (non-ML) classifications.
-                  classificationProbThreshold:
-                    type: number
-                    description: Only count classifications at or above this
-                      probability.
-                  maxSources:
-                    type: integer
-                    description: Max sources to fetch spectra for (default 200,
-                      capped at 1000).
         responses:
           200:
             content:
@@ -1726,11 +1872,11 @@ class BulkSpectraHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
-        group_id = data.get("group_id")
-        obj_ids = data.get("obj_ids")
-        classifications = data.get("classifications")
-        prob_threshold = data.get("classificationProbThreshold")
+        body = self.parse_body(BulkSpectraPostBody)
+        group_id = body.group_id
+        obj_ids = body.obj_ids
+        classifications = body.classifications
+        prob_threshold = body.classificationProbThreshold
 
         if isinstance(obj_ids, str):
             obj_ids = [o.strip() for o in obj_ids.split(",") if o.strip()]
@@ -1738,15 +1884,11 @@ class BulkSpectraHandler(BaseHandler):
             classifications = [
                 c.strip() for c in classifications.split(",") if c.strip()
             ]
-        if prob_threshold is not None:
-            try:
-                prob_threshold = float(prob_threshold)
-            except (TypeError, ValueError):
-                return self.error("classificationProbThreshold must be a number")
-        try:
-            max_sources = int(data.get("maxSources", DEFAULT_BULK_SPECTRA_SOURCES))
-        except (TypeError, ValueError):
-            return self.error("maxSources must be an integer")
+        max_sources = (
+            body.maxSources
+            if body.maxSources is not None
+            else DEFAULT_BULK_SPECTRA_SOURCES
+        )
         max_sources = max(1, min(max_sources, MAX_BULK_SPECTRA_SOURCES))
 
         with self.Session() as session:
@@ -1919,34 +2061,25 @@ class SpectrumRangeHandler(BaseHandler):
 
 class SyntheticPhotometryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, spectrum_id: int):
+    async def post(self, spectrum_id: int, *, body: SyntheticPhotometryPostBody = None):
         """
         ---
         summary: Create synthetic photometry from a spectrum
         description: Create synthetic photometry from a spectrum
         tags:
           - spectra
-        parameters:
-          - in: query
-            name: filters
-            schema:
-              type: list
-            required: true
-            description: |
-                List of filters
         responses:
           200:
             content:
               application/json:
-                schema: SingleSpectrum
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
-
-        data = self.get_json()
-        filters = data.get("filters")
+        body = self.parse_body(SyntheticPhotometryPostBody)
+        filters = body.filters
 
         async with self.AsyncSession() as session:
             spectrum = await session.scalar(

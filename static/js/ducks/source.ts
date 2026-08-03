@@ -354,13 +354,19 @@ export const sourceApi = skyportalApi.injectEndpoints({
       Record<string, any>
     >({
       queryFn: async (formData, _api, _extra, baseQuery) => {
-        const body = { ...formData };
-        if (body["attachment"]) {
-          body["attachment"] = await fileReaderPromise(body["attachment"]);
+        const url = formData["spectrum_id"]
+          ? `api/spectra/${formData["spectrum_id"]}/comments`
+          : `api/sources/${formData["obj_id"]}/comments`;
+        // Only the comment body keys; obj_id/spectrum_id are path params.
+        const body: Record<string, any> = {};
+        if (formData["text"] !== undefined) body["text"] = formData["text"];
+        if (formData["group_ids"] !== undefined)
+          body["group_ids"] = formData["group_ids"];
+        if (formData["channel"] !== undefined)
+          body["channel"] = formData["channel"];
+        if (formData["attachment"]) {
+          body["attachment"] = await fileReaderPromise(formData["attachment"]);
         }
-        const url = body["spectrum_id"]
-          ? `api/spectra/${body["spectrum_id"]}/comments`
-          : `api/sources/${body["obj_id"]}/comments`;
         const result = await baseQuery({ url, method: "POST", body });
         if (result.error) {
           return { error: result.error };
@@ -377,13 +383,17 @@ export const sourceApi = skyportalApi.injectEndpoints({
       { commentID: number | string; formData: Record<string, any> }
     >({
       queryFn: async ({ commentID, formData }, _api, _extra, baseQuery) => {
-        const body = { ...formData };
-        if (body["attachment"]) {
-          body["attachment"] = await fileReaderPromise(body["attachment"]);
+        const url = formData["spectrum_id"]
+          ? `api/spectra/${formData["spectrum_id"]}/comments/${commentID}`
+          : `api/sources/${formData["obj_id"]}/comments/${commentID}`;
+        // Only the comment body keys; obj_id/spectrum_id are path params.
+        const body: Record<string, any> = {};
+        if (formData["text"] !== undefined) body["text"] = formData["text"];
+        if (formData["group_ids"] !== undefined)
+          body["group_ids"] = formData["group_ids"];
+        if (formData["attachment"]) {
+          body["attachment"] = await fileReaderPromise(formData["attachment"]);
         }
-        const url = body["spectrum_id"]
-          ? `api/spectra/${body["spectrum_id"]}/comments/${commentID}`
-          : `api/sources/${body["obj_id"]}/comments/${commentID}`;
         const result = await baseQuery({ url, method: "PUT", body });
         if (result.error) {
           return { error: result.error };
