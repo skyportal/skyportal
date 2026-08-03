@@ -1,4 +1,4 @@
-"""filter broker_id
+"""filter broker_id + broker defaults
 
 Revision ID: b7e1f4a90c31
 Revises: 2c4c3061af22
@@ -30,23 +30,65 @@ def upgrade():
         ["id"],
         ondelete="SET NULL",
     )
-    # BOOM was the only broker running filters so far, so every existing filter
-    # belongs to it (NULL if it isn't configured). The binding used to live in
-    # altdata; the column replaces it, so drop the key.
+    # BOOM was the only broker running filters so far, and a filter it runs
+    # carries its binding under altdata's 'boom' key. Only those belong to it
+    # (NULL if it isn't configured); every other filter stays unattached.
     op.execute(
         """
         UPDATE filters
         SET broker_id = (
             SELECT min(id) FROM brokers WHERE broker_classname = 'BOOMBROKER'
         )
+        WHERE altdata ? 'boom'
         """
     )
     op.execute(
         "UPDATE filters SET altdata = altdata - 'broker_id' WHERE altdata ? 'broker_id'"
     )
 
+    op.add_column(
+        "brokers",
+        sa.Column(
+            "default_alert_search",
+            sa.Boolean(),
+            nullable=False,
+            server_default="false",
+        ),
+    )
+    op.add_column(
+        "brokers",
+        sa.Column(
+            "default_crossmatch", sa.Boolean(), nullable=False, server_default="false"
+        ),
+    )
+    op.create_index(
+        "brokers_default_alert_search",
+        "brokers",
+        ["default_alert_search"],
+        unique=True,
+        postgresql_where=sa.text("default_alert_search"),
+    )
+    op.create_index(
+        "brokers_default_crossmatch",
+        "brokers",
+        ["default_crossmatch"],
+        unique=True,
+        postgresql_where=sa.text("default_crossmatch"),
+    )
+    op.execute(
+        """
+        UPDATE brokers
+        SET default_alert_search = true, default_crossmatch = true
+        WHERE id = (SELECT min(id) FROM brokers WHERE active)
+        """
+    )
+
 
 def downgrade():
+    op.drop_index("brokers_default_crossmatch", table_name="brokers")
+    op.drop_index("brokers_default_alert_search", table_name="brokers")
+    op.drop_column("brokers", "default_crossmatch")
+    op.drop_column("brokers", "default_alert_search")
     op.execute(
         """
         UPDATE filters
