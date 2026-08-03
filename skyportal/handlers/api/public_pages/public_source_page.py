@@ -1,9 +1,11 @@
 import json
 import operator  # noqa: F401
+from typing import Any
 
 import joblib
 import numpy as np
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import not_, or_
 
 from baselayer.app.access import auth_or_token, permissions
@@ -255,9 +257,31 @@ def delete_auto_published_page(source_id, remaining_group_ids):
         session.commit()
 
 
+class PublicSourcePagePostBody(BaseModel):
+    """Request body for creating a public page for a source."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    options: dict[str, Any] | None = Field(
+        default=None, description="Options to manage data to display publicly"
+    )
+    release_id: Any = Field(
+        default=None,
+        description="The ID of the public release where the public source page belongs",
+    )
+
+
+class PublicSourcePagePostResponse(BaseModel):
+    """ID of the newly created public source page."""
+
+    id: int = Field(description="Public source page ID")
+
+
 class PublicSourcePageHandler(BaseHandler):
     @permissions(["Manage sources"])
-    async def post(self, source_id: str):
+    async def post(
+        self, source_id: str, *, body: PublicSourcePagePostBody = None
+    ) -> PublicSourcePagePostResponse:
         """
         ---
           summary: Create a public page for a source
@@ -273,39 +297,16 @@ class PublicSourcePageHandler(BaseHandler):
                 type: string
                 required: true
                 description: The ID of the source from which to create a public page
-          requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            options:
-                                type: object
-                                required: true
-                                description: Options to manage data to display publicly
-                            release_id:
-                                type: integer
-                                required: false
-                                description: The ID of the public release where the public source page belongs
-          responses:
-            200:
-              content:
-                application/json:
-                  schema: Success
-            400:
-              content:
-                application/json:
-                  schema: Error
         """
-        data = self.get_json()
-        if data is None or data == {}:
+        body = self.parse_body(PublicSourcePagePostBody)
+        if not body.model_fields_set:
             return self.error("No data provided")
         if source_id is None:
             return self.error("Source ID is required")
-        options = data.get("options")
+        options = body.options
         if options is None:
             return self.error("Options are required")
-        release_id = data.get("release_id")
+        release_id = body.release_id
         if release_id is not None and not isinstance(release_id, int):
             return self.error("Invalid release ID")
 

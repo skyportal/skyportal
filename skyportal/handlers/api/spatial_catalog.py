@@ -1,9 +1,11 @@
 import time
 from io import StringIO
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func
 from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
@@ -148,43 +150,54 @@ def delete_catalog(catalog_id):
         Session.remove()
 
 
+class SpatialCatalogPostBody(BaseModel):
+    """Request body for ingesting a spatial catalog."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_name: Any = Field(default=None, description="Spatial catalog name.")
+    catalog_data: Any = Field(default=None, description="Spatial catalog data")
+
+
+class SpatialCatalogPostResponse(BaseModel):
+    """ID of the newly created spatial catalog."""
+
+    id: int = Field(description="New spatial catalog ID")
+
+
+class SpatialCatalogASCIIFilePostBody(BaseModel):
+    """Request body for uploading a spatial catalog from an ASCII file."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalogData: str | None = Field(
+        default=None, description="Catalog data Ascii string"
+    )
+    catalogName: str | None = Field(default=None, description="Spatial catalog name.")
+
+
+class SpatialCatalogASCIIFilePostResponse(BaseModel):
+    """ID of the newly created spatial catalog."""
+
+    id: int = Field(description="New spatial catalog ID")
+
+
 class SpatialCatalogHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(
+        self, *, body: SpatialCatalogPostBody = None
+    ) -> SpatialCatalogPostResponse:
         """
         ---
         summary: Ingest a Spatial Catalog
         description: Ingest a Spatial Catalog
         tags:
           - spatial catalogs
-        requestBody:
-          content:
-            application/json:
-              schema: SpatialCatalogHandlerPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New spatial catalog ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
 
-        data = self.get_json()
-        catalog_name = data.get("catalog_name")
-        catalog_data = data.get("catalog_data")
+        body = self.parse_body(SpatialCatalogPostBody)
+        catalog_name = body.catalog_name
+        catalog_data = body.catalog_data
 
         if catalog_name is None:
             return self.error("catalog_name is a required parameter.")
@@ -361,41 +374,20 @@ class SpatialCatalogHandler(BaseHandler):
 
 class SpatialCatalogASCIIFileHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(
+        self, *, body: SpatialCatalogASCIIFilePostBody = None
+    ) -> SpatialCatalogASCIIFilePostResponse:
         """
         ---
         summary: Upload a Spatial Catalog from ASCII file
         description: Upload spatial catalog from ASCII file
         tags:
           - spatial catalogs
-        requestBody:
-          content:
-            application/json:
-              schema: SpatialCatalogASCIIFileHandlerPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New spatial catalog ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
 
-        json = self.get_json()
-        catalog_data = json.pop("catalogData", None)
-        catalog_name = json.pop("catalogName", None)
+        body = self.parse_body(SpatialCatalogASCIIFilePostBody)
+        catalog_data = body.catalogData
+        catalog_name = body.catalogName
 
         if catalog_data is None:
             return self.error(message="Missing catalog_data")

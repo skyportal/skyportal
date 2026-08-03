@@ -1,4 +1,7 @@
+from typing import Any
+
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
@@ -11,6 +14,27 @@ from ...base import BaseHandler
 from .scan_report_item import create_scan_report_item
 
 log = make_log("api/scan_report")
+
+
+class ScanReportPostBody(BaseModel):
+    """Request body for populating a candidate scanning report."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="Groups used to filter the candidates and manage the report",
+    )
+    passed_filters_range: dict[str, Any] | None = Field(
+        default=None,
+        description="Range (start_date, end_date) between which the candidates "
+        "passed the filters",
+    )
+    saved_candidates_range: dict[str, Any] | None = Field(
+        default=None,
+        description="Range (start_saved_date, end_saved_date) between which the "
+        "candidates were saved as sources",
+    )
 
 
 async def get_sources_by_objs_in_range(
@@ -63,73 +87,34 @@ async def get_sources_by_objs_in_range(
 
 class ScanReportHandler(BaseHandler):
     @auth_or_token
-    async def post(self):
+    async def post(self, *, body: ScanReportPostBody = None):
         """
         ---
         summary: Populate the candidate scanning report with all saved candidates in a given range
         tags:
           - report
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: groups use to filter the candidates and manage the report
-                  passed_filters_range:
-                    type: object
-                    properties:
-                      start_date:
-                        type: string
-                        format: date-time
-                        description: Start date of the passed filters range
-                      end_date:
-                        type: string
-                        format: date-time
-                        description: End date of the passed filters range
-                    saved_candidates_range:
-                      type: object
-                      properties:
-                        start_saved_date:
-                          type: string
-                          format: date-time
-                          description: Start date of the saved candidates range
-                        end_saved_date:
-                          type: string
-                          format: date-time
-                          description: End date of the saved candidates range
         responses:
             200:
                 content:
                   application/json:
-                    schema:
-                      allOf:
-                        - $ref: '#/components/schemas/Success'
-                        - type: object
-                          properties:
-                            data:
-                              $ref: '#/components/schemas/ScanReport'
+                    schema: Success
             400:
                 content:
                   application/json:
                     schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(ScanReportPostBody)
 
         async with self.AsyncSession() as session:
-            group_ids = data.get("group_ids")
+            group_ids = body.group_ids
             if not group_ids:
                 return self.error("No groups provided")
 
-            passed_filters_range = data.get("passed_filters_range")
+            passed_filters_range = body.passed_filters_range
             if not passed_filters_range:
                 return self.error("No passed filters range provided")
 
-            saved_range = data.get("saved_candidates_range")
+            saved_range = body.saved_candidates_range
             if not saved_range:
                 return self.error("No saved candidates range provided")
 

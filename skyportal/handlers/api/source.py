@@ -9,6 +9,7 @@ import re
 import time
 import traceback
 from json.decoder import JSONDecodeError
+from typing import Any
 
 import arrow
 import astropy
@@ -32,6 +33,7 @@ from dateutil.parser import isoparse
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 from matplotlib import dates
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import (
     scoped_session,
@@ -1290,6 +1292,131 @@ def paginate_summary_query(session, query, page, num_per_page, total_matches):
     return {"sources": session.scalars(query).all(), "total_matches": total_matches}
 
 
+class _ObjBody(BaseModel):
+    """Shared optional `Obj` fields accepted by the Obj marshmallow schema
+    (``Obj.__schema__()``) on source/candidate writes. Deep validation and
+    coercion are still performed by that schema; this only constrains the
+    top-level shape."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ra: float | None = Field(None, description="ICRS Right Ascension [deg].")
+    dec: float | None = Field(None, description="ICRS Declination [deg].")
+    ra_dis: float | None = Field(
+        None, description="J2000 Right Ascension at discovery time [deg]."
+    )
+    dec_dis: float | None = Field(
+        None, description="J2000 Declination at discovery time [deg]."
+    )
+    ra_err: float | None = Field(
+        None, description="Error on J2000 Right Ascension at discovery time [deg]."
+    )
+    dec_err: float | None = Field(
+        None, description="Error on J2000 Declination at discovery time [deg]."
+    )
+    offset: float | None = Field(
+        None, description="Offset from nearest static object [arcsec]."
+    )
+    t0: float | None = Field(None, description="Reference time.")
+    redshift: float | None = Field(None, description="Redshift.")
+    redshift_error: float | None = Field(None, description="Redshift error.")
+    redshift_origin: str | None = Field(None, description="Redshift source.")
+    redshift_history: Any = Field(
+        None, description="Record of who set which redshift values and when."
+    )
+    host_id: int | None = Field(
+        None, description="The ID of the Galaxy to which this Obj is associated."
+    )
+    summary: str | None = Field(None, description="Summary of the obj.")
+    summary_history: Any = Field(
+        None,
+        description="Record of the summaries generated and written about this obj",
+    )
+    altdata: Any = Field(
+        None,
+        description="Misc. alternative metadata stored in JSON format, e.g. "
+        "`{'gaia': {'info': {'Teff': 5780}}}`",
+    )
+    dist_nearest_source: float | None = Field(
+        None, description="Distance to the nearest Obj [arcsec]."
+    )
+    mag_nearest_source: float | None = Field(
+        None, description="Magnitude of the nearest Obj [AB]."
+    )
+    e_mag_nearest_source: float | None = Field(
+        None, description="Error on magnitude of the nearest Obj [mag]."
+    )
+    transient: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is an astrophysical transient.",
+    )
+    varstar: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is a variable star.",
+    )
+    is_roid: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is a moving object.",
+    )
+    mpc_name: str | None = Field(None, description="Minor planet center name.")
+    gcn_crossmatch: list[str] | None = Field(
+        None, description="List of GCN event dateobs for crossmatched events."
+    )
+    tns_name: str | None = Field(None, description="Transient Name Server name.")
+    tns_info: Any = Field(None, description="TNS info in JSON format")
+    score: float | None = Field(None, description="Machine learning score.")
+    origin: str | None = Field(None, description="Origin of the object.")
+    alias: list[str] | None = Field(
+        None, description="Alternative names for this object."
+    )
+    internal_key: str | None = Field(
+        None, description="Internal key used for secure websocket messaging."
+    )
+    detect_photometry_count: int | None = Field(
+        None,
+        description="How many times the object was detected above the S/N threshold.",
+    )
+
+
+class SourcePostBody(_ObjBody):
+    """Request body for saving a new (or existing) source."""
+
+    id: str = Field(description="Name of the object.")
+    group_ids: list[int] | None = Field(
+        None,
+        description="List of associated group IDs. If not specified, all of the "
+        "user or token's groups will be used.",
+    )
+    refresh_source: bool = Field(
+        True, description="Refresh source upon post. Defaults to True."
+    )
+    ignore_if_in_group_ids: dict | None = Field(
+        None,
+        description="Dict mapping a group_id to a list of group_ids; saving to the "
+        "key group is skipped if an active source already exists in one of the "
+        "listed groups. Ignored when creating a new object.",
+    )
+    saver_per_group_id: dict | None = Field(
+        None,
+        description="Admin-only. Dict mapping group_ids to the user_ids to record as "
+        "the saver for that group. Defaults to the requesting user.",
+    )
+
+
+class SourcePatchBody(_ObjBody):
+    """Request body for updating an existing source (obj_id comes from the path)."""
+
+
+class SourceDeleteBody(BaseModel):
+    """Request body for unsaving a source from a group."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_id: int | None = Field(
+        None, description="ID of the group to unsave the source from."
+    )
+
+
 class SourceHandler(BaseHandler):
     @auth_or_token
     async def head(self, obj_id=None):
@@ -2399,32 +2526,13 @@ class SourceHandler(BaseHandler):
             return self.success(data=query_results)
 
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: SourcePostBody = None):
         """
         ---
         summary: Add a new source
         description: Add a new source
         tags:
           - sources
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ObjPost'
-                  - type: object
-                    properties:
-                      group_ids:
-                        type: array
-                        items:
-                          type: integer
-                        description: |
-                          List of associated group IDs. If not specified, all of the
-                          user or token's groups will be used.
-                      refresh_source:
-                        type: bool
-                        description: |
-                          Refresh source upon post. Defaults to True.
         responses:
           200:
             content:
@@ -2441,6 +2549,7 @@ class SourceHandler(BaseHandler):
                               type: string
                               description: New source ID
         """
+        body = self.parse_body(SourcePostBody)
 
         # Note that this POST method allows updating an object,
         # something usually reserved for PATCH/PUT. This is because
@@ -2448,7 +2557,7 @@ class SourceHandler(BaseHandler):
         # object before (and therefore would have been unaware of its
         # existence).
 
-        data = self.get_json()
+        data = body.model_dump(exclude_unset=True)
         refresh_source = data.pop("refresh_source", True)
 
         async with self.AsyncSession() as session:
@@ -2470,7 +2579,7 @@ class SourceHandler(BaseHandler):
                 return self.error(f"Failed to post source: {str(e)}")
 
     @permissions(["Upload data"])
-    async def patch(self, obj_id: str):
+    async def patch(self, obj_id: str, *, body: SourcePatchBody = None):
         """
         ---
         summary: Update a source
@@ -2483,10 +2592,6 @@ class SourceHandler(BaseHandler):
             required: True
             schema:
               type: string
-        requestBody:
-          content:
-            application/json:
-              schema: ObjNoID
         responses:
           200:
             content:
@@ -2503,7 +2608,8 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(SourcePatchBody)
+        data = body.model_dump(exclude_unset=True)
         data["id"] = obj_id
 
         async with self.AsyncSession() as session:
@@ -2558,7 +2664,7 @@ class SourceHandler(BaseHandler):
         return self.success()
 
     @permissions(["Manage sources"])
-    async def delete(self, obj_id: str):
+    async def delete(self, obj_id: str, *, body: SourceDeleteBody = None):
         """
         ---
         summary: Delete a source
@@ -2571,19 +2677,15 @@ class SourceHandler(BaseHandler):
             required: true
             schema:
               type: string
-          - in: query
-            name: group_id
-            required: true
-            schema:
-              type: string
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
+        body = self.parse_body(SourceDeleteBody)
 
-        data = self.get_json()
+        data = body.model_dump(exclude_unset=True)
 
         if data.get("group_id") is None:
             return self.error("Missing required parameter `group_id`")
@@ -3276,43 +3378,36 @@ class FinderChartFacilitiesHandler(BaseHandler):
         return self.success(data=facility_parameters)
 
 
+class SourceNotificationPostBody(BaseModel):
+    """Request body for sending a source notification."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    groupIds: list[int] = Field(
+        description="List of IDs of groups whose members should get the notification "
+        "(if they've opted in)"
+    )
+    sourceId: str = Field(
+        description="The ID of the Source's Obj the notification is being sent about"
+    )
+    level: str = Field(
+        description="Either 'soft' or 'hard', determines whether to send an email or "
+        "email+SMS notification"
+    )
+    additionalNotes: str | None = Field(
+        None, description="Notes to append to the message sent out"
+    )
+
+
 class SourceNotificationHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: SourceNotificationPostBody = None):
         """
         ---
         summary: Send a source notification
         description: Send out a new source notification
         tags:
           - sources
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  additionalNotes:
-                    type: string
-                    description: |
-                      Notes to append to the message sent out
-                  groupIds:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of IDs of groups whose members should get the notification (if they've opted in)
-                  sourceId:
-                    type: string
-                    description: |
-                      The ID of the Source's Obj the notification is being sent about
-                  level:
-                    type: string
-                    description: |
-                      Either 'soft' or 'hard', determines whether to send an email or email+SMS notification
-                required:
-                  - groupIds
-                  - sourceId
-                  - level
         responses:
           200:
             content:
@@ -3331,7 +3426,8 @@ class SourceNotificationHandler(BaseHandler):
         """
         if not cfg["notifications.enabled"]:
             return self.error("Notifications are not enabled in current deployment.")
-        data = self.get_json()
+        body = self.parse_body(SourceNotificationPostBody)
+        data = body.model_dump(exclude_unset=True)
 
         additional_notes = data.get("additionalNotes")
         if isinstance(additional_notes, str):
@@ -3421,9 +3517,26 @@ class SourceNotificationHandler(BaseHandler):
             return self.success(data={"id": new_notification.id})
 
 
+class SurveyThumbnailPostBody(BaseModel):
+    """Request body for adding survey thumbnails to one or more objects."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    objID: str | None = Field(None, description="ID of the object to add thumbnails to")
+    objIDs: list[str] | None = Field(
+        None, description="List of object IDs to add thumbnails to"
+    )
+    types: list[str] | None = Field(
+        None,
+        description="Survey thumbnail types to add. Must be a subset of the "
+        "configured default and on-demand types. Defaults to the configured "
+        "default types.",
+    )
+
+
 class SurveyThumbnailHandler(BaseHandler):
     @auth_or_token  # We should allow these requests from view-only users (triggered on source page)
-    async def post(self):
+    async def post(self, *, body: SurveyThumbnailPostBody = None):
         """
         ---
         summary: Add survey thumbnails to a source
@@ -3432,20 +3545,6 @@ class SurveyThumbnailHandler(BaseHandler):
         tags:
           - sources
           - thumbnails
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  objID:
-                    type: string
-                    description: ID of the object to add thumbnails to
-                  objIDs:
-                    type: array
-                    items:
-                      type: string
-                    description: List of object IDs to add thumbnails to
         responses:
           200:
             content:
@@ -3456,7 +3555,8 @@ class SurveyThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(SurveyThumbnailPostBody)
+        data = body.model_dump(exclude_unset=True)
         obj_id = data.get("objID")
         obj_ids = data.get("objIDs")
 
@@ -3632,9 +3732,22 @@ class SourceObservabilityPlotHandler(BaseHandler):
             await self.send_file(data, filename, output_type=output_format)
 
 
+class SourceCopyPhotometryPostBody(BaseModel):
+    """Request body for copying photometry from one source to another."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_ids: list[int] = Field(
+        description="List of IDs of groups to give photometry access to"
+    )
+    origin_id: str = Field(
+        description="The ID of the Source's Obj the photometry is being copied from"
+    )
+
+
 class SourceCopyPhotometryHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, target_id: str):
+    async def post(self, target_id: str, *, body: SourceCopyPhotometryPostBody = None):
         """
         ---
         summary: Copy photometry from one source to another
@@ -3650,25 +3763,6 @@ class SourceCopyPhotometryHandler(BaseHandler):
               type: string
             description: |
               The obj_id of the target Source (to which the photometry is being copied to)
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  group_ids:
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of IDs of groups to give photometry access to
-                  origin_id:
-                    type: string
-                    description: |
-                      The ID of the Source's Obj the photometry is being copied from
-                required:
-                  - group_ids
-                  - origin_id
         responses:
           200:
             content:
@@ -3677,8 +3771,9 @@ class SourceCopyPhotometryHandler(BaseHandler):
                   allOf:
                     - $ref: '#/components/schemas/Success'
         """
+        body = self.parse_body(SourceCopyPhotometryPostBody)
 
-        data = self.get_json()
+        data = body.model_dump(exclude_unset=True)
 
         if data.get("group_ids") is None:
             return self.error("Missing required parameter `groupIds`")

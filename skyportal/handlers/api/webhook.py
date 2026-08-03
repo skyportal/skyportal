@@ -1,3 +1,6 @@
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app import models as baselayer_models
@@ -17,8 +20,35 @@ log = make_log("app/webhook")
 _, cfg = load_env()
 
 
+class AnalysisWebhookPostBody(BaseModel):
+    """Result payload posted back by an external analysis service.
+
+    External services may include additional keys, so extras are allowed
+    rather than forbidden.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    status: str | None = Field(
+        default=None, description="Status of the analysis run, e.g. 'success'."
+    )
+    message: str | None = Field(
+        default=None,
+        description="Status/return message from the analysis service.",
+    )
+    analysis: dict[str, Any] | None = Field(
+        default=None, description="Results data of this analysis."
+    )
+
+
 class AnalysisWebhookHandler(BaseHandler):
-    async def post(self, analysis_resource_type: str, token: str):
+    async def post(
+        self,
+        analysis_resource_type: str,
+        token: str,
+        *,
+        body: AnalysisWebhookPostBody = None,
+    ):
         """
         ---
         summary: Return the results of an analysis
@@ -41,15 +71,6 @@ class AnalysisWebhookHandler(BaseHandler):
               type: string
             description: |
                The unique token for this analysis.
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  results:
-                    type: object
-                    description: Results data of this analysis
         responses:
           200:
             content:
@@ -60,6 +81,7 @@ class AnalysisWebhookHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(AnalysisWebhookPostBody)
         log(
             f"Received webhook request for Analysis type={analysis_resource_type} token={token}"
         )
@@ -101,13 +123,11 @@ class AnalysisWebhookHandler(BaseHandler):
                 log(f"Trouble accessing Analysis with token {token} {e}.")
                 return self.error("Invalid token", status=403)
 
-            data = self.get_json()
-
-            if data.get("status", "error") != "success":
+            if (body.status or "error") != "success":
                 analysis.status = "failure"
-            analysis.status_message = data.get("message", "")
+            analysis.status_message = body.message or ""
 
-            results = data.get("analysis", {})
+            results = body.analysis or {}
             if len(results.keys()) > 0:
                 analysis._data = results
                 analysis.save_data()
