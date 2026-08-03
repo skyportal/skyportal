@@ -74,46 +74,39 @@ teams:
     group_ids: ["=program_A"]
     =id: team_tvs
 
-# Public (no-auth) alert brokers, available out of the box. Credentialed ones
-# (BOOM, Babamul, Lasair, Pitt-Google) are configured per-deployment via
-# /brokers. See doc/broker_plugins.md.
+# Alert brokers available out of the box. BOOM and Lasair carry "demo"
+# credentials just to load; set the real ones via /brokers. See doc/broker_plugins.md.
 brokers:
-  - name: ALeRCE (ZTF)
+  - name: ALeRCE
     broker_classname: ALERCEBROKER
     active: true
-    altdata:
-      survey: ZTF
-  - name: ALeRCE (LSST)
-    broker_classname: ALERCEBROKER
-    active: true
-    altdata:
-      survey: LSST
-  - name: ANTARES (ZTF)
+  - name: ANTARES
     broker_classname: ANTARESBROKER
     active: true
-    altdata:
-      survey: ZTF
-  - name: ANTARES (LSST)
-    broker_classname: ANTARESBROKER
-    active: true
-    altdata:
-      survey: LSST
   - name: BOOM
     broker_classname: BOOMBROKER
     active: true
     altdata:
       protocol: https
       host: api.kaboom.caltech.edu
-  - name: Fink (ZTF)
+      username: demo
+      password: demo
+    =id: BOOM
+  - name: Fink
     broker_classname: FINKBROKER
     active: true
-    altdata:
-      survey: ZTF
-  - name: Fink (LSST)
-    broker_classname: FINKBROKER
+  - name: Lasair ZTF
+    broker_classname: LASAIRBROKER
     active: true
     altdata:
-      survey: LSST
+      endpoint: https://lasair-ztf.lsst.ac.uk/api
+      token: demo
+  - name: Lasair LSST
+    broker_classname: LASAIRBROKER
+    active: true
+    altdata:
+      endpoint: https://api.lasair.lsst.ac.uk/api
+      token: demo
 
 streams:
   - name: ZTF Public
@@ -163,10 +156,12 @@ filters:
   - name: Yellow transients
     group_id: =program_A
     stream_id: =ztf_partnership
+    broker_id: =BOOM
     =id: example_filter
   - name: Demo filter
     group_id: =program_B
     stream_id: =ztf_public
+    broker_id: =BOOM
     altdata:
       boom:
           filter_id: FILTER_ID
