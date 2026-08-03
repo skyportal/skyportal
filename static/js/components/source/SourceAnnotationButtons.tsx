@@ -61,8 +61,18 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
     useState<any>(null);
   const handleAnnotationPhotoz = async (id: string) => {
     setIsSubmittingAnnotationPhotoz(id);
-    await fetchPhotoz(id);
+    await fetchPhotoz({ sourceID: id, catalog: "ls_dr10" });
     setIsSubmittingAnnotationPhotoz(null);
+  };
+
+  const [
+    isSubmittingAnnotationPhotozDesi,
+    setIsSubmittingAnnotationPhotozDesi,
+  ] = useState<any>(null);
+  const handleAnnotationDesi = async (id: string) => {
+    setIsSubmittingAnnotationPhotozDesi(id);
+    await fetchPhotoz({ sourceID: id, catalog: "desi_dr1" });
+    setIsSubmittingAnnotationPhotozDesi(null);
   };
 
   const [isSubmittingAnnotationPS1, setIsSubmittingAnnotationPS1] =
@@ -164,7 +174,24 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
           type="submit"
           data-testid={`photozRequest_${source.id}`}
         >
-          Photoz
+          Photoz LS DR10
+        </Button>
+      )}
+      {isSubmittingAnnotationPhotozDesi === source.id ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <Button
+          secondary
+          onClick={() => {
+            handleAnnotationDesi(source.id);
+          }}
+          size="small"
+          type="submit"
+          data-testid={`photozDesiRequest_${source.id}`}
+        >
+          DESI DR1
         </Button>
       )}
       {isSubmittingAnnotationPS1 === source.id ? (
