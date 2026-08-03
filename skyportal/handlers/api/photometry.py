@@ -1856,31 +1856,31 @@ class PhotometryFlexibleBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    obj_id: str | int | list[str | int] | None = Field(
+    obj_id: str | int | list[str | int | None] | None = Field(
         default=None,
         description="ID of the `Obj`(s) to which the photometry will be "
         "attached. Can be given as a scalar or a 1D list. If a scalar, will be "
         "broadcast to all values given as lists. Null values are not allowed.",
     )
-    mjd: float | list[float] | None = Field(
+    mjd: float | list[float | None] | None = Field(
         default=None,
         description="MJD of the observation(s). Can be given as a scalar or a "
         "1D list. If a scalar, will be broadcast to all values given as lists. "
         "Null values not allowed.",
     )
-    instrument_id: int | str | list[int | str] | None = Field(
+    instrument_id: int | str | list[int | str | None] | None = Field(
         default=None,
         description="ID of the `Instrument`(s) with which the photometry was "
         "acquired. Can be given as a scalar or a 1D list. If a scalar, will be "
         "broadcast to all values given as lists. Null values are not allowed.",
     )
-    filter: str | list[str] | None = Field(
+    filter: str | list[str | None] | None = Field(
         default=None,
         description="The bandpass of the observation(s). Can be given as a "
         "scalar or a 1D list. If a scalar, will be broadcast to all values "
         "given as lists. Null values not allowed.",
     )
-    magsys: str | list[str] | None = Field(
+    magsys: str | list[str | None] | None = Field(
         default=None,
         description="The magnitude system to which the flux/mag, error, and "
         "zeropoint are tied. Can be given as a scalar or a 1D list. If a "
@@ -1891,29 +1891,29 @@ class PhotometryFlexibleBody(BaseModel):
         default=None,
         description="ID of the classical assignment which generated the photometry.",
     )
-    ra: float | list[float] | None = Field(
+    ra: float | list[float | None] | None = Field(
         default=None,
         description="ICRS Right Ascension of the centroid of the photometric "
         "aperture [deg]. Can be given as a scalar or a 1D list. Null values "
         "allowed.",
     )
-    dec: float | list[float] | None = Field(
+    dec: float | list[float | None] | None = Field(
         default=None,
         description="ICRS Declination of the centroid of the photometric "
         "aperture [deg]. Can be given as a scalar or a 1D list. Null values "
         "allowed.",
     )
-    ra_unc: float | list[float] | None = Field(
+    ra_unc: float | list[float | None] | None = Field(
         default=None,
         description="Uncertainty on RA [arcsec]. Can be given as a scalar or a "
         "1D list. Null values allowed.",
     )
-    dec_unc: float | list[float] | None = Field(
+    dec_unc: float | list[float | None] | None = Field(
         default=None,
         description="Uncertainty on dec [arcsec]. Can be given as a scalar or a "
         "1D list. Null values allowed.",
     )
-    origin: str | list[str] | None = Field(
+    origin: str | list[str | None] | None = Field(
         default=None,
         description="Provenance of the Photometry. If a record is already "
         "present with identical origin, only the groups or streams list will be "
@@ -1940,71 +1940,71 @@ class PhotometryFlexibleBody(BaseModel):
         "corrected; SkyPortal re-reddens them so stored photometry stays "
         "observed. Defaults to false.",
     )
-    flux: float | list[float] | None = Field(
+    flux: float | list[float | None] | None = Field(
         default=None,
         description="Flux of the observation(s) in counts. Can be given as a "
         "scalar or a 1D list. Null values allowed (e.g. upper limits, where "
         "fluxerr is used to derive a limiting magnitude).",
     )
-    fluxerr: float | list[float] | None = Field(
+    fluxerr: float | list[float | None] | None = Field(
         default=None,
         description="Gaussian error on the flux in counts. Can be given as a "
         "scalar or a 1D list. Null values not allowed.",
     )
-    zp: float | list[float] | None = Field(
+    zp: float | list[float | None] | None = Field(
         default=None,
         description="Magnitude zeropoint, given by `zp` in the equation "
         "`m = -2.5 log10(flux) + zp`. Can be given as a scalar or a 1D list. "
         "Null values not allowed.",
     )
-    ref_flux: float | list[float] | None = Field(
+    ref_flux: float | list[float | None] | None = Field(
         default=None,
         description="Flux of the reference image in counts. Can be given as a "
         "scalar or a 1D list. Null values allowed if no reference is given.",
     )
-    ref_fluxerr: float | list[float] | None = Field(
+    ref_fluxerr: float | list[float | None] | None = Field(
         default=None,
         description="Gaussian error on the reference flux in counts. Can be "
         "given as a scalar or a 1D list. Null values allowed.",
     )
-    ref_zp: float | list[float] | None = Field(
+    ref_zp: float | list[float | None] | None = Field(
         default=None,
         description="Magnitude zeropoint for the reference flux. Can be given as "
         "a scalar or a 1D list. If Null or not given, will be set to the default "
         "zeropoint of 23.9.",
     )
-    mag: float | list[float] | None = Field(
+    mag: float | list[float | None] | None = Field(
         default=None,
         description="Magnitude of the observation in the magnitude system "
         "`magsys`. Can be given as a scalar or a 1D list. Null values allowed "
         "for non-detections. If `mag` is null, the corresponding `magerr` must "
         "also be null.",
     )
-    magerr: float | list[float] | None = Field(
+    magerr: float | list[float | None] | None = Field(
         default=None,
         description="Error on the magnitude in the magnitude system `magsys`. "
         "Can be given as a scalar or a 1D list. Null values allowed for "
         "non-detections. If `magerr` is null, the corresponding `mag` must also "
         "be null.",
     )
-    limiting_mag: float | list[float] | None = Field(
+    limiting_mag: float | list[float | None] | None = Field(
         default=None,
         description="Limiting magnitude of the image in the magnitude system "
         "`magsys`. Can be given as a scalar or a 1D list. Null values not "
         "allowed.",
     )
-    limiting_mag_nsigma: float | list[float] | None = Field(
+    limiting_mag_nsigma: float | list[float | None] | None = Field(
         default=None,
         description="Number of standard deviations above the background that "
         "the limiting magnitudes correspond to. Null values not allowed.",
     )
-    magref: float | list[float] | None = Field(
+    magref: float | list[float | None] | None = Field(
         default=None,
         description="Magnitude of the reference image in the magnitude system "
         "`magsys`. Can be given as a scalar or a 1D list. Null values allowed if "
         "no reference is given.",
     )
-    e_magref: float | list[float] | None = Field(
+    e_magref: float | list[float | None] | None = Field(
         default=None,
         description="Gaussian error on the reference magnitude. Can be given as "
         "a scalar or a 1D list. Null values allowed.",
