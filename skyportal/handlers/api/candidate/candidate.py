@@ -5,7 +5,7 @@ import re
 import time
 import uuid
 from copy import copy
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 import arrow
 import astropy.units as u
@@ -582,6 +582,129 @@ class CandidateGetQuery(BaseModel):
     annotationExcludeOutdatedDate: str | None = Field(
         default=None,
         description="No longer supported; an error is returned if provided.",
+    )
+
+
+class _ObjBody(BaseModel):
+    """Shared optional `Obj` fields accepted by the Obj marshmallow schema
+    (``Obj.__schema__()``) when posting a candidate. Deep validation and
+    coercion are still performed by that schema; this only constrains the
+    top-level shape."""
+
+    # Survey ids (e.g. LSST diaObject) arrive as JSON numbers, but Obj.id is a
+    # string column; pydantic rejects int for `str` unless told to coerce.
+    model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
+
+    ra: float | None = Field(None, description="ICRS Right Ascension [deg].")
+    dec: float | None = Field(None, description="ICRS Declination [deg].")
+    ra_dis: float | None = Field(
+        None, description="J2000 Right Ascension at discovery time [deg]."
+    )
+    dec_dis: float | None = Field(
+        None, description="J2000 Declination at discovery time [deg]."
+    )
+    ra_err: float | None = Field(
+        None, description="Error on J2000 Right Ascension at discovery time [deg]."
+    )
+    dec_err: float | None = Field(
+        None, description="Error on J2000 Declination at discovery time [deg]."
+    )
+    offset: float | None = Field(
+        None, description="Offset from nearest static object [arcsec]."
+    )
+    t0: float | None = Field(None, description="Reference time.")
+    redshift: float | None = Field(None, description="Redshift.")
+    redshift_error: float | None = Field(None, description="Redshift error.")
+    redshift_origin: str | None = Field(None, description="Redshift source.")
+    redshift_history: Any = Field(
+        None, description="Record of who set which redshift values and when."
+    )
+    host_id: int | None = Field(
+        None, description="The ID of the Galaxy to which this Obj is associated."
+    )
+    summary: str | None = Field(None, description="Summary of the obj.")
+    summary_history: Any = Field(
+        None,
+        description="Record of the summaries generated and written about this obj",
+    )
+    altdata: Any = Field(
+        None,
+        description="Misc. alternative metadata stored in JSON format, e.g. "
+        "`{'gaia': {'info': {'Teff': 5780}}}`",
+    )
+    dist_nearest_source: float | None = Field(
+        None, description="Distance to the nearest Obj [arcsec]."
+    )
+    mag_nearest_source: float | None = Field(
+        None, description="Magnitude of the nearest Obj [AB]."
+    )
+    e_mag_nearest_source: float | None = Field(
+        None, description="Error on magnitude of the nearest Obj [mag]."
+    )
+    transient: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is an astrophysical transient.",
+    )
+    varstar: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is a variable star.",
+    )
+    is_roid: bool | None = Field(
+        None,
+        description="Boolean indicating whether the object is a moving object.",
+    )
+    mpc_name: str | None = Field(None, description="Minor planet center name.")
+    gcn_crossmatch: list[str] | None = Field(
+        None, description="List of GCN event dateobs for crossmatched events."
+    )
+    tns_name: str | None = Field(None, description="Transient Name Server name.")
+    tns_info: Any = Field(None, description="TNS info in JSON format")
+    score: float | None = Field(None, description="Machine learning score.")
+    origin: str | None = Field(None, description="Origin of the object.")
+    alias: list[str] | None = Field(
+        None, description="Alternative names for this object."
+    )
+    internal_key: str | None = Field(
+        None, description="Internal key used for secure websocket messaging."
+    )
+    detect_photometry_count: int | None = Field(
+        None,
+        description="How many times the object was detected above the S/N threshold.",
+    )
+
+
+class CandidatePostBody(_ObjBody):
+    """Request body for creating new candidate(s) (one per filter)."""
+
+    id: str = Field(description="Name of the object.")
+    filter_ids: list[int] = Field(description="List of associated filter IDs")
+    passed_at: str = Field(
+        description="Arrow-parseable datetime string indicating when passed filter."
+    )
+    passing_alert_id: int | None = Field(
+        None, description="ID of associated filter that created candidate"
+    )
+
+
+class BulkDeleteCandidatesPostBody(BaseModel):
+    """Request body for bulk-deleting old, unsaved candidates."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    maxAgeMonths: int = Field(
+        6,
+        description="Delete objects whose most recent candidate `passed_at` is older "
+        "than this many months. Defaults to 6.",
+    )
+    batchSize: int = Field(
+        1000,
+        description="Maximum number of objects to delete in this call (deleted "
+        "oldest-first). Defaults to 1000.",
+    )
+    dryRun: bool = Field(
+        False,
+        description="If true, only report how many objects would be deleted, without "
+        "deleting anything. Defaults to false.",
     )
 
 
@@ -1471,37 +1594,13 @@ class CandidateHandler(BaseHandler):
             return self.success(data=query_results)
 
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: CandidatePostBody = None):
         """
         ---
         summary: Create new candidate(s)
         description: Create new candidate(s) (one per filter).
         tags:
           - candidates
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ObjPost'
-                  - type: object
-                    properties:
-                      filter_ids:
-                        type: array
-                        items:
-                          type: integer
-                        description: List of associated filter IDs
-                      passing_alert_id:
-                        type: integer
-                        description: ID of associated filter that created candidate
-                        nullable: true
-                      passed_at:
-                        type: string
-                        description: Arrow-parseable datetime string indicating when passed filter.
-                        nullable: true
-                    required:
-                      - filter_ids
-                      - passed_at
         responses:
           200:
             content:
@@ -1520,7 +1619,8 @@ class CandidateHandler(BaseHandler):
                                 type: integer
                               description: List of new candidate IDs
         """
-        data = self.get_json()
+        body = self.parse_body(CandidatePostBody)
+        data = body.model_dump(exclude_unset=True)
 
         if data.get("id") is None:
             return self.error("Missing required parameter: `id`.")
@@ -1819,7 +1919,7 @@ async def grab_query_results(
 
 class BulkDeleteCandidatesHandler(BaseHandler):
     @permissions(["System admin"])
-    def post(self):
+    def post(self, *, body: BulkDeleteCandidatesPostBody = None):
         """
         ---
         summary: Bulk-delete old, unsaved candidates
@@ -1831,27 +1931,6 @@ class BulkDeleteCandidatesHandler(BaseHandler):
           admin only. Intended to be driven periodically via the Recurring API.
         tags:
           - candidates
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  maxAgeMonths:
-                    type: integer
-                    description: |
-                      Delete objects whose most recent candidate `passed_at` is
-                      older than this many months. Defaults to 6.
-                  batchSize:
-                    type: integer
-                    description: |
-                      Maximum number of objects to delete in this call (deleted
-                      oldest-first). Defaults to 1000.
-                  dryRun:
-                    type: boolean
-                    description: |
-                      If true, only report how many objects would be deleted,
-                      without deleting anything. Defaults to false.
         responses:
           200:
             content:
@@ -1877,7 +1956,8 @@ class BulkDeleteCandidatesHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(BulkDeleteCandidatesPostBody)
+        data = body.model_dump(exclude_unset=True)
 
         try:
             max_age_months = int(data.get("maxAgeMonths", 6))

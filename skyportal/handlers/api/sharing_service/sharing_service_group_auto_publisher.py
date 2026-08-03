@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
@@ -25,6 +25,45 @@ SharingServiceId = Annotated[
 log = make_log("api/sharing_service_group_auto_publisher")
 
 
+class SharingServiceGroupAutoPublisherPostBody(BaseModel):
+    """Request body for adding auto_publisher(s) to a SharingServiceGroup."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_ids: list[int] | str | None = Field(
+        default_factory=list,
+        description="An array of user IDs to add as auto_publishers. If a "
+        "string is provided, it will be split by commas.",
+    )
+    user_id: int | None = Field(
+        default=None,
+        description="ID of the user to add as an auto_publisher, used if "
+        "user_ids is empty and no user_id is given in the URL.",
+    )
+
+
+class SharingServiceGroupAutoPublisherPostResponse(BaseModel):
+    """Data payload returned when adding auto_publisher(s)."""
+
+    ids: list[int] = Field(
+        description="IDs of the new SharingServiceGroupAutoPublishers"
+    )
+
+
+class SharingServiceGroupAutoPublisherDeleteBody(BaseModel):
+    """Request body for removing auto_publisher(s) from a SharingServiceGroup."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int | None = Field(
+        default=None, description="The ID of the User to remove as an auto_publisher"
+    )
+    user_ids: list[int] | str | None = Field(
+        default_factory=list,
+        description="The IDs of the Users to remove as auto_publishers, overrides user_id",
+    )
+
+
 class SharingServiceGroupAutoPublisherHandler(BaseHandler):
     @permissions(["Manage sharing services"])
     async def post(
@@ -32,7 +71,9 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
         sharing_service_id: SharingServiceId,
         group_id: GroupId,
         user_id: int | None = None,
-    ):
+        *,
+        body: SharingServiceGroupAutoPublisherPostBody = None,
+    ) -> SharingServiceGroupAutoPublisherPostResponse:
         """
         ---
         summary: Add auto_publisher(s) to an SharingServiceGroup
@@ -46,41 +87,13 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
               schema:
                 type: string
               description: The ID of the user to add as an auto_publisher
-        requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            user_ids:
-                                type: array
-                                items:
-                                    type: string
-                                description: |
-                                    An array of user IDs to add as auto_publishers.
-                                    If a string is provided, it will be split by commas.
-        responses:
-            200:
-                content:
-                    application/json:
-                        schema:
-                            allOf:
-                                - $ref: '#/components/schemas/Success'
-                                - type: object
-                                  properties:
-                                    data:
-                                      $ref: '#/components/schemas/SharingServiceGroupAutoPublisher'
-            400:
-                content:
-                    application/json:
-                        schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(SharingServiceGroupAutoPublisherPostBody)
 
-        user_ids = get_list_typed(data.get("user_ids", []), int)
+        user_ids = get_list_typed(body.user_ids, int)
 
         if not user_ids:
-            user_id = data.get("user_id") if user_id is None else user_id
+            user_id = body.user_id if user_id is None else user_id
             if user_id is not None:
                 user_ids = [int(user_id)]
 
@@ -186,6 +199,8 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                 description="The ID of the User to remove as an auto_publisher. If not provided, the user_id will be taken from the request body."
             ),
         ],
+        *,
+        body: SharingServiceGroupAutoPublisherDeleteBody = None,
     ):
         """
         ---
@@ -193,20 +208,6 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
         description: Delete an auto_publisher from an SharingServiceGroup
         tags:
             - external sharing service
-        requestBody:
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            user_id:
-                                type: integer
-                                description: The ID of the User to remove as an auto_publisher
-                            user_ids:
-                                type: array
-                                items:
-                                    type: integer
-                                description: The IDs of the Users to remove as auto_publishers, overrides user_id
         responses:
             200:
                 content:
@@ -217,11 +218,11 @@ class SharingServiceGroupAutoPublisherHandler(BaseHandler):
                     application/json:
                         schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(SharingServiceGroupAutoPublisherDeleteBody)
 
-        user_ids = get_list_typed(data.get("user_ids", []), int)
+        user_ids = get_list_typed(body.user_ids, int)
         if not user_ids:
-            user_id = data.get("user_id") if user_id is None else user_id
+            user_id = body.user_id if user_id is None else user_id
             if user_id is not None:
                 user_ids = [int(user_id)]
         if not user_ids:

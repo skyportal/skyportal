@@ -43,86 +43,113 @@ class ShiftGetQuery(BaseModel):
     )
 
 
+class ShiftPostBody(BaseModel):
+    """Request body for creating a shift."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the shift.")
+    group_id: int = Field(description="ID of the Shift's Group.")
+    start_date: str = Field(description="The start time of this shift.")
+    end_date: str = Field(description="The end time of this shift.")
+    description: str | None = Field(
+        default=None, description="Longer description of the shift."
+    )
+    required_users_number: int | None = Field(
+        default=None,
+        description="The number of users required to join this shift for it to "
+        "be considered full.",
+    )
+    shift_admins: list[int] | None = Field(
+        default=None, description="List of IDs of users to be shift admins."
+    )
+
+
+class ShiftPostResponse(BaseModel):
+    """Data payload returned when creating a shift."""
+
+    id: int = Field(description="New Shift ID")
+
+
+class ShiftPatchBody(BaseModel):
+    """Request body for updating a shift."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Name of the shift.")
+    description: str | None = Field(
+        default=None, description="Longer description of the shift."
+    )
+    required_users_number: int | None = Field(
+        default=None,
+        description="The number of users required to join this shift for it to "
+        "be considered full.",
+    )
+
+
+class ShiftUserPostBody(BaseModel):
+    """Request body for adding a user to a shift."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    userID: int = Field(description="ID of the user to add to the shift.")
+    admin: bool = Field(
+        default=False,
+        description="Boolean indicating whether user is shift admin.",
+    )
+    needs_replacement: bool = Field(
+        default=False,
+        description="Boolean indicating whether user needs replacement or not.",
+    )
+
+
+class ShiftUserPostResponse(BaseModel):
+    """Data payload returned when adding a user to a shift."""
+
+    shift_id: int = Field(description="Shift ID")
+    user_id: int = Field(description="User ID")
+    admin: bool = Field(description="Boolean indicating whether user is shift admin")
+
+
+class ShiftUserPatchBody(BaseModel):
+    """Request body for updating a shift user."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    admin: bool | None = Field(
+        default=None,
+        description="Boolean indicating whether user is shift admin.",
+    )
+    needs_replacement: bool | None = Field(
+        default=None,
+        description="Boolean indicating whether user needs replacement or not.",
+    )
+
+
 class ShiftHandler(BaseHandler):
     @permissions(["Manage shifts"])
-    async def post(self):
+    async def post(self, *, body: ShiftPostBody = None) -> ShiftPostResponse:
         """
         ---
         summary: Add a new shift
         description: Add a new shift
         tags:
           - shifts
-        requestBody:
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ShiftNoID'
-                  - type: object
-                    properties:
-                      shift_admins:
-                        type: array
-                        items:
-                          type: integer
-                        description: |
-                          List of IDs of users to be shift admins.
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New Shift
-                            name:
-                              type: string
-                              description: New Shift's name
-                            start_date:
-                              type: string
-                              description: New Shift's start date
-                            end_date:
-                              type: string
-                              description: New Shift's end date
-                            shift_admins:
-                              type: array
-                              description: New Shift's admins IDs
-                            description:
-                              type: string
-                              description: New Shift's description
-                            required_users_number:
-                              type: integer
-                              description: The number of users required to join this shift for it to be considered full
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-
-        data = self.get_json()
-        if data.get("name") is None or (
-            isinstance(data.get("name"), str) and data.get("name").strip() == ""
-        ):
+        body = self.parse_body(ShiftPostBody)
+        if body.name is None or body.name.strip() == "":
             return self.error("Missing required parameter: `name`")
 
-        try:
-            shift_admin_ids = [int(e) for e in data.pop("shift_admins", [])]
-        except ValueError:
-            return self.error(
-                "Invalid shift_admins field; unable to parse all items to int"
-            )
+        shift_admin_ids = body.shift_admins or []
 
         async with self.AsyncSession() as session:
             shift_admins_result = await session.scalars(
                 User.select(self.current_user).where(User.id.in_(shift_admin_ids))
             )
             shift_admins = shift_admins_result.all()
+
+            data = body.model_dump(exclude_unset=True)
+            data.pop("shift_admins", None)
             schema = Shift.__schema__()
 
             try:
@@ -297,33 +324,24 @@ class ShiftHandler(BaseHandler):
                 return self.error(f"Failed to get shift(s): {e}")
 
     @permissions(["Manage shifts"])
-    async def patch(self, shift_id: int):
+    async def patch(self, shift_id: int, *, body: ShiftPatchBody = None):
         """
         ---
         summary: Update a shift
         description: Update a shift
         tags:
           - shifts
-        requestBody:
-          content:
-            application/json:
-              schema: ShiftNoID
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Shift'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(ShiftPatchBody)
         async with self.AsyncSession() as session:
             try:
                 shift = await session.scalar(
@@ -336,7 +354,7 @@ class ShiftHandler(BaseHandler):
                         "Only the admin of a shift or an admin of the shift's group can edit it."
                     )
 
-                data = self.get_json()
+                data = body.model_dump(exclude_unset=True)
                 data["id"] = shift_id
 
                 schema = Shift.__schema__()
@@ -426,7 +444,9 @@ class ShiftHandler(BaseHandler):
 
 class ShiftUserHandler(BaseHandler):
     @auth_or_token
-    async def post(self, shift_id: int, *ignored_args):
+    async def post(
+        self, shift_id: int, *ignored_args, body: ShiftUserPostBody = None
+    ) -> ShiftUserPostResponse:
         """
         ---
         summary: Add a shift user
@@ -434,69 +454,12 @@ class ShiftUserHandler(BaseHandler):
         tags:
           - shifts
           - users
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  userID:
-                    type: integer
-                  admin:
-                    type: boolean
-                required:
-                  - userID
-                  - admin
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            shift_id:
-                              type: integer
-                              description: Shift ID
-                            user_id:
-                              type: integer
-                              description: User ID
-                            admin:
-                              type: boolean
-                              description: Boolean indicating whether user is shift admin
-                            needs_replacement:
-                              type: boolean
-                              description: Boolean indicating whether user needs replacement or not
         """
+        body = self.parse_body(ShiftUserPostBody)
 
-        data = self.get_json()
-
-        user_id = data.get("userID", None)
-        if user_id is None:
-            return self.error("userID parameter must be specified")
-        try:
-            user_id = int(user_id)
-        except (ValueError, TypeError):
-            return self.error("Invalid userID parameter: unable to parse to integer")
-
-        needs_replacement = data.get("needs_replacement", False)
-        if not isinstance(needs_replacement, bool):
-            try:
-                needs_replacement = bool(needs_replacement)
-            except (ValueError, TypeError):
-                return self.error(
-                    "Invalid needs_replacement parameter: unable to parse to boolean"
-                )
-
-        admin = data.get("admin", False)
-        if not isinstance(admin, bool):
-            return self.error(
-                "Invalid (non-boolean) value provided for parameter `admin`"
-            )
+        user_id = body.userID
+        needs_replacement = body.needs_replacement
+        admin = body.admin
         try:
             shift_id = int(shift_id)
         except (ValueError, TypeError):
@@ -556,7 +519,9 @@ class ShiftUserHandler(BaseHandler):
             )
 
     @auth_or_token
-    async def patch(self, shift_id: int, user_id: int):
+    async def patch(
+        self, shift_id: int, user_id: int, *, body: ShiftUserPatchBody = None
+    ):
         """
         ---
         summary: Update a shift user
@@ -564,38 +529,13 @@ class ShiftUserHandler(BaseHandler):
         tags:
           - shifts
           - users
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  userID:
-                    type: integer
-                  admin:
-                    type: boolean
-                    description: |
-                      Boolean indicating whether user is shift admin.
-                  needs_replacement:
-                    type: boolean
-                    description: |
-                      Boolean indicating whether user needs replacement or not
-
-                required:
-                  - userID
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/ShiftUser'
+                schema: Success
         """
-        data = self.get_json()
+        body = self.parse_body(ShiftUserPatchBody)
         try:
             shift_id = int(shift_id)
         except ValueError:
@@ -618,21 +558,12 @@ class ShiftUserHandler(BaseHandler):
                     f"User {user_id} is not a member of shift {shift_id}."
                 )
 
-            admin = data.get("admin", shiftuser.admin)
-            if not isinstance(admin, bool):
-                return self.error(
-                    "Invalid (non-boolean) value provided for parameter `admin`"
-                )
+            admin = body.admin if body.admin is not None else shiftuser.admin
             shiftuser.admin = admin
 
-            needs_replacement = data.get("needs_replacement", False)
-            if not isinstance(needs_replacement, bool):
-                try:
-                    needs_replacement = bool(needs_replacement)
-                except (ValueError, TypeError):
-                    return self.error(
-                        "Invalid needs_replacement parameter: unable to parse to boolean"
-                    )
+            needs_replacement = (
+                body.needs_replacement if body.needs_replacement is not None else False
+            )
             shiftuser.needs_replacement = needs_replacement
 
             if needs_replacement:

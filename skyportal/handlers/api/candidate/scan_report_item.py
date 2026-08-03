@@ -4,7 +4,7 @@ from typing import Annotated
 import astropy.units as u
 import sqlalchemy as sa
 from astropy.time import Time
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import aliased, joinedload, selectinload
 
 from baselayer.app.access import auth_or_token
@@ -691,43 +691,39 @@ async def create_scan_report_items(
     return items
 
 
+class ScanReportItemPatchBody(BaseModel):
+    """Request body for updating a scanning report item."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    comment: str | None = Field(default=None, description="Comment on the report item")
+
+
 class ScanReportItemHandler(BaseHandler):
     @auth_or_token
     async def patch(
         self,
         report_id: ReportId,
         item_id: Annotated[int, Field(description="ID of the report item to update")],
+        *,
+        body: ScanReportItemPatchBody = None,
     ):
         """
         ---
         summary: Update an item from a scanning report
         tags:
           - report item
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  comment:
-                    type: string
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/ScanReportItem'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(ScanReportItemPatchBody)
         try:
             report_id = int(report_id)
             item_id = int(item_id)
@@ -746,7 +742,7 @@ class ScanReportItemHandler(BaseHandler):
 
             item.data = {
                 **item.data,
-                "comment": data.get("comment"),
+                "comment": body.comment,
             }
 
             await session.commit()
