@@ -8,6 +8,10 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import DownloadIcon from "@mui/icons-material/Download";
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import Tooltip from "@mui/material/Tooltip";
 import { Link } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 
@@ -19,6 +23,8 @@ import CutoutTriplet from "./CutoutTriplet";
 import BrokerAlertLightCurve from "./BrokerAlertLightCurve";
 import BrokerSaveButton from "./BrokerSaveButton";
 import BoomAlertMetadata from "./boom/BoomAlertMetadata";
+import BoomMlScores from "./boom/BoomMlScores";
+import { downloadCsv, downloadJson, flatten } from "./alertFields";
 
 const useStyles = makeStyles()((theme) => ({
   card: { height: "100%" },
@@ -29,12 +35,23 @@ const useStyles = makeStyles()((theme) => ({
     gap: theme.spacing(1),
     marginBottom: theme.spacing(1),
   },
+  titles: { display: "flex", flexDirection: "column" },
+  actions: {
+    display: "flex",
+    alignItems: "center",
+    gap: theme.spacing(0.5),
+  },
   objectId: {
     fontWeight: 600,
     fontSize: "1rem",
     display: "inline-flex",
     alignItems: "center",
     gap: theme.spacing(0.5),
+  },
+  candid: {
+    fontFamily: "monospace",
+    fontSize: "0.75rem",
+    color: theme.palette.text.secondary,
   },
   meta: {
     fontFamily: "monospace",
@@ -97,6 +114,9 @@ const BrokerAlertCard = ({
   const [candid, setCandid] = useState<string | number | undefined>(
     sorted[0]?.candid,
   );
+  const [downloadAnchor, setDownloadAnchor] = useState<HTMLElement | null>(
+    null,
+  );
   const selected = sorted.find((a) => a.candid === candid) ?? sorted[0];
 
   // Full object (also used by the light curve; RTK dedupes the request). For
@@ -119,38 +139,85 @@ const BrokerAlertCard = ({
     skip: !objectId,
   });
   const savedGroups = (source as any)?.groups ?? [];
+  const hasMetadataTable = brokerClassname === "BOOMBROKER";
 
   return (
     <Card variant="outlined" className={classes.card}>
       <CardContent>
         <div className={classes.header}>
-          {source ? (
-            <Link className={classes.objectId} to={`/source/${objectId}`}>
-              {objectId}
-              <OpenInNewIcon fontSize="inherit" />
-            </Link>
-          ) : (
-            <span className={classes.objectId}>{objectId}</span>
-          )}
-          {sorted.length > 1 && (
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel id={`alert-${objectId}`}>Alert</InputLabel>
-              <Select
-                labelId={`alert-${objectId}`}
-                label="Alert"
-                value={candid}
-                onChange={(e) => setCandid(e.target.value as string | number)}
+          <div className={classes.titles}>
+            {source ? (
+              <Link className={classes.objectId} to={`/source/${objectId}`}>
+                {objectId}
+                <OpenInNewIcon fontSize="inherit" />
+              </Link>
+            ) : (
+              <span className={classes.objectId}>{objectId}</span>
+            )}
+            {selected?.candid != null && (
+              <span className={classes.candid}>
+                {`candid ${selected.candid}`}
+              </span>
+            )}
+          </div>
+          <div className={classes.actions}>
+            {!hasMetadataTable && sorted.length > 1 && (
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel id={`alert-${objectId}`}>Alert</InputLabel>
+                <Select
+                  labelId={`alert-${objectId}`}
+                  label="Alert"
+                  value={candid}
+                  onChange={(e) => setCandid(e.target.value as string | number)}
+                >
+                  {sorted.map((a) => (
+                    <MenuItem key={String(a.candid)} value={a.candid}>
+                      {`MJD ${
+                        a.jd != null ? (a.jd - 2400000.5).toFixed(4) : "—"
+                      } · mag ${num(a.magpsf, 2)} · ${a.candid}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+            <Tooltip title={`Download ${objectId}`}>
+              <IconButton
+                size="small"
+                aria-label={`download ${objectId}`}
+                onClick={(e) => setDownloadAnchor(e.currentTarget)}
               >
-                {sorted.map((a) => (
-                  <MenuItem key={String(a.candid)} value={a.candid}>
-                    {`MJD ${
-                      a.jd != null ? (a.jd - 2400000.5).toFixed(4) : "—"
-                    } · mag ${num(a.magpsf, 2)} · ${a.candid}`}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
+                <DownloadIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Menu
+              anchorEl={downloadAnchor}
+              open={Boolean(downloadAnchor)}
+              onClose={() => setDownloadAnchor(null)}
+            >
+              <MenuItem
+                onClick={() => {
+                  setDownloadAnchor(null);
+                  downloadCsv(
+                    sorted.map((a) => flatten(a.raw ?? a)),
+                    `${objectId}_alerts.csv`,
+                  );
+                }}
+              >
+                CSV
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setDownloadAnchor(null);
+                  downloadJson(
+                    sorted.map((a) => a.raw ?? a),
+                    `${objectId}_alerts.json`,
+                  );
+                }}
+              >
+                JSON
+              </MenuItem>
+            </Menu>
+          </div>
         </div>
 
         <div className={classes.meta}>
@@ -185,12 +252,16 @@ const BrokerAlertCard = ({
           </div>
         )}
 
-        {brokerClassname === "BOOMBROKER" && (
-          <BoomAlertMetadata
-            alerts={sorted}
-            survey={survey}
-            selectedCandid={candid}
-          />
+        {hasMetadataTable && (
+          <>
+            <BoomMlScores alert={selected?.raw} />
+            <BoomAlertMetadata
+              alerts={sorted}
+              survey={survey}
+              selectedCandid={candid}
+              onSelect={setCandid}
+            />
+          </>
         )}
 
         {!source && (

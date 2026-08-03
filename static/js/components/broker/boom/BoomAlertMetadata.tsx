@@ -53,12 +53,14 @@ interface BoomAlertMetadataProps {
   alerts: AlertOption[];
   survey: string;
   selectedCandid?: string | number | undefined;
+  onSelect: (candid: string | number) => void;
 }
 
 const BoomAlertMetadata = ({
   alerts,
   survey,
   selectedCandid,
+  onSelect,
 }: BoomAlertMetadataProps) => {
   const columns = COLUMNS(survey === "LSST");
   return (
@@ -78,7 +80,10 @@ const BoomAlertMetadata = ({
           {alerts.map((a) => (
             <TableRow
               key={String(a.candid)}
+              hover
               selected={a.candid === selectedCandid}
+              onClick={() => onSelect(a.candid)}
+              sx={{ cursor: "pointer" }}
             >
               {columns.map((c) => (
                 <TableCell key={c.label}>{c.value(a, a.raw)}</TableCell>
