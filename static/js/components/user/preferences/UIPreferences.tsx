@@ -1,6 +1,10 @@
 import FormGroup from "@mui/material/FormGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
+
+import { DARK_SCHEMES, DEFAULT_DARK_SCHEME } from "../../Theme";
 
 import {
   useGetProfileQuery,
@@ -12,6 +16,7 @@ const UIPreferences = () => {
   const { data: profile } = useGetProfileQuery();
   const preferences = profile?.preferences as any;
   const currentTheme = preferences?.theme;
+  const darkScheme: string = preferences?.darkScheme || DEFAULT_DARK_SCHEME;
   const invertThumbnails: boolean = preferences?.invertThumbnails || false;
   const useAMPM: boolean = preferences?.useAMPM || false;
   const useRefMag: boolean = preferences?.useRefMag || false;
@@ -31,6 +36,10 @@ const UIPreferences = () => {
     };
 
     updateUserPreferences(prefs);
+  };
+
+  const darkSchemeChanged = (event: any) => {
+    updateUserPreferences({ darkScheme: event.target.value });
   };
 
   const thumbnailInvertToggled = (event: any) => {
@@ -166,6 +175,22 @@ const UIPreferences = () => {
       <UserPreferencesHeader title="UI Preferences" />
       <FormGroup row>
         <FormControlLabel control={themeSwitch} label="Dark mode" />
+        {currentTheme === "dark" && (
+          <TextField
+            select
+            size="small"
+            label="Dark palette"
+            value={darkScheme}
+            onChange={darkSchemeChanged}
+            sx={{ minWidth: 140, mr: 2 }}
+          >
+            {Object.entries(DARK_SCHEMES).map(([name, s]) => (
+              <MenuItem key={name} value={name}>
+                {s.label}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
         <FormControlLabel
           control={thumbnailInvertSwitch}
           label="Invert thumbnails"

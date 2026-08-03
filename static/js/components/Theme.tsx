@@ -15,16 +15,84 @@ interface ThemeProps {
   children: React.ReactNode;
 }
 
+const THEME_KEY = "skyportal:theme";
+const SCHEME_KEY = "skyportal:darkScheme";
+
+interface DarkScheme {
+  label: string;
+  default: string;
+  paper: string;
+  primary: string;
+  error: string;
+  text: string;
+  textSecondary: string;
+  divider: string;
+  scrollTrack: string;
+  scrollThumb: string;
+}
+
+export const DARK_SCHEMES = {
+  slate: {
+    label: "Slate",
+    default: "#0e1726",
+    paper: "#16233a",
+    primary: "#8ec7e8",
+    error: "#ff6b74",
+    text: "#e6edf5",
+    textSecondary: "#9fb3c8",
+    divider: "rgba(168, 218, 220, 0.16)",
+    scrollTrack: "#16233a",
+    scrollThumb: "#1e3050",
+  },
+  graphite: {
+    label: "Graphite",
+    default: "#303030",
+    paper: "#424242",
+    primary: "#b1dae9",
+    error: "#ff6b74",
+    text: "#fafafa",
+    textSecondary: "rgba(255, 255, 255, 0.7)",
+    divider: "rgba(255, 255, 255, 0.16)",
+    scrollTrack: "#303030",
+    scrollThumb: "#4e4e4e",
+  },
+} satisfies Record<string, DarkScheme>;
+
+export type DarkSchemeName = keyof typeof DARK_SCHEMES;
+
+export const DEFAULT_DARK_SCHEME: DarkSchemeName = "slate";
+
+const schemeFor = (name?: string | null): DarkScheme =>
+  name && name in DARK_SCHEMES
+    ? DARK_SCHEMES[name as DarkSchemeName]
+    : DARK_SCHEMES[DEFAULT_DARK_SCHEME];
+
 const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
-  const theme = (useGetProfileQuery().data?.preferences as any)?.theme;
+  const preferences = useGetProfileQuery().data?.preferences as any;
+  const profileTheme = preferences?.theme;
+  const profileScheme = preferences?.darkScheme;
+  const [stored] = React.useState(() => ({
+    theme: window.localStorage.getItem(THEME_KEY),
+    scheme: window.localStorage.getItem(SCHEME_KEY),
+  }));
+  const theme = profileTheme ?? stored.theme ?? undefined;
   const dark = theme === "dark";
+  const scheme = schemeFor(profileScheme ?? stored.scheme);
+
+  React.useEffect(() => {
+    if (!profileTheme) return;
+    window.localStorage.setItem(THEME_KEY, profileTheme);
+    if (profileScheme) window.localStorage.setItem(SCHEME_KEY, profileScheme);
+    document.documentElement.style.backgroundColor =
+      profileTheme === "dark" ? schemeFor(profileScheme).default : "";
+  }, [profileTheme, profileScheme]);
 
   // When a team is active, its colors drive the whole MUI palette so every
   // primary/secondary-colored element themes at once. No active team → the
   // original SkyPortal palette.
   const { activeTeam } = useActiveTeam();
   const primaryColor =
-    activeTeam?.primary_color || (dark ? "#8ec7e8" : "#457b9d");
+    activeTeam?.primary_color || (dark ? scheme.primary : "#457b9d");
   const secondaryColor = activeTeam?.secondary_color || "#b1dae9";
 
   const greyTheme = createTheme({
@@ -57,14 +125,14 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
         main: "#fca311",
       },
       error: {
-        main: dark ? "#ff6b74" : "#e63946",
+        main: dark ? scheme.error : "#e63946",
       },
       background: dark
-        ? { default: "#0e1726", paper: "#16233a" }
+        ? { default: scheme.default, paper: scheme.paper }
         : { default: "#f0f2f5", paper: "#f0f2f5" },
       ...(dark && {
-        text: { primary: "#e6edf5", secondary: "#9fb3c8" },
-        divider: "rgba(168, 218, 220, 0.16)",
+        text: { primary: scheme.text, secondary: scheme.textSecondary },
+        divider: scheme.divider,
       }),
     },
     plotFontSizes: {
@@ -98,7 +166,7 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
               /* Works on Firefox */
               scrollbarWidth: "thin",
               scrollbarColor: dark
-                ? "#1e3050 #16233a"
+                ? `${scheme.scrollThumb} ${scheme.scrollTrack}`
                 : `${grey[400]} ${grey[100]}`,
               overflowY: "auto",
 
@@ -108,13 +176,15 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
               },
 
               "& *::-webkit-scrollbar-track": {
-                background: dark ? "#16233a" : grey[100],
+                background: dark ? scheme.scrollTrack : grey[100],
               },
 
               "& *::-webkit-scrollbar-thumb": {
-                backgroundColor: dark ? "#1e3050" : grey[400],
+                backgroundColor: dark ? scheme.scrollThumb : grey[400],
                 borderRadius: "20px",
-                border: dark ? "3px solid #16233a" : `3px solid ${grey[100]}`,
+                border: dark
+                  ? `3px solid ${scheme.scrollTrack}`
+                  : `3px solid ${grey[100]}`,
               },
             },
           },

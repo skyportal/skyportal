@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { makeStyles } from "tss-react/mui";
+import { useTheme } from "@mui/material/styles";
 import * as d3 from "d3";
 import Typography from "@mui/material/Typography";
 
@@ -12,7 +13,7 @@ import {
   useGetBrokersQuery,
   useLazyGetBrokerConeSearchQuery,
 } from "../../ducks/brokers";
-import { PHOT_ZP, greatCircleDistance } from "../../utils";
+import { PHOT_ZP, greatCircleDistance, plotCanvasTheme } from "../../utils";
 
 import CentroidPlotPlugins, {
   getCrossMatches,
@@ -328,6 +329,7 @@ const CentroidPlot = ({
   sourceId,
   plotStyle = { height: "50vh" },
 }: CentroidPlotProps) => {
+  const muiTheme = useTheme();
   const { classes } = useStyles();
 
   const { data: source } = useGetSourceQuery(sourceId);
@@ -403,7 +405,7 @@ const CentroidPlot = ({
           },
           name: filter,
           hoverlabel: {
-            bgcolor: "white",
+            bgcolor: muiTheme.palette.background.paper,
             font: { size: 14 },
             align: "left",
           },
@@ -413,7 +415,7 @@ const CentroidPlot = ({
       });
       setPlotData(photometryTraces);
     }
-  }, [photometry, ra, dec, filter2color]);
+  }, [photometry, ra, dec, filter2color, muiTheme.palette.background.paper]);
 
   if (!filter2color) {
     return (
@@ -508,6 +510,7 @@ const CentroidPlot = ({
         <Plot
           data={[...plotData, ...traces]}
           layout={{
+            ...plotCanvasTheme(muiTheme),
             // 2x2 arcsec plot
             xaxis: {
               title: { text: "ΔRA (arcsec)" },

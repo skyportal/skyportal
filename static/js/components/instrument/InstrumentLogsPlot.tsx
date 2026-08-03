@@ -1,9 +1,16 @@
+import { useTheme } from "@mui/material/styles";
 import { useEffect, useState } from "react";
 
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
-import { BASE_LAYOUT, LOGTYPE_TO_COLOR, mjdnow } from "../../utils";
+import {
+  BASE_LAYOUT,
+  LOGTYPE_TO_COLOR,
+  mjdnow,
+  plotAxisTheme,
+  plotCanvasTheme,
+} from "../../utils";
 
 const Plot = createPlotlyComponent(Plotly);
 
@@ -39,6 +46,8 @@ interface InstrumentLogsPlotProps {
 }
 
 const InstrumentLogsPlot = ({ instrument_logs }: InstrumentLogsPlotProps) => {
+  const muiTheme = useTheme();
+  const axisTheme = plotAxisTheme(muiTheme);
   const [logStats, setLogStats] = useState<any>(null);
   const [data, setData] = useState<any>(null);
   const [plotData, setPlotData] = useState<any[]>([]);
@@ -135,10 +144,12 @@ const InstrumentLogsPlot = ({ instrument_logs }: InstrumentLogsPlotProps) => {
         side: "top",
         tickformat: ".6~f",
         ...BASE_LAYOUT,
+        ...axisTheme,
       },
       yaxis: {
         title: { text: "Log Type" },
         ...BASE_LAYOUT,
+        ...axisTheme,
         nticks: 20,
       },
       xaxis2: {
@@ -151,6 +162,7 @@ const InstrumentLogsPlot = ({ instrument_logs }: InstrumentLogsPlotProps) => {
         showgrid: false,
         tickformat: ".6~f",
         ...BASE_LAYOUT,
+        ...axisTheme,
       },
       showlegend: false,
       autosize: true,
@@ -180,6 +192,7 @@ const InstrumentLogsPlot = ({ instrument_logs }: InstrumentLogsPlotProps) => {
       <Plot
         data={plotData}
         layout={{
+          ...plotCanvasTheme(muiTheme),
           ...layouts,
           showlegend: false,
           autosize: true,

@@ -27,11 +27,13 @@ const panelStyles = (isSelected: boolean) => ({
     boxShadow: isSelected
       ? "0 -4px 8px -4px rgba(0, 0, 0, 0.2)"
       : "0 -3px 8px -5px rgba(0, 0, 0, 0.2)",
-    backgroundColor: isSelected ? "#f0f2f5" : "#e0e0e0",
+    backgroundColor: isSelected
+      ? "background.paper"
+      : "action.disabledBackground",
   },
   ...(isSelected && {
     zIndex: 3,
-    backgroundColor: "#f0f2f5",
+    backgroundColor: "background.paper",
     borderBottom: "none",
   }),
 });

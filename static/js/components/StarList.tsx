@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import Box from "@mui/material/Box";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
@@ -96,18 +97,20 @@ const StarListBody = ({
       {starList === null ? (
         <CircularProgress sx={{ mt: 1 }} size={32} />
       ) : (
-        <pre
-          style={{
+        <Box
+          component="pre"
+          sx={{
             fontSize: "0.75rem",
-            border: "solid lightgray 1px",
-            background: "#eee",
+            border: "1px solid",
+            borderColor: "divider",
+            bgcolor: "background.default",
             padding: "1em",
             borderRadius: "0.5em",
-            overflowX: "scroll",
+            overflowX: "auto",
           }}
         >
           {starList.map((item) => item.str).join("\n")}
-        </pre>
+        </Box>
       )}
     </div>
   );
