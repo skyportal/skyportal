@@ -2,6 +2,7 @@ import datetime
 import os
 
 import tornado.web
+from pydantic import BaseModel, ConfigDict, Field
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
@@ -12,12 +13,23 @@ from ...base import BaseHandler
 log = make_log("js")
 
 
+class LogPostBody(BaseModel):
+    """Request body for logging a frontend error."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    error: str = Field(description="Error message to log")
+    stack: str | None = Field(
+        default=None, description="Component stack trace of the error"
+    )
+
+
 class LogHandler(BaseHandler):
     @tornado.web.authenticated
-    async def post(self, *ignored_args):
+    async def post(self, *ignored_args, body: LogPostBody = None):
         """Log a frontend error to the server logs, tracking user crash reports."""
-        data = self.get_json()
-        log(f"{data['error']}{data['stack']}")
+        body = self.parse_body(LogPostBody)
+        log(f"{body.error}{body.stack}")
         return self.success()
 
     @permissions(["System admin"])
