@@ -11,6 +11,7 @@ from ....models import (
     FollowupRequest,
     Obj,
     ObservingRun,
+    Photometry,
     Source,
 )
 from ....models.scan_report.scan_report_item import ScanReportItem
@@ -159,6 +160,37 @@ async def create_scan_report_item(session, report, sources_by_obj):
         for assignment in assignment_rows
     ] or None
 
+    # First and peak detection per survey (instrument), with how long ago each was
+    # recorded. A detection is a point with a measured magnitude (flux > 0).
+    detections = (
+        await session.scalars(
+            Photometry.select(session.user_or_token, mode="read")
+            .options(joinedload(Photometry.instrument))
+            .where(Photometry.obj_id == obj_id, Photometry.mag.isnot(None))
+        )
+    ).all()
+
+    detections_by_survey = {}
+    if detections:
+        now_mjd = Time.now().mjd
+        by_survey = {}
+        for point in detections:
+            by_survey.setdefault(point.instrument.name, []).append(point)
+
+        def _detection(point):
+            return {
+                "mag": safe_round(point.mag, 3),
+                "mjd": safe_round(point.mjd, 5),
+                "days_ago": safe_round(now_mjd - point.mjd, 2),
+            }
+
+        for survey, points in by_survey.items():
+            detections_by_survey[survey] = {
+                "first": _detection(min(points, key=lambda p: p.mjd)),
+                "peak": _detection(min(points, key=lambda p: p.mag)),
+            }
+    detections_by_survey = detections_by_survey or None
+
     # Pre-fill the item's comment with the most recent note the scanner left on the
     # source, if any, so scanners don't have to re-enter it after generating the report.
     latest_comment = await session.scalar(
@@ -187,6 +219,7 @@ async def create_scan_report_item(session, report, sources_by_obj):
             "saved_info": saved_info,
             "followups": followups,
             "assignments": assignments,
+            "detections_by_survey": detections_by_survey,
         },
     )
 

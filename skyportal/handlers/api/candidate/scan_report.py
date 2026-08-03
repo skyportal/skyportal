@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import arrow
 import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
@@ -8,6 +10,7 @@ from baselayer.log import make_log
 from ....models import Filter, Group, Source
 from ....models.candidate import Candidate
 from ....models.scan_report.scan_report import ScanReport
+from ....utils.naive_datetime import utcnow_naive
 from ...base import BaseHandler
 from .scan_report_item import create_scan_report_item
 
@@ -107,6 +110,17 @@ class ScanReportHandler(BaseHandler):
                           type: string
                           format: date-time
                           description: End date of the saved candidates range
+                  passed_filters_window_hours:
+                    type: number
+                    description: |
+                      Alternative to passed_filters_range: a rolling window of this
+                      many hours ending now. Ignored if passed_filters_range is given.
+                      Lets a recurring caller generate reports on a schedule.
+                  saved_candidates_window_hours:
+                    type: number
+                    description: |
+                      Alternative to saved_candidates_range: a rolling window of this
+                      many hours ending now. Ignored if saved_candidates_range is given.
         responses:
             200:
                 content:
@@ -130,11 +144,46 @@ class ScanReportHandler(BaseHandler):
             if not group_ids:
                 return self.error("No groups provided")
 
+            # Rolling windows (in hours) resolve to absolute ranges ending "now", so a
+            # recurring caller (e.g. RecurringAPI) can generate reports on a schedule
+            # without a stale, hardcoded window. Absolute ranges take precedence.
+            now = utcnow_naive()
+
+            def rolling_range(window, start_key, end_key):
+                return {
+                    start_key: (now - timedelta(hours=window)).isoformat(),
+                    end_key: now.isoformat(),
+                }
+
             passed_filters_range = data.get("passed_filters_range")
+            if not passed_filters_range:
+                window = data.get("passed_filters_window_hours")
+                if window is not None:
+                    try:
+                        window = float(window)
+                    except (TypeError, ValueError):
+                        return self.error(
+                            "passed_filters_window_hours must be a number of hours"
+                        )
+                    passed_filters_range = rolling_range(
+                        window, "start_date", "end_date"
+                    )
             if not passed_filters_range:
                 return self.error("No passed filters range provided")
 
             saved_range = data.get("saved_candidates_range")
+            if not saved_range:
+                window = data.get("saved_candidates_window_hours")
+                if window is not None:
+                    try:
+                        window = float(window)
+                    except (TypeError, ValueError):
+                        return self.error(
+                            "saved_candidates_window_hours must be a number of hours"
+                        )
+                    saved_range = rolling_range(
+                        window, "start_saved_date", "end_saved_date"
+                    )
             if not saved_range:
                 return self.error("No saved candidates range provided")
 

@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from skyportal.models import Candidate, DBSession, Source
 from skyportal.tests import api
-from skyportal.tests.fixtures import CommentFactory, ObjFactory
+from skyportal.tests.fixtures import CommentFactory, ObjFactory, PhotometryFactory
 from skyportal.utils.naive_datetime import utcnow_naive
 
 
@@ -72,6 +72,28 @@ def test_scan_report_item_includes_followup_and_assignment(
     CommentFactory(
         obj=obj, author=user, groups=[public_group], text=comment_text, bot=False
     )
+
+    # Two detections on the same survey: the earlier/fainter one is the first
+    # detection, the later/brighter one is the peak.
+    survey = red_transients_run.instrument
+    PhotometryFactory(
+        obj_id=obj.id,
+        instrument=survey,
+        filter="ztfg",
+        mjd=60000.0,
+        flux=100.0,
+        fluxerr=1.0,
+        groups=[public_group],
+    )
+    PhotometryFactory(
+        obj_id=obj.id,
+        instrument=survey,
+        filter="ztfr",
+        mjd=60010.0,
+        flux=1000.0,
+        fluxerr=1.0,
+        groups=[public_group],
+    )
     DBSession.commit()
 
     window = {
@@ -95,7 +117,7 @@ def test_scan_report_item_includes_followup_and_assignment(
 
     status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
     assert status == 200, data
-    report_id = data["data"][0]["id"]
+    report_id = data["data"]["reports"][0]["id"]
 
     status, data = api(
         "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token
@@ -126,6 +148,61 @@ def test_scan_report_item_includes_followup_and_assignment(
     assert assignment["priority"] == "5"
     assert assignment["status"] is not None
     assert assignment["requester"] == user.username
+
+    # First/peak detection per survey (mag, time, days-ago).
+    detections = item["data"]["detections_by_survey"]
+    assert detections is not None
+    survey_detections = detections[survey.name]
+    assert survey_detections["first"]["mag"] == 18.9
+    assert survey_detections["peak"]["mag"] == 16.4
+    assert survey_detections["first"]["days_ago"] > 0
+    assert survey_detections["peak"]["days_ago"] > 0
+
+
+def test_scan_report_rolling_window(
+    public_filter,
+    public_group,
+    user,
+    upload_data_token,
+):
+    now = utcnow_naive()
+
+    obj = ObjFactory(groups=[public_group])
+    DBSession.add(
+        Candidate(obj=obj, filter=public_filter, passed_at=now, uploader_id=user.id)
+    )
+    DBSession.add(
+        Source(
+            obj_id=obj.id,
+            group_id=public_group.id,
+            saved_by_id=user.id,
+            saved_at=now,
+        )
+    )
+    DBSession.commit()
+
+    # Rolling windows (hours) instead of absolute ranges — what a recurring caller uses.
+    status, data = api(
+        "POST",
+        "candidates/scan_reports",
+        data={
+            "group_ids": [public_group.id],
+            "passed_filters_window_hours": 48,
+            "saved_candidates_window_hours": 48,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
+    assert status == 200, data
+    report_id = data["data"]["reports"][0]["id"]
+
+    status, data = api(
+        "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token
+    )
+    assert status == 200, data
+    assert any(item["obj_id"] == obj.id for item in data["data"])
 
 
 def test_scan_report_item_comment_only_from_scanner(
@@ -182,7 +259,7 @@ def test_scan_report_item_comment_only_from_scanner(
 
     status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
     assert status == 200, data
-    report_id = data["data"][0]["id"]
+    report_id = data["data"]["reports"][0]["id"]
 
     status, data = api(
         "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token

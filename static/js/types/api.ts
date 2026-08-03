@@ -2761,6 +2761,17 @@ export interface paths {
                              */
                             end_date?: string;
                         };
+                        /**
+                         * @description Alternative to passed_filters_range: a rolling window of this
+                         *     many hours ending now. Ignored if passed_filters_range is given.
+                         *     Lets a recurring caller generate reports on a schedule.
+                         */
+                        passed_filters_window_hours?: number;
+                        /**
+                         * @description Alternative to saved_candidates_range: a rolling window of this
+                         *     many hours ending now. Ignored if saved_candidates_range is given.
+                         */
+                        saved_candidates_window_hours?: number;
                     };
                 };
             };
