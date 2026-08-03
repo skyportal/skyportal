@@ -297,6 +297,7 @@ const BrokerList = () => {
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Switch
                         checked={b.active}
+                        disabled={!isSystemAdmin}
                         onChange={(e) =>
                           updateBroker({
                             id: b.id,

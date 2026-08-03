@@ -357,6 +357,10 @@ app:
           icon: HourglassEmptyOutlined
           url: /allocations
 
+        - name: Brokers
+          icon: Hub
+          url: /brokers
+
         - name: Observations
           icon: ZoomInOutlined
           url: /observations
@@ -417,10 +421,6 @@ app:
           icon: Group
           permissions: ["Manage users", "System admin"]
           url: /user_management
-        - name: Brokers
-          icon: Hub
-          permissions: ["System admin"]
-          url: /brokers
 
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package
