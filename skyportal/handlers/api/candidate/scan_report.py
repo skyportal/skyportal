@@ -39,7 +39,11 @@ async def get_sources_by_objs_in_range(
     try:
         # Coerce the ISO strings to datetimes so the DB compares timestamps, not text.
         def to_datetime(value):
-            return arrow.get(value).to("utc").datetime.replace(tzinfo=None) if value else None
+            return (
+                arrow.get(value).to("utc").datetime.replace(tzinfo=None)
+                if value
+                else None
+            )
 
         result = await session.execute(
             sa.select(
