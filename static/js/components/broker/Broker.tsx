@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -20,7 +20,9 @@ import {
   useLazyTestBrokerFilterQuery,
 } from "../../ducks/brokers";
 import BrokerAlertCard, { AlertOption } from "./BrokerAlertCard";
-import BrokerFilterManager from "./BrokerFilterManager";
+import BrokerAlertFilters from "./BrokerAlertFilters";
+import FilterCatalog from "./FilterCatalog";
+import { AlertFilter, fieldsOf, flatten, matchesFilters } from "./alertFields";
 import NewBrokerFilterForm from "./NewBrokerFilterForm";
 import LasairFilterBuilder from "./lasair/LasairFilterBuilder";
 import Spinner from "../Spinner";
@@ -108,6 +110,7 @@ const Broker = () => {
   const [mode, setMode] = useState<"search" | "preview">("search");
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState(0);
+  const [filters, setFilters] = useState<AlertFilter[]>([]);
 
   const [
     triggerAlerts,
@@ -178,18 +181,24 @@ const Broker = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [broker]);
 
+  // Object ID and cone search are mutually exclusive
+  const coneDisabled = objectId.trim() !== "";
+  const coneReason =
+    "Disabled while an Object ID is set: the search is done by object, not by position.";
+
   const onSearch = () => {
     if (!broker) return;
     setMode("search");
     setPage(1);
+    setFilters([]);
     triggerAlerts({
       brokerId,
       params: {
         objectId: objectId || undefined,
-        ra: ra || undefined,
-        dec: dec || undefined,
-        radius: radius || undefined,
-        radius_units: radius ? "arcsec" : undefined,
+        ra: coneDisabled ? undefined : ra || undefined,
+        dec: coneDisabled ? undefined : dec || undefined,
+        radius: coneDisabled ? undefined : radius || undefined,
+        radius_units: !coneDisabled && radius ? "arcsec" : undefined,
       },
     });
   };
@@ -198,15 +207,23 @@ const Broker = () => {
     if (!broker) return;
     setMode("preview");
     setPage(1);
+    setFilters([]);
     triggerFilter({ brokerId, params });
   };
 
-  // Group alerts by object so each card is one object with a per-alert selector.
   const rows = asArray(data);
+  // Flat view of the response: the filter fields and the CSV columns.
+  const flatRows = useMemo(() => (rows ?? []).map((r) => flatten(r)), [rows]);
+  const fields = useMemo(() => fieldsOf(flatRows), [flatRows]);
+  const kept = rows?.filter((_r, i) =>
+    matchesFilters(flatRows[i] ?? {}, filters),
+  );
+
+  // Group alerts by object so each card is one object with a per-alert selector.
   const objectGroups: { objectId: string; alerts: NormalizedAlert[] }[] = [];
-  if (rows) {
+  if (kept) {
     const byObject = new Map<string, NormalizedAlert[]>();
-    rows.map(normalizeAlert).forEach((a) => {
+    kept.map(normalizeAlert).forEach((a) => {
       // Require an objectId; candid is optional (Lasair cone rows have none).
       if (!a.objectId) return;
       if (!byObject.has(a.objectId)) byObject.set(a.objectId, []);
@@ -266,24 +283,39 @@ const Broker = () => {
                 value={objectId}
                 onChange={(e) => setObjectId(e.target.value)}
               />
-              <TextField
-                size="small"
-                label="RA (deg)"
-                value={ra}
-                onChange={(e) => setRa(e.target.value)}
-              />
-              <TextField
-                size="small"
-                label="Dec (deg)"
-                value={dec}
-                onChange={(e) => setDec(e.target.value)}
-              />
-              <TextField
-                size="small"
-                label="Radius (arcsec)"
-                value={radius}
-                onChange={(e) => setRadius(e.target.value)}
-              />
+              <Tooltip title={coneDisabled ? coneReason : ""}>
+                <span>
+                  <TextField
+                    size="small"
+                    label="RA (deg)"
+                    value={ra}
+                    disabled={coneDisabled}
+                    onChange={(e) => setRa(e.target.value)}
+                  />
+                </span>
+              </Tooltip>
+              <Tooltip title={coneDisabled ? coneReason : ""}>
+                <span>
+                  <TextField
+                    size="small"
+                    label="Dec (deg)"
+                    value={dec}
+                    disabled={coneDisabled}
+                    onChange={(e) => setDec(e.target.value)}
+                  />
+                </span>
+              </Tooltip>
+              <Tooltip title={coneDisabled ? coneReason : ""}>
+                <span>
+                  <TextField
+                    size="small"
+                    label="Radius (arcsec)"
+                    value={radius}
+                    disabled={coneDisabled}
+                    onChange={(e) => setRadius(e.target.value)}
+                  />
+                </span>
+              </Tooltip>
               <Button
                 variant="contained"
                 onClick={onSearch}
@@ -296,7 +328,7 @@ const Broker = () => {
 
           {activeTab === 1 &&
             (broker.filter_kind === "pipeline" ? (
-              <BrokerFilterManager brokerId={brokerId} />
+              <FilterCatalog brokerId={brokerId} />
             ) : broker.filter_kind === "query" && canPreview ? (
               <LasairFilterBuilder
                 brokerId={brokerId}
@@ -319,6 +351,14 @@ const Broker = () => {
                 <Typography color="error" gutterBottom>
                   {(error as any)?.data?.message || "Failed to query broker."}
                 </Typography>
+              )}
+
+              {rows && rows.length > 0 && (
+                <BrokerAlertFilters
+                  fields={fields}
+                  filters={filters}
+                  onChange={setFilters}
+                />
               )}
 
               {data !== undefined &&
@@ -371,13 +411,13 @@ const Broker = () => {
                   </>
                 ) : (
                   <Paper className={classes.json} variant="outlined">
-                    {rows ? (
+                    {kept ? (
                       <Typography variant="subtitle2" gutterBottom>
-                        {`${rows.length} result${rows.length === 1 ? "" : "s"}`}
+                        {`${kept.length} result${kept.length === 1 ? "" : "s"}`}
                       </Typography>
                     ) : null}
                     <pre className={classes.pre}>
-                      {JSON.stringify(data, null, 2)}
+                      {JSON.stringify(kept ?? data, null, 2)}
                     </pre>
                   </Paper>
                 ))}
