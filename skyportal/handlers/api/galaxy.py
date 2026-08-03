@@ -1,6 +1,7 @@
 import os
 import time
 from io import StringIO
+from typing import Any
 
 import arrow
 import astropy.units as u
@@ -12,6 +13,7 @@ import pandas as pd
 import sqlalchemy as sa
 from astropy.io import fits
 from geojson import Feature, Point
+from pydantic import BaseModel, ConfigDict, Field
 from scipy.integrate import quad
 from scipy.stats import norm
 from sqlalchemy import func, nulls_last
@@ -40,6 +42,64 @@ env, cfg = load_env()
 Session = scoped_session(sessionmaker())
 
 MAX_GALAXIES = 10000
+
+
+class GalaxyCatalogPostBody(BaseModel):
+    """Request body for ingesting a galaxy catalog."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_name: str | None = Field(default=None, description="Galaxy catalog name.")
+    catalog_description: str | None = Field(
+        default=None, description="Galaxy catalog description."
+    )
+    catalog_url: str | None = Field(default=None, description="Galaxy catalog URL.")
+    catalog_data: dict[str, Any] | None = Field(
+        default=None,
+        description="Galaxy catalog data as a mapping of column name to list of "
+        "values (must include ra, dec, and name).",
+    )
+
+
+class GalaxyASCIIFilePostBody(BaseModel):
+    """Request body for uploading galaxies from an ASCII file."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalogName: str | None = Field(default=None, description="Galaxy catalog name.")
+    catalogDescription: str | None = Field(
+        default=None, description="Galaxy catalog description."
+    )
+    catalogURL: str | None = Field(default=None, description="Galaxy catalog URL.")
+    catalogData: str | None = Field(
+        default=None, description="Catalog data ASCII string."
+    )
+
+
+class GalaxyCatalogFitsPostBody(BaseModel):
+    """Request body for uploading galaxies from a FITS catalog."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    file_name: str | None = Field(
+        default=None,
+        description="Name of the .fits file containing the galaxies (in the data "
+        "directory).",
+    )
+    file_url: str | None = Field(
+        default=None,
+        description="URL of the .fits file containing the galaxies.",
+    )
+
+
+class ObjHostPostBody(BaseModel):
+    """Request body for setting an object's host galaxy."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    galaxyName: str | None = Field(
+        default=None, description="Name of the galaxy to associate with the object."
+    )
 
 
 def get_galaxies(
@@ -455,17 +515,13 @@ def get_galaxies(
 
 class GalaxyCatalogHandler(BaseHandler):
     @permissions(["System admin"])
-    async def post(self):
+    async def post(self, *, body: GalaxyCatalogPostBody = None):
         """
         ---
         summary: Ingest a Galaxy catalog
         description: Ingest a Galaxy catalog
         tags:
           - galaxies
-        requestBody:
-          content:
-            application/json:
-              schema: GalaxyHandlerPost
         responses:
           200:
             content:
@@ -476,12 +532,11 @@ class GalaxyCatalogHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        data = self.get_json()
-        catalog_name = data.get("catalog_name", None)
-        catalog_description = data.get("catalog_description", None)
-        catalog_url = data.get("catalog_url", None)
-        catalog_data = data.get("catalog_data", None)
+        body = self.parse_body(GalaxyCatalogPostBody)
+        catalog_name = body.catalog_name
+        catalog_description = body.catalog_description
+        catalog_url = body.catalog_url
+        catalog_data = body.catalog_data
 
         if catalog_name is None:
             return self.error("catalog_name is a required parameter.")
@@ -981,17 +1036,13 @@ def add_galaxies(catalog_metadata, catalog_data):
 
 class GalaxyASCIIFileHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: GalaxyASCIIFilePostBody = None):
         """
         ---
         summary: Upload galaxies from ASCII file
         description: Upload galaxies from ASCII file
         tags:
           - galaxies
-        requestBody:
-          content:
-            application/json:
-              schema: GalaxyASCIIFileHandlerPost
         responses:
           200:
             content:
@@ -1002,12 +1053,11 @@ class GalaxyASCIIFileHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        json = self.get_json()
-        catalog_data = json.pop("catalogData", None)
-        catalog_name = json.pop("catalogName", None)
-        catalog_description = json.pop("catalogDescription", None)
-        catalog_url = json.pop("catalogURL", None)
+        body = self.parse_body(GalaxyASCIIFilePostBody)
+        catalog_data = body.catalogData
+        catalog_name = body.catalogName
+        catalog_description = body.catalogDescription
+        catalog_url = body.catalogURL
 
         if catalog_data is None:
             return self.error(message="Missing catalog_data")
@@ -1398,25 +1448,13 @@ def _resolve_fits_source(data, default_name):
 
 class GalaxyRegaladeHandler(BaseHandler):
     @permissions(["System Admin"])
-    async def post(self):
+    async def post(self, *, body: GalaxyCatalogFitsPostBody = None):
         """
         ---
         summary: Upload galaxies from the REGALADE catalog
         description: Upload galaxies from the REGALADE catalog (FITS). If no file_name or file_url is provided, looks for regalade_v2.fits in the data directory.
         tags:
           - galaxies
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                    file_name:
-                        type: string
-                        description: Name of the .fits file containing the galaxies (in the data directory)
-                    file_url:
-                        type: string
-                        description: URL of the .fits file containing the galaxies
         responses:
           200:
             content:
@@ -1427,6 +1465,7 @@ class GalaxyRegaladeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(GalaxyCatalogFitsPostBody)
 
         def add_regalade_and_notify(file_path=None, file_url=None):
             full_length, full_blueshift_length = add_regalade(file_path, file_url)
@@ -1436,7 +1475,7 @@ class GalaxyRegaladeHandler(BaseHandler):
 
         try:
             file_path, file_url = _resolve_fits_source(
-                self.get_json(), "regalade_v2.fits"
+                body.model_dump(exclude_unset=True), "regalade_v2.fits"
             )
         except ValueError as e:
             return self.error(str(e))
@@ -1508,7 +1547,7 @@ class GalaxyNEDHandler(BaseHandler):
 
 class ObjHostHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self, obj_id: str):
+    async def post(self, obj_id: str, *, body: ObjHostPostBody = None):
         """
         ---
         summary: Set an object's host galaxy
@@ -1522,18 +1561,6 @@ class ObjHostHandler(BaseHandler):
             required: true
             schema:
               type: string
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  galaxyName:
-                    type: string
-                    description: |
-                      Name of the galaxy to associate with the object
-                required:
-                  - galaxyName
         responses:
           200:
             content:
@@ -1544,10 +1571,9 @@ class ObjHostHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(ObjHostPostBody)
 
-        data = self.get_json()
-
-        name = data.get("galaxyName")
+        name = body.galaxyName
         if name is None:
             return self.error("galaxyName required to set object host")
 

@@ -339,13 +339,6 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
       input_filters,
     };
 
-    if (formData.filters) {
-      params["photometry_filters"] = formData.filters;
-    }
-    if (formData.instruments) {
-      params["photometry_instruments"] = formData.instruments;
-    }
-
     if (selectedGroupIds.length >= 0) {
       params["group_ids"] = selectedGroupIds;
     }

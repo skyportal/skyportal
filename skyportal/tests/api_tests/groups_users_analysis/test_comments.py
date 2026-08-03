@@ -11,9 +11,6 @@ def test_add_and_retrieve_comment_group_id(comment_token, public_source, public_
         f"sources/{public_source.id}/comments",
         data={
             "text": "Comment text",
-            "ra": 0.0,
-            "dec": 0.0,
-            "redshift": 3,
             "group_ids": [public_group.id],
         },
         token=comment_token,
