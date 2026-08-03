@@ -23,6 +23,7 @@ import pandas as pd
 import sqlalchemy as sa
 from astroquery.ipac.irsa import Irsa
 from astroquery.vizier import Vizier
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import IntegrityError
 from tornado.ioloop import IOLoop
 
@@ -49,9 +50,143 @@ PS1_URL = cfg["app.ps1_endpoint"]
 gaia = GaiaQuery()
 
 
+class GaiaQueryBody(BaseModel):
+    """Request body for posting Gaia cross-match annotations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog: str = Field(
+        default="gaiadr3.gaia_source",
+        description="The name of the catalog key, associated with a catalog cross "
+        "match, from which the data should be retrieved. "
+        'Default is "gaiadr3.gaia_source".',
+    )
+    crossmatchRadius: float | None = Field(
+        default=cfg["cross_match.gaia.radius"],
+        description="Crossmatch radius (in arcseconds) to retrieve Gaia sources. If "
+        "not specified (or None) will use the default from the config file, or 2 "
+        "arcsec if not specified in the config.",
+    )
+    crossmatchLimmag: float | None = Field(
+        default=cfg["cross_match.gaia.limmag"],
+        description="Crossmatch limiting magnitude (for Gaia G mag). Will ignore "
+        "sources fainter than this magnitude. If not specified, will use the default "
+        "value in the config file, or None if not specified in the config. If value "
+        "is cast to False (0, False or None), will take sources of any magnitude.",
+    )
+    crossmatchNumber: int | None = Field(
+        default=cfg["cross_match.gaia.number"],
+        description="Maximum number of Gaia sources (matches) to retrieve.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be able "
+        "to view annotation. Defaults to all of requesting user's groups.",
+    )
+
+
+class IRSAQueryWISEBody(BaseModel):
+    """Request body for posting WISE cross-match annotations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog: str = Field(
+        default="allwise_p3as_psd",
+        description="The name of the catalog key, associated with a catalog cross "
+        "match, from which the data should be retrieved. Default is allwise_p3as_psd.",
+    )
+    crossmatchRadius: float | None = Field(
+        default=2.0,
+        description="Crossmatch radius (in arcseconds) to retrieve photoz's. "
+        "Default is 2.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be able "
+        "to view annotation. Defaults to all of requesting user's groups.",
+    )
+
+
+class VizierQueryBody(BaseModel):
+    """Request body for posting Vizier cross-match annotations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog: str = Field(
+        default="VII/290",
+        description="The name of the catalog key, associated with a catalog cross "
+        "match, from which the data should be retrieved. Default is VII/290.",
+    )
+    crossmatchRadius: float | None = Field(
+        default=2.0,
+        description="Crossmatch radius (in arcseconds) to retrieve photoz's. "
+        "Default is 2.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be able "
+        "to view annotation. Defaults to all of requesting user's groups.",
+    )
+
+
+class DatalabQueryBody(BaseModel):
+    """Request body for posting Datalab cross-match annotations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog: str = Field(
+        default="ls_dr10",
+        description="The name of the catalog key, associated with a catalog cross "
+        "match, from which the photoz data should be retrieved. Default is ls_dr10.",
+    )
+    crossmatchRadius: float | None = Field(
+        default=2.0,
+        description="Crossmatch radius (in arcseconds) to retrieve photoz's. "
+        "Default is 2.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be able "
+        "to view annotation. Defaults to all of requesting user's groups.",
+    )
+
+
+class PS1QueryBody(BaseModel):
+    """Request body for posting PS1 cross-match annotations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog: str = Field(
+        default="ps1.dr2",
+        description="The name of the catalog key, used when posting annotations. "
+        "Default is ps1.dr2. This is not used for the query, which will always query "
+        "DR2.",
+    )
+    crossmatchRadius: float | None = Field(
+        default=2.0,
+        description="Crossmatch radius (in arcseconds) to retrieve PS1 sources. "
+        "Default is 2.",
+    )
+    crossmatchMinDetections: int | None = Field(
+        default=1,
+        description="Crossmatch minimum number of detections to retrieve PS1 "
+        "sources. Default is 1.",
+    )
+    crossmatchNumber: int | None = Field(
+        default=5,
+        description="Crossmatch number of sources (maximum) to retrieve from PS1. "
+        "Default is 1, max is 5.",
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be able "
+        "to view annotation. Defaults to all of requesting user's groups.",
+    )
+
+
 class GaiaQueryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: ObjId):
+    async def post(self, obj_id: ObjId, *, body: GaiaQueryBody = None):
         """
         ---
         summary: Add Gaia annotations
@@ -60,62 +195,17 @@ class GaiaQueryHandler(BaseHandler):
             based on cross-match to the Gaia DR3.
         tags:
             - annotations
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  catalog:
-                    required: false
-                    type: string
-                    description: |
-                      The name of the catalog key, associated with a
-                      catalog cross match,
-                      from which the data should be retrieved.
-                      Default is "gaiadr3.gaia_source".
-                  crossmatchRadius:
-                    required: false
-                    type: number
-                    description: |
-                      Crossmatch radius (in arcseconds) to retrieve Gaia sources
-                      If not specified (or None) will use the default from
-                      the config file, or 2 arcsec if not specified in the config.
-                  crossmatchLimmag:
-                    required: false
-                    type: number
-                    description: |
-                      Crossmatch limiting magnitude (for Gaia G mag).
-                      Will ignore sources fainter than this magnitude.
-                      If not specified, will use the default value in
-                      the config file, or None if not specified in the config.
-                      If value is cast to False (0, False or None),
-                      will take sources of any magnitude.
-                  group_ids:
-                    required: false
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups
-                      should be able to view annotation.
-                      Defaults to all of requesting user's groups.
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Annotation'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(GaiaQueryBody)
 
         async with self.AsyncSession() as session:
             obj = await session.scalar(
@@ -126,16 +216,12 @@ class GaiaQueryHandler(BaseHandler):
                     f'Cannot find source with id "{obj_id}". ', status=403
                 )
 
-            data = self.get_json()
-
             author_id = self.associated_user_object.id
 
-            catalog = data.pop("catalog", "gaiadr3.gaia_source")
-            radius_degrees = (
-                data.pop("crossmatchRadius", cfg["cross_match.gaia.radius"]) / 3600.0
-            )  # convert arcsec to degrees
-            limmag = data.pop("crossmatchLimmag", cfg["cross_match.gaia.limmag"])
-            num_matches = data.pop("crossmatchNumber", cfg["cross_match.gaia.number"])
+            catalog = body.catalog
+            radius_degrees = body.crossmatchRadius / 3600.0  # convert arcsec to degrees
+            limmag = body.crossmatchLimmag
+            num_matches = body.crossmatchNumber
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
             query_string = f"""
@@ -212,7 +298,7 @@ class GaiaQueryHandler(BaseHandler):
                 "RUWE": "ruwe",
             }
 
-            group_ids = data.pop("group_ids", None)
+            group_ids = body.group_ids
 
             if not group_ids:
                 public_group = await session.scalar(
@@ -276,7 +362,7 @@ class GaiaQueryHandler(BaseHandler):
 
 class IRSAQueryWISEHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: ObjId):
+    async def post(self, obj_id: ObjId, *, body: IRSAQueryWISEBody = None):
         """
         ---
         summary: Add WISE annotations
@@ -285,53 +371,18 @@ class IRSAQueryWISEHandler(BaseHandler):
             based on cross-matches to some catalog (default is allwise_p3as_psd).
         tags:
             - annotations
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  catalog:
-                    required: false
-                    type: string
-                    description: |
-                      The name of the catalog key, associated with a
-                      catalog cross match,
-                      from which the data should be retrieved.
-                      Default is allwise_p3as_psd.
-                  crossmatchRadius:
-                    required: false
-                    type: number
-                    description: |
-                      Crossmatch radius (in arcseconds) to retrieve photoz's
-                      Default is 2.
-                  group_ids:
-                    required: false
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups
-                      should be able to view annotation.
-                      Defaults to all of requesting user's groups.
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Annotation'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(IRSAQueryWISEBody)
 
-        data = self.get_json()
         async with self.AsyncSession() as session:
             obj = await session.scalar(
                 Obj.select(self.current_user).where(Obj.id == obj_id)
@@ -341,7 +392,7 @@ class IRSAQueryWISEHandler(BaseHandler):
                     f'Cannot find source with id "{obj_id}". ', status=403
                 )
 
-            group_ids = data.pop("group_ids", None)
+            group_ids = body.group_ids
 
             if not group_ids:
                 public_group = await session.scalar(
@@ -366,8 +417,8 @@ class IRSAQueryWISEHandler(BaseHandler):
 
             author_id = self.associated_user_object.id
 
-            catalog = data.pop("catalog", "allwise_p3as_psd")
-            radius_arcsec = data.pop("crossmatchRadius", 2.0)
+            catalog = body.catalog
+            radius_arcsec = body.crossmatchRadius
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
             try:
@@ -430,7 +481,7 @@ class IRSAQueryWISEHandler(BaseHandler):
 
 class VizierQueryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: ObjId):
+    async def post(self, obj_id: ObjId, *, body: VizierQueryBody = None):
         """
         ---
         summary: Add Vizier annotations
@@ -440,52 +491,17 @@ class VizierQueryHandler(BaseHandler):
             (default is VII/290, i.e. the million quasar catalog).
         tags:
             - annotations
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  catalog:
-                    required: false
-                    type: string
-                    description: |
-                      The name of the catalog key, associated with a
-                      catalog cross match,
-                      from which the data should be retrieved.
-                      Default is VII/290.
-                  crossmatchRadius:
-                    required: false
-                    type: number
-                    description: |
-                      Crossmatch radius (in arcseconds) to retrieve photoz's
-                      Default is 2.
-                  group_ids:
-                    required: false
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups
-                      should be able to view annotation.
-                      Defaults to all of requesting user's groups.
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Annotation'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(VizierQueryBody)
 
         async with self.AsyncSession() as session:
             obj = await session.scalar(
@@ -496,7 +512,7 @@ class VizierQueryHandler(BaseHandler):
                     f'Cannot find source with id "{obj_id}". ', status=403
                 )
 
-            group_ids = data.pop("group_ids", None)
+            group_ids = body.group_ids
 
             if not group_ids:
                 public_group = await session.scalar(
@@ -521,8 +537,8 @@ class VizierQueryHandler(BaseHandler):
 
             author_id = self.associated_user_object.id
 
-            catalog = data.pop("catalog", "VII/290")
-            radius_arcsec = data.pop("crossmatchRadius", 2.0)
+            catalog = body.catalog
+            radius_arcsec = body.crossmatchRadius
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
             try:
@@ -587,57 +603,35 @@ class VizierQueryHandler(BaseHandler):
 
 
 class DatalabQueryHandler(BaseHandler):
-    """
-    ---
-    summary: Add Datalab annotations
-    description: |
-        get photo-z's (or, for DESI catalogs, spectroscopic redshifts) of
-        nearby sources and post them as an annotation based on cross-matches
-        to some catalog (default is LegacySurvey DR10).
-    tags:
-        - annotations
-    parameters:
-      - in: query
-        name: catalog
-        required: false
-        schema:
-          type: string
-        description: |
-          The name of the catalog key, associated with a catalog cross match,
-          from which the photoz data should be retrieved.
-          Default is ls_dr10.
-      - in: query
-        name: crossmatchRadius
-        required: false
-        schema:
-          type: number
-        description: |
-          Crossmatch radius (in arcseconds) to retrieve photoz's
-          Default is 2.
-      - in: query
-        name: group_ids
-        required: false
-        schema:
-          type: array
-          items:
-            type: integer
-        description: |
-          List of group IDs corresponding to which groups should be
-          able to view annotation. Defaults to all of requesting user's groups.
-    responses:
-      200:
-        content:
-          application/json:
-            schema: Success
-      400:
-        content:
-          application/json:
-            schema: Error
-    """
-
     @auth_or_token
-    async def post(self, obj_id: str):
-        data = self.get_json()
+    async def post(self, obj_id: str, *, body: DatalabQueryBody = None):
+        """
+        ---
+        summary: Add Datalab annotations
+        description: |
+            get photo-z's (or, for DESI catalogs, spectroscopic redshifts) of
+            nearby sources and post them as an annotation based on cross-matches
+            to some catalog (default is LegacySurvey DR10).
+        tags:
+            - annotations
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+            description: ID of the object to retrieve photoz's for
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(DatalabQueryBody)
 
         async with self.AsyncSession() as session:
             obj = await session.scalar(
@@ -648,7 +642,7 @@ class DatalabQueryHandler(BaseHandler):
                     f'Cannot find source with id "{obj_id}". ', status=403
                 )
 
-            group_ids = data.pop("group_ids", None)
+            group_ids = body.group_ids
 
             if not group_ids:
                 public_group = await session.scalar(
@@ -673,8 +667,8 @@ class DatalabQueryHandler(BaseHandler):
 
             author_id = self.associated_user_object.id
 
-            catalog = data.pop("catalog", "ls_dr10")
-            radius_arcsec = data.pop("crossmatchRadius", 2.0)
+            catalog = body.catalog
+            radius_arcsec = body.crossmatchRadius
             radius_deg = radius_arcsec / 3600.0
 
             # DESI is a spectroscopic (not photo-z) survey with a different
@@ -731,7 +725,7 @@ class DatalabQueryHandler(BaseHandler):
 
 class PS1QueryHandler(BaseHandler):
     @auth_or_token
-    async def post(self, obj_id: ObjId):
+    async def post(self, obj_id: ObjId, *, body: PS1QueryBody = None):
         """
         ---
         summary: Add PS1 annotations
@@ -739,61 +733,17 @@ class PS1QueryHandler(BaseHandler):
             get PS1 sources and post them as an annotation
         tags:
             - annotations
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  catalog:
-                    required: false
-                    type: string
-                    description: |
-                      The name of the catalog key, used when posting annotations.
-                      Default is ps1.dr2. This is not used for the query, which will always query DR2.
-                  crossmatchRadius:
-                    required: false
-                    type: number
-                    description: |
-                      Crossmatch radius (in arcseconds) to retrieve PS1 sources
-                      Default is 2.
-                  crossmatchMinDetections:
-                    required: false
-                    type: number
-                    description: |
-                      Crossmatch minimum number of detections to retrieve PS1 sources
-                      Default is 1.
-                  crossmatchNumber:
-                    required: false
-                    type: number
-                    description: |
-                      Crossmatch number of sources (maximum) to retrieve from PS1
-                      Default is 1, max is 5.
-                  group_ids:
-                    required: false
-                    type: array
-                    items:
-                      type: integer
-                    description: |
-                      List of group IDs corresponding to which groups
-                      should be able to view annotation.
-                      Defaults to all of requesting user's groups.
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/Annotation'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(PS1QueryBody)
 
         async with self.AsyncSession() as session:
             obj = await session.scalar(
@@ -804,14 +754,12 @@ class PS1QueryHandler(BaseHandler):
                     f'Cannot find source with id "{obj_id}". ', status=403
                 )
 
-            data = self.get_json()
-
             author_id = self.associated_user_object.id
 
-            catalog = data.pop("catalog", "ps1.dr2")
-            radius_arcsec = data.pop("crossmatchRadius", 2.0)
-            min_detections = data.pop("crossmatchMinDetections", 1)
-            num_matches = data.pop("crossmatchNumber", 5)
+            catalog = body.catalog
+            radius_arcsec = body.crossmatchRadius
+            min_detections = body.crossmatchMinDetections
+            num_matches = body.crossmatchNumber
 
             # we enforce some limits to these numbers
             if radius_arcsec > 5.0 or radius_arcsec < 0:
@@ -878,7 +826,7 @@ class PS1QueryHandler(BaseHandler):
 
             df = df.head(num_matches)
 
-            group_ids = data.pop("group_ids", None)
+            group_ids = body.group_ids
 
             if not group_ids:
                 public_group = await session.scalar(

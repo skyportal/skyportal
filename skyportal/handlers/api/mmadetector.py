@@ -2,6 +2,7 @@ import arrow
 import sqlalchemy as sa
 from arrow import ParserError
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -16,40 +17,166 @@ from ..base import BaseHandler
 from .spectrum import parse_id_list
 
 
+class MMADetectorPostBody(BaseModel):
+    """Request body for creating an MMADetector."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(
+        description="Unabbreviated facility name (e.g., LIGO Hanford Observatory)."
+    )
+    nickname: str = Field(description="Abbreviated facility name (e.g., H1).")
+    type: str = Field(
+        description="MMA detector type, one of gravitational-wave, neutrino, "
+        "or gamma-ray-burst."
+    )
+    lat: float | None = Field(default=None, description="Latitude in deg.")
+    lon: float | None = Field(default=None, description="Longitude in deg.")
+    elevation: float | None = Field(default=None, description="Elevation in meters.")
+    fixed_location: bool | None = Field(
+        default=None,
+        description="Does this detector have a fixed location (lon, lat, elev)?",
+    )
+
+
+class MMADetectorPostResponse(BaseModel):
+    """Data payload returned when creating an MMADetector."""
+
+    id: int = Field(description="New mmadetector ID")
+
+
+class MMADetectorPatchBody(BaseModel):
+    """Request body for updating an MMADetector."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, description="Unabbreviated facility name.")
+    nickname: str | None = Field(default=None, description="Abbreviated facility name.")
+    type: str | None = Field(default=None, description="MMA detector type.")
+    lat: float | None = Field(default=None, description="Latitude in deg.")
+    lon: float | None = Field(default=None, description="Longitude in deg.")
+    elevation: float | None = Field(default=None, description="Elevation in meters.")
+    fixed_location: bool | None = Field(
+        default=None,
+        description="Does this detector have a fixed location (lon, lat, elev)?",
+    )
+
+
+class MMADetectorSpectrumPostBody(BaseModel):
+    """Request body for uploading an MMADetector spectrum."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    frequencies: list[float] = Field(description="Frequencies of the spectrum [Hz].")
+    amplitudes: list[float] = Field(
+        description="Amplitude of the Spectrum [1/sqrt(Hz)]."
+    )
+    start_time: str = Field(
+        description="The ISO UTC start time the spectrum was taken."
+    )
+    end_time: str = Field(description="The ISO UTC end time the spectrum was taken.")
+    detector_id: int = Field(
+        description="ID of the MMADetector that acquired the Spectrum."
+    )
+    group_ids: list[int] | str | None = Field(
+        default=None,
+        description='IDs of the Groups to share this spectrum with. Set to "all" '
+        "to make this spectrum visible to all users.",
+    )
+
+
+class MMADetectorSpectrumPatchBody(BaseModel):
+    """Request body for updating an MMADetector spectrum."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    frequencies: list[float] | None = Field(
+        default=None, description="Frequencies of the spectrum [Hz]."
+    )
+    amplitudes: list[float] | None = Field(
+        default=None, description="Amplitude of the Spectrum [1/sqrt(Hz)]."
+    )
+    start_time: str | None = Field(
+        default=None, description="The ISO UTC start time the spectrum was taken."
+    )
+    end_time: str | None = Field(
+        default=None, description="The ISO UTC end time the spectrum was taken."
+    )
+    detector_id: int | None = Field(
+        default=None, description="ID of the MMADetector that acquired the Spectrum."
+    )
+    group_ids: list[int] | str | None = Field(
+        default=None,
+        description='IDs of the Groups to share this spectrum with. Set to "all" '
+        "to make this spectrum visible to all users.",
+    )
+
+
+class MMADetectorSpectrumPostResponse(BaseModel):
+    """Data payload returned when uploading an MMADetector spectrum."""
+
+    id: int = Field(description="New mmadetector spectrum ID")
+
+
+class MMADetectorTimeIntervalPostBody(BaseModel):
+    """Request body for uploading MMADetector time interval(s)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    detector_id: int | None = Field(
+        default=None, description="ID of the MMADetector for the time interval(s)."
+    )
+    time_interval: list | None = Field(
+        default=None, description="A single time interval [start, end]."
+    )
+    time_intervals: list | None = Field(
+        default=None, description="List of time intervals, each [start, end]."
+    )
+    group_ids: list[int] | str | None = Field(
+        default=None,
+        description="IDs of the Groups to share these time intervals with. Set to "
+        '"all" to make them visible to all users.',
+    )
+
+
+class MMADetectorTimeIntervalPatchBody(BaseModel):
+    """Request body for updating an MMADetector time interval."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    detector_id: int | None = Field(
+        default=None, description="ID of the MMADetector for the time interval."
+    )
+    time_interval: list | None = Field(
+        default=None, description="A time interval [start, end]."
+    )
+    group_ids: list[int] | str | None = Field(
+        default=None,
+        description="IDs of the Groups to share this time interval with. Set to "
+        '"all" to make it visible to all users.',
+    )
+
+
+class MMADetectorTimeIntervalPostResponse(BaseModel):
+    """Data payload returned when uploading MMADetector time interval(s)."""
+
+    ids: list[int] = Field(description="New mmadetector time interval IDs")
+
+
 class MMADetectorHandler(BaseHandler):
     @permissions(["Manage allocations"])
-    async def post(self):
+    async def post(
+        self, *, body: MMADetectorPostBody = None
+    ) -> MMADetectorPostResponse:
         """
         ---
         summary: Create an MMA Detector
         description: Create a Multimessenger Astronomical Detector (MMADetector)
         tags:
           - mma detectors
-        requestBody:
-          content:
-            application/json:
-              schema: MMADetectorNoID
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New mmadetector ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        data = self.get_json()
+        body = self.parse_body(MMADetectorPostBody)
+        data = body.model_dump(exclude_unset=True)
 
         async with self.AsyncSession() as session:
             schema = MMADetector.__schema__()
@@ -59,13 +186,8 @@ class MMADetectorHandler(BaseHandler):
                 return self.error(
                     f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
-            if data["fixed_location"]:
-                if (
-                    data["lat"] < -90
-                    or data["lat"] > 90
-                    or data["lon"] < -180
-                    or data["lon"] > 180
-                ):
+            if body.fixed_location:
+                if body.lat < -90 or body.lat > 90 or body.lon < -180 or body.lon > 180:
                     return self.error(
                         "Latitude must be between -90 and 90, longitude between -180 and 180"
                     )
@@ -143,33 +265,24 @@ class MMADetectorHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Manage allocations"])
-    async def patch(self, mmadetector_id: int):
+    async def patch(self, mmadetector_id: int, *, body: MMADetectorPatchBody = None):
         """
         ---
         summary: Update an MMA Detector
         description: Update a Multimessenger Astronomical Detector (MMADetector)
         tags:
           - mma detectors
-        requestBody:
-          content:
-            application/json:
-              schema: MMADetectorNoID
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/MMADetector'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(MMADetectorPatchBody)
 
         try:
             mmadetector_id_int = int(mmadetector_id)
@@ -184,7 +297,7 @@ class MMADetectorHandler(BaseHandler):
             )
             if t is None:
                 return self.error("Invalid MMA Detector ID.")
-            data = self.get_json()
+            data = body.model_dump(exclude_unset=True)
             data["id"] = mmadetector_id_int
 
             schema = MMADetector.__schema__()
@@ -195,22 +308,22 @@ class MMADetectorHandler(BaseHandler):
                     f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
 
-            if "name" in data:
-                t.name = data["name"]
-            if "nickname" in data:
-                t.nickname = data["nickname"]
-            if "lat" in data:
-                if data["lat"] < -90 or data["lat"] > 90:
+            if "name" in body.model_fields_set:
+                t.name = body.name
+            if "nickname" in body.model_fields_set:
+                t.nickname = body.nickname
+            if "lat" in body.model_fields_set:
+                if body.lat < -90 or body.lat > 90:
                     return self.error("Latitude must be between -90 and 90")
-                t.lat = data["lat"]
-            if "lon" in data:
-                if data["lon"] < -180 or data["lon"] > 180:
+                t.lat = body.lat
+            if "lon" in body.model_fields_set:
+                if body.lon < -180 or body.lon > 180:
                     return self.error("Longitude between -180 and 180")
-                t.lon = data["lon"]
-            if "fixed_location" in data:
-                t.fixed_location = data["fixed_location"]
-            if "type" in data:
-                t.type = data["type"]
+                t.lon = body.lon
+            if "fixed_location" in body.model_fields_set:
+                t.fixed_location = body.fixed_location
+            if "type" in body.model_fields_set:
+                t.type = body.type
 
             await session.commit()
 
@@ -257,40 +370,19 @@ class MMADetectorHandler(BaseHandler):
 
 class MMADetectorSpectrumHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(
+        self, *, body: MMADetectorSpectrumPostBody = None
+    ) -> MMADetectorSpectrumPostResponse:
         """
         ---
         summary: Upload an MMA Detector Spectrum
         description: Upload a Multimessenger Astronomical Detector (MMADetector) spectrum
         tags:
           - mma detector spectra
-        requestBody:
-          content:
-            application/json:
-              schema: MMADetectorSpectrumPost
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New mmadetector spectrum ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        json = self.get_json()
+        body = self.parse_body(MMADetectorSpectrumPostBody)
         try:
-            data = MMADetectorSpectrumPost.load(json)
+            data = MMADetectorSpectrumPost.load(body.model_dump(exclude_unset=True))
         except ValidationError as e:
             return self.error(
                 f"Invalid / missing parameters; {e.normalized_messages()}"
@@ -497,43 +589,36 @@ class MMADetectorSpectrumHandler(BaseHandler):
             return self.success(data=spectra)
 
     @permissions(["Upload data"])
-    async def patch(self, spectrum_id: int):
+    async def patch(
+        self, spectrum_id: int, *, body: MMADetectorSpectrumPatchBody = None
+    ):
         """
         ---
         summary: Update an MMA Detector Spectrum
         description: Update mmadetector spectrum
         tags:
           - mma detector spectra
-        requestBody:
-          content:
-            application/json:
-              schema: MMADetectorSpectrumPost
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/MMADetectorSpectrum'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(MMADetectorSpectrumPatchBody)
 
         try:
             spectrum_id = int(spectrum_id)
         except (TypeError, ValueError):
             return self.error("Could not convert spectrum id to int.")
 
-        data = self.get_json()
-
         try:
-            data = MMADetectorSpectrumPost.load(data, partial=True)
+            data = MMADetectorSpectrumPost.load(
+                body.model_dump(exclude_unset=True), partial=True
+            )
         except ValidationError as e:
             return self.error(f"Invalid/missing parameters: {e.normalized_messages()}")
 
@@ -633,38 +718,18 @@ class MMADetectorSpectrumHandler(BaseHandler):
 
 class MMADetectorTimeIntervalHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(
+        self, *, body: MMADetectorTimeIntervalPostBody = None
+    ) -> MMADetectorTimeIntervalPostResponse:
         """
         ---
         summary: Upload an MMA Detector Time Interval
         description: Upload a Multimessenger Astronomical Detector (MMADetector) time_interval(s)
         tags:
           - mma detector time intervals
-        requestBody:
-          content:
-            application/json:
-              schema: MMADetectorTimeIntervalNoID
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New mmadetector data time_interval ID
-          400:
-            content:
-              application/json:
-                schema: Error
         """
-        json = self.get_json()
+        body = self.parse_body(MMADetectorTimeIntervalPostBody)
+        json = body.model_dump(exclude_unset=True)
 
         if "time_intervals" in json:
             time_intervals = json["time_intervals"]
@@ -915,40 +980,33 @@ class MMADetectorTimeIntervalHandler(BaseHandler):
             return self.success(data=data)
 
     @permissions(["Upload data"])
-    async def patch(self, time_interval_id: int):
+    async def patch(
+        self, time_interval_id: int, *, body: MMADetectorTimeIntervalPatchBody = None
+    ):
         """
         ---
         summary: Update an MMA Detector Time Interval
         description: Update mmadetector time_interval
         tags:
           - mma detector time intervals
-        requestBody:
-          content:
-            application/json:
-              schema: MMADetectorTimeIntervalNoID
         responses:
           200:
             content:
               application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          $ref: '#/components/schemas/MMADetectorTimeInterval'
+                schema: Success
           400:
             content:
               application/json:
                 schema: Error
         """
+        body = self.parse_body(MMADetectorTimeIntervalPatchBody)
 
         try:
             time_interval_id = int(time_interval_id)
         except (TypeError, ValueError):
             return self.error("Could not convert time_interval id to int.")
 
-        data = self.get_json()
+        data = body.model_dump(exclude_unset=True)
         group_ids = data.pop("group_ids", None)
 
         async with self.AsyncSession() as session:
