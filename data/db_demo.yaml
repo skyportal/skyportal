@@ -127,6 +127,12 @@ streams:
       selector: [1]
     =id: lsst
 
+streams/=lsst/users:
+  - user_id: =viewonlyuser
+  - user_id: =fulluser
+  - user_id: =groupadmin
+  - user_id: =testadmin
+
 streams/=ztf_public/users:
   - user_id: =viewonlyuser
   - user_id: =fulluser
