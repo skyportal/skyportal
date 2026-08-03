@@ -9,6 +9,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 
+import { useAttachFilterToBrokerMutation } from "../../ducks/brokers";
 import { useAddGroupFilterMutation } from "../../ducks/filter";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
@@ -16,6 +17,7 @@ import { useGetStreamsQuery } from "../../ducks/streams";
 const NewBrokerFilterForm = ({ brokerId }: { brokerId: number }) => {
   const navigate = useNavigate();
   const [addGroupFilter] = useAddGroupFilterMutation();
+  const [attachFilter] = useAttachFilterToBrokerMutation();
 
   const { data: groups } = useGetGroupsQuery();
   const { data: streams } = useGetStreamsQuery();
@@ -33,6 +35,7 @@ const NewBrokerFilterForm = ({ brokerId }: { brokerId: number }) => {
         stream_id: streamId,
       }).unwrap()) as { id?: number };
       if (created?.id) {
+        await attachFilter({ filterId: created.id, brokerId }).unwrap();
         navigate(`/brokers/${brokerId}/filter/${created.id}`);
       }
     } catch {

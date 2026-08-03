@@ -1,29 +1,35 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import { withTheme } from "@rjsf/core";
 import { Theme as MuiTheme } from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
+import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
 import IconButton from "@mui/material/IconButton";
 import InputLabel from "@mui/material/InputLabel";
-import MuiLink from "@mui/material/Link";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
 import Switch from "@mui/material/Switch";
+import Tab from "@mui/material/Tab";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TableSortLabel from "@mui/material/TableSortLabel";
+import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
@@ -34,6 +40,7 @@ import {
   useGetBrokersQuery,
   useUpdateBrokerMutation,
 } from "../../ducks/brokers";
+import FilterCatalog from "./FilterCatalog";
 
 const Form = withTheme(MuiTheme);
 
@@ -49,6 +56,10 @@ const capabilityChips = (caps: Record<string, boolean>) =>
   ].filter((c) => c.on);
 
 const brokerLink = (id: number) => `/brokers/${id}`;
+
+const TABS = ["Brokers", "Filters"];
+
+const NEW_BROKER_FORM_ID = "new-broker-form";
 
 const COLUMNS = [
   { id: "name", label: "Name", value: (b: any) => b.name || "" },
@@ -92,6 +103,8 @@ const BrokerList = () => {
   const [newName, setNewName] = useState("");
   const [formData, setFormData] = useState<Record<string, unknown>>({});
 
+  const [tab, setTab] = useState(0);
+  const [addOpen, setAddOpen] = useState(false);
   const [orderBy, setOrderBy] = useState("name");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
 
@@ -128,19 +141,46 @@ const BrokerList = () => {
       setNewName("");
       setNewClass("");
       setFormData({});
+      setAddOpen(false);
     }
   };
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h5" gutterBottom>
-        Brokers
-      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+          mb: 1,
+        }}
+      >
+        <Typography variant="h5">Brokers</Typography>
+        <Button
+          variant="contained"
+          size="small"
+          startIcon={<AddIcon />}
+          onClick={() => setAddOpen(true)}
+        >
+          Add a broker
+        </Button>
+      </Box>
 
-      {isLoading ? (
-        <CircularProgress />
-      ) : (
-        <>
+      <Tabs
+        sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}
+        value={tab}
+        onChange={(_event, value) => setTab(value)}
+      >
+        {TABS.map((label) => (
+          <Tab key={label} label={label} />
+        ))}
+      </Tabs>
+
+      {tab === 0 &&
+        (isLoading ? (
+          <CircularProgress />
+        ) : (
           <Paper variant="outlined" sx={{ mb: 3, overflowX: "auto" }}>
             <Table size="small">
               <TableHead>
@@ -179,15 +219,7 @@ const BrokerList = () => {
                     onClick={() => navigate(brokerLink(b.id))}
                     sx={{ cursor: "pointer" }}
                   >
-                    <TableCell>
-                      <MuiLink
-                        component={Link}
-                        to={brokerLink(b.id)}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {b.name}
-                      </MuiLink>
-                    </TableCell>
+                    <TableCell>{b.name}</TableCell>
                     <TableCell>{b.broker_classname}</TableCell>
                     <TableCell>{(b.surveys || []).join(", ")}</TableCell>
                     <TableCell>
@@ -228,54 +260,74 @@ const BrokerList = () => {
               </TableBody>
             </Table>
           </Paper>
-        </>
-      )}
+        ))}
 
-      <Typography variant="h6" gutterBottom>
-        Add a broker
-      </Typography>
-      <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
-        <TextField
-          size="small"
-          label="Name"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-        <FormControl size="small" sx={{ minWidth: 220 }}>
-          <InputLabel id="new-broker-class">Provider</InputLabel>
-          <Select
-            labelId="new-broker-class"
-            label="Provider"
-            value={newClass}
-            onChange={(e) => {
-              setNewClass(e.target.value);
-              setFormData({});
-            }}
+      {tab === 1 && <FilterCatalog />}
+
+      <Dialog
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Add a broker</DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
+            <TextField
+              size="small"
+              label="Name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+            <FormControl size="small" sx={{ minWidth: 220 }}>
+              <InputLabel id="new-broker-class">Provider</InputLabel>
+              <Select
+                labelId="new-broker-class"
+                label="Provider"
+                value={newClass}
+                onChange={(e) => {
+                  setNewClass(e.target.value);
+                  setFormData({});
+                }}
+              >
+                {classNames.map((c) => (
+                  <MenuItem key={c} value={c}>
+                    {c}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+          {schema ? (
+            <Form
+              id={NEW_BROKER_FORM_ID}
+              schema={schema as Record<string, unknown>}
+              uiSchema={(uiSchema || {}) as Record<string, unknown>}
+              formData={formData}
+              validator={validator}
+              onChange={(e) => setFormData(e.formData)}
+              onSubmit={() => onCreate()}
+            >
+              <></>
+            </Form>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button size="small" onClick={() => setAddOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            disabled={!newName || !newClass}
+            {...(schema
+              ? ({ type: "submit", form: NEW_BROKER_FORM_ID } as const)
+              : { onClick: () => onCreate() })}
           >
-            {classNames.map((c) => (
-              <MenuItem key={c} value={c}>
-                {c}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
-      {schema ? (
-        <Paper variant="outlined" sx={{ p: 2, maxWidth: 560 }}>
-          <Form
-            schema={schema as Record<string, unknown>}
-            uiSchema={(uiSchema || {}) as Record<string, unknown>}
-            formData={formData}
-            validator={validator}
-            onChange={(e) => setFormData(e.formData)}
-            onSubmit={() => onCreate()}
-          >
-            <Button type="submit" variant="contained" disabled={!newName}>
-              Create broker
-            </Button>
-          </Form>
-        </Paper>
-      ) : null}
+            Create broker
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
