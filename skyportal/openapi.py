@@ -9,6 +9,8 @@ from . import __version__
 from .models import schema
 from .utils.api_validate import (
     body_model_from,
+    query_model_from,
+    query_parameters_from,
     register_pydantic_schema,
     response_model_from,
 )
@@ -146,9 +148,15 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
                     + spec.get("description", "")
                 )
 
-            # pydantic models in the method's type hints (keyword-only body
-            # param, return annotation) override any hand-written docstring
-            # sections, so docs match validation
+            # pydantic models in the method's type hints (keyword-only body/
+            # query params, return annotation) override any hand-written
+            # docstring sections, so docs match validation
+            query_model = query_model_from(method)
+            if query_model is not None:
+                spec.setdefault("parameters", []).extend(
+                    query_parameters_from(query_model)
+                )
+
             body_model = body_model_from(method)
             if body_model is not None:
                 spec["requestBody"] = {

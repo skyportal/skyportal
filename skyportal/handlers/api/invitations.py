@@ -99,6 +99,41 @@ class InvitationPatchBody(BaseModel):
     )
 
 
+class InvitationGetQuery(BaseModel):
+    """Query parameters for listing invitations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    includeUsed: bool = Field(
+        default=False,
+        description="Bool indicating whether to include used invitations. Defaults to false.",
+    )
+    numPerPage: int = Field(
+        default=25,
+        description="Number of invitations to return per paginated request. Defaults to 25.",
+    )
+    pageNumber: int = Field(
+        default=1,
+        description="Page number for paginated query results. Defaults to 1.",
+    )
+    email: str | None = Field(
+        default=None,
+        description="Get invitations whose email contains this string.",
+    )
+    group: str | None = Field(
+        default=None,
+        description="Get invitations part of the group with name given by this parameter.",
+    )
+    stream: str | None = Field(
+        default=None,
+        description="Get invitations with access to the stream with name given by this parameter.",
+    )
+    invitedBy: str | None = Field(
+        default=None,
+        description="Get invitations invited by users whose username contains this string.",
+    )
+
+
 class InvitationHandler(BaseHandler):
     @permissions(["Manage users"])
     async def post(self, *, body: InvitationPostBody = None) -> InvitationPostResponse:
@@ -227,58 +262,13 @@ class InvitationHandler(BaseHandler):
             return self.success(data={"id": invitation.id})
 
     @permissions(["Manage users"])
-    async def get(self):
+    async def get(self, *, query: InvitationGetQuery = None):
         """
         ---
         summary: Retrieve invitations
         description: Retrieve invitations
         tags:
           - invitations
-        parameters:
-          - in: query
-            name: includeUsed
-            schema:
-              type: boolean
-            description: |
-              Bool indicating whether to include used invitations.
-              Defaults to false.
-          - in: query
-            name: numPerPage
-            nullable: true
-            schema:
-              type: integer
-            description: |
-              Number of candidates to return per paginated request. Defaults to 25
-          - in: query
-            name: pageNumber
-            nullable: true
-            schema:
-              type: integer
-            description: Page number for paginated query results. Defaults to 1
-          - in: query
-            name: email
-            nullable: true
-            schema:
-              type: string
-            description: Get invitations whose email contains this string.
-          - in: query
-            name: group
-            nullable: true
-            schema:
-              type: string
-            description: Get invitations part of the group with name given by this parameter.
-          - in: query
-            name: stream
-            nullable: true
-            schema:
-              type: string
-            description: Get invitations with access to the stream with name given by this parameter.
-          - in: query
-            name: invitedBy
-            nullable: true
-            schema:
-              type: string
-            description: Get invitations invited by users whose username contains this string.
         responses:
             200:
               content:
@@ -298,47 +288,43 @@ class InvitationHandler(BaseHandler):
                               totalMatches:
                                 type: integer
         """
-        include_used = self.get_query_argument("includeUsed", False)
-        email_address = self.get_query_argument("email", None)
-        group = self.get_query_argument("group", None)
-        stream = self.get_query_argument("stream", None)
-        invited_by = self.get_query_argument("invitedBy", None)
-        page_number = self.get_query_argument("pageNumber", 1, type=int)
-        n_per_page = self.get_query_argument("numPerPage", 25, type=int)
-        if page_number is None or n_per_page is None:
-            return self.error("Invalid page number or numPerPage value.")
+        query = self.parse_query(InvitationGetQuery)
 
         async with self.AsyncSession() as session:
-            query = Invitation.select(session.user_or_token).options(
+            stmt = Invitation.select(session.user_or_token).options(
                 selectinload(Invitation.streams),
                 selectinload(Invitation.groups),
                 selectinload(Invitation.invited_by),
             )
-            if not include_used:
-                query = query.where(Invitation.used.is_(False))
-            if email_address is not None:
-                query = query.where(Invitation.user_email.contains(email_address))
-            if group is not None:
-                query = (
-                    query.join(GroupInvitation).join(Group).where(Group.name == group)
+            if not query.includeUsed:
+                stmt = stmt.where(Invitation.used.is_(False))
+            if query.email is not None:
+                stmt = stmt.where(Invitation.user_email.contains(query.email))
+            if query.group is not None:
+                stmt = (
+                    stmt.join(GroupInvitation)
+                    .join(Group)
+                    .where(Group.name == query.group)
                 )
-            if stream is not None:
-                query = (
-                    query.join(StreamInvitation)
+            if query.stream is not None:
+                stmt = (
+                    stmt.join(StreamInvitation)
                     .join(Stream)
-                    .where(Stream.name == stream)
+                    .where(Stream.name == query.stream)
                 )
-            if invited_by is not None:
-                query = (
-                    query.join(UserInvitation)
+            if query.invitedBy is not None:
+                stmt = (
+                    stmt.join(UserInvitation)
                     .join(User)
-                    .where(User.username.contains(invited_by))
+                    .where(User.username.contains(query.invitedBy))
                 )
 
-            count_stmt = sa.select(func.count()).select_from(query)
+            count_stmt = sa.select(func.count()).select_from(stmt)
             total_matches = await session.scalar(count_stmt)
-            query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
-            inv_result = await session.scalars(query)
+            stmt = stmt.limit(query.numPerPage).offset(
+                (query.pageNumber - 1) * query.numPerPage
+            )
+            inv_result = await session.scalars(stmt)
             invitations = inv_result.unique().all()
             info = {}
             return_data = [invitation.to_dict() for invitation in invitations]
