@@ -212,8 +212,8 @@ def test_patch_user_expiration_date(super_admin_token, user):
 
 
 def test_patch_user_cannot_rewrite_identity_columns(super_admin_token, user):
-    """Every unrecognized key is assigned straight onto the User, so the
-    identity columns have to be refused explicitly."""
+    """Identity columns aren't part of the request body model, so they are
+    rejected outright rather than assigned onto the User."""
     original_uid = user.oauth_uid
 
     status, data = api(
@@ -222,7 +222,8 @@ def test_patch_user_cannot_rewrite_identity_columns(super_admin_token, user):
         data={"id": 999999999, "oauth_uid": "hijacked@example.com"},
         token=super_admin_token,
     )
-    assert status == 200, data
+    assert status == 400, data
+    assert "Extra inputs are not permitted" in data["message"]
 
     status, data = api("GET", f"user/{user.id}", token=super_admin_token)
     assert status == 200, data

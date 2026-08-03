@@ -5859,16 +5859,18 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EarthquakeMeasurementBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["EarthquakeMeasured"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
             };
@@ -5917,16 +5919,18 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EarthquakeMeasurementBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["EarthquakeMeasured"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
             };
@@ -6636,15 +6640,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ReminderNoID"] & {
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view reminder.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["ReminderPatchBody"];
                 };
             };
             responses: {
@@ -6728,17 +6726,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        text: string;
-                        /**
-                         * @description List of group IDs corresponding to which groups should be
-                         *     able to view reminder. Defaults to all of requesting user's
-                         *     groups.
-                         */
-                        group_ids?: number[];
-                    };
+                    "application/json": components["schemas"]["ReminderPostBody"];
                 };
             };
             responses: {
@@ -6748,10 +6738,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New reminder ID */
-                                reminder_id?: number;
-                            };
+                            data?: components["schemas"]["ReminderPostResponse"];
                         };
                     };
                 };
@@ -7047,9 +7034,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["EarthquakeEventNoID"];
+                    "application/json": components["schemas"]["EarthquakePostBody"];
                 };
             };
             responses: {
@@ -7058,15 +7045,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["EarthquakePostResponse"];
+                        };
                     };
                 };
             };
@@ -8286,25 +8267,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /** @description The name of the localization of the event */
-                        localization_name: string;
-                        /** @description The cumprob of the localization of the event */
-                        localization_cumprob: string;
-                        /** @description The source_id of the source to confirm or reject */
-                        source_id: string;
-                        /**
-                         * @description Standing of the source against the event.
-                         * @enum {string}
-                         */
-                        status: "pending" | "confirmed" | "ambiguous" | "rejected";
-                        /** @description Choose sources with a first detection after start_date, as an arrow parseable string */
-                        start_date: string;
-                        /** @description Choose sources with a last detection before end_date, as an arrow parseable string */
-                        end_date: string;
-                    };
+                    "application/json": components["schemas"]["GcnEventObjPostBody"];
                 };
             };
             responses: {
@@ -8314,19 +8279,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description The id of the gcn_event_obj */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["GcnEventObjIdResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -8382,20 +8336,15 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
+                    /** @description The dateobs of the event, as an arrow parseable string */
                     dateobs: string;
                     source_id: string;
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description Standing of the source against the event.
-                         * @enum {string}
-                         */
-                        status: "pending" | "confirmed" | "ambiguous" | "rejected";
-                    };
+                    "application/json": components["schemas"]["GcnEventObjPatchBody"];
                 };
             };
             responses: {
@@ -8405,19 +8354,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description The id of the modified gcn_event_obj */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["GcnEventObjIdResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -12527,7 +12465,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ObservingRunBulkEditBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -12607,9 +12549,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ObservingRunPost"];
+                    "application/json": components["schemas"]["ObservingRunPutBody"];
                 };
             };
             responses: {
@@ -12618,9 +12560,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"] & {
-                            data?: components["schemas"]["ObservingRun"];
-                        };
+                        "application/json": components["schemas"]["Success"];
                     };
                 };
                 400: {
@@ -12722,9 +12662,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": components["schemas"]["ObservingRunPost"];
+                    "application/json": components["schemas"]["ObservingRunPostBody"];
                 };
             };
             responses: {
@@ -12734,19 +12674,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New Observing Run ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["ObservingRunPostResponse"];
                         };
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -22796,16 +22725,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        /**
-                         * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
-                         *     date, after which the user's account will be deactivated and will be unable
-                         *     to access the application.
-                         */
-                        expirationDate?: string;
-                    };
+                    "application/json": components["schemas"]["UserPatchBody"];
                 };
             };
             responses: {
@@ -22905,30 +22827,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        username: string;
-                        first_name?: string;
-                        last_name?: string;
-                        affiliations?: string[];
-                        contact_email?: string;
-                        oauth_uid?: string;
-                        contact_phone?: string;
-                        /**
-                         * @description List of user roles. Defaults to `[Full user]`. Will be overridden
-                         *     by `groupIDsAndAdmin` on a per-group basis.
-                         * @enum {array}
-                         */
-                        roles?: string[];
-                        /**
-                         * @description Array of 2-element arrays `[groupID, admin]` where `groupID`
-                         *     is the ID of a group that the new user will be added to and
-                         *     `admin` is a boolean indicating whether they will be an admin in
-                         *     that group, e.g. `[[group_id_1, true], [group_id_2, false]]`
-                         */
-                        groupIDsAndAdmin?: unknown[][];
-                    };
+                    "application/json": components["schemas"]["UserPostBody"];
                 };
             };
             responses: {
@@ -22938,10 +22839,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["Success"] & {
-                            data?: {
-                                /** @description New user ID */
-                                id?: number;
-                            };
+                            data?: components["schemas"]["UserPostResponse"];
                         };
                     };
                 };
@@ -23288,16 +23186,9 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        name?: string;
-                        link_name?: string;
-                        group_ids?: number[];
-                        description?: string;
-                        options?: Record<string, never>;
-                        is_visible?: boolean;
-                    };
+                    "application/json": components["schemas"]["PublicReleasePostBody"];
                 };
             };
             responses: {
@@ -23306,15 +23197,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Success"];
-                    };
-                };
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["PublicReleasePostResponse"];
+                        };
                     };
                 };
             };
@@ -23383,15 +23268,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        name?: string;
-                        group_ids?: number[];
-                        description?: string;
-                        options?: Record<string, never>;
-                        is_visible?: boolean;
-                    };
+                    "application/json": components["schemas"]["PublicReleasePatchBody"];
                 };
             };
             responses: {
@@ -38779,6 +38658,178 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /**
+         * EarthquakeMeasurementBody
+         * @description Request body for posting or updating a ground velocity measurement;
+         *     at least one of rfamp or lockloss must be provided.
+         */
+        EarthquakeMeasurementBody: {
+            /**
+             * Rfamp
+             * @description Earthquake amplitude measured [m/s]
+             * @default null
+             */
+            rfamp: number | null;
+            /**
+             * Lockloss
+             * @description Earthquake lockloss measured, 0 (no lockloss) or 1 (lockloss)
+             * @default null
+             */
+            lockloss: number | null;
+        };
+        /**
+         * ReminderPostBody
+         * @description Request body for creating reminder(s).
+         */
+        ReminderPostBody: {
+            /**
+             * Text
+             * @description Text to post for the reminder
+             */
+            text: string;
+            /**
+             * Next Reminder
+             * @description Arrow-parseable date string for the next reminder
+             */
+            next_reminder: string;
+            /**
+             * Reminder Delay
+             * @description Delay until the next reminder in days
+             * @default 1
+             */
+            reminder_delay: number;
+            /**
+             * Number Of Reminders
+             * @description Number of remaining reminders
+             * @default 1
+             */
+            number_of_reminders: number;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view reminder. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * User Ids
+             * @description List of IDs of users to post the reminder for. Defaults to the requesting user.
+             * @default null
+             */
+            user_ids: number[] | null;
+        };
+        /**
+         * ReminderPostResponse
+         * @description IDs of the newly created reminders.
+         */
+        ReminderPostResponse: {
+            /**
+             * Reminder Ids
+             * @description IDs of the new reminders (one per user)
+             */
+            reminder_ids: number[];
+        };
+        /**
+         * ReminderPatchBody
+         * @description Request body for updating a reminder.
+         */
+        ReminderPatchBody: {
+            /**
+             * Text
+             * @description Text to post for the reminder
+             * @default null
+             */
+            text: string | null;
+            /**
+             * Next Reminder
+             * @description Arrow-parseable date string for the next reminder
+             * @default null
+             */
+            next_reminder: string | null;
+            /**
+             * Reminder Delay
+             * @description Delay until the next reminder in days
+             * @default null
+             */
+            reminder_delay: number | null;
+            /**
+             * Number Of Reminders
+             * @description Number of remaining reminders
+             * @default null
+             */
+            number_of_reminders: number | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view reminder. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * User Ids
+             * @description List of IDs of users the reminder is for. Defaults to the requesting user.
+             * @default null
+             */
+            user_ids: number[] | null;
+        };
+        /**
+         * EarthquakePostBody
+         * @description Request body for ingesting an earthquake event, either from a QuakeML
+         *     xml document or from explicit event properties.
+         */
+        EarthquakePostBody: {
+            /**
+             * Xml
+             * @description QuakeML xml document describing the event
+             * @default null
+             */
+            xml: string | null;
+            /**
+             * Event Id
+             * @description Earthquake event ID; required if xml is not given
+             * @default null
+             */
+            event_id: string | null;
+            /**
+             * Date
+             * @description Date of the event; required if xml is not given
+             * @default null
+             */
+            date: string | null;
+            /**
+             * Latitude
+             * @description Event latitude [deg]; required if xml is not given
+             * @default null
+             */
+            latitude: number | null;
+            /**
+             * Longitude
+             * @description Event longitude [deg]; required if xml is not given
+             * @default null
+             */
+            longitude: number | null;
+            /**
+             * Depth
+             * @description Event depth [m]; required if xml is not given
+             * @default null
+             */
+            depth: number | null;
+            /**
+             * Magnitude
+             * @description Event magnitude; required if xml is not given
+             * @default null
+             */
+            magnitude: number | null;
+        };
+        /**
+         * EarthquakePostResponse
+         * @description ID of the ingested earthquake event.
+         */
+        EarthquakePostResponse: {
+            /**
+             * Id
+             * @description Earthquake event ID
+             */
+            id: (string | number) | null;
+        };
         GcnEventTagPost: {
             /** @description UTC event timestamp */
             dateobs?: string;
@@ -38792,6 +38843,91 @@ export interface components {
             xml?: string;
             /** @description JSON notice content. */
             json?: string;
+        };
+        /**
+         * GcnEventObjPostBody
+         * @description Request body for confirming or rejecting a source in a GCN.
+         */
+        GcnEventObjPostBody: {
+            /**
+             * Source Id
+             * @description The source_id of the source to confirm or reject
+             */
+            source_id: string;
+            /**
+             * Localization Name
+             * @description The name of the localization of the event
+             */
+            localization_name: string;
+            /**
+             * Localization Cumprob
+             * @description The cumprob of the localization of the event
+             */
+            localization_cumprob: number;
+            /**
+             * Status
+             * @description Standing of the source against the event
+             * @enum {string}
+             */
+            status: "pending" | "confirmed" | "ambiguous" | "rejected";
+            /**
+             * Start Date
+             * @description Choose sources with a first detection after start_date, as an arrow parseable string
+             */
+            start_date: string;
+            /**
+             * End Date
+             * @description Choose sources with a last detection before end_date, as an arrow parseable string
+             */
+            end_date: string;
+            /**
+             * Explanation
+             * @description Explanation of the confirmation/rejection
+             * @default null
+             */
+            explanation: string | null;
+            /**
+             * Notes
+             * @description Notes about the confirmation/rejection
+             * @default null
+             */
+            notes: string | null;
+        };
+        /**
+         * GcnEventObjIdResponse
+         * @description ID of the affected gcn_event_obj row.
+         */
+        GcnEventObjIdResponse: {
+            /**
+             * Id
+             * @description The id of the gcn_event_obj
+             */
+            id: number;
+        };
+        /**
+         * GcnEventObjPatchBody
+         * @description Request body for updating the confirmed/rejected status of a source in
+         *     a GCN.
+         */
+        GcnEventObjPatchBody: {
+            /**
+             * Status
+             * @description Standing of the source against the event
+             * @enum {string}
+             */
+            status: "pending" | "confirmed" | "ambiguous" | "rejected";
+            /**
+             * Explanation
+             * @description Explanation of the confirmation/rejection
+             * @default null
+             */
+            explanation: string | null;
+            /**
+             * Notes
+             * @description Notes about the confirmation/rejection
+             * @default null
+             */
+            notes: string | null;
         };
         LocalizationHandlerGet: {
             /** @description Localization name */
@@ -39067,6 +39203,117 @@ export interface components {
             observationData?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * ObservingRunBulkEditBody
+         * @description Request body for bulk-updating the assignments of an observing run.
+         */
+        ObservingRunBulkEditBody: {
+            /**
+             * Current Status
+             * @description Assignment status to filter on
+             * @default null
+             */
+            current_status: string | null;
+            /**
+             * New Status
+             * @description New status to apply to the matching assignments
+             * @default null
+             */
+            new_status: string | null;
+        };
+        /**
+         * ObservingRunPostBody
+         * @description Request body for creating an observing run.
+         */
+        ObservingRunPostBody: {
+            /**
+             * Instrument Id
+             * @description The ID of the instrument to be used in this run.
+             */
+            instrument_id: number;
+            /**
+             * Calendar Date
+             * @description The local calendar date of the run (YYYY-MM-DD).
+             */
+            calendar_date: string;
+            /**
+             * Pi
+             * @description The PI of the observing run.
+             * @default null
+             */
+            pi: string | null;
+            /**
+             * Observers
+             * @description The names of the observers
+             * @default null
+             */
+            observers: string | null;
+            /**
+             * Duration
+             * @description Number of nights in the observing run
+             * @default null
+             */
+            duration: number | null;
+            /**
+             * Group Id
+             * @description The ID of the group this run is associated with.
+             * @default null
+             */
+            group_id: number | null;
+        };
+        /**
+         * ObservingRunPostResponse
+         * @description ID of the newly created observing run.
+         */
+        ObservingRunPostResponse: {
+            /**
+             * Id
+             * @description New Observing Run ID
+             */
+            id: number;
+        };
+        /**
+         * ObservingRunPutBody
+         * @description Request body for updating an observing run.
+         */
+        ObservingRunPutBody: {
+            /**
+             * Instrument Id
+             * @description The ID of the instrument to be used in this run.
+             * @default null
+             */
+            instrument_id: number | null;
+            /**
+             * Calendar Date
+             * @description The local calendar date of the run (YYYY-MM-DD).
+             * @default null
+             */
+            calendar_date: string | null;
+            /**
+             * Pi
+             * @description The PI of the observing run.
+             * @default null
+             */
+            pi: string | null;
+            /**
+             * Observers
+             * @description The names of the observers
+             * @default null
+             */
+            observers: string | null;
+            /**
+             * Duration
+             * @description Number of nights in the observing run
+             * @default null
+             */
+            duration: number | null;
+            /**
+             * Group Id
+             * @description The ID of the group this run is associated with.
+             * @default null
+             */
+            group_id: number | null;
         };
         ObservationPlanManualHandlerPost: {
             /** @description ID of the GcnEvent. */
@@ -39946,6 +40193,216 @@ export interface components {
              * @description Array of Role IDs (strings) to be granted to user
              */
             roleIds: string[];
+        };
+        /**
+         * UserPostBody
+         * @description Request body for adding a new user.
+         */
+        UserPostBody: {
+            /**
+             * Username
+             * @description Username of the new user
+             */
+            username: string;
+            /**
+             * First Name
+             * @description User's first name
+             * @default null
+             */
+            first_name: string | null;
+            /**
+             * Last Name
+             * @description User's last name
+             * @default null
+             */
+            last_name: string | null;
+            /**
+             * Affiliations
+             * @description User's list of affiliations
+             * @default null
+             */
+            affiliations: string[] | null;
+            /**
+             * Contact Email
+             * @description User's contact email address
+             * @default null
+             */
+            contact_email: string | null;
+            /**
+             * Contact Phone
+             * @description User's contact phone number
+             * @default null
+             */
+            contact_phone: string | null;
+            /**
+             * Oauth Uid
+             * @description User's OAuth UID
+             * @default null
+             */
+            oauth_uid: string | null;
+            /**
+             * Roles
+             * @description List of user roles. Defaults to `[Full user]`. Will be overridden by `groupIDsAndAdmin` on a per-group basis.
+             */
+            roles?: string[];
+            /**
+             * Groupidsandadmin
+             * @description Array of 2-element arrays `[groupID, admin]` where `groupID` is the ID of a group that the new user will be added to and `admin` is a boolean indicating whether they will be an admin in that group, e.g. `[[group_id_1, true], [group_id_2, false]]`
+             */
+            groupIDsAndAdmin?: [
+                number,
+                boolean
+            ][];
+        };
+        /**
+         * UserPostResponse
+         * @description ID of the newly added user.
+         */
+        UserPostResponse: {
+            /**
+             * Id
+             * @description New user ID
+             */
+            id: number;
+        };
+        /**
+         * UserPatchBody
+         * @description Request body for updating a user.
+         */
+        UserPatchBody: {
+            /**
+             * Expirationdate
+             * @description Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration date, after which the user's account will be deactivated and will be unable to access the application. An explicit null or empty string clears the expiration date.
+             * @default null
+             */
+            expirationDate: string | null;
+            /**
+             * Username
+             * @description New username
+             * @default null
+             */
+            username: string | null;
+            /**
+             * First Name
+             * @description User's first name
+             * @default null
+             */
+            first_name: string | null;
+            /**
+             * Last Name
+             * @description User's last name
+             * @default null
+             */
+            last_name: string | null;
+            /**
+             * Contact Email
+             * @description User's contact email address
+             * @default null
+             */
+            contact_email: string | null;
+        };
+        /**
+         * PublicReleasePostBody
+         * @description Request body for creating a public release.
+         */
+        PublicReleasePostBody: {
+            /**
+             * Name
+             * @description Name of the release
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Link Name
+             * @description URL-safe name identifying the release in its public URL
+             * @default null
+             */
+            link_name: string | null;
+            /**
+             * Group Ids
+             * @description IDs of the groups that can manage this release
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Description
+             * @description Description of the release
+             * @default
+             */
+            description: string;
+            /**
+             * Is Visible
+             * @description Whether the release is publicly visible
+             * @default true
+             */
+            is_visible: boolean;
+            /**
+             * Auto Publish Enabled
+             * @description Whether sources saved to the release's groups are automatically published
+             * @default false
+             */
+            auto_publish_enabled: boolean;
+            /**
+             * Options
+             * @description Options for the sources in this release
+             */
+            options?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * PublicReleasePostResponse
+         * @description ID of the newly created public release.
+         */
+        PublicReleasePostResponse: {
+            /**
+             * Id
+             * @description Public release ID
+             */
+            id: number;
+        };
+        /**
+         * PublicReleasePatchBody
+         * @description Request body for updating a public release.
+         */
+        PublicReleasePatchBody: {
+            /**
+             * Name
+             * @description Name of the release
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Group Ids
+             * @description IDs of the groups that can manage this release
+             * @default null
+             */
+            group_ids: number[] | null;
+            /**
+             * Description
+             * @description Description of the release
+             * @default
+             */
+            description: string;
+            /**
+             * Is Visible
+             * @description Whether the release is publicly visible
+             * @default true
+             */
+            is_visible: boolean;
+            /**
+             * Auto Publish Enabled
+             * @description Whether sources saved to the release's groups are automatically published
+             * @default false
+             */
+            auto_publish_enabled: boolean;
+            /**
+             * Options
+             * @description Options for the sources in this release
+             */
+            options?: {
+                [key: string]: unknown;
+            };
         };
     };
     responses: never;
