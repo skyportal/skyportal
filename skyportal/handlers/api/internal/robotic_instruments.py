@@ -15,9 +15,12 @@ class RoboticInstrumentsHandler(BaseHandler):
             if apitype is not None:
                 if apitype == "api_classname":
                     result = await session.scalars(
-                        Instrument.select(session.user_or_token).where(
-                            Instrument.api_classname.isnot(None)
-                        )
+                        Instrument.select(session.user_or_token)
+                        # custom_json_schema reads instrument.telescope
+                        # (next_twilight_morning_nautical); eager-load it so it
+                        # doesn't lazy-load (MissingGreenlet) under async.
+                        .options(joinedload(Instrument.telescope))
+                        .where(Instrument.api_classname.isnot(None))
                     )
                     instruments = result.all()
                     retval = {

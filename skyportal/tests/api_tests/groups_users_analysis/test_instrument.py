@@ -442,3 +442,57 @@ def test_token_user_post_sensitivity_data(super_admin_token):
         data["message"]
         == "Sensitivity_data filters must be a subset of the instrument filters"
     )
+
+
+def test_instrument_forms_api_classname_reads_telescope(super_admin_token):
+    """Regression: GET /api/internal/instrument_forms?apiType=api_classname must
+    not raise MissingGreenlet. ZTFAPI.custom_json_schema reads
+    instrument.telescope (next_twilight_morning_nautical), which lazy-loads under
+    the async handler unless the telescope relationship is eager-loaded.
+    """
+    name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "telescope",
+        data={
+            "name": name,
+            "nickname": name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    telescope_id = data["data"]["id"]
+
+    instrument_name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "instrument",
+        data={
+            "name": instrument_name,
+            "type": "imager",
+            "band": "optical",
+            "filters": ["ztfg"],
+            "telescope_id": telescope_id,
+            "api_classname": "ZTFAPI",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    instrument_id = data["data"]["id"]
+
+    status, data = api(
+        "GET",
+        "internal/instrument_forms",
+        params={"apiType": "api_classname"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    # The ZTFAPI instrument's form schema is built (via custom_json_schema, which
+    # reads instrument.telescope) rather than crashing with MissingGreenlet.
+    assert str(instrument_id) in data["data"]
+    assert data["data"][str(instrument_id)]["formSchema"] is not None
