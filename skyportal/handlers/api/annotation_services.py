@@ -606,7 +606,7 @@ class DatalabQueryHandler(BaseHandler):
     summary: Add Datalab annotations
     description: |
         get photo(z) of nearby sources and post them as an annotation
-        based on cross-matches to some catalog (default is LegacySurvey DR8).
+        based on cross-matches to some catalog (default is LegacySurvey DR10).
     tags:
         - annotations
     parameters:
@@ -624,7 +624,7 @@ class DatalabQueryHandler(BaseHandler):
         description: |
           The name of the catalog key, associated with a catalog cross match,
           from which the photoz data should be retrieved.
-          Default is ls_dr9.
+          Default is ls_dr10.
       - in: query
         name: crossmatchRadius
         required: false
@@ -692,7 +692,7 @@ class DatalabQueryHandler(BaseHandler):
 
             author_id = self.associated_user_object.id
 
-            catalog = data.pop("catalog", "ls_dr9")
+            catalog = data.pop("catalog", "ls_dr10")
             radius_arcsec = data.pop("crossmatchRadius", 2.0)
             radius_deg = radius_arcsec / 3600.0
 
