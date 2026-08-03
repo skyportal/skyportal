@@ -133,7 +133,9 @@ export const useSourceStyles = makeStyles()((theme) => ({
     margin: 0,
   },
   noSpace: { padding: 0, margin: 0 },
-  dropdownText: { textDecoration: "none", color: "black" },
+  // `inherit`, not a fixed colour: these sit on menu paper, which is dark in
+  // dark mode.
+  dropdownText: { textDecoration: "none", color: "inherit" },
   noWrapMargin: {
     marginRight: "0.5rem",
     textWrap: "nowrap",

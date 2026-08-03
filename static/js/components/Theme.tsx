@@ -23,7 +23,8 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
   // primary/secondary-colored element themes at once. No active team → the
   // original SkyPortal palette.
   const { activeTeam } = useActiveTeam();
-  const primaryColor = activeTeam?.primary_color || "#457b9d";
+  const primaryColor =
+    activeTeam?.primary_color || (dark ? "#8ec7e8" : "#457b9d");
   const secondaryColor = activeTeam?.secondary_color || "#b1dae9";
 
   const greyTheme = createTheme({
@@ -41,7 +42,7 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
         main: primaryColor,
         light: primaryColor,
         dark: "#1d3557",
-        contrastText: "#fff",
+        ...(dark ? {} : { contrastText: "#fff" }),
       },
       secondary: {
         main: secondaryColor,
@@ -56,24 +57,21 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
         main: "#fca311",
       },
       error: {
-        main: "#e63946",
+        main: dark ? "#ff6b74" : "#e63946",
       },
       background: dark
-        ? { default: "#303030", paper: "#808080" }
+        ? { default: "#0e1726", paper: "#16233a" }
         : { default: "#f0f2f5", paper: "#f0f2f5" },
+      ...(dark && {
+        text: { primary: "#e6edf5", secondary: "#9fb3c8" },
+        divider: "rgba(168, 218, 220, 0.16)",
+      }),
     },
     plotFontSizes: {
       titleFontSize: 15,
       labelFontSize: 15,
     },
     components: {
-      MuiTypography: {
-        styleOverrides: {
-          body1: {
-            color: dark ? grey[50] : null,
-          },
-        },
-      },
       MuiButton: {
         defaultProps: {
           disableElevation: true,
@@ -88,14 +86,6 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
             },
           },
         ],
-        styleOverrides: {
-          textPrimary: {
-            color: dark ? "#b1dae9" : null,
-          },
-          outlinedPrimary: {
-            color: dark ? "#b1dae9" : null,
-          },
-        },
       },
       MuiCssBaseline: {
         styleOverrides: {
@@ -108,7 +98,7 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
               /* Works on Firefox */
               scrollbarWidth: "thin",
               scrollbarColor: dark
-                ? `${grey[700]} ${grey[800]}`
+                ? "#1e3050 #16233a"
                 : `${grey[400]} ${grey[100]}`,
               overflowY: "auto",
 
@@ -118,15 +108,13 @@ const Theme = ({ disableTransitions = false, children }: ThemeProps) => {
               },
 
               "& *::-webkit-scrollbar-track": {
-                background: dark ? grey[800] : grey[100],
+                background: dark ? "#16233a" : grey[100],
               },
 
               "& *::-webkit-scrollbar-thumb": {
-                backgroundColor: dark ? grey[700] : grey[400],
+                backgroundColor: dark ? "#1e3050" : grey[400],
                 borderRadius: "20px",
-                border: dark
-                  ? `3px solid ${grey[800]}`
-                  : `3px solid ${grey[100]}`,
+                border: dark ? "3px solid #16233a" : `3px solid ${grey[100]}`,
               },
             },
           },
