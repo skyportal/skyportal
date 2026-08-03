@@ -571,12 +571,16 @@ export const sourceApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
-    fetchPhotoz: build.mutation<any, number | string>({
-      query: (sourceID) => ({
+    fetchDatalab: build.mutation<
+      any,
+      { sourceID: number | string; catalog?: string | undefined }
+    >({
+      query: ({ sourceID, catalog = "ls_dr10" }) => ({
         url: `api/sources/${sourceID}/annotations/datalab`,
         method: "POST",
+        body: { catalog },
       }),
-      invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
+      invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
     }),
     fetchPS1: build.mutation<
       RouteData<"POST /api/sources/{obj_id}/annotations/ps1">,
@@ -767,7 +771,7 @@ export const {
   useFetchGaiaMutation,
   useFetchWiseMutation,
   useFetchVizierMutation,
-  useFetchPhotozMutation,
+  useFetchDatalabMutation,
   useFetchPS1Mutation,
   useAddTNSMutation,
   useAddHostMutation,
