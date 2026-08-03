@@ -1,9 +1,32 @@
 from datetime import timedelta
 
-from skyportal.models import Candidate, DBSession, Source
+import pytest
+
+from skyportal.models import Candidate, DBSession, ScanReport, Source
 from skyportal.tests import api
 from skyportal.tests.fixtures import CommentFactory, ObjFactory, PhotometryFactory
 from skyportal.utils.naive_datetime import utcnow_naive
+
+
+@pytest.fixture()
+def cleanup_reports():
+    """Delete reports created via the API so the author user can be torn down.
+
+    ScanReport.author_id is NOT NULL, so deleting the author (a fixture) would
+    otherwise fail trying to null it out. Reports hang off group+author (not the
+    obj), so they survive the obj teardown and must be removed explicitly.
+    """
+    report_ids = []
+    yield report_ids
+    session = DBSession()
+    try:
+        for report_id in report_ids:
+            report = session.get(ScanReport, report_id)
+            if report is not None:
+                session.delete(report)
+        session.commit()
+    except Exception:
+        session.rollback()
 
 
 def test_scan_report_item_includes_followup_and_assignment(
@@ -13,6 +36,7 @@ def test_scan_report_item_includes_followup_and_assignment(
     upload_data_token,
     public_group_sedm_allocation,
     red_transients_run,
+    cleanup_reports,
 ):
     now = utcnow_naive()
 
@@ -118,6 +142,7 @@ def test_scan_report_item_includes_followup_and_assignment(
     status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
     assert status == 200, data
     report_id = data["data"]["reports"][0]["id"]
+    cleanup_reports.append(report_id)
 
     status, data = api(
         "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token
@@ -164,6 +189,7 @@ def test_scan_report_rolling_window(
     public_group,
     user,
     upload_data_token,
+    cleanup_reports,
 ):
     now = utcnow_naive()
 
@@ -197,6 +223,7 @@ def test_scan_report_rolling_window(
     status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
     assert status == 200, data
     report_id = data["data"]["reports"][0]["id"]
+    cleanup_reports.append(report_id)
 
     status, data = api(
         "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token
@@ -211,6 +238,7 @@ def test_scan_report_item_comment_only_from_scanner(
     user,
     upload_data_token,
     super_admin_user,
+    cleanup_reports,
 ):
     now = utcnow_naive()
 
@@ -260,6 +288,7 @@ def test_scan_report_item_comment_only_from_scanner(
     status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
     assert status == 200, data
     report_id = data["data"]["reports"][0]["id"]
+    cleanup_reports.append(report_id)
 
     status, data = api(
         "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token
