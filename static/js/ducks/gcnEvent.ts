@@ -407,11 +407,19 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
       any,
       { dateobs: string; reportID: number | string; formData: any }
     >({
-      query: ({ dateobs, reportID, formData }) => ({
-        url: `api/gcn_event/${dateobs}/report/${reportID}`,
-        method: "PATCH",
-        body: formData,
-      }),
+      // Callers seed formData from the full fetched report; the API only accepts
+      // `data` and `published`, so send just those.
+      query: ({ dateobs, reportID, formData }) => {
+        const { data, published } = formData;
+        const requestBody: Record<string, any> = {};
+        if (data !== undefined) requestBody["data"] = data;
+        if (published !== undefined) requestBody["published"] = published;
+        return {
+          url: `api/gcn_event/${dateobs}/report/${reportID}`,
+          method: "PATCH",
+          body: requestBody,
+        };
+      },
       invalidatesTags: ["GcnEvent"],
     }),
   }),

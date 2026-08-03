@@ -1,6 +1,9 @@
+from typing import Annotated
+
 import sqlalchemy as sa
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
@@ -11,6 +14,51 @@ from ..base import BaseHandler
 _, cfg = load_env()
 
 USE_PHOTOMETRY_VALIDATION = cfg.get("misc.photometry_validation", False)
+
+
+def _coerce_validated(value):
+    # Mirror the marshmallow Validator's truthy/falsy coercion so the wire
+    # contract is unchanged: the status strings "validated"/"rejected" are
+    # accepted in addition to booleans (pydantic's native bool validation
+    # handles "true"/"false" and actual booleans).
+    if value == "validated":
+        return True
+    if value == "rejected":
+        return False
+    return value
+
+
+ValidatedField = Annotated[bool | None, BeforeValidator(_coerce_validated)]
+
+
+class PhotometryValidationPostBody(BaseModel):
+    """Request body for validating/rejecting a photometry point."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    validated: ValidatedField = Field(
+        default=None,
+        description="Whether the photometry is validated (True) or rejected "
+        "(False). The strings 'validated'/'rejected' are also accepted; null "
+        "leaves the status ambiguous.",
+    )
+    explanation: str | None = Field(
+        default=None,
+        description="Explanation for the validation/rejection decision.",
+    )
+    notes: str | None = Field(
+        default=None, description="Free-form notes about the validation."
+    )
+    magsys: str | None = Field(
+        default=None,
+        description="Magnitude system used for the frontend photometry refresh.",
+    )
+
+
+class PhotometryValidationResponse(BaseModel):
+    """Data payload returned when validating/rejecting a photometry point."""
+
+    id: int = Field(description="The id of the photometry_validation.")
 
 
 class Validator(Schema):
@@ -39,54 +87,25 @@ class Validator(Schema):
 
 class PhotometryValidationHandler(BaseHandler):
     @permissions(["Manage sources"])
-    async def post(self, photometry_id: int):
+    async def post(
+        self, photometry_id: int, *, body: PhotometryValidationPostBody = None
+    ) -> PhotometryValidationResponse:
         """
         ---
         summary: Validate/Reject a photometry point
         description: Validate or reject a photometric point based on data quality (e.g. examining quality of the image and/or reduction)
         tags:
           - photometry
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  validated:
-                    type: boolean
-                    description: Whether the source is validated (True) or rejected (False)
-                required:
-                  - validated
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: The id of the photomety_validation
-          400:
-            content:
-              application/json:
-                schema: Error
-
         """
         if not USE_PHOTOMETRY_VALIDATION:
             return self.error("Photometry validation is not enabled.")
 
-        data = self.get_json()
+        body = self.parse_body(PhotometryValidationPostBody)
 
-        validated = data.get("validated")
-        explanation = data.get("explanation")
-        notes = data.get("notes")
-        magsys = data.get("magsys")
+        validated = body.validated
+        explanation = body.explanation
+        notes = body.notes
+        magsys = body.magsys
 
         validator_instance = Validator()
         params_to_be_validated = {
@@ -162,53 +181,24 @@ class PhotometryValidationHandler(BaseHandler):
             return self.success(data={"id": photometry_validation.id})
 
     @permissions(["Manage sources"])
-    async def patch(self, photometry_id: int):
+    async def patch(
+        self, photometry_id: int, *, body: PhotometryValidationPostBody = None
+    ) -> PhotometryValidationResponse:
         """
         ---
         summary: Update the validated/rejected status of a photometry point
         description: Update the validated or rejected status of a source in a GCN
         tags:
           - photometry
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  validated:
-                    type: boolean
-                    description: Whether the photometry is validated (True) or rejected (False)
-                required:
-                  - validated
-
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: The id of the modified photometry_validation
-          400:
-            content:
-              application/json:
-                schema: Error
         """
         if not USE_PHOTOMETRY_VALIDATION:
             return self.error("Photometry validation is not enabled.")
 
-        data = self.get_json()
-        validated = data.get("validated")
-        explanation = data.get("explanation")
-        notes = data.get("notes")
-        magsys = data.get("magsys")
+        body = self.parse_body(PhotometryValidationPostBody)
+        validated = body.validated
+        explanation = body.explanation
+        notes = body.notes
+        magsys = body.magsys
 
         validator_instance = Validator()
         params_to_be_validated = {

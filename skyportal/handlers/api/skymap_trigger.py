@@ -2,7 +2,7 @@ from typing import Annotated
 
 import sqlalchemy as sa
 from astropy.time import Time
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
@@ -22,9 +22,31 @@ AllocationId = Annotated[
 ]
 
 
+class SkymapTriggerPostBody(BaseModel):
+    """Request body for posting a skymap-based trigger."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    allocation_id: int | None = Field(description="Followup request allocation ID.")
+    localization_id: int | None = Field(description="Localization ID.")
+    integrated_probability: float = Field(
+        default=0.95, description="Integrated probability within skymap."
+    )
+
+
+class SkymapTriggerDeleteBody(BaseModel):
+    """Request body for deleting a skymap-based trigger."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    trigger_name: str | None = Field(
+        default=None, description="Name of the trigger/queue to remove"
+    )
+
+
 class SkymapTriggerAPIHandler(BaseHandler):
     @permissions(["Upload data"])
-    async def post(self):
+    async def post(self, *, body: SkymapTriggerPostBody = None):
         """
         ---
         summary: Post a skymap-based trigger
@@ -32,10 +54,6 @@ class SkymapTriggerAPIHandler(BaseHandler):
         tags:
           - localizations
           - observations
-        requestBody:
-          content:
-            application/json:
-              schema: SkymapQueueAPIHandlerPost
         responses:
           200:
             content:
@@ -47,24 +65,18 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 schema: Error
         """
 
-        data = self.get_json()
-        integrated_probability = data.get("integrated_probability", 0.95)
-        try:
-            integrated_probability = float(integrated_probability)
-        except (TypeError, ValueError):
-            return self.error(
-                f"Invalid integrated_probability: {integrated_probability}"
-            )
+        body = self.parse_body(SkymapTriggerPostBody)
+        integrated_probability = body.integrated_probability
 
         async with self.AsyncSession() as session:
             allocation = await session.scalar(
                 Allocation.select(session.user_or_token)
-                .where(Allocation.id == data["allocation_id"])
+                .where(Allocation.id == body.allocation_id)
                 .options(selectinload(Allocation.instrument))
             )
             if allocation is None:
                 return self.error(
-                    f"Cannot find Allocation with ID: {data['allocation_id']}"
+                    f"Cannot find Allocation with ID: {body.allocation_id}"
                 )
             instrument = allocation.instrument
 
@@ -78,7 +90,7 @@ class SkymapTriggerAPIHandler(BaseHandler):
 
             localization = await session.scalar(
                 Localization.select(session.user_or_token).where(
-                    Localization.id == data["localization_id"],
+                    Localization.id == body.localization_id,
                 )
             )
             if localization is None:
@@ -244,7 +256,9 @@ class SkymapTriggerAPIHandler(BaseHandler):
                 return self.error(f"Error in querying instrument API: {e}")
 
     @permissions(["Upload data"])
-    async def delete(self, allocation_id: AllocationId):
+    async def delete(
+        self, allocation_id: AllocationId, *, body: SkymapTriggerDeleteBody = None
+    ):
         """
         ---
         summary: Delete skymap-based trigger from external API
@@ -268,30 +282,25 @@ class SkymapTriggerAPIHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(SkymapTriggerDeleteBody)
         try:
             allocation_id_int = int(allocation_id)
         except (TypeError, ValueError):
             return self.error(f"Invalid allocation_id: {allocation_id}")
 
-        data = self.get_json()
-
-        if "trigger_name" not in data:
+        if "trigger_name" not in body.model_fields_set:
             return self.error("Missing trigger_name parameter.")
-        trigger_name = data["trigger_name"]
-
-        data["requester_id"] = self.associated_user_object.id
-        data["last_modified_by_id"] = self.associated_user_object.id
-        data["allocation_id"] = allocation_id_int
+        trigger_name = body.trigger_name
 
         async with self.AsyncSession() as session:
             allocation = await session.scalar(
                 Allocation.select(session.user_or_token)
-                .where(Allocation.id == data["allocation_id"])
+                .where(Allocation.id == allocation_id_int)
                 .options(selectinload(Allocation.instrument))
             )
             if allocation is None:
                 return self.error(
-                    f"Cannot find Allocation with ID: {data['allocation_id']}"
+                    f"Cannot find Allocation with ID: {allocation_id_int}"
                 )
 
             instrument = allocation.instrument
