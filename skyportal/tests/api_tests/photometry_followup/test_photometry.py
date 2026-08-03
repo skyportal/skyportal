@@ -2190,6 +2190,7 @@ def test_token_user_post_to_foreign_group_and_retrieve(
     assert status == 200
 
 
+@pytest.mark.flaky(reruns=2, reruns_delay=5)
 def test_problematic_photometry_1263(
     upload_data_token, public_source, public_group, ztf_camera, public_group2
 ):

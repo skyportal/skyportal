@@ -24,6 +24,7 @@ import {
 } from "../ducks/spectra";
 import type { PhotStatPoint } from "../ducks/photStatAggregate";
 import { smoothing_func } from "../utils";
+import { utc_to_mjd } from "../units";
 
 const Plot = createPlotlyComponent(Plotly);
 
@@ -34,13 +35,6 @@ const MAX_SOURCES = 300;
 
 type T0Mode = "first" | "peak" | "tns";
 type Display = "waterfall" | "color";
-
-// MJD from an ISO-ish datetime string (Unix epoch = MJD 40587).
-const dateToMjd = (s?: string | null): number | null => {
-  if (!s) return null;
-  const ms = Date.parse(s.replace(" ", "T"));
-  return Number.isNaN(ms) ? null : ms / 86400000 + 40587;
-};
 
 const median = (arr: number[]): number | null => {
   const v = arr.filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
@@ -73,7 +67,7 @@ const phaseColor = (t: number): string => {
 const t0For = (s: BulkSpectraSource, mode: T0Mode): number | null => {
   if (mode === "first") return s.first_detected_mjd ?? null;
   if (mode === "peak") return s.peak_mjd ?? null;
-  return dateToMjd(s.tns_discovery_date);
+  return utc_to_mjd(s.tns_discovery_date);
 };
 
 const t0Label: Record<T0Mode, string> = {
@@ -135,7 +129,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
       const flRaw = sp.fluxes;
       if (!Array.isArray(wlRaw) || !Array.isArray(flRaw) || !wlRaw.length)
         return;
-      const mjd = dateToMjd(sp.observed_at);
+      const mjd = utc_to_mjd(sp.observed_at);
       if (mjd == null) return;
       const z = src.redshift ?? null;
       const useRest = restFrame && z != null && z > 0;

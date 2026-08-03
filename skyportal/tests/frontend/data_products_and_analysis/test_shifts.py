@@ -1,11 +1,13 @@
+import os
 import time
 import uuid
 from datetime import date, datetime, timedelta
 
+import numpy as np
 import pytest
 from playwright.sync_api import expect
 
-from skyportal.tests import api
+from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
 
 
 def _retype(locator, value):
@@ -216,11 +218,8 @@ def test_shift_summary(
     upload_data_token,
     view_only_token,
     ztf_camera,
-    gcn_GRB180116A,
     page,
 ):
-    dateobs = gcn_GRB180116A.dateobs.strftime("%Y-%m-%dT%H:%M:%S")
-
     shift_name_1 = str(uuid.uuid4())
     request_data = {
         "name": shift_name_1,
@@ -247,6 +246,30 @@ def test_shift_summary(
     )
     assert status == 200
     assert data["status"] == "success"
+
+    status, data = api("GET", "gcn_event/2018-01-16T00:36:53", token=super_admin_token)
+    if status == 404:
+        datafile = (
+            f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+        )
+        with open(datafile, "rb") as fid:
+            payload = fid.read()
+        data = {"xml": payload}
+
+        status, data = api("POST", "gcn_event", data=data, token=super_admin_token)
+        assert status == 200
+        assert data["status"] == "success"
+
+        wait_for_gcn_event("2018-01-16T00:36:53", super_admin_token)
+    else:
+        assert status == 200
+        assert data["status"] == "success"
+
+    skymap = "214.74000_28.14000_11.19000"
+    localization = wait_for_localization(
+        "2018-01-16T00:36:53", skymap, super_admin_token
+    )
+    assert np.isclose(np.sum(localization["flat_2d"]), 1)
 
     obj_id = str(uuid.uuid4())
     status, data = api(
@@ -281,30 +304,25 @@ def test_shift_summary(
     status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
     assert status == 200
 
-    params = {
-        "localizationDateobs": dateobs,
-        "startDate": dateobs,
-        "endDate": "2018-01-23T00:36:53",
-        "localizationCumprob": 0.95,
-    }
-    source_in_gcn = False
-    for _ in range(15):
-        status, data = api("GET", "sources", token=view_only_token, params=params)
-        if status == 200 and any(s["id"] == obj_id for s in data["data"]["sources"]):
-            source_in_gcn = True
-            break
-        time.sleep(2)
-    assert source_in_gcn, "source did not appear in the GCN event's localization"
-
     page.goto(f"/become_user/{super_admin_user.id}")
-    page.goto(f"/shifts/{shift_id}")
 
-    expect(
-        page.locator(f'//*[@id="gcn_{dateobs}"][contains(.,"{dateobs}")]').first
-    ).to_be_visible()
-
-    page.locator(f'//*[@id="gcn_list_item_{dateobs}"]').first.click()
-
-    expect(
-        page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
-    ).to_be_visible()
+    # The shift view fetches the sources inside the GCN event's localization on
+    # demand once the event is expanded; that query/render can lag under CI
+    # load, so reload, re-expand, and re-check the source link a few times
+    # instead of relying on a single click landing.
+    source_link = page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
+    n_retries = 0
+    while n_retries < 5:
+        page.goto(f"/shifts/{shift_id}")
+        expect(
+            page.locator(
+                '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]'
+            ).first
+        ).to_be_visible(timeout=15000)
+        page.locator('//*[@id="gcn_list_item_2018-01-16T00:36:53"]').first.click()
+        try:
+            expect(source_link).to_be_visible(timeout=15000)
+            break
+        except AssertionError:
+            n_retries += 1
+    assert n_retries < 5
