@@ -254,6 +254,10 @@ class LASAIRBROKER(BrokerAPI):
             raise ValueError("Broker altdata must include 'endpoint'.")
 
     @staticmethod
+    def test_connection(broker):
+        _cone(broker, 0, 0, radius=1)
+
+    @staticmethod
     def query_alerts(broker, session, **kwargs):
         # object id -> single object; ra/dec -> cone search; otherwise a raw
         # SQL-style query (selected/tables/conditions).

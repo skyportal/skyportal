@@ -305,6 +305,10 @@ class BOOMBROKER(BrokerAPI):
             raise ValueError("Broker altdata must include 'host'.")
 
     @staticmethod
+    def test_connection(broker):
+        _get_token(broker.altdata or {}, force=True)
+
+    @staticmethod
     def query_alerts(broker, session, **kwargs):
         survey = _survey(broker, kwargs)
         catalog = f"{survey}_alerts"

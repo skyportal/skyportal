@@ -41,6 +41,8 @@ export interface FilterCatalogQuery {
   brokerID?: number | "" | "none" | undefined;
 }
 
+const DEFAULT_FIELDS = ["default_alert_search", "default_crossmatch"] as const;
+
 const buildQuery = (params: Record<string, string | number | undefined>) => {
   const qs = buildQueryString(params);
   return qs ? `?${qs}` : "";
@@ -221,6 +223,26 @@ export const brokersApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: patch,
       }),
+      async onQueryStarted({ id, patch }, { dispatch, queryFulfilled }) {
+        const rollback = dispatch(
+          brokersApi.util.updateQueryData("getBrokers", undefined, (draft) => {
+            draft.forEach((broker) => {
+              if (broker.id === id) {
+                Object.assign(broker, patch);
+              } else {
+                DEFAULT_FIELDS.forEach((field) => {
+                  if (patch[field]) broker[field] = false;
+                });
+              }
+            });
+          }),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          rollback.undo();
+        }
+      },
       invalidatesTags: ["Broker"],
     }),
     deleteBroker: build.mutation<void, number>({

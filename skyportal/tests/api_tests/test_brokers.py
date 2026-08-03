@@ -10,6 +10,19 @@ from skyportal.broker_apis import GENERICBROKER, BrokerAPI
 from skyportal.tests import api
 
 
+def _force_active(broker_id):
+    """Activate a credential-gated broker without the live connection check the
+    API runs (no broker to reach from the tests)."""
+    import sqlalchemy as sa
+
+    from skyportal.models import Broker, DBSession
+
+    DBSession().execute(
+        sa.update(Broker).where(Broker.id == broker_id).values(active=True)
+    )
+    DBSession().commit()
+
+
 def _broker_payload(**overrides):
     payload = {
         "name": str(uuid.uuid4()),
@@ -80,6 +93,56 @@ def test_broker_capabilities_expose_cross_match_catalogs(super_admin_token):
         status, data = api("GET", f"brokers/{generic_id}", token=super_admin_token)
         assert status == 200, data
         assert data["data"]["capabilities"]["cross_match_catalogs"] is False
+    finally:
+        api("DELETE", f"brokers/{boom_id}", token=super_admin_token)
+        api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
+
+
+def test_activation_checks_credentials(super_admin_token):
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(
+            broker_classname="BOOMBROKER",
+            altdata={"host": "boom.test"},
+            active=True,
+        ),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    boom_id = data["data"]["id"]
+
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(active=False), token=super_admin_token
+    )
+    assert status == 200, data
+    generic_id = data["data"]["id"]
+
+    try:
+        status, data = api("GET", f"brokers/{boom_id}", token=super_admin_token)
+        assert data["data"]["active"] is False
+
+        status, data = api(
+            "PATCH",
+            f"brokers/{boom_id}",
+            data={"active": True},
+            token=super_admin_token,
+        )
+        assert status == 400, data
+        assert "refused the credentials" in data["message"]
+
+        status, data = api("GET", f"brokers/{boom_id}", token=super_admin_token)
+        assert data["data"]["active"] is False
+
+        status, data = api(
+            "PATCH",
+            f"brokers/{generic_id}",
+            data={"active": True},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        status, data = api("GET", f"brokers/{generic_id}", token=super_admin_token)
+        assert data["data"]["active"] is True
     finally:
         api("DELETE", f"brokers/{boom_id}", token=super_admin_token)
         api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
@@ -486,6 +549,7 @@ def lasair_broker_id(super_admin_token):
     )
     assert status == 200, data
     broker_id = data["data"]["id"]
+    _force_active(broker_id)
     yield broker_id
     api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
 
@@ -779,6 +843,7 @@ def test_boom_filter_activation_requires_validation(
     )
     assert status == 200
     broker_id = data["data"]["id"]
+    _force_active(broker_id)
     try:
         # Mark the filter broker-managed with no validation on record.
         f = (

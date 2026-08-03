@@ -243,6 +243,13 @@ class BrokerAPI(_Base):
         """Validate a broker instance's ``altdata`` (credentials/endpoints)."""
         raise NotImplementedError
 
+    @staticmethod
+    def test_connection(broker):
+        """Reach the broker with its stored credentials, raising on failure.
+        Implemented by providers that need credentials; skyportal runs it before
+        activating a broker."""
+        raise NotImplementedError
+
     # jsonschema for the "configure this broker" frontend form (react-jsonschema-form).
     # Contains the fields stored (encrypted) in ``Broker.altdata``.
     form_json_schema_config = None

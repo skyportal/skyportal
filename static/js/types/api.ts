@@ -2674,7 +2674,7 @@ export interface paths {
         head?: never;
         /**
          * Update a broker
-         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Activating a broker whose provider implements ``test_connection``, or editing an active one's credentials, first reaches the broker, and fails if the credentials are refused.
          */
         patch: {
             parameters: {
@@ -2730,7 +2730,7 @@ export interface paths {
         put?: never;
         /**
          * Create a broker
-         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Register a configured connection to an external alert broker.
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Register a configured connection to an external alert broker. A broker whose provider implements ``test_connection`` is always created inactive, since activating it is what checks its credentials.
          */
         post: {
             parameters: {
@@ -23944,6 +23944,10 @@ export interface components {
             broker_classname: "GENERICBROKER" | "LASAIRBROKER" | "BABAMULBROKER" | "BOOMBROKER" | "FINKBROKER" | "ALERCEBROKER" | "ANTARESBROKER" | "PITTGOOGLEBROKER" | "AMPELBROKER";
             /** @description Whether this broker is enabled. */
             active?: boolean;
+            /** @description Whether this broker is the one the source page's alert search targets. */
+            default_alert_search?: boolean;
+            /** @description Whether this broker is the one cross-matches (cone searches) target. */
+            default_crossmatch?: boolean;
             /** @description Encrypted per-instance configuration (endpoints, credentials). */
             _altdata?: string | null;
             /** @description Unique object identifier. */
@@ -23972,6 +23976,10 @@ export interface components {
             broker_classname: "GENERICBROKER" | "LASAIRBROKER" | "BABAMULBROKER" | "BOOMBROKER" | "FINKBROKER" | "ALERCEBROKER" | "ANTARESBROKER" | "PITTGOOGLEBROKER" | "AMPELBROKER";
             /** @description Whether this broker is enabled. */
             active?: boolean;
+            /** @description Whether this broker is the one the source page's alert search targets. */
+            default_alert_search?: boolean;
+            /** @description Whether this broker is the one cross-matches (cone searches) target. */
+            default_crossmatch?: boolean;
             /** @description Encrypted per-instance configuration (endpoints, credentials). */
             _altdata?: string | null;
         };

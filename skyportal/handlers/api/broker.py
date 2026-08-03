@@ -106,6 +106,8 @@ class BrokerHandler(BaseHandler):
         ---
         summary: Create a broker
         description: Register a configured connection to an external alert broker.
+          A broker whose provider implements ``test_connection`` is always created
+          inactive, since activating it is what checks its credentials.
         tags:
           - brokers
         requestBody:
@@ -170,6 +172,8 @@ class BrokerHandler(BaseHandler):
                 broker_classname=broker_classname,
                 active=data.get("active", True),
             )
+            if broker.broker_class.implements()["test_connection"]:
+                broker.active = False
             if broker.broker_class.implements()["validate_config"]:
                 try:
                     broker.broker_class.validate_config(altdata)
@@ -231,6 +235,9 @@ class BrokerHandler(BaseHandler):
         """
         ---
         summary: Update a broker
+        description: Activating a broker whose provider implements
+          ``test_connection``, or editing an active one's credentials, first
+          reaches the broker, and fails if the credentials are refused.
         tags:
           - brokers
         parameters:
@@ -277,13 +284,10 @@ class BrokerHandler(BaseHandler):
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
 
+            checks_credentials = broker.broker_class.implements()["test_connection"]
+            was_active = broker.active
             if "name" in data:
                 broker.name = data["name"]
-            if "active" in data:
-                broker.active = data["active"]
-            for field in DEFAULT_FIELDS:
-                if field in data:
-                    set_default(session, broker, field, bool(data[field]))
             if "altdata" in data:
                 altdata = merge_altdata(broker.altdata, data["altdata"])
                 if broker.broker_class.implements()["validate_config"]:
@@ -292,6 +296,23 @@ class BrokerHandler(BaseHandler):
                     except Exception as e:
                         return self.error(f"Invalid broker configuration: {e}")
                 broker.altdata = altdata
+            if "active" in data:
+                broker.active = data["active"]
+            if (
+                checks_credentials
+                and broker.active
+                and ("altdata" in data or not was_active)
+            ):
+                try:
+                    broker.broker_class.test_connection(broker)
+                except Exception as e:
+                    action = "stay active" if was_active else "be activated"
+                    return self.error(
+                        f"Wrong {broker.name} credentials, it cannot {action}: {e}"
+                    )
+            for field in DEFAULT_FIELDS:
+                if field in data:
+                    set_default(session, broker, field, bool(data[field]))
 
             session.commit()
             return self.success()

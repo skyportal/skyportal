@@ -16,6 +16,7 @@ class _Base:
         "filter_modules",
         "run_ingestion",
         "validate_config",
+        "test_connection",
     )
 
     # subclasses should not modify this
