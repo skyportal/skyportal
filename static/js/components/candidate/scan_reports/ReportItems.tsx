@@ -78,6 +78,7 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
             <FieldTitle>comment</FieldTitle>
             <FieldTitle>classifications</FieldTitle>
             <FieldTitle>followup / priority</FieldTitle>
+            <FieldTitle>observing run / priority</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>host redshift</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current age</FieldTitle>
             <FieldTitle sx={{ flex: 1 }}>current filter</FieldTitle>
@@ -173,11 +174,30 @@ const ReportItem = ({ reportId, isMultiGroup }: ReportItemProps) => {
                   {reportItem.data.followups?.map(
                     (followup: any, index: number) => (
                       <Tooltip
-                        title={`${followup.instrument}: ${followup.priority}`}
+                        title={`${followup.instrument} (${followup.type}): ${followup.priority}${
+                          followup.status ? ` — ${followup.status}` : ""
+                        }`}
                         key={index}
                       >
                         <Chip
-                          label={`${followup.instrument}: ${followup.priority}`}
+                          label={`${followup.instrument} (${followup.type}): ${followup.priority}`}
+                          size="small"
+                        />
+                      </Tooltip>
+                    ),
+                  )}
+                </Field>
+                <Field>
+                  {reportItem.data.assignments?.map(
+                    (assignment: any, index: number) => (
+                      <Tooltip
+                        title={`${assignment.instrument}: ${assignment.priority}${
+                          assignment.status ? ` — ${assignment.status}` : ""
+                        }`}
+                        key={index}
+                      >
+                        <Chip
+                          label={`${assignment.instrument}: ${assignment.priority}`}
                           size="small"
                         />
                       </Tooltip>

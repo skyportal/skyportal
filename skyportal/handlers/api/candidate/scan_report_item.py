@@ -1,16 +1,33 @@
 from astropy.time import Time
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
 from .... import facility_apis
-from ....models import FollowupRequest, Obj, Source
+from ....models import (
+    Allocation,
+    ClassicalAssignment,
+    Comment,
+    FollowupRequest,
+    Obj,
+    ObservingRun,
+    Source,
+)
 from ....models.scan_report.scan_report_item import ScanReportItem
 from ....utils.parse import safe_round
 from ...base import BaseHandler
 
 log = make_log("api/scan_report_item")
+
+
+def _followup_request_type(allocation, instrument):
+    """Classify a follow-up request as forced photometry, spectroscopy or photometry."""
+    if allocation and allocation.types and "forced_photometry" in allocation.types:
+        return "forced_photometry"
+    if instrument and instrument.type in ("spectrograph", "imaging spectrograph"):
+        return "spectroscopy"
+    return "photometry"
 
 
 async def create_scan_report_item(session, report, sources_by_obj):
@@ -36,9 +53,6 @@ async def create_scan_report_item(session, report, sources_by_obj):
         .options(
             selectinload(Obj.photstats),
             selectinload(Obj.classifications),
-            selectinload(Obj.followup_requests).selectinload(
-                FollowupRequest.instrument
-            ),
         )
         .where(Obj.id == obj_id)
     )
@@ -87,39 +101,112 @@ async def create_scan_report_item(session, report, sources_by_obj):
             for source in sources
         ]
 
-    if obj.followup_requests:
+    # Query follow-up requests through their own access rules so the report only
+    # includes what the scanner is allowed to see (allocation group membership).
+    followup_requests = (
+        await session.scalars(
+            FollowupRequest.select(session.user_or_token, mode="read")
+            .options(
+                joinedload(FollowupRequest.allocation).joinedload(Allocation.instrument)
+            )
+            .where(FollowupRequest.obj_id == obj_id)
+        )
+    ).all()
+
+    if followup_requests:
+        # Keep the best-priority request per (instrument, request type).
         followups = {}
-        for followup in obj.followup_requests:
+        for followup in followup_requests:
             instrument = followup.instrument
+            req_type = _followup_request_type(followup.allocation, instrument)
             priority_order = getattr(
                 facility_apis, instrument.api_classname
             ).priorityOrder
-            priority = followup.payload.get("priority")
-            current = followups.get(instrument.name)
+            priority = (followup.payload or {}).get("priority")
+            key = (instrument.name, req_type)
+            current = followups.get(key)
 
             should_update = False
-            if current is None or current == "NA":
+            if current is None or current["priority"] == "NA":
                 should_update = True
             elif priority is not None:
-                if priority_order == "desc" and priority < current:
+                if priority_order == "desc" and priority < current["priority"]:
                     should_update = True
-                elif priority_order == "asc" and priority > current:
+                elif priority_order == "asc" and priority > current["priority"]:
                     should_update = True
 
             if should_update:
-                followups[instrument.name] = priority if priority is not None else "NA"
+                followups[key] = {
+                    "priority": priority if priority is not None else "NA",
+                    "status": followup.status,
+                }
         followups = [
-            {"instrument": name, "priority": prio} for name, prio in followups.items()
+            {
+                "instrument": name,
+                "type": req_type,
+                "priority": info["priority"],
+                "status": info["status"],
+            }
+            for (name, req_type), info in followups.items()
         ]
     else:
         followups = None
+
+    # Observing-run assignments, also filtered by the scanner's access rules.
+    assignment_rows = (
+        await session.scalars(
+            ClassicalAssignment.select(session.user_or_token, mode="read")
+            .options(
+                joinedload(ClassicalAssignment.run).joinedload(ObservingRun.instrument)
+            )
+            .where(ClassicalAssignment.obj_id == obj_id)
+        )
+    ).all()
+
+    if assignment_rows:
+        # Keep the highest priority (5 = highest) assignment per instrument.
+        assignments = {}
+        for assignment in assignment_rows:
+            name = assignment.run.instrument.name
+            current = assignments.get(name)
+            if (
+                current is None
+                or current["priority"] is None
+                or (
+                    assignment.priority is not None
+                    and assignment.priority > current["priority"]
+                )
+            ):
+                assignments[name] = {
+                    "priority": assignment.priority,
+                    "status": assignment.status,
+                }
+        assignments = [
+            {"instrument": name, "priority": info["priority"], "status": info["status"]}
+            for name, info in assignments.items()
+        ]
+    else:
+        assignments = None
+
+    # Pre-fill the item's comment with the most recent note the scanner left on the
+    # source, if any, so scanners don't have to re-enter it after generating the report.
+    latest_comment = await session.scalar(
+        Comment.select(session.user_or_token, mode="read")
+        .where(
+            Comment.obj_id == obj_id,
+            Comment.author_id == report.author_id,
+            Comment.bot.is_(False),
+        )
+        .order_by(Comment.created_at.desc())
+        .limit(1)
+    )
 
     return ScanReportItem(
         obj_id=obj.id,
         scan_report=report,
         data={
             "tns_name": obj.tns_name,
-            "comment": None,
+            "comment": latest_comment.text if latest_comment else None,
             "host_redshift": obj.redshift,
             "current_filter": current_filter,
             "abs_mag": safe_round(abs_mag, 3),
@@ -128,6 +215,7 @@ async def create_scan_report_item(session, report, sources_by_obj):
             "classifications": classifications,
             "saved_info": saved_info,
             "followups": followups,
+            "assignments": assignments,
         },
     )
 

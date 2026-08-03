@@ -2715,7 +2715,14 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfScanReports"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                reports?: components["schemas"]["ScanReport"][];
+                                totalMatches?: number;
+                                pageNumber?: number;
+                                numPerPage?: number;
+                            };
+                        };
                     };
                 };
                 400: {

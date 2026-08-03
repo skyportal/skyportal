@@ -1,0 +1,194 @@
+from datetime import timedelta
+
+from skyportal.models import Candidate, DBSession, Source
+from skyportal.tests import api
+from skyportal.tests.fixtures import CommentFactory, ObjFactory
+from skyportal.utils.naive_datetime import utcnow_naive
+
+
+def test_scan_report_item_includes_followup_and_assignment(
+    public_filter,
+    public_group,
+    user,
+    upload_data_token,
+    public_group_sedm_allocation,
+    red_transients_run,
+):
+    now = utcnow_naive()
+
+    # An obj that is both a candidate (passed the filter) and a saved source, in range.
+    obj = ObjFactory(groups=[public_group])
+    DBSession.add(
+        Candidate(
+            obj=obj,
+            filter=public_filter,
+            passed_at=now,
+            uploader_id=user.id,
+        )
+    )
+    DBSession.add(
+        Source(
+            obj_id=obj.id,
+            group_id=public_group.id,
+            saved_by_id=user.id,
+            saved_at=now,
+        )
+    )
+    DBSession.commit()
+
+    # A follow-up request (SEDM is an imaging spectrograph -> "spectroscopy").
+    status, data = api(
+        "POST",
+        "followup_request",
+        data={
+            "allocation_id": public_group_sedm_allocation.id,
+            "obj_id": obj.id,
+            "payload": {
+                "priority": 3,
+                "start_date": "3010-09-01",
+                "end_date": "3012-09-01",
+                "observation_type": "IFU",
+                "exposure_time": 300,
+                "maximum_airmass": 2,
+                "maximum_fwhm": 1.2,
+            },
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    # An observing-run assignment.
+    status, data = api(
+        "POST",
+        "assignment",
+        data={"run_id": red_transients_run.id, "obj_id": obj.id, "priority": "5"},
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    # A human comment left by the scanner (browser comments are non-bot), which the
+    # report should auto-fill (#5526).
+    comment_text = "looks like a promising transient"
+    CommentFactory(
+        obj=obj, author=user, groups=[public_group], text=comment_text, bot=False
+    )
+    DBSession.commit()
+
+    window = {
+        "start_date": (now - timedelta(days=1)).isoformat(),
+        "end_date": (now + timedelta(days=1)).isoformat(),
+    }
+    status, data = api(
+        "POST",
+        "candidates/scan_reports",
+        data={
+            "group_ids": [public_group.id],
+            "passed_filters_range": window,
+            "saved_candidates_range": {
+                "start_saved_date": (now - timedelta(days=1)).isoformat(),
+                "end_saved_date": (now + timedelta(days=1)).isoformat(),
+            },
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
+    assert status == 200, data
+    report_id = data["data"][0]["id"]
+
+    status, data = api(
+        "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token
+    )
+    assert status == 200, data
+    item = next(item for item in data["data"] if item["obj_id"] == obj.id)
+
+    # The scanner's comment is auto-filled into the report item (#5526).
+    assert item["data"]["comment"] == comment_text
+
+    followups = item["data"]["followups"]
+    assert followups is not None
+    followup = next(
+        f
+        for f in followups
+        if f["instrument"] == public_group_sedm_allocation.instrument.name
+    )
+    assert followup["type"] == "spectroscopy"
+    assert followup["priority"] == 3
+    assert followup["status"] is not None
+
+    assignments = item["data"]["assignments"]
+    assert assignments is not None
+    assignment = next(
+        a for a in assignments if a["instrument"] == red_transients_run.instrument.name
+    )
+    assert assignment["priority"] == "5"
+    assert assignment["status"] is not None
+
+
+def test_scan_report_item_comment_only_from_scanner(
+    public_filter,
+    public_group,
+    user,
+    upload_data_token,
+    super_admin_user,
+):
+    now = utcnow_naive()
+
+    obj = ObjFactory(groups=[public_group])
+    DBSession.add(
+        Candidate(obj=obj, filter=public_filter, passed_at=now, uploader_id=user.id)
+    )
+    DBSession.add(
+        Source(
+            obj_id=obj.id,
+            group_id=public_group.id,
+            saved_by_id=user.id,
+            saved_at=now,
+        )
+    )
+    DBSession.commit()
+
+    # A comment left by someone other than the report author must not be auto-filled.
+    CommentFactory(
+        obj=obj,
+        author=super_admin_user,
+        groups=[public_group],
+        text="another user's note",
+        bot=False,
+    )
+    DBSession.commit()
+
+    window = {
+        "start_date": (now - timedelta(days=1)).isoformat(),
+        "end_date": (now + timedelta(days=1)).isoformat(),
+    }
+    status, data = api(
+        "POST",
+        "candidates/scan_reports",
+        data={
+            "group_ids": [public_group.id],
+            "passed_filters_range": window,
+            "saved_candidates_range": {
+                "start_saved_date": (now - timedelta(days=1)).isoformat(),
+                "end_saved_date": (now + timedelta(days=1)).isoformat(),
+            },
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
+    assert status == 200, data
+    report_id = data["data"][0]["id"]
+
+    status, data = api(
+        "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token
+    )
+    assert status == 200, data
+    item = next(item for item in data["data"] if item["obj_id"] == obj.id)
+
+    # No comment by the scanner -> comment stays empty; followups/assignments empty too.
+    assert item["data"]["comment"] is None
+    assert item["data"]["followups"] is None
+    assert item["data"]["assignments"] is None

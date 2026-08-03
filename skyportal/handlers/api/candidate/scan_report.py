@@ -1,3 +1,4 @@
+import arrow
 import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
@@ -33,6 +34,10 @@ async def get_sources_by_objs_in_range(
     list of tuples (obj_id, source_ids)
     """
     try:
+        # Coerce the ISO strings to datetimes so the DB compares timestamps, not text.
+        def to_datetime(value):
+            return arrow.get(value).datetime.replace(tzinfo=None) if value else None
+
         result = await session.execute(
             sa.select(
                 Source.obj_id,
@@ -44,12 +49,12 @@ async def get_sources_by_objs_in_range(
                 Source.group_id.in_(group_ids),
                 Filter.group_id.in_(group_ids),
                 Source.saved_at.between(
-                    saved_range.get("start_saved_date"),
-                    saved_range.get("end_saved_date"),
+                    to_datetime(saved_range.get("start_saved_date")),
+                    to_datetime(saved_range.get("end_saved_date")),
                 ),
                 Candidate.passed_at.between(
-                    passed_filters_range.get("start_date"),
-                    passed_filters_range.get("end_date"),
+                    to_datetime(passed_filters_range.get("start_date")),
+                    to_datetime(passed_filters_range.get("end_date")),
                 ),
                 Source.active.is_(True),
             )
@@ -221,7 +226,24 @@ class ScanReportHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: ArrayOfScanReports
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            reports:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/ScanReport'
+                            totalMatches:
+                              type: integer
+                            pageNumber:
+                              type: integer
+                            numPerPage:
+                              type: integer
           400:
             content:
               application/json:
@@ -231,9 +253,12 @@ class ScanReportHandler(BaseHandler):
         page = self.get_query_argument("page", 1, type=int) or 1
 
         async with self.AsyncSession() as session:
+            base_stmt = ScanReport.select(session.user_or_token, mode="read")
+            total_matches = await session.scalar(
+                sa.select(sa.func.count()).select_from(base_stmt.subquery())
+            )
             result = await session.scalars(
-                ScanReport.select(session.user_or_token, mode="read")
-                .options(
+                base_stmt.options(
                     selectinload(ScanReport.groups),
                     selectinload(ScanReport.author),
                 )
@@ -249,4 +274,11 @@ class ScanReportHandler(BaseHandler):
                 for scan_report in items
             ]
 
-            return self.success(data=items_dict)
+            return self.success(
+                data={
+                    "reports": items_dict,
+                    "totalMatches": total_matches,
+                    "pageNumber": page,
+                    "numPerPage": rows,
+                }
+            )
