@@ -167,7 +167,8 @@ async def fetch_broker_groups(cls, broker, object_id, survey, session):
 
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(
-        None, lambda: cls.get_alert(broker, object_id, None, survey=survey)
+        None,
+        lambda: cls.get_alert(broker, object_id, None, survey=survey, permissions=None),
     )
     if not data:
         return None

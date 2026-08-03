@@ -85,6 +85,47 @@ def test_broker_capabilities_expose_cross_match_catalogs(super_admin_token):
         api("DELETE", f"brokers/{generic_id}", token=super_admin_token)
 
 
+def test_broker_defaults_are_exclusive(super_admin_token):
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(default_alert_search=True, default_crossmatch=True),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    first_id = data["data"]["id"]
+
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200, data
+    second_id = data["data"]["id"]
+
+    try:
+        status, data = api("GET", f"brokers/{first_id}", token=super_admin_token)
+        assert data["data"]["default_alert_search"] is True
+        assert data["data"]["default_crossmatch"] is True
+
+        status, data = api(
+            "PATCH",
+            f"brokers/{second_id}",
+            data={"default_alert_search": True},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+        status, data = api("GET", f"brokers/{second_id}", token=super_admin_token)
+        assert data["data"]["default_alert_search"] is True
+        assert data["data"]["default_crossmatch"] is False
+
+        status, data = api("GET", f"brokers/{first_id}", token=super_admin_token)
+        assert data["data"]["default_alert_search"] is False
+        assert data["data"]["default_crossmatch"] is True
+    finally:
+        api("DELETE", f"brokers/{first_id}", token=super_admin_token)
+        api("DELETE", f"brokers/{second_id}", token=super_admin_token)
+
+
 def test_broker_invalid_classname(super_admin_token):
     payload = _broker_payload(broker_classname="NOTAREALBROKER")
     status, data = api("POST", "brokers", data=payload, token=super_admin_token)
@@ -281,6 +322,7 @@ def test_lasairbroker_capabilities():
     assert caps["validate_config"] is True
     with pytest.raises(ValueError):
         LASAIRBROKER.validate_config({})
+    LASAIRBROKER.validate_config({"endpoint": "https://lasair.test/api"})
 
 
 def test_cross_match_catalogs_capability():
@@ -366,6 +408,9 @@ def test_boombroker_capabilities():
     caps = BOOMBROKER.implements()
     assert caps["cone_search"] is True
     assert caps["get_photometry"] is True
+    with pytest.raises(ValueError):
+        BOOMBROKER.validate_config({})
+    BOOMBROKER.validate_config({"host": "boom.test"})
 
 
 @responses.activate
