@@ -39513,31 +39513,31 @@ export interface components {
              * @description ID of the `Obj`(s) to which the photometry will be attached. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values are not allowed.
              * @default null
              */
-            obj_id: (string | number | (string | number)[]) | null;
+            obj_id: (string | number | ((string | number) | null)[]) | null;
             /**
              * Mjd
              * @description MJD of the observation(s). Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed.
              * @default null
              */
-            mjd: (number | number[]) | null;
+            mjd: (number | (number | null)[]) | null;
             /**
              * Instrument Id
              * @description ID of the `Instrument`(s) with which the photometry was acquired. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values are not allowed.
              * @default null
              */
-            instrument_id: (number | string | (number | string)[]) | null;
+            instrument_id: (number | string | ((number | string) | null)[]) | null;
             /**
              * Filter
              * @description The bandpass of the observation(s). Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed.
              * @default null
              */
-            filter: (string | string[]) | null;
+            filter: (string | (string | null)[]) | null;
             /**
              * Magsys
              * @description The magnitude system to which the flux/mag, error, and zeropoint are tied. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed.
              * @default null
              */
-            magsys: (string | string[]) | null;
+            magsys: (string | (string | null)[]) | null;
             /**
              * Assignment Id
              * @description ID of the classical assignment which generated the photometry.
@@ -39549,31 +39549,31 @@ export interface components {
              * @description ICRS Right Ascension of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            ra: (number | number[]) | null;
+            ra: (number | (number | null)[]) | null;
             /**
              * Dec
              * @description ICRS Declination of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            dec: (number | number[]) | null;
+            dec: (number | (number | null)[]) | null;
             /**
              * Ra Unc
              * @description Uncertainty on RA [arcsec]. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            ra_unc: (number | number[]) | null;
+            ra_unc: (number | (number | null)[]) | null;
             /**
              * Dec Unc
              * @description Uncertainty on dec [arcsec]. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            dec_unc: (number | number[]) | null;
+            dec_unc: (number | (number | null)[]) | null;
             /**
              * Origin
              * @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None.
              * @default null
              */
-            origin: (string | string[]) | null;
+            origin: (string | (string | null)[]) | null;
             /**
              * Group Ids
              * @description List of group IDs to which photometry points will be visible. If 'all', will be shared with sitewide public group (visible to all users who can view associated source).
@@ -39605,73 +39605,73 @@ export interface components {
              * @description Flux of the observation(s) in counts. Can be given as a scalar or a 1D list. Null values allowed (e.g. upper limits, where fluxerr is used to derive a limiting magnitude).
              * @default null
              */
-            flux: (number | number[]) | null;
+            flux: (number | (number | null)[]) | null;
             /**
              * Fluxerr
              * @description Gaussian error on the flux in counts. Can be given as a scalar or a 1D list. Null values not allowed.
              * @default null
              */
-            fluxerr: (number | number[]) | null;
+            fluxerr: (number | (number | null)[]) | null;
             /**
              * Zp
              * @description Magnitude zeropoint, given by `zp` in the equation `m = -2.5 log10(flux) + zp`. Can be given as a scalar or a 1D list. Null values not allowed.
              * @default null
              */
-            zp: (number | number[]) | null;
+            zp: (number | (number | null)[]) | null;
             /**
              * Ref Flux
              * @description Flux of the reference image in counts. Can be given as a scalar or a 1D list. Null values allowed if no reference is given.
              * @default null
              */
-            ref_flux: (number | number[]) | null;
+            ref_flux: (number | (number | null)[]) | null;
             /**
              * Ref Fluxerr
              * @description Gaussian error on the reference flux in counts. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            ref_fluxerr: (number | number[]) | null;
+            ref_fluxerr: (number | (number | null)[]) | null;
             /**
              * Ref Zp
              * @description Magnitude zeropoint for the reference flux. Can be given as a scalar or a 1D list. If Null or not given, will be set to the default zeropoint of 23.9.
              * @default null
              */
-            ref_zp: (number | number[]) | null;
+            ref_zp: (number | (number | null)[]) | null;
             /**
              * Mag
              * @description Magnitude of the observation in the magnitude system `magsys`. Can be given as a scalar or a 1D list. Null values allowed for non-detections. If `mag` is null, the corresponding `magerr` must also be null.
              * @default null
              */
-            mag: (number | number[]) | null;
+            mag: (number | (number | null)[]) | null;
             /**
              * Magerr
              * @description Error on the magnitude in the magnitude system `magsys`. Can be given as a scalar or a 1D list. Null values allowed for non-detections. If `magerr` is null, the corresponding `mag` must also be null.
              * @default null
              */
-            magerr: (number | number[]) | null;
+            magerr: (number | (number | null)[]) | null;
             /**
              * Limiting Mag
              * @description Limiting magnitude of the image in the magnitude system `magsys`. Can be given as a scalar or a 1D list. Null values not allowed.
              * @default null
              */
-            limiting_mag: (number | number[]) | null;
+            limiting_mag: (number | (number | null)[]) | null;
             /**
              * Limiting Mag Nsigma
              * @description Number of standard deviations above the background that the limiting magnitudes correspond to. Null values not allowed.
              * @default null
              */
-            limiting_mag_nsigma: (number | number[]) | null;
+            limiting_mag_nsigma: (number | (number | null)[]) | null;
             /**
              * Magref
              * @description Magnitude of the reference image in the magnitude system `magsys`. Can be given as a scalar or a 1D list. Null values allowed if no reference is given.
              * @default null
              */
-            magref: (number | number[]) | null;
+            magref: (number | (number | null)[]) | null;
             /**
              * E Magref
              * @description Gaussian error on the reference magnitude. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            e_magref: (number | number[]) | null;
+            e_magref: (number | (number | null)[]) | null;
         };
         /**
          * PhotometryPostResponse
@@ -39699,31 +39699,31 @@ export interface components {
              * @description ID of the `Obj`(s) to which the photometry will be attached. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values are not allowed.
              * @default null
              */
-            obj_id: (string | number | (string | number)[]) | null;
+            obj_id: (string | number | ((string | number) | null)[]) | null;
             /**
              * Mjd
              * @description MJD of the observation(s). Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed.
              * @default null
              */
-            mjd: (number | number[]) | null;
+            mjd: (number | (number | null)[]) | null;
             /**
              * Instrument Id
              * @description ID of the `Instrument`(s) with which the photometry was acquired. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values are not allowed.
              * @default null
              */
-            instrument_id: (number | string | (number | string)[]) | null;
+            instrument_id: (number | string | ((number | string) | null)[]) | null;
             /**
              * Filter
              * @description The bandpass of the observation(s). Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed.
              * @default null
              */
-            filter: (string | string[]) | null;
+            filter: (string | (string | null)[]) | null;
             /**
              * Magsys
              * @description The magnitude system to which the flux/mag, error, and zeropoint are tied. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed.
              * @default null
              */
-            magsys: (string | string[]) | null;
+            magsys: (string | (string | null)[]) | null;
             /**
              * Assignment Id
              * @description ID of the classical assignment which generated the photometry.
@@ -39735,31 +39735,31 @@ export interface components {
              * @description ICRS Right Ascension of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            ra: (number | number[]) | null;
+            ra: (number | (number | null)[]) | null;
             /**
              * Dec
              * @description ICRS Declination of the centroid of the photometric aperture [deg]. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            dec: (number | number[]) | null;
+            dec: (number | (number | null)[]) | null;
             /**
              * Ra Unc
              * @description Uncertainty on RA [arcsec]. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            ra_unc: (number | number[]) | null;
+            ra_unc: (number | (number | null)[]) | null;
             /**
              * Dec Unc
              * @description Uncertainty on dec [arcsec]. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            dec_unc: (number | number[]) | null;
+            dec_unc: (number | (number | null)[]) | null;
             /**
              * Origin
              * @description Provenance of the Photometry. If a record is already present with identical origin, only the groups or streams list will be updated (other data assumed identical). Defaults to None.
              * @default null
              */
-            origin: (string | string[]) | null;
+            origin: (string | (string | null)[]) | null;
             /**
              * Group Ids
              * @description List of group IDs to which photometry points will be visible. If 'all', will be shared with sitewide public group (visible to all users who can view associated source).
@@ -39791,73 +39791,73 @@ export interface components {
              * @description Flux of the observation(s) in counts. Can be given as a scalar or a 1D list. Null values allowed (e.g. upper limits, where fluxerr is used to derive a limiting magnitude).
              * @default null
              */
-            flux: (number | number[]) | null;
+            flux: (number | (number | null)[]) | null;
             /**
              * Fluxerr
              * @description Gaussian error on the flux in counts. Can be given as a scalar or a 1D list. Null values not allowed.
              * @default null
              */
-            fluxerr: (number | number[]) | null;
+            fluxerr: (number | (number | null)[]) | null;
             /**
              * Zp
              * @description Magnitude zeropoint, given by `zp` in the equation `m = -2.5 log10(flux) + zp`. Can be given as a scalar or a 1D list. Null values not allowed.
              * @default null
              */
-            zp: (number | number[]) | null;
+            zp: (number | (number | null)[]) | null;
             /**
              * Ref Flux
              * @description Flux of the reference image in counts. Can be given as a scalar or a 1D list. Null values allowed if no reference is given.
              * @default null
              */
-            ref_flux: (number | number[]) | null;
+            ref_flux: (number | (number | null)[]) | null;
             /**
              * Ref Fluxerr
              * @description Gaussian error on the reference flux in counts. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            ref_fluxerr: (number | number[]) | null;
+            ref_fluxerr: (number | (number | null)[]) | null;
             /**
              * Ref Zp
              * @description Magnitude zeropoint for the reference flux. Can be given as a scalar or a 1D list. If Null or not given, will be set to the default zeropoint of 23.9.
              * @default null
              */
-            ref_zp: (number | number[]) | null;
+            ref_zp: (number | (number | null)[]) | null;
             /**
              * Mag
              * @description Magnitude of the observation in the magnitude system `magsys`. Can be given as a scalar or a 1D list. Null values allowed for non-detections. If `mag` is null, the corresponding `magerr` must also be null.
              * @default null
              */
-            mag: (number | number[]) | null;
+            mag: (number | (number | null)[]) | null;
             /**
              * Magerr
              * @description Error on the magnitude in the magnitude system `magsys`. Can be given as a scalar or a 1D list. Null values allowed for non-detections. If `magerr` is null, the corresponding `mag` must also be null.
              * @default null
              */
-            magerr: (number | number[]) | null;
+            magerr: (number | (number | null)[]) | null;
             /**
              * Limiting Mag
              * @description Limiting magnitude of the image in the magnitude system `magsys`. Can be given as a scalar or a 1D list. Null values not allowed.
              * @default null
              */
-            limiting_mag: (number | number[]) | null;
+            limiting_mag: (number | (number | null)[]) | null;
             /**
              * Limiting Mag Nsigma
              * @description Number of standard deviations above the background that the limiting magnitudes correspond to. Null values not allowed.
              * @default null
              */
-            limiting_mag_nsigma: (number | number[]) | null;
+            limiting_mag_nsigma: (number | (number | null)[]) | null;
             /**
              * Magref
              * @description Magnitude of the reference image in the magnitude system `magsys`. Can be given as a scalar or a 1D list. Null values allowed if no reference is given.
              * @default null
              */
-            magref: (number | number[]) | null;
+            magref: (number | (number | null)[]) | null;
             /**
              * E Magref
              * @description Gaussian error on the reference magnitude. Can be given as a scalar or a 1D list. Null values allowed.
              * @default null
              */
-            e_magref: (number | number[]) | null;
+            e_magref: (number | (number | null)[]) | null;
         };
         /**
          * PhotometryPutResponse
