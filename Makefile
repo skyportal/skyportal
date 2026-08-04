@@ -6,7 +6,9 @@ NORMAL=\033[0m
 PYTHON:=PYTHONPATH=. uv run python
 FLAGS:=$(if $(FLAGS),$(FLAGS),--config=config.yaml)
 
-VER := $(shell uv run python -c "import skyportal; print(skyportal.__version__)")
+# Skip on a fresh clone: uv can't resolve the workspace until the baselayer
+# submodule is checked out, which the rule below does.
+VER := $(if $(wildcard baselayer/pyproject.toml),$(shell uv run python -c "import skyportal; print(skyportal.__version__)"))
 BANNER := $(shell echo -e "Welcome to $(BOLD)SkyPortal v$(VER)$(NORMAL) (https://skyportal.io)")
 
 SKYPORTAL_UID ?= 1000

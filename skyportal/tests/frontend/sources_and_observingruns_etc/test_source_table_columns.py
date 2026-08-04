@@ -11,13 +11,16 @@ from skyportal.tests import api
 
 
 def _reveal_column(page, search_text):
-    """Open the DataGrid columns panel and toggle on the matching hidden column."""
-    page.locator("[data-testid='datagrid-columns-button']").first.click()
-    panel = page.locator(".MuiDataGrid-panel")
-    panel.locator("input[type='search']").first.fill(search_text)
-    # After filtering, the matching column's toggle is the only checkbox shown.
-    panel.locator("input[type='checkbox']").last.check()
-    page.keyboard.press("Escape")
+    """Add an annotation/altdata column via the toolbar picker. These are
+    materialized on demand (the registry is unbounded), not listed in the
+    DataGrid columns panel."""
+    picker = page.locator("[data-testid='add-column-picker'] input").first
+    picker.click()
+    picker.fill(search_text)
+    # Options are labelled "<key> (<origin>)"; search_text is distinctive. Match
+    # a specific <li> (MUI re-renders the option list as you type, so a generic
+    # role=option click is unstable).
+    page.locator(f'//li[contains(., "{search_text}")]').first.click()
 
 
 @pytest.mark.flaky(reruns=2)
@@ -76,7 +79,8 @@ def test_source_table_annotation_and_altdata_columns(
         page.locator(f"//a[contains(@href, '/source/{obj_id2}')]").first
     ).to_be_visible()
 
-    # Annotation column: hidden by default, then revealed and showing its value.
+    # Annotation column: absent by default, then added via the picker and
+    # showing its value.
     expect(
         page.locator(f"//*[text()[contains(., '{ann_values[obj_id1]}')]]")
     ).to_have_count(0)
@@ -85,7 +89,7 @@ def test_source_table_annotation_and_altdata_columns(
         page.locator(f"//*[text()[contains(., '{ann_values[obj_id1]}')]]").first
     ).to_be_visible()
 
-    # Altdata column: same flow.
+    # Altdata column: same add-via-picker flow.
     _reveal_column(page, alt_key)
     expect(
         page.locator(f"//*[text()[contains(., '{alt_values[obj_id1]}')]]").first

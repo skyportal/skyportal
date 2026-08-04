@@ -2715,7 +2715,14 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ArrayOfScanReports"];
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: {
+                                reports?: components["schemas"]["ScanReport"][];
+                                totalMatches?: number;
+                                pageNumber?: number;
+                                numPerPage?: number;
+                            };
+                        };
                     };
                 };
                 400: {
@@ -2754,6 +2761,17 @@ export interface paths {
                              */
                             end_date?: string;
                         };
+                        /**
+                         * @description Alternative to passed_filters_range: a rolling window of this
+                         *     many hours ending now. Ignored if passed_filters_range is given.
+                         *     Lets a recurring caller generate reports on a schedule.
+                         */
+                        passed_filters_window_hours?: number;
+                        /**
+                         * @description Alternative to saved_candidates_range: a rolling window of this
+                         *     many hours ending now. Ignored if saved_candidates_range is given.
+                         */
+                        saved_candidates_window_hours?: number;
                     };
                 };
             };
@@ -5294,7 +5312,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/galaxy_catalog/glade": {
+    "/api/galaxy_catalog/regalade": {
         parameters: {
             query?: never;
             header?: never;
@@ -5304,8 +5322,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Upload galaxies from GLADE+ catalog
-         * @description <b>Permission(s) required:</b> <em>System Admin (or System admin)</em><br><br>Upload galaxies from GLADE+ catalog. If no file_name or file_url is provided, will look for the GLADE+ catalog in the data directory. If it can't be found, it will download it.
+         * Upload galaxies from the REGALADE catalog
+         * @description <b>Permission(s) required:</b> <em>System Admin (or System admin)</em><br><br>Upload galaxies from the REGALADE catalog (FITS). If no file_name or file_url is provided, looks for regalade_v2.fits in the data directory.
          */
         post: {
             parameters: {
@@ -5317,9 +5335,64 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
-                        /** @description Name of the file containing the galaxies (in the data directory) */
+                        /** @description Name of the .fits file containing the galaxies (in the data directory) */
                         file_name?: string;
-                        /** @description URL of the file containing the galaxies */
+                        /** @description URL of the .fits file containing the galaxies */
+                        file_url?: string;
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/galaxy_catalog/ned": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload galaxies from the NEDLVS catalog
+         * @description <b>Permission(s) required:</b> <em>System Admin (or System admin)</em><br><br>Upload galaxies from the NEDLVS catalog (FITS). If no file_name or file_url is provided, looks for NEDLVS_20260424.fits in the data directory.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description Name of the .fits file containing the galaxies (in the data directory) */
+                        file_name?: string;
+                        /** @description URL of the .fits file containing the galaxies */
                         file_url?: string;
                     };
                 };

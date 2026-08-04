@@ -14,8 +14,12 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import { useGetAnalysisServicesQuery } from "../../ducks/analysis_services";
-import { useStartAnalysisMutation } from "../../ducks/source";
+import {
+  useStartAnalysisMutation,
+  useGetAssociatedGcnsQuery,
+} from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
+import { utc_to_mjd } from "../../units";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -56,6 +60,13 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   const [startAnalysis] = useStartAnalysisMutation();
 
   const { data: photometry } = useFetchSourcePhotometryQuery({ id: obj_id });
+  // dateobs (== T0) of GW/GCN events associated with this source, used to
+  // prefill the afterglow trigger time (see the trigger_time widget below).
+  const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(obj_id);
+  const associatedGCNs: string[] = useMemo(
+    () => (associatedGcnsData as any)?.gcns ?? [],
+    [associatedGcnsData],
+  );
   const { data: analysisServiceListData } = useGetAnalysisServicesQuery();
   const analysisServiceList = useMemo(
     () => analysisServiceListData ?? [],
@@ -77,6 +88,10 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Selected files for `file`-type analysis parameters, handled outside rjsf.
   const fileValues = useRef<Record<string, File | null>>({});
+  // T0 (explosion/trigger time) as a UTC datetime string, handled outside rjsf
+  // and converted to an MJD `trigger_time` on submit. Prefilled from the
+  // source's associated G-event when the selected service accepts it.
+  const [triggerTimeUtc, setTriggerTimeUtc] = useState<string>("");
 
   const groupLookUp: Record<string, any> = {};
 
@@ -98,13 +113,24 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
   // each time and a `data-url` (file) field would infinite-loop ("Maximum
   // update depth exceeded"), resetting formData so the file never registers.
   // The static-schema galaxy/observation upload forms don't hit this.
-  const { schema: AnalysisSelectionFormSchema, fileKeys } = useMemo(() => {
+  const {
+    schema: AnalysisSelectionFormSchema,
+    fileKeys,
+    acceptsTriggerTime,
+  } = useMemo(() => {
     const service = analysisServiceLookUp[selectedAnalysisServiceId];
     const OptionalParameters: Record<string, any> = {};
     const RequiredParameters: any[] = [];
     const collectedFileKeys: string[] = [];
+    let acceptsTriggerTimeParam = false;
     if (service?.optional_analysis_parameters) {
       Object.keys(service.optional_analysis_parameters).forEach((key) => {
+        // trigger_time gets a dedicated UTC datetime widget (with G-event
+        // prefill) outside rjsf, so keep it out of the generated schema.
+        if (key === "trigger_time") {
+          acceptsTriggerTimeParam = true;
+          return;
+        }
         const params = service?.optional_analysis_parameters[key];
         if (Array.isArray(params)) {
           if (["True", "False"].every((val) => params.includes(val))) {
@@ -212,8 +238,22 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
         ),
       },
       fileKeys: collectedFileKeys,
+      acceptsTriggerTime: acceptsTriggerTimeParam,
     };
   }, [selectedAnalysisServiceId, analysisServiceLookUp, photometry]);
+
+  // Seed the T0 field from the source's first associated G-event when the
+  // selected service accepts a trigger time; clear it otherwise. Re-runs only
+  // on service / association changes, so a user's manual edit is preserved.
+  useEffect(() => {
+    if (acceptsTriggerTime && associatedGCNs.length > 0) {
+      setTriggerTimeUtc(
+        dayjs.utc(associatedGCNs[0]).format("YYYY-MM-DDTHH:mm:ss"),
+      );
+    } else {
+      setTriggerTimeUtc("");
+    }
+  }, [selectedAnalysisServiceId, acceptsTriggerTime, associatedGCNs]);
 
   useEffect(() => {
     if (selectedAnalysisServiceId == null && analysisServiceList.length > 0) {
@@ -264,6 +304,13 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
     delete analysis_parameters.show_parameters;
     delete analysis_parameters.show_plots;
     delete analysis_parameters.show_corner;
+
+    // T0 widget (handled outside rjsf): convert the UTC datetime to an MJD
+    // trigger_time the fit backend understands. Blank = let the fit default it.
+    if (acceptsTriggerTime && triggerTimeUtc.trim() !== "") {
+      const mjd = utc_to_mjd(triggerTimeUtc.trim());
+      if (mjd !== null) analysis_parameters.trigger_time = mjd;
+    }
 
     const input_filters: Record<string, any> = {};
     if (
@@ -361,6 +408,62 @@ const AnalysisForm = ({ obj_id }: AnalysisFormProps) => {
             />
           </div>
         ))}
+        {acceptsTriggerTime && (
+          <div className={classes.marginTop}>
+            <InputLabel htmlFor="trigger_time_utc">
+              T0 — explosion/trigger time (UTC)
+            </InputLabel>
+            {associatedGCNs.length > 1 && (
+              <Select
+                inputProps={{ MenuProps: { disableScrollLock: true } }}
+                value={
+                  associatedGCNs.find(
+                    (d) =>
+                      dayjs.utc(d).format("YYYY-MM-DDTHH:mm:ss") ===
+                      triggerTimeUtc,
+                  ) || ""
+                }
+                onChange={(e) =>
+                  setTriggerTimeUtc(
+                    dayjs
+                      .utc(e.target.value as string)
+                      .format("YYYY-MM-DDTHH:mm:ss"),
+                  )
+                }
+                displayEmpty
+                className={classes.Select}
+                data-testid="triggerTimeGcnSelect"
+              >
+                <MenuItem value="">Pick an associated G-event…</MenuItem>
+                {associatedGCNs.map((d) => (
+                  <MenuItem value={d} key={d} className={classes.SelectItem}>
+                    {d}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+            <input
+              id="trigger_time_utc"
+              data-testid="triggerTimeInput"
+              type="text"
+              style={{ width: "100%" }}
+              value={triggerTimeUtc}
+              placeholder="YYYY-MM-DDTHH:MM:SS UTC — blank = first detection − 2 d"
+              onChange={(e) => setTriggerTimeUtc(e.target.value)}
+            />
+            <div style={{ fontSize: "0.8rem", opacity: 0.8 }}>
+              {triggerTimeUtc.trim() === ""
+                ? "No T0 set — the fit defaults to first detection − 2 days."
+                : utc_to_mjd(triggerTimeUtc.trim()) === null
+                  ? "Unrecognized UTC datetime."
+                  : `trigger_time = MJD ${utc_to_mjd(triggerTimeUtc.trim())!.toFixed(6)}${
+                      associatedGCNs.length > 0
+                        ? ` (from associated G-event${associatedGCNs.length > 1 ? "s" : ""})`
+                        : ""
+                    }`}
+            </div>
+          </div>
+        )}
         <div>
           <Form
             schema={AnalysisSelectionFormSchema as any}

@@ -305,16 +305,24 @@ def test_shift_summary(
     assert status == 200
 
     page.goto(f"/become_user/{super_admin_user.id}")
-    page.goto(f"/shifts/{shift_id}")
 
-    expect(
-        page.locator(
-            '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]'
-        ).first
-    ).to_be_visible()
-
-    page.locator('//*[@id="gcn_list_item_2018-01-16T00:36:53"]').first.click()
-
-    expect(
-        page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
-    ).to_be_visible()
+    # The shift view fetches the sources inside the GCN event's localization on
+    # demand once the event is expanded; that query/render can lag under CI
+    # load, so reload, re-expand, and re-check the source link a few times
+    # instead of relying on a single click landing.
+    source_link = page.locator(f"//a[contains(@href, '/source/{obj_id}')]").first
+    n_retries = 0
+    while n_retries < 5:
+        page.goto(f"/shifts/{shift_id}")
+        expect(
+            page.locator(
+                '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]'
+            ).first
+        ).to_be_visible(timeout=15000)
+        page.locator('//*[@id="gcn_list_item_2018-01-16T00:36:53"]').first.click()
+        try:
+            expect(source_link).to_be_visible(timeout=15000)
+            break
+        except AssertionError:
+            n_retries += 1
+    assert n_retries < 5

@@ -605,8 +605,9 @@ class DatalabQueryHandler(BaseHandler):
     ---
     summary: Add Datalab annotations
     description: |
-        get photo(z) of nearby sources and post them as an annotation
-        based on cross-matches to some catalog (default is LegacySurvey DR8).
+        get photo-z's (or, for DESI catalogs, spectroscopic redshifts) of
+        nearby sources and post them as an annotation based on cross-matches
+        to some catalog (default is LegacySurvey DR10).
     tags:
         - annotations
     parameters:
@@ -624,7 +625,7 @@ class DatalabQueryHandler(BaseHandler):
         description: |
           The name of the catalog key, associated with a catalog cross match,
           from which the photoz data should be retrieved.
-          Default is ls_dr9.
+          Default is ls_dr10.
       - in: query
         name: crossmatchRadius
         required: false
@@ -692,14 +693,25 @@ class DatalabQueryHandler(BaseHandler):
 
             author_id = self.associated_user_object.id
 
-            catalog = data.pop("catalog", "ls_dr9")
+            catalog = data.pop("catalog", "ls_dr10")
             radius_arcsec = data.pop("crossmatchRadius", 2.0)
             radius_deg = radius_arcsec / 3600.0
 
-            sql_query = f"""SELECT {catalog}.photo_z.ls_id, z_phot_median, z_phot_std, ra, dec, type, z_phot_l95, flux_z from {catalog}.photo_z
-                          INNER JOIN {catalog}.tractor
-                          ON {catalog}.tractor.ls_id = {catalog}.photo_z.ls_id
-                          where 't' = Q3C_RADIAL_QUERY(ra, dec, {obj.ra}, {obj.dec}, {radius_deg})"""
+            # DESI is a spectroscopic (not photo-z) survey with a different
+            # schema: zpix/photometry keyed by targetid, rather than
+            # photo_z/tractor keyed by ls_id.
+            if catalog.startswith("desi_"):
+                id_col = "targetid"
+                sql_query = f"""SELECT z.targetid, z.z, z.zerr, z.zwarn, z.spectype, p.ra, p.dec, p.flux_z from {catalog}.zpix AS z
+                              INNER JOIN {catalog}.photometry AS p
+                              ON p.targetid = z.targetid
+                              where 't' = Q3C_RADIAL_QUERY(p.ra, p.dec, {obj.ra}, {obj.dec}, {radius_deg})"""
+            else:
+                id_col = "ls_id"
+                sql_query = f"""SELECT {catalog}.photo_z.ls_id, z_phot_median, z_phot_std, ra, dec, type, z_phot_l95, flux_z from {catalog}.photo_z
+                              INNER JOIN {catalog}.tractor
+                              ON {catalog}.tractor.ls_id = {catalog}.photo_z.ls_id
+                              where 't' = Q3C_RADIAL_QUERY(ra, dec, {obj.ra}, {obj.dec}, {radius_deg})"""
             try:
                 query = qc.query(sql=sql_query)
             except qc.queryClientError as e:
@@ -708,9 +720,9 @@ class DatalabQueryHandler(BaseHandler):
             df = pd.read_table(StringIO(query), sep=",")
             annotations = []
             for index, row in df.iterrows():
-                ls_id = row["ls_id"]
-                origin = f"{catalog}-{ls_id}"
-                row.drop(index=["ls_id"], inplace=True)
+                source_id = row[id_col]
+                origin = f"{catalog}-{source_id}"
+                row.drop(index=[id_col], inplace=True)
                 annotation_data = row.to_dict()
                 annotation = Annotation(
                     data=annotation_data,

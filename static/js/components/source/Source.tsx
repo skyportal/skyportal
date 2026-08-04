@@ -813,6 +813,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <b className={classes.noWrapMargin}>
                     {`Distance: ${source.host_distance.toFixed(1)} [kpc]`}
                   </b>
+                  {source.host.redshift != null && (
+                    <b className={classes.noWrapMargin}>
+                      {`z: ${source.host.redshift.toFixed(
+                        getZRound(source.host.redshift_error),
+                      )}`}
+                    </b>
+                  )}
                   {!isReadOnly && (
                     <IconButton
                       size="small"

@@ -37,11 +37,13 @@ import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import CandidatesPreferences from "./CandidatesPreferences";
+import { filterAnnotationOrigins } from "./annotationSortOptions";
 import FormValidationError from "../FormValidationError";
 import { allowedClasses } from "../classification/ClassificationForm";
 import ClassificationSelect from "../classification/ClassificationSelect";
 import GenerateReportForm from "./scan_reports/GenerateReportForm";
 import Button from "../Button";
+import { Link } from "react-router-dom";
 import { Group } from "../../types";
 
 dayjs.extend(utc);
@@ -644,6 +646,11 @@ const FilterCandidateList = ({
               Generate report
             </Button>
           </Tooltip>
+          <Tooltip title="View previously generated scanning reports">
+            <Button secondary component={Link} to="/candidates/scan_reports">
+              View reports
+            </Button>
+          </Tooltip>
           <GenerateReportForm
             dialogOpen={generateReportDialogOpen}
             setDialogOpen={setGenerateReportDialogOpen}
@@ -1241,6 +1248,9 @@ const FilterCandidateList = ({
                         id="annotationSortingOriginSelect"
                         data-testid="annotationSortingOriginSelect"
                         options={Object.keys(availableAnnotationsInfo || [])}
+                        filterOptions={(options, state) =>
+                          filterAnnotationOrigins(options, state.inputValue)
+                        }
                         style={{ minWidth: "100%" }}
                         value={value}
                         onChange={(_event, newValue) => {

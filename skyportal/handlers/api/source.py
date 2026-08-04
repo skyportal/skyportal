@@ -425,7 +425,9 @@ async def get_source(
             set_committed_value(s, "host", host)
             source_info["host"] = host.to_dict()
             source_info["host_offset"] = s.host_offset.deg * 3600.0
-            source_info["host_distance"] = s.host_distance.value
+            # kpc: the separation is computed from Mpc distances, and the
+            # frontend labels this field kpc.
+            source_info["host_distance"] = s.host_distance.to(u.kpc).value
 
     if is_token_request:
         sv = SourceView(
@@ -2876,6 +2878,7 @@ class SourceOffsetsHandler(BaseHandler):
                     queries_issued,
                     noffsets,
                     used_ztfref,
+                    gaia_available,
                 ) = await IOLoop.current().run_in_executor(None, offset_func)
             except ValueError as e:
                 log(f"Error querying for nearby offset stars: {e}")
@@ -2898,6 +2901,7 @@ class SourceOffsetsHandler(BaseHandler):
                     "queries_issued": queries_issued,
                     "query": query_string,
                     "used_ztfref": used_ztfref,
+                    "gaia_available": gaia_available,
                 }
             )
 
@@ -3467,7 +3471,9 @@ class SurveyThumbnailHandler(BaseHandler):
         # SDSS/PS1/LS are generated automatically (this endpoint is hit on
         # source/candidate view). SkyMapper, HST, Chandra and JWST have slow or
         # flaky lookups, so they are only generated when explicitly requested.
-        default_types = ["sdss", "ps1", "ls"]
+        # Configurable so instances without external egress can disable these
+        # outbound survey-thumbnail fetches (set misc.external_thumbnail_types: []).
+        default_types = cfg.get("misc.external_thumbnail_types", ["sdss", "ps1", "ls"])
         on_demand_types = ["sm", "hst", "chandra", "jwst"]
         requested_types = data.get("types")
         if requested_types:

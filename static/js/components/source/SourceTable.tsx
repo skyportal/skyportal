@@ -30,6 +30,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
@@ -89,6 +90,14 @@ import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
 import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
+import {
+  altdataKeyForField,
+  buildAltdataColumnMeta,
+  buildAnnotationColumnMeta,
+  buildColumnPickerOptions,
+  filterColumnPickerOptions,
+  originKeyForAnnotationField,
+} from "./sourceTableColumns";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewSource from "./NewSource";
@@ -727,81 +736,66 @@ const SourceTable = ({
     }
   }, [sources]);
 
-  const allAnnotationColumnFields = useMemo(
-    () =>
-      Object.entries(annotationsInfo || {}).flatMap(([origin, keys]) =>
-        (keys as any[]).map(
-          (keyObj) => `annotation.${origin}.${Object.keys(keyObj)[0]}`,
-        ),
-      ),
+  // field -> origin/key for every discoverable annotation. A cheap map, NOT a
+  // column each: the registry is unbounded (per-object `ls_dr9-<objid>` origins),
+  // so only saved fields become columns (below). Powers the picker + round-trip.
+  const annotationColumnMeta = useMemo(
+    () => buildAnnotationColumnMeta(annotationsInfo),
     [annotationsInfo],
   );
-
-  const allAltdataColumnFields = useMemo(
-    () =>
-      (altdataInfo?.keys || []).map(
-        (keyObj) => `altdata.${Object.keys(keyObj)[0]}`,
-      ),
+  const altdataColumnMeta = useMemo(
+    () => buildAltdataColumnMeta(altdataInfo),
     [altdataInfo],
   );
 
-  // Annotation and altdata columns are opt-in: default each newly discovered one
-  // to hidden unless the user saved it as visible, preserving in-session choices.
-  useEffect(() => {
-    if (!allAnnotationColumnFields.length && !allAltdataColumnFields.length) {
-      return;
-    }
-    setColumnVisibilityModel((prev) => {
-      const next = { ...prev };
-      allAnnotationColumnFields.forEach((field) => {
-        if (!(field in next)) {
-          next[field] = savedAnnotationColumns.includes(field);
-        }
-      });
-      allAltdataColumnFields.forEach((field) => {
-        if (!(field in next)) {
-          next[field] = savedAltdataColumns.includes(field);
-        }
-      });
-      return next;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allAnnotationColumnFields, allAltdataColumnFields, currentUser]);
+  // Picker options: every discoverable field (Autocomplete caps what renders).
+  const columnPickerOptions = useMemo(
+    () => buildColumnPickerOptions(annotationColumnMeta, altdataColumnMeta),
+    [annotationColumnMeta, altdataColumnMeta],
+  );
 
-  // Persist the sets of visible annotation / altdata columns to the user's profile.
+  // Add a discoverable field to the saved selection (= what's materialized).
+  const handleAddColumn = useCallback(
+    (field: string) => {
+      if (!field) return;
+      if (field.startsWith("annotation.")) {
+        if (savedAnnotationColumns.includes(field)) return;
+        updateUserPreferences({
+          sourceTableAnnotationColumns: [...savedAnnotationColumns, field],
+        });
+      } else if (field.startsWith("altdata.")) {
+        if (savedAltdataColumns.includes(field)) return;
+        updateUserPreferences({
+          sourceTableAltdataColumns: [...savedAltdataColumns, field],
+        });
+      }
+    },
+    [savedAnnotationColumns, savedAltdataColumns, updateUserPreferences],
+  );
+
+  // Unchecking a saved annotation/altdata column in the panel drops it from the
+  // saved selection (and so unmaterializes it); re-add via the toolbar picker.
   const handleColumnVisibilityModelChange = useCallback(
     (model: Record<string, boolean>) => {
       setColumnVisibilityModel(model);
       const prefs: Record<string, string[]> = {};
-      const visibleAnnotation = allAnnotationColumnFields.filter(
+      const visibleAnnotation = savedAnnotationColumns.filter(
         (f) => model[f] !== false,
       );
-      if (
-        visibleAnnotation.length !== savedAnnotationColumns.length ||
-        visibleAnnotation.some((f) => !savedAnnotationColumns.includes(f))
-      ) {
+      if (visibleAnnotation.length !== savedAnnotationColumns.length) {
         prefs["sourceTableAnnotationColumns"] = visibleAnnotation;
       }
-      const visibleAltdata = allAltdataColumnFields.filter(
+      const visibleAltdata = savedAltdataColumns.filter(
         (f) => model[f] !== false,
       );
-      if (
-        visibleAltdata.length !== savedAltdataColumns.length ||
-        visibleAltdata.some((f) => !savedAltdataColumns.includes(f))
-      ) {
+      if (visibleAltdata.length !== savedAltdataColumns.length) {
         prefs["sourceTableAltdataColumns"] = visibleAltdata;
       }
       if (Object.keys(prefs).length > 0) {
         updateUserPreferences(prefs);
       }
     },
-    [
-      allAnnotationColumnFields,
-      allAltdataColumnFields,
-      savedAnnotationColumns,
-      savedAltdataColumns,
-      updateUserPreferences,
-    ],
+    [savedAnnotationColumns, savedAltdataColumns, updateUserPreferences],
   );
 
   useEffect(() => {
@@ -1566,39 +1560,34 @@ const SourceTable = ({
       });
     }
 
-    // One opt-in column per annotation origin/key pair. The field encodes the
-    // server sort string ("annotation.<origin>.<key>"), so server-side sorting
-    // works through the existing SERVER_SORT_FIELD fallback.
-    Object.entries(annotationsInfo || {}).forEach(([origin, keys]) => {
-      (keys as any[]).forEach((keyObj) => {
-        const key = Object.keys(keyObj)[0];
-        if (!key) {
-          return;
-        }
-        cols.push({
-          field: `annotation.${origin}.${key}`,
-          headerName: `${key} (${origin})`,
-          flex: 1,
-          minWidth: 120,
-          valueGetter: (_value: any, row: any) => {
-            const ann = (row.annotations || []).find(
-              (a: any) => a.origin === origin,
-            );
-            const value = ann?.data?.[key];
-            return value === undefined ? null : getAnnotationValueString(value);
-          },
-        });
+    // Materialize a column only for each annotation the user has saved (the
+    // global registry is unbounded — see annotationColumnMeta). Field encodes
+    // the server sort string, so server-side sort works via SERVER_SORT_FIELD.
+    savedAnnotationColumns.forEach((field) => {
+      const { origin, key } = originKeyForAnnotationField(
+        field,
+        annotationColumnMeta,
+      );
+      cols.push({
+        field,
+        headerName: `${key} (${origin})`,
+        flex: 1,
+        minWidth: 120,
+        valueGetter: (_value: any, row: any) => {
+          const ann = (row.annotations || []).find(
+            (a: any) => a.origin === origin,
+          );
+          const value = ann?.data?.[key];
+          return value === undefined ? null : getAnnotationValueString(value);
+        },
       });
     });
 
-    // One opt-in column per top-level altdata key (field = server sort string).
-    (altdataInfo?.keys || []).forEach((keyObj) => {
-      const key = Object.keys(keyObj)[0];
-      if (!key) {
-        return;
-      }
+    // Likewise, only saved altdata keys become columns.
+    savedAltdataColumns.forEach((field) => {
+      const key = altdataKeyForField(field, altdataColumnMeta);
       cols.push({
-        field: `altdata.${key}`,
+        field,
         headerName: `${key} (altdata)`,
         flex: 1,
         minWidth: 120,
@@ -1613,8 +1602,10 @@ const SourceTable = ({
 
     return cols;
   }, [
-    annotationsInfo,
-    altdataInfo,
+    annotationColumnMeta,
+    altdataColumnMeta,
+    savedAnnotationColumns,
+    savedAltdataColumns,
     classes,
     navigate,
     taxonomyList,
@@ -1952,6 +1943,31 @@ const SourceTable = ({
                   />
                 ))}
               </div>
+            )}
+            {columnPickerOptions.length > 0 && (
+              <Autocomplete
+                options={columnPickerOptions}
+                getOptionLabel={(o) => o.label}
+                // Nothing until the user types, then capped matches, so a large
+                // registry never floods the dropdown.
+                filterOptions={(opts, state) =>
+                  filterColumnPickerOptions(opts, state.inputValue)
+                }
+                onChange={(_e, value) => value && handleAddColumn(value.field)}
+                value={null}
+                blurOnSelect
+                clearOnBlur
+                size="small"
+                sx={{ width: 340, marginBottom: "0.5rem" }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    variant="standard"
+                    placeholder="Add annotation / altdata column…"
+                    data-testid="add-column-picker"
+                  />
+                )}
+              />
             )}
             <Box
               sx={{

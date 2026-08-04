@@ -213,13 +213,14 @@ def test_get_nearby_offset_stars():
     rez = get_nearby_offset_stars(
         123.0, 33.3, "testSource", how_many=how_many, radius_degrees=3 / 60.0
     )
-    # expecting 5 parameters:
+    # expecting 6 parameters:
     #   a list of the source+offset stars,
     #   What query was used against Gaia,
     #   number of queries_issued,
     #   number of offset stars
-    #   whether ZRF ref was used for astrometry
-    assert len(rez) == 5
+    #   whether ZTF ref was used for astrometry
+    #   whether Gaia was reachable (proper motion could be applied)
+    assert len(rez) == 6
     assert isinstance(rez[0], list)
     assert len(rez[0]) == how_many + 1
 

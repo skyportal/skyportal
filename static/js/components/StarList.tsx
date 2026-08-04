@@ -9,6 +9,8 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import Tooltip from "@mui/material/Tooltip";
 import FormControl from "@mui/material/FormControl";
 import CircularProgress from "@mui/material/CircularProgress";
+import Chip from "@mui/material/Chip";
+import WarningAmberOutlined from "@mui/icons-material/WarningAmberOutlined";
 
 import { useAppDispatch } from "../types/hooks";
 import { GET } from "../API";
@@ -23,6 +25,7 @@ interface StarListBodyProps {
   facility: string;
   setFacility: (...args: any[]) => void;
   setStarList: (...args: any[]) => void;
+  gaiaAvailable?: boolean;
 }
 
 const StarListBody = ({
@@ -30,6 +33,7 @@ const StarListBody = ({
   facility,
   setFacility,
   setStarList,
+  gaiaAvailable = true,
 }: StarListBodyProps) => {
   const handleChange = (event: any) => {
     setFacility(event.target.value);
@@ -38,22 +42,41 @@ const StarListBody = ({
 
   return (
     <div style={{ marginTop: "1rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <FormControl size="small">
-          <InputLabel id="StarListSelect">Facility</InputLabel>
-          <Select
-            label="Facility"
-            labelId="StarListSelect"
-            value={facility}
-            onChange={handleChange}
-            name="StarListSelectElement"
-          >
-            <MenuItem value="Keck">Keck</MenuItem>
-            <MenuItem value="P200">P200</MenuItem>
-            <MenuItem value="P200-NGPS">P200 (NGPS)</MenuItem>
-            <MenuItem value="Shane">Shane</MenuItem>
-          </Select>
-        </FormControl>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <FormControl size="small">
+            <InputLabel id="StarListSelect">Facility</InputLabel>
+            <Select
+              label="Facility"
+              labelId="StarListSelect"
+              value={facility}
+              onChange={handleChange}
+              name="StarListSelectElement"
+            >
+              <MenuItem value="Keck">Keck</MenuItem>
+              <MenuItem value="P200">P200</MenuItem>
+              <MenuItem value="P200-NGPS">P200 (NGPS)</MenuItem>
+              <MenuItem value="Shane">Shane</MenuItem>
+            </Select>
+          </FormControl>
+          {!gaiaAvailable && (
+            <Tooltip title="Gaia TAP server unreachable: proper motion was not applied to offsets, so high-proper-motion offset stars may be inaccurate.">
+              <Chip
+                icon={<WarningAmberOutlined />}
+                label="No proper motion (Gaia down)"
+                color="warning"
+                size="small"
+                variant="outlined"
+              />
+            </Tooltip>
+          )}
+        </div>
         <div>
           <Tooltip title="Copy to clipboard">
             <span>
@@ -119,6 +142,7 @@ interface StarListProps {
 
 const StarList = ({ sourceId }: StarListProps) => {
   const [starList, setStarList] = useState<StarListItem[] | null>(null);
+  const [gaiaAvailable, setGaiaAvailable] = useState(true);
   const dispatch = useAppDispatch();
   const [facility, setFacility] = useState("Keck");
 
@@ -131,6 +155,7 @@ const StarList = ({ sourceId }: StarListProps) => {
         ),
       );
 
+      setGaiaAvailable(response?.data?.gaia_available !== false);
       let data = response.data.starlist_info || [];
       // if the facility is P200-NGPS, we add the header to the starlist
       if (facility === "P200-NGPS") {
@@ -153,6 +178,7 @@ const StarList = ({ sourceId }: StarListProps) => {
       facility={facility}
       setFacility={setFacility}
       setStarList={setStarList}
+      gaiaAvailable={gaiaAvailable}
     />
   );
 };
@@ -164,6 +190,7 @@ export const ObservingRunStarList = ({
 }) => {
   const dispatch = useAppDispatch();
   const [starList, setStarList] = useState<StarListItem[] | null>(null);
+  const [gaiaAvailable, setGaiaAvailable] = useState(true);
   const { data: observingRun } = useGetObservingRunQuery(
     observingRunId as number | string,
     { skip: observingRunId == null },
@@ -194,6 +221,13 @@ export const ObservingRunStarList = ({
       const standard_value: any[] = await Promise.allSettled(standard_promise);
       values.push(standard_value[0]);
 
+      // Gaia down for any assignment means no proper motion was applied.
+      setGaiaAvailable(
+        !values.some(
+          (response) => response?.value?.data?.gaia_available === false,
+        ),
+      );
+
       values.forEach((response) =>
         starlistInfo.push(...response.value.data.starlist_info),
       );
@@ -218,6 +252,7 @@ export const ObservingRunStarList = ({
       facility={facility}
       setStarList={setStarList}
       setFacility={setFacility}
+      gaiaAvailable={gaiaAvailable}
     />
   );
 };

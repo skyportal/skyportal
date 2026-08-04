@@ -629,6 +629,10 @@ async def standardize_photometry_data(data, session):
             f"Top level JSON must be an instance of `dict`, got {type(data)}."
         )
 
+    # Opt-in flag: input mags are already MW-dereddened. Pop it (scalar) before
+    # the payload is shaped into a DataFrame; applied after standardization.
+    extinction_corrected = str_to_bool(data.pop("extinction_corrected", False))
+
     max_num_elements = max(
         [
             len(data[key])
@@ -939,7 +943,61 @@ async def standardize_photometry_data(data, session):
         if oid not in existing_oids:
             raise ValidationError(f"Invalid object ID: {oid}")
 
+    if extinction_corrected:
+        df = await _redden_standardized_photometry(df, unique_oids, session)
+
     return df, instrument_cache
+
+
+async def _redden_standardized_photometry(df, unique_oids, session):
+    """Undo an MW-extinction correction the uploader already applied.
+
+    SkyPortal stores observed photometry and dereddens on display, so re-redden
+    the standardized flux here (inverse of ``deredden_flux``) using the same
+    SFD + G23 A_lambda at each source's coordinates. The upload -> store ->
+    display round-trip is then exact.
+    """
+    obj_coords = {
+        oid: (ra, dec)
+        for oid, ra, dec in (
+            await session.execute(
+                sa.select(Obj.id, Obj.ra, Obj.dec).where(Obj.id.in_(unique_oids))
+            )
+        ).all()
+    }
+    # A_lambda per (obj, filter), computed once at the source coordinates.
+    a_lambda = {}
+    for oid, filt in {tuple(pair) for pair in zip(df["obj_id"], df["filter"])}:
+        ra, dec = obj_coords.get(oid, (None, None))
+        if nan_to_none(ra) is None or nan_to_none(dec) is None:
+            raise ValidationError(
+                f"Cannot store extinction-corrected photometry for object {oid}: "
+                "it has no coordinates."
+            )
+        a = calculate_extinction(ra, dec, filt)
+        if a is None:
+            raise ValidationError(
+                f"No Galactic extinction coefficient for filter '{filt}' "
+                f"(object {oid}); cannot store extinction-corrected photometry."
+            )
+        a_lambda[(oid, filt)] = a
+
+    # observed_flux = corrected_flux * 10 ** (-0.4 * A_lambda)
+    factor = np.array(
+        [
+            10 ** (-0.4 * a_lambda[(oid, filt)])
+            for oid, filt in zip(df["obj_id"], df["filter"])
+        ]
+    )
+    for col in (
+        "standardized_flux",
+        "standardized_fluxerr",
+        "ref_standardized_flux",
+        "ref_standardized_fluxerr",
+    ):
+        if col in df.columns:
+            df[col] = df[col].to_numpy() * factor
+    return df
 
 
 # Per-column coercions applied when building a dedup key from either an

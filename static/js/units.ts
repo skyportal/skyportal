@@ -89,6 +89,14 @@ function mjd_to_utc(mjd: number): string {
     .format();
 }
 
+function utc_to_mjd(datetime?: string | null): number | null {
+  // Inverse of mjd_to_utc: a UTC datetime string (naive strings are read as
+  // UTC) -> MJD (Unix epoch = MJD 40587). Null if empty or unparseable.
+  if (!datetime) return null;
+  const ms = dayjs.utc(datetime.replace(" ", "T")).valueOf();
+  return Number.isNaN(ms) ? null : ms / 86400000 + 40587;
+}
+
 function time_relative_to_local(isostring: string): string {
   // Take an ISO 8601 string and return the offset relative to the local time
   return dayjs(isostring).local().fromNow();
@@ -108,5 +116,6 @@ export {
   dms_to_dec,
   time_relative_to_local,
   mjd_to_utc,
+  utc_to_mjd,
   flux_to_mag,
 };

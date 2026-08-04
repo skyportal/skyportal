@@ -733,6 +733,12 @@ misc:
   max_seconds_to_sleep_reminders_service: 60
   max_seconds_to_sleep_recurring_apis_service: 60
   public_group_name: "Sitewide Group"
+  # External survey thumbnails fetched (outbound HTTP) when a source is saved.
+  # Set to [] to disable, e.g. on instances without external network egress.
+  external_thumbnail_types:
+    - sdss
+    - ps1
+    - ls
   # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies
   # or supply the arguments for an `astropy.cosmology.FLRW` cosmological instance.
   # If {"flat": True} then use a subclass of the FLRW, called `FlatLambdaCMD`
