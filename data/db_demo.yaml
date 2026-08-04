@@ -80,13 +80,13 @@ brokers:
     broker_classname: ALERCEBROKER
     active: true
     default_alert_search: true
-    default_crossmatch: true
   - name: ANTARES
     broker_classname: ANTARESBROKER
     active: true
   - name: BOOM
     broker_classname: BOOMBROKER
     active: false
+    default_crossmatch: true
     altdata:
       protocol: https
       host: api.kaboom.caltech.edu
